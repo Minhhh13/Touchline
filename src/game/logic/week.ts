@@ -5,10 +5,11 @@ import { beginMatch, finishMatch, simulateMatch, type FullMatchResult, type Matc
 import { aiTeamInput, applyMatchToState, benchMoraleDrift, computeTable, cupRounds, describeImportance, drawNextCupRound, positionOf, recoverWeek, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type CupTie, type NewsItem } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
-import { advanceWindow, openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
+import { openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
 import { computeAwards } from '@engine/awards'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, lineupProblems, squadWages } from './squad'
+import { tickWindow } from './marketOps'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { Tactics } from '@engine/types'
@@ -401,7 +402,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse): void {
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
-      if (game.window.day < game.window.days) advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, leagues: game.settings.wheelLeagues }, game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed })), Object.keys(season.ai))
+      if (game.window.day < game.window.days) tickWindow(game, u, rng)
     }
     if (game.window.day >= game.window.days) {
       news(game, { kind: 'transfer', title: 'Window closed', body: 'The January window has shut.' })

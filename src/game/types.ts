@@ -42,6 +42,8 @@ export interface Contract {
   declined?: boolean
   /** Transfer-listed: offers come in more often. */
   listed?: boolean
+  /** On loan for this season only: he goes back to his club in the summer. */
+  loan?: boolean
 }
 
 export interface SeasonRecord {
@@ -106,6 +108,8 @@ export interface Game {
   window: Window | null
   pendingEvent: GameEvent | null
   promisedStart?: string
+  /** Matchweek each player was last spoken to, one conversation per week. */
+  talks?: Record<string, number>
   nextMatchBoost?: { attack?: number; defence?: number }
   /** A match paused at half time, waiting for the manager. */
   live: LiveMatch | null

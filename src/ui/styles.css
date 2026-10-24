@@ -1266,10 +1266,16 @@ table.tbl tr.clickable:hover {
   display: flex;
   gap: 6px;
   align-items: center;
+  flex-wrap: wrap;
   margin-top: 6px;
 }
 .bidrow input {
   width: 110px;
+}
+.bidrow select {
+  width: auto;
+  max-width: 190px;
+  padding: 6px 8px;
 }
 .hidden-ratings .rating {
   background: var(--bg-3) !important;

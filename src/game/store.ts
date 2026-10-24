@@ -13,7 +13,8 @@ import { createGame, beginSeason } from './logic/setup'
 import { runQuickSeason } from './logic/quick'
 import { applyEventChoice, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation } from './logic/squad'
-import { acceptOffer, advanceDay, bidFor, rejectOffer, releasePlayer } from './logic/marketOps'
+import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
+import { talkTo, type TalkKind } from './logic/talks'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
@@ -97,7 +98,10 @@ interface Store {
   setCaptain: (id: string) => void
 
   resolveEvent: (choiceId: string) => void
-  bid: (listingId: string, amount: number) => { accepted: boolean; message: string }
+  bid: (listingId: string, amount: number, opts?: BidOptions) => { accepted: boolean; message: string }
+  loan: (listingId: string) => { accepted: boolean; message: string }
+  talk: (playerSeasonId: string, kind: TalkKind) => { message: string }
+  enquire: (playerSeasonId: string) => { ok: boolean; message: string }
   acceptOffer: (index: number) => void
   rejectOffer: (index: number) => void
   release: (playerSeasonId: string) => void
@@ -336,12 +340,33 @@ export const useStore = create<Store>()(
         setCaptain: (id) => mutate((g) => void (g.captainId = id)),
 
         resolveEvent: (choiceId) => mutate((g, u) => applyEventChoice(g, u, choiceId)),
-        bid: (listingId, amount) => {
+        bid: (listingId, amount, opts) => {
           let out = { accepted: false, message: 'No game' }
           mutate((g, u) => {
-            out = bidFor(g, u, listingId, amount)
+            out = bidFor(g, u, listingId, amount, opts)
           })
           unlockFromGame()
+          return out
+        },
+        talk: (id, kind) => {
+          let out = { message: 'No game' }
+          mutate((g, u) => {
+            out = talkTo(g, u, id, kind)
+          })
+          return out
+        },
+        loan: (listingId) => {
+          let out = { accepted: false, message: 'No game' }
+          mutate((g, u) => {
+            out = loanFor(g, u, listingId)
+          })
+          return out
+        },
+        enquire: (playerSeasonId) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = enquireFor(g, u, playerSeasonId)
+          })
           return out
         },
         acceptOffer: (i) => mutate((g, u) => acceptOffer(g, u, i)),

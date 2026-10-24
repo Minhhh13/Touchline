@@ -112,6 +112,11 @@ export function App() {
                 <b>Left on expired contracts:</b> {offseason.expired.join(', ')}
               </p>
             )}
+            {offseason.returned.length > 0 && (
+              <p>
+                <b>Back to their clubs after loans:</b> {offseason.returned.join(', ')}
+              </p>
+            )}
             {offseason.improved.length > 0 && (
               <p>
                 <b>Improved:</b> {offseason.improved.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}

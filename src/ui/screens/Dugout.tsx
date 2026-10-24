@@ -9,6 +9,7 @@ import { nextOpponent, upcomingCupTie } from '@game/logic/week'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import { teamStrength, lineupProblems } from '@game/logic/squad'
 import { SQUAD_CAP } from '@game/logic/marketOps'
+import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -460,8 +461,22 @@ function MarketTab() {
   const store = useStore()
   const { universe: u, game } = store
   const [bids, setBids] = useState<Record<string, number>>({})
+  const [years, setYears] = useState<Record<string, number>>({})
+  const [exchange, setExchange] = useState<Record<string, string>>({})
   const [filter, setFilter] = useState<'all' | Position>('all')
   const [msg, setMsg] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const results = useMemo(() => {
+    if (!u || !game) return []
+    const q = query.trim().toLowerCase()
+    if (q.length < 2) return []
+    const owned = new Set(Object.keys(game.squad).map((id) => (game.customPlayers[id] ?? u.index[id])?.playerId))
+    const { fromSeason, toSeason } = game.settings.rules
+    return Object.values(u.index)
+      .filter((p) => p.name.toLowerCase().includes(q) && !owned.has(p.playerId) && game.settings.wheelLeagues.includes(u.clubById[p.clubId]?.leagueId ?? '') && (fromSeason === undefined || p.season >= fromSeason) && (toSeason === undefined || p.season <= toSeason))
+      .sort((a, b) => b.overall - a.overall)
+      .slice(0, 14)
+  }, [u, game, query])
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const w = game.window
@@ -493,7 +508,7 @@ function MarketTab() {
                   </td>
                   <td className="num">{money(x.p.value)}</td>
                   <td className="num">{wage(x.p.wage)}</td>
-                  <td className="num">{game.contracts[x.p.id]?.years ?? 1}y</td>
+                  <td className="num">{game.contracts[x.p.id]?.loan ? 'Loan' : `${game.contracts[x.p.id]?.years ?? 1}y`}</td>
                 </tr>
               ))}
           </tbody>
@@ -538,7 +553,7 @@ function MarketTab() {
                   <PlayerRow p={p} showClub right={<span className="small muted">{wage(p.wage)}</span>} />
                   <div className="tags">
                     {l.tags.map((t) => (
-                      <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' ? 'warn' : t === 'Deadline discount' ? 'good' : ''}`}>
+                      <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' ? 'good' : ''}`}>
                         {t}
                       </span>
                     ))}
@@ -551,7 +566,7 @@ function MarketTab() {
                     <button
                       className="btn sm primary"
                       onClick={() => {
-                        const out = store.bid(l.playerSeasonId, bid)
+                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], exchangeId: exchange[l.playerSeasonId] || undefined })
                         setMsg(out.message)
                       }}
                     >
@@ -560,6 +575,29 @@ function MarketTab() {
                     <button className="btn sm" onClick={() => setBids({ ...bids, [l.playerSeasonId]: Math.round(l.asking * 0.9 * 10) / 10 })}>
                       −10%
                     </button>
+                    <select className="input" value={years[l.playerSeasonId] ?? (p.age >= 32 ? 1 : 3)} onChange={(e) => setYears({ ...years, [l.playerSeasonId]: Number(e.target.value) })} title="Contract length">
+                      {[1, 2, 3, 4].filter((y) => y <= (p.age >= 33 ? 2 : 4)).map((y) => (
+                        <option key={y} value={y}>
+                          {y}-year deal
+                        </option>
+                      ))}
+                    </select>
+                    <select className="input" value={exchange[l.playerSeasonId] ?? ''} onChange={(e) => setExchange({ ...exchange, [l.playerSeasonId]: e.target.value })} title="Offer a player in part-exchange">
+                      <option value="">Cash only</option>
+                      {squad
+                        .filter((x) => !game.contracts[x.p.id]?.loan)
+                        .sort((a, b) => b.p.overall - a.p.overall)
+                        .map((x) => (
+                          <option key={x.p.id} value={x.p.id}>
+                            + {x.p.name} ({x.p.overall})
+                          </option>
+                        ))}
+                    </select>
+                    {l.loanFee !== undefined && (
+                      <button className="btn sm" onClick={() => setMsg(store.loan(l.playerSeasonId).message)} title="Season-long loan: small fee, full wages, back to his club in the summer">
+                        Loan for {money(l.loanFee)}
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -575,6 +613,29 @@ function MarketTab() {
         </div>
       </div>
       <div className="col">
+        <div className="panel">
+          <h3>Approach any player</h3>
+          <p className="small muted">Not on the market? Ask anyway. Clubs quote a premium for players they wanted to keep and refuse outright for their stars.</p>
+          <input className="input" placeholder="Search every player in the database…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          {results.length > 0 && (
+            <div className="col" style={{ gap: 4, maxHeight: 280, overflow: 'auto', marginTop: 6 }}>
+              {results.map((p) => (
+                <PlayerRow
+                  key={p.id}
+                  p={p}
+                  showClub
+                  onClick={() => {
+                    const out = store.enquire(p.id)
+                    setMsg(out.message)
+                    if (out.ok) setQuery('')
+                  }}
+                  right={<span className="btn sm">Enquire</span>}
+                />
+              ))}
+            </div>
+          )}
+          {query.trim().length >= 2 && results.length === 0 && <div className="small muted" style={{ marginTop: 6 }}>No one by that name in the leagues and eras this game draws from.</div>}
+        </div>
         <div className="panel">
           <h3>Offers for your players</h3>
           {offers.length === 0 && <div className="muted small">No offers on the table.</div>}
@@ -754,6 +815,7 @@ function EventCard() {
 function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }) {
   const store = useStore()
   const { universe: u, game } = store
+  const [talkMsg, setTalkMsg] = useState<string | null>(null)
   if (!u || !game || !id) return null
   const get = playerLookup(game, u)
   const p = get(id)
@@ -845,7 +907,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
                 </>
               )}
               <dt>Contract</dt>
-              <dd>{game.contracts[p.id]?.years ?? 1} season(s)</dd>
+              <dd>{game.contracts[p.id]?.loan ? 'On loan until the summer' : `${game.contracts[p.id]?.years ?? 1} season(s)`}</dd>
             </div>
           </div>
         )}
@@ -865,6 +927,26 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
           <button className="btn sm" onClick={() => { store.setCaptain(p.id); onClose() }}>
             Make captain
           </button>
+        </div>
+      )}
+      {s && game.season && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="row between wrap">
+            <b>Have a word</b>
+            <span className="small muted">Morale {moraleWord(s.morale)} · one conversation a week</span>
+          </div>
+          {game.talks?.[p.id] === game.season.matchweek ? (
+            <div className="small muted" style={{ marginTop: 6 }}>You spoke to him this week. Leave it there.</div>
+          ) : (
+            <div className="row wrap" style={{ marginTop: 8 }}>
+              {(Object.keys(TALK_LABEL) as TalkKind[]).map((k) => (
+                <button key={k} className="btn sm" title={TALK_LABEL[k].hint} onClick={() => setTalkMsg(store.talk(p.id, k).message)}>
+                  {TALK_LABEL[k].label}
+                </button>
+              ))}
+            </div>
+          )}
+          {talkMsg && <div className="notice" style={{ marginTop: 8 }}>{talkMsg}</div>}
         </div>
       )}
     </Modal>

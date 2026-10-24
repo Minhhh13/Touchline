@@ -51,6 +51,8 @@ export function ageOneYear(p: PlayerSeason, rng: Rng, year: number): PlayerSeaso
 export interface OffseasonReport {
   retired: string[]
   expired: string[]
+  /** Loan players who went back to their clubs. */
+  returned: string[]
   improved: Array<{ name: string; from: number; to: number }>
   declined: Array<{ name: string; from: number; to: number }>
 }
@@ -59,7 +61,7 @@ export interface OffseasonReport {
 export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonReport {
   const rng = Rng.fromState(game.rngState)
   const get = playerLookup(game, u)
-  const report: OffseasonReport = { retired: [], expired: [], improved: [], declined: [] }
+  const report: OffseasonReport = { retired: [], expired: [], returned: [], improved: [], declined: [] }
   game.year += 1
   const targetLeague = game.pendingMove?.leagueId ?? game.settings.leagueId
   const leagueSeasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === targetLeague).map((cs) => cs.season))].sort()
@@ -84,6 +86,10 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     const s = game.squad[id]
     if (!p || !s) continue
     const contract = game.contracts[id] ?? { years: 1 }
+    if (contract.loan) {
+      report.returned.push(p.name)
+      continue
+    }
     const aged = ageOneYear(p, rng, game.year)
     // Retirement
     if (aged.age >= 34 && rng.chance(aged.age >= 37 ? 0.9 : aged.age >= 36 ? 0.6 : 0.3)) {
@@ -126,7 +132,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   game.pendingEvent = null
   game.window = null
   // Summer: bonus wheel spins scale with how many left, plus a summer market
-  const lost = report.retired.length + report.expired.length
+  const lost = report.retired.length + report.expired.length + report.returned.length
   game.bonusSpins += Math.min(6, 2 + lost)
   const formation = getFormation(game.tactics.formationId)
   const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1 })
