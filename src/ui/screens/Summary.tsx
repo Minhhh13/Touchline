@@ -57,6 +57,12 @@ export function Summary() {
   }
   const squad = squadPlayers(game, u)
   const isManage = game.settings.mode === 'season' || game.settings.mode === 'dynasty'
+  // How the club you replaced actually did that season, when a complete real table exists
+  const realRow = useMemo(() => {
+    const cs = u.clubSeasonByKey[`${game.settings.hostClubId}@${game.settings.leagueSeason}`]
+    if (!cs?.complete) return null
+    return u.tables[game.settings.leagueId]?.[game.settings.leagueSeason]?.find((r) => r.clubId === game.settings.hostClubId) ?? null
+  }, [u, game.settings.hostClubId, game.settings.leagueSeason, game.settings.leagueId])
   const [cardUrl, setCardUrl] = useState<string | null>(null)
   const makeCard = () => {
     try {
@@ -94,6 +100,12 @@ export function Summary() {
           <span className="d">{record.drawn}D</span>
           <span className="l">{record.lost}L</span>
         </div>
+        {realRow && (
+          <div className="small muted" style={{ marginTop: 8 }}>
+            The real {clubName(u, game.settings.hostClubId)} finished {ordinal(realRow.position)} with {realRow.points} points that season.{' '}
+            {record.position < realRow.position ? `You beat them by ${realRow.position - record.position} place${realRow.position - record.position === 1 ? '' : 's'}.` : record.position === realRow.position ? 'Same place, different squad.' : `They did better, by ${record.position - realRow.position} place${record.position - realRow.position === 1 ? '' : 's'}.`}
+          </div>
+        )}
         <div className="row" style={{ justifyContent: 'center', gap: 24, marginTop: 10 }}>
           <Stat label="Points" value={record.points} />
           <Stat label="Finished" value={ordinal(record.position)} />

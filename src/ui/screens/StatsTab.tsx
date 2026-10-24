@@ -37,8 +37,72 @@ export function StatsTab() {
       .sort((a, b) => b.v - a.v || b.s.seasonStats.apps - a.s.seasonStats.apps)
       .slice(0, 25)
   }, [u, game, stat])
+  const records = useMemo(() => {
+    if (!game?.season) return null
+    const mine = game.season.fixtures.filter((f) => f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)).sort((a, b) => a.matchweek - b.matchweek)
+    if (!mine.length) return null
+    let bigWin: { f: (typeof mine)[number]; margin: number } | null = null
+    let bigLoss: { f: (typeof mine)[number]; margin: number } | null = null
+    let unbeaten = 0
+    let bestUnbeaten = 0
+    let winning = 0
+    let bestWinning = 0
+    let cleanSheets = 0
+    let scoredIn = 0
+    for (const f of mine) {
+      const home = f.homeTeamId === USER_TEAM
+      const gf = home ? f.result!.homeGoals : f.result!.awayGoals
+      const ga = home ? f.result!.awayGoals : f.result!.homeGoals
+      const margin = gf - ga
+      if (margin > 0 && (!bigWin || margin > bigWin.margin)) bigWin = { f, margin }
+      if (margin < 0 && (!bigLoss || margin < bigLoss.margin)) bigLoss = { f, margin }
+      unbeaten = margin >= 0 ? unbeaten + 1 : 0
+      winning = margin > 0 ? winning + 1 : 0
+      bestUnbeaten = Math.max(bestUnbeaten, unbeaten)
+      bestWinning = Math.max(bestWinning, winning)
+      if (ga === 0) cleanSheets++
+      if (gf > 0) scoredIn++
+    }
+    const describe = (x: { f: (typeof mine)[number] } | null) => {
+      if (!x) return '–'
+      const home = x.f.homeTeamId === USER_TEAM
+      const opp = home ? x.f.awayTeamId : x.f.homeTeamId
+      return `${x.f.result!.homeGoals}-${x.f.result!.awayGoals} ${home ? 'v' : 'at'} ${u?.clubById[opp]?.shortName ?? opp} (MW ${x.f.matchweek})`
+    }
+    return { played: mine.length, bigWin: describe(bigWin), bigLoss: describe(bigLoss), bestUnbeaten, bestWinning, cleanSheets, scoredIn, unbeatenNow: unbeaten, winningNow: winning }
+  }, [u, game])
   if (!u || !game?.season) return null
   return (
+    <>
+      {records && (
+        <div className="panel" style={{ marginBottom: 12 }}>
+          <h3>Season records</h3>
+          <div className="kv">
+            <dt>Biggest win</dt>
+            <dd>{records.bigWin}</dd>
+            <dt>Heaviest defeat</dt>
+            <dd>{records.bigLoss}</dd>
+            <dt>Longest unbeaten run</dt>
+            <dd>
+              {records.bestUnbeaten} match{records.bestUnbeaten === 1 ? '' : 'es'}
+              {records.unbeatenNow >= 3 && records.unbeatenNow === records.bestUnbeaten ? ' (and counting)' : ''}
+            </dd>
+            <dt>Longest winning run</dt>
+            <dd>
+              {records.bestWinning} match{records.bestWinning === 1 ? '' : 'es'}
+              {records.winningNow >= 3 && records.winningNow === records.bestWinning ? ' (and counting)' : ''}
+            </dd>
+            <dt>Clean sheets</dt>
+            <dd>
+              {records.cleanSheets} of {records.played}
+            </dd>
+            <dt>Scored in</dt>
+            <dd>
+              {records.scoredIn} of {records.played}
+            </dd>
+          </div>
+        </div>
+      )}
     <div className="panel">
       <div className="panel-head">
         <h3>League statistics</h3>
@@ -98,5 +162,6 @@ export function StatsTab() {
         </tbody>
       </table>
     </div>
+    </>
   )
 }
