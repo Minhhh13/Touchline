@@ -13,8 +13,10 @@ import { getFormation } from './formations'
 
 export const USER_TEAM = 'user'
 /** Matchweeks in a double round robin of `teams` clubs. */
+/** League matchweeks: a double round-robin; an odd number of clubs adds a bye slot. */
 export function matchweeksFor(teams: number): number {
-  return (teams - 1) * 2
+  const slots = teams % 2 === 1 ? teams + 1 : teams
+  return (slots - 1) * 2
 }
 
 export interface AiClub {
@@ -382,7 +384,9 @@ export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, m
   const row = table.find((r) => r.teamId === teamId)!
   const pos = positionOf(table, teamId)
   const n = table.length
-  if (row.won === matchweeks) return 'PERFECT'
+  const played = row.won + row.drawn + row.lost
+  void matchweeks
+  if (played > 0 && row.won === played) return 'PERFECT'
   if (row.lost === 0 && pos === 1) return 'INVINCIBLE'
   if (pos === 1) return 'CHAMPIONS'
   if (pos <= 2) return 'TITLE_RACE'

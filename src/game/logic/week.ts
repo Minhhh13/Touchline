@@ -161,12 +161,14 @@ function trainingInjuries(game: Game, u: LoadedUniverse, rng: Rng): void {
 }
 
 function userFixture(game: Game) {
-  return game.season!.fixtures.find((f) => f.matchweek === game.season!.matchweek + 1 && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM))!
+  return game.season!.fixtures.find((f) => f.matchweek === game.season!.matchweek + 1 && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM))
 }
 
+/** The next league opponent, or null at the end of the season or on a bye week (odd number of clubs). */
 export function nextOpponent(game: Game): { clubId: string; home: boolean } | null {
   if (!game.season || game.season.matchweek >= game.season.matchweeks) return null
   const f = userFixture(game)
+  if (!f) return null
   const home = f.homeTeamId === USER_TEAM
   return { clubId: home ? f.awayTeamId : f.homeTeamId, home }
 }
@@ -242,9 +244,18 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   }
   game.lastCupMatch = null
   game.lastCupContext = null
-  game.phase = 'match'
   game.rngState = rng.getState()
 
+  // Bye week (odd number of clubs): the others play, we rest, then the midweek and the housekeeping happen as usual
+  if (!week.some((f) => f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)) {
+    season.matchweek = mw
+    news(game, { kind: 'info', title: `Matchweek ${mw}: free weekend`, body: 'An odd number of clubs in the league means everyone sits one round out. Legs rested.' })
+    afterLeagueMatch(game, u, autoManage)
+    if (!game.live && game.phase === 'match') game.phase = 'week'
+    return
+  }
+
+  game.phase = 'match'
   if (autoManage) {
     season.matchweek = mw
     afterLeagueMatch(game, u, true)
@@ -511,7 +522,8 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
   }
   let lastResult: EventContext['lastResult']
   const res = game.lastMatch
-  if (res && lastFixture?.result === res) {
+  // Compare by matchweek, not identity: the fixture result and lastMatch are different Immer proxies of one object
+  if (res && game.lastMatchContext?.competition === 'league' && game.lastMatchContext.matchweek === season.matchweek) {
     const home = res.homeTeamId === USER_TEAM
     const gf = home ? res.homeGoals : res.awayGoals
     const ga = home ? res.awayGoals : res.homeGoals
@@ -523,7 +535,7 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
     rng,
     lastResult,
     matchweek: season.matchweek,
-    expiring: squadPlayers(game, u).filter((x) => (game.contracts[x.p.id]?.years ?? 1) <= 1 && !game.contracts[x.p.id]?.renewed && !game.contracts[x.p.id]?.declined),
+    expiring: squadPlayers(game, u).filter((x) => (game.contracts[x.p.id]?.years ?? 1) <= 1 && !game.contracts[x.p.id]?.renewed && !game.contracts[x.p.id]?.declined && !game.contracts[x.p.id]?.loan),
     recentForm: row.form,
     beatRival,
     squad: squadPlayers(game, u).map((x) => ({ p: x.p, s: x.s, consecutiveMissed: game.consecutiveMissed[x.p.id] ?? 0 })),

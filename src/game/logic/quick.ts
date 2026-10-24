@@ -2,7 +2,7 @@ import type { Game, QuickResult } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
-import { aiTeamInput, aiRatingOffset, buildAiClubs, computeTable, generateFixtures, positionOf, seasonTier, USER_TEAM } from '@engine/season'
+import { aiTeamInput, aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, USER_TEAM } from '@engine/season'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { playerLookup } from './players'
@@ -30,7 +30,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   const ai = buildAiClubs(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId)
   const offset = aiRatingOffset(u, ai, game.settings.difficulty ?? 'calibrated')
   const ids = [USER_TEAM, ...Object.keys(ai)]
-  const matchweeks = (ids.length - 1) * 2
+  const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
   const goals: Record<string, number> = {}
   const ratings: Record<string, { sum: number; n: number }> = {}

@@ -23,9 +23,14 @@ async function main() {
     existing = JSON.parse(await readFile(OUT, 'utf8'))
   } catch {}
 
-  const players = JSON.parse(await readFile(path.join(ROOT, 'public', 'data', 'england', 'players.json'), 'utf8'))
-  const col = Object.fromEntries(players.columns.map((c, i) => [c, i]))
-  const unknownIds = new Set(players.rows.filter((r) => r[col.nation] === 'UNK').map((r) => r[col.id]))
+  // Every built league pack: a player unknown in one may be known in another, so collect ids across all of them
+  const leagues = JSON.parse(await readFile(path.join(ROOT, 'public', 'data', 'leagues.json'), 'utf8')).leagues
+  const unknownIds = new Set()
+  for (const league of leagues) {
+    const players = JSON.parse(await readFile(path.join(ROOT, 'public', 'data', league.id, 'players.json'), 'utf8'))
+    const col = Object.fromEntries(players.columns.map((c, i) => [c, i]))
+    for (const r of players.rows) if (r[col.nation] === 'UNK') unknownIds.add(r[col.id])
+  }
   console.log(`${unknownIds.size} players with unknown nationality`)
 
   const db = new DatabaseSync(path.join(CACHE, SOURCES.eurosoccer.dir, 'database.sqlite'), { readOnly: true })

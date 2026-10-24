@@ -129,7 +129,14 @@ export function Dugout() {
                   </div>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div>
+                <div style={{ fontWeight: 700 }}>Matchweek {season.matchweek + 1}: free weekend</div>
+                <div className="small muted">
+                  An odd number of clubs means everyone sits one round out.{cupTie ? ` Then ${cupTie.label} ${cupTie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId)} midweek.` : ''}
+                </div>
+              </div>
+            )}
             {problems.length > 0 && <span className="chip warn" title={problems.join(', ')}>⚠ {problems.length} lineup issue{problems.length > 1 ? 's' : ''} (auto-fixed at kick-off)</span>}
             {game.pendingEvent && (
               <button className="chip warn" onClick={() => setTab('inbox')} style={{ cursor: 'pointer' }}>
@@ -149,7 +156,7 @@ export function Dugout() {
               </button>
             )}
             <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent}>
-              {preseason ? 'Kick off the season' : `Play matchweek ${season.matchweek + 1}`}
+              {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
             </button>
             <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
               Sim 5
@@ -655,7 +662,7 @@ function MarketTab() {
           </h3>
           <div className="row wrap">
             <span className="chip good">Budget {money(game.finances.budget)}</span>
-            <span className="chip">Wage room {wage(Math.max(0, game.finances.wageCap - squad.reduce((s, x) => s + x.p.wage, 0)))}</span>
+            <span className="chip">Wage room {wage(Math.max(0, game.finances.wageCap - squad.reduce((s, x) => s + x.p.wage, 0) - staffWages(game.staff)))}</span>
             <button className="btn sm" onClick={() => store.advanceDay()}>
               Next market day →
             </button>

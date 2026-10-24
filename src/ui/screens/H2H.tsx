@@ -83,7 +83,7 @@ export function H2HSetup() {
           </div>
           <div className="field">
             Draft from
-            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: 'This league' }, { value: 'europe', label: 'All five leagues' }]} />
+            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: 'This league' }, { value: 'europe', label: `All ${u.available.length} leagues` }]} />
           </div>
           <label className="field">
             Season

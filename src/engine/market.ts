@@ -188,7 +188,7 @@ export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36)
  * cheaper near the deadline, some players sign elsewhere, and AI clubs may bid
  * for our players.
  */
-export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p: PlayerSeason; s: SquadPlayer; listed?: boolean }>, clubsInLeague: string[]): { signings: AiSigning[] } {
+export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p: PlayerSeason; s: SquadPlayer; listed?: boolean; loan?: boolean }>, clubsInLeague: string[]): { signings: AiSigning[] } {
   const { rng, u } = ctx
   const signings: AiSigning[] = []
   w.day++
@@ -228,7 +228,8 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
     if (extra.length) w.log.unshift(`${extra.length} new player${extra.length > 1 ? 's' : ''} listed: ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(', ')}.`)
   }
   // Offers for our players
-  for (const { p, s: state, listed } of ownSquad) {
+  for (const { p, s: state, listed, loan } of ownSquad) {
+    if (loan) continue // not ours to sell
     const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0) + (listed ? 0.6 : 0)
     if (desirability <= 0) continue
     if (rng.chance((listed ? 0.12 : 0.05) * desirability)) {

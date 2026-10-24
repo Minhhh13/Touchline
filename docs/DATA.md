@@ -118,7 +118,7 @@ Each openfootball results file is parsed (both the "Home 1-2 (0-1) Away" and "Ho
 
 ### Nationalities
 
-Dataset country names are normalised to codes and flags in `scripts/import/nations.mjs`. Players from the European Soccer Database only have a nationality if their sofifa id appears in a later EA edition. `scripts/import/enrich-nations.mjs` looks the rest up on Wikidata by name and date of birth (preferring country for sport, P1532, over citizenship, P27) and writes `scripts/import/nations-override.json`, which `build.mjs` applies to `UNK` rows. The override file is committed so normal builds need no network access; at the current build it is empty, and 505 rows (228 players, nearly all from 2008-14) carry `UNK`.
+Dataset country names are normalised to codes and flags in `scripts/import/nations.mjs`. Players from the European Soccer Database only have a nationality if their sofifa id appears in a later EA edition. `scripts/import/enrich-nations.mjs` looks the rest up on Wikidata by name and date of birth (preferring country for sport, P1532, over citizenship, P27) and writes `scripts/import/nations-override.json`, which `build.mjs` applies to `UNK` rows. The override file is committed so normal builds need no network access. `enrich-nations.mjs` scans every built league pack; at the current build it holds 1,097 players, and the rows still carrying `UNK` are mostly 2008-14 Primeira Liga players whose Wikidata labels differ from the database spelling (578 rows there, 145 in the Eredivisie, 121 in the Premier League).
 
 ## 5. Rebuilding
 
@@ -160,5 +160,7 @@ The builder now produces one data pack per league under `public/data/<league>/` 
 | Serie A (italy) | 10,578 | 3,258 | 42 | 2008-09 to 2026-27 |
 | Bundesliga (germany) | 9,497 | 3,006 | 35 | 2008-09 to 2026-27 |
 | Ligue 1 (france) | 10,084 | 3,516 | 40 | 2008-09 to 2026-27 |
+| Eredivisie (netherlands) | 8,566 | 3,101 | 29 | 2008-09 to 2026-27 |
+| Primeira Liga (portugal) | 8,595 | 3,387 | 39 | 2008-09 to 2026-27 |
 
-The same sources cover every league: EA FC league ids 13, 53, 31, 19 and 16 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809 and 4769 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results file exists for Ligue 1, so French club-seasons carry no final position). Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.
+69,118 player-seasons in all. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results files exist for Ligue 1, the Eredivisie or the Primeira Liga, so those club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.

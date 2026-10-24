@@ -35,13 +35,18 @@ export function HowTo() {
             <li>Five yellow cards is a one-match ban; red cards bring longer ones. Injuries range from a week to a season.</li>
             <li>Morale moves with results, playing time and your handling of dressing-room events. Stars sulk on the bench.</li>
             <li>Pick a weekly training focus and a pre-match team talk. Both have small, legible effects.</li>
-            <li>The January window opens after matchweek 19: a market of players from every era, with asking prices that rise under competition and fall on deadline day. Rival clubs bid for your players too.</li>
+            <li>The January window opens after matchweek 19: a market of players from every era, with asking prices that rise under competition and fall on deadline day. Take fringe players on loan, offer one of yours in part-exchange, or approach any player in the database and let his club name a price. Rival clubs bid for your players too, and really sign the ones they buy.</li>
+            <li>Have a word with a player once a week: praise, demand more, promise a start or reassure him. His form and his professionalism decide how it lands.</li>
+            <li>Name your captain and your set-piece takers. A leader with a strong mentality lifts the side; a good corner or free-kick specialist adds chances.</li>
+            <li>Hire backroom staff from the Club tab: an assistant, a head coach, a physio and a chief scout, each in two tiers, paid from the wage cap.</li>
+            <li>Man-mark the opponent's danger man from the opposition report. Face the press after wins and defeats; answer the job question when the table turns.</li>
+            <li>Every five matchweeks young players who are playing grow a little and veterans fade; a good coach speeds the former.</li>
             <li>The board sets a target from your squad's strength. Confidence moves with results; with job security on, it can end your season.</li>
           </ul>
         </div>
         <div className="panel">
           <h3>Dynasty</h3>
-          <p>At the end of a season your players age a year: the young grow, the old decline, some retire and some contracts expire. The league moves on to the next real season, you get bonus spins and a summer window, and the board expects more.</p>
+          <p>At the end of a season your players age a year: the young grow, the old decline, some retire, loans go home and some contracts expire. The league moves on to the next real season, you get bonus spins and a summer window, the academy presents three real prospects, bigger clubs may offer you their job, and a top-four finish earns a Continental Cup place. The Club tab keeps your all-time legends.</p>
         </div>
         <div className="panel">
           <h3>Data and credits</h3>

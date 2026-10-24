@@ -7,6 +7,8 @@ const LEAGUE_COLOURS: Record<string, { colour: string; secondary: string; label:
   italy: { colour: '#0a3a8c', secondary: '#ffffff', label: 'ITA' },
   germany: { colour: '#d20515', secondary: '#000000', label: 'GER' },
   france: { colour: '#1c2b5f', secondary: '#dfe100', label: 'FRA' },
+  netherlands: { colour: '#f36c21', secondary: '#ffffff', label: 'NED' },
+  portugal: { colour: '#046a38', secondary: '#da291c', label: 'POR' },
 }
 
 /** Wheel segments for a multi-league wheel: one per league, repeated so the wheel still looks busy. */

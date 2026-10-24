@@ -250,9 +250,12 @@ export const useStore = create<Store>()(
           const next = { ...parked }
           delete next[slot]
           if (current && current.phase !== 'summary') next[slotOf(current)] = current
-          set({ game: target, parked: next, screen: 'game' })
           const wantsAll = target.settings.continental || target.qualifiedContinental || target.season?.continental
-          void get().ensureLeagues([target.settings.leagueId, ...target.settings.wheelLeagues, ...(wantsAll ? (get().universe?.available ?? []).map((l) => l.id) : [])])
+          const ids = [target.settings.leagueId, ...(target.settings.wheelLeagues ?? []), ...(wantsAll ? (get().universe?.available ?? []).map((l) => l.id) : [])]
+          // Load what the game needs before showing it, so the squad is never rendered against a half-loaded universe
+          void get()
+            .ensureLeagues(ids)
+            .then(() => set({ game: target, parked: next, screen: 'game' }))
         },
         discardParked: (slot) => {
           const next = { ...get().parked }

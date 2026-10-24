@@ -11,6 +11,11 @@ const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily C
 
 type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
 
+function listNames(names: string[]): string {
+  if (names.length <= 1) return names.join('')
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
 export function Setup() {
   const { universe: u, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
   const [leagueId, setLeagueId] = useState('england')
@@ -145,8 +150,8 @@ export function Setup() {
             {!dailyFixed && (
               <div className="field">
                 Draft from
-                <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: `${u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only` }, { value: 'europe', label: 'European Nights: all five leagues' }]} />
-                <span className="help">{wheelScope === 'europe' ? 'The wheel and the market draw from England, Spain, Italy, Germany and France.' : 'The wheel and the market stay inside one league.'}</span>
+                <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: `${u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only` }, { value: 'europe', label: `European Nights: all ${u.available.length} leagues` }]} />
+                <span className="help">{wheelScope === 'europe' ? `The wheel and the market draw from ${listNames(u.available.map((l) => l.country))}.` : 'The wheel and the market stay inside one league.'}</span>
               </div>
             )}
             {!dailyFixed && (

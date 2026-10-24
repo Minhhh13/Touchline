@@ -20,7 +20,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - The wheel only lands on squads that can fill a slot you still need: no dead spins.
 - A real player can be drafted once, whichever club or season you catch him in.
 - Eight formations, position eligibility (a wing-back covers full-back, a wide midfielder covers the wing), era filters, one-club mode, hard mode (ratings hidden), re-spins and shareable seeds.
-- Five leagues: the Premier League, La Liga, Serie A, the Bundesliga and Ligue 1, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all five.
+- Seven leagues: the Premier League, La Liga, Serie A, the Bundesliga, Ligue 1, the Eredivisie and the Primeira Liga, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all seven.
 - **Head-to-head**: two managers on one device draft from the same spins in snake order, then both sides play the same season, derbies included.
 - Matches are played live in two halves: at the break you give a team talk, change instructions and make substitutions, and the AI reacts to the score too.
 
@@ -50,7 +50,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Calibrated or Realistic difficulty.
 - One saved game per mode: a quick draft never overwrites your dynasty.
 
-**Explore**: browse every club-season in all five leagues with its real squad and ratings, the highest-rated player-seasons by position, and a player search.
+**Explore**: browse every club-season in all seven leagues with its real squad and ratings, the highest-rated player-seasons by position, and a player search.
 
 **Opposition reports** before every match, league-wide statistics (Golden Boot, assists, ratings, clean sheets) and an expanding deck of dressing-room events: contract renewals, wantaway stars, media pressure, rushed injury returns and derby bonuses.
 
@@ -81,7 +81,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 51,957 player-seasons across five leagues, about 1.1 to 1.3 MB per league, loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,118 player-seasons across seven leagues, about 1.0 to 1.3 MB per league, loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
 
 ```bash
 node scripts/import/build.mjs

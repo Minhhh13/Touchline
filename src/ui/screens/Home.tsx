@@ -98,7 +98,7 @@ export function Home() {
         </button>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('explore')}>
           <h3>Explore the database</h3>
-          <p className="muted small">Every club-season in England, Spain, Italy, Germany and France since 2008-09, with real squads and ratings. Settle the argument before you spin.</p>
+          <p className="muted small">Every club-season in {u ? `${u.available.length} leagues` : 'seven leagues'} since 2008-09, with real squads and ratings. Settle the argument before you spin.</p>
         </button>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('profile')}>
           <h3>Your record</h3>

@@ -95,6 +95,11 @@ export function acceptOffer(game: Game, u: LoadedUniverse, index: number): void 
   if (!offer || offer.status !== 'open') return
   const get = playerLookup(game, u)
   const p = get(offer.playerSeasonId)
+  if (game.contracts[offer.playerSeasonId]?.loan) {
+    offer.status = 'withdrawn'
+    log(game, `${p?.name ?? 'He'} is only on loan here; his parent club will not sell.`)
+    return
+  }
   acceptOfferEngine(offer, game.finances)
   releasePlayer(game, u, offer.playerSeasonId)
   applyAiSignings(game, u, [{ playerSeasonId: offer.playerSeasonId, clubId: offer.fromClubId, fee: offer.amount }])
@@ -130,6 +135,12 @@ export function applyAiSignings(game: Game, u: LoadedUniverse, signings: AiSigni
   for (const s of signings) {
     const club = season.ai[s.clubId]
     if (!club || !u.index[s.playerSeasonId] || club.squad.includes(s.playerSeasonId)) continue
+    // He leaves whichever AI squad held him this season (a listing can be a current rival's player)
+    for (const other of [...Object.values(season.ai), ...Object.values(season.continental?.clubs ?? {})]) {
+      if (other === club || !other.squad.includes(s.playerSeasonId)) continue
+      other.squad = other.squad.filter((id) => id !== s.playerSeasonId)
+      delete other.state[s.playerSeasonId]
+    }
     club.squad.push(s.playerSeasonId)
     club.state[s.playerSeasonId] = newSquadPlayer(s.playerSeasonId, { familiarity: 30, sharpness: 70 })
   }
@@ -138,7 +149,7 @@ export function applyAiSignings(game: Game, u: LoadedUniverse, signings: AiSigni
 /** Move the window on by one market day and let the league's clubs do their business. */
 export function tickWindow(game: Game, u: LoadedUniverse, rng: Rng): void {
   if (!game.window || !game.season) return
-  const { signings } = advanceWindow(marketContext(game, u, rng, 1.05), game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed })), Object.keys(game.season.ai))
+  const { signings } = advanceWindow(marketContext(game, u, rng, 1.05), game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed, loan: game.contracts[x.p.id]?.loan })), Object.keys(game.season.ai))
   applyAiSignings(game, u, signings)
   // Scouts turn up players the open market would not have shown
   const scout = staffTier(game.staff, 'scout')
