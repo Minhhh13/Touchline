@@ -29,12 +29,19 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Thirty-four player roles and six team instructions whose effects are printed in every match report.
 - An xG-based match engine with a live ticker, scorers, assists, cards, injuries, substitutions and player ratings.
 - Condition, sharpness, familiarity, morale and form; suspensions at five yellow cards; injuries from a knock to a ruptured ACL.
-- Weekly training focus, pre-match team talks, dressing-room events with choices, a captain, promises you can break.
+- Weekly training focus, pre-match team talks, dressing-room events with choices, promises you can break.
+- Have a word with any player once a week: praise, demand more, promise a start or reassure him. The reply depends on his form and his professionalism.
+- A captain who matters: a leader with a strong mentality lifts the side in big matches and keeps low morale from sinking.
+- Set-piece takers: name your penalty, free-kick and corner specialists and the engine uses them.
+- Backroom staff: an assistant, a head coach, a physio and a chief scout in three tiers, paid from the wage cap, each with visible effects on familiarity, sharpness, injuries and the market.
 - A cup played midweek after matchweeks 6, 14, 24 and 36, with penalties.
-- A January window with asking prices that move with form, age, rival suitors, bidding wars and deadline-day discounts; AI clubs bid for your players; budget and wage cap.
+- **The Continental Cup**: tick it at setup and you join the fifteen strongest clubs from the other leagues that season in a second midweek knockout. In Dynasty a top-four finish qualifies you again.
+- An active transfer market: a January window (and a summer one in Dynasty) with asking prices that move with form, age, rival suitors, bidding wars and deadline-day discounts; loans for fringe players; part-exchange deals; approach any player in the database and the club names a price; choose the contract length; AI clubs bid for your players and really sign the ones they buy; budget and wage cap.
+- A shortlist: star players in Explore and approach them from the market in one click.
 - Board target and confidence, with optional job security (you can be sacked).
-- Awards, a team of the season, fifteen achievements, a local leaderboard and a share text for every season.
+- Awards, a team of the season, seventeen achievements, a local leaderboard and a share card for every season.
 - Calibrated or Realistic difficulty.
+- One saved game per mode: a quick draft never overwrites your dynasty.
 
 **Explore**: browse every club-season in all five leagues with its real squad and ratings, the highest-rated player-seasons by position, and a player search.
 
@@ -136,7 +143,8 @@ Design documents:
 - Seasons before 2008-09 (needs a ratings source for the 1990s and 2000s)
 - Online leaderboards for the daily challenge
 - PWA packaging for offline play
-- More leagues (Portugal, the Netherlands) and international tournaments
+- More leagues (Portugal, the Netherlands) and a group stage for the Continental Cup
+- Youth intake and player development targets in Dynasty
 
 
 ## Disclaimer

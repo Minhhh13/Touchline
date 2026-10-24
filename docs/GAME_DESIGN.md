@@ -337,6 +337,43 @@ Training injury per player per week: `0.006 × injury risk × (0.5 + injuryProne
 
 Sixteen of the twenty clubs are drawn (you are always in). Rounds are played midweek after matchweeks 6 (labelled Fourth round), 14 (quarter-final), 24 (semi-final) and 36 (final, neutral venue). Drawn ties go to penalties: each kick scores with probability `0.72 + (team overall − 70) × 0.003`, five each then sudden death. Cup matches use your current lineup, so rotation is on you; knocked-out teams get free midweeks.
 
+### The Continental Cup
+
+Optional at setup for Season and Dynasty (`settings.continental`), and earned by right in later Dynasty seasons by finishing in the top four or lifting the trophy (`game.qualifiedContinental`). `buildContinentalClubs` takes up to four clubs per other loaded league in the same season (nearest season if that league lacks it), ordered by final position then the average of their top fourteen ratings, tops up from the strongest remaining clubs when fewer leagues are loaded, and keeps the fifteen strongest. You are the sixteenth entrant. Rounds fall on the midweeks the domestic cup leaves free: after matchweeks 10, 19, 29 and 33 (scaled for 34-matchweek leagues). Ties are single-leg with penalties, the final is neutral, and importance runs 1.15 (European night), 1.35 (semi-final) and 1.5 (final). Prize money by round reached: £4M, £8M, £15M, £25M, £45M for winners. Winning unlocks Kings of the Continent; league, cup and Europe together unlock The Treble. The knockout flow in `week.ts` is shared by both competitions (`Competition = 'cup' | 'continental'`), with `clubOf` resolving an opponent from the league or the continental field.
+
+### Captain and set pieces
+
+`captainId` is passed into the match engine. A captain on the pitch contributes `leadership = clamp((mentality − 75) / 100 × (0.6 + professionalism × 0.8), −0.25, 0.25)`: his side's expected goals are multiplied by `1 + 0.06 × leadership` and the opponent's by `1 − 0.04 × leadership`. Off the pitch, a captain with professionalism ≥ 0.6 and mentality ≥ 72 lifts every squad player below 70 morale by one a week (two below 50).
+
+`tactics.setPieces` names a penalty taker (he takes every penalty while on the pitch), a free-kick taker and a corner taker. The specialists add `((passing − 72) / 100) × 0.06` for corners and `((shooting − 72) / 100) × 0.05` for free kicks to the side's expected-goal multiplier, clamped to −0.04..+0.07, only while they are on the pitch. AI clubs use the automatic choice.
+
+### Player conversations
+
+`src/game/logic/talks.ts`. One conversation per player per matchweek. Form is the mean of the last three ratings (needs two).
+
+| Talk | Condition | Effect |
+| --- | --- | --- |
+| Praise | form ≥ 7.2 | +8 morale (+10 for a maverick) |
+| Praise | form < 6.5 | −4: he thinks you are being sarcastic |
+| Demand more | form ≤ 6.6, professional | −2 morale, +6 sharpness, +2 familiarity |
+| Demand more | form ≤ 6.6, maverick | −8 |
+| Demand more | form ≥ 7.2 | −10: he has been one of your best |
+| Promise a start | one promise at a time | +6 now; +5 if kept, −16 if broken (`promisedStart`) |
+| Reassure | on the bench, morale < 60 | +7 |
+
+Negative swings are scaled by `1.2 − 0.5 × professionalism`.
+
+### Backroom staff
+
+`src/engine/staff.ts`. Four roles, three tiers (none, good, elite), wages in £k/week counted in `squadWages` and therefore against the cap.
+
+| Role | Good | Elite |
+| --- | --- | --- |
+| Assistant (£25k / £60k) | +1 familiarity a week, team talks ×1.15 | +2, ×1.30 |
+| Coach (£20k / £50k) | +1 sharpness a week, training boosts +1% | +2, +2% |
+| Physio (£15k / £40k) | training injuries ×0.75, +2 condition a week, injuries of 3+ weeks heal a week sooner | ×0.55, +4, every injury a week sooner |
+| Scout (£15k / £40k) | +1 scouted listing a market day, hidden traits tagged on the market | +2 a day, and the opponent's weak link in the report |
+
 ### Board, confidence and the sack
 
 - **Target.** Count the AI clubs whose (calibrated) overall exceeds yours minus 1.5, add one, clamp to 1 to 17. The inbox welcome message states it.
@@ -404,7 +441,15 @@ Prices round to the nearest £1M above 20, £0.5M above 5, else £0.1M.
 - 60 per cent chance of one to three new listings.
 - For each of your players, `desirability = (overall − 72) / 20 + 0.2 if aged ≤ 25 + 0.3 if morale < 45`; if positive, a `5% × desirability` chance of an offer at 75 to 110 per cent of his asking price from a league club. Accepting banks the fee and releases him; other open offers for him are withdrawn.
 
-**Bidding.** You must have the fee in the budget and room under the wage cap, and fewer than 23 players. At 97 per cent of asking or more: accepted. Between 85 and 97: accepted with probability `(ratio − 0.85) / 0.12 × 0.7` (+0.15 if nobody else is interested), otherwise a counter at 94 to 100 per cent of asking. Below 85: laughed out, asking +5 per cent, tagged Annoyed. Signings join the bench at familiarity 20, sharpness 65 on a three-year deal (one year at 32+). Signing for under 70 per cent of the opening price unlocks Dealmaker.
+**AI signings are real.** When a listing goes to a league rival (two or more suitors, 12 per cent a day; one suitor, 4 per cent), the player-season joins that club's squad and state for the rest of the season, as does any player you sell to them.
+
+**Loans.** Fringe players and youngsters (`loanable`: age ≤ 23 and overall ≤ 83, or overall ≤ 76) are listed with a loan fee of 12 per cent of asking (minimum £0.2M) about half the time. A loan signing pays the fee and full wages, carries `contract.loan`, and goes back to his club in the Dynasty summer.
+
+**Part-exchange.** A bid may include one of your players. The selling club takes him only if he is within eight rating points of the man they lose, under 34 and not injured for four weeks or more, and credits 80 per cent of his asking price (60 per cent past thirty) towards theirs. The bid is judged on cash plus credit.
+
+**Approaches.** Any player in the loaded database can be approached from the market tab (or the shortlist). The club quotes asking × premium by his standing in their squad: ×1.6 for a top-three player, ×1.4 top eight, ×1.25 top fourteen, else ×1.1, tagged Unsolicited approach; one of their top three rated 86+ is refused outright 30 per cent of the time (50 if they won the league). Approached players never sign elsewhere, and fringe ones may be loaned.
+
+**Bidding.** You must have the fee in the budget and room under the wage cap, and fewer than 23 players. Contract length is your choice (one to four years; two at most for a 33-year-old). At 97 per cent of asking or more: accepted. Between 85 and 97: accepted with probability `(ratio − 0.85) / 0.12 × 0.7` (+0.15 if nobody else is interested), otherwise a counter at 94 to 100 per cent of asking. Below 85: laughed out, asking +5 per cent, tagged Annoyed. Signings join the bench at familiarity 20, sharpness 65 on a three-year deal (one year at 32+). Signing for under 70 per cent of the opening price unlocks Dealmaker.
 
 ## 12. Awards, tiers, achievements and the share text
 
@@ -483,17 +528,15 @@ This exists in code. `GameSettings.difficulty` is `'calibrated'` (default) or `'
 
 ## 15. Determinism and saves
 
-All randomness runs through one `Rng` (xoshiro128** seeded by a cyrb53 hash) whose state is stored in the save after every action, so a seed replays identically and a daily seed is identical for everyone. The game is persisted with Zustand `persist` under the `localStorage` key `touchline-save-v1` (game, profile and whether you were in a game). There is no backend.
+All randomness runs through one `Rng` (xoshiro128** seeded by a cyrb53 hash) whose state is stored in the save after every action, so a seed replays identically and a daily seed is identical for everyone. The game is persisted with Zustand `persist` under the `localStorage` key `touchline-save-v1` (the active game, parked games, the shortlist, the head-to-head game, the profile and whether you were in a game). Quick drafts and dailies share one save slot; Season and Dynasty each have their own, so starting a quick draft parks a running dynasty on the home screen instead of replacing it. There is no backend.
 
 ## 16. Roadmap
 
 Not in the code today:
 
-- Head-to-head hot-seat drafting (`autoDraft` mentions AI opponents in head-to-head, but no mode exists).
-- European leagues; the data pipeline and universe are English top flight only.
 - 1992-93 to 2007-08 seasons; tables exist for 2000-01 to 2007-08 but no player data.
-- Online leaderboards, shared daily results and multiplayer; the leaderboard is per browser.
+- Online leaderboards, shared daily results and online multiplayer; the leaderboard is per browser and head-to-head is hot-seat only.
 - PWA packaging and offline install.
-- 38-0 modes not reproduced: Last One Standing, Teammate Chain, European Nights, Tournaments, Multiplayer leagues.
-- FM systems not reproduced: separate in-possession and out-of-possession shapes, scouting with attribute ranges, individual training, youth intake and regens, loans and mentoring, staff, press conferences beyond the single unbeaten-run event, finances beyond budget, wages and prize money.
-- `src/engine/names.ts` is a procedural name pool from an earlier design and is not imported anywhere.
+- 38-0 modes not reproduced: Last One Standing, Teammate Chain, Tournaments, Multiplayer leagues.
+- FM systems not reproduced: separate in-possession and out-of-possession shapes, scouting with attribute ranges, individual training, youth intake and regens, mentoring, press conferences beyond the events deck, finances beyond budget, wages, staff and prize money.
+- A group stage and two-legged ties for the Continental Cup.
