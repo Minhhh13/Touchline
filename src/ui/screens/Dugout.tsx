@@ -16,8 +16,9 @@ import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos } from '../co
 import { clubName, clubShort, conditionColour, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
 import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
+import { StatsTab } from './StatsTab'
 
-type Tab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'market' | 'inbox' | 'club'
+type Tab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'stats' | 'market' | 'inbox' | 'club'
 
 export function Dugout() {
   const store = useStore()
@@ -166,6 +167,7 @@ export function Dugout() {
           { id: 'fixtures', label: 'Fixtures' },
           { id: 'table', label: 'Table' },
           { id: 'cup', label: 'Cup' },
+          { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
           { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent },
           { id: 'club', label: 'Club' },
@@ -283,6 +285,7 @@ export function Dugout() {
       )}
 
       {tab === 'cup' && <CupTab />}
+      {tab === 'stats' && <StatsTab />}
       {tab === 'market' && <MarketTab />}
       {tab === 'inbox' && (
         <div className="panel">

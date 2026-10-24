@@ -167,7 +167,7 @@ In Season and Dynasty each squad player carries live state (`SquadPlayer`): cond
 
 Quick Draft and Daily pass no state, so all five are 1.
 
-Starting state: drafted players begin at condition 92, morale 70, sharpness 70, familiarity 35. Signings arrive at familiarity 20 and sharpness 65. AI squads start at familiarity 70 and sharpness 85.
+Starting state: drafted players begin at condition 96, morale 70, sharpness 70, familiarity 35. Signings arrive at familiarity 20 and sharpness 65. AI squads start at familiarity 70 and sharpness 85.
 
 ## 7. Team strength, chemistry and balance
 
@@ -308,7 +308,7 @@ Up to three friendlies against a random club-season that finished 8th or lower (
 
 | System | Rule |
 | --- | --- |
-| Condition recovery | `(22 + (physical − 70) × 0.1 + training recovery) × 0.9 if 30+ or 0.8 if 33+` per week, capped at 100 |
+| Condition recovery | `(31 + (physical − 70) × 0.12 + training recovery) × 0.93 if 30+ or 0.85 if 33+` per week, capped at 100. A week's rest covers one match for a fit player; two matches in a week do not |
 | Sharpness | +12 for a start, +6 for a substitute appearance, −6 for a week without a match (floor 30), −10 on return from injury (floor 40), plus the weekly training delta (clamped 20 to 100) |
 | Familiarity | +4 for a start, +2 as a sub, plus the training delta; −12 for everyone on a formation change mid-season |
 | Morale after a match | +5 win, 0 draw, −5 defeat, plus `(match rating − 6.8) × 2`, clamped 10 to 100 |
@@ -361,8 +361,9 @@ Rolled from a weighted deck when conditions are met (`src/engine/events.ts`). Th
 
 ### Finances
 
-- Starting budget is `clamp(0.22 × host club's real squad value, 25, 220)` GBP millions; wage cap `clamp(4.5 × squad value, 900, 4200)` GBP thousands a week. Set in year one only; Dynasty carries the balance forward.
-- Wages leave the budget every matchweek.
+- Starting budget is `clamp(0.3 × host club's real squad value, 30, 250)` GBP millions.
+- Wage cap is the larger of the club's natural bill, `clamp(5 × squad value, 900, 4500)` GBP thousands a week, and your drafted squad's wages with 15 per cent headroom, so the board always underwrites the squad you drafted. In Dynasty the cap is recomputed each summer; the budget carries over and the season's income, spending and wages-paid counters reset.
+- Weekly cash flow: match-day and broadcast income is assumed to cover the wage cap, so `(wage cap − wage bill) / 1000` GBP millions is added to the budget every matchweek. Under the cap the budget grows; over it the budget drains.
 - Prize money at season end: `100 − 3.2 × (position − 1)` GBP millions, plus 12 for the cup. Nothing if sacked.
 - Squad cap 23. Releasing a player is free and returns nothing.
 
@@ -476,8 +477,8 @@ This exists in code. `GameSettings.difficulty` is `'calibrated'` (default) or `'
 2. **Retirements.** From 34: 30 per cent; from 36: 60; from 37: 90.
 3. **Contracts** lose a year. At zero a player leaves if morale is under 50 or on a 25 per cent roll, otherwise renews for two to three years (one at 32+). Drafted players start on one to three years, signings on three.
 4. State resets to condition 95, sharpness 60, morale at least 50, familiarity +10, no injury or cards.
-5. **Bonus spins** `min(6, 2 + players lost)`. A summer draft opens with squad size = remaining squad + bonus spins and one re-spin; existing players are seeded as taken so the uniqueness rule holds.
-6. **League.** The league season advances by one real year (after 2026-27 it wraps to 2008-09). You keep the same host club if it was in that division, otherwise a random club from that season. Budget and achievements carry over; a new board target is set.
+5. **Bonus spins** `min(6, 2 + players lost)`. A summer draft opens with squad size = remaining squad + bonus spins and one re-spin. The surviving squad is seeded into it, best eleven on the pitch and the rest on the bench, so every bonus spin adds depth wherever the wheel lands; existing players are marked taken so the uniqueness rule holds.
+6. **League.** The league season advances by one real year (after 2026-27 it wraps to 2008-09). You keep the same host club if it was in that division, otherwise a random club from that season. Budget and achievements carry over, the wage cap is recomputed for the new squad, and a new board target is set.
 7. A summer window (section 11) is open until kick-off. The offseason modal lists who retired, who left, who improved and who declined.
 
 ## 15. Determinism and saves

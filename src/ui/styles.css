@@ -241,6 +241,32 @@ p {
   .page {
     padding: 12px 12px 80px;
   }
+  .topbar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .topbar nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .topbar nav::-webkit-scrollbar {
+    display: none;
+  }
+  .topbar nav button {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+  .brand .name {
+    font-size: 18px;
+  }
+  .scoreboard .score {
+    font-size: 40px;
+  }
+  .scoreboard .team {
+    font-size: 16px;
+  }
 }
 
 /* ------------------------------------------------------------------ panels */
