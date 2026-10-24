@@ -459,10 +459,11 @@ export interface UserTeamInput {
   teamTalk: TeamTalk
   captainId?: string
   talkSkill?: number
+  markTarget?: string
 }
 
 export function userTeamInput(u: LoadedUniverse, t: UserTeamInput): MatchTeamInput {
-  return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk, captainId: t.captainId, talkSkill: t.talkSkill }
+  return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk, captainId: t.captainId, talkSkill: t.talkSkill, markTarget: t.markTarget }
 }
 
 /** Play one match between two inputs, returning the full result. */

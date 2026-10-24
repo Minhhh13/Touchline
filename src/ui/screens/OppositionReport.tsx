@@ -9,7 +9,7 @@ import { ordinal } from '../format'
 
 /** Scouting summary of the next league opponent with a suggested approach. */
 export function OppositionReport({ clubId, home }: { clubId: string; home: boolean }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game, setMarkTarget } = useStore()
   const data = useMemo(() => {
     if (!u || !game?.season) return null
     const club = game.season.ai[clubId] ?? game.season.continental?.clubs[clubId]
@@ -77,6 +77,11 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
               <Rating value={p.overall} />
               <span>{p.name}</span>
               <Pos p={p.positions[0]} />
+              {p.positions[0] !== 'GK' && (
+                <button type="button" className={`btn sm ${game?.markTarget === p.id ? 'primary' : 'ghost'}`} title="Man-mark him: his influence drops, your attack loses a little" onClick={() => setMarkTarget(game?.markTarget === p.id ? undefined : p.id)}>
+                  {game?.markTarget === p.id ? 'Marked' : 'Man-mark'}
+                </button>
+              )}
             </div>
           ))}
         </div>

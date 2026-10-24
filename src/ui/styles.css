@@ -1393,3 +1393,27 @@ table.tbl tr.clickable:hover {
     text-align: left !important;
   }
 }
+
+.depth {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.depth-row {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.depth-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.depth-names .chip {
+  cursor: pointer;
+}
+.depth-names .chip.dim {
+  opacity: 0.45;
+  text-decoration: line-through;
+}

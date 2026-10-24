@@ -23,6 +23,9 @@ import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
 
+/** localStorage key the whole game is persisted under. */
+export const SAVE_KEY = 'touchline-save-v1'
+
 export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h'
 
 export interface H2HGame {
@@ -105,6 +108,7 @@ interface Store {
   loan: (listingId: string) => { accepted: boolean; message: string }
   talk: (playerSeasonId: string, kind: TalkKind) => { message: string }
   hireStaff: (role: StaffRole, tier: number) => void
+  setMarkTarget: (playerSeasonId: string | undefined) => void
   toggleShortlist: (playerSeasonId: string) => void
   enquire: (playerSeasonId: string) => { ok: boolean; message: string }
   acceptOffer: (index: number) => void
@@ -361,6 +365,7 @@ export const useStore = create<Store>()(
           unlockFromGame()
           return out
         },
+        setMarkTarget: (id) => mutate((g) => void (g.markTarget = id)),
         hireStaff: (role, tier) => mutate((g) => void ((g.staff ??= {})[role] = Math.max(0, Math.min(2, Math.round(tier))))),
         toggleShortlist: (id) => {
           const { shortlist } = get()
@@ -495,7 +500,7 @@ export const useStore = create<Store>()(
       }
     },
     {
-      name: 'touchline-save-v1',
+      name: SAVE_KEY,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ game: s.game, parked: s.parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
       version: 1,

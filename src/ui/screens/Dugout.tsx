@@ -6,7 +6,8 @@ import { rolesFor, getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
 import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
 import { nextOpponent, upcomingCupTie } from '@game/logic/week'
-import { playerLookup, squadPlayers } from '@game/logic/players'
+import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
+import { canCover, ratingAt } from '@engine/positions'
 import { teamStrength, lineupProblems } from '@game/logic/squad'
 import { SQUAD_CAP } from '@game/logic/marketOps'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
@@ -228,6 +229,34 @@ export function Dugout() {
               </div>
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={selectedSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
               {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 6 }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.join(', ')}</div>}
+            </div>
+            <div className="panel">
+              <div className="panel-head">
+                <h3>Depth chart</h3>
+                <span className="small muted">Who can cover each position, rated there</span>
+              </div>
+              <div className="depth">
+                {[...new Set(formation.slots.map((sl) => sl.position))].map((pos) => {
+                  const cover = squad
+                    .filter((x) => canCover(x.p, pos, 'accomplished'))
+                    .map((x) => ({ ...x, r: Math.round(ratingAt(x.p, pos)) }))
+                    .sort((a, b) => b.r - a.r)
+                    .slice(0, 4)
+                  return (
+                    <div key={pos} className="depth-row">
+                      <Pos p={pos} />
+                      <span className="depth-names">
+                        {cover.length === 0 && <span className="chip bad">Nobody</span>}
+                        {cover.map((x) => (
+                          <button key={x.p.id} type="button" className={`chip ${inXI.has(x.p.id) ? 'good' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
+                            {x.p.name.split(' ').slice(-1)[0]} {x.r}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
             <div className="panel">
               <h3>Team talk</h3>

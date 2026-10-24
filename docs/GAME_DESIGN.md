@@ -341,6 +341,14 @@ Sixteen of the twenty clubs are drawn (you are always in). Rounds are played mid
 
 Optional at setup for Season and Dynasty (`settings.continental`), and earned by right in later Dynasty seasons by finishing in the top four or lifting the trophy (`game.qualifiedContinental`). `buildContinentalClubs` takes up to four clubs per other loaded league in the same season (nearest season if that league lacks it), ordered by final position then the average of their top fourteen ratings, tops up from the strongest remaining clubs when fewer leagues are loaded, and keeps the fifteen strongest. You are the sixteenth entrant. Rounds fall on the midweeks the domestic cup leaves free: after matchweeks 10, 19, 29 and 33 (scaled for 34-matchweek leagues). Ties are single-leg with penalties, the final is neutral, and importance runs 1.15 (European night), 1.35 (semi-final) and 1.5 (final). Prize money by round reached: £4M, £8M, £15M, £25M, £45M for winners. Winning unlocks Kings of the Continent; league, cup and Europe together unlock The Treble. The knockout flow in `week.ts` is shared by both competitions (`Competition = 'cup' | 'continental'`), with `clubOf` resolving an opponent from the league or the continental field.
 
+### Man-marking
+
+`markTarget` on the user's match input (set from the opposition report, cleared after the match). At kick-off the target's attack share is cut to 60 per cent, his midfield share to 85, his effective rating by three; while he is on the pitch the opponent's expected goals are multiplied by 0.93 and the marking side's attack modifier by 0.97. The report notes it, and the modifier is re-applied after the half-time recompute.
+
+### Press conferences
+
+Three media events join the deck, rolled like any other after a matchweek: a post-match conference after a league win (single out the man of the match or scorer: +7 for him, −3 for up to two unprofessional stars; credit the squad: +2 all; promise more: +2 board confidence) or defeat (take the blame: +3 morale, −2 confidence; call it unacceptable: +2 for professionals, −5 for the rest, +2 confidence; blame the referee: 40 per cent chance of a £0.5M fine), and the job question from matchweek 12 when you sit more than four places below the board's target with confidence under 45 (claim the board's backing: a coin flip between +6 and −6 confidence).
+
 ### Captain and set pieces
 
 `captainId` is passed into the match engine. A captain on the pitch contributes `leadership = clamp((mentality − 75) / 100 × (0.6 + professionalism × 0.8), −0.25, 0.25)`: his side's expected goals are multiplied by `1 + 0.06 × leadership` and the opponent's by `1 − 0.04 × leadership`. Off the pitch, a captain with professionalism ≥ 0.6 and mentality ≥ 72 lifts every squad player below 70 morale by one a week (two below 50).

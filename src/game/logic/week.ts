@@ -23,7 +23,7 @@ function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
 
 function userInput(game: Game, u: LoadedUniverse): MatchTeamInput {
   const get = playerLookup(game, u)
-  const input = userTeamInput(u, { teamName: game.settings.teamName, shortName: game.settings.shortName, tactics: game.tactics, lineup: game.lineup, bench: game.bench, state: game.squad, teamTalk: game.teamTalk, captainId: game.captainId, talkSkill: 1 + 0.15 * staffTier(game.staff, 'assistant') })
+  const input = userTeamInput(u, { teamName: game.settings.teamName, shortName: game.settings.shortName, tactics: game.tactics, lineup: game.lineup, bench: game.bench, state: game.squad, teamTalk: game.teamTalk, captainId: game.captainId, talkSkill: 1 + 0.15 * staffTier(game.staff, 'assistant'), markTarget: game.markTarget })
   return { ...input, getPlayer: get }
 }
 
@@ -100,6 +100,7 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
     game.promisedStart = undefined
   }
   game.nextMatchBoost = undefined
+  game.markTarget = undefined
 }
 
 function applyResultToAi(game: Game, teamId: string, res: FullMatchResult, isHome: boolean): void {
@@ -508,8 +509,19 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
     const ga = home ? lastFixture.result.awayGoals : lastFixture.result.homeGoals
     beatRival = host.rivals.includes(opp) && gf > ga
   }
+  let lastResult: EventContext['lastResult']
+  const res = game.lastMatch
+  if (res && lastFixture?.result === res) {
+    const home = res.homeTeamId === USER_TEAM
+    const gf = home ? res.homeGoals : res.awayGoals
+    const ga = home ? res.awayGoals : res.homeGoals
+    const oppId = home ? res.awayTeamId : res.homeTeamId
+    const ours = res.events.filter((e) => e.type === 'goal' && e.side === (home ? 'home' : 'away') && e.playerId && game.squad[e.playerId])
+    lastResult = { gf, ga, opponentName: clubOf(season, oppId)?.name ?? oppId, motmId: res.motmId && game.squad[res.motmId] ? res.motmId : undefined, scorerId: ours[0]?.playerId, competition: 'league' }
+  }
   return {
     rng,
+    lastResult,
     matchweek: season.matchweek,
     expiring: squadPlayers(game, u).filter((x) => (game.contracts[x.p.id]?.years ?? 1) <= 1 && !game.contracts[x.p.id]?.renewed && !game.contracts[x.p.id]?.declined),
     recentForm: row.form,

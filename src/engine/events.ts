@@ -40,6 +40,8 @@ export interface EventContext {
   confidence: number
   nextOpponentIsRival: boolean
   budget: number
+  /** The match just played, for post-match press conferences. */
+  lastResult?: { gf: number; ga: number; opponentName: string; motmId?: string; scorerId?: string; competition: 'league' | 'cup' | 'continental' }
 }
 
 export interface EventOutcome {
@@ -90,6 +92,59 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
           ],
         }
       },
+    })
+  }
+
+  // Post-match press conference
+  const last = ctx.lastResult
+  if (last && last.competition === 'league') {
+    const star = squad.find((x) => x.p.id === (last.motmId ?? last.scorerId))
+    if (last.gf > last.ga) {
+      candidates.push({
+        weight: 1.6,
+        make: () => ({
+          id: 'press-win',
+          title: `Press conference: ${last.gf}-${last.ga} v ${last.opponentName}`,
+          body: star ? `The press want a word about ${star.p.name}'s performance. The cameras are on.` : 'A good result. The press want to know who gets the credit.',
+          playerSeasonId: star?.p.id,
+          choices: [
+            ...(star ? [{ id: 'praise-star', label: `Single out ${star.p.name}`, hint: 'He will love it. One or two team-mates may not.' }] : []),
+            { id: 'praise-team', label: 'Credit the whole squad', hint: 'Small lift for everyone.' },
+            { id: 'warn', label: 'Say there is more to come', hint: 'Keeps feet on the ground. The board likes ambition.' },
+          ],
+        }),
+      })
+    } else if (last.gf < last.ga) {
+      candidates.push({
+        weight: 1.6,
+        make: () => ({
+          id: 'press-loss',
+          title: `Press conference: ${last.gf}-${last.ga} v ${last.opponentName}`,
+          body: 'A defeat to explain. The questions are not friendly.',
+          choices: [
+            { id: 'blame-self', label: 'Take the blame yourself', hint: 'The players appreciate it. The board notes it.' },
+            { id: 'blame-players', label: 'Call the performance unacceptable', hint: 'Professionals respond; the rest sulk. The board likes the honesty.' },
+            { id: 'blame-ref', label: 'Blame the referee', hint: 'Deflects everything. A fine is possible.' },
+            { id: 'no-comment', label: 'Keep it short', hint: 'Nothing changes.' },
+          ],
+        }),
+      })
+    }
+  }
+  // The job question
+  if (ctx.matchweek >= 12 && ctx.position > ctx.boardTarget + 4 && ctx.confidence < 45) {
+    candidates.push({
+      weight: 1.5,
+      make: () => ({
+        id: 'press-job',
+        title: 'Press conference: are you worried about your job?',
+        body: `${ctx.position}th with the board expecting ${ctx.boardTarget}th or better. The question was always coming.`,
+        choices: [
+          { id: 'confident', label: 'I have the full backing of the board', hint: 'Bold. Pays off or blows up.' },
+          { id: 'focus', label: 'My focus is the next match', hint: 'Nothing changes.' },
+          { id: 'players', label: 'The players are behind me', hint: 'The squad rallies a little. The board stays unmoved.' },
+        ],
+      }),
     })
   }
 
@@ -330,6 +385,27 @@ export function resolveEvent(ev: GameEvent, choiceId: string, ctx: EventContext)
         return responds ? { text: 'He takes it on the chin and trains like a demon.', moraleDelta: [{ playerSeasonId: p!, delta: 4 }], conditionDelta: [{ playerSeasonId: p!, delta: 3 }] } : { text: 'He storms out. The squad noticed.', moraleDelta: [{ playerSeasonId: p!, delta: -10 }], teamMoraleDelta: -1 }
       }
       return { text: 'A civil chat. He appreciates being heard.', moraleDelta: [{ playerSeasonId: p!, delta: 4 }] }
+    case 'press-win': {
+      if (choiceId === 'praise-star' && p) {
+        const others = ctx.squad.filter((x) => x.p.id !== p && x.p.traits.professionalism < 0.4 && x.p.overall >= 78).slice(0, 2)
+        return { text: 'He beams through the mixed zone.', moraleDelta: [{ playerSeasonId: p, delta: 7 }, ...others.map((x) => ({ playerSeasonId: x.p.id, delta: -3 }))] }
+      }
+      if (choiceId === 'praise-team') return { text: 'The dressing room appreciates the shared credit.', teamMoraleDelta: 2 }
+      return { text: 'Ambition noted upstairs. The players keep working.', confidenceDelta: 2 }
+    }
+    case 'press-loss': {
+      if (choiceId === 'blame-self') return { text: 'The players respect it. The board writes it down.', teamMoraleDelta: 3, confidenceDelta: -2 }
+      if (choiceId === 'blame-players') {
+        const deltas = ctx.squad.map((x) => ({ playerSeasonId: x.p.id, delta: x.p.traits.professionalism >= 0.6 ? 2 : -5 }))
+        return { text: 'Harsh words in public. Some respond, some sulk.', moraleDelta: deltas, confidenceDelta: 2 }
+      }
+      if (choiceId === 'blame-ref') return rng.chance(0.4) ? { text: 'The authorities fine you for the comments.', budgetDelta: -0.5 } : { text: 'The headlines are about the referee, not you.' }
+      return { text: 'Short and dull. Nobody writes anything.' }
+    }
+    case 'press-job':
+      if (choiceId === 'confident') return rng.chance(0.5) ? { text: 'The chairman backs you publicly the next morning.', confidenceDelta: 6, teamMoraleDelta: 2 } : { text: 'Silence from the boardroom. That told everyone something.', confidenceDelta: -6, teamMoraleDelta: -2 }
+      if (choiceId === 'players') return { text: 'The captain echoes it in his own interview.', teamMoraleDelta: 3 }
+      return { text: 'A straight bat. The story runs anyway.' }
     case 'press-unbeaten':
       if (choiceId === 'embrace') return { text: 'The players walk taller. Big games will carry more weight now.', teamMoraleDelta: 5 }
       if (choiceId === 'dismiss') return { text: 'Pressure off, but a few players wanted you to back them.', teamMoraleDelta: -2, confidenceDelta: 1 }

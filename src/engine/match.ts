@@ -37,6 +37,8 @@ export interface MatchTeamInput {
   captainId?: string
   /** Multiplier on how strongly team talks land (an assistant manager raises it). */
   talkSkill?: number
+  /** Opposition player-season id to man-mark: his influence drops, ours a little too. */
+  markTarget?: string
 }
 
 export interface MatchOptions {
@@ -117,6 +119,7 @@ export interface TeamSnapshot {
   teamTalk: TeamTalk
   captainId?: string
   talkSkill?: number
+  markTarget?: string
   strength: TeamStrength
   modifiers: TacticalModifiers
   talkText: string
@@ -180,6 +183,8 @@ export function beginMatch(opts: MatchOptions): MatchInProgress {
   const am = tacticalModifiers(away.tactics, as.slots, home.tactics, hs.slots)
   const hLive = buildLive(hs.slots)
   const aLive = buildLive(as.slots)
+  applyMarking(home, aLive, hm, away.getPlayer)
+  applyMarking(away, hLive, am, home.getPlayer)
   const hTalk = scaleTalk(teamTalkEffect(rng, home.teamTalk ?? 'none', hs.overall, as.overall, hLive, home.getPlayer), home.talkSkill)
   const aTalk = scaleTalk(teamTalkEffect(rng, away.teamTalk ?? 'none', as.overall, hs.overall, aLive, away.getPlayer), away.talkSkill)
 
@@ -199,6 +204,7 @@ export function beginMatch(opts: MatchOptions): MatchInProgress {
     teamTalk: t.teamTalk ?? 'none',
     captainId: t.captainId,
     talkSkill: t.talkSkill,
+    markTarget: t.markTarget,
     strength: strip(strength),
     modifiers,
     talkText,
@@ -283,6 +289,8 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
   const as = withOffset(computeTeamStrength(mp.away.tactics, mp.away.lineup, away.getPlayer, away.getState), mp.away.ratingOffset)
   mp.home.modifiers = tacticalModifiers(mp.home.tactics, hs.slots, mp.away.tactics, as.slots)
   mp.away.modifiers = tacticalModifiers(mp.away.tactics, as.slots, mp.home.tactics, hs.slots)
+  applyMarking(mp.home, mp.aLive, mp.home.modifiers, away.getPlayer, false)
+  applyMarking(mp.away, mp.hLive, mp.away.modifiers, home.getPlayer, false)
   const { lamH, lamA } = expectedGoals(mp, home, away, hs, as)
 
   playHalf(mp, rng, home, away, 2, lamH, lamA)
@@ -359,7 +367,7 @@ export function onPitch(mp: MatchInProgress, side: 'home' | 'away'): LivePlayer[
 // Internals
 
 function inputFromSnapshot(s: TeamSnapshot, l: TeamLookups): MatchTeamInput {
-  return { teamId: s.teamId, teamName: s.teamName, shortName: s.shortName, tactics: s.tactics, lineup: s.lineup, bench: s.bench, getPlayer: l.getPlayer, getState: l.getState, teamTalk: s.teamTalk, ratingOffset: s.ratingOffset, captainId: s.captainId, talkSkill: s.talkSkill }
+  return { teamId: s.teamId, teamName: s.teamName, shortName: s.shortName, tactics: s.tactics, lineup: s.lineup, bench: s.bench, getPlayer: l.getPlayer, getState: l.getState, teamTalk: s.teamTalk, ratingOffset: s.ratingOffset, captainId: s.captainId, talkSkill: s.talkSkill, markTarget: s.markTarget }
 }
 
 function expectedGoals(mp: MatchInProgress, home: MatchTeamInput, away: MatchTeamInput, hsOverride?: TeamStrength, asOverride?: TeamStrength): { lamH: number; lamA: number } {
@@ -382,6 +390,9 @@ function expectedGoals(mp: MatchInProgress, home: MatchTeamInput, away: MatchTea
   // Designated set-piece takers: a good corner or free-kick specialist on the pitch adds chances
   lamH *= 1 + setPieceBonus(mp.home, mp.hLive, home.getPlayer)
   lamA *= 1 + setPieceBonus(mp.away, mp.aLive, away.getPlayer)
+  // Man-marking the opponent's danger man takes the edge off their attack while he is on the pitch
+  if (stillOn(mp.aLive, mp.home.markTarget)) lamA *= 0.93
+  if (stillOn(mp.hLive, mp.away.markTarget)) lamH *= 0.93
   // A captain with a strong mentality lifts his side a touch and organises the defence
   const hLead = leadership(mp.home, mp.hLive, home.getPlayer)
   const aLead = leadership(mp.away, mp.aLive, away.getPlayer)
@@ -464,6 +475,24 @@ function buildLive(slots: SlotEvaluation[]): LivePlayer[] {
     shares: { gk: s.role.contribution.gk ?? 0, defence: s.role.contribution.defence, midfield: s.role.contribution.midfield, attack: s.role.contribution.attack },
     creativity: s.role.effects?.creativity ?? 0,
   }))
+}
+
+/**
+ * Man-marking: the target's attacking influence is cut (fewer goals, lower
+ * rating) and the marking side gives up a little going forward. Noted in the
+ * report so the manager can see it worked.
+ */
+function applyMarking(side: Pick<MatchTeamInput, 'markTarget'>, theirLive: LivePlayer[], ourMods: TacticalModifiers, getTheirs: MatchTeamInput['getPlayer'], kickOff = true): void {
+  if (!side.markTarget) return
+  const target = theirLive.find((p) => p.psId === side.markTarget && !p.red && p.offAt >= 90)
+  if (!target) return
+  if (kickOff) {
+    target.shares.attack *= 0.6
+    target.shares.midfield *= 0.85
+    target.effective -= 3
+  }
+  ourMods.attack *= 0.97
+  ourMods.notes.push(`Man-marking ${getTheirs(target.psId)?.name ?? 'their danger man'}: his influence is reduced, ours slightly too`)
 }
 
 /** A good assistant makes a talk land harder, for better or worse. */

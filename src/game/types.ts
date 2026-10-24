@@ -116,6 +116,8 @@ export interface Game {
   window: Window | null
   pendingEvent: GameEvent | null
   promisedStart?: string
+  /** Opposition player to man-mark in the next match (set from the opposition report). */
+  markTarget?: string
   /** Matchweek each player was last spoken to, one conversation per week. */
   talks?: Record<string, number>
   /** Backroom staff tier per role (0-2). */
