@@ -124,7 +124,12 @@ export const useStore = create<Store>()(
       const mutate = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const { game, universe } = get()
         if (!game || !universe) return
-        set({ game: produce(game, (g) => fn(g, universe)) })
+        try {
+          set({ game: produce(game, (g) => fn(g, universe)) })
+        } catch (e) {
+          console.error(e)
+          set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
+        }
       }
       const unlockFromGame = () => {
         const { game, profile } = get()

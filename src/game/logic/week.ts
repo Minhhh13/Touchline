@@ -400,7 +400,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse): void {
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
-      if (game.window.day < game.window.days) advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05 }, game.window, squadPlayers(game, u), Object.keys(season.ai))
+      if (game.window.day < game.window.days) advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05 }, game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed })), Object.keys(season.ai))
     }
     if (game.window.day >= game.window.days) {
       news(game, { kind: 'transfer', title: 'Window closed', body: 'The January window has shut.' })
@@ -425,9 +425,21 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
   const row = t.find((r) => r.teamId === USER_TEAM)!
   const next = nextOpponent(game)
   const host = u.clubById[season.hostClubId]
+  const lastFixture = [...season.fixtures].filter((f) => f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)).sort((a, b) => b.matchweek - a.matchweek)[0]
+  let beatRival = false
+  if (lastFixture?.result && host) {
+    const home = lastFixture.homeTeamId === USER_TEAM
+    const opp = home ? lastFixture.awayTeamId : lastFixture.homeTeamId
+    const gf = home ? lastFixture.result.homeGoals : lastFixture.result.awayGoals
+    const ga = home ? lastFixture.result.awayGoals : lastFixture.result.homeGoals
+    beatRival = host.rivals.includes(opp) && gf > ga
+  }
   return {
     rng,
     matchweek: season.matchweek,
+    expiring: squadPlayers(game, u).filter((x) => (game.contracts[x.p.id]?.years ?? 1) <= 1 && !game.contracts[x.p.id]?.renewed && !game.contracts[x.p.id]?.declined),
+    recentForm: row.form,
+    beatRival,
     squad: squadPlayers(game, u).map((x) => ({ p: x.p, s: x.s, consecutiveMissed: game.consecutiveMissed[x.p.id] ?? 0 })),
     unbeaten: row.lost === 0,
     wins: row.won,
@@ -460,6 +472,35 @@ export function applyEventChoice(game: Game, u: LoadedUniverse, choiceId: string
   if (out.promiseStart) game.promisedStart = out.promiseStart
   if (out.nextMatchBoost) game.nextMatchBoost = out.nextMatchBoost
   if (out.captain) game.captainId = out.captain
+  if (out.renewContract) {
+    const c = game.contracts[out.renewContract.playerSeasonId]
+    if (c) {
+      c.renewed = true
+      c.years = Math.max(c.years, 1)
+    }
+    const p = playerLookup(game, u)(out.renewContract.playerSeasonId)
+    if (p) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * 1.2) }
+  }
+  if (out.declineContract) {
+    const c = game.contracts[out.declineContract]
+    if (c) c.declined = true
+  }
+  if (out.transferList) {
+    const c = game.contracts[out.transferList]
+    if (c) c.listed = true
+  }
+  if (out.clearInjury) {
+    const s = game.squad[out.clearInjury.playerSeasonId]
+    if (s && s.injury) {
+      if (rng.chance(out.clearInjury.setbackChance)) {
+        s.injury.weeksOut += rng.int(2, 4)
+        news(game, { kind: 'injury', title: 'Setback', body: `${playerLookup(game, u)(out.clearInjury.playerSeasonId)?.name} broke down in training. ${s.injury.weeksOut} more weeks.` })
+      } else {
+        s.injury = null
+        s.sharpness = Math.max(40, s.sharpness - 10)
+      }
+    }
+  }
   if (ev.id === 'agent' && choiceId === 'meet') game.bonusSpins += 1
   news(game, { kind: 'event', title: ev.title, body: out.text })
   game.pendingEvent = null

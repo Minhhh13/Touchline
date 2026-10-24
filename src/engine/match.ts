@@ -260,6 +260,16 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     side.talkText = side.talkText ? `${side.talkText} ${talk.text}` : talk.text
   }
 
+  // The AI side reacts to the scoreline at the break.
+  for (const sideKey of ['home', 'away'] as const) {
+    if (second?.side === sideKey) continue
+    const side = sideKey === 'home' ? mp.home : mp.away
+    const us = sideKey === 'home' ? mp.halfTimeScore.home : mp.halfTimeScore.away
+    const them = sideKey === 'home' ? mp.halfTimeScore.away : mp.halfTimeScore.home
+    if (us - them <= -2 && side.tactics.mentality !== 'attacking') side.tactics = { ...side.tactics, mentality: 'attacking', pressing: side.tactics.pressing === 'low' ? 'mid' : side.tactics.pressing }
+    else if (us - them >= 2 && side.tactics.mentality === 'attacking') side.tactics = { ...side.tactics, mentality: 'balanced' }
+  }
+
   // Recompute second-half strengths and modifiers (the pitch may have changed)
   const hs = withOffset(computeTeamStrength(mp.home.tactics, mp.home.lineup, home.getPlayer, home.getState), mp.home.ratingOffset)
   const as = withOffset(computeTeamStrength(mp.away.tactics, mp.away.lineup, away.getPlayer, away.getState), mp.away.ratingOffset)

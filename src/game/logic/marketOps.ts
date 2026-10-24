@@ -71,7 +71,7 @@ export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: str
 export function advanceDay(game: Game, u: LoadedUniverse): void {
   if (!game.window || !game.season) return
   const rng = Rng.fromState(game.rngState)
-  advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: game.season.leagueSeason, priceLevel: 1.05 }, game.window, squadPlayers(game, u), Object.keys(game.season.ai))
+  advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: game.season.leagueSeason, priceLevel: 1.05 }, game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed })), Object.keys(game.season.ai))
   if (game.window.day >= game.window.days) {
     game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: 'Window closed', body: `The ${game.window.kind === 'summer' ? 'summer' : 'January'} window has shut.` })
     game.window = null

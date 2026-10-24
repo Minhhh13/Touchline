@@ -17,6 +17,7 @@ import { clubName, clubShort, conditionColour, money, moraleWord, ordinal, seaso
 import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { StatsTab } from './StatsTab'
+import { OppositionReport } from './OppositionReport'
 
 type Tab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'stats' | 'market' | 'inbox' | 'club'
 
@@ -157,6 +158,7 @@ export function Dugout() {
         </div>
       )}
       {game.pendingEvent && <EventCard />}
+      {!done && !preseason && next && tab === 'squad' && <OppositionReport clubId={next.clubId} home={next.home} />}
 
       <Tabs<Tab>
         value={tab}

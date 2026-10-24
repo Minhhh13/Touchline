@@ -32,6 +32,12 @@ export interface GameSettings {
 export interface Contract {
   /** Seasons remaining including the current one. */
   years: number
+  /** Renewed in-season: extends at the summer regardless of expiry. */
+  renewed?: boolean
+  /** The player will leave when the contract ends. */
+  declined?: boolean
+  /** Transfer-listed: offers come in more often. */
+  listed?: boolean
 }
 
 export interface SeasonRecord {

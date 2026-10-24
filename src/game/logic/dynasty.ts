@@ -81,15 +81,17 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
       report.retired.push(p.name)
       continue
     }
-    if (contract.years - 1 <= 0) {
-      // Contract up: players with poor morale leave, others renew for a wage bump the budget must cover
-      if (s.morale < 50 || rng.chance(0.25)) {
+    if (contract.renewed) {
+      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : 3 }
+    } else if (contract.years - 1 <= 0) {
+      // Contract up: a declined renewal, poor morale or plain bad luck means he walks
+      if (contract.declined || s.morale < 50 || rng.chance(0.25)) {
         report.expired.push(p.name)
         continue
       }
       newContracts[aged.id] = { years: aged.age >= 32 ? 1 : rng.int(2, 3) }
     } else {
-      newContracts[aged.id] = { years: contract.years - 1 }
+      newContracts[aged.id] = { years: contract.years - 1, listed: contract.listed }
     }
     game.customPlayers[aged.id] = aged
     if (aged.overall > p.overall + 1) report.improved.push({ name: p.name, from: p.overall, to: aged.overall })

@@ -26,6 +26,11 @@ export interface GameEvent {
 export interface EventContext {
   rng: Rng
   matchweek: number
+  /** Players whose contracts end this season and have not yet been offered a renewal. */
+  expiring: Array<{ p: PlayerSeason; s: SquadPlayer }>
+  recentForm: Array<'W' | 'D' | 'L'>
+  /** Did the last match beat a rival? */
+  beatRival: boolean
   squad: Array<{ p: PlayerSeason; s: SquadPlayer; consecutiveMissed: number }>
   unbeaten: boolean
   wins: number
@@ -52,6 +57,14 @@ export interface EventOutcome {
   releasePlayer?: string
   /** Set captain. */
   captain?: string
+  /** Renew the player's contract (dynasty). */
+  renewContract?: { playerSeasonId: string; fee: number }
+  /** Player declines renewal and will leave at season end. */
+  declineContract?: string
+  /** Mark a player as available for transfer. */
+  transferList?: string
+  /** Clear an injury now, with a chance of a setback. */
+  clearInjury?: { playerSeasonId: string; setbackChance: number }
 }
 
 export function rollEvent(ctx: EventContext): GameEvent | null {
@@ -103,8 +116,9 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
       weight: 1.5,
       make: () => {
         const a = rng.pick(squad)
-        const b = rng.pick(squad.filter((x) => x !== a && x.p.positions[0] === a.p.positions[0]))
-        if (!b) return null
+        const rivals = squad.filter((x) => x !== a && x.p.positions[0] === a.p.positions[0])
+        if (!rivals.length) return null
+        const b = rng.pick(rivals)
         return {
           id: 'bust-up',
           title: 'Training ground bust-up',
@@ -205,6 +219,99 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
     })
   }
 
+  // Contract renewal
+  if (ctx.matchweek >= 24 && ctx.expiring.length) {
+    candidates.push({
+      weight: 4,
+      make: () => {
+        const x = rng.pick(ctx.expiring)
+        const fee = Math.max(0.5, Math.round(x.p.value * 0.08 * 10) / 10)
+        return {
+          id: 'contract',
+          title: `${x.p.name}'s contract is running down`,
+          body: `${x.p.name} (${x.p.age}) is out of contract in the summer. His agent wants a new deal: a £${fee}M signing-on fee and wages up 20%.`,
+          playerSeasonId: x.p.id,
+          choices: [
+            { id: 'renew', label: `Renew (£${fee}M, +20% wages)`, hint: 'Keeps him for the dynasty. Morale up.' },
+            { id: 'let-go', label: 'Let him run it down', hint: 'He leaves in the summer. Morale dips now.' },
+          ],
+        }
+      },
+    })
+  }
+  // Wantaway player
+  const unhappy = squad.filter((x) => x.s.morale < 40 && x.p.overall >= 76)
+  if (unhappy.length && ctx.matchweek >= 8) {
+    candidates.push({
+      weight: 2.5,
+      make: () => {
+        const x = rng.pick(unhappy)
+        return {
+          id: 'wantaway',
+          title: `${x.p.name} wants out`,
+          body: `${x.p.name} has told the press he wants to leave. The dressing room is watching.`,
+          playerSeasonId: x.p.id,
+          choices: [
+            { id: 'list', label: 'Fine. He goes in the next window', hint: 'He plays on with better morale; offers will come.' },
+            { id: 'refuse', label: 'Nobody leaves', hint: 'Morale drops further; squad respects the stance.' },
+            { id: 'talk', label: 'Talk him round', hint: 'Depends on his professionalism.' },
+          ],
+        }
+      },
+    })
+  }
+  // Media criticism after three defeats
+  if (ctx.recentForm.slice(-3).every((r) => r === 'L') && ctx.recentForm.length >= 3) {
+    candidates.push({
+      weight: 3,
+      make: () => ({
+        id: 'media',
+        title: 'The press turn',
+        body: 'Three defeats in a row. The papers are asking whether the manager has lost the dressing room.',
+        choices: [
+          { id: 'defend', label: 'Defend the players', hint: 'Players appreciate it; board less so.' },
+          { id: 'criticise', label: 'Criticise the players publicly', hint: 'Board likes accountability; squad does not.' },
+          { id: 'silence', label: 'No comment', hint: 'Nothing changes.' },
+        ],
+      }),
+    })
+  }
+  // Rushed return from injury
+  const nearlyFit = squad.filter((x) => x.s.injury && x.s.injury.weeksOut <= 2 && x.p.overall >= 80)
+  if (nearlyFit.length) {
+    candidates.push({
+      weight: 2,
+      make: () => {
+        const x = rng.pick(nearlyFit)
+        return {
+          id: 'rush',
+          title: `Rush ${x.p.name} back?`,
+          body: `${x.p.name} could be declared fit early. The physio is not keen.`,
+          playerSeasonId: x.p.id,
+          choices: [
+            { id: 'rush', label: 'Declare him fit', hint: 'Available now; raised chance of a setback.' },
+            { id: 'wait', label: 'Wait', hint: 'Back when fully healed.' },
+          ],
+        }
+      },
+    })
+  }
+  // Board bonus for beating a rival
+  if (ctx.beatRival) {
+    candidates.push({
+      weight: 3,
+      make: () => ({
+        id: 'rival-bonus',
+        title: 'Bragging rights',
+        body: 'The chairman loved the derby win. He is offering something to mark it.',
+        choices: [
+          { id: 'budget', label: 'Transfer funds', hint: '+£8M to the budget.' },
+          { id: 'party', label: 'A night out for the squad', hint: 'Team morale up, condition slightly down.' },
+        ],
+      }),
+    })
+  }
+
   if (!candidates.length) return null
   const chosen = rng.pickWeighted(candidates, (c) => c.weight)
   return chosen.make()
@@ -249,6 +356,30 @@ export function resolveEvent(ev: GameEvent, choiceId: string, ctx: EventContext)
       const id = choiceId.replace('cap:', '')
       return { text: 'The armband is handed over.', captain: id, moraleDelta: [{ playerSeasonId: id, delta: 8 }], teamMoraleDelta: 1 }
     }
+    case 'contract': {
+      const player = ctx.squad.find((x) => x.p.id === p)
+      const fee = Math.max(0.5, Math.round((player?.p.value ?? 5) * 0.08 * 10) / 10)
+      if (choiceId === 'renew') return { text: `${player?.p.name} signs on for the long term.`, moraleDelta: [{ playerSeasonId: p!, delta: 10 }], budgetDelta: -fee, renewContract: { playerSeasonId: p!, fee } }
+      return { text: 'He will see out the season and move on.', moraleDelta: [{ playerSeasonId: p!, delta: -8 }], declineContract: p }
+    }
+    case 'wantaway':
+      if (choiceId === 'list') return { text: 'He is placed on the transfer list and knuckles down.', moraleDelta: [{ playerSeasonId: p!, delta: 12 }], transferList: p }
+      if (choiceId === 'refuse') return { text: 'He is going nowhere, and he knows it.', moraleDelta: [{ playerSeasonId: p!, delta: -8 }], teamMoraleDelta: 2 }
+      {
+        const player = ctx.squad.find((x) => x.p.id === p)
+        const ok = rng.chance(0.3 + (player?.p.traits.professionalism ?? 0.5) * 0.5)
+        return ok ? { text: 'A long talk. He recommits.', moraleDelta: [{ playerSeasonId: p!, delta: 18 }] } : { text: 'He nods politely and changes nothing.', moraleDelta: [{ playerSeasonId: p!, delta: -3 }] }
+      }
+    case 'media':
+      if (choiceId === 'defend') return { text: 'The players feel backed. The board notes the excuses.', teamMoraleDelta: 4, confidenceDelta: -2 }
+      if (choiceId === 'criticise') return { text: 'Accountability, says the board. Mutiny, mutter the players.', teamMoraleDelta: -6, confidenceDelta: 4 }
+      return { text: 'The story moves on.' }
+    case 'rush':
+      if (choiceId === 'rush') return { text: 'Declared fit. Fingers crossed.', clearInjury: { playerSeasonId: p!, setbackChance: 0.35 } }
+      return { text: 'He finishes his rehab.' }
+    case 'rival-bonus':
+      if (choiceId === 'budget') return { text: 'The chairman adds £8M to the pot.', budgetDelta: 8 }
+      return { text: 'The squad hits the town. Spirits high, legs heavy.', teamMoraleDelta: 6, conditionDelta: ctx.squad.map((x) => ({ playerSeasonId: x.p.id, delta: -6 })) }
   }
   return { text: 'Nothing happens.' }
 }

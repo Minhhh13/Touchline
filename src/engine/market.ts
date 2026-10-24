@@ -155,7 +155,7 @@ export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36)
  * cheaper near the deadline, some players sign elsewhere, and AI clubs may bid
  * for our players.
  */
-export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p: PlayerSeason; s: SquadPlayer }>, clubsInLeague: string[]): void {
+export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p: PlayerSeason; s: SquadPlayer; listed?: boolean }>, clubsInLeague: string[]): void {
   const { rng, u } = ctx
   w.day++
   const daysLeft = w.days - w.day
@@ -193,10 +193,10 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
     if (extra.length) w.log.push(`${extra.length} new player${extra.length > 1 ? 's' : ''} listed: ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(', ')}.`)
   }
   // Offers for our players
-  for (const { p, s: state } of ownSquad) {
-    const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0)
+  for (const { p, s: state, listed } of ownSquad) {
+    const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0) + (listed ? 0.6 : 0)
     if (desirability <= 0) continue
-    if (rng.chance(0.05 * desirability)) {
+    if (rng.chance((listed ? 0.12 : 0.05) * desirability)) {
       const { price } = askingPrice(p, ctx, state)
       const amount = roundM(price * rng.float(0.75, 1.1))
       const fromClubId = rng.pick(clubsInLeague)

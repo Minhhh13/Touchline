@@ -51,7 +51,7 @@ export function MatchTicker({ events, homeName, awayName, onDone, onHalfTime, st
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
   }, [clock])
 
-  const shown = useMemo(() => events.filter((e) => e.minute <= clock && e.type !== 'kickoff'), [events, clock])
+  const shown = useMemo(() => events.filter((e) => e.minute <= clock && e.type !== 'kickoff').sort((a, b) => a.minute - b.minute || (a.type === 'half_time' || a.type === 'full_time' ? 1 : 0) - (b.type === 'half_time' || b.type === 'full_time' ? 1 : 0)), [events, clock])
   const hg = shown.filter((e) => e.side === 'home' && (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal')).length
   const ag = shown.filter((e) => e.side === 'away' && (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal')).length
   const finished = clock >= stopAt
