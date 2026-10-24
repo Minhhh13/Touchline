@@ -27,9 +27,10 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   const user: MatchTeamInput = { teamId: USER_TEAM, teamName: game.settings.teamName, shortName: game.settings.shortName, tactics: game.tactics, lineup, bench, getPlayer: get, getState: () => undefined }
   const strength = computeTeamStrength(game.tactics, lineup, get, () => undefined)
 
-  const ai = buildAiClubs(u, game.settings.leagueSeason, game.settings.hostClubId)
+  const ai = buildAiClubs(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId)
   const offset = aiRatingOffset(u, ai, game.settings.difficulty ?? 'calibrated')
   const ids = [USER_TEAM, ...Object.keys(ai)]
+  const matchweeks = (ids.length - 1) * 2
   const fixtures = generateFixtures(ids, rng)
   const goals: Record<string, number> = {}
   const ratings: Record<string, { sum: number; n: number }> = {}
@@ -52,10 +53,10 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   const table = computeTable(fixtures, ids)
   const row = table.find((r) => r.teamId === USER_TEAM)!
   const pos = positionOf(table, USER_TEAM)
-  const tier = seasonTier(table, USER_TEAM, false)
+  const tier = seasonTier(table, USER_TEAM, false, matchweeks)
   const topScorer = Object.entries(goals).sort((a, b) => b[1] - a[1])[0]
   const pots = Object.entries(ratings)
-    .filter(([, r]) => r.n >= 15)
+    .filter(([, r]) => r.n >= Math.floor(matchweeks * 0.4))
     .map(([id, r]) => ({ id, avg: r.sum / r.n }))
     .sort((a, b) => b.avg - a.avg)[0]
   const quick: QuickResult = {

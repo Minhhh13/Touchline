@@ -33,7 +33,7 @@ describe('season', () => {
     const rng = new Rng('season-1')
     const leagueSeason = 2025
     const host = 'burnley'
-    const ai = buildAiClubs(u, leagueSeason, host)
+    const ai = buildAiClubs(u, 'england', leagueSeason, host)
     const ids = [USER_TEAM, ...Object.keys(ai)]
     expect(ids.length).toBe(20)
     const fixtures = generateFixtures(ids, rng)

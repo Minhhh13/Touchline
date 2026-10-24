@@ -31,9 +31,20 @@ describe('universe data', () => {
     expect(vardy?.accolades).toContain('Champion')
   })
   it('has complete tables with champions', () => {
-    const t = u.tables[2015]
+    const t = u.tables.england[2015]
     expect(t[0].clubId).toBe('leicester-city')
     expect(t.length).toBe(20)
     expect(u.clubSeasonByKey['leicester-city@2015'].champions).toBe(true)
+  })
+  it('merges other leagues with their own clubs and seasons', () => {
+    const e = loadTestUniverse(['england', 'spain', 'germany'])
+    expect(e.leagues.map((l) => l.id)).toEqual(['england', 'spain', 'germany'])
+    expect(e.clubSeasons.filter((cs) => cs.leagueId === 'germany' && cs.season === 2024).length).toBe(18)
+    expect(e.clubSeasons.filter((cs) => cs.leagueId === 'spain' && cs.season === 2024).length).toBe(20)
+    expect(e.tables.spain[2024][0].clubId).toBe('fc-barcelona')
+    expect(e.tables.germany[2023][0].clubId).toBe('bayer-leverkusen')
+    const messi = Object.values(e.index).find((p) => p.name === 'L. Messi' && p.season === 2014)
+    expect(messi?.clubId).toBe('fc-barcelona')
+    expect(messi?.overall).toBeGreaterThanOrEqual(90)
   })
 })

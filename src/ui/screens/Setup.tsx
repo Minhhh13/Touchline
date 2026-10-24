@@ -12,7 +12,9 @@ const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily C
 type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
 
 export function Setup() {
-  const { universe: u, setupMode: mode, startGame, go } = useStore()
+  const { universe: u, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
+  const [leagueId, setLeagueId] = useState('england')
+  const [wheelScope, setWheelScope] = useState<'league' | 'europe'>('league')
   const [teamName, setTeamName] = useState('Touchline XI')
   const [formationId, setFormationId] = useState('4-3-3')
   const [era, setEra] = useState<Era>('all')
@@ -31,12 +33,24 @@ export function Setup() {
   const [seed, setSeed] = useState(() => randomSeed())
   const [squadSize, setSquadSize] = useState(18)
 
-  const seasons = useMemo(() => (u ? Array.from({ length: u.lastSeason - u.firstSeason + 1 }, (_, i) => u.firstSeason + i) : []), [u])
-  const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.season === leagueSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueSeason])
-  const allClubs = useMemo(() => (u ? [...u.clubs].sort((a, b) => a.name.localeCompare(b.name)) : []), [u])
+  const seasons = useMemo(() => (u ? [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
+  const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, leagueSeason])
+  const wheelLeagues = useMemo(() => (wheelScope === 'europe' && u ? u.available.map((l) => l.id) : [leagueId]), [wheelScope, leagueId, u])
+  const allClubs = useMemo(() => (u ? [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId)).sort((a, b) => a.name.localeCompare(b.name)) : []), [u, wheelLeagues])
+  const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l))
+  const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : clubsInLeague[Math.floor(clubsInLeague.length / 2)] ?? ''
 
   if (!u) return <div className="page">Loading…</div>
+  const pickLeague = (id: string) => {
+    setLeagueId(id)
+    setHostClubId('')
+    void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id])
+  }
+  const pickScope = (scope: 'league' | 'europe') => {
+    setWheelScope(scope)
+    void ensureLeagues(scope === 'europe' ? u.available.map((l) => l.id) : [leagueId])
+  }
 
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
@@ -62,7 +76,7 @@ export function Setup() {
     if (!isDaily) return null
     const seedNum = todaysDailySeed().split('-').slice(1).join('')
     const n = Number(seedNum) || 0
-    const complete = u.clubSeasons.filter((cs) => cs.complete)
+    const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england')
     const seasonsComplete = [...new Set(complete.map((cs) => cs.season))].sort()
     const season = seasonsComplete[n % seasonsComplete.length]
     const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()
@@ -73,7 +87,7 @@ export function Setup() {
 
   const start = () => {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
-    const rules: DraftRules = { ...base, ...eraRange(), onlyClub: !isDaily && onlyClub ? onlyClub : undefined, hardMode: !isDaily && hardMode }
+    const rules: DraftRules = { ...base, ...eraRange(), onlyClub: !isDaily && onlyClub ? onlyClub : undefined, hardMode: !isDaily && hardMode, leagues: dailyFixed ? ['england'] : wheelLeagues }
     const name = teamName.trim() || 'Touchline XI'
     const short = name
       .split(/\s+/)
@@ -87,8 +101,10 @@ export function Setup() {
       formationId: dailyFixed ? dailyFixed.formationId : formationId,
       teamName: name,
       shortName: short.length >= 2 ? short : name.slice(0, 3).toUpperCase(),
+      leagueId: dailyFixed ? 'england' : leagueId,
+      wheelLeagues: dailyFixed ? ['england'] : wheelLeagues,
       hostClubId: dailyFixed ? dailyFixed.host : host,
-      leagueSeason: dailyFixed ? dailyFixed.season : leagueSeason,
+      leagueSeason: dailyFixed ? dailyFixed.season : effectiveSeason,
       rules,
       jobSecurity: isManage ? jobSecurity : false,
       difficulty: dailyFixed ? 'calibrated' : difficulty,
@@ -118,9 +134,23 @@ export function Setup() {
               </div>
             )}
             {!dailyFixed && (
+              <div className="field">
+                League
+                <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: l.name, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
+                <span className="help">{loadingLeagues ? 'Loading league data…' : 'Where your side plays. Each league has its own real clubs and seasons.'}</span>
+              </div>
+            )}
+            {!dailyFixed && (
+              <div className="field">
+                Draft from
+                <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: `${u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only` }, { value: 'europe', label: 'European Nights: all five leagues' }]} />
+                <span className="help">{wheelScope === 'europe' ? 'The wheel and the market draw from England, Spain, Italy, Germany and France.' : 'The wheel and the market stay inside one league.'}</span>
+              </div>
+            )}
+            {!dailyFixed && (
             <label className="field">
               League season to play in
-              <select className="input" value={leagueSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
+              <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
                 {seasons.map((s) => (
                   <option key={s} value={s}>
                     {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}
@@ -256,8 +286,8 @@ export function Setup() {
             <p className="help">{isManage ? 'You can change shape later, at a small cost to familiarity.' : 'The wheel only offers players who can fill a slot you still need.'}</p>
           </div>
           )}
-          <button className="btn primary big block" onClick={start}>
-            {isManage ? 'Start drafting your squad' : 'Spin the wheel'}
+          <button className="btn primary big block" onClick={start} disabled={!dailyFixed && (!leagueReady || loadingLeagues)}>
+            {!dailyFixed && !leagueReady ? 'Loading league data…' : isManage ? 'Start drafting your squad' : 'Spin the wheel'}
           </button>
         </div>
       </div>

@@ -21,6 +21,8 @@ export interface DraftRules {
   toSeason?: number
   /** Restrict the wheel to one club's history. */
   onlyClub?: string
+  /** Leagues the wheel may land on; all loaded leagues when omitted. */
+  leagues?: string[]
   /** Minimum position fit required to draft into a starting slot. */
   minFit: Fit
   /** Hide ratings in the UI (engine ignores this). */
@@ -87,6 +89,7 @@ export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
     if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
     if (r.toSeason !== undefined && cs.season > r.toSeason) return false
     if (r.onlyClub && cs.clubId !== r.onlyClub) return false
+    if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
     if (r.uniqueClubSeasons && d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`)) return false
     return cs.squad.some((p) => canUse(d, p))
   })

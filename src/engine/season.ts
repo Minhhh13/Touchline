@@ -12,7 +12,10 @@ import { autoPickLineup, computeTeamStrength } from './ratings'
 import { getFormation } from './formations'
 
 export const USER_TEAM = 'user'
-export const MATCHWEEKS = 38
+/** Matchweeks in a double round robin of `teams` clubs. */
+export function matchweeksFor(teams: number): number {
+  return (teams - 1) * 2
+}
 
 export interface AiClub {
   id: string
@@ -37,8 +40,12 @@ export interface CupTie {
 }
 
 export interface SeasonState {
+  /** League the user plays in. */
+  leagueId: string
   /** Real season whose clubs form the league. */
   leagueSeason: number
+  /** Number of league matchweeks (38 for 20 clubs, 34 for 18). */
+  matchweeks: number
   /** Club the user replaced (name, colours and fixtures are theirs). */
   hostClubId: string
   teamName: string
@@ -113,9 +120,9 @@ export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
   return [...first.flat(), ...second.flat()]
 }
 
-export function buildAiClubs(u: LoadedUniverse, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
+export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
-  const clubs = u.clubSeasons.filter((cs) => cs.season === leagueSeason && cs.clubId !== hostClubId)
+  const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason && cs.clubId !== hostClubId)
   for (const cs of clubs) {
     const club = u.clubById[cs.clubId]
     const style = club?.style ?? 'balanced'
@@ -200,29 +207,40 @@ export function positionOf(table: TableRow[], teamId: string): number {
   return table.findIndex((r) => r.teamId === teamId) + 1
 }
 
-/** Cup schedule: 16 teams, four rounds spread across the season. */
-export const CUP_ROUNDS: Array<{ round: CupTie['round']; afterMatchweek: number; label: string }> = [
-  { round: 'R16', afterMatchweek: 6, label: 'Fourth round' },
-  { round: 'QF', afterMatchweek: 14, label: 'Quarter-final' },
-  { round: 'SF', afterMatchweek: 24, label: 'Semi-final' },
-  { round: 'F', afterMatchweek: 36, label: 'Final' },
-]
+export interface CupRoundInfo {
+  round: CupTie['round']
+  afterMatchweek: number
+  label: string
+}
 
-export function drawFirstCupRound(teamIds: string[], rng: Rng): CupTie[] {
+/** Cup schedule: 16 teams, four rounds spread across the season (after MW 6, 14, 24 and 36 of 38). */
+export function cupRounds(matchweeks: number): CupRoundInfo[] {
+  const at = (mw38: number) => Math.max(1, Math.min(matchweeks - 1, Math.round((mw38 / 38) * matchweeks)))
+  return [
+    { round: 'R16', afterMatchweek: at(6), label: 'Fourth round' },
+    { round: 'QF', afterMatchweek: at(14), label: 'Quarter-final' },
+    { round: 'SF', afterMatchweek: at(24), label: 'Semi-final' },
+    { round: 'F', afterMatchweek: at(36), label: 'Final' },
+  ]
+}
+
+export function drawFirstCupRound(teamIds: string[], rng: Rng, matchweeks: number): CupTie[] {
   const entrants = rng.shuffle([...teamIds]).slice(0, 16)
   if (!entrants.includes(USER_TEAM)) entrants[0] = USER_TEAM
   const ties: CupTie[] = []
-  for (let i = 0; i < entrants.length; i += 2) ties.push({ round: 'R16', afterMatchweek: 6, homeTeamId: entrants[i], awayTeamId: entrants[i + 1] })
+  const first = cupRounds(matchweeks)[0]
+  for (let i = 0; i < entrants.length; i += 2) ties.push({ round: 'R16', afterMatchweek: first.afterMatchweek, homeTeamId: entrants[i], awayTeamId: entrants[i + 1] })
   return ties
 }
 
-export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng): CupTie[] {
-  const prevIndex = CUP_ROUNDS.findIndex((r) => r.round === round) - 1
+export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng, matchweeks: number): CupTie[] {
+  const rounds = cupRounds(matchweeks)
+  const prevIndex = rounds.findIndex((r) => r.round === round) - 1
   if (prevIndex < 0) return []
-  const prev = CUP_ROUNDS[prevIndex]
+  const prev = rounds[prevIndex]
   const winners = cup.filter((t) => t.round === prev.round && t.winnerId).map((t) => t.winnerId!)
   rng.shuffle(winners)
-  const info = CUP_ROUNDS[prevIndex + 1]
+  const info = rounds[prevIndex + 1]
   const ties: CupTie[] = []
   for (let i = 0; i + 1 < winners.length; i += 2) ties.push({ round: info.round, afterMatchweek: info.afterMatchweek, homeTeamId: winners[i], awayTeamId: winners[i + 1] })
   return ties
@@ -280,16 +298,17 @@ export function benchMoraleDrift(state: SquadPlayer, player: PlayerSeason, conse
   state.morale = clamp(state.morale - 3 * star * prof, 10, 100)
 }
 
-export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean): SeasonTier {
+export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, matchweeks = 38): SeasonTier {
   const row = table.find((r) => r.teamId === teamId)!
   const pos = positionOf(table, teamId)
-  if (row.won === MATCHWEEKS) return 'PERFECT'
+  const n = table.length
+  if (row.won === matchweeks) return 'PERFECT'
   if (row.lost === 0 && pos === 1) return 'INVINCIBLE'
   if (pos === 1) return 'CHAMPIONS'
   if (pos <= 2) return 'TITLE_RACE'
   if (pos <= 6) return 'EUROPEAN'
-  if (pos <= 15) return 'MID_TABLE'
-  if (pos <= 17) return 'RELEGATION_BATTLE'
+  if (pos <= n - 5) return 'MID_TABLE'
+  if (pos <= n - 3) return 'RELEGATION_BATTLE'
   void cupWon
   return 'RELEGATED'
 }
@@ -332,7 +351,7 @@ export function describeImportance(u: LoadedUniverse, hostClubId: string, oppone
   if (cupRound === 'SF') return { importance: 1.25, label: 'Cup semi-final' }
   const host = u.clubById[hostClubId]
   if (host?.rivals.includes(opponentClubId)) return { importance: 1.25, label: 'Derby day' }
-  if (table && matchweek >= 28) {
+  if (table && matchweek >= Math.round((28 / 38) * (table.length - 1) * 2)) {
     const us = positionOf(table, USER_TEAM)
     const them = positionOf(table, opponentClubId)
     if (us <= 2 && them <= 3) return { importance: 1.3, label: 'Title decider' }

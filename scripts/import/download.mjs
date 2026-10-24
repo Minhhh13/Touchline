@@ -7,6 +7,7 @@ import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { CACHE, SOURCES, OPENFOOTBALL_BASE, OPENFOOTBALL_SEASONS, seasonSlug } from './config.mjs'
+import { LEAGUES } from './leagues.mjs'
 
 const run = promisify(execFile)
 
@@ -46,16 +47,20 @@ export async function ensureDatasets() {
     process.stdout.write(`  extracting ${key}\n`)
     await run('unzip', args)
   }
-  const ofDir = path.join(CACHE, 'openfootball')
-  await mkdir(ofDir, { recursive: true })
-  for (const season of OPENFOOTBALL_SEASONS) {
-    const slug = seasonSlug(season)
-    const dest = path.join(ofDir, `${slug}.txt`)
-    if (await exists(dest)) continue
-    try {
-      await download(`${OPENFOOTBALL_BASE}/${slug}/1-premierleague.txt`, dest)
-    } catch (e) {
-      process.stdout.write(`  (no results file for ${slug}: ${e.message})\n`)
+  for (const league of Object.values(LEAGUES)) {
+    if (!league.openfootball) continue
+    const ofDir = path.join(CACHE, 'openfootball', league.id)
+    await mkdir(ofDir, { recursive: true })
+    for (const season of OPENFOOTBALL_SEASONS) {
+      const slug = seasonSlug(season)
+      const dest = path.join(ofDir, `${slug}.txt`)
+      const missing = path.join(ofDir, `${slug}.missing`)
+      if ((await exists(dest)) || (await exists(missing))) continue
+      try {
+        await download(`${OPENFOOTBALL_BASE}/${league.openfootball.repo}/master/${slug}/${league.openfootball.file}`, dest)
+      } catch (e) {
+        await writeFile(missing, String(e.message))
+      }
     }
   }
 }

@@ -30,8 +30,8 @@ export interface H2HResult {
 export const H2H_IDS = ['h2h-1', 'h2h-2'] as const
 
 /** Both drafted XIs enter the same league season, replacing two real clubs. */
-export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager, H2HManager], drafts: [DraftState, DraftState], leagueSeason: number, difficulty: 'calibrated' | 'realistic'): H2HResult {
-  const aiAll = buildAiClubs(u, leagueSeason, managers[0].hostClubId)
+export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager, H2HManager], drafts: [DraftState, DraftState], leagueId: string, leagueSeason: number, difficulty: 'calibrated' | 'realistic'): H2HResult {
+  const aiAll = buildAiClubs(u, leagueId, leagueSeason, managers[0].hostClubId)
   delete aiAll[managers[1].hostClubId]
   const offset = aiRatingOffset(u, aiAll, difficulty)
   const inputs = managers.map((m, i) => {
@@ -62,7 +62,8 @@ export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager,
   const table = computeTable(fixtures, ids)
   const rows = [table.find((r) => r.teamId === H2H_IDS[0])!, table.find((r) => r.teamId === H2H_IDS[1])!] as [TableRow, TableRow]
   const positions = [positionOf(table, H2H_IDS[0]), positionOf(table, H2H_IDS[1])] as [number, number]
-  const tiers = [seasonTier(table, H2H_IDS[0], false), seasonTier(table, H2H_IDS[1], false)] as [SeasonTier, SeasonTier]
+  const mw = (ids.length - 1) * 2
+  const tiers = [seasonTier(table, H2H_IDS[0], false, mw), seasonTier(table, H2H_IDS[1], false, mw)] as [SeasonTier, SeasonTier]
   const winner: 0 | 1 | null = positions[0] < positions[1] ? 0 : positions[1] < positions[0] ? 1 : null
   const top = (g: Record<string, number>) => {
     const e = Object.entries(g).sort((a, b) => b[1] - a[1])[0]

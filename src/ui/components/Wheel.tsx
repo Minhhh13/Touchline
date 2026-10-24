@@ -22,7 +22,8 @@ export function Wheel({ segments, targetId, year, onSettled, spinning }: { segme
 
   useEffect(() => {
     if (!targetId) return
-    const idx = Math.max(0, segments.findIndex((s) => s.id === targetId))
+    const matches = segments.map((s, i) => (s.id === targetId ? i : -1)).filter((i) => i >= 0)
+    const idx = matches.length ? matches[Math.floor(Math.random() * matches.length)] : 0
     // Pointer is at the top (angle 0). Segment i spans [i*seg, (i+1)*seg) measured clockwise from top before rotation.
     const centre = idx * seg + seg / 2
     const current = rotRef.current % 360

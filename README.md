@@ -2,7 +2,7 @@
 
 **Spin the wheel. Draft the XI. Manage the season.**
 
-A free, open web football game that fuses the spin-and-draft loop of 38-0 with the week-by-week management of Football Manager. Spin a wheel that lands on a real English top-flight club in a real season (2008-09 to 2026-27), draft one player from that squad, repeat until your side is built, then either simulate the season instantly or manage it one matchweek at a time: roles, instructions, condition, injuries, a cup, a January window, a board that counts. Your drafted side takes one real club's place and plays the other nineteen clubs' real squads of that season.
+A free, open web football game that fuses the spin-and-draft loop of 38-0 with the week-by-week management of Football Manager. Spin a wheel that lands on a real club in a real season from England, Spain, Italy, Germany or France (2008-09 to 2026-27), draft one player from that squad, repeat until your side is built, then either simulate the season instantly or manage it one matchweek at a time: roles, instructions, condition, injuries, a cup, a January window, a board that counts. Your drafted side takes one real club's place in the league you choose and plays the other clubs' real squads of that season: 38 matchweeks in a 20-club league, 34 in an 18-club one.
 
 No account, no server, no ads. Everything runs in the browser and saves to `localStorage`.
 
@@ -20,6 +20,9 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - The wheel only lands on squads that can fill a slot you still need: no dead spins.
 - A real player can be drafted once, whichever club or season you catch him in.
 - Eight formations, position eligibility (a wing-back covers full-back, a wide midfielder covers the wing), era filters, one-club mode, hard mode (ratings hidden), re-spins and shareable seeds.
+- Five leagues: the Premier League, La Liga, Serie A, the Bundesliga and Ligue 1, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all five.
+- **Head-to-head**: two managers on one device draft from the same spins in snake order, then both sides play the same season, derbies included.
+- Matches are played live in two halves: at the break you give a team talk, change instructions and make substitutions, and the AI reacts to the score too.
 
 **Management**
 
@@ -33,7 +36,9 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Awards, a team of the season, fifteen achievements, a local leaderboard and a share text for every season.
 - Calibrated or Realistic difficulty.
 
-**Explore**: browse every club-season on the wheel with its real squad and ratings, the highest-rated player-seasons by position, and a player search.
+**Explore**: browse every club-season in all five leagues with its real squad and ratings, the highest-rated player-seasons by position, and a player search.
+
+**Opposition reports** before every match, league-wide statistics (Golden Boot, assists, ratings, clean sheets) and an expanding deck of dressing-room events: contract renewals, wantaway stars, media pressure, rushed injury returns and derby bonuses.
 
 ## Screenshots
 
@@ -62,7 +67,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository (`public/data/england/`). To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 51,957 player-seasons across five leagues, about 1.1 to 1.3 MB per league, loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
 
 ```bash
 node scripts/import/build.mjs
@@ -128,11 +133,11 @@ Design documents:
 
 ## Roadmap
 
-- Head-to-head hot-seat drafting.
-- European leagues.
-- 1992-93 to 2007-08 seasons (open data permitting).
-- Online leaderboards and shared daily results.
-- PWA packaging for offline play.
+- Seasons before 2008-09 (needs a ratings source for the 1990s and 2000s)
+- Online leaderboards for the daily challenge
+- PWA packaging for offline play
+- More leagues (Portugal, the Netherlands) and international tournaments
+
 
 ## Disclaimer
 

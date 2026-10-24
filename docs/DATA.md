@@ -4,7 +4,7 @@ Touchline ships with a static database of English top-flight player-seasons buil
 
 ## 1. Outputs
 
-### `public/data/england/players.json` (about 1.3 MB)
+### `public/data/<league>/players.json` (about 1.3 MB)
 
 ```json
 { "version": 1, "generatedAt": "2026-10-24", "columns": [...], "rows": [[...], ...] }
@@ -31,7 +31,7 @@ Compact array rows in the order given by `COLUMNS` in `build.mjs`:
 
 The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with id `${id}@${season}@${club}`, so a player who moved mid-season appears once per club.
 
-### `public/data/england/meta.json` (about 80 KB)
+### `public/data/<league>/meta.json` (about 80 KB)
 
 - `league`: `{ id: "england", name: "English Top Flight", shortName: "England" }`.
 - `clubs`: the 46 clubs that appear in any squad or table, with name, short name, three-letter code, city, nickname, founding year, approximate kit colours, an AI playing style and a rivals list (from `scripts/import/clubs-england.mjs`, which holds 55 clubs; only the used ones are emitted).
@@ -147,3 +147,18 @@ The Vitest suite (`npm test`) loads the generated files and checks: every season
 ## 7. Legal
 
 Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively to identify real teams and seasons. No official crests, logos, kits or likenesses are used; badges are generated from approximate colours and letter codes. Player ratings are an independent interpretation derived from publicly available datasets and may differ from any official source. The datasets above are credited to their authors and used under the licences they were published with; the openfootball results are public domain; Wikidata content is CC0. Please respect the terms of each source if you redistribute the generated files.
+
+
+## Leagues (added later)
+
+The builder now produces one data pack per league under `public/data/<league>/` and an index at `public/data/leagues.json`:
+
+| League | Player-seasons | Players | Clubs | Seasons |
+| --- | ---: | ---: | ---: | --- |
+| Premier League (england) | 11,166 | 3,647 | 46 | 2008-09 to 2026-27 |
+| La Liga (spain) | 10,632 | 3,503 | 39 | 2008-09 to 2026-27 |
+| Serie A (italy) | 10,578 | 3,258 | 42 | 2008-09 to 2026-27 |
+| Bundesliga (germany) | 9,497 | 3,006 | 35 | 2008-09 to 2026-27 |
+| Ligue 1 (france) | 10,084 | 3,516 | 40 | 2008-09 to 2026-27 |
+
+The same sources cover every league: EA FC league ids 13, 53, 31, 19 and 16 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809 and 4769 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results file exists for Ligue 1, so French club-seasons carry no final position). Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.

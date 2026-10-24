@@ -61,9 +61,11 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   const get = playerLookup(game, u)
   const report: OffseasonReport = { retired: [], expired: [], improved: [], declined: [] }
   game.year += 1
-  const nextSeason = game.settings.leagueSeason + 1 <= u.lastSeason ? game.settings.leagueSeason + 1 : u.firstSeason
+  const leagueSeasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId).map((cs) => cs.season))].sort()
+  const idx = leagueSeasons.indexOf(game.settings.leagueSeason)
+  const nextSeason = leagueSeasons[(idx + 1) % leagueSeasons.length]
   // The host club may not exist in the next league season; pick the same club if present, else a random club of similar stature.
-  const nextClubs = u.clubSeasons.filter((cs) => cs.season === nextSeason).map((cs) => cs.clubId)
+  const nextClubs = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === nextSeason).map((cs) => cs.clubId)
   const host = nextClubs.includes(game.settings.hostClubId) ? game.settings.hostClubId : rng.pick(nextClubs)
   game.settings = { ...game.settings, leagueSeason: nextSeason, hostClubId: host }
 
@@ -131,7 +133,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   d.bench = pool.filter((p) => !inXI.has(p.id)).map((p) => p.id)
   game.draft = d
   game.phase = 'draft'
-  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason }, 'summer', 40)
+  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues }, 'summer', 40)
   game.rngState = rng.getState()
   void releasePlayer
   return report

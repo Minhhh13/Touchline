@@ -6,7 +6,8 @@ import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
 
 export function Explore() {
-  const { universe: u, go } = useStore()
+  const { universe: u, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
+  const [leagueId, setLeagueId] = useState('england')
   const [season, setSeason] = useState<number>(u?.lastSeason ?? 2026)
   const [clubId, setClubId] = useState<string>('')
   const [query, setQuery] = useState('')
@@ -14,13 +15,13 @@ export function Explore() {
   const [posFilter, setPosFilter] = useState<'all' | Position>('all')
   if (!u) return null
   const seasons = Array.from({ length: u.lastSeason - u.firstSeason + 1 }, (_, i) => u.firstSeason + i)
-  const table = u.tables[season] ?? []
-  const clubsInSeason = u.clubSeasons.filter((cs) => cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
+  const table = u.tables[leagueId]?.[season] ?? []
+  const clubsInSeason = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
   const selected = clubId ? u.clubSeasonByKey[`${clubId}@${season}`] : undefined
   const legends = useMemo(() => {
-    const all = Object.values(u.index).filter((p) => posFilter === 'all' || p.positions[0] === posFilter)
+    const all = Object.values(u.index).filter((p) => (posFilter === 'all' || p.positions[0] === posFilter) && u.clubById[p.clubId]?.leagueId === leagueId)
     return all.sort((a, b) => b.overall - a.overall).slice(0, 60)
-  }, [u, posFilter])
+  }, [u, posFilter, leagueId])
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (q.length < 2) return []
@@ -40,6 +41,17 @@ export function Explore() {
         <button className="btn ghost" onClick={() => go('home')}>
           ← Home
         </button>
+      </div>
+      <div className="row wrap" style={{ marginBottom: 12 }}>
+        <div className="segmented">
+          {u.available.map((l) => (
+            <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { setLeagueId(l.id); setClubId(''); void ensureLeagues([l.id]) }} disabled={loadingLeagues}>
+              {l.name}
+            </button>
+          ))}
+        </div>
+        {loadingLeagues && <span className="chip">Loading league…</span>}
+        {!loadedLeagues.includes(leagueId) && !loadingLeagues && <span className="chip warn">Loading…</span>}
       </div>
       <div className="segmented" style={{ marginBottom: 12 }}>
         <button className={view === 'browse' ? 'active' : ''} onClick={() => setView('browse')}>

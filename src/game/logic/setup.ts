@@ -4,7 +4,7 @@ import { Rng } from '@engine/rng'
 import { newDraft } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
-import { newSquadPlayer, buildAiClubs, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset } from '@engine/season'
+import { newSquadPlayer, buildAiClubs, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor } from '@engine/season'
 import { startingFinances } from '@engine/market'
 import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
@@ -66,10 +66,11 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   }
   game.draft = null
   const s = game.settings
-  const ai = buildAiClubs(u, s.leagueSeason, s.hostClubId)
+  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
   const ids = [USER_TEAM, ...Object.keys(ai)]
+  const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
-  const cup = drawFirstCupRound(ids, rng)
+  const cup = drawFirstCupRound(ids, rng, matchweeks)
   const userStrength = teamStrength(game, u).overall
   const aiOffset = aiRatingOffset(u, ai, s.difficulty ?? 'calibrated')
   const aiStrengths = Object.values(ai).map((c) => {
@@ -78,7 +79,9 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   })
   const boardTarget = boardTargetFor(userStrength, aiStrengths)
   game.season = {
+    leagueId: s.leagueId,
     leagueSeason: s.leagueSeason,
+    matchweeks,
     hostClubId: s.hostClubId,
     teamName: s.teamName,
     fixtures,

@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { produce } from 'immer'
 import type { Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
 import type { LoadedUniverse } from '@engine/universe'
-import { loadUniverse } from '@engine/universe'
+import { loadUniverse, DEFAULT_LEAGUE } from '@engine/universe'
 import { Rng, dailySeed, type RngState } from '@engine/rng'
 import { isComplete, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
@@ -25,6 +25,8 @@ export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto'
 
 export interface H2HGame {
   managers: [H2HManager, H2HManager]
+  leagueId: string
+  wheelLeagues: string[]
   leagueSeason: number
   difficulty: 'calibrated' | 'realistic'
   seed: string
@@ -42,6 +44,9 @@ interface Store {
   universe: LoadedUniverse | null
   loading: boolean
   loadError: string | null
+  /** League packs currently merged into `universe`. */
+  loadedLeagues: string[]
+  loadingLeagues: boolean
   screen: Screen
   setupMode: Mode
   game: Game | null
@@ -53,6 +58,8 @@ interface Store {
   matchView: 'ticker' | 'report'
 
   loadData: () => Promise<void>
+  /** Make sure these league packs are loaded and merged into the universe. */
+  ensureLeagues: (ids: string[]) => Promise<void>
   go: (screen: Screen, mode?: Mode) => void
   showToast: (text: string | null) => void
 
@@ -94,7 +101,7 @@ interface Store {
   nextSeason: () => void
   dismissOffseason: () => void
 
-  startH2H: (managers: [H2HManager, H2HManager], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string) => void
+  startH2H: (managers: [H2HManager, H2HManager], leagueId: string, wheelLeagues: string[], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string) => void
   h2hSpin: () => void
   h2hPick: (playerSeasonId: string, slotId: string | 'bench') => void
   h2hAuto: () => void
@@ -148,6 +155,8 @@ export const useStore = create<Store>()(
         universe: null,
         loading: false,
         loadError: null,
+        loadedLeagues: [],
+        loadingLeagues: false,
         screen: 'home',
         setupMode: 'quick',
         game: null,
@@ -161,10 +170,35 @@ export const useStore = create<Store>()(
           if (get().universe || get().loading) return
           set({ loading: true, loadError: null })
           try {
-            const u = await loadUniverse()
-            set({ universe: u, loading: false })
+            // Load whatever the saved game or head-to-head needs, plus the default league.
+            const { game, h2h } = get()
+            const needed = new Set<string>([DEFAULT_LEAGUE])
+            if (game) {
+              needed.add(game.settings.leagueId ?? DEFAULT_LEAGUE)
+              for (const l of game.settings.wheelLeagues ?? []) needed.add(l)
+            }
+            if (h2h) {
+              needed.add(h2h.leagueId ?? DEFAULT_LEAGUE)
+              for (const l of h2h.wheelLeagues ?? []) needed.add(l)
+            }
+            const ids = [...needed]
+            const u = await loadUniverse(ids)
+            set({ universe: u, loading: false, loadedLeagues: ids })
           } catch (e) {
             set({ loading: false, loadError: e instanceof Error ? e.message : String(e) })
+          }
+        },
+        ensureLeagues: async (ids) => {
+          const { loadedLeagues } = get()
+          const missing = ids.filter((id) => !loadedLeagues.includes(id))
+          if (!missing.length) return
+          set({ loadingLeagues: true })
+          try {
+            const all = [...new Set([...loadedLeagues, ...missing])]
+            const u = await loadUniverse(all)
+            set({ universe: u, loadedLeagues: all, loadingLeagues: false })
+          } catch (e) {
+            set({ loadingLeagues: false, toast: `Could not load league data: ${e instanceof Error ? e.message : String(e)}` })
           }
         },
         go: (screen, mode) => set({ screen, ...(mode ? { setupMode: mode } : {}) }),
@@ -335,10 +369,10 @@ export const useStore = create<Store>()(
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
           set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, seasonsSimulated: profile.seasonsSimulated + 1 } })
         },
-        startH2H: (managers, leagueSeason, difficulty, hardMode, seed) => {
+        startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
-          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode })
-          set({ h2h: { managers, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, leagues: wheelLeagues })
+          set({ h2h: { managers, leagueId, wheelLeagues, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
         },
         h2hSpin: () => {
           const { h2h, universe } = get()
@@ -371,7 +405,7 @@ export const useStore = create<Store>()(
           set({
             h2h: produce(h2h, (h) => {
               const rng = Rng.fromState(h.rngState)
-              h.result = runH2HSeason(universe, rng, h.managers, h.draft.drafts, h.leagueSeason, h.difficulty)
+              h.result = runH2HSeason(universe, rng, h.managers, h.draft.drafts, h.leagueId, h.leagueSeason, h.difficulty)
               h.rngState = rng.getState()
             }),
           })

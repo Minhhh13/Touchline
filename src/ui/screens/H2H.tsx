@@ -11,9 +11,12 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
+import { leagueSegments } from '../components/leagueSegments'
 
 export function H2HSetup() {
-  const { universe: u, startH2H, go } = useStore()
+  const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
+  const [leagueId, setLeagueId] = useState('england')
+  const [wheelScope, setWheelScope] = useState<'league' | 'europe'>('league')
   const [names, setNames] = useState(['Manager 1', 'Manager 2'])
   const [formations, setFormations] = useState(['4-3-3', '4-4-2'])
   const [leagueSeason, setLeagueSeason] = useState(() => (u ? Math.max(...u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)) : 2025))
@@ -22,8 +25,11 @@ export function H2HSetup() {
   const [hardMode, setHardMode] = useState(false)
   const [seed, setSeed] = useState(() => randomSeed())
   if (!u) return null
-  const seasons = Array.from({ length: u.lastSeason - u.firstSeason + 1 }, (_, i) => u.firstSeason + i)
-  const clubs = u.clubSeasons.filter((cs) => cs.season === leagueSeason).map((cs) => cs.clubId).sort()
+  const seasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort()
+  const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1]
+  const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort()
+  const wheelLeagues = wheelScope === 'europe' ? u.available.map((l) => l.id) : [leagueId]
+  const ready = wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(leagueId)
   const host0 = clubs.includes(hosts[0]) ? hosts[0] : clubs[Math.floor(clubs.length / 3)]
   const host1 = clubs.includes(hosts[1]) && hosts[1] !== host0 ? hosts[1] : clubs.find((c) => c !== host0) ?? clubs[0]
   const short = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase() || 'MGR'
@@ -70,9 +76,17 @@ export function H2HSetup() {
         ))}
         <div className="panel col">
           <h3>The league</h3>
+          <div className="field">
+            League
+            <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: l.name }))} />
+          </div>
+          <div className="field">
+            Draft from
+            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: 'This league' }, { value: 'europe', label: 'All five leagues' }]} />
+          </div>
           <label className="field">
             Season
-            <select className="input" value={leagueSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
+            <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
               {seasons.map((s) => (
                 <option key={s} value={s}>
                   {seasonLabel(s)}
@@ -108,8 +122,8 @@ export function H2HSetup() {
               <li>Both XIs then play the full season in the same league, including two derbies against each other. Higher finish wins.</li>
             </ul>
           </div>
-          <button className="btn primary big block" onClick={() => startH2H([{ name: names[0] || 'Manager 1', shortName: short(names[0] || 'Manager 1'), formationId: formations[0], hostClubId: host0 }, { name: names[1] || 'Manager 2', shortName: short(names[1] || 'Manager 2'), formationId: formations[1], hostClubId: host1 }], leagueSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
-            Start the head-to-head
+          <button className="btn primary big block" disabled={!ready || loadingLeagues} onClick={() => startH2H([{ name: names[0] || 'Manager 1', shortName: short(names[0] || 'Manager 1'), formationId: formations[0], hostClubId: host0 }, { name: names[1] || 'Manager 2', shortName: short(names[1] || 'Manager 2'), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
+            {ready ? 'Start the head-to-head' : 'Loading league data…'}
           </button>
         </div>
       </div>
@@ -123,9 +137,15 @@ export function H2HScreen() {
   const [revealed, setRevealed] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const segments = useMemo(() => {
-    if (!u) return []
-    return [...u.clubs].sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ id: c.id, label: c.code, colour: c.colours.primary, secondary: c.colours.secondary }))
-  }, [u])
+    if (!u || !h2h) return []
+    if (h2h.wheelLeagues.length > 1) return leagueSegments(u, h2h.wheelLeagues)
+    return [...u.clubs].filter((c) => h2h.wheelLeagues.includes(c.leagueId)).sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ id: c.id, label: c.code, colour: c.colours.primary, secondary: c.colours.secondary }))
+  }, [u, h2h?.wheelLeagues])
+  const wheelTarget = useMemo(() => {
+    if (!u || !h2h?.draft.current) return null
+    const cs = u.clubSeasonByKey[`${h2h.draft.current.clubId}@${h2h.draft.current.season}`]
+    return h2h.wheelLeagues.length > 1 ? `league:${cs?.leagueId ?? ''}` : h2h.draft.current.clubId
+  }, [u, h2h?.draft.current, h2h?.wheelLeagues])
   const d = h2h?.draft
   useEffect(() => {
     if (d?.current) {
@@ -183,7 +203,7 @@ export function H2HScreen() {
       <div className="grid draft">
         <div className="col">
           <div className="panel col">
-            <Wheel segments={segments} targetId={d.current?.clubId ?? null} year={d.current?.season ?? null} spinning={spinning} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}

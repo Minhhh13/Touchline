@@ -3,7 +3,7 @@
  */
 import type { PlayerSeason, SquadPlayer, TableRow, SeasonTier, Position } from './types'
 import { FORMATION_BY_ID } from './formations'
-import { TIER_LABEL, MATCHWEEKS } from './season'
+import { TIER_LABEL } from './season'
 
 export interface AwardWinner {
   playerSeasonId: string
@@ -20,10 +20,10 @@ export interface SeasonAwards {
   teamOfTheSeason: Array<{ slotId: string; position: Position; playerSeasonId: string; name: string; avgRating: number }>
 }
 
-export function computeAwards(squad: Array<{ p: PlayerSeason; s: SquadPlayer }>): SeasonAwards {
+export function computeAwards(squad: Array<{ p: PlayerSeason; s: SquadPlayer }>, matchweeks = 38): SeasonAwards {
   const withApps = squad.filter((x) => x.s.seasonStats.apps > 0)
   const avg = (x: { s: SquadPlayer }) => (x.s.seasonStats.apps ? x.s.seasonStats.ratingSum / x.s.seasonStats.apps : 0)
-  const qualified = withApps.filter((x) => x.s.seasonStats.apps >= Math.min(15, Math.max(5, Math.floor(MATCHWEEKS * 0.4))))
+  const qualified = withApps.filter((x) => x.s.seasonStats.apps >= Math.min(15, Math.max(5, Math.floor(matchweeks * 0.4))))
   const pots = [...qualified].sort((a, b) => avg(b) - avg(a))[0]
   const boot = [...withApps].sort((a, b) => b.s.seasonStats.goals - a.s.seasonStats.goals || avg(b) - avg(a))[0]
   const pm = [...withApps].sort((a, b) => b.s.seasonStats.assists - a.s.seasonStats.assists || avg(b) - avg(a))[0]
@@ -109,9 +109,9 @@ export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): stri
 }
 
 function formBlocks(row: TableRow): string {
-  const w = '🟩'.repeat(Math.min(row.won, 38))
-  const d = '🟨'.repeat(Math.min(row.drawn, 38))
-  const l = '🟥'.repeat(Math.min(row.lost, 38))
+  const w = '🟩'.repeat(Math.min(row.won, 46))
+  const d = '🟨'.repeat(Math.min(row.drawn, 46))
+  const l = '🟥'.repeat(Math.min(row.lost, 46))
   return w + d + l
 }
 

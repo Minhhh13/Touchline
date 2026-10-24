@@ -18,9 +18,13 @@ export interface GameSettings {
   formationId: string
   teamName: string
   shortName: string
+  /** League the user's side plays in. */
+  leagueId: string
+  /** Leagues the wheel and the market draw from. */
+  wheelLeagues: string[]
   /** Real club whose place in the league the user takes. */
   hostClubId: string
-  /** Real league season providing the nineteen opponents. */
+  /** Real league season providing the opponents. */
   leagueSeason: number
   rules: DraftRules
   /** Can the board sack you? */
@@ -42,6 +46,7 @@ export interface Contract {
 
 export interface SeasonRecord {
   year: number
+  leagueId: string
   leagueSeason: number
   teamName: string
   hostClubId: string

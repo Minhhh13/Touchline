@@ -36,6 +36,8 @@ export interface Traits {
 
 export interface Club {
   id: string
+  /** League the club belongs to in this data pack. */
+  leagueId: string
   name: string
   shortName: string
   /** Three-letter code for compact UI. */
@@ -85,6 +87,7 @@ export interface PlayerSeason {
 
 export interface ClubSeason {
   clubId: string
+  leagueId: string
   season: number
   /** Final league position that season (1..20); undefined if not in the top flight. */
   position: number
@@ -111,14 +114,28 @@ export interface LeagueSeasonRow {
   goalsAgainst: number
 }
 
+export interface LeagueInfo {
+  id: string
+  name: string
+  shortName: string
+  country: string
+  firstSeason: number
+  lastSeason: number
+  playerSeasons: number
+  players: number
+  clubs: number
+}
+
 export interface Universe {
   /** Seed the universe was generated from. */
   seed: string
+  /** Leagues currently loaded. */
+  leagues: LeagueInfo[]
   clubs: Club[]
   /** Only top-flight club-seasons, which is what the wheel can land on. */
   clubSeasons: ClubSeason[]
-  /** League tables by season start year. */
-  tables: Record<number, LeagueSeasonRow[]>
+  /** League tables by league id, then season start year. */
+  tables: Record<string, Record<number, LeagueSeasonRow[]>>
   firstSeason: number
   lastSeason: number
   /** Fast lookup by player-season id. */

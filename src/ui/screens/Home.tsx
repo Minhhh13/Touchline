@@ -4,8 +4,9 @@ import { ClubBadge } from '../components/bits'
 
 export function Home() {
   const { universe: u, game, go, abandonGame, profile } = useStore()
-  const playerSeasons = u ? Object.keys(u.index).length : 0
-  const players = u ? new Set(Object.values(u.index).map((p) => p.playerId)).size : 0
+  const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
+  const players = u ? u.available.reduce((s, l) => s + l.players, 0) : 0
+  const clubCount = u ? u.available.reduce((s, l) => s + l.clubs, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
   return (
@@ -14,7 +15,7 @@ export function Home() {
         <h1>Touchline</h1>
         <div className="tag">Spin the wheel. Draft the XI. Manage the season.</div>
         <p className="muted small" style={{ marginTop: 10 }}>
-          {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${u.clubs.length} clubs · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
+          {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
         </p>
       </section>
 
@@ -76,7 +77,7 @@ export function Home() {
         </button>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('explore')}>
           <h3>Explore the database</h3>
-          <p className="muted small">Every club-season since 2008-09 with its real squad and ratings. Settle the argument before you spin.</p>
+          <p className="muted small">Every club-season in England, Spain, Italy, Germany and France since 2008-09, with real squads and ratings. Settle the argument before you spin.</p>
         </button>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('profile')}>
           <h3>Your record</h3>

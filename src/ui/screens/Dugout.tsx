@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { computeTable, CUP_ROUNDS, MATCHWEEKS, positionOf, USER_TEAM } from '@engine/season'
+import { computeTable, cupRounds, positionOf, USER_TEAM } from '@engine/season'
 import { getFormation, FORMATIONS } from '@engine/formations'
 import { rolesFor, getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
@@ -40,7 +40,7 @@ export function Dugout() {
   const problems = lineupProblems(game, u)
   const squad = squadPlayers(game, u)
   const preseason = game.phase === 'preseason'
-  const done = season.matchweek >= MATCHWEEKS || season.sacked
+  const done = season.matchweek >= season.matchweeks || season.sacked
   const openOffers = game.window?.offers.filter((o) => o.status === 'open').length ?? 0
 
   const onSlotClick = (slotId: string) => {
@@ -85,7 +85,7 @@ export function Dugout() {
             <h2 style={{ fontSize: 26 }}>{game.settings.teamName}</h2>
             <div className="small muted">
               as {clubName(u, season.hostClubId)} · {seasonLabel(season.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Year ${game.year} · ` : ''}
-              {preseason ? 'Pre-season' : `Matchweek ${season.matchweek} of ${MATCHWEEKS}`}
+              {preseason ? 'Pre-season' : `Matchweek ${season.matchweek} of ${season.matchweeks}`}
             </div>
           </div>
         </div>
@@ -122,7 +122,7 @@ export function Dugout() {
                   </div>
                   <div className="small muted">
                     {STYLE_LABEL[u.clubById[next.clubId]?.style ?? 'balanced']} side · {ordinal(positionOf(table, next.clubId))} · {u.clubById[season.hostClubId]?.rivals.includes(next.clubId) ? '🔥 Derby · ' : ''}
-                    {cupTie ? `then ${CUP_ROUNDS.find((r) => r.round === cupTie.round)?.label} ${cupTie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId)} midweek` : ''}
+                    {cupTie ? `then ${cupRounds(season.matchweeks).find((r) => r.round === cupTie.round)?.label} ${cupTie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId)} midweek` : ''}
                   </div>
                 </div>
               </div>
@@ -422,8 +422,8 @@ function CupTab() {
   return (
     <div className="panel">
       <h3>The Cup</h3>
-      <p className="help">Sixteen clubs, four rounds played midweek after matchweeks 6, 14, 24 and 36. Drawn ties go to penalties. The final is at a neutral venue.</p>
-      {CUP_ROUNDS.map((r) => {
+      <p className="help">Sixteen clubs, four rounds played midweek after matchweeks {cupRounds(season.matchweeks).map((r) => r.afterMatchweek).join(', ')}. Drawn ties go to penalties. The final is at a neutral venue.</p>
+      {cupRounds(season.matchweeks).map((r) => {
         const ties = season.cup.filter((t) => t.round === r.round)
         if (!ties.length) return null
         return (
@@ -470,7 +470,7 @@ function MarketTab() {
     return (
       <div className="panel">
         <h3>Transfer market</h3>
-        <p className="muted">The window is closed. The January window opens after matchweek 19 and runs for seven market days, three per matchweek, so it shuts after matchweek 22. In Dynasty mode a longer summer window opens between seasons.</p>
+        <p className="muted">The window is closed. The January window opens at the halfway point of the season and runs for seven market days, three per matchweek. In Dynasty mode a longer summer window opens between seasons.</p>
         <h3 style={{ marginTop: 12 }}>Squad values</h3>
         <table className="tbl">
           <thead>
@@ -639,6 +639,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dd>{Math.round(season.confidence)} / 100</dd>
           <dt>Job security</dt>
           <dd>{game.settings.jobSecurity ? 'On: below 12 after matchweek 10 and you are gone' : 'Off'}</dd>
+          <dt>League</dt>
+          <dd>{u.leagues.find((l) => l.id === season.leagueId)?.name ?? season.leagueId} · {season.matchweeks} matchweeks</dd>
           <dt>Rivals</dt>
           <dd>{host?.rivals.map((r) => clubName(u, r)).join(', ') || 'None'}</dd>
           <dt>Difficulty</dt>

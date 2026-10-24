@@ -18,9 +18,9 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { readCsv } from './csv.mjs'
 import { nation, nationFlag, NATION_NAMES } from './nations.mjs'
-import { CLUBS, clubIdFor } from './clubs-england.mjs'
+import { LEAGUES, clubIdIn, FC24_LEAGUE_BY_ID, EA_LEAGUE_BY_NAME, EURO_LEAGUE_BY_ID } from './leagues.mjs'
 import { parseResults, buildTable } from './openfootball.mjs'
-import { CACHE, OUT_DIR, SOURCES, OPENFOOTBALL_SEASONS, seasonSlug } from './config.mjs'
+import { CACHE, DATA_DIR, SOURCES, OPENFOOTBALL_SEASONS, seasonSlug } from './config.mjs'
 import { ensureDatasets } from './download.mjs'
 import { fileURLToPath } from 'node:url'
 
@@ -241,14 +241,14 @@ async function loadFc24(sofifaIndex) {
         dob: r.dob,
       })
     }
-    const inPl = Math.round(num(r.league_id)) === 13
-    buffer.push({ r, version, season, inPl })
+    const league = FC24_LEAGUE_BY_ID[Math.round(num(r.league_id))] ?? null
+    buffer.push({ r, version, season, league })
   }
-  for (const { r, version, season, inPl } of buffer) {
+  for (const { r, version, season, league } of buffer) {
     let clubId = null
-    if (inPl) {
-      clubId = clubIdFor(r.club_name) ?? null
-      if (!clubId) warnings.push(`fc24 v${version}: unknown club ${r.club_name}`)
+    if (league) {
+      clubId = clubIdIn(league, r.club_name) ?? null
+      if (!clubId) warnings.push(`fc24 v${version} ${league}: unknown club ${r.club_name}`)
     }
     const positions = mapPositions(String(r.player_positions).split(','))
     if (!positions.length) continue
@@ -301,6 +301,7 @@ async function loadFc24(sofifaIndex) {
     rows.push({
       id,
       season,
+      league: clubId ? league : null,
       club: clubId,
       name: r.short_name,
       nation: clubId ? nationCode(r.nationality_name) : nation(r.nationality_name).code,
@@ -331,11 +332,11 @@ async function loadFc25(sofifaIndex) {
     if (info.longName) byName.set(`${info.longName}|${info.nation}`.toLowerCase(), id)
   }
   for await (const r of readCsv(file)) {
-    const inPl = r.League === 'Premier League'
+    const league = EA_LEAGUE_BY_NAME[r.League] ?? null
     let clubId = null
-    if (inPl) {
-      clubId = clubIdFor(r.Team) ?? null
-      if (!clubId) warnings.push(`fc25: unknown club ${r.Team}`)
+    if (league) {
+      clubId = clubIdIn(league, r.Team) ?? null
+      if (!clubId) warnings.push(`fc25 ${league}: unknown club ${r.Team}`)
     }
     const positions = mapPositions([r.Position, ...String(r['Alternative positions'] || '').split(',')])
     if (!positions.length) continue
@@ -388,6 +389,7 @@ async function loadFc25(sofifaIndex) {
     rows.push({
       id,
       season,
+      league: clubId ? league : null,
       club: clubId,
       name: r.Name,
       nation: clubId ? nationCode(r.Nation) : nation(r.Nation).code,
@@ -413,11 +415,11 @@ async function loadFc26() {
   const season = 2025
   const ages = new Map()
   for await (const r of readCsv(file)) {
-    const inPl = r.leagueName === 'Premier League'
+    const league = EA_LEAGUE_BY_NAME[r.leagueName] ?? null
     let clubId = null
-    if (inPl) {
-      clubId = clubIdFor(r.team) ?? null
-      if (!clubId) warnings.push(`fc26: unknown club ${r.team}`)
+    if (league) {
+      clubId = clubIdIn(league, r.team) ?? null
+      if (!clubId) warnings.push(`fc26 ${league}: unknown club ${r.team}`)
     }
     const positions = mapPositions([r.position, ...String(r.alternatePositions || '').split(',')])
     if (!positions.length) continue
@@ -468,6 +470,7 @@ async function loadFc26() {
     rows.push({
       id,
       season,
+      league: clubId ? league : null,
       club: clubId,
       name,
       nation: clubId ? nationCode(r.nationality) : nation(r.nationality).code,
@@ -487,18 +490,19 @@ async function loadFc26() {
 // ---------------------------------------------------------------------------
 // Source: FC 27 dataset (2026-27, current season)
 
-async function loadFc27(fc26Ages, sofifaIndex, plClubs2026) {
+async function loadFc27(fc26Ages, sofifaIndex, currentClubs) {
   const file = path.join(CACHE, SOURCES.fc27.dir, 'players.csv')
   const rows = []
   const season = 2026
   for await (const r of readCsv(file)) {
     if (r.gender && r.gender !== "Men's Football") continue
-    const inPl = r.league === 'Premier League'
+    const league = EA_LEAGUE_BY_NAME[r.league] ?? null
     let clubId = null
-    if (inPl) {
-      clubId = clubIdFor(r.club) ?? null
-      if (clubId && plClubs2026.size && !plClubs2026.has(clubId)) clubId = null
-      if (!clubId) warnings.push(`fc27: unknown or non-top-flight club ${r.club}`)
+    if (league) {
+      clubId = clubIdIn(league, r.club) ?? null
+      const known = currentClubs[league]
+      if (clubId && known && known.size && !known.has(clubId)) clubId = null
+      if (!clubId) warnings.push(`fc27 ${league}: unknown or non-top-flight club ${r.club}`)
     }
     const positions = mapPositions([r.position, ...String(r.alternate_positions || '').split(/[\s,]+/)].filter(Boolean))
     if (!positions.length) continue
@@ -553,6 +557,7 @@ async function loadFc27(fc26Ages, sofifaIndex, plClubs2026) {
     rows.push({
       id,
       season,
+      league: clubId ? league : null,
       club: clubId,
       name,
       nation: clubId ? nationCode(r.nationality) : nation(r.nationality).code,
@@ -583,10 +588,14 @@ function inferPosition(x, y) {
 
 function loadEuroSoccer(sofifaIndex) {
   const db = new DatabaseSync(path.join(CACHE, SOURCES.eurosoccer.dir, 'database.sqlite'), { readOnly: true })
+  // team_api_id -> { league, club } resolved per league the team played in
   const teams = new Map()
-  for (const t of db.prepare('select team_api_id, team_long_name from Team').all()) {
-    const id = clubIdFor(t.team_long_name)
-    if (id) teams.set(t.team_api_id, id)
+  for (const [euroId, leagueId] of Object.entries(EURO_LEAGUE_BY_ID)) {
+    for (const t of db.prepare('select distinct t.team_api_id, t.team_long_name from Team t where t.team_api_id in (select home_team_api_id from Match where league_id = ?)').all(Number(euroId))) {
+      const id = clubIdIn(leagueId, t.team_long_name)
+      if (id) teams.set(t.team_api_id, { league: leagueId, club: id })
+      else warnings.push(`eurosoccer ${leagueId}: unknown club ${t.team_long_name}`)
+    }
   }
   const players = new Map()
   for (const p of db.prepare('select player_api_id, player_name, player_fifa_api_id, birthday, height from Player').all()) players.set(p.player_api_id, p)
@@ -600,23 +609,24 @@ function loadEuroSoccer(sofifaIndex) {
 
   const cols = []
   for (const side of ['home', 'away']) for (let i = 1; i <= 11; i++) cols.push(`${side}_player_${i}`, `${side}_player_X${i}`, `${side}_player_Y${i}`)
-  const matchStmt = db.prepare(`select season, home_team_api_id, away_team_api_id, ${cols.join(', ')} from Match where league_id = 1729 and season = ?`)
+  const matchStmt = db.prepare(`select season, home_team_api_id, away_team_api_id, ${cols.join(', ')} from Match where league_id = ? and season = ?`)
 
   const rows = []
-  for (const season of [2008, 2009, 2010, 2011, 2012, 2013]) {
+  for (const [euroId, leagueId] of Object.entries(EURO_LEAGUE_BY_ID)) for (const season of [2008, 2009, 2010, 2011, 2012, 2013]) {
     const key = `${season}/${season + 1}`
     const agg = new Map() // `${pid}|${club}` -> { apps, posCounts }
-    for (const m of matchStmt.all(key)) {
+    for (const m of matchStmt.all(Number(euroId), key)) {
       for (const side of ['home', 'away']) {
-        const club = teams.get(m[`${side}_team_api_id`])
-        if (!club) continue
+        const team = teams.get(m[`${side}_team_api_id`])
+        if (!team) continue
+        const club = team.club
         for (let i = 1; i <= 11; i++) {
           const pid = m[`${side}_player_${i}`]
           if (pid == null) continue
           const x = m[`${side}_player_X${i}`]
           const y = m[`${side}_player_Y${i}`]
           const k = `${pid}|${club}`
-          if (!agg.has(k)) agg.set(k, { pid, club, apps: 0, pos: new Map() })
+          if (!agg.has(k)) agg.set(k, { pid, club, league: leagueId, apps: 0, pos: new Map() })
           const a = agg.get(k)
           a.apps++
           if (x != null && y != null) {
@@ -704,6 +714,7 @@ function loadEuroSoccer(sofifaIndex) {
       rows.push({
         id,
         season,
+        league: a.league,
         club: a.club,
         name: shortName(p.player_name),
         nation: sof ? nationCode(sof.nation) : 'UNK',
@@ -739,8 +750,8 @@ function shortName(full) {
 // ---------------------------------------------------------------------------
 // League tables
 
-async function loadTables() {
-  const dir = path.join(CACHE, 'openfootball')
+async function loadTables(leagueId) {
+  const dir = path.join(CACHE, 'openfootball', leagueId)
   const tables = {}
   for (const season of OPENFOOTBALL_SEASONS) {
     const file = path.join(dir, `${seasonSlug(season)}.txt`)
@@ -750,11 +761,13 @@ async function loadTables() {
     } catch {
       continue
     }
-    const { matches, unknown } = parseResults(text)
-    for (const u of unknown) warnings.push(`openfootball ${seasonSlug(season)}: unknown club ${u}`)
+    const { matches, unknown } = parseResults(text, (name) => clubIdIn(leagueId, name))
+    for (const u of unknown) warnings.push(`openfootball ${leagueId} ${seasonSlug(season)}: unknown club ${u}`)
     if (!matches.length) continue
     const table = buildTable(matches)
-    tables[season] = { season, complete: matches.length >= 380, matches: matches.length, table }
+    const teams = table.length
+    const expected = teams * (teams - 1)
+    tables[season] = { season, complete: matches.length >= expected && teams >= 16, matches: matches.length, table }
   }
   return tables
 }
@@ -764,9 +777,13 @@ async function loadTables() {
 
 async function main() {
   await ensureDatasets()
+  const leagueIds = Object.keys(LEAGUES)
   console.log('Loading league tables...')
-  const tables = await loadTables()
-  console.log(`  ${Object.keys(tables).length} seasons of results`)
+  const tablesByLeague = {}
+  for (const id of leagueIds) {
+    tablesByLeague[id] = await loadTables(id)
+    console.log(`  ${id}: ${Object.keys(tablesByLeague[id]).length} seasons of results`)
+  }
 
   const sofifaIndex = new Map()
   console.log('Loading FC 24 dataset (FIFA 15 .. FC 24)...')
@@ -779,8 +796,12 @@ async function main() {
   const { rows: fc26, ages } = await loadFc26()
   console.log(`  ${fc26.filter((r) => r.club).length} top-flight player-seasons from ${fc26.length} records`)
   console.log('Loading FC 27...')
-  const pl2026 = new Set((tables[2026]?.table ?? []).map((r) => r.clubId))
-  const fc27 = await loadFc27(ages, sofifaIndex, pl2026)
+  const currentClubs = {}
+  for (const id of leagueIds) {
+    const t = tablesByLeague[id][2026]
+    currentClubs[id] = new Set((t?.table ?? []).map((r) => r.clubId))
+  }
+  const fc27 = await loadFc27(ages, sofifaIndex, currentClubs)
   console.log(`  ${fc27.filter((r) => r.club).length} top-flight player-seasons from ${fc27.length} records`)
   console.log('Loading European Soccer Database (2008-2014)...')
   const euro = loadEuroSoccer(sofifaIndex)
@@ -814,6 +835,7 @@ async function main() {
     const ti = use.traitInputs ?? rec.traitInputs ?? {}
     finalized.push({
       id: rec.id,
+      league: rec.league,
       season: rec.season,
       club: rec.club,
       name: rec.name,
@@ -831,60 +853,67 @@ async function main() {
     })
   }
   console.log(`  ${borrowed} of ${finalized.length} player-seasons use the following edition's rating`)
-  const seen = new Map()
-  for (const p of finalized) {
-    const k = `${p.season}|${p.club}|${p.id}`
-    const prev = seen.get(k)
-    if (!prev || (p.apps ?? 0) > (prev.apps ?? 0)) seen.set(k, p)
+
+  const leaguesIndex = []
+  let grandTotal = 0
+  for (const leagueId of leagueIds) {
+    const league = LEAGUES[leagueId]
+    const tables = tablesByLeague[leagueId]
+    const seen = new Map()
+    for (const p of finalized) {
+      if (p.league !== leagueId) continue
+      const k = `${p.season}|${p.club}|${p.id}`
+      const prev = seen.get(k)
+      if (!prev || (p.apps ?? 0) > (prev.apps ?? 0)) seen.set(k, p)
+    }
+    const byNameKey = new Map()
+    for (const p of seen.values()) {
+      const k = `${p.season}|${p.club}|${p.name.toLowerCase()}|${p.age}`
+      if (!byNameKey.has(k)) byNameKey.set(k, p)
+    }
+    const players = [...byNameKey.values()].sort((a, b) => a.season - b.season || a.club.localeCompare(b.club) || b.overall - a.overall)
+
+    const usedClubs = new Set(players.map((p) => p.club))
+    for (const t of Object.values(tables)) for (const r of t.table) usedClubs.add(r.clubId)
+    const clubs = league.clubs.filter((c) => usedClubs.has(c.id)).map(({ aliases, ...rest }) => rest)
+    const seasons = [...new Set(players.map((p) => p.season))].sort()
+    const seasonInfo = seasons.map((s) => {
+      // Clubs with a real squad that season; tiny squads are data noise (a loan or a mid-season move)
+      const counts = {}
+      for (const p of players) if (p.season === s) counts[p.club] = (counts[p.club] ?? 0) + 1
+      const clubsIn = Object.keys(counts).filter((c) => counts[c] >= 12).sort()
+      const t = tables[s]
+      return { season: s, clubs: clubsIn, complete: t?.complete ?? false, hasTable: !!t, table: t?.table ?? [] }
+    })
+    const nations = {}
+    for (const p of players) if (!nations[p.nation]) nations[p.nation] = { name: NATION_NAMES[p.nation] ?? 'Unknown', flag: nationFlag(p.nation) }
+
+    const outDir = path.join(DATA_DIR, leagueId)
+    await mkdir(outDir, { recursive: true })
+    const playersOut = { version: 2, generatedAt: new Date().toISOString().slice(0, 10), columns: COLUMNS, rows: players.map(makeRow) }
+    await writeFile(path.join(outDir, 'players.json'), JSON.stringify(playersOut))
+    const meta = {
+      version: 2,
+      league: { id: leagueId, name: league.name, shortName: league.shortName, country: league.country },
+      clubs,
+      nations,
+      seasons: seasonInfo,
+      historicTables: Object.fromEntries(Object.entries(tables).filter(([s]) => !seasons.includes(Number(s))).map(([s, t]) => [s, t.table])),
+      sources: Object.values(SOURCES).map((s) => ({ credit: s.credit, licence: s.licence })).concat([{ credit: 'openfootball (GitHub)', licence: 'CC0 / public domain' }]),
+    }
+    await writeFile(path.join(outDir, 'meta.json'), JSON.stringify(meta))
+    const sizeMb = (Buffer.byteLength(JSON.stringify(playersOut)) / 1e6).toFixed(2)
+    const distinct = new Set(players.map((p) => p.id)).size
+    grandTotal += players.length
+    console.log(`\n${league.name}: ${players.length} player-seasons, ${distinct} players, ${clubs.length} clubs, ${seasons[0]}-${seasons.at(-1)}, players.json ${sizeMb} MB`)
+    for (const s of seasonInfo) console.log(`  ${s.season}-${String(s.season + 1).slice(2)}: ${players.filter((p) => p.season === s.season).length} rows, ${s.clubs.length} clubs, table ${s.hasTable ? (s.complete ? 'complete' : 'partial') : 'none'}`)
+    leaguesIndex.push({ id: leagueId, name: league.name, shortName: league.shortName, country: league.country, firstSeason: seasons[0], lastSeason: seasons.at(-1), playerSeasons: players.length, players: distinct, clubs: clubs.length })
   }
-  // Also drop duplicate humans within the same club-season that slipped in under different ids
-  const byNameKey = new Map()
-  for (const p of seen.values()) {
-    const k = `${p.season}|${p.club}|${p.name.toLowerCase()}|${p.age}`
-    if (!byNameKey.has(k)) byNameKey.set(k, p)
-  }
-  const players = [...byNameKey.values()].sort((a, b) => a.season - b.season || a.club.localeCompare(b.club) || b.overall - a.overall)
-
-  // Clubs that appear anywhere
-  const usedClubs = new Set(players.map((p) => p.club))
-  for (const t of Object.values(tables)) for (const r of t.table) usedClubs.add(r.clubId)
-  const clubs = CLUBS.filter((c) => usedClubs.has(c.id)).map(({ aliases, ...rest }) => rest)
-
-  const seasons = [...new Set(players.map((p) => p.season))].sort()
-  const seasonInfo = seasons.map((s) => {
-    const clubsIn = [...new Set(players.filter((p) => p.season === s).map((p) => p.club))].sort()
-    const t = tables[s]
-    return { season: s, clubs: clubsIn, complete: t?.complete ?? false, table: t?.table ?? [] }
-  })
-
-  const nations = {}
-  for (const p of players) if (!nations[p.nation]) nations[p.nation] = { name: NATION_NAMES[p.nation] ?? 'Unknown', flag: nationFlag(p.nation) }
-
-  await mkdir(OUT_DIR, { recursive: true })
-  const playersOut = { version: 1, generatedAt: new Date().toISOString().slice(0, 10), columns: COLUMNS, rows: players.map(makeRow) }
-  await writeFile(path.join(OUT_DIR, 'players.json'), JSON.stringify(playersOut))
-  const meta = {
-    version: 1,
-    league: { id: 'england', name: 'English Top Flight', shortName: 'England' },
-    clubs,
-    nations,
-    seasons: seasonInfo,
-    historicTables: Object.fromEntries(Object.entries(tables).filter(([s]) => !seasons.includes(Number(s))).map(([s, t]) => [s, t.table])),
-    sources: Object.values(SOURCES).map((s) => ({ credit: s.credit, licence: s.licence })).concat([{ credit: 'openfootball/england (GitHub)', licence: 'CC0 / public domain' }]),
-  }
-  await writeFile(path.join(OUT_DIR, 'meta.json'), JSON.stringify(meta))
-
-  // Report
-  const perSeason = {}
-  for (const p of players) perSeason[p.season] = (perSeason[p.season] ?? 0) + 1
-  console.log('\nPlayer-seasons per season:')
-  for (const s of seasons) console.log(`  ${s}-${String(s + 1).slice(2)}: ${perSeason[s]} (${seasonInfo.find((x) => x.season === s).clubs.length} clubs, table ${tables[s] ? (tables[s].complete ? 'complete' : 'partial') : 'missing'})`)
-  console.log(`\nTotal: ${players.length} player-seasons, ${new Set(players.map((p) => p.id)).size} distinct players, ${clubs.length} clubs`)
-  const sizeMb = (Buffer.byteLength(JSON.stringify(playersOut)) / 1e6).toFixed(2)
-  console.log(`players.json ${sizeMb} MB`)
+  await writeFile(path.join(DATA_DIR, 'leagues.json'), JSON.stringify({ version: 2, generatedAt: new Date().toISOString().slice(0, 10), leagues: leaguesIndex }))
+  console.log(`\nTotal: ${grandTotal} player-seasons across ${leagueIds.length} leagues`)
   if (unknownNations.size) console.log('Unknown nations:', [...unknownNations.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30))
   const uniqWarnings = [...new Set(warnings)]
-  if (uniqWarnings.length) console.log(`Warnings (${uniqWarnings.length}):\n  ` + uniqWarnings.slice(0, 40).join('\n  '))
+  if (uniqWarnings.length) console.log(`Warnings (${uniqWarnings.length}):\n  ` + uniqWarnings.slice(0, 80).join('\n  '))
 }
 
 main().catch((e) => {

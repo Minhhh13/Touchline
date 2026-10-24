@@ -67,6 +67,8 @@ export interface MarketContext {
   priceLevel: number
   fromSeason?: number
   toSeason?: number
+  /** Leagues the market draws from; all loaded leagues when omitted. */
+  leagues?: string[]
 }
 
 /** Opening asking price for a player-season in this market. */
@@ -123,7 +125,7 @@ function roundM(v: number): number {
 /** Open a window with a fresh market of listings drawn from across the eras. */
 export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36): Window {
   const { u, rng } = ctx
-  const pool = u.clubSeasons.filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason))
+  const pool = u.clubSeasons.filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason) && (!ctx.leagues || ctx.leagues.includes(cs.leagueId)))
   const candidates: PlayerSeason[] = []
   const seenHumans = new Set<string>()
   // Sample club-seasons, then take a few players from each with a bias to quality so the market is interesting.

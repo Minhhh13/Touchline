@@ -3,7 +3,6 @@ import path from 'node:path'
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 export const CACHE = process.env.DATA_CACHE || path.join(ROOT, '.cache', 'datasets')
-export const OUT_DIR = path.join(ROOT, 'public', 'data', 'england')
 
 /**
  * Public dataset sources. Kaggle datasets download through an unauthenticated
@@ -53,9 +52,10 @@ export const SOURCES = {
   },
 }
 
-export const OPENFOOTBALL_BASE = 'https://raw.githubusercontent.com/openfootball/england/master'
-/** Season start years with a results file we parse. */
+export const OPENFOOTBALL_BASE = 'https://raw.githubusercontent.com'
+/** Season start years with a results file we try to fetch. */
 export const OPENFOOTBALL_SEASONS = Array.from({ length: 27 }, (_, i) => 2000 + i) // 2000-01 .. 2026-27
+export const DATA_DIR = path.join(ROOT, 'public', 'data')
 
 export function seasonSlug(startYear) {
   const end = String((startYear + 1) % 100).padStart(2, '0')

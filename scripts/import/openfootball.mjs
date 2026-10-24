@@ -9,11 +9,10 @@
  *   or (newer):
  *     20:00  Arsenal FC              v Coventry City FC         3-0 (2-0)
  */
-import { clubIdFor } from './clubs-england.mjs'
 
 const SCORE = /(\d+)-(\d+)(?:\s*\((\d+)-(\d+)\))?/
 
-export function parseResults(text) {
+export function parseResults(text, resolve) {
   const matches = []
   const unknown = new Set()
   let matchday = 0
@@ -48,8 +47,8 @@ export function parseResults(text) {
     // Some lines carry a trailing comment or extra time marker. Trim bracket remainders.
     away = away.replace(/\s*\[.*$/, '').replace(/\s{2,}.*$/, '').trim()
     home = home.replace(/\s{2,}.*$/, '').trim()
-    const h = clubIdFor(home)
-    const a = clubIdFor(away)
+    const h = resolve(home)
+    const a = resolve(away)
     if (!h) unknown.add(home)
     if (!a) unknown.add(away)
     if (!h || !a) continue

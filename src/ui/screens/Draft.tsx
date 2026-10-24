@@ -9,6 +9,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Pos, Rating } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
+import { leagueSegments } from '../components/leagueSegments'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -29,12 +30,20 @@ export function Draft() {
   const segments = useMemo(() => {
     if (!u || !d) return []
     const pool = wheelPool(u, d)
+    const leagues = [...new Set(pool.map((cs) => cs.leagueId))]
+    // Across several leagues the wheel shows leagues as segments; within one league, the clubs.
+    if (leagues.length > 1) return leagueSegments(u, leagues)
     const clubs = [...new Set(pool.map((cs) => cs.clubId))]
     const sorted = clubs.sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b))
     return sorted.map((id) => ({ id, label: u.clubById[id]?.code ?? id.slice(0, 3).toUpperCase(), colour: u.clubById[id]?.colours.primary ?? '#555', secondary: u.clubById[id]?.colours.secondary ?? '#fff' }))
     // Recompute only when the current spin changes so the wheel is stable while a pick is pending.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [u, d?.spins, d?.rules])
+  const wheelTarget = useMemo(() => {
+    if (!u || !d?.current) return null
+    const cs = u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`]
+    return segments.length && segments[0].id.startsWith('league:') ? `league:${cs?.leagueId ?? ''}` : d.current.clubId
+  }, [u, d?.current, segments])
 
   useEffect(() => {
     if (d?.current) {
@@ -111,7 +120,7 @@ export function Draft() {
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
-            <Wheel segments={segments} targetId={d.current?.clubId ?? null} year={d.current?.season ?? null} spinning={spinning} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {!complete && (
               <>
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => spin()}>

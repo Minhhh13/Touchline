@@ -2,7 +2,7 @@ import type { Game, LiveMatch } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { beginMatch, finishMatch, simulateMatch, type FullMatchResult, type MatchTeamInput, type SecondHalfOptions, type TeamTalk } from '@engine/match'
-import { aiTeamInput, applyMatchToState, benchMoraleDrift, computeTable, CUP_ROUNDS, describeImportance, drawNextCupRound, MATCHWEEKS, positionOf, recoverWeek, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type CupTie, type NewsItem } from '@engine/season'
+import { aiTeamInput, applyMatchToState, benchMoraleDrift, computeTable, cupRounds, describeImportance, drawNextCupRound, positionOf, recoverWeek, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type CupTie, type NewsItem } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
 import { advanceWindow, openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
@@ -138,7 +138,7 @@ function userFixture(game: Game) {
 }
 
 export function nextOpponent(game: Game): { clubId: string; home: boolean } | null {
-  if (!game.season || game.season.matchweek >= MATCHWEEKS) return null
+  if (!game.season || game.season.matchweek >= game.season.matchweeks) return null
   const f = userFixture(game)
   const home = f.homeTeamId === USER_TEAM
   return { clubId: home ? f.awayTeamId : f.homeTeamId, home }
@@ -157,7 +157,7 @@ export function upcomingCupTie(game: Game): CupTie | null {
  */
 export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false): void {
   const season = game.season
-  if (!season || season.matchweek >= MATCHWEEKS || season.sacked) return
+  if (!season || season.matchweek >= season.matchweeks || season.sacked) return
   if (game.live) finishLiveMatch(game, u, undefined, true)
   if (game.phase === 'summary') return
   const rng = Rng.fromState(game.rngState)
@@ -280,7 +280,7 @@ function friendlyLookups(u: LoadedUniverse, clubSeasonKey: string) {
 function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean): void {
   const season = game.season!
   const mw = season.matchweek
-  const roundInfo = CUP_ROUNDS.find((r) => r.afterMatchweek === mw)
+  const roundInfo = cupRounds(season.matchweeks).find((r) => r.afterMatchweek === mw)
   if (roundInfo) {
     const rng = Rng.fromState(game.rngState)
     simulateAiCupTies(game, u, rng, roundInfo.round)
@@ -351,7 +351,7 @@ function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: Ful
   tie.result = { ...res, penalties: pens }
   tie.winnerId = winner
   const won = winner === USER_TEAM
-  const info = CUP_ROUNDS.find((r) => r.round === tie.round)!
+  const info = cupRounds(season.matchweeks).find((r) => r.round === tie.round)!
   if (!won) season.cupEliminated = true
   if (won && tie.round === 'F') season.cupWon = true
   news(game, { kind: 'cup', title: `${info.label}: ${won ? 'through' : 'out'}`, body: `${res.homeGoals}-${res.awayGoals}${pens ? ` (${pens.home}-${pens.away} on penalties)` : ''} against ${season.ai[live.opponentId].name}.${won && tie.round === 'F' ? ' The cup is yours!' : ''}` })
@@ -360,14 +360,15 @@ function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: Ful
 
 function drawNext(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round']): void {
   const season = game.season!
-  const idx = CUP_ROUNDS.findIndex((r) => r.round === round)
-  if (idx < 0 || idx >= CUP_ROUNDS.length - 1) return
-  const next = drawNextCupRound(season.cup, CUP_ROUNDS[idx + 1].round, rng)
+  const rounds = cupRounds(season.matchweeks)
+  const idx = rounds.findIndex((r) => r.round === round)
+  if (idx < 0 || idx >= rounds.length - 1) return
+  const next = drawNextCupRound(season.cup, rounds[idx + 1].round, rng, season.matchweeks)
   season.cup.push(...next)
   const userTie = next.find((t) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)
   if (userTie) {
     const oppId = userTie.homeTeamId === USER_TEAM ? userTie.awayTeamId : userTie.homeTeamId
-    news(game, { kind: 'cup', title: `${CUP_ROUNDS[idx + 1].label} draw`, body: `${userTie.homeTeamId === USER_TEAM ? 'Home' : 'Away'} to ${season.ai[oppId]?.name ?? u.clubById[oppId]?.name ?? oppId}, after matchweek ${CUP_ROUNDS[idx + 1].afterMatchweek}.` })
+    news(game, { kind: 'cup', title: `${rounds[idx + 1].label} draw`, body: `${userTie.homeTeamId === USER_TEAM ? 'Home' : 'Away'} to ${season.ai[oppId]?.name ?? u.clubById[oppId]?.name ?? oppId}, after matchweek ${rounds[idx + 1].afterMatchweek}.` })
   }
 }
 
@@ -388,19 +389,19 @@ function afterMatchweek(game: Game, u: LoadedUniverse): void {
   const userRow = newTable.find((r) => r.teamId === USER_TEAM)!
   const last = userRow.form[userRow.form.length - 1] ?? null
   season.confidence = updateConfidence(season.confidence, newTable, USER_TEAM, season.boardTarget, mw, last)
-  if (game.settings.jobSecurity && mw >= 10 && season.confidence < 12 && mw < MATCHWEEKS) {
+  if (game.settings.jobSecurity && mw >= 10 && season.confidence < 12 && mw < season.matchweeks) {
     season.sacked = true
     news(game, { kind: 'board', title: 'Sacked', body: 'The board has relieved you of your duties. The season ends here.' })
   }
   if (season.confidence < 20 && !game.unlocked.includes('survivor-pending')) game.unlocked.push('survivor-pending')
 
-  // Transfer window: opens after matchweek 19; three market days pass per matchweek, so it shuts after matchweek 22
-  if (mw === 19 && !game.window) {
-    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason }, 'january')
+  // Transfer window: opens at the halfway point; three market days pass per matchweek, so it shuts three matchweeks later
+  if (mw === Math.floor(season.matchweeks / 2) && !game.window) {
+    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
-      if (game.window.day < game.window.days) advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05 }, game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed })), Object.keys(season.ai))
+      if (game.window.day < game.window.days) advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, leagues: game.settings.wheelLeagues }, game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed })), Object.keys(season.ai))
     }
     if (game.window.day >= game.window.days) {
       news(game, { kind: 'transfer', title: 'Window closed', body: 'The January window has shut.' })
@@ -409,14 +410,14 @@ function afterMatchweek(game: Game, u: LoadedUniverse): void {
   }
 
   game.pendingEvent = null
-  if (mw < MATCHWEEKS && rng.chance(0.42)) {
+  if (mw < season.matchweeks && rng.chance(0.42)) {
     const ctx = eventContext(game, u, rng, newTable)
     const ev = rollEvent(ctx)
     if (ev) game.pendingEvent = ev
   }
   game.phase = 'match'
   game.rngState = rng.getState()
-  if (mw >= MATCHWEEKS || season.sacked) finishSeason(game, u)
+  if (mw >= season.matchweeks || season.sacked) finishSeason(game, u)
 }
 
 export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: ReturnType<typeof computeTable>): EventContext {
@@ -513,7 +514,7 @@ export function playFriendly(game: Game, u: LoadedUniverse): void {
   const rng = Rng.fromState(game.rngState)
   if (lineupProblems(game, u).length) autoPick(game, u, true)
   const user = userInput(game, u)
-  const pool = u.clubSeasons.filter((cs) => cs.position >= 8 || cs.position === 0)
+  const pool = u.clubSeasons.filter((cs) => (cs.position >= 8 || cs.position === 0) && (!game.settings.wheelLeagues.length || game.settings.wheelLeagues.includes(cs.leagueId)))
   const cs = rng.pick(pool)
   const club = u.clubById[cs.clubId]
   const oppTactics = { ...game.season.ai[Object.keys(game.season.ai)[0]].tactics }
@@ -544,15 +545,16 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
   const row = table.find((r) => r.teamId === USER_TEAM)!
   const pos = positionOf(table, USER_TEAM)
-  const tier = season.sacked ? 'RELEGATED' : seasonTier(table, USER_TEAM, season.cupWon)
+  const tier = season.sacked ? 'RELEGATED' : seasonTier(table, USER_TEAM, season.cupWon, season.matchweeks)
   game.tier = tier
   const squad = squadPlayers(game, u)
-  game.awards = computeAwards(squad)
+  game.awards = computeAwards(squad, season.matchweeks)
   const prize = season.sacked ? 0 : prizeMoney(pos, season.cupWon)
   game.finances.budget = Math.round((game.finances.budget + prize) * 10) / 10
   game.finances.income += prize
   game.history.push({
     year: game.year,
+    leagueId: season.leagueId,
     leagueSeason: season.leagueSeason,
     teamName: game.settings.teamName,
     hostClubId: season.hostClubId,

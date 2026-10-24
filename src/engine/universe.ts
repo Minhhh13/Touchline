@@ -3,7 +3,7 @@
  * Data is produced by `scripts/import/build.mjs` from public datasets and
  * loaded here into typed, indexed structures.
  */
-import type { Attributes, Club, ClubSeason, LeagueSeasonRow, PlayerSeason, Position, Traits, Universe } from './types'
+import type { Attributes, Club, ClubSeason, LeagueInfo, LeagueSeasonRow, PlayerSeason, Position, Traits, Universe } from './types'
 import { overallOf } from './positions'
 
 export interface PlayersFile {
@@ -15,17 +15,24 @@ export interface PlayersFile {
 
 export interface MetaFile {
   version: number
-  league: { id: string; name: string; shortName: string }
-  clubs: Club[]
+  league: { id: string; name: string; shortName: string; country?: string }
+  clubs: Array<Omit<Club, 'leagueId'>>
   nations: Record<string, { name: string; flag: string }>
   seasons: Array<{
     season: number
     clubs: string[]
     complete: boolean
+    hasTable?: boolean
     table: Array<{ clubId: string; position: number; played: number; won: number; drawn: number; lost: number; gf: number; ga: number; pts: number }>
   }>
   historicTables: Record<string, MetaFile['seasons'][number]['table']>
   sources: Array<{ credit: string; licence: string }>
+}
+
+export interface LeaguesFile {
+  version: number
+  generatedAt: string
+  leagues: LeagueInfo[]
 }
 
 export interface LoadedUniverse extends Universe {
@@ -36,18 +43,23 @@ export interface LoadedUniverse extends Universe {
   sources: Array<{ credit: string; licence: string }>
   /** Season start year of the current, in-progress season (table incomplete), if any. */
   currentSeason: number | null
+  /** Every league available in the data index, loaded or not. */
+  available: LeagueInfo[]
 }
 
 export function seasonLabel(season: number): string {
   return `${season}-${String((season + 1) % 100).padStart(2, '0')}`
 }
 
-export function buildUniverse(players: PlayersFile, meta: MetaFile): LoadedUniverse {
+/** Build the structures for one league's data pack. */
+export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueInfo): LoadedUniverse {
+  const leagueId = meta.league.id
   const col = Object.fromEntries(players.columns.map((c, i) => [c, i])) as Record<string, number>
   const get = (row: Array<string | number>, key: string) => row[col[key]]
 
   const clubById: Record<string, Club> = {}
-  for (const c of meta.clubs) clubById[c.id] = c
+  const clubs: Club[] = meta.clubs.map((c) => ({ ...c, leagueId }))
+  for (const c of clubs) clubById[c.id] = c
 
   const index: Record<string, PlayerSeason> = {}
   const squads: Record<string, PlayerSeason[]> = {}
@@ -94,7 +106,6 @@ export function buildUniverse(players: PlayersFile, meta: MetaFile): LoadedUnive
       height: Number(get(row, 'height')) || 0,
       accolades: [],
     }
-    // Guard against data rows whose derived overall is wildly off (shouldn't happen).
     if (!Number.isFinite(ps.overall) || ps.overall <= 0) ps.overall = overallOf(ps)
     index[id] = ps
     const key = `${clubId}@${season}`
@@ -106,19 +117,13 @@ export function buildUniverse(players: PlayersFile, meta: MetaFile): LoadedUnive
   const clubSeasons: ClubSeason[] = []
   const clubSeasonByKey: Record<string, ClubSeason> = {}
   let currentSeason: number | null = null
+  const toRows = (table: MetaFile['seasons'][number]['table']): LeagueSeasonRow[] =>
+    table.map((r) => ({ clubId: r.clubId, position: r.position, points: r.pts, won: r.won, drawn: r.drawn, lost: r.lost, goalsFor: r.gf, goalsAgainst: r.ga }))
   for (const s of meta.seasons) {
-    const rows: LeagueSeasonRow[] = s.table.map((r) => ({
-      clubId: r.clubId,
-      position: r.position,
-      points: r.pts,
-      won: r.won,
-      drawn: r.drawn,
-      lost: r.lost,
-      goalsFor: r.gf,
-      goalsAgainst: r.ga,
-    }))
-    tables[s.season] = rows
-    if (!s.complete) currentSeason = s.season
+    const rows = toRows(s.table)
+    if (rows.length) tables[s.season] = rows
+    const hasTable = s.hasTable ?? rows.length > 0
+    if (hasTable && !s.complete) currentSeason = s.season
     const byClub = Object.fromEntries(rows.map((r) => [r.clubId, r]))
     for (const clubId of s.clubs) {
       const squad = (squads[`${clubId}@${s.season}`] ?? []).sort((a, b) => b.overall - a.overall)
@@ -126,6 +131,7 @@ export function buildUniverse(players: PlayersFile, meta: MetaFile): LoadedUnive
       const champions = s.complete && t?.position === 1
       const cs: ClubSeason = {
         clubId,
+        leagueId,
         season: s.season,
         position: t?.position ?? 0,
         points: t?.points ?? 0,
@@ -135,7 +141,7 @@ export function buildUniverse(players: PlayersFile, meta: MetaFile): LoadedUnive
         goalsFor: t?.goalsFor ?? 0,
         goalsAgainst: t?.goalsAgainst ?? 0,
         champions,
-        complete: s.complete,
+        complete: hasTable ? s.complete : true,
         squad,
       }
       if (champions) for (const p of squad) p.accolades.push('Champion')
@@ -143,24 +149,15 @@ export function buildUniverse(players: PlayersFile, meta: MetaFile): LoadedUnive
       clubSeasonByKey[`${clubId}@${s.season}`] = cs
     }
   }
-  for (const [season, table] of Object.entries(meta.historicTables)) {
-    tables[Number(season)] = table.map((r) => ({
-      clubId: r.clubId,
-      position: r.position,
-      points: r.pts,
-      won: r.won,
-      drawn: r.drawn,
-      lost: r.lost,
-      goalsFor: r.gf,
-      goalsAgainst: r.ga,
-    }))
-  }
+  for (const [season, table] of Object.entries(meta.historicTables)) tables[Number(season)] = toRows(table)
   const seasons = meta.seasons.map((s) => s.season)
+  const leagueInfo: LeagueInfo = info ?? { id: leagueId, name: meta.league.name, shortName: meta.league.shortName, country: meta.league.country ?? '', firstSeason: Math.min(...seasons), lastSeason: Math.max(...seasons), playerSeasons: players.rows.length, players: new Set(players.rows.map((r) => String(get(r, 'id')))).size, clubs: clubs.length }
   return {
-    seed: `england-v${players.version}-${players.generatedAt}`,
-    clubs: meta.clubs,
+    seed: `${leagueId}-v${players.version}-${players.generatedAt}`,
+    leagues: [leagueInfo],
+    clubs,
     clubSeasons,
-    tables,
+    tables: { [leagueId]: tables },
     firstSeason: Math.min(...seasons),
     lastSeason: Math.max(...seasons),
     index,
@@ -169,27 +166,92 @@ export function buildUniverse(players: PlayersFile, meta: MetaFile): LoadedUnive
     clubSeasonByKey,
     sources: meta.sources,
     currentSeason,
+    available: [leagueInfo],
   }
 }
 
-let cached: Promise<LoadedUniverse> | null = null
-
-/** Browser loader: fetch the JSON files from /data/england. */
-export function loadUniverse(baseUrl = import.meta.env?.BASE_URL ?? '/'): Promise<LoadedUniverse> {
-  if (!cached) {
-    const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
-    cached = Promise.all([
-      fetch(`${base}data/england/players.json`).then((r) => {
-        if (!r.ok) throw new Error(`players.json ${r.status}`)
-        return r.json() as Promise<PlayersFile>
-      }),
-      fetch(`${base}data/england/meta.json`).then((r) => {
-        if (!r.ok) throw new Error(`meta.json ${r.status}`)
-        return r.json() as Promise<MetaFile>
-      }),
-    ]).then(([p, m]) => buildUniverse(p, m))
+/** Merge several league packs into one universe (the wheel can span them all). */
+export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[]): LoadedUniverse {
+  const [first, ...rest] = parts
+  const out: LoadedUniverse = {
+    ...first,
+    leagues: [...first.leagues],
+    clubs: [...first.clubs],
+    clubSeasons: [...first.clubSeasons],
+    tables: { ...first.tables },
+    index: { ...first.index },
+    nations: { ...first.nations },
+    clubById: { ...first.clubById },
+    clubSeasonByKey: { ...first.clubSeasonByKey },
+    sources: [...first.sources],
+    available,
   }
-  return cached
+  for (const u of rest) {
+    out.leagues.push(...u.leagues)
+    out.clubs.push(...u.clubs)
+    out.clubSeasons.push(...u.clubSeasons)
+    Object.assign(out.tables, u.tables)
+    Object.assign(out.index, u.index)
+    Object.assign(out.nations, u.nations)
+    Object.assign(out.clubById, u.clubById)
+    Object.assign(out.clubSeasonByKey, u.clubSeasonByKey)
+    out.firstSeason = Math.min(out.firstSeason, u.firstSeason)
+    out.lastSeason = Math.max(out.lastSeason, u.lastSeason)
+    if (u.currentSeason && !out.currentSeason) out.currentSeason = u.currentSeason
+  }
+  out.seed = out.leagues.map((l) => l.id).sort().join('+')
+  return out
+}
+
+/** Keep the loaded universe stable across leagues. */
+export const DEFAULT_LEAGUE = 'england'
+
+const leagueCache = new Map<string, Promise<LoadedUniverse>>()
+let availableCache: Promise<LeagueInfo[]> | null = null
+
+function base(baseUrl?: string): string {
+  const b = baseUrl ?? import.meta.env?.BASE_URL ?? '/'
+  return b.endsWith('/') ? b : `${b}/`
+}
+
+export function fetchAvailableLeagues(baseUrl?: string): Promise<LeagueInfo[]> {
+  if (!availableCache) {
+    availableCache = fetch(`${base(baseUrl)}data/leagues.json`).then(async (r) => {
+      if (!r.ok) throw new Error(`leagues.json ${r.status}`)
+      const j = (await r.json()) as LeaguesFile
+      return j.leagues
+    })
+  }
+  return availableCache
+}
+
+/** Browser loader for one league pack, cached. */
+export function fetchLeague(leagueId: string, baseUrl?: string): Promise<LoadedUniverse> {
+  if (!leagueCache.has(leagueId)) {
+    const b = base(baseUrl)
+    leagueCache.set(
+      leagueId,
+      Promise.all([
+        fetch(`${b}data/${leagueId}/players.json`).then((r) => {
+          if (!r.ok) throw new Error(`${leagueId}/players.json ${r.status}`)
+          return r.json() as Promise<PlayersFile>
+        }),
+        fetch(`${b}data/${leagueId}/meta.json`).then((r) => {
+          if (!r.ok) throw new Error(`${leagueId}/meta.json ${r.status}`)
+          return r.json() as Promise<MetaFile>
+        }),
+        fetchAvailableLeagues(baseUrl),
+      ]).then(([p, m, avail]) => buildLeague(p, m, avail.find((l) => l.id === leagueId))),
+    )
+  }
+  return leagueCache.get(leagueId)!
+}
+
+/** Load and merge the given leagues (defaults to England). */
+export async function loadUniverse(leagueIds: string[] = [DEFAULT_LEAGUE], baseUrl?: string): Promise<LoadedUniverse> {
+  const ids = [...new Set(leagueIds)]
+  const [available, ...parts] = await Promise.all([fetchAvailableLeagues(baseUrl), ...ids.map((id) => fetchLeague(id, baseUrl))])
+  return mergeUniverses(parts, available)
 }
 
 export function clubName(u: LoadedUniverse, clubId: string): string {
@@ -198,6 +260,11 @@ export function clubName(u: LoadedUniverse, clubId: string): string {
 
 export function flagOf(u: LoadedUniverse, nation: string): string {
   return u.nations[nation]?.flag ?? '🏳️'
+}
+
+/** Club-seasons of one league in one season (the 18 or 20 clubs of that campaign). */
+export function leagueSeasonClubs(u: LoadedUniverse, leagueId: string, season: number): ClubSeason[] {
+  return u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season)
 }
 
 /** Short club-season label like "Leicester City 2015-16 · Champions". */
