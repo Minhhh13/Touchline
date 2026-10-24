@@ -1,0 +1,193 @@
+/**
+ * The wheel and the draft rules, straight from 38-0 with a few refinements:
+ *  - spins never land on a club-season that cannot help you (no dead spins);
+ *  - a human being can be drafted once, whatever the season;
+ *  - squad drafts fill eleven starting slots first, then bench places;
+ *  - optional filters: era, one club, hard mode (ratings hidden in the UI).
+ */
+import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
+import type { Rng } from './rng'
+import { canCover, describeFit, type Fit } from './positions'
+import type { LoadedUniverse } from './universe'
+
+export interface DraftRules {
+  /** Players to draft in total: 11 for a quick XI, 16-18 for a season squad. */
+  squadSize: number
+  /** Re-spins allowed over the whole draft. */
+  respins: number
+  /** Only club-seasons from this season onwards. */
+  fromSeason?: number
+  /** Only club-seasons up to this season. */
+  toSeason?: number
+  /** Restrict the wheel to one club's history. */
+  onlyClub?: string
+  /** Minimum position fit required to draft into a starting slot. */
+  minFit: Fit
+  /** Hide ratings in the UI (engine ignores this). */
+  hardMode: boolean
+  /** Prevent the same club-season from appearing twice. */
+  uniqueClubSeasons: boolean
+}
+
+export const QUICK_RULES: DraftRules = { squadSize: 11, respins: 2, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true }
+export const SEASON_RULES: DraftRules = { squadSize: 18, respins: 3, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: false }
+
+export interface DraftState {
+  rules: DraftRules
+  formation: Formation
+  /** slot id -> player-season id */
+  lineup: Record<string, string>
+  bench: string[]
+  /** Human ids already drafted (prevents drafting the same player twice). */
+  takenPlayers: string[]
+  usedClubSeasons: string[]
+  respinsLeft: number
+  /** The club-season currently showing, if a spin is pending a pick. */
+  current: { clubId: string; season: number } | null
+  spins: number
+  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null }>
+}
+
+export function newDraft(formation: Formation, rules: DraftRules): DraftState {
+  return { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [] }
+}
+
+export function openSlots(d: DraftState): Formation['slots'] {
+  return d.formation.slots.filter((s) => !d.lineup[s.id])
+}
+
+export function picksMade(d: DraftState): number {
+  return Object.keys(d.lineup).length + d.bench.length
+}
+
+export function isComplete(d: DraftState): boolean {
+  return picksMade(d) >= d.rules.squadSize
+}
+
+/** Whether we are still filling the XI (true) or the bench (false). */
+export function fillingXI(d: DraftState): boolean {
+  return openSlots(d).length > 0
+}
+
+export function canUse(d: DraftState, p: PlayerSeason): boolean {
+  if (d.takenPlayers.includes(p.playerId)) return false
+  if (fillingXI(d)) return openSlots(d).some((s) => canCover(p, s.position, d.rules.minFit))
+  return true
+}
+
+export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'] {
+  if (d.takenPlayers.includes(p.playerId)) return []
+  return openSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
+}
+
+/** The club-seasons the wheel may land on right now. */
+export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
+  const r = d.rules
+  return u.clubSeasons.filter((cs) => {
+    if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
+    if (r.toSeason !== undefined && cs.season > r.toSeason) return false
+    if (r.onlyClub && cs.clubId !== r.onlyClub) return false
+    if (r.uniqueClubSeasons && d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`)) return false
+    return cs.squad.some((p) => canUse(d, p))
+  })
+}
+
+/**
+ * Spin: pick a club-season uniformly across seasons first, then clubs, so no
+ * era dominates just because it has more rows.
+ */
+export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
+  const pool = wheelPool(u, d)
+  if (!pool.length) throw new Error('Nothing left on the wheel')
+  const seasons = [...new Set(pool.map((cs) => cs.season))]
+  const season = rng.pick(seasons)
+  const inSeason = pool.filter((cs) => cs.season === season)
+  // Favour stronger club-seasons a little (a title winner is about twice as
+  // likely as a relegated side) and clubs with more useful players, so late
+  // picks are not hopeless.
+  const chosen = rng.pickWeighted(inSeason, (cs) => {
+    const quality = cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6
+    return quality * (1 + Math.min(10, cs.squad.filter((p) => canUse(d, p)).length) / 10)
+  })
+  d.current = { clubId: chosen.clubId, season: chosen.season }
+  d.spins++
+  return chosen
+}
+
+export function respin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
+  if (d.respinsLeft <= 0) throw new Error('No re-spins left')
+  d.respinsLeft--
+  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null })
+  return spin(u, d, rng)
+}
+
+/** Draft a player from the current club-season into a slot (or the bench). */
+export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, slotId: string | 'bench'): void {
+  if (!d.current) throw new Error('Spin first')
+  const p = u.index[playerSeasonId]
+  if (!p) throw new Error('Unknown player')
+  if (p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
+  if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
+  if (slotId === 'bench') {
+    if (fillingXI(d)) throw new Error('Fill your starting XI first')
+    if (isComplete(d)) throw new Error('Squad complete')
+    d.bench.push(p.id)
+  } else {
+    const slot = d.formation.slots.find((s) => s.id === slotId)
+    if (!slot) throw new Error('Unknown slot')
+    if (d.lineup[slot.id]) throw new Error('Slot already filled')
+    if (!canCover(p, slot.position, d.rules.minFit)) throw new Error(`${p.name} cannot play ${slot.position}`)
+    d.lineup[slot.id] = p.id
+  }
+  d.takenPlayers.push(p.playerId)
+  d.usedClubSeasons.push(`${d.current.clubId}@${d.current.season}`)
+  d.history.push({ ...d.current, pickedId: p.id, slotId: slotId === 'bench' ? null : slotId })
+  d.current = null
+}
+
+/** Best slot suggestion for a player given what is open. */
+export function suggestSlot(d: DraftState, p: PlayerSeason): string | 'bench' | null {
+  const slots = eligibleSlots(d, p)
+  if (slots.length) {
+    const natural = slots.find((s) => describeFit(p, s.position) === 'natural')
+    return (natural ?? slots[0]).id
+  }
+  if (!fillingXI(d) && !isComplete(d) && !d.takenPlayers.includes(p.playerId)) return 'bench'
+  return null
+}
+
+/** Positions still needed, for the UI ("Need: GK, CB, ST"). */
+export function neededPositions(d: DraftState): Position[] {
+  return [...new Set(openSlots(d).map((s) => s.position))]
+}
+
+/** Auto-draft the rest (used by "sim the rest" and for AI opponents in head-to-head). */
+export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
+  let guard = 0
+  while (!isComplete(d) && guard++ < 200) {
+    const cs = spin(u, d, rng)
+    const candidates = cs.squad.filter((p) => canUse(d, p))
+    if (!candidates.length) {
+      d.current = null
+      continue
+    }
+    // Prefer natural fits for the scarcest open slot, otherwise highest rating.
+    const open = openSlots(d)
+    let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
+    for (const p of candidates) {
+      if (open.length) {
+        for (const s of open) {
+          if (!canCover(p, s.position, d.rules.minFit)) continue
+          const fit = describeFit(p, s.position)
+          const score = p.overall * (fit === 'natural' ? 1 : 0.92)
+          if (!best || score > best.score) best = { p, slot: s.id, score }
+        }
+      } else {
+        const score = p.overall
+        if (!best || score > best.score) best = { p, slot: 'bench', score }
+      }
+    }
+    if (best) pick(u, d, best.p.id, best.slot)
+    else d.current = null
+  }
+}

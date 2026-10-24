@@ -1,0 +1,384 @@
+/**
+ * A season: fixtures, table, cup, and the week-to-week state of a squad.
+ * The user's club replaces one real club in a chosen real league season; the
+ * other nineteen play with their real squads of that season.
+ */
+import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
+import type { Rng } from './rng'
+import type { LoadedUniverse } from './universe'
+import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
+import { tacticsForStyle, formationForStyle } from './tactics'
+import { autoPickLineup, computeTeamStrength } from './ratings'
+import { getFormation } from './formations'
+
+export const USER_TEAM = 'user'
+export const MATCHWEEKS = 38
+
+export interface AiClub {
+  id: string
+  clubId: string
+  name: string
+  shortName: string
+  tactics: Tactics
+  /** Player-season ids of the squad. */
+  squad: string[]
+  /** Live state for AI players too, so injuries and suspensions exist for them. */
+  state: Record<string, SquadPlayer>
+}
+
+export interface CupTie {
+  round: 'R16' | 'QF' | 'SF' | 'F'
+  /** Matchweek after which this tie is played. */
+  afterMatchweek: number
+  homeTeamId: string
+  awayTeamId: string
+  result?: MatchResult & { penalties?: { home: number; away: number } }
+  winnerId?: string
+}
+
+export interface SeasonState {
+  /** Real season whose clubs form the league. */
+  leagueSeason: number
+  /** Club the user replaced (name, colours and fixtures are theirs). */
+  hostClubId: string
+  teamName: string
+  fixtures: Fixture[]
+  matchweek: number
+  cup: CupTie[]
+  cupEliminated: boolean
+  cupWon: boolean
+  ai: Record<string, AiClub>
+  /** Rolling news feed for the inbox. */
+  news: NewsItem[]
+  /** Rating points subtracted from AI clubs for difficulty calibration. */
+  aiOffset: number
+  /** Board confidence 0..100. */
+  confidence: number
+  /** Position the board expects at the end of the season. */
+  boardTarget: number
+  sacked: boolean
+}
+
+export interface NewsItem {
+  matchweek: number
+  kind: 'result' | 'injury' | 'suspension' | 'board' | 'transfer' | 'award' | 'event' | 'cup' | 'training' | 'info'
+  title: string
+  body: string
+}
+
+export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer> = {}): SquadPlayer {
+  return {
+    playerSeasonId,
+    condition: 92,
+    morale: 70,
+    sharpness: 70,
+    familiarity: 35,
+    recentRatings: [],
+    injury: null,
+    suspension: 0,
+    yellowCards: 0,
+    seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 },
+    ...opts,
+  }
+}
+
+/** Double round robin via the circle method, then a deterministic shuffle of rounds. */
+export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
+  const teams = [...teamIds]
+  if (teams.length % 2 === 1) teams.push('bye')
+  const n = teams.length
+  const rounds: Array<Array<[string, string]>> = []
+  const arr = teams.slice(1)
+  for (let r = 0; r < n - 1; r++) {
+    const pairs: Array<[string, string]> = []
+    const left = [teams[0], ...arr.slice(0, (n - 1) / 2 | 0)]
+    const right = arr.slice((n - 1) / 2 | 0).reverse()
+    for (let i = 0; i < left.length; i++) {
+      const a = left[i]
+      const b = right[i]
+      if (!a || !b) continue
+      if (a === 'bye' || b === 'bye') continue
+      // Alternate home/away so teams do not have long runs
+      if ((r + i) % 2 === 0) pairs.push([a, b])
+      else pairs.push([b, a])
+    }
+    rounds.push(pairs)
+    arr.unshift(arr.pop() as string)
+  }
+  rng.shuffle(rounds)
+  const first = rounds.map((pairs, i) => pairs.map(([h, a]) => ({ matchweek: i + 1, homeTeamId: h, awayTeamId: a })))
+  const second = rounds.map((pairs, i) => pairs.map(([h, a]) => ({ matchweek: i + 1 + rounds.length, homeTeamId: a, awayTeamId: h })))
+  rng.shuffle(second)
+  second.forEach((pairs, i) => pairs.forEach((f) => (f.matchweek = i + 1 + rounds.length)))
+  return [...first.flat(), ...second.flat()]
+}
+
+export function buildAiClubs(u: LoadedUniverse, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
+  const ai: Record<string, AiClub> = {}
+  const clubs = u.clubSeasons.filter((cs) => cs.season === leagueSeason && cs.clubId !== hostClubId)
+  for (const cs of clubs) {
+    const club = u.clubById[cs.clubId]
+    const style = club?.style ?? 'balanced'
+    const tactics = tacticsForStyle(style, formationForStyle(style))
+    const state: Record<string, SquadPlayer> = {}
+    for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
+    ai[cs.clubId] = { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
+  }
+  return ai
+}
+
+export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0): MatchTeamInput {
+  const pool = club.squad.map((id) => u.index[id]).filter(Boolean)
+  const formation = getFormation(club.tactics.formationId)
+  const getState = (id: string) => club.state[id]
+  const { lineup, bench } = autoPickLineup(formation, pool, club.tactics, (p) => {
+    const s = club.state[p.id]
+    return !s || (!s.injury && s.suspension <= 0)
+  }, getState)
+  return { teamId: club.id, teamName: club.name, shortName: club.shortName, tactics: club.tactics, lineup, bench, getPlayer: (id) => u.index[id], getState, ratingOffset }
+}
+
+/**
+ * Difficulty calibration. A wheel draft rarely assembles eleven 85s, while a
+ * real top club fields exactly that. 'calibrated' pulls every AI club down so
+ * the league average sits near what a decent draft produces; 'realistic'
+ * leaves the real squads untouched.
+ */
+export const CALIBRATED_LEAGUE_AVERAGE = 75
+
+export function aiRatingOffset(u: LoadedUniverse, ai: Record<string, AiClub>, difficulty: 'calibrated' | 'realistic'): number {
+  if (difficulty === 'realistic') return 0
+  const strengths = Object.values(ai).map((c) => {
+    const inp = aiTeamInput(u, c)
+    return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
+  })
+  const avg = strengths.reduce((a, b) => a + b, 0) / Math.max(1, strengths.length)
+  return Math.max(0, Math.round((avg - CALIBRATED_LEAGUE_AVERAGE) * 10) / 10)
+}
+
+export function computeTable(fixtures: Fixture[], teamIds: string[]): TableRow[] {
+  const rows = new Map<string, TableRow>()
+  for (const id of teamIds) rows.set(id, { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, form: [] })
+  const sorted = [...fixtures].filter((f) => f.result).sort((a, b) => a.matchweek - b.matchweek)
+  for (const f of sorted) {
+    const r = f.result!
+    const h = rows.get(f.homeTeamId)!
+    const a = rows.get(f.awayTeamId)!
+    h.played++
+    a.played++
+    h.goalsFor += r.homeGoals
+    h.goalsAgainst += r.awayGoals
+    a.goalsFor += r.awayGoals
+    a.goalsAgainst += r.homeGoals
+    if (r.homeGoals > r.awayGoals) {
+      h.won++
+      a.lost++
+      h.points += 3
+      h.form.push('W')
+      a.form.push('L')
+    } else if (r.homeGoals < r.awayGoals) {
+      a.won++
+      h.lost++
+      a.points += 3
+      a.form.push('W')
+      h.form.push('L')
+    } else {
+      h.drawn++
+      a.drawn++
+      h.points++
+      a.points++
+      h.form.push('D')
+      a.form.push('D')
+    }
+    if (h.form.length > 5) h.form.shift()
+    if (a.form.length > 5) a.form.shift()
+  }
+  return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || x.teamId.localeCompare(y.teamId))
+}
+
+export function positionOf(table: TableRow[], teamId: string): number {
+  return table.findIndex((r) => r.teamId === teamId) + 1
+}
+
+/** Cup schedule: 16 teams, four rounds spread across the season. */
+export const CUP_ROUNDS: Array<{ round: CupTie['round']; afterMatchweek: number; label: string }> = [
+  { round: 'R16', afterMatchweek: 6, label: 'Fourth round' },
+  { round: 'QF', afterMatchweek: 14, label: 'Quarter-final' },
+  { round: 'SF', afterMatchweek: 24, label: 'Semi-final' },
+  { round: 'F', afterMatchweek: 36, label: 'Final' },
+]
+
+export function drawFirstCupRound(teamIds: string[], rng: Rng): CupTie[] {
+  const entrants = rng.shuffle([...teamIds]).slice(0, 16)
+  if (!entrants.includes(USER_TEAM)) entrants[0] = USER_TEAM
+  const ties: CupTie[] = []
+  for (let i = 0; i < entrants.length; i += 2) ties.push({ round: 'R16', afterMatchweek: 6, homeTeamId: entrants[i], awayTeamId: entrants[i + 1] })
+  return ties
+}
+
+export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng): CupTie[] {
+  const prevIndex = CUP_ROUNDS.findIndex((r) => r.round === round) - 1
+  if (prevIndex < 0) return []
+  const prev = CUP_ROUNDS[prevIndex]
+  const winners = cup.filter((t) => t.round === prev.round && t.winnerId).map((t) => t.winnerId!)
+  rng.shuffle(winners)
+  const info = CUP_ROUNDS[prevIndex + 1]
+  const ties: CupTie[] = []
+  for (let i = 0; i + 1 < winners.length; i += 2) ties.push({ round: info.round, afterMatchweek: info.afterMatchweek, homeTeamId: winners[i], awayTeamId: winners[i + 1] })
+  return ties
+}
+
+/** Weekly recovery for every squad player, user or AI. */
+export function recoverWeek(state: SquadPlayer, player: PlayerSeason, played: boolean, trainingBonus = 0): void {
+  const ageF = player.age >= 33 ? 0.8 : player.age >= 30 ? 0.9 : 1
+  const recover = (22 + (player.attributes.physical - 70) * 0.1 + trainingBonus) * ageF
+  state.condition = Math.min(100, Math.round(state.condition + recover))
+  if (!played) state.sharpness = Math.max(30, state.sharpness - 6)
+  if (state.injury) {
+    state.injury.weeksOut--
+    if (state.injury.weeksOut <= 0) {
+      state.injury = null
+      state.sharpness = Math.max(40, state.sharpness - 10)
+    }
+  }
+}
+
+export function applyMatchToState(state: SquadPlayer, stats: { minutes: number; goals: number; assists: number; rating: number; yellow: boolean; red: boolean; injured: { description: string; weeksOut: number } | null } | undefined, started: boolean, conditionLoss: number, cleanSheet: boolean, motm: boolean, teamResult: 'W' | 'D' | 'L'): void {
+  if (!stats) return
+  state.condition = Math.max(5, state.condition - conditionLoss)
+  state.sharpness = Math.min(100, state.sharpness + (started ? 12 : 6))
+  state.familiarity = Math.min(100, state.familiarity + (started ? 4 : 2))
+  state.recentRatings.push(stats.rating)
+  if (state.recentRatings.length > 6) state.recentRatings.shift()
+  state.seasonStats.apps++
+  if (started) state.seasonStats.starts++
+  state.seasonStats.goals += stats.goals
+  state.seasonStats.assists += stats.assists
+  state.seasonStats.minutes += stats.minutes
+  state.seasonStats.ratingSum += stats.rating
+  if (cleanSheet && stats.minutes >= 60) state.seasonStats.cleanSheets++
+  if (motm) state.seasonStats.motm++
+  if (stats.yellow) {
+    state.yellowCards++
+    if (state.yellowCards % 5 === 0) state.suspension = Math.max(state.suspension, 1)
+  }
+  if (stats.red) state.suspension = Math.max(state.suspension, stats.rating < 5.5 ? 3 : 1 + (Math.random() < 0 ? 0 : 1))
+  if (stats.injured) state.injury = { ...stats.injured }
+  // morale: results and personal performance
+  const resultDelta = teamResult === 'W' ? 5 : teamResult === 'D' ? 0 : -5
+  const perfDelta = (stats.rating - 6.8) * 2
+  state.morale = clamp(state.morale + resultDelta + perfDelta, 10, 100)
+}
+
+/** Players who did not feature lose morale, stars faster; rotation keeps the squad happy. */
+export function benchMoraleDrift(state: SquadPlayer, player: PlayerSeason, consecutiveMissed: number): void {
+  if (consecutiveMissed < 2) return
+  const star = player.overall >= 84 ? 1.6 : player.overall >= 78 ? 1.2 : 0.8
+  const prof = 1.3 - player.traits.professionalism * 0.6
+  state.morale = clamp(state.morale - 3 * star * prof, 10, 100)
+}
+
+export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean): SeasonTier {
+  const row = table.find((r) => r.teamId === teamId)!
+  const pos = positionOf(table, teamId)
+  if (row.won === MATCHWEEKS) return 'PERFECT'
+  if (row.lost === 0 && pos === 1) return 'INVINCIBLE'
+  if (pos === 1) return 'CHAMPIONS'
+  if (pos <= 2) return 'TITLE_RACE'
+  if (pos <= 6) return 'EUROPEAN'
+  if (pos <= 15) return 'MID_TABLE'
+  if (pos <= 17) return 'RELEGATION_BATTLE'
+  void cupWon
+  return 'RELEGATED'
+}
+
+export const TIER_LABEL: Record<SeasonTier, string> = {
+  PERFECT: '38-0: THE PERFECT SEASON',
+  INVINCIBLE: 'INVINCIBLES',
+  CHAMPIONS: 'CHAMPIONS',
+  TITLE_RACE: 'TITLE RACE',
+  EUROPEAN: 'EUROPEAN NIGHTS',
+  MID_TABLE: 'MID-TABLE',
+  RELEGATION_BATTLE: 'RELEGATION BATTLE',
+  RELEGATED: 'RELEGATED',
+}
+
+/**
+ * Board target from how strong the drafted squad is relative to the league.
+ * A side rated far above the league is expected to win it.
+ */
+export function boardTargetFor(userOverall: number, aiOveralls: number[]): number {
+  const sorted = [...aiOveralls].sort((a, b) => b - a)
+  let better = 0
+  for (const o of sorted) if (o > userOverall - 1.5) better++
+  return Math.max(1, Math.min(17, better + 1))
+}
+
+export function updateConfidence(confidence: number, table: TableRow[], teamId: string, target: number, matchweek: number, lastResult: 'W' | 'D' | 'L' | null): number {
+  const pos = positionOf(table, teamId)
+  const expectedGap = pos - target // positive = below expectations
+  let delta = 0
+  if (lastResult === 'W') delta += 2.5
+  else if (lastResult === 'D') delta += 0
+  else if (lastResult === 'L') delta -= 3
+  if (matchweek >= 6) delta += expectedGap <= 0 ? 1.5 : -Math.min(4, expectedGap * 0.8)
+  return clamp(confidence + delta, 0, 100)
+}
+
+export function describeImportance(u: LoadedUniverse, hostClubId: string, opponentClubId: string, table: TableRow[] | null, matchweek: number, cupRound?: CupTie['round']): { importance: number; label?: string } {
+  if (cupRound === 'F') return { importance: 1.4, label: 'Cup final' }
+  if (cupRound === 'SF') return { importance: 1.25, label: 'Cup semi-final' }
+  const host = u.clubById[hostClubId]
+  if (host?.rivals.includes(opponentClubId)) return { importance: 1.25, label: 'Derby day' }
+  if (table && matchweek >= 28) {
+    const us = positionOf(table, USER_TEAM)
+    const them = positionOf(table, opponentClubId)
+    if (us <= 2 && them <= 3) return { importance: 1.3, label: 'Title decider' }
+  }
+  if (cupRound) return { importance: 1.1, label: 'Cup tie' }
+  return { importance: 1 }
+}
+
+export function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v))
+}
+
+export interface UserTeamInput {
+  teamName: string
+  shortName: string
+  tactics: Tactics
+  lineup: Lineup
+  bench: string[]
+  state: Record<string, SquadPlayer>
+  teamTalk: TeamTalk
+}
+
+export function userTeamInput(u: LoadedUniverse, t: UserTeamInput): MatchTeamInput {
+  return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk }
+}
+
+/** Play one match between two inputs, returning the full result. */
+export function playMatch(rng: Rng, home: MatchTeamInput, away: MatchTeamInput, importance: number, label: string | undefined, neutral: boolean, detail: 'full' | 'summary'): FullMatchResult {
+  return simulateMatch({ rng, home, away, importance, importanceLabel: label, neutral, detail })
+}
+
+/** Penalty shoot-out for drawn cup ties. */
+export function shootout(rng: Rng, homeMentality: number, awayMentality: number): { home: number; away: number } {
+  let h = 0
+  let a = 0
+  const pH = 0.72 + (homeMentality - 70) * 0.003
+  const pA = 0.72 + (awayMentality - 70) * 0.003
+  for (let i = 0; i < 5; i++) {
+    if (rng.chance(pH)) h++
+    if (rng.chance(pA)) a++
+  }
+  while (h === a) {
+    if (rng.chance(pH)) h++
+    if (rng.chance(pA)) a++
+  }
+  return { home: h, away: a }
+}
+
+export function clubSeasonFor(u: LoadedUniverse, clubId: string, season: number): ClubSeason | undefined {
+  return u.clubSeasonByKey[`${clubId}@${season}`]
+}

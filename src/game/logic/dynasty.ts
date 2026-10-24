@@ -1,0 +1,127 @@
+import type { Game } from '../types'
+import type { LoadedUniverse } from '@engine/universe'
+import { Rng } from '@engine/rng'
+import type { PlayerSeason } from '@engine/types'
+import { overallOf } from '@engine/positions'
+import { newDraft } from '@engine/draft'
+import { getFormation } from '@engine/formations'
+import { playerLookup, squadPlayers } from './players'
+import { releasePlayer } from './marketOps'
+import { openWindow } from '@engine/market'
+
+/**
+ * Age a player-season by one year. Young players grow towards an estimated
+ * potential; players past thirty decline, physical attributes first.
+ */
+export function ageOneYear(p: PlayerSeason, rng: Rng, year: number): PlayerSeason {
+  const age = p.age + 1
+  const attrs = { ...p.attributes }
+  const potential = p.overall + Math.max(0, 27 - p.age) * 1.3 + rng.gaussian(0, 1.5)
+  const growthRoom = Math.max(0, potential - p.overall)
+  let delta: number
+  if (age <= 23) delta = Math.min(growthRoom, rng.gaussian(2.2, 1.2))
+  else if (age <= 27) delta = Math.min(growthRoom, rng.gaussian(0.8, 1))
+  else if (age <= 30) delta = rng.gaussian(-0.2, 0.8)
+  else if (age <= 32) delta = rng.gaussian(-1.4, 1)
+  else if (age <= 34) delta = rng.gaussian(-2.6, 1.2)
+  else delta = rng.gaussian(-4, 1.5)
+  const physicalBias = age >= 30 ? -1 : age <= 22 ? 0.5 : 0
+  const bump = (k: keyof typeof attrs, extra = 0) => {
+    attrs[k] = Math.round(Math.max(1, Math.min(99, attrs[k] + delta + extra + rng.gaussian(0, 0.6))))
+  }
+  bump('pace', physicalBias * 1.6)
+  bump('physical', physicalBias * 0.8)
+  bump('shooting')
+  bump('passing', age >= 30 ? 0.6 : 0)
+  bump('dribbling', physicalBias * 0.6)
+  bump('defending')
+  bump('mentality', age >= 30 ? 1 : 0.3)
+  if (p.positions[0] === 'GK') bump('goalkeeping', age >= 33 ? -0.5 : 0.5)
+  const next: PlayerSeason = { ...p, id: `${p.playerId}@dyn${year}`, age, attributes: attrs, accolades: [], overall: 0 }
+  next.overall = overallOf(next)
+  // Value follows the new rating and age
+  const base = 0.25 * Math.pow(1.21, next.overall - 60)
+  const ageF = age <= 21 ? 1.3 : age <= 26 ? 1.15 : age <= 29 ? 1 : age <= 31 ? 0.72 : age <= 33 ? 0.45 : 0.25
+  next.value = Math.round(base * ageF * 10) / 10
+  next.wage = Math.round(5 * Math.pow(Math.max(0.1, next.value), 0.85))
+  return next
+}
+
+export interface OffseasonReport {
+  retired: string[]
+  expired: string[]
+  improved: Array<{ name: string; from: number; to: number }>
+  declined: Array<{ name: string; from: number; to: number }>
+}
+
+/** Move the game into the next season: ageing, contracts, retirements, summer window, new league environment. */
+export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonReport {
+  const rng = Rng.fromState(game.rngState)
+  const get = playerLookup(game, u)
+  const report: OffseasonReport = { retired: [], expired: [], improved: [], declined: [] }
+  game.year += 1
+  const nextSeason = game.settings.leagueSeason + 1 <= u.lastSeason ? game.settings.leagueSeason + 1 : u.firstSeason
+  // The host club may not exist in the next league season; pick the same club if present, else a random club of similar stature.
+  const nextClubs = u.clubSeasons.filter((cs) => cs.season === nextSeason).map((cs) => cs.clubId)
+  const host = nextClubs.includes(game.settings.hostClubId) ? game.settings.hostClubId : rng.pick(nextClubs)
+  game.settings = { ...game.settings, leagueSeason: nextSeason, hostClubId: host }
+
+  const ids = Object.keys(game.squad)
+  const newSquad: typeof game.squad = {}
+  const newContracts: typeof game.contracts = {}
+  for (const id of ids) {
+    const p = get(id)
+    const s = game.squad[id]
+    if (!p || !s) continue
+    const contract = game.contracts[id] ?? { years: 1 }
+    const aged = ageOneYear(p, rng, game.year)
+    // Retirement
+    if (aged.age >= 34 && rng.chance(aged.age >= 37 ? 0.9 : aged.age >= 36 ? 0.6 : 0.3)) {
+      report.retired.push(p.name)
+      continue
+    }
+    if (contract.years - 1 <= 0) {
+      // Contract up: players with poor morale leave, others renew for a wage bump the budget must cover
+      if (s.morale < 50 || rng.chance(0.25)) {
+        report.expired.push(p.name)
+        continue
+      }
+      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : rng.int(2, 3) }
+    } else {
+      newContracts[aged.id] = { years: contract.years - 1 }
+    }
+    game.customPlayers[aged.id] = aged
+    if (aged.overall > p.overall + 1) report.improved.push({ name: p.name, from: p.overall, to: aged.overall })
+    if (aged.overall < p.overall - 1) report.declined.push({ name: p.name, from: p.overall, to: aged.overall })
+    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 } }
+  }
+  game.squad = newSquad
+  game.contracts = newContracts
+  game.lineup = {}
+  game.bench = []
+  game.consecutiveMissed = {}
+  game.captainId = undefined
+  game.season = null
+  game.awards = null
+  game.tier = null
+  game.quickResult = null
+  game.lastMatch = null
+  game.lastMatchContext = null
+  game.lastCupMatch = null
+  game.lastCupContext = null
+  game.pendingEvent = null
+  game.window = null
+  // Summer: bonus wheel spins scale with how many left, plus a summer market
+  const lost = report.retired.length + report.expired.length
+  game.bonusSpins += Math.min(6, 2 + lost)
+  const d = newDraft(getFormation(game.tactics.formationId), { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1 })
+  // Seed the draft with the existing squad so uniqueness holds
+  for (const x of squadPlayers(game, u)) d.takenPlayers.push(x.p.playerId)
+  d.bench = Object.keys(game.squad)
+  game.draft = d
+  game.phase = 'draft'
+  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason }, 'summer', 40)
+  game.rngState = rng.getState()
+  void releasePlayer
+  return report
+}

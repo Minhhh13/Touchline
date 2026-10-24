@@ -1,0 +1,90 @@
+import { useStore } from '@game/store'
+import { seasonLabel } from '../format'
+import { ClubBadge } from '../components/bits'
+
+export function Home() {
+  const { universe: u, game, go, abandonGame, profile } = useStore()
+  const playerSeasons = u ? Object.keys(u.index).length : 0
+  const players = u ? new Set(Object.values(u.index).map((p) => p.playerId)).size : 0
+  const today = new Date().toISOString().slice(0, 10)
+  const dailyDone = !!profile.dailyResults[`daily-${today}`]
+  return (
+    <div className="page">
+      <section className="hero">
+        <h1>Touchline</h1>
+        <div className="tag">Spin the wheel. Draft the XI. Manage the season.</div>
+        <p className="muted small" style={{ marginTop: 10 }}>
+          {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${u.clubs.length} clubs · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
+        </p>
+      </section>
+
+      {game && (
+        <div className="panel row between wrap" style={{ marginBottom: 14 }}>
+          <div className="row">
+            <ClubBadge clubId={game.settings.hostClubId} size={36} />
+            <div>
+              <div style={{ fontWeight: 700 }}>
+                {game.settings.teamName} · {game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : game.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${game.year}`}
+              </div>
+              <div className="small muted">
+                {game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of 38 · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
+              </div>
+            </div>
+          </div>
+          <div className="row">
+            <button className="btn primary" onClick={() => go('game')}>
+              Continue
+            </button>
+            <button className="btn danger ghost" onClick={() => confirm('Abandon the current game? This cannot be undone.') && abandonGame()}>
+              Abandon
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="modes">
+        <button className="mode-card" onClick={() => go('setup', 'quick')}>
+          <span className="icon">🎡</span>
+          <h3>Quick Draft</h3>
+          <p>The 38-0 classic. Spin for a club and season, draft one player, repeat eleven times, simulate the season instantly.</p>
+          <span className="foot">5 minutes · shareable result</span>
+        </button>
+        <button className="mode-card" onClick={() => go('setup', 'daily')}>
+          <span className="icon">📅</span>
+          <h3>Daily Challenge</h3>
+          <p>Everyone gets the same spins today. Build the best XI from the same wheel and compare.</p>
+          <span className="foot">{dailyDone ? `Played today · streak ${profile.dailyStreak}` : profile.dailyStreak ? `Streak ${profile.dailyStreak}` : 'New puzzle every day'}</span>
+        </button>
+        <button className="mode-card" onClick={() => go('setup', 'season')}>
+          <span className="icon">📋</span>
+          <h3>Season</h3>
+          <p>Draft a squad of eighteen, then manage it week by week: tactics, roles, rotation, injuries, the cup, the January window, the board.</p>
+          <span className="foot">45 minutes · deep</span>
+        </button>
+        <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
+          <span className="icon">👑</span>
+          <h3>Dynasty</h3>
+          <p>Season mode that never ends. Players age, contracts expire, summer windows open and the league moves on a year at a time.</p>
+          <span className="foot">Multi-season career</span>
+        </button>
+      </div>
+
+      <div className="grid three" style={{ marginTop: 16 }}>
+        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('explore')}>
+          <h3>Explore the database</h3>
+          <p className="muted small">Every club-season since 2008-09 with its real squad and ratings. Settle the argument before you spin.</p>
+        </button>
+        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('profile')}>
+          <h3>Your record</h3>
+          <p className="muted small">
+            {profile.seasonsSimulated} seasons simulated · {Object.keys(profile.achievements).length} achievements
+          </p>
+        </button>
+        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('howto')}>
+          <h3>How it works</h3>
+          <p className="muted small">The wheel, the draft rules, how matches are simulated and what the board expects.</p>
+        </button>
+      </div>
+    </div>
+  )
+}
