@@ -2,7 +2,7 @@ import type { Game, LiveMatch } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { beginMatch, finishMatch, simulateMatch, type FullMatchResult, type MatchTeamInput, type SecondHalfOptions, type TeamTalk } from '@engine/match'
-import { aiTeamInput, applyMatchToState, benchMoraleDrift, computeTable, cupRounds, describeImportance, drawNextCupRound, positionOf, recoverWeek, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type CupTie, type NewsItem } from '@engine/season'
+import { aiTeamInput, applyMatchToState, benchMoraleDrift, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
 import { openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
@@ -30,8 +30,17 @@ function userLookups(game: Game, u: LoadedUniverse) {
   return { getPlayer: playerLookup(game, u), getState: (id: string) => game.squad[id] }
 }
 
+/** Any AI club in the season: a league rival or a Continental Cup opponent. */
+export function clubOf(season: SeasonState, clubId: string): AiClub | undefined {
+  return season.ai[clubId] ?? season.continental?.clubs[clubId]
+}
+
+function tiesOf(season: SeasonState, comp: Competition): CupTie[] {
+  return comp === 'cup' ? season.cup : season.continental?.ties ?? []
+}
+
 function aiLookups(game: Game, u: LoadedUniverse, clubId: string) {
-  const club = game.season!.ai[clubId]
+  const club = clubOf(game.season!, clubId)
   return { getPlayer: (id: string) => u.index[id], getState: (id: string) => club?.state[id] }
 }
 
@@ -93,7 +102,7 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
 }
 
 function applyResultToAi(game: Game, teamId: string, res: FullMatchResult, isHome: boolean): void {
-  const club = game.season!.ai[teamId]
+  const club = clubOf(game.season!, teamId)
   if (!club) return
   const stats = isHome ? res.homeStats : res.awayStats
   const gf = isHome ? res.homeGoals : res.awayGoals
@@ -125,7 +134,7 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
     // A respected captain keeps heads up
     if (leader && id !== captain.id && s.morale < 70) s.morale = Math.min(70, s.morale + (s.morale < 50 ? 2 : 1))
   }
-  for (const club of Object.values(game.season!.ai)) {
+  for (const club of [...Object.values(game.season!.ai), ...Object.values(game.season!.continental?.clubs ?? {})]) {
     for (const [id, s] of Object.entries(club.state)) {
       const p = get(id)
       if (p) recoverWeek(s, p, true, 0)
@@ -160,10 +169,24 @@ export function nextOpponent(game: Game): { clubId: string; home: boolean } | nu
   return { clubId: home ? f.awayTeamId : f.homeTeamId, home }
 }
 
-export function upcomingCupTie(game: Game): CupTie | null {
-  if (!game.season || game.season.cupEliminated || game.season.cupWon) return null
-  const mw = game.season.matchweek + 1
-  return game.season.cup.find((t) => !t.result && t.afterMatchweek === mw && (t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)) ?? null
+export interface UpcomingTie {
+  tie: CupTie
+  comp: Competition
+  label: string
+}
+
+/** The user's knockout tie, in either competition, played midweek after the next matchweek. */
+export function upcomingCupTie(game: Game): UpcomingTie | null {
+  const season = game.season
+  if (!season) return null
+  const mw = season.matchweek + 1
+  for (const comp of ['cup', 'continental'] as const) {
+    if (comp === 'cup' && (season.cupEliminated || season.cupWon)) continue
+    if (comp === 'continental' && (!season.continental || season.continental.eliminated || season.continental.won)) continue
+    const tie = tiesOf(season, comp).find((t) => !t.result && t.afterMatchweek === mw && (t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM))
+    if (tie) return { tie, comp, label: roundsFor(comp, season.matchweeks).find((r) => r.round === tie.round)?.label ?? 'Cup tie' }
+  }
+  return null
 }
 
 /**
@@ -277,11 +300,12 @@ export function finishLiveMatch(game: Game, u: LoadedUniverse, second?: { talk?:
     afterLeagueMatch(game, u, autoManage)
     return
   }
-  // Cup
-  const tie = season.cup[live.cupTieIndex!]
+  // Knockout tie (domestic cup or Continental Cup)
+  const comp = live.comp ?? 'cup'
+  const tie = tiesOf(season, comp)[live.cupTieIndex!]
   completeUserCupTie(game, u, tie, res, live)
   const rng = Rng.fromState(game.rngState)
-  drawNext(game, u, rng, tie.round)
+  drawNext(game, u, rng, tie.round, comp)
   game.rngState = rng.getState()
   afterMatchweek(game, u)
 }
@@ -296,47 +320,53 @@ function friendlyLookups(u: LoadedUniverse, clubSeasonKey: string) {
 function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean): void {
   const season = game.season!
   const mw = season.matchweek
-  const roundInfo = cupRounds(season.matchweeks).find((r) => r.afterMatchweek === mw)
-  if (roundInfo) {
+  for (const comp of ['cup', 'continental'] as const) {
+    if (comp === 'continental' && !season.continental) continue
+    const roundInfo = roundsFor(comp, season.matchweeks).find((r) => r.afterMatchweek === mw)
+    if (!roundInfo) continue
     const rng = Rng.fromState(game.rngState)
-    simulateAiCupTies(game, u, rng, roundInfo.round)
-    const idx = season.cup.findIndex((t) => t.round === roundInfo.round && !t.result && (t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM))
+    simulateAiCupTies(game, u, rng, roundInfo.round, comp)
+    const ties = tiesOf(season, comp)
+    const idx = ties.findIndex((t) => t.round === roundInfo.round && !t.result && (t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM))
     if (idx >= 0) {
-      const tie = season.cup[idx]
+      const tie = ties[idx]
       const userIsHome = tie.homeTeamId === USER_TEAM
       const opponentId = userIsHome ? tie.awayTeamId : tie.homeTeamId
       if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
       const user = userInput(game, u)
-      const imp = describeImportance(u, season.hostClubId, opponentId, null, mw, roundInfo.round)
-      const opp = aiTeamInput(u, season.ai[opponentId], season.aiOffset)
+      const imp = describeImportance(u, season.hostClubId, opponentId, null, mw, roundInfo.round, comp)
+      const opp = aiTeamInput(u, clubOf(season, opponentId)!, season.aiOffset)
       const neutral = roundInfo.round === 'F'
       const opts = { rng, home: userIsHome ? user : opp, away: userIsHome ? opp : user, importance: imp.importance, importanceLabel: imp.label ?? roundInfo.label, neutral, detail: 'full' as const }
-      const ctx = { matchweek: mw, competition: 'cup' as const, roundLabel: roundInfo.label, opponentClubId: opponentId, home: userIsHome, importanceLabel: imp.label }
+      const ctx = { matchweek: mw, competition: comp, roundLabel: roundInfo.label, opponentClubId: opponentId, home: userIsHome, importanceLabel: imp.label }
       if (autoManage) {
         const res = simulateMatch(opts)
-        completeUserCupTie(game, u, tie, res, { kind: 'cup', mp: null as never, ctx, userIsHome, opponentId, cupTieIndex: idx })
-        drawNext(game, u, rng, roundInfo.round)
+        completeUserCupTie(game, u, tie, res, { kind: 'cup', comp, mp: null as never, ctx, userIsHome, opponentId, cupTieIndex: idx })
+        drawNext(game, u, rng, roundInfo.round, comp)
         game.rngState = rng.getState()
       } else {
-        game.live = { kind: 'cup', mp: beginMatch(opts), ctx, userIsHome, opponentId, cupTieIndex: idx }
+        game.live = { kind: 'cup', comp, mp: beginMatch(opts), ctx, userIsHome, opponentId, cupTieIndex: idx }
         game.rngState = rng.getState()
         game.phase = 'match'
         return
       }
     } else {
-      drawNext(game, u, rng, roundInfo.round)
+      drawNext(game, u, rng, roundInfo.round, comp)
       game.rngState = rng.getState()
     }
   }
   afterMatchweek(game, u)
 }
 
-function simulateAiCupTies(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round']): void {
+function simulateAiCupTies(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round'], comp: Competition): void {
   const season = game.season!
-  for (const tie of season.cup.filter((t) => t.round === round && !t.result)) {
+  for (const tie of tiesOf(season, comp).filter((t) => t.round === round && !t.result)) {
     if (tie.homeTeamId === USER_TEAM || tie.awayTeamId === USER_TEAM) continue
-    const home = aiTeamInput(u, season.ai[tie.homeTeamId], season.aiOffset)
-    const away = aiTeamInput(u, season.ai[tie.awayTeamId], season.aiOffset)
+    const hc = clubOf(season, tie.homeTeamId)
+    const ac = clubOf(season, tie.awayTeamId)
+    if (!hc || !ac) continue
+    const home = aiTeamInput(u, hc, season.aiOffset)
+    const away = aiTeamInput(u, ac, season.aiOffset)
     const res = simulateMatch({ rng, home, away, neutral: round === 'F', detail: 'summary' })
     applyResultToAi(game, tie.homeTeamId, res, true)
     applyResultToAi(game, tie.awayTeamId, res, false)
@@ -353,6 +383,7 @@ function simulateAiCupTies(game: Game, u: LoadedUniverse, rng: Rng, round: CupTi
 
 function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: FullMatchResult, live: LiveMatch): void {
   const season = game.season!
+  const comp = live.comp ?? 'cup'
   const rng = Rng.fromState(game.rngState)
   applyResultToUser(game, u, res, live.userIsHome)
   applyResultToAi(game, live.opponentId, res, !live.userIsHome)
@@ -367,25 +398,44 @@ function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: Ful
   tie.result = { ...res, penalties: pens }
   tie.winnerId = winner
   const won = winner === USER_TEAM
-  const info = cupRounds(season.matchweeks).find((r) => r.round === tie.round)!
-  if (!won) season.cupEliminated = true
-  if (won && tie.round === 'F') season.cupWon = true
-  news(game, { kind: 'cup', title: `${info.label}: ${won ? 'through' : 'out'}`, body: `${res.homeGoals}-${res.awayGoals}${pens ? ` (${pens.home}-${pens.away} on penalties)` : ''} against ${season.ai[live.opponentId].name}.${won && tie.round === 'F' ? ' The cup is yours!' : ''}` })
+  const info = roundsFor(comp, season.matchweeks).find((r) => r.round === tie.round)!
+  if (comp === 'cup') {
+    if (!won) season.cupEliminated = true
+    if (won && tie.round === 'F') season.cupWon = true
+  } else if (season.continental) {
+    if (!won) season.continental.eliminated = true
+    if (won && tie.round === 'F') season.continental.won = true
+  }
+  const oppName = clubOf(season, live.opponentId)?.name ?? u.clubById[live.opponentId]?.name ?? live.opponentId
+  const lifted = won && tie.round === 'F' ? (comp === 'cup' ? ' The cup is yours!' : ' Champions of the continent!') : ''
+  news(game, { kind: 'cup', title: `${info.label}: ${won ? 'through' : 'out'}`, body: `${res.homeGoals}-${res.awayGoals}${pens ? ` (${pens.home}-${pens.away} on penalties)` : ''} against ${oppName}.${lifted}` })
   game.rngState = rng.getState()
 }
 
-function drawNext(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round']): void {
+function drawNext(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round'], comp: Competition): void {
   const season = game.season!
-  const rounds = cupRounds(season.matchweeks)
+  const rounds = roundsFor(comp, season.matchweeks)
   const idx = rounds.findIndex((r) => r.round === round)
   if (idx < 0 || idx >= rounds.length - 1) return
-  const next = drawNextCupRound(season.cup, rounds[idx + 1].round, rng, season.matchweeks)
-  season.cup.push(...next)
+  const ties = tiesOf(season, comp)
+  const next = drawNextRound(ties, rounds[idx + 1].round, rng, rounds)
+  ties.push(...next)
   const userTie = next.find((t) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)
   if (userTie) {
     const oppId = userTie.homeTeamId === USER_TEAM ? userTie.awayTeamId : userTie.homeTeamId
-    news(game, { kind: 'cup', title: `${rounds[idx + 1].label} draw`, body: `${userTie.homeTeamId === USER_TEAM ? 'Home' : 'Away'} to ${season.ai[oppId]?.name ?? u.clubById[oppId]?.name ?? oppId}, after matchweek ${rounds[idx + 1].afterMatchweek}.` })
+    news(game, { kind: 'cup', title: `${rounds[idx + 1].label} draw`, body: `${userTie.homeTeamId === USER_TEAM ? 'Home' : 'Away'} to ${clubOf(season, oppId)?.name ?? u.clubById[oppId]?.name ?? oppId}, after matchweek ${rounds[idx + 1].afterMatchweek}.` })
   }
+}
+
+/** Furthest Continental Cup round the user reached this season (W = winners), or undefined when not entered. */
+export function continentalRun(season: SeasonState): 'R16' | 'QF' | 'SF' | 'F' | 'W' | undefined {
+  const c = season.continental
+  if (!c) return undefined
+  if (c.won) return 'W'
+  const order: Array<'R16' | 'QF' | 'SF' | 'F'> = ['R16', 'QF', 'SF', 'F']
+  let best: 'R16' | 'QF' | 'SF' | 'F' = 'R16'
+  for (const t of c.ties) if ((t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM) && order.indexOf(t.round) > order.indexOf(best)) best = t.round
+  return best
 }
 
 /** Weekly housekeeping once every match of the week is done. */
@@ -565,9 +615,13 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   game.tier = tier
   const squad = squadPlayers(game, u)
   game.awards = computeAwards(squad, season.matchweeks)
-  const prize = season.sacked ? 0 : prizeMoney(pos, season.cupWon)
+  const run = continentalRun(season)
+  const euroPrize = { R16: 4, QF: 8, SF: 15, F: 25, W: 45 }[run ?? 'R16'] ?? 0
+  const prize = season.sacked ? 0 : prizeMoney(pos, season.cupWon) + (run ? euroPrize : 0)
   game.finances.budget = Math.round((game.finances.budget + prize) * 10) / 10
   game.finances.income += prize
+  // Top four, or the continental trophy, earns a place in next season's Continental Cup
+  game.qualifiedContinental = !season.sacked && (pos <= 4 || !!season.continental?.won)
   game.history.push({
     year: game.year,
     leagueId: season.leagueId,
@@ -583,6 +637,8 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
     goalsAgainst: row.goalsAgainst,
     tier,
     cupWon: season.cupWon,
+    continentalWon: !!season.continental?.won,
+    continentalRun: run,
     potsName: game.awards.playerOfTheSeason?.name,
     bootName: game.awards.goldenBoot?.name,
     bootGoals: game.awards.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
@@ -596,6 +652,8 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (row.points >= 100) unlock('centurions')
   if (season.cupWon) unlock('cup')
   if (season.cupWon && pos === 1) unlock('double')
+  if (season.continental?.won) unlock('continental')
+  if (season.continental?.won && season.cupWon && pos === 1) unlock('treble')
   if (game.awards.goldenBoot && Number(game.awards.goldenBoot.value.split(' ')[0]) >= 30) unlock('boot30')
   if (game.awards.goldenGlove && Number(game.awards.goldenGlove.value.split(' ')[0]) >= 20) unlock('glove20')
   if (pos === 1 && game.settings.rules.hardMode) unlock('hard-champions')
@@ -618,7 +676,7 @@ function jobOffersFor(game: Game, u: LoadedUniverse, pos: number, teams: number)
   const rng = Rng.fromState(game.rngState)
   const season = game.season!
   const offers: Game['jobOffers'] = []
-  if (pos > Math.max(6, Math.round(teams * 0.35)) && !season.cupWon) return offers
+  if (pos > Math.max(6, Math.round(teams * 0.35)) && !season.cupWon && !season.continental?.won) return offers
   const squadValue = (cs: { squad: Array<{ value: number }> }) => cs.squad.reduce((s, p) => s + p.value, 0)
   const hostNow = u.clubSeasonByKey[`${season.hostClubId}@${season.leagueSeason}`]
   const hostValue = hostNow ? squadValue(hostNow) : 0

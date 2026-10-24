@@ -29,6 +29,7 @@ export function Setup() {
   })
   const [hostClubId, setHostClubId] = useState('')
   const [jobSecurity, setJobSecurity] = useState(true)
+  const [continental, setContinental] = useState(false)
   const [difficulty, setDifficulty] = useState<'calibrated' | 'realistic'>('calibrated')
   const [seed, setSeed] = useState(() => randomSeed())
   const [squadSize, setSquadSize] = useState(18)
@@ -37,7 +38,7 @@ export function Setup() {
   const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, leagueSeason])
   const wheelLeagues = useMemo(() => (wheelScope === 'europe' && u ? u.available.map((l) => l.id) : [leagueId]), [wheelScope, leagueId, u])
   const allClubs = useMemo(() => (u ? [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId)).sort((a, b) => a.name.localeCompare(b.name)) : []), [u, wheelLeagues])
-  const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l))
+  const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : clubsInLeague[Math.floor(clubsInLeague.length / 2)] ?? ''
 
@@ -108,6 +109,7 @@ export function Setup() {
       rules,
       jobSecurity: isManage ? jobSecurity : false,
       difficulty: dailyFixed ? 'calibrated' : difficulty,
+      continental: isManage && continental && u.available.length >= 2,
     }
     startGame(settings)
   }
@@ -265,6 +267,19 @@ export function Setup() {
                     <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
                     Job security: the board can sack you
                   </label>
+                  {u.available.length >= 2 && (
+                    <label className="toggle" title="A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.">
+                      <input
+                        type="checkbox"
+                        checked={continental}
+                        onChange={(e) => {
+                          setContinental(e.target.checked)
+                          if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
+                        }}
+                      />
+                      Continental Cup: European nights against the best of the other leagues
+                    </label>
+                  )}
                 </>
               )}
             </div>

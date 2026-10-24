@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { produce } from 'immer'
 import type { Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
 import type { LoadedUniverse } from '@engine/universe'
-import { loadUniverse, DEFAULT_LEAGUE } from '@engine/universe'
+import { loadUniverse, DEFAULT_LEAGUE, fetchAvailableLeagues } from '@engine/universe'
 import { Rng, dailySeed, type RngState } from '@engine/rng'
 import { isComplete, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
@@ -197,6 +197,8 @@ export const useStore = create<Store>()(
             if (game) {
               needed.add(game.settings.leagueId ?? DEFAULT_LEAGUE)
               for (const l of game.settings.wheelLeagues ?? []) needed.add(l)
+              // A Continental Cup field spans every league
+              if (game.settings.continental || game.qualifiedContinental || game.season?.continental) for (const l of await fetchAvailableLeagues()) needed.add(l.id)
             }
             if (h2h) {
               needed.add(h2h.leagueId ?? DEFAULT_LEAGUE)
@@ -243,7 +245,8 @@ export const useStore = create<Store>()(
           delete next[slot]
           if (current && current.phase !== 'summary') next[slotOf(current)] = current
           set({ game: target, parked: next, screen: 'game' })
-          void get().ensureLeagues([target.settings.leagueId, ...target.settings.wheelLeagues])
+          const wantsAll = target.settings.continental || target.qualifiedContinental || target.season?.continental
+          void get().ensureLeagues([target.settings.leagueId, ...target.settings.wheelLeagues, ...(wantsAll ? (get().universe?.available ?? []).map((l) => l.id) : [])])
         },
         discardParked: (slot) => {
           const next = { ...get().parked }
@@ -398,10 +401,10 @@ export const useStore = create<Store>()(
             })
             set({ offseason: report })
           }
-          // Moving to a league that is not loaded yet: load it first.
-          const target = game?.pendingMove?.leagueId
-          if (target && !get().loadedLeagues.includes(target)) {
-            void get().ensureLeagues([target]).then(run)
+          // Moving to a league that is not loaded yet, or into Europe: load first.
+          const want = [game?.pendingMove?.leagueId, ...(game?.qualifiedContinental ? (get().universe?.available ?? []).map((l) => l.id) : [])].filter((x): x is string => !!x)
+          if (want.some((id) => !get().loadedLeagues.includes(id))) {
+            void get().ensureLeagues(want).then(run)
           } else run()
         },
         acceptJob: (index) => mutate((g) => void (g.pendingMove = index === null ? null : { leagueId: g.jobOffers[index].leagueId, clubId: g.jobOffers[index].clubId })),

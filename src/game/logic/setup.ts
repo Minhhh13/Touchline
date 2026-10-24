@@ -4,7 +4,7 @@ import { Rng } from '@engine/rng'
 import { newDraft } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
-import { newSquadPlayer, buildAiClubs, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor } from '@engine/season'
+import { newSquadPlayer, buildAiClubs, buildContinentalClubs, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
 import { startingFinances } from '@engine/market'
 import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
@@ -67,6 +67,9 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     game.bench = [...d.bench]
   }
   game.draft = null
+  // The host club must exist in that league season; otherwise take a random one's place.
+  const inLeague = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === game.settings.leagueSeason).map((cs) => cs.clubId)
+  if (inLeague.length && !inLeague.includes(game.settings.hostClubId)) game.settings = { ...game.settings, hostClubId: rng.pick(inLeague) }
   const s = game.settings
   const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
   const ids = [USER_TEAM, ...Object.keys(ai)]
@@ -80,6 +83,13 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall - aiOffset
   })
   const boardTarget = boardTargetFor(userStrength, aiStrengths)
+  // Continental Cup: by choice in the first season, by right afterwards
+  let continental: ContinentalState | undefined
+  const wantsEurope = game.year === 1 ? !!s.continental : !!game.qualifiedContinental
+  if (wantsEurope) {
+    const clubs = buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, 15)
+    if (Object.keys(clubs).length === 15) continental = { ties: drawFirstRound([USER_TEAM, ...Object.keys(clubs)], rng, continentalRounds(matchweeks)), clubs, eliminated: false, won: false }
+  }
   game.season = {
     leagueId: s.leagueId,
     leagueSeason: s.leagueSeason,
@@ -91,6 +101,7 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     cup,
     cupEliminated: false,
     cupWon: false,
+    continental,
     ai,
     aiOffset,
     news: [
@@ -100,6 +111,14 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     boardTarget,
     sacked: false,
   }
+  if (continental) {
+    const tie = continental.ties.find((t) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)!
+    const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
+    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'Continental Cup draw', body: `${wantsEurope && game.year > 1 ? 'Qualified by right. ' : ''}Round of 16: ${tie.homeTeamId === USER_TEAM ? 'home to' : 'away at'} ${continental.clubs[opp]?.name ?? opp}, after matchweek ${continentalRounds(matchweeks)[0].afterMatchweek}.` })
+  } else if (wantsEurope) {
+    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'No Continental Cup', body: 'Not enough clubs from other leagues are loaded to form a field this season.' })
+  }
+  game.qualifiedContinental = false
   if (game.year === 1) game.finances = startingFinances(u, s.hostClubId, s.leagueSeason, squadWages(game, u))
   else {
     // New season: the wage cap follows the squad again, the budget carries over.

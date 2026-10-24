@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
+import { continentalRun } from '@game/logic/week'
 import { TIER_LABEL, USER_TEAM, computeTable } from '@engine/season'
 import { shareText } from '@engine/awards'
 import { getFormation } from '@engine/formations'
@@ -36,6 +37,7 @@ export function Summary() {
     row,
     position: record.position,
     cupWon: season?.cupWon ?? false,
+    continentalWon: season?.continental?.won ?? false,
     leagueSeason: game.settings.leagueSeason,
     hostClubName: clubName(u, game.settings.hostClubId),
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
@@ -84,6 +86,8 @@ export function Summary() {
         </div>
         <div className={`tier ${tier}`}>{TIER_LABEL[tier]}</div>
         {season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
+        {season?.continental?.won && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
+        {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         <div className="record">
           <span className="w">{record.won}W</span>
@@ -288,6 +292,7 @@ export function Summary() {
                       <td>
                         {TIER_LABEL[h.tier]}
                         {h.cupWon ? ' + Cup' : ''}
+                        {h.continentalWon ? ' + Europe' : ''}
                       </td>
                     </tr>
                   ))}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { computeTable, cupRounds, positionOf, USER_TEAM } from '@engine/season'
+import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation, FORMATIONS } from '@engine/formations'
 import { rolesFor, getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
@@ -21,7 +21,7 @@ import type { TeamTalk } from '@engine/match'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 
-type Tab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'stats' | 'market' | 'inbox' | 'club'
+type Tab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club'
 
 export function Dugout() {
   const store = useStore()
@@ -124,7 +124,7 @@ export function Dugout() {
                   </div>
                   <div className="small muted">
                     {STYLE_LABEL[u.clubById[next.clubId]?.style ?? 'balanced']} side · {ordinal(positionOf(table, next.clubId))} · {u.clubById[season.hostClubId]?.rivals.includes(next.clubId) ? '🔥 Derby · ' : ''}
-                    {cupTie ? `then ${cupRounds(season.matchweeks).find((r) => r.round === cupTie.round)?.label} ${cupTie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId)} midweek` : ''}
+                    {cupTie ? `then ${cupTie.label} ${cupTie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId)} midweek` : ''}
                   </div>
                 </div>
               </div>
@@ -171,6 +171,7 @@ export function Dugout() {
           { id: 'fixtures', label: 'Fixtures' },
           { id: 'table', label: 'Table' },
           { id: 'cup', label: 'Cup' },
+          ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
           { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent },
@@ -288,7 +289,8 @@ export function Dugout() {
         </div>
       )}
 
-      {tab === 'cup' && <CupTab />}
+      {tab === 'cup' && <CupTab comp="cup" />}
+      {tab === 'europe' && <CupTab comp="continental" />}
       {tab === 'stats' && <StatsTab />}
       {tab === 'market' && <MarketTab />}
       {tab === 'inbox' && (
@@ -445,16 +447,33 @@ function Instruction({ label, help, children }: { label: string; help: string; c
   )
 }
 
-function CupTab() {
+function CupTab({ comp }: { comp: Competition }) {
   const { universe: u, game } = useStore()
   if (!u || !game?.season) return null
   const season = game.season
+  const rounds = roundsFor(comp, season.matchweeks)
+  const allTies = comp === 'cup' ? season.cup : season.continental?.ties ?? []
+  const eliminated = comp === 'cup' ? season.cupEliminated : !!season.continental?.eliminated
+  const won = comp === 'cup' ? season.cupWon : !!season.continental?.won
+  const field = comp === 'continental' ? Object.values(season.continental?.clubs ?? {}) : []
   return (
     <div className="panel">
-      <h3>The Cup</h3>
-      <p className="help">Sixteen clubs, four rounds played midweek after matchweeks {cupRounds(season.matchweeks).map((r) => r.afterMatchweek).join(', ')}. Drawn ties go to penalties. The final is at a neutral venue.</p>
-      {cupRounds(season.matchweeks).map((r) => {
-        const ties = season.cup.filter((t) => t.round === r.round)
+      <h3>{comp === 'cup' ? 'The Cup' : 'Continental Cup'}</h3>
+      <p className="help">
+        {comp === 'cup' ? 'Sixteen clubs, four rounds' : 'You and the fifteen strongest clubs from the other leagues that season, four rounds'} played midweek after matchweeks {rounds.map((r) => r.afterMatchweek).join(', ')}. Drawn ties go to penalties. The final is at a neutral venue.
+        {comp === 'continental' ? ' Finish in the top four to qualify again next season.' : ''}
+      </p>
+      {field.length > 0 && (
+        <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
+          {field.map((c) => (
+            <span key={c.id} className="chip row" style={{ gap: 4 }} title={u.leagues.find((l) => l.id === u.clubById[c.id]?.leagueId)?.name}>
+              <ClubBadge clubId={c.id} size={16} /> {c.shortName}
+            </span>
+          ))}
+        </div>
+      )}
+      {rounds.map((r) => {
+        const ties = allTies.filter((t) => t.round === r.round)
         if (!ties.length) return null
         return (
           <div key={r.round} style={{ marginBottom: 12 }}>
@@ -480,8 +499,8 @@ function CupTab() {
           </div>
         )
       })}
-      {season.cupEliminated && <div className="notice warn">Knocked out. The remaining cup weeks are free midweeks for recovery.</div>}
-      {season.cupWon && <div className="notice">🏆 Cup winners!</div>}
+      {eliminated && <div className="notice warn">Knocked out. The remaining rounds are free midweeks for recovery.</div>}
+      {won && <div className="notice">{comp === 'cup' ? '🏆 Cup winners!' : '🌍 Champions of the continent!'}</div>}
     </div>
   )
 }

@@ -64,6 +64,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'centurions', title: 'Centurions', description: 'Reach 100 points.', icon: '💯' },
   { id: 'double', title: 'The Double', description: 'Win the league and the cup in the same season.', icon: '🏆🏆' },
   { id: 'cup', title: 'Cup Winners', description: 'Lift the cup.', icon: '🥇' },
+  { id: 'continental', title: 'Kings of the Continent', description: 'Win the Continental Cup.', icon: '🌍' },
+  { id: 'treble', title: 'The Treble', description: 'League, cup and Continental Cup in one season.', icon: '👑👑👑' },
   { id: 'boot30', title: 'Thirty Goals', description: 'A player scores 30 league goals in a season.', icon: '👟' },
   { id: 'glove20', title: 'Wall', description: 'A goalkeeper keeps 20 clean sheets.', icon: '🧱' },
   { id: 'hard-champions', title: 'Blindfolded', description: 'Win the league drafting in hard mode.', icon: '🙈' },
@@ -83,6 +85,7 @@ export interface SeasonSummaryForShare {
   row: TableRow
   position: number
   cupWon: boolean
+  continentalWon?: boolean
   leagueSeason: number
   hostClubName: string
   mode: string
@@ -98,7 +101,7 @@ export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): stri
   const lines = [
     `${appName} · ${s.mode}`,
     `${s.teamName} as ${s.hostClubName}, ${seasonLabel}`,
-    `${TIER_LABEL[s.tier]}${s.cupWon ? ' + CUP' : ''}`,
+    `${TIER_LABEL[s.tier]}${s.cupWon ? ' + CUP' : ''}${s.continentalWon ? ' + EUROPE' : ''}`,
     `${s.row.won}W ${s.row.drawn}D ${s.row.lost}L · ${s.row.points} pts · ${ordinal(s.position)}`,
     blocks,
   ]

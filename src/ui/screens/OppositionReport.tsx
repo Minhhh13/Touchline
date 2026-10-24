@@ -12,7 +12,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
   const { universe: u, game } = useStore()
   const data = useMemo(() => {
     if (!u || !game?.season) return null
-    const club = game.season.ai[clubId]
+    const club = game.season.ai[clubId] ?? game.season.continental?.clubs[clubId]
     if (!club) return null
     const input = aiTeamInput(u, club, game.season.aiOffset)
     const strength = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
@@ -20,8 +20,8 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
     const stars = [...xi].sort((a, b) => b.overall - a.overall).slice(0, 3)
     const weak = staffTier(game.staff, 'scout') >= 2 ? [...xi].filter((p) => p.positions[0] !== 'GK').sort((a, b) => a.overall - b.overall)[0] : undefined
     const table = computeTable(game.season.fixtures, [USER_TEAM, ...Object.keys(game.season.ai)])
-    const row = table.find((r) => r.teamId === clubId)!
-    const pos = table.indexOf(row) + 1
+    const row = table.find((r) => r.teamId === clubId) ?? { teamId: clubId, points: 0, form: [] as Array<'W' | 'D' | 'L'> }
+    const pos = table.indexOf(row as (typeof table)[number]) + 1
     const injured = club.squad.filter((id) => club.state[id]?.injury).length
     const cbPace = xi.filter((p) => p.positions[0] === 'CB').reduce((s, p) => s + p.attributes.pace, 0) / Math.max(1, xi.filter((p) => p.positions[0] === 'CB').length)
     const midPassing = xi.filter((p) => ['DM', 'CM', 'AM'].includes(p.positions[0])).reduce((s, p) => s + p.attributes.passing, 0) / Math.max(1, xi.filter((p) => ['DM', 'CM', 'AM'].includes(p.positions[0])).length)
@@ -45,7 +45,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
       <div className="panel-head">
         <h3>Opposition report: {club.name}</h3>
         <span className="small muted">
-          {home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {ordinal(pos)}, {row.points} pts
+          {home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}
         </span>
       </div>
       <div className="grid three">

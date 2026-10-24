@@ -3,7 +3,7 @@ import type { FullMatchResult, MatchInProgress, TeamTalk } from '@engine/match'
 import type { Finances, Window } from '@engine/market'
 import type { StaffState } from '@engine/staff'
 import type { RngState } from '@engine/rng'
-import type { SeasonState } from '@engine/season'
+import type { SeasonState, Competition } from '@engine/season'
 import type { GameEvent } from '@engine/events'
 import type { TrainingFocus } from '@engine/training'
 import type { SeasonAwards } from '@engine/awards'
@@ -32,6 +32,8 @@ export interface GameSettings {
   jobSecurity: boolean
   /** 'calibrated' handicaps AI clubs so an average draft competes; 'realistic' does not. */
   difficulty: 'calibrated' | 'realistic'
+  /** Enter the Continental Cup in the first season (later seasons qualify by finishing top four). */
+  continental?: boolean
 }
 
 export interface Contract {
@@ -62,6 +64,9 @@ export interface SeasonRecord {
   goalsAgainst: number
   tier: SeasonTier
   cupWon: boolean
+  continentalWon?: boolean
+  /** Furthest Continental Cup round reached: R16, QF, SF, F or W (winners). */
+  continentalRun?: string
   potsName?: string
   bootName?: string
   bootGoals?: number
@@ -69,7 +74,7 @@ export interface SeasonRecord {
 
 export interface MatchContext {
   matchweek: number
-  competition: 'league' | 'cup'
+  competition: 'league' | Competition
   roundLabel?: string
   opponentClubId: string
   home: boolean
@@ -82,8 +87,10 @@ export interface LiveMatch {
   ctx: MatchContext
   userIsHome: boolean
   opponentId: string
-  /** Index into season.cup when kind is 'cup'. */
+  /** Index into the competition's ties when kind is 'cup'. */
   cupTieIndex?: number
+  /** Which knockout the tie belongs to (domestic cup when missing). */
+  comp?: Competition
 }
 
 export interface Game {
@@ -113,6 +120,8 @@ export interface Game {
   talks?: Record<string, number>
   /** Backroom staff tier per role (0-2). */
   staff?: StaffState
+  /** Earned a Continental Cup place for next season (dynasty). */
+  qualifiedContinental?: boolean
   nextMatchBoost?: { attack?: number; defence?: number }
   /** A match paused at half time, waiting for the manager. */
   live: LiveMatch | null

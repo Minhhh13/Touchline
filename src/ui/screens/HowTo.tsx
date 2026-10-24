@@ -29,7 +29,8 @@ export function HowTo() {
           <h3>Season mode</h3>
           <ul>
             <li>Your drafted squad takes one real club's place in a real league season. The other nineteen field their real squads of that year.</li>
-            <li>Three pre-season friendlies build sharpness and familiarity. Then 38 matchweeks plus a 16-team cup played midweek after matchweeks 6, 14, 24 and 36.</li>
+            <li>Three pre-season friendlies build sharpness and familiarity. Then 38 matchweeks (34 in an 18-club league) plus a 16-team cup played midweek after matchweeks 6, 14, 24 and 36.</li>
+            <li>Tick the Continental Cup at setup for a second knockout against the fifteen strongest clubs from the other leagues that season, on the free midweeks after matchweeks 10, 19, 29 and 33. In Dynasty mode a top-four finish qualifies you again.</li>
             <li>Condition drops with minutes and recovers weekly; tired players get hurt and play badly. Rotate.</li>
             <li>Five yellow cards is a one-match ban; red cards bring longer ones. Injuries range from a week to a season.</li>
             <li>Morale moves with results, playing time and your handling of dressing-room events. Stars sulk on the bench.</li>

@@ -39,6 +39,16 @@ export interface CupTie {
   winnerId?: string
 }
 
+export type Competition = 'cup' | 'continental'
+
+export interface ContinentalState {
+  ties: CupTie[]
+  /** Foreign clubs in the field, keyed by club id; the user is the sixteenth entrant. */
+  clubs: Record<string, AiClub>
+  eliminated: boolean
+  won: boolean
+}
+
 export interface SeasonState {
   /** League the user plays in. */
   leagueId: string
@@ -54,6 +64,8 @@ export interface SeasonState {
   cup: CupTie[]
   cupEliminated: boolean
   cupWon: boolean
+  /** The Continental Cup: a midweek knockout against the best of the other leagues that season. */
+  continental?: ContinentalState
   ai: Record<string, AiClub>
   /** Rolling news feed for the inbox. */
   news: NewsItem[]
@@ -224,26 +236,94 @@ export function cupRounds(matchweeks: number): CupRoundInfo[] {
   ]
 }
 
-export function drawFirstCupRound(teamIds: string[], rng: Rng, matchweeks: number): CupTie[] {
+/** Continental Cup rounds sit on the midweeks the domestic cup leaves free. */
+export function continentalRounds(matchweeks: number): CupRoundInfo[] {
+  const at = (mw38: number) => Math.max(1, Math.min(matchweeks - 1, Math.round((mw38 / 38) * matchweeks)))
+  return [
+    { round: 'R16', afterMatchweek: at(10), label: 'Continental round of 16' },
+    { round: 'QF', afterMatchweek: at(19), label: 'Continental quarter-final' },
+    { round: 'SF', afterMatchweek: at(29), label: 'Continental semi-final' },
+    { round: 'F', afterMatchweek: at(33), label: 'Continental final' },
+  ]
+}
+
+export function roundsFor(comp: Competition, matchweeks: number): CupRoundInfo[] {
+  return comp === 'cup' ? cupRounds(matchweeks) : continentalRounds(matchweeks)
+}
+
+export function drawFirstRound(teamIds: string[], rng: Rng, rounds: CupRoundInfo[]): CupTie[] {
   const entrants = rng.shuffle([...teamIds]).slice(0, 16)
   if (!entrants.includes(USER_TEAM)) entrants[0] = USER_TEAM
   const ties: CupTie[] = []
-  const first = cupRounds(matchweeks)[0]
-  for (let i = 0; i < entrants.length; i += 2) ties.push({ round: 'R16', afterMatchweek: first.afterMatchweek, homeTeamId: entrants[i], awayTeamId: entrants[i + 1] })
+  const first = rounds[0]
+  for (let i = 0; i + 1 < entrants.length; i += 2) ties.push({ round: first.round, afterMatchweek: first.afterMatchweek, homeTeamId: entrants[i], awayTeamId: entrants[i + 1] })
   return ties
 }
 
-export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng, matchweeks: number): CupTie[] {
-  const rounds = cupRounds(matchweeks)
+export function drawFirstCupRound(teamIds: string[], rng: Rng, matchweeks: number): CupTie[] {
+  return drawFirstRound(teamIds, rng, cupRounds(matchweeks))
+}
+
+export function drawNextRound(ties: CupTie[], round: CupTie['round'], rng: Rng, rounds: CupRoundInfo[]): CupTie[] {
   const prevIndex = rounds.findIndex((r) => r.round === round) - 1
   if (prevIndex < 0) return []
   const prev = rounds[prevIndex]
-  const winners = cup.filter((t) => t.round === prev.round && t.winnerId).map((t) => t.winnerId!)
+  const winners = ties.filter((t) => t.round === prev.round && t.winnerId).map((t) => t.winnerId!)
   rng.shuffle(winners)
   const info = rounds[prevIndex + 1]
-  const ties: CupTie[] = []
-  for (let i = 0; i + 1 < winners.length; i += 2) ties.push({ round: info.round, afterMatchweek: info.afterMatchweek, homeTeamId: winners[i], awayTeamId: winners[i + 1] })
-  return ties
+  const next: CupTie[] = []
+  for (let i = 0; i + 1 < winners.length; i += 2) next.push({ round: info.round, afterMatchweek: info.afterMatchweek, homeTeamId: winners[i], awayTeamId: winners[i + 1] })
+  return next
+}
+
+export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng, matchweeks: number): CupTie[] {
+  return drawNextRound(cup, round, rng, cupRounds(matchweeks))
+}
+
+/**
+ * The Continental Cup field: the fifteen strongest clubs from the other loaded
+ * leagues in the same season, by league position then squad rating. Leagues
+ * without that season contribute their nearest one.
+ */
+export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15): Record<string, AiClub> {
+  const others = u.leagues.filter((l) => l.id !== leagueId)
+  const picked: ClubSeason[] = []
+  for (const league of others) {
+    const seasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))]
+    if (!seasons.length) continue
+    const season = seasons.includes(leagueSeason) ? leagueSeason : seasons.sort((a, b) => Math.abs(a - leagueSeason) - Math.abs(b - leagueSeason))[0]
+    const field = u.clubSeasons.filter((cs) => cs.leagueId === league.id && cs.season === season && cs.clubId !== hostClubId).sort((a, b) => (a.position || 99) - (b.position || 99) || avgTop(b) - avgTop(a))
+    // Four per league keeps the field spread; the remainder is filled by strength below.
+    picked.push(...field.slice(0, 4))
+  }
+  // Top up with the strongest remaining clubs if fewer than four leagues are loaded
+  if (picked.length < n) {
+    const have = new Set(picked.map((cs) => `${cs.clubId}@${cs.season}`))
+    const rest = u.clubSeasons.filter((cs) => cs.leagueId !== leagueId && cs.clubId !== hostClubId && !have.has(`${cs.clubId}@${cs.season}`) && Math.abs(cs.season - leagueSeason) <= 1).sort((a, b) => avgTop(b) - avgTop(a))
+    const seen = new Set(picked.map((cs) => cs.clubId))
+    for (const cs of rest) {
+      if (picked.length >= n) break
+      if (seen.has(cs.clubId)) continue
+      seen.add(cs.clubId)
+      picked.push(cs)
+    }
+  }
+  const strongest = picked.sort((a, b) => avgTop(b) - avgTop(a)).slice(0, n)
+  const clubs: Record<string, AiClub> = {}
+  for (const cs of strongest) {
+    const club = u.clubById[cs.clubId]
+    const style = club?.style ?? 'balanced'
+    const tactics = tacticsForStyle(style, formationForStyle(style))
+    const state: Record<string, SquadPlayer> = {}
+    for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
+    clubs[cs.clubId] = { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
+  }
+  return clubs
+}
+
+function avgTop(cs: ClubSeason): number {
+  const top = [...cs.squad].sort((a, b) => b.overall - a.overall).slice(0, 14)
+  return top.length ? top.reduce((s, p) => s + p.overall, 0) / top.length : 0
 }
 
 /** Weekly recovery for every squad player, user or AI. */
@@ -346,7 +426,12 @@ export function updateConfidence(confidence: number, table: TableRow[], teamId: 
   return clamp(confidence + delta, 0, 100)
 }
 
-export function describeImportance(u: LoadedUniverse, hostClubId: string, opponentClubId: string, table: TableRow[] | null, matchweek: number, cupRound?: CupTie['round']): { importance: number; label?: string } {
+export function describeImportance(u: LoadedUniverse, hostClubId: string, opponentClubId: string, table: TableRow[] | null, matchweek: number, cupRound?: CupTie['round'], comp: Competition = 'cup'): { importance: number; label?: string } {
+  if (comp === 'continental' && cupRound) {
+    if (cupRound === 'F') return { importance: 1.5, label: 'Continental final' }
+    if (cupRound === 'SF') return { importance: 1.35, label: 'Continental semi-final' }
+    return { importance: 1.15, label: 'European night' }
+  }
   if (cupRound === 'F') return { importance: 1.4, label: 'Cup final' }
   if (cupRound === 'SF') return { importance: 1.25, label: 'Cup semi-final' }
   const host = u.clubById[hostClubId]
