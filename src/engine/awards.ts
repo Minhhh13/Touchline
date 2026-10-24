@@ -93,6 +93,8 @@ export interface SeasonSummaryForShare {
   potsName?: string
   bootName?: string
   bootGoals?: number
+  /** Extra lines a mode or feature appends (one nation, a record, a twist, a challenge verdict), printed before the seed. */
+  extraLines?: string[]
 }
 
 export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): string {
@@ -107,6 +109,7 @@ export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): stri
   ]
   if (s.bootName) lines.push(`⚽ ${s.bootName} ${s.bootGoals}`)
   if (s.potsName) lines.push(`⭐ ${s.potsName}`)
+  for (const line of s.extraLines ?? []) if (line.trim()) lines.push(line)
   if (s.seed) lines.push(`Seed ${s.seed}`)
   return lines.join('\n')
 }

@@ -45,6 +45,8 @@ export interface LoadedUniverse extends Universe {
   currentSeason: number | null
   /** Every league available in the data index, loaded or not. */
   available: LeagueInfo[]
+  /** Date stamp (YYYY-MM-DD) of the data packs, from `leagues.json`; the pack's own date for a single league built offline. */
+  generatedAt: string
 }
 
 export function seasonLabel(season: number): string {
@@ -177,12 +179,26 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     sources: meta.sources,
     currentSeason,
     available: [leagueInfo],
+    generatedAt: players.generatedAt,
   }
 }
 
-/** Merge several league packs into one universe (the wheel can span them all). */
-export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[]): LoadedUniverse {
-  const [first, ...rest] = parts
+/**
+ * Merge several league packs into one universe (the wheel can span them all).
+ *
+ * Parts are concatenated in the order of the data index (`available`), never in
+ * the order they were loaded: `spin()` picks among `clubSeasons` by weighted
+ * index, so a European Nights seed must see the same club-season order whether
+ * Spain or Germany was opened first. Leagues missing from the index keep their
+ * given order after the indexed ones.
+ */
+export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[], generatedAt?: string): LoadedUniverse {
+  const rank = (u: LoadedUniverse): number => {
+    const i = available.findIndex((l) => l.id === u.leagues[0]?.id)
+    return i < 0 ? available.length : i
+  }
+  const ordered = parts.map((u, i) => ({ u, i })).sort((a, b) => rank(a.u) - rank(b.u) || a.i - b.i).map((x) => x.u)
+  const [first, ...rest] = ordered
   const out: LoadedUniverse = {
     ...first,
     leagues: [...first.leagues],
@@ -195,6 +211,7 @@ export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[])
     clubSeasonByKey: { ...first.clubSeasonByKey },
     sources: [...first.sources],
     available,
+    generatedAt: generatedAt ?? ordered.map((u) => u.generatedAt).sort().at(-1) ?? first.generatedAt,
   }
   for (const u of rest) {
     out.leagues.push(...u.leagues)
@@ -217,28 +234,32 @@ export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[])
 export const DEFAULT_LEAGUE = 'england'
 
 const leagueCache = new Map<string, Promise<LoadedUniverse>>()
-let availableCache: Promise<LeagueInfo[]> | null = null
+let indexCache: Promise<LeaguesFile> | null = null
 
 function base(baseUrl?: string): string {
   const b = baseUrl ?? import.meta.env?.BASE_URL ?? '/'
   return b.endsWith('/') ? b : `${b}/`
 }
 
-export function fetchAvailableLeagues(baseUrl?: string): Promise<LeagueInfo[]> {
-  if (!availableCache) {
-    availableCache = fetch(`${base(baseUrl)}data/leagues.json`)
+/** The data index (`leagues.json`): every league pack and the date the packs were generated. */
+export function fetchLeaguesIndex(baseUrl?: string): Promise<LeaguesFile> {
+  if (!indexCache) {
+    indexCache = fetch(`${base(baseUrl)}data/leagues.json`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`leagues.json ${r.status}`)
-        const j = (await r.json()) as LeaguesFile
-        return j.leagues
+        return (await r.json()) as LeaguesFile
       })
       .catch((e: unknown) => {
         // A failed fetch is not cached: the next attempt retries the network
-        availableCache = null
+        indexCache = null
         throw e
       })
   }
-  return availableCache
+  return indexCache
+}
+
+export function fetchAvailableLeagues(baseUrl?: string): Promise<LeagueInfo[]> {
+  return fetchLeaguesIndex(baseUrl).then((j) => j.leagues)
 }
 
 /** Browser loader for one league pack, cached. */
@@ -271,8 +292,8 @@ export function fetchLeague(leagueId: string, baseUrl?: string): Promise<LoadedU
 /** Load and merge the given leagues (defaults to England). */
 export async function loadUniverse(leagueIds: string[] = [DEFAULT_LEAGUE], baseUrl?: string): Promise<LoadedUniverse> {
   const ids = [...new Set(leagueIds)]
-  const [available, ...parts] = await Promise.all([fetchAvailableLeagues(baseUrl), ...ids.map((id) => fetchLeague(id, baseUrl))])
-  return mergeUniverses(parts, available)
+  const [index, ...parts] = await Promise.all([fetchLeaguesIndex(baseUrl), ...ids.map((id) => fetchLeague(id, baseUrl))])
+  return mergeUniverses(parts, index.leagues, index.generatedAt)
 }
 
 export function clubName(u: LoadedUniverse, clubId: string): string {

@@ -21,6 +21,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - A real player can be drafted once, whichever club or season you catch him in.
 - Eight formations, position eligibility (a wing-back covers full-back, a wide midfielder covers the wing), era filters, one-club mode, hard mode (ratings hidden), re-spins and shareable seeds.
 - Seven leagues: the Premier League, La Liga, Serie A, the Bundesliga, Ligue 1, the Eredivisie and the Primeira Liga, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all seven.
+- Seeds are honest across leagues: a European Nights seed lands on the same clubs whichever order the league packs were opened, and every loaded universe carries the data stamp of its packs beside an engine version, so a result can be checked against the data and engine that produced it.
 - **Head-to-head**: two managers on one device draft from the same spins in snake order, then both sides play the same season, derbies included.
 - Matches are played live in two halves: at the break you give a team talk, change instructions and make substitutions, and the AI reacts to the score too.
 

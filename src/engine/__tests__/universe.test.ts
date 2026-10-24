@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { loadTestUniverse, } from './helpers'
+import { loadTestUniverse } from './helpers'
 import { POSITIONS } from '../positions'
+import { Rng } from '../rng'
+import { canUse, eligibleSlots, isComplete, newDraft, pick, QUICK_RULES, spin } from '../draft'
+import { getFormation } from '../formations'
+import { ENGINE_VERSION } from '../version'
+import type { LoadedUniverse } from '../universe'
+
+/** Spin and pick a quick 4-3-3 from `leagues`, returning the club-seasons the wheel landed on. */
+function quickDraftSpins(u: LoadedUniverse, leagues: string[], seed: string): string[] {
+  const rng = new Rng(seed)
+  const d = newDraft(getFormation('4-3-3'), { ...QUICK_RULES, leagues })
+  const landed: string[] = []
+  while (!isComplete(d)) {
+    const cs = spin(u, d, rng)
+    landed.push(`${cs.clubId}@${cs.season}`)
+    const p = cs.squad.filter((x) => canUse(d, x)).sort((a, b) => b.overall - a.overall)[0]
+    pick(u, d, p.id, eligibleSlots(d, p)[0].id)
+  }
+  return landed
+}
 
 describe('universe data', () => {
   const u = loadTestUniverse()
@@ -46,5 +65,38 @@ describe('universe data', () => {
     const messi = Object.values(e.index).find((p) => p.name === 'L. Messi' && p.season === 2014)
     expect(messi?.clubId).toBe('fc-barcelona')
     expect(messi?.overall).toBeGreaterThanOrEqual(90)
+  })
+  it('merges in data-index order whatever order the packs were loaded', () => {
+    const a = loadTestUniverse(['england', 'germany', 'spain'])
+    const b = loadTestUniverse(['england', 'spain', 'germany'])
+    const c = loadTestUniverse(['germany', 'spain', 'england'])
+    // leagues.json lists England, Spain, Italy, Germany, ...
+    expect(a.leagues.map((l) => l.id)).toEqual(['england', 'spain', 'germany'])
+    expect(b.leagues.map((l) => l.id)).toEqual(['england', 'spain', 'germany'])
+    expect(c.leagues.map((l) => l.id)).toEqual(['england', 'spain', 'germany'])
+    expect(a.clubSeasons.map((cs) => `${cs.clubId}@${cs.season}`)).toEqual(b.clubSeasons.map((cs) => `${cs.clubId}@${cs.season}`))
+    expect(a.seed).toBe('england+germany+spain')
+    expect(a.clubSeasons.length).toBe(b.clubSeasons.length)
+  })
+  it('spins the same European wheel for one seed whichever order the leagues were loaded', () => {
+    const a = loadTestUniverse(['england', 'germany', 'spain'])
+    const b = loadTestUniverse(['england', 'spain', 'germany'])
+    const leagues = ['england', 'germany', 'spain']
+    for (const seed of ['K7Q2-MX9A', 'europe-1', 'europe-2']) {
+      const sa = quickDraftSpins(a, leagues, seed)
+      const sb = quickDraftSpins(b, leagues, seed)
+      expect(sa.length).toBe(11)
+      expect(sa).toEqual(sb)
+      // and the wheel really spans the merged leagues
+      const landedLeagues = new Set(sa.map((k) => a.clubSeasonByKey[k].leagueId))
+      expect(landedLeagues.size).toBeGreaterThan(1)
+    }
+  })
+  it('carries the data stamp from leagues.json and the engine version', () => {
+    expect(u.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(u.generatedAt).toBe('2026-10-24')
+    const e = loadTestUniverse(['england', 'spain'])
+    expect(e.generatedAt).toBe(u.generatedAt)
+    expect(ENGINE_VERSION).toMatch(/^\d+$/)
   })
 })
