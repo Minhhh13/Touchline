@@ -463,7 +463,18 @@ export const useStore = create<Store>()(
           }
           const achievements = { ...profile.achievements }
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
-          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, seasonsSimulated: profile.seasonsSimulated + 1 } })
+          // Trophy cabinet
+          const trophies = { ...(profile.trophies ?? { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }) }
+          const last = game.history.at(-1)
+          const league = rec.position === 1
+          const cup = !!last?.cupWon
+          const euro = !!last?.continentalWon
+          if (league) trophies.league++
+          if (cup) trophies.cup++
+          if (euro) trophies.continental++
+          if (league && cup) trophies.doubles++
+          if (league && cup && euro) trophies.trebles++
+          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies, seasonsSimulated: profile.seasonsSimulated + 1 } })
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)

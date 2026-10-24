@@ -72,6 +72,26 @@ export function ProfileScreen() {
             </div>
           </div>
           <div className="panel">
+            <h3>Trophy cabinet</h3>
+            <div className="row wrap" style={{ gap: 14 }}>
+              {(
+                [
+                  ['🏆', 'League titles', profile.trophies?.league ?? 0],
+                  ['🥇', 'Cups', profile.trophies?.cup ?? 0],
+                  ['🌍', 'Continental Cups', profile.trophies?.continental ?? 0],
+                  ['🏆🏆', 'Doubles', profile.trophies?.doubles ?? 0],
+                  ['👑', 'Trebles', profile.trophies?.trebles ?? 0],
+                ] as const
+              ).map(([icon, label, n]) => (
+                <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
+                  <span style={{ fontSize: 26 }}>{icon}</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 24 }}>{n}</span>
+                  <span className="small muted">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="panel">
             <h3>Achievements</h3>
             <div className="achievements">
               {ACHIEVEMENTS.map((a) => {

@@ -223,4 +223,6 @@ export interface Profile {
   seasonsSimulated: number
   theme: 'auto' | 'dark' | 'light'
   managerName: string
+  /** Trophy cabinet across every game played in this browser. */
+  trophies?: { league: number; cup: number; continental: number; doubles: number; trebles: number }
 }

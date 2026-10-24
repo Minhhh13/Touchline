@@ -550,13 +550,16 @@ This exists in code. `GameSettings.difficulty` is `'calibrated'` (default) or `'
 
 All randomness runs through one `Rng` (xoshiro128** seeded by a cyrb53 hash) whose state is stored in the save after every action, so a seed replays identically and a daily seed is identical for everyone. The game is persisted with Zustand `persist` under the `localStorage` key `touchline-save-v1` (the active game, parked games, the shortlist, the head-to-head game, the profile and whether you were in a game). Quick drafts and dailies share one save slot; Season and Dynasty each have their own, so starting a quick draft parks a running dynasty on the home screen instead of replacing it. There is no backend.
 
+### Offline
+
+`public/sw.js` is registered on production builds relative to the deploy path. The shell (`index.html`, the manifest) is served network-first and cached as a fallback; hashed assets, icons and league packs are cached on first use and served cache-first. A new build changes the asset names, so it is picked up on the next online visit; stale assets stay in the single cache until its version string is bumped.
+
 ## 16. Roadmap
 
 Not in the code today:
 
 - 1992-93 to 2007-08 seasons; tables exist for 2000-01 to 2007-08 but no player data.
 - Online leaderboards, shared daily results and online multiplayer; the leaderboard is per browser and head-to-head is hot-seat only.
-- PWA packaging and offline install.
 - 38-0 modes not reproduced: Last One Standing, Teammate Chain, Tournaments, Multiplayer leagues.
 - FM systems not reproduced: separate in-possession and out-of-possession shapes, scouting with attribute ranges, individual training, youth intake and regens, mentoring, press conferences beyond the events deck, finances beyond budget, wages, staff and prize money.
 - A group stage and two-legged ties for the Continental Cup.
