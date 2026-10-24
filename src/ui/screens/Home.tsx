@@ -3,7 +3,7 @@ import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 
 export function Home() {
-  const { universe: u, game, go, abandonGame, profile } = useStore()
+  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked } = useStore()
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const players = u ? u.available.reduce((s, l) => s + l.players, 0) : 0
   const clubCount = u ? u.available.reduce((s, l) => s + l.clubs, 0) : 0
@@ -28,7 +28,7 @@ export function Home() {
                 {game.settings.teamName} · {game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : game.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${game.year}`}
               </div>
               <div className="small muted">
-                {game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of 38 · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
+                {game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
               </div>
             </div>
           </div>
@@ -43,6 +43,27 @@ export function Home() {
         </div>
       )}
 
+      {Object.entries(parked).map(([slot, g]) => (
+        <div key={slot} className="panel row between wrap" style={{ marginBottom: 14, opacity: 0.9 }}>
+          <div className="row">
+            <ClubBadge clubId={g.settings.hostClubId} size={36} />
+            <div>
+              <div style={{ fontWeight: 700 }}>
+                {g.settings.teamName} · {g.settings.mode === 'quick' ? 'Quick draft' : g.settings.mode === 'daily' ? 'Daily challenge' : g.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${g.year}`} (parked)
+              </div>
+              <div className="small muted">{g.phase === 'draft' ? 'Drafting' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
+            </div>
+          </div>
+          <div className="row">
+            <button className="btn" onClick={() => resumeGame(slot)}>
+              Resume
+            </button>
+            <button className="btn danger ghost" onClick={() => confirm('Discard this parked game?') && discardParked(slot)}>
+              Discard
+            </button>
+          </div>
+        </div>
+      ))}
       <div className="modes">
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
           <span className="icon">🎡</span>

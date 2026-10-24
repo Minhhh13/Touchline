@@ -50,6 +50,8 @@ interface Store {
   screen: Screen
   setupMode: Mode
   game: Game | null
+  /** Saved games of other kinds, parked while another game is active (one per slot). */
+  parked: Record<string, Game>
   h2h: H2HGame | null
   profile: Profile
   toast: string | null
@@ -65,6 +67,9 @@ interface Store {
 
   startGame: (settings: GameSettings) => void
   abandonGame: () => void
+  /** Swap a parked game back in, parking the current one. */
+  resumeGame: (slot: string) => void
+  discardParked: (slot: string) => void
 
   spin: () => void
   respin: () => void
@@ -161,6 +166,7 @@ export const useStore = create<Store>()(
         screen: 'home',
         setupMode: 'quick',
         game: null,
+        parked: {},
         h2h: null,
         profile: defaultProfile,
         toast: null,
@@ -207,9 +213,29 @@ export const useStore = create<Store>()(
 
         startGame: (settings) => {
           const game = createGame(settings)
-          set({ game, screen: 'game', profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          const { game: current, parked } = get()
+          const next = { ...parked }
+          // Park a game of a different kind rather than losing it; a finished one is dropped.
+          if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
+          delete next[slotOf(game)]
+          set({ game, parked: next, screen: 'game', profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
         abandonGame: () => set({ game: null, screen: 'home', offseason: null }),
+        resumeGame: (slot) => {
+          const { game: current, parked } = get()
+          const target = parked[slot]
+          if (!target) return
+          const next = { ...parked }
+          delete next[slot]
+          if (current && current.phase !== 'summary') next[slotOf(current)] = current
+          set({ game: target, parked: next, screen: 'game' })
+          void get().ensureLeagues([target.settings.leagueId, ...target.settings.wheelLeagues])
+        },
+        discardParked: (slot) => {
+          const next = { ...get().parked }
+          delete next[slot]
+          set({ parked: next })
+        },
 
         spin: () =>
           mutate((g, u) => {
@@ -428,7 +454,7 @@ export const useStore = create<Store>()(
     {
       name: 'touchline-save-v1',
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ game: s.game, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
+      partialize: (s) => ({ game: s.game, parked: s.parked, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
       version: 1,
     },
   ),
@@ -436,4 +462,9 @@ export const useStore = create<Store>()(
 
 export function todaysDailySeed(): string {
   return dailySeed()
+}
+
+/** Save slot of a game: quick drafts and dailies share one, season and dynasty have their own. */
+export function slotOf(game: Game): string {
+  return game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'quick' : game.settings.mode
 }
