@@ -6,6 +6,7 @@ import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { bidFor, loanFor, enquireFor, advanceDay, acceptOffer } from '../logic/marketOps'
 import { talkTo } from '../logic/talks'
+import { playerLookup } from '../logic/players'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { enquire, exchangeCredit, loanable, openWindow } from '@engine/market'
 import { newSquadPlayer } from '@engine/season'
@@ -73,7 +74,9 @@ describe('transfer market depth', () => {
     const target = g.window!.listings.find((l) => l.status === 'available')!
     const targetP = u.index[target.playerSeasonId]
     // Our best outfielder near his level is acceptable; a kid 20 points worse is not
-    const squad = Object.keys(g.squad).map((id) => ({ p: u.index[id], s: g.squad[id] })).filter((x) => x.p)
+    // Developed players live in customPlayers, so look them up the way the market does
+    const get = playerLookup(g, u)
+    const squad = Object.keys(g.squad).map((id) => ({ p: get(id)!, s: g.squad[id] })).filter((x) => x.p)
     const good = squad.filter((x) => x.p.overall >= targetP.overall - 8 && x.p.age < 31).sort((a, b) => b.p.overall - a.p.overall)[0]
     if (good) {
       const credit = exchangeCredit(ctx, targetP, good)
