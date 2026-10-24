@@ -103,7 +103,8 @@ describe('transfer market depth', () => {
     // A squad player from a mid-table club of a different era: never refused, so the quote is deterministic
     const cs = u.clubSeasonByKey['everton@2015']!
     const squadSorted = [...cs.squad].sort((a, b) => b.overall - a.overall)
-    const fringe = squadSorted.slice(8).find((p) => !owned.has(p.playerId) && !onMarket.has(p.playerId) && p.overall < 86)!
+    // Under 33 so the veteran discount does not pull the quote below his value
+    const fringe = squadSorted.slice(8).find((p) => !owned.has(p.playerId) && !onMarket.has(p.playerId) && p.overall < 86 && p.age < 33)!
     const out = enquireFor(g, u, fringe.id)
     expect(out.ok).toBe(true)
     const listing = g.window!.listings.find((l) => l.playerSeasonId === fringe.id)!

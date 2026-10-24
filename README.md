@@ -46,7 +46,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - A depth chart of who can cover every position in your shape, rated there.
 - Export and import your save file from the Record page, and a trophy cabinet across every game you have played.
 - Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
-- Board target and confidence, with optional job security (you can be sacked).
+- Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, seventeen achievements, a local leaderboard and a share card for every season.
 - Calibrated or Realistic difficulty.
 - One saved game per mode: a quick draft never overwrites your dynasty.

@@ -394,6 +394,10 @@ Negative swings are scaled by `1.2 − 0.5 × professionalism`.
 | Physio (£15k / £40k) | training injuries ×0.75, +2 condition a week, injuries of 3+ weeks heal a week sooner | ×0.55, +4, every injury a week sooner |
 | Scout (£15k / £40k) | +1 scouted listing a market day, hidden traits tagged on the market | +2 a day, and the opponent's weak link in the report |
 
+### Board objectives
+
+`src/engine/objectives.ts`. Two per season, drawn at kick-off from a pool shaped by the board target: a cup quarter-final (semi-final for a top-four target), a league goals tally (1.5 × matchweeks, 1.9 for the ambitious), at most four home defeats (two), ten league starts for a player aged 21 or under, a Continental Cup quarter-final when entered, and no derby defeats when the host has rivals in the league. Progress shows live in the Club tab; at the end of the season each one met adds £5M to the budget and +8 confidence, each one missed costs 6 confidence, and the inbox gets the verdict.
+
 ### Board, confidence and the sack
 
 - **Target.** Count the AI clubs whose (calibrated) overall exceeds yours minus 1.5, add one, clamp to 1 to 17. The inbox welcome message states it.

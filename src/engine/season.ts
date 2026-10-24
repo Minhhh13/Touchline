@@ -6,6 +6,7 @@
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import type { Rng } from './rng'
 import type { LoadedUniverse } from './universe'
+import type { Objective } from './objectives'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
 import { autoPickLineup, computeTeamStrength } from './ratings'
@@ -77,6 +78,8 @@ export interface SeasonState {
   confidence: number
   /** Position the board expects at the end of the season. */
   boardTarget: number
+  /** Secondary asks from the board, judged at the end of the season. */
+  objectives?: Objective[]
   sacked: boolean
 }
 

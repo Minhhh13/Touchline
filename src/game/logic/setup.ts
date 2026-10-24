@@ -9,6 +9,7 @@ import { startingFinances } from '@engine/market'
 import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
 import { buildYouthIntake } from './youth'
+import { pickObjectives, OBJECTIVE_REWARD } from '@engine/objectives'
 import { playerLookup } from './players'
 
 export function createGame(settings: GameSettings): Game {
@@ -110,8 +111,10 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     ],
     confidence: 60,
     boardTarget,
+    objectives: pickObjectives(rng, boardTarget, matchweeks, !!continental, (u.clubById[s.hostClubId]?.rivals ?? []).some((r) => !!ai[r])),
     sacked: false,
   }
+  game.season.news.unshift({ matchweek: 0, kind: 'board', title: 'Board objectives', body: `Beyond the league position the board asks for two things: ${game.season.objectives!.map((o) => o.label.toLowerCase()).join(', and ')}. Each one met adds £${OBJECTIVE_REWARD.budget}M to next season's budget.` })
   if (continental) {
     const tie = continental.ties.find((t) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)!
     const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId

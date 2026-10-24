@@ -12,6 +12,7 @@ import { autoPick, lineupProblems, squadWages } from './squad'
 import { tickWindow } from './marketOps'
 import { staffTier } from '@engine/staff'
 import { developSquad, DEVELOPMENT_INTERVAL } from './development'
+import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { Tactics } from '@engine/types'
@@ -653,6 +654,20 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   game.finances.income += prize
   // Top four, or the continental trophy, earns a place in next season's Continental Cup
   game.qualifiedContinental = !season.sacked && (pos <= 4 || !!season.continental?.won)
+  // Board objectives: judged now, paid now
+  if (season.objectives?.length && !season.sacked) {
+    const ctx = { season, squad, rivals: u.clubById[season.hostClubId]?.rivals ?? [] }
+    let metCount = 0
+    for (const o of season.objectives) {
+      o.met = evaluateObjective(o, ctx).met
+      if (o.met) metCount++
+    }
+    const bonus = metCount * OBJECTIVE_REWARD.budget
+    game.finances.budget = Math.round((game.finances.budget + bonus) * 10) / 10
+    game.finances.income += bonus
+    season.confidence = Math.max(0, Math.min(100, season.confidence + metCount * OBJECTIVE_REWARD.confidence + (season.objectives.length - metCount) * OBJECTIVE_REWARD.miss))
+    news(game, { kind: 'board', title: `Board objectives: ${metCount} of ${season.objectives.length} met`, body: season.objectives.map((o) => `${o.met ? '✓' : '✗'} ${o.label}`).join('. ') + (bonus ? `. £${bonus}M added to the budget.` : '.') })
+  }
   // All-time records for the club's legends list
   const career = (game.careerStats ??= {})
   for (const x of squad) {

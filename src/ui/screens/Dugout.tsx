@@ -12,6 +12,7 @@ import { teamStrength, lineupProblems } from '@game/logic/squad'
 import { SQUAD_CAP } from '@game/logic/marketOps'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
+import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -849,6 +850,27 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dt>Difficulty</dt>
           <dd>{season.aiOffset > 0 ? `Calibrated: rivals play ${season.aiOffset} rating points below their real strength` : 'Realistic: real squads at full strength'}</dd>
         </div>
+        {season.objectives && season.objectives.length > 0 && (
+          <>
+            <h3 style={{ marginTop: 12 }}>Board objectives</h3>
+            <div className="col" style={{ gap: 6 }}>
+              {season.objectives.map((o) => {
+                const ev = evaluateObjective(o, { season, squad, rivals: host?.rivals ?? [] })
+                const decided = o.met !== undefined
+                const ok = decided ? o.met : ev.met
+                return (
+                  <div key={o.id} className="row between wrap">
+                    <span>
+                      <span className={`chip ${ok ? 'good' : decided ? 'bad' : ''}`}>{decided ? (ok ? '✓ Met' : '✗ Missed') : ok ? 'On track' : 'Not yet'}</span> {o.label}
+                    </span>
+                    <span className="small muted">{ev.progress}</span>
+                  </div>
+                )
+              })}
+              <p className="help">Each objective met adds £{OBJECTIVE_REWARD.budget}M to the budget and lifts board confidence; each one missed costs confidence.</p>
+            </div>
+          </>
+        )}
       </div>
       <div className="panel">
         <h3>Finances</h3>
