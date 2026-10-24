@@ -1,5 +1,5 @@
 import type { DraftState } from '@engine/draft'
-import type { FullMatchResult, TeamTalk } from '@engine/match'
+import type { FullMatchResult, MatchInProgress, TeamTalk } from '@engine/match'
 import type { Finances, Window } from '@engine/market'
 import type { RngState } from '@engine/rng'
 import type { SeasonState } from '@engine/season'
@@ -62,6 +62,16 @@ export interface MatchContext {
   importanceLabel?: string
 }
 
+export interface LiveMatch {
+  kind: 'league' | 'cup' | 'friendly'
+  mp: MatchInProgress
+  ctx: MatchContext
+  userIsHome: boolean
+  opponentId: string
+  /** Index into season.cup when kind is 'cup'. */
+  cupTieIndex?: number
+}
+
 export interface Game {
   id: string
   createdAt: string
@@ -86,6 +96,10 @@ export interface Game {
   pendingEvent: GameEvent | null
   promisedStart?: string
   nextMatchBoost?: { attack?: number; defence?: number }
+  /** A match paused at half time, waiting for the manager. */
+  live: LiveMatch | null
+  /** Player-season ids who played this week (league and cup), for recovery. */
+  weekPlayed: string[]
   lastMatch: FullMatchResult | null
   lastMatchContext: MatchContext | null
   /** Cup result played this week, if any, shown with the league match. */

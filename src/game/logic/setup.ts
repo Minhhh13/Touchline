@@ -32,6 +32,8 @@ export function createGame(settings: GameSettings): Game {
     finances: { budget: 0, wageCap: 0, income: 0, spent: 0, wagesPaid: 0 },
     window: null,
     pendingEvent: null,
+    live: null,
+    weekPlayed: [],
     lastMatch: null,
     lastMatchContext: null,
     lastCupMatch: null,

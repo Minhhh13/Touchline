@@ -11,7 +11,7 @@ import type { TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { runQuickSeason } from './logic/quick'
-import { applyEventChoice, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
+import { applyEventChoice, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation } from './logic/squad'
 import { acceptOffer, advanceDay, bidFor, rejectOffer, releasePlayer } from './logic/marketOps'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
@@ -68,6 +68,8 @@ interface Store {
   playFriendly: () => void
   startSeason: () => void
   playWeek: () => void
+  /** Second half of the paused match, with the manager's half-time changes. */
+  finishLive: (opts: { talk?: TeamTalk; tactics?: Tactics; substitutions?: Array<{ off: string; on: string }> }) => void
   simToEnd: () => void
   simWeeks: (n: number) => void
   closeMatch: () => void
@@ -213,7 +215,17 @@ export const useStore = create<Store>()(
           }
         },
 
-        playFriendly: () => mutate((g, u) => playFriendly(g, u)),
+        playFriendly: () => {
+          mutate((g, u) => playFriendly(g, u))
+          set({ matchView: 'ticker' })
+        },
+        finishLive: (opts) => {
+          mutate((g, u) => finishLiveMatch(g, u, opts))
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
         startSeason: () => mutate((g) => startSeasonProper(g)),
         playWeek: () => {
           mutate((g, u) => {

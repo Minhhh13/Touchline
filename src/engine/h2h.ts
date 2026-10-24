@@ -56,7 +56,7 @@ export function h2hSpin(u: LoadedUniverse, h: H2HDraft, rng: Rng): ClubSeason {
   h.spins++
   h.picksThisSpin = 0
   h.picking = firstIdx
-  h.log.push(`Spin ${h.spins}: ${chosen.clubId} ${chosen.season}. ${firstIdx === 0 ? 'Manager 1' : 'Manager 2'} picks first.`)
+  h.log.push(`Spin ${h.spins}: ${u.clubById[chosen.clubId]?.name ?? chosen.clubId} ${chosen.season}-${String((chosen.season + 1) % 100).padStart(2, '0')}. ${firstIdx === 0 ? 'Manager 1' : 'Manager 2'} picks first.`)
   skipIfStuck(u, h)
   return chosen
 }

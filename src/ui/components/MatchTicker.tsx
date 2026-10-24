@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MatchEvent } from '@engine/types'
-import type { FullMatchResult } from '@engine/match'
 import { minuteLabel } from '../format'
 
 const ICON: Record<MatchEvent['type'], string> = {
@@ -18,8 +17,8 @@ const ICON: Record<MatchEvent['type'], string> = {
   full_time: '🏁',
 }
 
-export function MatchTicker({ result, homeName, awayName, onDone, autoStart = true }: { result: FullMatchResult; homeName: string; awayName: string; onDone?: () => void; autoStart?: boolean }) {
-  const [clock, setClock] = useState(0)
+export function MatchTicker({ events, homeName, awayName, onDone, onHalfTime, startClock = 0, stopAt = 95, autoStart = true }: { events: MatchEvent[]; homeName: string; awayName: string; onDone?: () => void; onHalfTime?: () => void; startClock?: number; stopAt?: number; autoStart?: boolean }) {
+  const [clock, setClock] = useState(startClock)
   const [speed, setSpeed] = useState(1)
   const [running, setRunning] = useState(autoStart)
   const doneRef = useRef(false)
@@ -30,31 +29,33 @@ export function MatchTicker({ result, homeName, awayName, onDone, autoStart = tr
     const id = setInterval(() => {
       setClock((c) => {
         const next = c + 1
-        if (next >= 95) {
+        if (next >= stopAt) {
           setRunning(false)
-          return 95
+          return stopAt
         }
         return next
       })
     }, 110 / speed)
     return () => clearInterval(id)
-  }, [running, speed])
+  }, [running, speed, stopAt])
 
   useEffect(() => {
-    if (clock >= 95 && !doneRef.current) {
+    if (clock >= stopAt && !doneRef.current) {
       doneRef.current = true
-      onDone?.()
+      if (stopAt < 95) onHalfTime?.()
+      else onDone?.()
     }
-  }, [clock, onDone])
+  }, [clock, onDone, onHalfTime, stopAt])
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
   }, [clock])
 
-  const shown = useMemo(() => result.events.filter((e) => e.minute <= clock && e.type !== 'kickoff'), [result.events, clock])
+  const shown = useMemo(() => events.filter((e) => e.minute <= clock && e.type !== 'kickoff'), [events, clock])
   const hg = shown.filter((e) => e.side === 'home' && (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal')).length
   const ag = shown.filter((e) => e.side === 'away' && (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal')).length
-  const finished = clock >= 95
+  const finished = clock >= stopAt
+  const atHalfTime = finished && stopAt < 95
 
   return (
     <div className="col">
@@ -64,7 +65,7 @@ export function MatchTicker({ result, homeName, awayName, onDone, autoStart = tr
           <div className="score">
             {hg} - {ag}
           </div>
-          <div className="clock">{finished ? 'FULL TIME' : clock === 0 ? 'KICK-OFF' : minuteLabel(Math.min(90, clock) + (clock > 90 ? clock - 90 : 0)).replace(/^(\d+)'$/, "$1'")}</div>
+          <div className="clock">{atHalfTime ? 'HALF TIME' : finished ? 'FULL TIME' : clock === 0 ? 'KICK-OFF' : minuteLabel(clock)}</div>
         </div>
         <div className="team away">{awayName}</div>
       </div>
@@ -84,8 +85,8 @@ export function MatchTicker({ result, homeName, awayName, onDone, autoStart = tr
           </div>
         </div>
         {!finished && (
-          <button className="btn sm" onClick={() => setClock(95)}>
-            Skip to full time
+          <button className="btn sm" onClick={() => setClock(stopAt)}>
+            {stopAt < 95 ? 'Skip to half time' : 'Skip to full time'}
           </button>
         )}
       </div>

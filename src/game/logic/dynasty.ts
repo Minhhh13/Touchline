@@ -106,6 +106,8 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   game.awards = null
   game.tier = null
   game.quickResult = null
+  game.live = null
+  game.weekPlayed = []
   game.lastMatch = null
   game.lastMatchContext = null
   game.lastCupMatch = null

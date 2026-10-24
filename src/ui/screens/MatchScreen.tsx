@@ -1,19 +1,52 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { MatchTicker } from '../components/MatchTicker'
-import { ClubBadge, Rating, Tabs } from '../components/bits'
+import { ClubBadge, Pos, Rating, Segmented, Tabs } from '../components/bits'
 import { clubName, minuteLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
-import type { FullMatchResult } from '@engine/match'
+import { onPitch, type FullMatchResult, type TeamTalk } from '@engine/match'
 import type { MatchContext } from '@game/types'
 import { USER_TEAM } from '@engine/season'
+import type { Tactics } from '@engine/types'
+import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
+import { isAvailable } from '@game/logic/players'
 
 export function MatchScreen() {
   const store = useStore()
   const { universe: u, game, matchView, setMatchView, closeMatch } = store
   const [which, setWhich] = useState<'league' | 'cup'>('league')
-  if (!u || !game || !game.lastMatch || !game.lastMatchContext) return null
+  /** After the second half is played, the ticker resumes from 46'. */
+  const [resumeFrom, setResumeFrom] = useState(0)
+  /** When a cup tie follows the league match, hold it until the league result has been seen. */
+  const [holdLive, setHoldLive] = useState(false)
+  if (!u || !game) return null
   const get = playerLookup(game, u)
+  const live = game.live && !holdLive ? game.live : null
+
+  // Live (first half) view
+  if (live) {
+    const mp = live.mp
+    const homeName = mp.home.teamName
+    const awayName = mp.away.teamName
+    return (
+      <div className="page">
+        <div className="row between wrap" style={{ marginBottom: 10 }}>
+          <div>
+            <h2>
+              {live.ctx.roundLabel ?? (live.ctx.competition === 'cup' ? 'Cup' : `Matchweek ${live.ctx.matchweek}`)}
+              {live.ctx.importanceLabel ? ` · ${live.ctx.importanceLabel}` : ''}
+            </h2>
+            <div className="small muted">
+              {homeName} v {awayName} · live
+            </div>
+          </div>
+        </div>
+        <LiveFirstHalf key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}`} homeName={homeName} awayName={awayName} onPlayed={() => { setResumeFrom(46); setHoldLive(true); setMatchView('ticker') }} />
+      </div>
+    )
+  }
+
+  if (!game.lastMatch || !game.lastMatchContext) return null
   const res = which === 'cup' && game.lastCupMatch ? game.lastCupMatch : game.lastMatch
   const ctx = which === 'cup' && game.lastCupContext ? game.lastCupContext : game.lastMatchContext
   const homeName = res.homeTeamId === USER_TEAM ? game.settings.teamName : res.homeName ?? clubName(u, res.homeTeamId)
@@ -23,6 +56,22 @@ export function MatchScreen() {
   const ga = userIsHome ? res.awayGoals : res.homeGoals
   const outcome = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat'
   const seasonOver = game.phase === 'summary'
+  const cupNext = !!game.live && holdLive
+  const continueLabel = seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
+  const onContinue = () => {
+    if (seasonOver) {
+      store.go('game')
+      return
+    }
+    if (cupNext) {
+      setHoldLive(false)
+      setResumeFrom(0)
+      setMatchView('ticker')
+      return
+    }
+    setResumeFrom(0)
+    closeMatch()
+  }
 
   return (
     <div className="page">
@@ -37,7 +86,7 @@ export function MatchScreen() {
           </div>
         </div>
         <div className="row">
-          {game.lastCupMatch && (
+          {game.lastCupMatch && !cupNext && (
             <div className="segmented">
               <button className={which === 'league' ? 'active' : ''} onClick={() => setWhich('league')}>
                 League
@@ -47,16 +96,163 @@ export function MatchScreen() {
               </button>
             </div>
           )}
-          <button className="btn primary" onClick={() => (seasonOver ? store.go('game') : closeMatch())}>
-            {seasonOver ? 'Season summary →' : 'Continue →'}
+          <button className="btn primary" onClick={onContinue}>
+            {continueLabel}
           </button>
         </div>
       </div>
 
       <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
 
-      {matchView === 'ticker' && <MatchTicker key={res.homeTeamId + res.awayTeamId + ctx.matchweek + which} result={res} homeName={homeName} awayName={awayName} onDone={() => setMatchView('report')} />}
+      {matchView === 'ticker' && <MatchTicker key={res.homeTeamId + res.awayTeamId + ctx.matchweek + which + resumeFrom} events={res.events} homeName={homeName} awayName={awayName} startClock={resumeFrom} onDone={() => setMatchView('report')} />}
       {matchView === 'report' && <Report res={res} ctx={ctx} homeName={homeName} awayName={awayName} outcome={outcome} get={get} />}
+    </div>
+  )
+}
+
+function LiveFirstHalf({ homeName, awayName, onPlayed }: { homeName: string; awayName: string; onPlayed: () => void }) {
+  const store = useStore()
+  const { universe: u, game } = store
+  const [atHalfTime, setAtHalfTime] = useState(false)
+  const [talk, setTalk] = useState<TeamTalk>('encourage')
+  const [tactics, setTactics] = useState<Tactics | null>(null)
+  const [subs, setSubs] = useState<Array<{ off: string; on: string }>>([])
+  const [subbingOff, setSubbingOff] = useState<string | null>(null)
+  if (!u || !game?.live) return null
+  const live = game.live
+  const mp = live.mp
+  const get = playerLookup(game, u)
+  const side: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
+  const us = live.userIsHome ? mp.halfTimeScore.home : mp.halfTimeScore.away
+  const them = live.userIsHome ? mp.halfTimeScore.away : mp.halfTimeScore.home
+  const t = tactics ?? game.tactics
+  const pitch = onPitch(mp, side)
+  const subbedOn = new Set(subs.map((s) => s.on))
+  const subbedOff = new Set(subs.map((s) => s.off))
+  const benchOptions = game.bench.filter((id) => !pitch.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
+  const play = () => {
+    store.finishLive({ talk, tactics: tactics ?? undefined, substitutions: subs })
+    onPlayed()
+  }
+  return (
+    <div className="col">
+      <MatchTicker events={mp.events} homeName={homeName} awayName={awayName} stopAt={45} onHalfTime={() => setAtHalfTime(true)} />
+      {atHalfTime && (
+        <div className="panel" style={{ borderColor: 'var(--accent)' }}>
+          <div className="panel-head">
+            <h2>Half time: {us > them ? 'ahead' : us < them ? 'behind' : 'level'}</h2>
+            <span className="small muted">Make your changes, then play the second half.</span>
+          </div>
+          <div className="grid two">
+            <div className="col">
+              <div className="field">
+                Team talk
+                <Segmented<TeamTalk>
+                  value={talk}
+                  onChange={setTalk}
+                  options={[
+                    { value: 'calm', label: 'Calm', hint: 'Protects a lead' },
+                    { value: 'encourage', label: 'Encourage', hint: 'Safe lift' },
+                    { value: 'demand', label: 'Demand', hint: 'Sharpens a level game, risky when behind' },
+                    { value: 'fire-up', label: 'Fire up', hint: 'Best when behind, risky when ahead' },
+                  ]}
+                />
+              </div>
+              <div className="field">
+                Mentality <span className="help">{MENTALITY_HELP[t.mentality]}</span>
+                <Segmented value={t.mentality} onChange={(v) => setTactics({ ...t, mentality: v })} options={[{ value: 'defensive', label: 'Defensive' }, { value: 'balanced', label: 'Balanced' }, { value: 'attacking', label: 'Attacking' }]} />
+              </div>
+              <div className="field">
+                Pressing <span className="help">{PRESSING_HELP[t.pressing]}</span>
+                <Segmented value={t.pressing} onChange={(v) => setTactics({ ...t, pressing: v })} options={[{ value: 'low', label: 'Low' }, { value: 'mid', label: 'Mid' }, { value: 'high', label: 'High' }]} />
+              </div>
+              <div className="field">
+                Defensive line <span className="help">{LINE_HELP[t.defensiveLine]}</span>
+                <Segmented value={t.defensiveLine} onChange={(v) => setTactics({ ...t, defensiveLine: v })} options={[{ value: 'deep', label: 'Deep' }, { value: 'standard', label: 'Standard' }, { value: 'high', label: 'High' }]} />
+              </div>
+              <div className="field">
+                Tempo <span className="help">{TEMPO_HELP[t.tempo]}</span>
+                <Segmented value={t.tempo} onChange={(v) => setTactics({ ...t, tempo: v })} options={[{ value: 'slow', label: 'Slow' }, { value: 'standard', label: 'Standard' }, { value: 'fast', label: 'Fast' }]} />
+              </div>
+            </div>
+            <div className="col">
+              <div className="row between">
+                <span style={{ fontWeight: 600 }}>Substitutions ({subs.length}/3 at the break)</span>
+                {subbingOff && (
+                  <button className="btn sm" onClick={() => setSubbingOff(null)}>
+                    Cancel
+                  </button>
+                )}
+              </div>
+              {subbingOff ? (
+                <div className="plist">
+                  <div className="small muted">Bring on for {get(subbingOff)?.name}:</div>
+                  {benchOptions.map((id) => {
+                    const p = get(id)
+                    if (!p) return null
+                    return (
+                      <button key={id} className="prow" onClick={() => { setSubs([...subs, { off: subbingOff, on: id }]); setSubbingOff(null) }}>
+                        <Rating value={p.overall} />
+                        <span className="name">
+                          {p.name}{' '}
+                          {p.positions.map((x) => (
+                            <Pos key={x} p={x} />
+                          ))}
+                          <span className="muted small">condition {game.squad[id]?.condition}</span>
+                        </span>
+                        <span className="btn sm primary">On</span>
+                      </button>
+                    )
+                  })}
+                  {benchOptions.length === 0 && <div className="muted small">Nobody available on the bench.</div>}
+                </div>
+              ) : (
+                <div className="plist">
+                  {pitch
+                    .filter((p) => !subbedOff.has(p.psId))
+                    .map((p) => {
+                      const ps = get(p.psId)
+                      const sub = subs.find((s) => s.on === p.psId)
+                      return (
+                        <div key={p.psId} className="prow" style={{ cursor: 'default' }}>
+                          {ps ? <Rating value={ps.overall} /> : <span />}
+                          <span className="name">
+                            <Pos p={p.position} /> {ps?.name}
+                            {p.yellow && ' 🟨'}
+                            {p.goals > 0 && ` ⚽${p.goals > 1 ? p.goals : ''}`}
+                            {sub && <span className="chip good">on at HT</span>}
+                            <span className="muted small">cond {game.squad[p.psId]?.condition ?? '–'}</span>
+                          </span>
+                          {subs.length < 3 && !sub && (
+                            <button className="btn sm" onClick={() => setSubbingOff(p.psId)}>
+                              Off
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  {subs.map((s) => (
+                    <div key={s.on} className="small muted">
+                      {get(s.on)?.name} replaces {get(s.off)?.name}{' '}
+                      <button className="btn sm ghost" onClick={() => setSubs(subs.filter((x) => x !== s))}>
+                        undo
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="row" style={{ marginTop: 12 }}>
+            <button className="btn primary big" onClick={play}>
+              Play the second half
+            </button>
+            <button className="btn ghost" onClick={() => { setTactics(null); setSubs([]); store.finishLive({ talk: 'none' }); onPlayed() }}>
+              No changes
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -67,7 +263,7 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
   const userIsHome = res.homeTeamId === USER_TEAM
   const ours = userIsHome ? res.homeReport : res.awayReport
   const theirs = userIsHome ? res.awayReport : res.homeReport
-  const goals = res.events.filter((e) => e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal')
+  const goals = useMemo(() => res.events.filter((e) => e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal'), [res.events])
   return (
     <div className="grid two">
       <div className="col">
@@ -80,7 +276,9 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
             <div className="score">
               {res.homeGoals} - {res.awayGoals}
             </div>
-            <div className="clock">{outcome.toUpperCase()}</div>
+            <div className="clock">
+              {outcome.toUpperCase()} · HT {res.halfTimeScore.home}-{res.halfTimeScore.away}
+            </div>
           </div>
           <div className="team away">
             {awayName}
@@ -198,7 +396,7 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
             </div>
           )}
         </div>
-        {game && u && ctx.competition === 'league' && (
+        {game && u && ctx.competition === 'league' && ctx.roundLabel !== 'Friendly' && (
           <div className="panel">
             <h3>Opponent</h3>
             <div className="row" style={{ gap: 10 }}>
