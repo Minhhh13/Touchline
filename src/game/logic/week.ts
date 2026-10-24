@@ -589,5 +589,48 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (titles >= 3) unlock('dynasty-3')
   game.unlocked = game.unlocked.filter((x) => x !== 'survivor-pending')
   news(game, { kind: 'award', title: 'Season over', body: `${row.won}W ${row.drawn}D ${row.lost}L, ${row.points} points, ${pos}${['th', 'st', 'nd', 'rd'][pos % 10 > 3 || (pos % 100 >= 11 && pos % 100 <= 13) ? 0 : pos % 10]}. Prize money £${prize}M.` })
+  game.jobOffers = game.settings.mode === 'dynasty' && !season.sacked ? jobOffersFor(game, u, pos, table.length) : []
+  game.pendingMove = null
   game.phase = 'summary'
+}
+
+/**
+ * After a good season, bigger clubs come calling, sometimes from another
+ * league. Offers name a club in the next real season of that league.
+ */
+function jobOffersFor(game: Game, u: LoadedUniverse, pos: number, teams: number): Game['jobOffers'] {
+  const rng = Rng.fromState(game.rngState)
+  const season = game.season!
+  const offers: Game['jobOffers'] = []
+  if (pos > Math.max(6, Math.round(teams * 0.35)) && !season.cupWon) return offers
+  const squadValue = (cs: { squad: Array<{ value: number }> }) => cs.squad.reduce((s, p) => s + p.value, 0)
+  const hostNow = u.clubSeasonByKey[`${season.hostClubId}@${season.leagueSeason}`]
+  const hostValue = hostNow ? squadValue(hostNow) : 0
+  const candidates: Array<{ leagueId: string; clubId: string; value: number }> = []
+  for (const league of u.leagues) {
+    const seasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))].sort()
+    const current = league.id === season.leagueId ? season.leagueSeason : seasons[seasons.indexOf(season.leagueSeason) >= 0 ? seasons.indexOf(season.leagueSeason) : seasons.length - 2] ?? seasons[0]
+    const next = seasons[(seasons.indexOf(current) + 1) % seasons.length]
+    for (const cs of u.clubSeasons.filter((c) => c.leagueId === league.id && c.season === next)) {
+      if (cs.clubId === season.hostClubId) continue
+      const v = squadValue(cs)
+      if (v > hostValue * (league.id === season.leagueId ? 1.2 : 1.0)) candidates.push({ leagueId: league.id, clubId: cs.clubId, value: v })
+    }
+  }
+  if (!candidates.length) return offers
+  candidates.sort((a, b) => b.value - a.value)
+  const pool = candidates.slice(0, 8)
+  const n = pos === 1 || season.cupWon ? 2 : 1
+  const pitches = ['They want a title challenge and think you are the one to lead it.', 'Their board has been impressed by your work and wants ambition to match their budget.', 'A sleeping giant looking for a manager to wake it up.', 'They will double the transfer budget for the right appointment.']
+  const picked = new Set<string>()
+  for (let i = 0; i < n && pool.length; i++) {
+    let choice = rng.pick(pool)
+    let guard = 0
+    while (picked.has(choice.clubId) && guard++ < 10) choice = rng.pick(pool)
+    if (picked.has(choice.clubId)) break
+    picked.add(choice.clubId)
+    offers.push({ leagueId: choice.leagueId, clubId: choice.clubId, pitch: rng.pick(pitches), budgetBonus: Math.round(Math.max(10, Math.min(80, choice.value * 0.05))) })
+  }
+  game.rngState = rng.getState()
+  return offers
 }

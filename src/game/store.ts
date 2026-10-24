@@ -99,6 +99,7 @@ interface Store {
   advanceDay: () => void
 
   nextSeason: () => void
+  acceptJob: (index: number | null) => void
   dismissOffseason: () => void
 
   startH2H: (managers: [H2HManager, H2HManager], leagueId: string, wheelLeagues: string[], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string) => void
@@ -323,12 +324,21 @@ export const useStore = create<Store>()(
         advanceDay: () => mutate((g, u) => advanceDay(g, u)),
 
         nextSeason: () => {
-          let report: OffseasonReport | null = null
-          mutate((g, u) => {
-            report = advanceToNextSeason(g, u)
-          })
-          set({ offseason: report })
+          const { game } = get()
+          const run = () => {
+            let report: OffseasonReport | null = null
+            mutate((g, u) => {
+              report = advanceToNextSeason(g, u)
+            })
+            set({ offseason: report })
+          }
+          // Moving to a league that is not loaded yet: load it first.
+          const target = game?.pendingMove?.leagueId
+          if (target && !get().loadedLeagues.includes(target)) {
+            void get().ensureLeagues([target]).then(run)
+          } else run()
         },
+        acceptJob: (index) => mutate((g) => void (g.pendingMove = index === null ? null : { leagueId: g.jobOffers[index].leagueId, clubId: g.jobOffers[index].clubId })),
         dismissOffseason: () => set({ offseason: null }),
 
         recordResult: () => {

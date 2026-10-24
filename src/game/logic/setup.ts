@@ -46,6 +46,8 @@ export function createGame(settings: GameSettings): Game {
     bonusSpins: 0,
     friendliesPlayed: 0,
     unlocked: [],
+    jobOffers: [],
+    pendingMove: null,
     quickResult: null,
   }
 }

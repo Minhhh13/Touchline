@@ -127,8 +127,21 @@ export interface Game {
   friendliesPlayed: number
   /** Achievement ids unlocked during this game. */
   unlocked: string[]
+  /** Clubs that want you after the season (dynasty). */
+  jobOffers: JobOffer[]
+  /** Accepted move for next season. */
+  pendingMove: { leagueId: string; clubId: string } | null
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
+}
+
+export interface JobOffer {
+  leagueId: string
+  clubId: string
+  /** Why they want you, for the UI. */
+  pitch: string
+  /** Transfer budget bonus on arrival, GBP millions. */
+  budgetBonus: number
 }
 
 export interface QuickResult {

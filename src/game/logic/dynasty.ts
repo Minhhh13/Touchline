@@ -61,13 +61,20 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   const get = playerLookup(game, u)
   const report: OffseasonReport = { retired: [], expired: [], improved: [], declined: [] }
   game.year += 1
-  const leagueSeasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId).map((cs) => cs.season))].sort()
+  const targetLeague = game.pendingMove?.leagueId ?? game.settings.leagueId
+  const leagueSeasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === targetLeague).map((cs) => cs.season))].sort()
   const idx = leagueSeasons.indexOf(game.settings.leagueSeason)
-  const nextSeason = leagueSeasons[(idx + 1) % leagueSeasons.length]
+  const nextSeason = leagueSeasons[(idx + 1) % leagueSeasons.length] ?? leagueSeasons[0]
   // The host club may not exist in the next league season; pick the same club if present, else a random club of similar stature.
-  const nextClubs = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === nextSeason).map((cs) => cs.clubId)
-  const host = nextClubs.includes(game.settings.hostClubId) ? game.settings.hostClubId : rng.pick(nextClubs)
-  game.settings = { ...game.settings, leagueSeason: nextSeason, hostClubId: host }
+  const nextClubs = u.clubSeasons.filter((cs) => cs.leagueId === targetLeague && cs.season === nextSeason).map((cs) => cs.clubId)
+  const wanted = game.pendingMove?.clubId ?? game.settings.hostClubId
+  const host = nextClubs.includes(wanted) ? wanted : rng.pick(nextClubs)
+  const move = game.pendingMove
+  const bonus = move ? game.jobOffers.find((o) => o.clubId === move.clubId)?.budgetBonus ?? 0 : 0
+  game.settings = { ...game.settings, leagueId: targetLeague, leagueSeason: nextSeason, hostClubId: host, wheelLeagues: game.settings.wheelLeagues.includes(targetLeague) ? game.settings.wheelLeagues : [...game.settings.wheelLeagues, targetLeague] }
+  if (bonus) game.finances.budget = Math.round((game.finances.budget + bonus) * 10) / 10
+  game.jobOffers = []
+  game.pendingMove = null
 
   const ids = Object.keys(game.squad)
   const newSquad: typeof game.squad = {}

@@ -10,9 +10,10 @@ import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, ordinal, seasonLabel } from '../format'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
+import { downloadDataUrl, renderShareCard } from '../shareCard'
 
 export function Summary() {
-  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast } = useStore()
+  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob } = useStore()
   const [copied, setCopied] = useState(false)
   if (!u || !game) return null
   const get = playerLookup(game, u)
@@ -23,7 +24,7 @@ export function Summary() {
   const record = q ? { won: q.won, drawn: q.drawn, lost: q.lost, points: q.points, position: q.position, goalsFor: q.goalsFor, goalsAgainst: q.goalsAgainst } : last ? { won: last.won, drawn: last.drawn, lost: last.lost, points: last.points, position: last.position, goalsFor: last.goalsFor, goalsAgainst: last.goalsAgainst } : null
   if (!record) return null
   const table: TableRow[] = useMemo(() => {
-    if (q) return q.table.map((r) => ({ ...r, played: 38, form: [] }))
+    if (q) return q.table.map((r) => ({ ...r, played: (q.table.length - 1) * 2, form: [] }))
     if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
     return []
   }, [q, season])
@@ -54,6 +55,26 @@ export function Summary() {
   }
   const squad = squadPlayers(game, u)
   const isManage = game.settings.mode === 'season' || game.settings.mode === 'dynasty'
+  const [cardUrl, setCardUrl] = useState<string | null>(null)
+  const makeCard = () => {
+    try {
+      const url = renderShareCard({
+        title: game.settings.teamName,
+        subtitle: `as ${clubName(u, game.settings.hostClubId)} · ${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
+        tier,
+        row,
+        position: record.position,
+        formation,
+        lineup: game.lineup,
+        getPlayer: get,
+        footer: game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`,
+      })
+      setCardUrl(url)
+      downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+    } catch {
+      showToast('Could not render the share card.')
+    }
+  }
 
   return (
     <div className="page">
@@ -90,6 +111,9 @@ export function Summary() {
           <button className="btn primary" onClick={copy}>
             {copied ? 'Copied!' : 'Copy result to share'}
           </button>
+          <button className="btn" onClick={makeCard}>
+            Download share card
+          </button>
           {!isManage && (
             <button className="btn" onClick={() => startGame({ ...game.settings, seed: game.settings.mode === 'daily' ? game.settings.seed : Math.random().toString(36).slice(2, 10).toUpperCase() })} disabled={game.settings.mode === 'daily'}>
               Draft again
@@ -97,7 +121,7 @@ export function Summary() {
           )}
           {game.settings.mode === 'dynasty' && !season?.sacked && (
             <button className="btn primary" onClick={() => nextSeason()}>
-              Continue to {seasonLabel(game.settings.leagueSeason + 1 <= u.lastSeason ? game.settings.leagueSeason + 1 : u.firstSeason)} →
+              {game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `Continue with ${clubName(u, game.settings.hostClubId)} →`}
             </button>
           )}
           {isManage && (
@@ -111,6 +135,34 @@ export function Summary() {
         </div>
       </div>
 
+      {game.jobOffers.length > 0 && (
+        <div className="panel" style={{ marginTop: 14, borderColor: 'var(--gold)' }}>
+          <div className="panel-head">
+            <h3 style={{ color: 'var(--gold)' }}>Job offers</h3>
+            <span className="small muted">Your work has been noticed. Stay, or take your squad somewhere new next season.</span>
+          </div>
+          <div className="grid three">
+            {game.jobOffers.map((o, i) => {
+              const chosen = game.pendingMove?.clubId === o.clubId
+              return (
+                <div key={o.clubId} className="card" style={chosen ? { borderColor: 'var(--accent)' } : undefined}>
+                  <div className="row" style={{ gap: 10 }}>
+                    <ClubBadge clubId={o.clubId} size={40} />
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{clubName(u, o.clubId)}</div>
+                      <div className="small muted">{u.leagues.find((l) => l.id === o.leagueId)?.name ?? o.leagueId} · +{money(o.budgetBonus)} budget</div>
+                    </div>
+                  </div>
+                  <p className="small" style={{ margin: '8px 0' }}>{o.pitch}</p>
+                  <button className={`btn sm ${chosen ? '' : 'primary'}`} onClick={() => acceptJob(chosen ? null : i)}>
+                    {chosen ? 'Change your mind' : 'Accept'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
       <div className="grid two" style={{ marginTop: 14 }}>
         <div className="col">
           <div className="panel">
@@ -241,6 +293,12 @@ export function Summary() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {cardUrl && (
+            <div className="panel">
+              <h3>Share card</h3>
+              <img src={cardUrl} alt="Share card" style={{ width: '100%', borderRadius: 10 }} />
             </div>
           )}
           <div className="panel">
