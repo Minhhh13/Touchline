@@ -11,6 +11,7 @@ import { playerLookup, squadPlayers } from './players'
 import { autoPick, lineupProblems, squadWages } from './squad'
 import { tickWindow } from './marketOps'
 import { staffTier } from '@engine/staff'
+import { developSquad, DEVELOPMENT_INTERVAL } from './development'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { Tactics } from '@engine/types'
@@ -445,6 +446,12 @@ function afterMatchweek(game: Game, u: LoadedUniverse): void {
   const rng = Rng.fromState(game.rngState)
   trainingInjuries(game, u, rng)
   weeklyRecovery(game, u)
+  if (mw % DEVELOPMENT_INTERVAL === 0 && mw < season.matchweeks) {
+    const changes = developSquad(game, u, rng)
+    const up = changes.filter((c) => c.to > c.from)
+    const down = changes.filter((c) => c.to < c.from)
+    if (changes.length) news(game, { kind: 'training', title: 'Development report', body: `${up.length ? `Improving: ${up.map((c) => `${c.name} ${c.from}→${c.to}`).join(', ')}.` : ''}${up.length && down.length ? ' ' : ''}${down.length ? `Fading: ${down.map((c) => `${c.name} ${c.from}→${c.to}`).join(', ')}.` : ''}` })
+  }
   const wages = squadWages(game, u)
   game.finances.wagesPaid += wages / 1000
   const flow = weeklyCashFlow(game.finances, wages)
@@ -622,6 +629,21 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   game.finances.income += prize
   // Top four, or the continental trophy, earns a place in next season's Continental Cup
   game.qualifiedContinental = !season.sacked && (pos <= 4 || !!season.continental?.won)
+  // All-time records for the club's legends list
+  const career = (game.careerStats ??= {})
+  for (const x of squad) {
+    if (!x.s.seasonStats.apps) continue
+    const rec = career[x.p.playerId] ?? { name: x.p.name, seasons: 0, apps: 0, goals: 0, assists: 0, motm: 0, titles: 0, lastYear: game.year }
+    rec.seasons += 1
+    rec.apps += x.s.seasonStats.apps
+    rec.goals += x.s.seasonStats.goals
+    rec.assists += x.s.seasonStats.assists
+    rec.motm += x.s.seasonStats.motm
+    if (pos === 1 && !season.sacked) rec.titles += 1
+    rec.lastYear = game.year
+    rec.name = x.p.name
+    career[x.p.playerId] = rec
+  }
   game.history.push({
     year: game.year,
     leagueId: season.leagueId,

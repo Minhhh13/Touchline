@@ -122,6 +122,10 @@ export interface Game {
   staff?: StaffState
   /** Earned a Continental Cup place for next season (dynasty). */
   qualifiedContinental?: boolean
+  /** In-season development bookkeeping: minutes at the last tick and the rating at the start of the season. */
+  development?: Record<string, { minutes: number; base: number }>
+  /** All-time records for this side, keyed by real player id (dynasty legends). */
+  careerStats?: Record<string, CareerRecord>
   nextMatchBoost?: { attack?: number; defence?: number }
   /** A match paused at half time, waiting for the manager. */
   live: LiveMatch | null
@@ -149,6 +153,19 @@ export interface Game {
   pendingMove: { leagueId: string; clubId: string } | null
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
+}
+
+export interface CareerRecord {
+  name: string
+  seasons: number
+  apps: number
+  goals: number
+  assists: number
+  motm: number
+  /** League titles won while in the squad. */
+  titles: number
+  /** Last season played, for the display. */
+  lastYear: number
 }
 
 export interface JobOffer {

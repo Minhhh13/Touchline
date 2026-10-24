@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { FORMATIONS } from '@engine/formations'
+import { FORMATIONS, getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
 import { h2hComplete, h2hEligibleSlots, h2hUsable } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
@@ -12,6 +12,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { leagueSegments } from '../components/leagueSegments'
+import { renderShareCard, downloadDataUrl } from '../shareCard'
 
 export function H2HSetup() {
   const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
@@ -347,6 +348,33 @@ function H2HSummary() {
           <button className="btn primary" onClick={copy}>
             {copied ? 'Copied!' : 'Copy result'}
           </button>
+          {([0, 1] as const).map((i) => (
+            <button
+              key={i}
+              className="btn"
+              onClick={() => {
+                try {
+                  const url = renderShareCard({
+                    title: m[i].name,
+                    subtitle: `as ${clubName(u, m[i].hostClubId)} · head-to-head v ${m[i === 0 ? 1 : 0].name} · ${seasonLabel(h2h.leagueSeason)}`,
+                    tier: r.tiers[i],
+                    row: r.rows[i],
+                    position: r.positions[i],
+                    formation: getFormation(m[i].formationId),
+                    lineup: h2h.draft.drafts[i].lineup,
+                    getPlayer: (id) => u.index[id],
+                    footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${h2h.seed}`,
+                    hideRatings: h2h.hardMode,
+                  })
+                  downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
+                } catch {
+                  showToast('Could not render the card.')
+                }
+              }}
+            >
+              Card: {m[i].shortName}
+            </button>
+          ))}
           <button className="btn" onClick={() => { abandonH2H(); go('h2h') }}>
             Rematch
           </button>

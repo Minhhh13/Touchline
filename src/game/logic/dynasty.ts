@@ -131,6 +131,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   game.lastCupContext = null
   game.pendingEvent = null
   game.window = null
+  game.development = {}
   // Summer: bonus wheel spins scale with how many left, plus a summer market
   const lost = report.retired.length + report.expired.length + report.returned.length
   game.bonusSpins += Math.min(6, 2 + lost)

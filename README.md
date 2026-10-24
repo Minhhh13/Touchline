@@ -38,6 +38,8 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - **The Continental Cup**: tick it at setup and you join the fifteen strongest clubs from the other leagues that season in a second midweek knockout. In Dynasty a top-four finish qualifies you again.
 - An active transfer market: a January window (and a summer one in Dynasty) with asking prices that move with form, age, rival suitors, bidding wars and deadline-day discounts; loans for fringe players; part-exchange deals; approach any player in the database and the club names a price; choose the contract length; AI clubs bid for your players and really sign the ones they buy; budget and wage cap.
 - A shortlist: star players in Explore and approach them from the market in one click.
+- In-season development: every five matchweeks young players who are playing grow and veterans fade, faster with a good coach; the dynasty summer does the big yearly step.
+- Club legends: all-time appearances, goals, assists, man-of-the-match awards and titles for everyone who ever played for your side.
 - Board target and confidence, with optional job security (you can be sacked).
 - Awards, a team of the season, seventeen achievements, a local leaderboard and a share card for every season.
 - Calibrated or Realistic difficulty.

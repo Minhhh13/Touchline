@@ -871,6 +871,41 @@ function ClubTab({ table }: { table: TableRow[] }) {
           </tbody>
         </table>
       </div>
+      {game.careerStats && Object.keys(game.careerStats).length > 0 && (
+        <div className="panel">
+          <h3>Club legends</h3>
+          <p className="help">All-time records for {game.settings.teamName}, across every season of this game.</p>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th className="num">Seasons</th>
+                <th className="num">Apps</th>
+                <th className="num">Goals</th>
+                <th className="num">Assists</th>
+                <th className="num">MOTM</th>
+                <th className="num">Titles</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.values(game.careerStats)
+                .sort((a, b) => b.apps - a.apps || b.goals - a.goals)
+                .slice(0, 12)
+                .map((r) => (
+                  <tr key={r.name + r.lastYear}>
+                    <td>{r.name}</td>
+                    <td className="num">{r.seasons}</td>
+                    <td className="num">{r.apps}</td>
+                    <td className="num">{r.goals}</td>
+                    <td className="num">{r.assists}</td>
+                    <td className="num">{r.motm}</td>
+                    <td className="num">{r.titles}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="panel">
         <h3>Achievements this game</h3>
         {game.unlocked.filter((x) => x !== 'survivor-pending').length === 0 && <div className="muted small">Nothing yet. Win something.</div>}
@@ -951,6 +986,11 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
         <span className="chip">{money(p.value)}</span>
         <span className="chip">{wage(p.wage)}</span>
         {p.accolades.includes('Champion') && <span className="chip gold">🏆 Title winner</span>}
+        {game.development?.[p.id] && game.development[p.id].base !== p.overall && (
+          <span className={`chip ${p.overall > game.development[p.id].base ? 'good' : 'warn'}`} title="Rating change since the start of the season">
+            {p.overall > game.development[p.id].base ? '▲' : '▼'} {Math.abs(p.overall - game.development[p.id].base)} since the start of the season
+          </span>
+        )}
       </div>
       <div className="grid two">
         <div className="col" style={{ gap: 6 }}>
