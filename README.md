@@ -65,7 +65,15 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 | --- | --- |
 | ![A quick-draft season summary with share text](docs/screenshots/summary.png) | ![Goals, stats, tactical notes and player ratings](docs/screenshots/match-report.png) |
 
-![The January transfer window](docs/screenshots/market.png)
+| Transfer market | Continental Cup |
+| --- | --- |
+| ![January window with loans, part-exchange and approaches for any player](docs/screenshots/transfer-market.png) | ![The Continental Cup bracket against the best of the other leagues](docs/screenshots/continental-cup.png) |
+
+| Set pieces and tactics | Backroom staff |
+| --- | --- |
+| ![Formation, instructions, training and set-piece takers](docs/screenshots/tactics-set-pieces.png) | ![Board, finances, staff and contracts](docs/screenshots/backroom-staff.png) |
+
+![Opposition report with man-marking, the squad and the depth chart](docs/screenshots/squad-depth-chart.png)
 
 ## Getting started
 
