@@ -13,7 +13,7 @@ export interface WheelSegment {
  * several times and settles with that segment under the pointer, then the hub
  * reveals the season year after a short "reel" flicker.
  */
-export function Wheel({ segments, targetId, year, onSettled, spinning }: { segments: WheelSegment[]; targetId: string | null; year: number | null; onSettled?: () => void; spinning: boolean }) {
+export function Wheel({ segments, targetId, year, onSettled, spinning, spinKey }: { segments: WheelSegment[]; targetId: string | null; year: number | null; onSettled?: () => void; spinning: boolean; spinKey?: number }) {
   const [rotation, setRotation] = useState(0)
   const [reelDone, setReelDone] = useState(false)
   const rotRef = useRef(0)
@@ -38,8 +38,9 @@ export function Wheel({ segments, targetId, year, onSettled, spinning }: { segme
       clearTimeout(t1)
       clearTimeout(t2)
     }
+    // spinKey changes on every spin, so landing on the same club twice running still turns the wheel
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetId])
+  }, [targetId, spinKey])
 
   const r = 150
   const cx = 150

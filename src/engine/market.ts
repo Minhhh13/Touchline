@@ -296,6 +296,7 @@ export function signOnLoan(ctx: MarketContext, w: Window, listing: Listing, fina
   if (!p) return { accepted: false, message: 'Player not found.' }
   if (listing.loanFee === undefined) return { accepted: false, message: `${p.name} is not available on loan.` }
   if (listing.status === 'gone' || listing.status === 'signed') return { accepted: false, message: `${p.name} is no longer available.` }
+  if (ctx.ownedPlayerIds.has(p.playerId)) return { accepted: false, message: `${p.name} is already in your squad.` }
   if (listing.loanFee > finances.budget) return { accepted: false, message: `You cannot afford the £${listing.loanFee}M loan fee. Budget: £${roundM(finances.budget)}M.` }
   if (wageCommitment + p.wage > finances.wageCap) return { accepted: false, message: `${p.name}'s wages (£${p.wage}k/wk) would break the wage cap (£${finances.wageCap}k/wk).` }
   listing.status = 'signed'
@@ -324,6 +325,7 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
   const p = u.index[listing.playerSeasonId]
   if (!p) return { accepted: false, message: 'Player not found.' }
   if (listing.status === 'gone' || listing.status === 'signed') return { accepted: false, message: `${p.name} is no longer available.` }
+  if (ctx.ownedPlayerIds.has(p.playerId)) return { accepted: false, message: `${p.name} is already in your squad.` }
   if (amount > finances.budget) return { accepted: false, message: `You cannot afford £${amount}M. Budget: £${roundM(finances.budget)}M.` }
   let credit = 0
   if (exchange) {

@@ -24,7 +24,11 @@ async function download(url, dest) {
   if (await exists(dest)) return false
   process.stdout.write(`  downloading ${url}\n`)
   const res = await fetch(url, { redirect: 'follow' })
-  if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(`${url} -> HTTP ${res.status}`)
+    err.status = res.status
+    throw err
+  }
   const buf = Buffer.from(await res.arrayBuffer())
   await mkdir(path.dirname(dest), { recursive: true })
   await writeFile(dest, buf)
@@ -59,7 +63,9 @@ export async function ensureDatasets() {
       try {
         await download(`${OPENFOOTBALL_BASE}/${league.openfootball.repo}/master/${slug}/${league.openfootball.file}`, dest)
       } catch (e) {
-        await writeFile(missing, String(e.message))
+        // Only a season that really is not published is remembered as missing; a network blip is retried next run
+        if (e.status === 404) await writeFile(missing, String(e.message))
+        else throw e
       }
     }
   }

@@ -85,14 +85,18 @@ export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'
 /** The club-seasons the wheel may land on right now. */
 export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
   const r = d.rules
-  return u.clubSeasons.filter((cs) => {
+  const base = u.clubSeasons.filter((cs) => {
     if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
     if (r.toSeason !== undefined && cs.season > r.toSeason) return false
     if (r.onlyClub && cs.clubId !== r.onlyClub) return false
     if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
-    if (r.uniqueClubSeasons && d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`)) return false
     return cs.squad.some((p) => canUse(d, p))
   })
+  if (!r.uniqueClubSeasons) return base
+  // Each club-season once, but when a narrow wheel (one club, a short era) has used them all,
+  // the wheel reopens rather than stopping the draft with slots still to fill
+  const fresh = base.filter((cs) => !d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`))
+  return fresh.length ? fresh : base
 }
 
 /**

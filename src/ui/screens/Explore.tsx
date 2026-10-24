@@ -233,7 +233,7 @@ export function Explore() {
                   <div>
                     <h2 style={{ fontSize: 24 }}>{clubName(u, selected.clubId)}</h2>
                     <div className="small muted">
-                      {seasonLabel(selected.season)} · {selected.complete ? `${ordinal(selected.position)} · ${selected.points} pts · ${selected.won}-${selected.drawn}-${selected.lost}` : 'season in progress'} · {selected.squad.length} players
+                      {seasonLabel(selected.season)} · {!selected.complete ? 'season in progress' : selected.position > 0 ? `${ordinal(selected.position)} · ${selected.points} pts · ${selected.won}-${selected.drawn}-${selected.lost}` : 'final table not on record'} · {selected.squad.length} players
                     </div>
                   </div>
                 </div>

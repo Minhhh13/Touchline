@@ -14,7 +14,7 @@ import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 
 export function Summary() {
-  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob } = useStore()
+  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues } = useStore()
   const [copied, setCopied] = useState(false)
   if (!u || !game) return null
   const get = playerLookup(game, u)
@@ -137,8 +137,8 @@ export function Summary() {
             </button>
           )}
           {game.settings.mode === 'dynasty' && !season?.sacked && (
-            <button className="btn primary" onClick={() => nextSeason()}>
-              {game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `Continue with ${clubName(u, game.settings.hostClubId)} →`}
+            <button className="btn primary" onClick={() => nextSeason()} disabled={loadingLeagues}>
+              {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `Continue with ${clubName(u, game.settings.hostClubId)} →`}
             </button>
           )}
           {isManage && (

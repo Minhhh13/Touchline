@@ -59,9 +59,11 @@ export interface OffseasonReport {
 
 /** Move the game into the next season: ageing, contracts, retirements, summer window, new league environment. */
 export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonReport {
+  const report: OffseasonReport = { retired: [], expired: [], returned: [], improved: [], declined: [] }
+  // Only a finished season moves on; a second call (double tap, late league load) must not age the squad twice
+  if (game.phase !== 'summary') return report
   const rng = Rng.fromState(game.rngState)
   const get = playerLookup(game, u)
-  const report: OffseasonReport = { retired: [], expired: [], returned: [], improved: [], declined: [] }
   game.year += 1
   const targetLeague = game.pendingMove?.leagueId ?? game.settings.leagueId
   const leagueSeasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === targetLeague).map((cs) => cs.season))].sort()

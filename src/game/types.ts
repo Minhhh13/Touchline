@@ -133,6 +133,8 @@ export interface Game {
   nextMatchBoost?: { attack?: number; defence?: number }
   /** A match paused at half time, waiting for the manager. */
   live: LiveMatch | null
+  /** The final match was played live: the season closes when the manager leaves the match screen. */
+  seasonEnding?: boolean
   /** Player-season ids who played this week (league and cup), for recovery. */
   weekPlayed: string[]
   lastMatch: FullMatchResult | null

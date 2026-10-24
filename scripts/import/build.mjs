@@ -873,19 +873,35 @@ async function main() {
     }
     const players = [...byNameKey.values()].sort((a, b) => a.season - b.season || a.club.localeCompare(b.club) || b.overall - a.overall)
 
-    // Thin squads: a club with 8 to 11 rows in a season but a full squad in the next (or previous)
-    // one borrows the missing players from there, so the league keeps an even number of clubs
-    // instead of dropping a real entrant whose edition happened to be sparse.
+    // Thin squads: a club with too few rows in a season but a full squad in the next (or previous)
+    // one borrows the missing players from there, so the league keeps every real entrant instead
+    // of dropping one whose edition happened to be sparse. Any club with 8 to 11 rows qualifies;
+    // a club in that season's results table qualifies with any number of rows, even none.
     const countBy = new Map()
     for (const p of players) countBy.set(`${p.season}|${p.club}`, (countBy.get(`${p.season}|${p.club}`) ?? 0) + 1)
+    const candidates = new Map()
+    for (const [k, n] of countBy) if (n >= 8 && n < 12) candidates.set(k, n)
+    // Only seasons the player data covers: a historic table alone never becomes a playable season
+    const seasonsWithRows = new Set(players.map((p) => p.season))
+    for (const [s, t] of Object.entries(tables)) {
+      if (!seasonsWithRows.has(Number(s))) continue
+      for (const r of t.table) {
+        const k = `${s}|${r.clubId}`
+        const n = countBy.get(k) ?? 0
+        if (n < 12) candidates.set(k, n)
+      }
+    }
     const extra = []
-    for (const [k, n] of countBy) {
-      if (n >= 12 || n < 8) continue
+    for (const [k, n] of candidates) {
       const [sStr, club] = k.split('|')
       const s = Number(sStr)
       const adj = (countBy.get(`${s + 1}|${club}`) ?? 0) >= 12 ? s + 1 : (countBy.get(`${s - 1}|${club}`) ?? 0) >= 12 ? s - 1 : null
-      if (adj === null) continue
-      const have = new Set(players.filter((p) => p.season === s && p.club === club).map((p) => p.id))
+      if (adj === null) {
+        if (n < 12) warnings.push(`${leagueId} ${s}: ${club} has ${n} rows and no adjacent season to borrow from`)
+        continue
+      }
+      // Anyone already in that season (at this club or, after a move, another) is not borrowed twice
+      const have = new Set(players.filter((p) => p.season === s).map((p) => p.id))
       const pool = players.filter((p) => p.season === adj && p.club === club && !have.has(p.id)).sort((a, b) => b.overall - a.overall)
       let added = 0
       for (const p of pool) {
@@ -910,7 +926,8 @@ async function main() {
       for (const p of players) if (p.season === s) counts[p.club] = (counts[p.club] ?? 0) + 1
       const clubsIn = Object.keys(counts).filter((c) => counts[c] >= 12).sort()
       const t = tables[s]
-      return { season: s, clubs: clubsIn, complete: t?.complete ?? false, hasTable: !!t, table: t?.table ?? [] }
+      // Without a results table, only the newest season in the pack is still being played
+      return { season: s, clubs: clubsIn, complete: t ? t.complete : s < Math.max(...seasons), hasTable: !!t, table: t?.table ?? [] }
     })
     const nations = {}
     for (const p of players) if (!nations[p.nation]) nations[p.nation] = { name: NATION_NAMES[p.nation] ?? 'Unknown', flag: nationFlag(p.nation) }

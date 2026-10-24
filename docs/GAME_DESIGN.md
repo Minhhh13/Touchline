@@ -75,7 +75,7 @@ Rules (`src/engine/draft.ts`):
 - **Re-spins** are a draft-wide budget (2 quick, 3 season, 1 in a dynasty summer). A re-spin logs the skipped club-season in the draft history.
 - **Picks** go into an open slot the player can cover, or onto the bench once the XI is full. The UI suggests the first natural slot, then the first eligible one.
 - **Auto-complete** lets the assistant finish: on each spin it takes the best `overall × (1 or 0.92 if not a natural fit)` into the scarcest open slot, or the highest-rated player for the bench.
-- Agent events (section 10) and dynasty summers grant **bonus spins**, shown as a gold chip.
+- In Dynasty, agent events (section 10) and the summer grant **bonus spins**, shown as a gold chip and redeemed at the summer draft.
 
 ## 6. The player model
 
@@ -224,7 +224,7 @@ Chosen before each match (default Encourage). Effects are a multiplier on your o
 
 ### Discipline
 
-Per outfield player, probability of a yellow card: `(0.07 + 0.09 × defensive share + 0.02 if physical > 82) × pressing (1.25 high, 0.9 low) × 1.2 if derby (importance ≥ 1.2) × (1.15 − 0.3 × professionalism)`. A booked player has a 7 per cent chance of a second yellow. Straight red: `(0.004 + 0.004 × defensive share) × derby factor`.
+Per outfield player, probability of a yellow card: `(0.07 + 0.09 × defensive share + 0.02 if physical > 82) × pressing (1.25 high, 0.9 low) × 1.2 if derby (importance ≥ 1.2) × (1.15 − 0.3 × professionalism)`. A booked player has a 7 per cent chance of a second yellow. Straight red: `(0.004 + 0.004 × defensive share) × derby factor`. A booking is stamped with its minute, so a second yellow, a straight red or a substitution for that player never comes earlier than the booking. A sent-off player stays in his slot for the second-half numbers (the man disadvantage is costed once, by the short-handed factor) and still counts as having been on the pitch before his dismissal. Suspensions count down one match for every match the player's side plays without him, for your squad and for every AI club.
 
 ### Injuries
 
@@ -243,6 +243,7 @@ Injured players are replaced from the bench if a fit, unsuspended substitute exi
 
 - Up to five substitutions; up to three routine changes around the 68th minute (σ 9, between 46 and 88), tiredness-driven: a starter wants off if `condition − 8 (when tactical fatigue > 4) − 8 (if aged 33+) + N(0, 6)` is below 72, or on falling odds of 75, 55 and 30 per cent for the first three candidates.
 - Each goal picks a minute (bias to late in each half, 4.5 per cent in stoppage time), then: 2.5 per cent own goal by a defender; 9 per cent penalty, taken by the best shooting plus mentality; otherwise a scorer weighted by `(attack share × 1.6 + 0.08) × (shooting / 100)^2.2`, with an assist 78 per cent of the time weighted by midfield and attack share, passing squared and role creativity.
+- Keepers are credited with a save only for a chance the log records as saved; a summary match without a log tallies saves at three of every eight chances, so AI keepers' ratings are comparable.
 - Player match ratings start at 6.6, move 0.22 per goal of margin (capped ±0.8), +0.9 per goal, +0.5 per assist, +0.5 for a clean sheet or up to −0.6 for goals conceded (defenders, DM and GK), GK saves +0.12 each (max +0.9), `(effective rating − 75) / 100 × 1.2` for quality, Gaussian noise scaled by `0.45 × (1.1 − 0.7 × consistency)`, −1.2 for a red, −0.15 for a yellow, damped for cameos under 30 minutes, clamped 4.5 to 10. Man of the match is the highest rating with at least 20 minutes.
 - Condition lost per player: `(26 + tactical fatigue + 5 if 33+ or 2 if 30+ + (100 − physical) / 10 + 2 if fast tempo) × minutes / 90`.
 
@@ -304,6 +305,8 @@ Up to three friendlies against a random club-season that finished 8th or lower (
 6. Transfer window open, advance or close.
 7. A 42 per cent chance of a dressing-room event (not after matchweek 38).
 
+When the last match of the season is played live, the match screen keeps the final whistle until you continue; the season closes (`seasonEnding`) when you leave it, or when the assistant plays on. Half-time substitutions are written back into the lineup, so the kick-off XI is snapshotted before they are for the appearance and promise bookkeeping.
+
 ### Condition, sharpness, familiarity, morale
 
 | System | Rule |
@@ -314,7 +317,7 @@ Up to three friendlies against a random club-season that finished 8th or lower (
 | Morale after a match | +5 win, 0 draw, −5 defeat, plus `(match rating − 6.8) × 2`, clamped 10 to 100 |
 | Bench morale | From the second consecutive match missed: `−3 × star × (1.3 − 0.6 × professionalism)` per week, star being 1.6 at 84+, 1.2 at 78+, else 0.8 |
 | Promises | A promised start kept: +5; broken: −16 and an inbox item |
-| Suspensions | Every fifth yellow card: one match. Red card: three matches if the match rating was under 5.5, otherwise two |
+| Suspensions | Every fifth yellow card: one match. Red card: three matches if the match rating was under 5.5, otherwise two. Served one match at a time while he sits out |
 | Injuries | Countdown one week per matchweek; cup weeks do not count extra |
 
 ### Training
@@ -343,7 +346,7 @@ Optional at setup for Season and Dynasty (`settings.continental`), and earned by
 
 ### Man-marking
 
-`markTarget` on the user's match input (set from the opposition report, cleared after the match). At kick-off the target's attack share is cut to 60 per cent, his midfield share to 85, his effective rating by three; while he is on the pitch the opponent's expected goals are multiplied by 0.93 and the marking side's attack modifier by 0.97. The report notes it, and the modifier is re-applied after the half-time recompute.
+`markTarget` on the user's match input (set from the opposition report, cleared after the match). At kick-off the target is flagged as marked and his effective rating drops by three; while the flag holds, his weight as a scorer and as a creator from attack is multiplied by 0.6 and from midfield by 0.85 (the shares themselves are untouched, so a substitute who takes his slot inherits a clean copy), the opponent's expected goals are multiplied by 0.93 and the marking side's attack modifier by 0.97. The report notes it, and the modifier is re-applied after the half-time recompute.
 
 ### Press conferences
 
@@ -416,7 +419,7 @@ Rolled from a weighted deck when conditions are met (`src/engine/events.ts`). Th
 | Training-ground bust-up | Squad ≥ 14, 50% | Fine both (−5 each, team +2); back one (+6 / −9); ignore (50%: team +1 or team −4) |
 | Derby week | Next opponent is a rival | Feed the fire (attack +5% next match, team +2); treat it normally (defence +4% next match) |
 | The board wants a word | Matchweek ≥ 12, more than 3 places below target, confidence < 50 | Ask for backing (50%: +£20M budget, confidence −3; else −6); ask for time (+4); blame the players (confidence +5, team morale −6) |
-| An agent calls | 50% | Take the meeting (+1 bonus spin for the next draft); pass |
+| An agent calls | 50%, Dynasty only | Take the meeting (+1 bonus spin at the summer draft); pass |
 | Physio warning | 3+ players below 65 condition | Two days off (+8 condition all, team +2, sharpness unchanged in code); push through |
 | Name your captain | Matchweek 1, or matchweek 20 on a coin flip | Pick one of the three leaders by mentality + age (+8 morale, team +1) |
 
@@ -552,7 +555,7 @@ This exists in code. `GameSettings.difficulty` is `'calibrated'` (default) or `'
 
 ## 15. Determinism and saves
 
-All randomness runs through one `Rng` (xoshiro128** seeded by a cyrb53 hash) whose state is stored in the save after every action, so a seed replays identically and a daily seed is identical for everyone. The game is persisted with Zustand `persist` under the `localStorage` key `touchline-save-v1` (the active game, parked games, the shortlist, the head-to-head game, the profile and whether you were in a game). Quick drafts and dailies share one save slot; Season and Dynasty each have their own, so starting a quick draft parks a running dynasty on the home screen instead of replacing it. There is no backend.
+All randomness runs through one `Rng` (xoshiro128** seeded by a cyrb53 hash) whose state is stored in the save after every action, so a seed replays identically and a daily seed is identical for everyone. A match paused at half time stores a forked stream for its second half, so the week's other fixtures never share its numbers. A daily result is filed under the day its seed was set, not the day it was finished. The game is persisted with Zustand `persist` under the `localStorage` key `touchline-save-v1` (the active game, parked games, the shortlist, the head-to-head game, the profile and whether you were in a game). Quick drafts and dailies share one save slot; Season and Dynasty each have their own, so starting a quick draft parks a running dynasty on the home screen instead of replacing it. On load, `normaliseGame` (`src/game/logic/save.ts`) fills in every field added since a save was written, for the active game and the parked ones, and the same path covers an imported file. The default league must load; a saved game whose other leagues fail to load is parked with a toast rather than rendered against a half-loaded universe, league loads are serialised so two callers never overwrite each other, and a failed fetch is not cached. There is no backend.
 
 ### Offline
 

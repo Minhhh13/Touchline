@@ -42,6 +42,8 @@ export interface EventContext {
   budget: number
   /** The match just played, for post-match press conferences. */
   lastResult?: { gf: number; ga: number; opponentName: string; motmId?: string; scorerId?: string; competition: 'league' | 'cup' | 'continental' }
+  /** Multi-season game: bonus spins are redeemed at the summer draft, so agents only call in a dynasty. */
+  isDynasty?: boolean
 }
 
 export interface EventOutcome {
@@ -224,8 +226,8 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
     })
   }
 
-  // Youth prospect catching the eye / free agent pitched by an agent
-  if (rng.chance(0.5)) {
+  // Free agent pitched by an agent: a bonus spin, redeemed at next summer's draft (dynasty only)
+  if (ctx.isDynasty && rng.chance(0.5)) {
     candidates.push({
       weight: 1.2,
       make: () => ({
@@ -233,7 +235,7 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
         title: 'An agent calls',
         body: 'An agent is pitching a client who is between clubs. He will not say who until you agree to a meeting, but promises he can play at this level.',
         choices: [
-          { id: 'meet', label: 'Take the meeting', hint: 'A bonus spin of the wheel for a free agent.' },
+          { id: 'meet', label: 'Take the meeting', hint: 'A bonus spin of the wheel at the summer draft.' },
           { id: 'pass', label: 'Not interested', hint: 'Nothing happens.' },
         ],
       }),
@@ -423,7 +425,7 @@ export function resolveEvent(ev: GameEvent, choiceId: string, ctx: EventContext)
       if (choiceId === 'time') return { text: 'They grant you a few weeks.', confidenceDelta: 4 }
       return { text: 'The board accepts the explanation. The players read about it in the papers.', confidenceDelta: 5, teamMoraleDelta: -6 }
     case 'agent':
-      if (choiceId === 'meet') return { text: 'You agree to meet the player. Spin to see who turns up.', captain: undefined, nextMatchBoost: undefined, releasePlayer: undefined, promiseStart: undefined, budgetDelta: 0, moraleDelta: [], teamMoraleDelta: 0, conditionDelta: [], confidenceDelta: 0 }
+      if (choiceId === 'meet') return { text: 'You agree to meet the player. You will get an extra spin of the wheel at the summer draft.', captain: undefined, nextMatchBoost: undefined, releasePlayer: undefined, promiseStart: undefined, budgetDelta: 0, moraleDelta: [], teamMoraleDelta: 0, conditionDelta: [], confidenceDelta: 0 }
       return { text: 'You pass.' }
     case 'physio':
       if (choiceId === 'rest') return { text: 'Two days off. Fresh legs, slightly rusty touch.', conditionDelta: ctx.squad.map((x) => ({ playerSeasonId: x.p.id, delta: 8 })), teamMoraleDelta: 2 }

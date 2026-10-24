@@ -106,6 +106,10 @@ export interface LivePlayer {
   effective: number
   shares: { gk: number; defence: number; midfield: number; attack: number }
   creativity: number
+  /** Man-marked by the opposition: his attacking weights are cut while he is on. */
+  marked?: boolean
+  /** Minute of his booking, so a substitution or a red never predates it. */
+  cardAt?: number
 }
 
 export interface TeamSnapshot {
@@ -235,7 +239,9 @@ export function beginMatch(opts: MatchOptions): MatchInProgress {
   playHalf(mp, rng, home, away, 1, lamH, lamA)
   mp.halfTimeScore = score(mp.events)
   mp.events.push({ minute: 45, type: 'half_time', side: 'home', text: `Half time: ${home.shortName} ${mp.halfTimeScore.home}-${mp.halfTimeScore.away} ${away.shortName}.` })
-  mp.rngState = rng.getState()
+  // The second half draws from its own stream, so the caller's rng (which goes on to the
+  // week's other fixtures) is never replayed when the paused match resumes.
+  mp.rngState = rng.fork('second-half').getState()
   return mp
 }
 
@@ -258,13 +264,16 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
       const on = input.getPlayer(s.on)
       if (!off || !on || live.some((p) => p.psId === s.on)) continue
       off.offAt = 45
-      live.push({ psId: on.id, slotId: off.slotId, position: off.position, onAt: 45, offAt: 90, yellow: false, red: false, injury: null, goals: 0, assists: 0, saves: 0, effective: on.overall * positionFactor(on, off.position), shares: off.shares, creativity: off.creativity })
+      live.push({ psId: on.id, slotId: off.slotId, position: off.position, onAt: 45, offAt: 90, yellow: false, red: false, injury: null, goals: 0, assists: 0, saves: 0, effective: on.overall * positionFactor(on, off.position), shares: { ...off.shares }, creativity: off.creativity })
       subs.push({ minute: 45, off: off.psId, on: on.id, reason: 'half-time' })
       mp.events.push({ minute: 45, type: 'substitution', side: second.side, playerId: off.psId, playerName: input.getPlayer(off.psId)?.name, secondaryId: on.id, secondaryName: on.name, text: `Half-time change: ${on.name} replaces ${input.getPlayer(off.psId)?.name}.` })
     }
-    // Rebuild the side's lineup from who is on the pitch for the second-half numbers
+    // Rebuild the side's lineup for the second-half numbers: every slot keeps its most recent
+    // occupant (substitutes were pushed after the men they replaced). A sent-off or injured
+    // player stays in his slot here; being a man down is costed by shortHandedFactor, the same
+    // way it is for the AI side, so the human is not penalised twice.
     const lineup: Lineup = {}
-    for (const p of live) if (p.offAt >= 90 && !p.red) lineup[p.slotId] = p.psId
+    for (const p of live) lineup[p.slotId] = p.psId
     side.lineup = lineup
     const us = second.side === 'home' ? mp.halfTimeScore.home : mp.halfTimeScore.away
     const them = second.side === 'home' ? mp.halfTimeScore.away : mp.halfTimeScore.home
@@ -295,7 +304,7 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
 
   playHalf(mp, rng, home, away, 2, lamH, lamA)
   const final = score(mp.events)
-  mp.events.push({ minute: 90, type: 'full_time', side: 'home', text: `Full time: ${home.shortName} ${final.home}-${final.away} ${away.shortName}.` })
+  mp.events.push({ minute: Math.max(90, ...mp.events.map((e) => e.minute)), type: 'full_time', side: 'home', text: `Full time: ${home.shortName} ${final.home}-${final.away} ${away.shortName}.` })
   mp.events.sort((x, y) => x.minute - y.minute || order(x.type) - order(y.type))
 
   const homeShots = Math.max(final.home, rng.poisson(mp.lamH * 7.5))
@@ -430,6 +439,10 @@ function playHalf(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: Mat
   if (mp.detail === 'full') {
     addChances(rng, mp.hLive, mp.aLive, 'home', Math.max(0, rng.poisson(lh * 2.2)), mp.events, home.getPlayer, away.getPlayer, from, to)
     addChances(rng, mp.aLive, mp.hLive, 'away', Math.max(0, rng.poisson(la * 2.2)), mp.events, away.getPlayer, home.getPlayer, from, to)
+  } else {
+    // No chance log in summary mode, but keepers still make saves (three of every eight chances)
+    tallySaves(rng, mp.aLive, Math.min(4, rng.poisson(lh * 2.2)), from, to)
+    tallySaves(rng, mp.hLive, Math.min(4, rng.poisson(la * 2.2)), from, to)
   }
 }
 
@@ -487,8 +500,7 @@ function applyMarking(side: Pick<MatchTeamInput, 'markTarget'>, theirLive: LiveP
   const target = theirLive.find((p) => p.psId === side.markTarget && !p.red && p.offAt >= 90)
   if (!target) return
   if (kickOff) {
-    target.shares.attack *= 0.6
-    target.shares.midfield *= 0.85
+    target.marked = true
     target.effective -= 3
   }
   ourMods.attack *= 0.97
@@ -556,10 +568,11 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
       if (rng.chance(pYellow)) {
         const minute = rng.int(from, to)
         p.yellow = true
+        p.cardAt = minute
         events.push({ minute, type: 'yellow', side, playerId: p.psId, playerName: ps.name, text: `${ps.name} is booked.` })
       }
     } else if (rng.chance(0.045)) {
-      const minute = rng.int(from, to)
+      const minute = rng.int(Math.max(from, p.cardAt ?? from), to)
       p.red = true
       p.offAt = minute
       events.push({ minute, type: 'red', side, playerId: p.psId, playerName: ps.name, text: `${ps.name} sees a second yellow and is sent off!` })
@@ -567,13 +580,13 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
     }
     const pRed = (0.004 + 0.004 * p.shares.defence) * derbyF * halfF
     if (!p.red && rng.chance(pRed)) {
-      const minute = rng.int(from, to)
+      const minute = rng.int(Math.max(from, p.cardAt ?? from), to)
       p.red = true
       p.offAt = minute
       events.push({ minute, type: 'red', side, playerId: p.psId, playerName: ps.name, text: `Straight red for ${ps.name}!` })
     }
   }
-  for (const p of live) {
+  for (const p of [...live]) {
     if (p.red || p.offAt < 90 || p.injury) continue
     const ps = team.getPlayer(p.psId)
     if (!ps) continue
@@ -648,8 +661,9 @@ function bringOn(live: LivePlayer[], team: MatchTeamInput, off: LivePlayer, minu
     }
   }
   if (!best) return false
+  minute = Math.min(90, Math.max(minute, off.cardAt ?? 0))
   off.offAt = Math.min(off.offAt, minute)
-  live.push({ psId: best.id, slotId: off.slotId, position: off.position, onAt: minute, offAt: 90, yellow: false, red: false, injury: null, goals: 0, assists: 0, saves: 0, effective: best.overall * positionFactor(best, off.position), shares: off.shares, creativity: off.creativity })
+  live.push({ psId: best.id, slotId: off.slotId, position: off.position, onAt: minute, offAt: 90, yellow: false, red: false, injury: null, goals: 0, assists: 0, saves: 0, effective: best.overall * positionFactor(best, off.position), shares: { ...off.shares }, creativity: off.creativity })
   subs.push({ minute, off: off.psId, on: best.id, reason })
   const offName = team.getPlayer(off.psId)?.name ?? 'a team-mate'
   events.push({ minute, type: 'substitution', side, playerId: off.psId, playerName: offName, secondaryId: best.id, secondaryName: best.name, text: reason === 'injury' ? `${best.name} replaces the injured ${offName}.` : `${best.name} comes on for ${offName}.` })
@@ -683,7 +697,8 @@ export function leadership(side: TeamSnapshot, live: LivePlayer[], get: MatchTea
 }
 
 function activeAt(live: LivePlayer[], minute: number): LivePlayer[] {
-  return live.filter((p) => p.onAt <= minute && p.offAt > minute && !p.red)
+  // offAt holds the dismissal minute for a red card, so he counts for anything before it
+  return live.filter((p) => p.onAt <= minute && p.offAt > minute && !(p.red && minute >= Math.min(p.offAt, 89)))
 }
 
 function goalMinute(rng: Rng, from: number, to: number): number {
@@ -718,7 +733,7 @@ function scoreGoal(rng: Rng, att: LivePlayer[], def: LivePlayer[], side: 'home' 
   const scorer = rng.pickWeighted(onPitch, (p) => {
     if (p.position === 'GK') return 0.001
     const ps = getAtt(p.psId)
-    return (p.shares.attack * 1.6 + 0.08) * Math.pow((ps?.attributes.shooting ?? 50) / 100, 2.2)
+    return (p.shares.attack * (p.marked ? 0.6 : 1) * 1.6 + 0.08) * Math.pow((ps?.attributes.shooting ?? 50) / 100, 2.2)
   })
   scorer.goals++
   let assister: LivePlayer | undefined
@@ -727,7 +742,7 @@ function scoreGoal(rng: Rng, att: LivePlayer[], def: LivePlayer[], side: 'home' 
     if (others.length) {
       assister = rng.pickWeighted(others, (p) => {
         const ps = getAtt(p.psId)
-        return (p.shares.midfield * 0.6 + p.shares.attack * 0.7 + 0.05) * Math.pow((ps?.attributes.passing ?? 50) / 100, 2) * (1 + p.creativity / 4) * (p.position === 'GK' ? 0.05 : 1)
+        return (p.shares.midfield * (p.marked ? 0.85 : 1) * 0.6 + p.shares.attack * (p.marked ? 0.6 : 1) * 0.7 + 0.05) * Math.pow((ps?.attributes.passing ?? 50) / 100, 2) * (1 + p.creativity / 4) * (p.position === 'GK' ? 0.05 : 1)
       })
       assister.assists++
     }
@@ -770,13 +785,22 @@ function addChances(rng: Rng, att: LivePlayer[], def: LivePlayer[], side: 'home'
     const minute = rng.int(from, to)
     const onPitch = activeAt(att, Math.min(minute, 89)).filter((p) => p.position !== 'GK')
     if (!onPitch.length) continue
-    const p = rng.pickWeighted(onPitch, (q) => q.shares.attack + 0.1)
+    const p = rng.pickWeighted(onPitch, (q) => q.shares.attack * (q.marked ? 0.6 : 1) + 0.1)
     const gk = activeAt(def, Math.min(minute, 89)).find((q) => q.position === 'GK')
-    if (gk) gk.saves++
     const pName = getAtt(p.psId)?.name ?? 'A forward'
     const gkName = gk ? getDef(gk.psId)?.name ?? 'the keeper' : 'the keeper'
     const text = rng.pick(CHANCE_TEXTS).replace('{p}', pName).replace('{gk}', gkName)
-    events.push({ minute, type: text.includes('save') || text.includes('keep out') || text.includes('straight at') ? 'save' : 'chance', side, playerId: p.psId, playerName: pName, secondaryId: gk?.psId, secondaryName: gkName, text })
+    const type = text.includes('save') || text.includes('keep out') || text.includes('straight at') ? 'save' : 'chance'
+    if (gk && type === 'save') gk.saves++
+    events.push({ minute, type, side, playerId: p.psId, playerName: pName, secondaryId: gk?.psId, secondaryName: gkName, text })
+  }
+}
+
+function tallySaves(rng: Rng, def: LivePlayer[], chances: number, from: number, to: number): void {
+  for (let i = 0; i < chances; i++) {
+    if (!rng.chance(3 / 8)) continue
+    const gk = activeAt(def, Math.min(rng.int(from, to), 89)).find((q) => q.position === 'GK')
+    if (gk) gk.saves++
   }
 }
 

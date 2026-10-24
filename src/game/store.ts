@@ -3,15 +3,16 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { produce } from 'immer'
 import type { Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
 import type { LoadedUniverse } from '@engine/universe'
-import { loadUniverse, DEFAULT_LEAGUE, fetchAvailableLeagues } from '@engine/universe'
-import { Rng, dailySeed, type RngState } from '@engine/rng'
+import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
+import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
 import { isComplete, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
+import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
-import { applyEventChoice, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
+import { applyEventChoice, closeLiveMatch, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation } from './logic/squad'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
 import { talkTo, type TalkKind } from './logic/talks'
@@ -69,7 +70,8 @@ interface Store {
 
   loadData: () => Promise<void>
   /** Make sure these league packs are loaded and merged into the universe. */
-  ensureLeagues: (ids: string[]) => Promise<void>
+  /** Load any of the given leagues not loaded yet. Resolves true when all of them are available. */
+  ensureLeagues: (ids: string[]) => Promise<boolean>
   go: (screen: Screen, mode?: Mode) => void
   showToast: (text: string | null) => void
 
@@ -163,6 +165,8 @@ export const useStore = create<Store>()(
           set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
         }
       }
+      /** League loads run one after another so two callers never overwrite each other's universe. */
+      let pendingLoad: Promise<unknown> = Promise.resolve()
       const unlockFromGame = () => {
         const { game, profile } = get()
         if (!game) return
@@ -197,38 +201,54 @@ export const useStore = create<Store>()(
           if (get().universe || get().loading) return
           set({ loading: true, loadError: null })
           try {
-            // Load whatever the saved game or head-to-head needs, plus the default league.
+            // The default league must load; whatever the saved game or head-to-head needs on top is best effort.
             const { game, h2h } = get()
-            const needed = new Set<string>([DEFAULT_LEAGUE])
-            if (game) {
-              needed.add(game.settings.leagueId ?? DEFAULT_LEAGUE)
-              for (const l of game.settings.wheelLeagues ?? []) needed.add(l)
-              // A Continental Cup field spans every league
-              if (game.settings.continental || game.qualifiedContinental || game.season?.continental) for (const l of await fetchAvailableLeagues()) needed.add(l.id)
+            const base = await loadUniverse([DEFAULT_LEAGUE])
+            const gameNeeds = game ? leaguesFor(game, base.available.map((l) => l.id)) : []
+            const h2hNeeds = h2h ? [h2h.leagueId ?? DEFAULT_LEAGUE, ...(h2h.wheelLeagues ?? [])] : []
+            const extra = [...new Set([...gameNeeds, ...h2hNeeds])].filter((id) => id !== DEFAULT_LEAGUE)
+            const results = await Promise.allSettled(extra.map((id) => fetchLeague(id)))
+            const failed = extra.filter((_, i) => results[i].status === 'rejected')
+            const ids = [DEFAULT_LEAGUE, ...extra.filter((id) => !failed.includes(id))]
+            const u = ids.length > 1 ? await loadUniverse(ids) : base
+            const next: Partial<Store> = { universe: u, loading: false, loadedLeagues: ids }
+            if (failed.length) {
+              const names = failed.map((id) => base.available.find((l) => l.id === id)?.name ?? id).join(', ')
+              next.toast = `Could not load ${names}. Check your connection and reload to get it back.`
+              // Never render a game against a half-loaded universe: park it until its leagues load
+              if (game && gameNeeds.some((id) => failed.includes(id))) {
+                next.game = null
+                next.parked = { ...get().parked, [slotOf(game)]: game }
+                if (get().screen === 'game') next.screen = 'home'
+              }
+              if (h2h && h2hNeeds.some((id) => failed.includes(id))) {
+                next.h2h = null
+                if (get().screen === 'h2h') next.screen = 'home'
+              }
             }
-            if (h2h) {
-              needed.add(h2h.leagueId ?? DEFAULT_LEAGUE)
-              for (const l of h2h.wheelLeagues ?? []) needed.add(l)
-            }
-            const ids = [...needed]
-            const u = await loadUniverse(ids)
-            set({ universe: u, loading: false, loadedLeagues: ids })
+            set(next)
           } catch (e) {
             set({ loading: false, loadError: e instanceof Error ? e.message : String(e) })
           }
         },
-        ensureLeagues: async (ids) => {
-          const { loadedLeagues } = get()
-          const missing = ids.filter((id) => !loadedLeagues.includes(id))
-          if (!missing.length) return
-          set({ loadingLeagues: true })
-          try {
-            const all = [...new Set([...loadedLeagues, ...missing])]
-            const u = await loadUniverse(all)
-            set({ universe: u, loadedLeagues: all, loadingLeagues: false })
-          } catch (e) {
-            set({ loadingLeagues: false, toast: `Could not load league data: ${e instanceof Error ? e.message : String(e)}` })
+        ensureLeagues: (ids) => {
+          const run = async (): Promise<boolean> => {
+            const missing = ids.filter((id) => !get().loadedLeagues.includes(id))
+            if (!missing.length) return true
+            set({ loadingLeagues: true })
+            try {
+              const all = [...new Set([...get().loadedLeagues, ...missing])]
+              const u = await loadUniverse(all)
+              set({ universe: u, loadedLeagues: all, loadingLeagues: false })
+              return true
+            } catch (e) {
+              set({ loadingLeagues: false, toast: `Could not load league data: ${e instanceof Error ? e.message : String(e)}` })
+              return false
+            }
           }
+          const result = pendingLoad.then(run, run)
+          pendingLoad = result.catch(() => undefined)
+          return result
         },
         go: (screen, mode) => set({ screen, ...(mode ? { setupMode: mode } : {}) }),
         showToast: (text) => set({ toast: text }),
@@ -250,12 +270,13 @@ export const useStore = create<Store>()(
           const next = { ...parked }
           delete next[slot]
           if (current && current.phase !== 'summary') next[slotOf(current)] = current
-          const wantsAll = target.settings.continental || target.qualifiedContinental || target.season?.continental
-          const ids = [target.settings.leagueId, ...(target.settings.wheelLeagues ?? []), ...(wantsAll ? (get().universe?.available ?? []).map((l) => l.id) : [])]
+          const ids = leaguesFor(target, (get().universe?.available ?? []).map((l) => l.id))
           // Load what the game needs before showing it, so the squad is never rendered against a half-loaded universe
           void get()
             .ensureLeagues(ids)
-            .then(() => set({ game: target, parked: next, screen: 'game' }))
+            .then((ok) => {
+              if (ok) set({ game: target, parked: next, screen: 'game' })
+            })
         },
         discardParked: (slot) => {
           const next = { ...get().parked }
@@ -346,10 +367,14 @@ export const useStore = create<Store>()(
           }
         },
         simToEnd: () => get().simWeeks(40),
-        closeMatch: () =>
-          mutate((g) => {
-            if (g.phase === 'match') g.phase = g.season && g.season.matchweek === 0 ? 'preseason' : 'week'
-          }),
+        closeMatch: () => {
+          mutate((g, u) => closeLiveMatch(g, u))
+          // Leaving the final match of the season closes the season
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
         setMatchView: (v) => set({ matchView: v }),
 
         setTactics: (t) => mutate((g) => void Object.assign(g.tactics, t)),
@@ -412,6 +437,8 @@ export const useStore = create<Store>()(
         nextSeason: () => {
           const { game } = get()
           const run = () => {
+            // Only a finished season moves on (a second tap while leagues load must not run the summer twice)
+            if (get().game?.phase !== 'summary') return
             let report: OffseasonReport | null = null
             mutate((g, u) => {
               report = advanceToNextSeason(g, u)
@@ -421,7 +448,11 @@ export const useStore = create<Store>()(
           // Moving to a league that is not loaded yet, or into Europe: load first.
           const want = [game?.pendingMove?.leagueId, ...(game?.qualifiedContinental ? (get().universe?.available ?? []).map((l) => l.id) : [])].filter((x): x is string => !!x)
           if (want.some((id) => !get().loadedLeagues.includes(id))) {
-            void get().ensureLeagues(want).then(run)
+            void get()
+              .ensureLeagues(want)
+              .then((ok) => {
+                if (ok) run()
+              })
           } else run()
         },
         acceptJob: (index) => mutate((g) => void (g.pendingMove = index === null ? null : { leagueId: g.jobOffers[index].leagueId, clubId: g.jobOffers[index].clubId })),
@@ -453,9 +484,10 @@ export const useStore = create<Store>()(
           let { dailyStreak, lastDailyDate } = profile
           const dailyResults = { ...profile.dailyResults }
           if (game.settings.mode === 'daily') {
-            const today = dailySeed()
+            // The result belongs to the day the puzzle was set, not the day it was finished
+            const today = previousDailySeed(game.settings.seed) ? game.settings.seed : dailySeed()
             if (!dailyResults[today]) {
-              const yesterday = dailySeed(new Date(Date.now() - 86400000))
+              const yesterday = previousDailySeed(today) ?? dailySeed(new Date(Date.now() - 86400000))
               dailyStreak = lastDailyDate === yesterday ? dailyStreak + 1 : 1
               lastDailyDate = today
               dailyResults[today] = { points: rec.points, tier: rec.tier }
@@ -527,9 +559,27 @@ export const useStore = create<Store>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ game: s.game, parked: s.parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
       version: 1,
+      merge: (persisted, current) => {
+        // Saves from older builds (and imported files) get every later field filled in
+        const p = (persisted ?? {}) as Partial<Store>
+        const parked: Record<string, Game> = {}
+        for (const [slot, g] of Object.entries(p.parked ?? {})) {
+          const n = normaliseGame(g)
+          if (n) parked[slot] = n
+        }
+        const game = normaliseGame(p.game)
+        return { ...current, ...p, game, parked, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
+      },
     },
   ),
 )
+
+/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup. */
+function leaguesFor(game: Game, allLeagues: string[]): string[] {
+  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental
+  return [...new Set([game.settings.leagueId ?? DEFAULT_LEAGUE, ...(game.settings.wheelLeagues ?? []), ...(wantsAll ? allLeagues : [])])]
+}
+
 
 export function todaysDailySeed(): string {
   return dailySeed()

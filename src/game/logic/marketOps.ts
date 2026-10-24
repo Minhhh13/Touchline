@@ -3,7 +3,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
 import { staffTier } from '@engine/staff'
-import { newSquadPlayer } from '@engine/season'
+import { newSquadPlayer, type AiClub } from '@engine/season'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, squadWages } from './squad'
 
@@ -13,8 +13,15 @@ function log(game: Game, text: string): void {
   if (game.window) game.window.log.unshift(text)
 }
 
+/** Humans we hold: the squad, plus anyone picked in a draft still in progress (the summer wheel runs alongside the summer window). */
+export function ownedHumans(game: Game, u: LoadedUniverse): Set<string> {
+  const owned = new Set(squadPlayers(game, u).map((x) => x.p.playerId))
+  for (const id of game.draft?.takenPlayers ?? []) owned.add(id)
+  return owned
+}
+
 function marketContext(game: Game, u: LoadedUniverse, rng: Rng, priceLevel: number): MarketContext {
-  return { u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues }
+  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues }
 }
 
 export interface BidOptions {
@@ -82,6 +89,9 @@ function signListing(game: Game, u: LoadedUniverse, listing: Listing, amount: nu
   game.squad[p.id] = newSquadPlayer(p.id, { familiarity: 20, sharpness: 65 })
   game.contracts[p.id] = terms.loan ? { years: 1, loan: true } : { years: terms.years }
   if (!game.bench.includes(p.id)) game.bench.push(p.id)
+  // He leaves the league club that held him this season, and the wheel can no longer deal him again
+  leaveAiSquads(game, u, p.playerId)
+  if (game.draft && !game.draft.takenPlayers.includes(p.playerId)) game.draft.takenPlayers.push(p.playerId)
   if (!terms.loan && amount < listing.opening * 0.7 && !game.unlocked.includes('dealmaker')) game.unlocked.push('dealmaker')
   if (game.season) {
     const from = `${u.clubById[p.clubId]?.name ?? p.clubId} (${p.season}-${String((p.season + 1) % 100).padStart(2, '0')})`
@@ -95,6 +105,11 @@ export function acceptOffer(game: Game, u: LoadedUniverse, index: number): void 
   if (!offer || offer.status !== 'open') return
   const get = playerLookup(game, u)
   const p = get(offer.playerSeasonId)
+  if (!game.squad[offer.playerSeasonId]) {
+    // Already sold, released or swapped: nothing to sell, and no money for it
+    offer.status = 'withdrawn'
+    return
+  }
   if (game.contracts[offer.playerSeasonId]?.loan) {
     offer.status = 'withdrawn'
     log(game, `${p?.name ?? 'He'} is only on loan here; his parent club will not sell.`)
@@ -125,7 +140,23 @@ export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: str
   game.bench = game.bench.filter((id) => id !== playerSeasonId)
   if (game.captainId === playerSeasonId) game.captainId = undefined
   if (game.promisedStart === playerSeasonId) game.promisedStart = undefined
+  if (game.markTarget === playerSeasonId) game.markTarget = undefined
+  // Nobody can buy a player we no longer have
+  for (const o of game.window?.offers ?? []) if (o.playerSeasonId === playerSeasonId && o.status === 'open') o.status = 'withdrawn'
   autoPick(game, u, true)
+}
+
+/** The human leaves every AI squad (league and Continental Cup) holding any of his player-seasons, except `keep`. */
+function leaveAiSquads(game: Game, u: LoadedUniverse, playerId: string, keep?: AiClub): void {
+  const season = game.season
+  if (!season) return
+  for (const other of [...Object.values(season.ai), ...Object.values(season.continental?.clubs ?? {})]) {
+    if (other === keep) continue
+    const gone = other.squad.filter((id) => u.index[id]?.playerId === playerId)
+    if (!gone.length) continue
+    other.squad = other.squad.filter((id) => !gone.includes(id))
+    for (const id of gone) delete other.state[id]
+  }
 }
 
 /** Players AI clubs sign during the window really join their squads for the rest of the season. */
@@ -134,13 +165,10 @@ export function applyAiSignings(game: Game, u: LoadedUniverse, signings: AiSigni
   if (!season) return
   for (const s of signings) {
     const club = season.ai[s.clubId]
-    if (!club || !u.index[s.playerSeasonId] || club.squad.includes(s.playerSeasonId)) continue
+    const p = u.index[s.playerSeasonId]
+    if (!club || !p || club.squad.includes(s.playerSeasonId)) continue
     // He leaves whichever AI squad held him this season (a listing can be a current rival's player)
-    for (const other of [...Object.values(season.ai), ...Object.values(season.continental?.clubs ?? {})]) {
-      if (other === club || !other.squad.includes(s.playerSeasonId)) continue
-      other.squad = other.squad.filter((id) => id !== s.playerSeasonId)
-      delete other.state[s.playerSeasonId]
-    }
+    leaveAiSquads(game, u, p.playerId, club)
     club.squad.push(s.playerSeasonId)
     club.state[s.playerSeasonId] = newSquadPlayer(s.playerSeasonId, { familiarity: 30, sharpness: 70 })
   }

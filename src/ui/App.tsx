@@ -13,7 +13,7 @@ import { H2HScreen } from './screens/H2H'
 import { Modal, Toast } from './components/bits'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, abandonGame } = useStore()
 
   useEffect(() => {
     void loadData()
@@ -31,9 +31,16 @@ export function App() {
         <div className="panel">
           <h2>Could not load the player database</h2>
           <p className="muted">{loadError}</p>
-          <button className="btn primary" onClick={() => loadData()}>
-            Retry
-          </button>
+          <div className="row wrap">
+            <button className="btn primary" onClick={() => loadData()}>
+              Retry
+            </button>
+            {game && (
+              <button className="btn" onClick={() => { abandonGame(); void loadData() }}>
+                Discard the saved game and retry
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )

@@ -183,6 +183,20 @@ function rotl(x: number, k: number): number {
 }
 
 /** Seed string for the shared daily challenge, e.g. "daily-2026-10-24". */
+/** The calendar day a daily seed was set for, or null for any other seed. */
+export function dailyDateOf(seed: string): Date | null {
+  const m = /^daily-(\d{4})-(\d{2})-(\d{2})$/.exec(seed)
+  if (!m) return null
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/** The daily seed of the day before the given daily seed. */
+export function previousDailySeed(seed: string): string | null {
+  const d = dailyDateOf(seed)
+  return d ? dailySeed(new Date(d.getTime() - 86400000)) : null
+}
+
 export function dailySeed(date = new Date()): string {
   const y = date.getUTCFullYear()
   const m = String(date.getUTCMonth() + 1).padStart(2, '0')

@@ -15,7 +15,7 @@ import { developSquad, DEVELOPMENT_INTERVAL } from './development'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
-import type { Tactics } from '@engine/types'
+import type { SquadPlayer, Tactics } from '@engine/types'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
   game.season!.news.unshift({ matchweek: game.season!.matchweek, ...item })
@@ -56,12 +56,13 @@ function matchBoosts(game: Game): { attack: number; defence: number } {
   return { attack, defence }
 }
 
-function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, userIsHome: boolean, countStats = true): void {
+function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, userIsHome: boolean, countStats = true, kickOffXI?: Set<string>): void {
   const stats = userIsHome ? res.homeStats : res.awayStats
   const gf = userIsHome ? res.homeGoals : res.awayGoals
   const ga = userIsHome ? res.awayGoals : res.homeGoals
   const result: 'W' | 'D' | 'L' = gf > ga ? 'W' : gf === ga ? 'D' : 'L'
-  const starters = new Set(Object.values(game.lineup))
+  // Half-time substitutions are written into game.lineup before we get here, so the kick-off XI is passed in when known
+  const starters = kickOffXI ?? new Set(Object.values(game.lineup))
   const played = new Set<string>()
   const get = playerLookup(game, u)
   for (const st of stats) {
@@ -91,6 +92,7 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
     if (played.has(id)) game.consecutiveMissed[id] = 0
     else game.consecutiveMissed[id] = (game.consecutiveMissed[id] ?? 0) + 1
   }
+  serveSuspensions(game.squad, played)
   if (game.promisedStart) {
     const kept = starters.has(game.promisedStart)
     const s = game.squad[game.promisedStart]
@@ -111,10 +113,20 @@ function applyResultToAi(game: Game, teamId: string, res: FullMatchResult, isHom
   const gf = isHome ? res.homeGoals : res.awayGoals
   const ga = isHome ? res.awayGoals : res.homeGoals
   const result: 'W' | 'D' | 'L' = gf > ga ? 'W' : gf === ga ? 'D' : 'L'
+  const played = new Set<string>()
   for (const st of stats) {
     const s = club.state[st.playerSeasonId]
     if (!s) continue
+    played.add(st.playerSeasonId)
     applyMatchToState(s, st, true, res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result)
+  }
+  serveSuspensions(club.state, played)
+}
+
+/** A banned player serves one match of his suspension for every match his side plays without him. */
+function serveSuspensions(state: Record<string, SquadPlayer>, played: Set<string>): void {
+  for (const [id, s] of Object.entries(state)) {
+    if (s.suspension > 0 && !played.has(id)) s.suspension -= 1
   }
 }
 
@@ -203,6 +215,10 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   const season = game.season
   if (!season || season.matchweek >= season.matchweeks || season.sacked) return
   if (game.live) finishLiveMatch(game, u, undefined, true)
+  if (game.seasonEnding) {
+    game.seasonEnding = false
+    finishSeason(game, u)
+  }
   if (game.phase === 'summary') return
   const rng = Rng.fromState(game.rngState)
 
@@ -263,9 +279,9 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   }
 }
 
-function recordUserLeagueResult(game: Game, u: LoadedUniverse, res: FullMatchResult, userIsHome: boolean, opponentId: string, ctx: LiveMatch['ctx']): void {
+function recordUserLeagueResult(game: Game, u: LoadedUniverse, res: FullMatchResult, userIsHome: boolean, opponentId: string, ctx: LiveMatch['ctx'], kickOffXI?: Set<string>): void {
   const season = game.season!
-  applyResultToUser(game, u, res, userIsHome)
+  applyResultToUser(game, u, res, userIsHome, true, kickOffXI)
   applyResultToAi(game, opponentId, res, !userIsHome)
   game.lastMatch = res
   game.lastMatchContext = ctx
@@ -283,6 +299,8 @@ export function finishLiveMatch(game: Game, u: LoadedUniverse, second?: { talk?:
   const lookups = live.kind === 'friendly' ? { home: userLookups(game, u), away: friendlyLookups(u, live.opponentId) } : live.userIsHome ? { home: userLookups(game, u), away: aiLookups(game, u, live.opponentId) } : { home: aiLookups(game, u, live.opponentId), away: userLookups(game, u) }
   const opts: SecondHalfOptions | undefined = second ? { side: userSide, talk: second.talk, tactics: second.tactics, substitutions: second.substitutions } : undefined
   if (second?.tactics) game.tactics = second.tactics
+  // Who kicked off for us, before half-time substitutions are written back into the lineup
+  const kickOffXI = new Set((live.userIsHome ? live.mp.hLive : live.mp.aLive).filter((p) => p.onAt === 0).map((p) => p.psId))
   const res = finishMatch(live.mp, lookups, opts)
   game.live = null
   // Persist the half-time changes to the lineup so the squad screen matches what finished the match
@@ -309,19 +327,32 @@ export function finishLiveMatch(game: Game, u: LoadedUniverse, second?: { talk?:
   if (live.kind === 'league') {
     const f = season.fixtures.find((x) => x.matchweek === live.ctx.matchweek && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))!
     f.result = res
-    recordUserLeagueResult(game, u, res, live.userIsHome, live.opponentId, live.ctx)
+    recordUserLeagueResult(game, u, res, live.userIsHome, live.opponentId, live.ctx, kickOffXI)
     season.matchweek = live.ctx.matchweek
-    afterLeagueMatch(game, u, autoManage)
+    afterLeagueMatch(game, u, autoManage, !autoManage)
     return
   }
   // Knockout tie (domestic cup or Continental Cup)
   const comp = live.comp ?? 'cup'
   const tie = tiesOf(season, comp)[live.cupTieIndex!]
-  completeUserCupTie(game, u, tie, res, live)
+  completeUserCupTie(game, u, tie, res, live, kickOffXI)
   const rng = Rng.fromState(game.rngState)
   drawNext(game, u, rng, tie.round, comp)
   game.rngState = rng.getState()
-  afterMatchweek(game, u)
+  afterMatchweek(game, u, !autoManage)
+}
+
+/**
+ * The last match of a season played live stays on the match screen until the
+ * manager moves on; the season is only closed then.
+ */
+export function closeLiveMatch(game: Game, u: LoadedUniverse): void {
+  if (game.seasonEnding) {
+    game.seasonEnding = false
+    finishSeason(game, u)
+    return
+  }
+  if (game.phase === 'match') game.phase = game.season && game.season.matchweek === 0 ? 'preseason' : 'week'
 }
 
 function friendlyLookups(u: LoadedUniverse, clubSeasonKey: string) {
@@ -331,7 +362,7 @@ function friendlyLookups(u: LoadedUniverse, clubSeasonKey: string) {
 }
 
 /** After the league match: cup ties this week (AI ones now, the user's live), then housekeeping. */
-function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean): void {
+function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean, playedLive = false): void {
   const season = game.season!
   const mw = season.matchweek
   for (const comp of ['cup', 'continental'] as const) {
@@ -369,7 +400,7 @@ function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean): v
       game.rngState = rng.getState()
     }
   }
-  afterMatchweek(game, u)
+  afterMatchweek(game, u, playedLive)
 }
 
 function simulateAiCupTies(game: Game, u: LoadedUniverse, rng: Rng, round: CupTie['round'], comp: Competition): void {
@@ -395,11 +426,11 @@ function simulateAiCupTies(game: Game, u: LoadedUniverse, rng: Rng, round: CupTi
   }
 }
 
-function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: FullMatchResult, live: LiveMatch): void {
+function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: FullMatchResult, live: LiveMatch, kickOffXI?: Set<string>): void {
   const season = game.season!
   const comp = live.comp ?? 'cup'
   const rng = Rng.fromState(game.rngState)
-  applyResultToUser(game, u, res, live.userIsHome)
+  applyResultToUser(game, u, res, live.userIsHome, true, kickOffXI)
   applyResultToAi(game, live.opponentId, res, !live.userIsHome)
   game.lastCupMatch = res
   game.lastCupContext = live.ctx
@@ -453,7 +484,7 @@ export function continentalRun(season: SeasonState): 'R16' | 'QF' | 'SF' | 'F' |
 }
 
 /** Weekly housekeeping once every match of the week is done. */
-function afterMatchweek(game: Game, u: LoadedUniverse): void {
+function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void {
   const season = game.season!
   const mw = season.matchweek
   const rng = Rng.fromState(game.rngState)
@@ -505,7 +536,11 @@ function afterMatchweek(game: Game, u: LoadedUniverse): void {
   }
   game.phase = 'match'
   game.rngState = rng.getState()
-  if (mw >= season.matchweeks || season.sacked) finishSeason(game, u)
+  if (mw >= season.matchweeks || season.sacked) {
+    // Played live: let the manager see the final whistle first; the summary follows when they continue
+    if (playedLive) game.seasonEnding = true
+    else finishSeason(game, u)
+  }
 }
 
 export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: ReturnType<typeof computeTable>): EventContext {
@@ -516,6 +551,7 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
   const host = u.clubById[season.hostClubId]
   const lastFixture = [...season.fixtures].filter((f) => f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)).sort((a, b) => b.matchweek - a.matchweek)[0]
   let beatRival = false
+  const isDynasty = game.settings.mode === 'dynasty'
   if (lastFixture?.result && host && lastFixture.matchweek === season.matchweek) {
     const home = lastFixture.homeTeamId === USER_TEAM
     const opp = home ? lastFixture.awayTeamId : lastFixture.homeTeamId
@@ -536,6 +572,7 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
   }
   return {
     rng,
+    isDynasty,
     lastResult,
     matchweek: season.matchweek,
     expiring: squadPlayers(game, u).filter((x) => (game.contracts[x.p.id]?.years ?? 1) <= 1 && !game.contracts[x.p.id]?.renewed && !game.contracts[x.p.id]?.declined && !game.contracts[x.p.id]?.loan),

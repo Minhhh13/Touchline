@@ -42,7 +42,14 @@ export function Setup() {
   const seasons = useMemo(() => (u ? [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
   const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, leagueSeason])
   const wheelLeagues = useMemo(() => (wheelScope === 'europe' && u ? u.available.map((l) => l.id) : [leagueId]), [wheelScope, leagueId, u])
-  const allClubs = useMemo(() => (u ? [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId)).sort((a, b) => a.name.localeCompare(b.name)) : []), [u, wheelLeagues])
+  // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
+  const allClubs = useMemo(() => {
+    if (!u) return []
+    const lo = Math.min(from, to)
+    const hi = Math.max(from, to)
+    const inEra = new Set(u.clubSeasons.filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
+    return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
+  }, [u, wheelLeagues, from, to])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : clubsInLeague[Math.floor(clubsInLeague.length / 2)] ?? ''
@@ -93,7 +100,8 @@ export function Setup() {
 
   const start = () => {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
-    const rules: DraftRules = { ...base, ...eraRange(), onlyClub: !isDaily && onlyClub ? onlyClub : undefined, hardMode: !isDaily && hardMode, leagues: dailyFixed ? ['england'] : wheelLeagues }
+    const club = !isDaily && onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
+    const rules: DraftRules = { ...base, ...eraRange(), onlyClub: club, hardMode: !isDaily && hardMode, leagues: dailyFixed ? ['england'] : wheelLeagues }
     const name = teamName.trim() || 'Touchline XI'
     const short = name
       .split(/\s+/)

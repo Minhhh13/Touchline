@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { eligibleSlots, fillingXI, isComplete, neededPositions, openSlots, picksMade, suggestSlot, wheelPool } from '@engine/draft'
-import { describeFit } from '@engine/positions'
+import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { Wheel } from '../components/Wheel'
 import { Pitch } from '../components/Pitch'
@@ -120,7 +120,7 @@ export function Draft() {
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
-            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {!complete && (
               <>
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => spin()}>
@@ -192,7 +192,7 @@ export function Draft() {
                   <div>
                     <h2 style={{ fontSize: 26 }}>{clubName(u, current.clubId)}</h2>
                     <div className="muted small">
-                      {seasonLabel(current.season)} · {current.complete ? (current.champions ? '🏆 Champions' : `${ordinal(current.position)} · ${current.points} pts`) : 'season in progress'} · {current.won}-{current.drawn}-{current.lost}
+                      {seasonLabel(current.season)} · {!current.complete ? 'season in progress' : current.champions ? '🏆 Champions' : current.position > 0 ? `${ordinal(current.position)} · ${current.points} pts` : 'final table not on record'}{current.position > 0 ? ` · ${current.won}-${current.drawn}-${current.lost}` : ''}
                     </div>
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export function Draft() {
                     const ok = usable(p)
                     const taken = d.takenPlayers.includes(p.playerId)
                     const slots = eligibleSlots(d, p)
-                    const best = fillingStarters ? slots.map((s) => describeFit(p, s.position)).sort()[0] : undefined
+                    const best = fillingStarters ? bestFit(slots.map((s) => describeFit(p, s.position))) : undefined
                     return (
                       <PlayerRow
                         key={p.id}

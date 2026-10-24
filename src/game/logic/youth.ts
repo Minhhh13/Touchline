@@ -14,6 +14,11 @@ export const INTAKE_SIZE = 3
 
 export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): string[] {
   const owned = new Set(squadPlayers(game, u).map((x) => x.p.playerId))
+  // Anyone on the summer market is not also in the academy
+  for (const l of game.window?.listings ?? []) {
+    const pid = u.index[l.playerSeasonId]?.playerId
+    if (pid) owned.add(pid)
+  }
   const { fromSeason, toSeason } = game.settings.rules
   const inEra = (p: PlayerSeason) => (fromSeason === undefined || p.season >= fromSeason) && (toSeason === undefined || p.season <= toSeason)
   const young = (p: PlayerSeason) => p.age <= 20 && p.overall >= 58 && p.overall <= 76 && !owned.has(p.playerId) && inEra(p)
@@ -50,6 +55,7 @@ export function signYouth(game: Game, u: LoadedUniverse, playerSeasonId: string 
   if (!intake.candidates.includes(playerSeasonId)) return { ok: false, message: 'He is not in the intake.' }
   const p = u.index[playerSeasonId]
   if (!p) return { ok: false, message: 'Player not found.' }
+  if (squadPlayers(game, u).some((x) => x.p.playerId === p.playerId)) return { ok: false, message: `${p.name} is already in your squad.` }
   if (Object.keys(game.squad).length >= 23) return { ok: false, message: 'Squad is full (23). Make room first.' }
   game.squad[p.id] = newSquadPlayer(p.id, { familiarity: 30, sharpness: 60 })
   game.contracts[p.id] = { years: 3 }

@@ -41,7 +41,7 @@ export function MatchScreen() {
             </div>
           </div>
         </div>
-        <LiveFirstHalf key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}`} homeName={homeName} awayName={awayName} onPlayed={() => { setResumeFrom(46); setHoldLive(true); setMatchView('ticker') }} />
+        <LiveFirstHalf key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}`} homeName={homeName} awayName={awayName} onPlayed={() => { setWhich(live.kind === 'cup' ? 'cup' : 'league'); setResumeFrom(46); setHoldLive(true); setMatchView('ticker') }} />
       </div>
     )
   }
@@ -55,11 +55,13 @@ export function MatchScreen() {
   const gf = userIsHome ? res.homeGoals : res.awayGoals
   const ga = userIsHome ? res.awayGoals : res.homeGoals
   const outcome = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat'
-  const seasonOver = game.phase === 'summary'
+  const seasonOver = game.phase === 'summary' || !!game.seasonEnding
   const cupNext = !!game.live && holdLive
   const continueLabel = seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
   const onContinue = () => {
     if (seasonOver) {
+      // The final whistle has gone; closing the match closes the season
+      if (game.seasonEnding) closeMatch()
       store.go('game')
       return
     }

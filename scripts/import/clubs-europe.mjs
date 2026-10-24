@@ -171,7 +171,7 @@ export const FRANCE = [
   c('le-mans', 'Le Mans', 'Le Mans', 'LMFC', 'Le Mans', 'Les Sang et Or', 1985, '#FFD700', '#E30613', 'defensive', [], ['Le Mans FC', 'Le Mans UC 72']),
   c('grenoble', 'Grenoble', 'Grenoble', 'GF38', 'Grenoble', 'Les Grenoblois', 1892, '#1D4F9B', '#FFFFFF', 'defensive', [], ['Grenoble Foot 38']),
   c('boulogne', 'Boulogne', 'Boulogne', 'USBCO', 'Boulogne-sur-Mer', 'Les Dauphins', 1898, '#E30613', '#000000', 'defensive', [], ["US Boulogne Cote D'Opale", "US Boulogne Côte d'Opale", 'US Boulogne']),
-  c('arles-avignon', 'Arles-Avignon', 'Arles', 'ACA', 'Arles', 'Les Lions', 1913, '#FFD700', '#1D4F9B', 'defensive', [], ['AC Arles-Avignon', 'AC Arles', 'Arles']),
+  c('arles-avignon', 'Arles-Avignon', 'Arles', 'ARL', 'Arles', 'Les Lions', 1913, '#FFD700', '#1D4F9B', 'defensive', [], ['AC Arles-Avignon', 'AC Arles', 'Arles']),
   c('paris-fc', 'Paris FC', 'Paris FC', 'PFC', 'Paris', 'Les Parisiens', 1969, '#1D4F9B', '#FFFFFF', 'defensive', [], ['Paris Football Club']),
 ]
 

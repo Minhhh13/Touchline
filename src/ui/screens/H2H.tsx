@@ -204,7 +204,7 @@ export function H2HScreen() {
       <div className="grid draft">
         <div className="col">
           <div className="panel col">
-            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
@@ -246,7 +246,7 @@ export function H2HScreen() {
                 <div>
                   <h2 style={{ fontSize: 26 }}>{clubName(u, current.clubId)}</h2>
                   <div className="muted small">
-                    {seasonLabel(current.season)} · {current.complete ? (current.champions ? '🏆 Champions' : ordinal(current.position)) : 'in progress'}
+                    {seasonLabel(current.season)} · {!current.complete ? 'in progress' : current.champions ? '🏆 Champions' : current.position > 0 ? ordinal(current.position) : 'no table on record'}
                   </div>
                 </div>
               </div>

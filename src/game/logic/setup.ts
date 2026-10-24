@@ -67,8 +67,13 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     }
     game.lineup = { ...d.lineup }
     game.bench = [...d.bench]
+    // A summer signing made while the wheel was still spinning is in the squad but not the draft
+    const placed = new Set([...Object.values(game.lineup), ...game.bench])
+    for (const id of Object.keys(game.squad)) if (!placed.has(id)) game.bench.push(id)
   }
   game.draft = null
+  // The draft's squad size already included every bonus spin, so they are spent now
+  game.bonusSpins = 0
   // The host club must exist in that league season; otherwise take a random one's place.
   const inLeague = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === game.settings.leagueSeason).map((cs) => cs.clubId)
   if (inLeague.length && !inLeague.includes(game.settings.hostClubId)) game.settings = { ...game.settings, hostClubId: rng.pick(inLeague) }

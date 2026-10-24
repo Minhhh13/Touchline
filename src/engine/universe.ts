@@ -78,11 +78,18 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
       mentality: Number(get(row, 'men')),
       goalkeeping: Number(get(row, 'gk')),
     }
+    // A missing trait column reads as an average player, never as NaN
+    const trait = (col: string): number => {
+      const raw = get(row, col)
+      if (raw === '' || raw === null || raw === undefined) return 0.5
+      const v = Number(raw)
+      return Number.isFinite(v) ? v / 100 : 0.5
+    }
     const traits: Traits = {
-      consistency: Number(get(row, 'cons')) / 100,
-      injuryProneness: Number(get(row, 'inj')) / 100,
-      bigMatch: Number(get(row, 'big')) / 100,
-      professionalism: Number(get(row, 'prof')) / 100,
+      consistency: trait('cons'),
+      injuryProneness: trait('inj'),
+      bigMatch: trait('big'),
+      professionalism: trait('prof'),
     }
     const playerId = String(get(row, 'id'))
     // A player can appear for two clubs in one season (a mid-season move), so
@@ -117,13 +124,16 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
   const clubSeasons: ClubSeason[] = []
   const clubSeasonByKey: Record<string, ClubSeason> = {}
   let currentSeason: number | null = null
+  const newestSeason = Math.max(...meta.seasons.map((s) => s.season))
   const toRows = (table: MetaFile['seasons'][number]['table']): LeagueSeasonRow[] =>
     table.map((r) => ({ clubId: r.clubId, position: r.position, points: r.pts, won: r.won, drawn: r.drawn, lost: r.lost, goalsFor: r.gf, goalsAgainst: r.ga }))
   for (const s of meta.seasons) {
     const rows = toRows(s.table)
     if (rows.length) tables[s.season] = rows
     const hasTable = s.hasTable ?? rows.length > 0
-    if (hasTable && !s.complete) currentSeason = s.season
+    // Without a results table the newest season in the pack is the one still being played
+    const complete = hasTable ? s.complete : s.season < newestSeason
+    if (!complete && currentSeason === null) currentSeason = s.season
     const byClub = Object.fromEntries(rows.map((r) => [r.clubId, r]))
     for (const clubId of s.clubs) {
       const squad = (squads[`${clubId}@${s.season}`] ?? []).sort((a, b) => b.overall - a.overall)
@@ -141,7 +151,7 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
         goalsFor: t?.goalsFor ?? 0,
         goalsAgainst: t?.goalsAgainst ?? 0,
         champions,
-        complete: hasTable ? s.complete : true,
+        complete,
         squad,
       }
       if (champions) for (const p of squad) p.accolades.push('Champion')
@@ -216,11 +226,17 @@ function base(baseUrl?: string): string {
 
 export function fetchAvailableLeagues(baseUrl?: string): Promise<LeagueInfo[]> {
   if (!availableCache) {
-    availableCache = fetch(`${base(baseUrl)}data/leagues.json`).then(async (r) => {
-      if (!r.ok) throw new Error(`leagues.json ${r.status}`)
-      const j = (await r.json()) as LeaguesFile
-      return j.leagues
-    })
+    availableCache = fetch(`${base(baseUrl)}data/leagues.json`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`leagues.json ${r.status}`)
+        const j = (await r.json()) as LeaguesFile
+        return j.leagues
+      })
+      .catch((e: unknown) => {
+        // A failed fetch is not cached: the next attempt retries the network
+        availableCache = null
+        throw e
+      })
   }
   return availableCache
 }
@@ -241,7 +257,12 @@ export function fetchLeague(leagueId: string, baseUrl?: string): Promise<LoadedU
           return r.json() as Promise<MetaFile>
         }),
         fetchAvailableLeagues(baseUrl),
-      ]).then(([p, m, avail]) => buildLeague(p, m, avail.find((l) => l.id === leagueId))),
+      ])
+        .then(([p, m, avail]) => buildLeague(p, m, avail.find((l) => l.id === leagueId)))
+        .catch((e: unknown) => {
+          leagueCache.delete(leagueId)
+          throw e
+        }),
     )
   }
   return leagueCache.get(leagueId)!
