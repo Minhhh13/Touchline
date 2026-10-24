@@ -16,8 +16,8 @@ export function MatchScreen() {
   const get = playerLookup(game, u)
   const res = which === 'cup' && game.lastCupMatch ? game.lastCupMatch : game.lastMatch
   const ctx = which === 'cup' && game.lastCupContext ? game.lastCupContext : game.lastMatchContext
-  const homeName = res.homeTeamId === USER_TEAM ? game.settings.teamName : clubName(u, res.homeTeamId)
-  const awayName = res.awayTeamId === USER_TEAM ? game.settings.teamName : clubName(u, res.awayTeamId)
+  const homeName = res.homeTeamId === USER_TEAM ? game.settings.teamName : res.homeName ?? clubName(u, res.homeTeamId)
+  const awayName = res.awayTeamId === USER_TEAM ? game.settings.teamName : res.awayName ?? clubName(u, res.awayTeamId)
   const userIsHome = res.homeTeamId === USER_TEAM
   const gf = userIsHome ? res.homeGoals : res.awayGoals
   const ga = userIsHome ? res.awayGoals : res.homeGoals
@@ -73,7 +73,7 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
       <div className="col">
         <div className="scoreboard">
           <div className="team">
-            {res.homeTeamId !== USER_TEAM && <ClubBadge clubId={res.homeTeamId} size={34} />}
+            {res.homeTeamId !== USER_TEAM && <ClubBadge clubId={res.homeTeamId.replace(/^friendly-/, '')} size={34} />}
             {homeName}
           </div>
           <div className="col" style={{ alignItems: 'center', gap: 2 }}>
@@ -84,7 +84,7 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
           </div>
           <div className="team away">
             {awayName}
-            {res.awayTeamId !== USER_TEAM && <ClubBadge clubId={res.awayTeamId} size={34} />}
+            {res.awayTeamId !== USER_TEAM && <ClubBadge clubId={res.awayTeamId.replace(/^friendly-/, '')} size={34} />}
           </div>
         </div>
         <div className="panel">

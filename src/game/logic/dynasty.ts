@@ -6,6 +6,7 @@ import { overallOf } from '@engine/positions'
 import { newDraft } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { playerLookup, squadPlayers } from './players'
+import { autoPickLineup } from '@engine/ratings'
 import { releasePlayer } from './marketOps'
 import { openWindow } from '@engine/market'
 
@@ -114,10 +115,16 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   // Summer: bonus wheel spins scale with how many left, plus a summer market
   const lost = report.retired.length + report.expired.length
   game.bonusSpins += Math.min(6, 2 + lost)
-  const d = newDraft(getFormation(game.tactics.formationId), { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1 })
-  // Seed the draft with the existing squad so uniqueness holds
+  const formation = getFormation(game.tactics.formationId)
+  const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1 })
+  // Seed the draft with the existing squad: best eleven on the pitch, the rest on the bench,
+  // so the bonus spins add squad depth wherever the wheel lands.
   for (const x of squadPlayers(game, u)) d.takenPlayers.push(x.p.playerId)
-  d.bench = Object.keys(game.squad)
+  const pool = squadPlayers(game, u).map((x) => x.p)
+  const picked = autoPickLineup(formation, pool, game.tactics)
+  d.lineup = picked.lineup
+  const inXI = new Set(Object.values(picked.lineup))
+  d.bench = pool.filter((p) => !inXI.has(p.id)).map((p) => p.id)
   game.draft = d
   game.phase = 'draft'
   game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason }, 'summer', 40)

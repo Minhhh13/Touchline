@@ -59,7 +59,7 @@ export function Summary() {
     <div className="page">
       <div className="tier-banner">
         <div className="muted small">
-          {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Year ${game.year}` : game.settings.mode}
+          {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
         </div>
         <div className={`tier ${tier}`}>{TIER_LABEL[tier]}</div>
         {season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}

@@ -60,6 +60,8 @@ export interface TeamReport {
 }
 
 export interface FullMatchResult extends MatchResult {
+  homeName: string
+  awayName: string
   homeReport: TeamReport
   awayReport: TeamReport
   /** Condition lost per player-season id. */
@@ -197,6 +199,8 @@ export function simulateMatch(opts: MatchOptions): FullMatchResult {
   return {
     homeTeamId: home.teamId,
     awayTeamId: away.teamId,
+    homeName: home.teamName,
+    awayName: away.teamName,
     homeGoals,
     awayGoals,
     events,

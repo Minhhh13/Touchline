@@ -716,7 +716,7 @@ function EventCard() {
   const get = playerLookup(game, u)
   const p = ev.playerSeasonId ? get(ev.playerSeasonId) : undefined
   return (
-    <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--warn)' }}>
+    <div className="panel" data-testid="event-card" style={{ marginBottom: 12, borderColor: 'var(--warn)' }}>
       <div className="row between wrap">
         <div>
           <h3 style={{ color: 'var(--warn)' }}>✉ {ev.title}</h3>

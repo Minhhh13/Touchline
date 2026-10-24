@@ -69,7 +69,7 @@ export interface NewsItem {
 export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer> = {}): SquadPlayer {
   return {
     playerSeasonId,
-    condition: 92,
+    condition: 96,
     morale: 70,
     sharpness: 70,
     familiarity: 35,
@@ -230,8 +230,9 @@ export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng
 
 /** Weekly recovery for every squad player, user or AI. */
 export function recoverWeek(state: SquadPlayer, player: PlayerSeason, played: boolean, trainingBonus = 0): void {
-  const ageF = player.age >= 33 ? 0.8 : player.age >= 30 ? 0.9 : 1
-  const recover = (22 + (player.attributes.physical - 70) * 0.1 + trainingBonus) * ageF
+  const ageF = player.age >= 33 ? 0.85 : player.age >= 30 ? 0.93 : 1
+  // A week's rest covers one match for a fit player; two matches in a week do not.
+  const recover = (31 + (player.attributes.physical - 70) * 0.12 + trainingBonus) * ageF
   state.condition = Math.min(100, Math.round(state.condition + recover))
   if (!played) state.sharpness = Math.max(30, state.sharpness - 6)
   if (state.injury) {

@@ -16,6 +16,7 @@ export function money(m: number): string {
   return `£${Math.round(m * 1000)}k`
 }
 export function wage(k: number): string {
+  if (k >= 1000) return `£${(k / 1000).toFixed(2)}M/wk`
   return `£${Math.round(k)}k/wk`
 }
 export function flag(u: LoadedUniverse | null, nation: string): string {

@@ -5,7 +5,7 @@ import { simulateMatch, type FullMatchResult, type MatchTeamInput } from '@engin
 import { aiTeamInput, applyMatchToState, benchMoraleDrift, computeTable, CUP_ROUNDS, describeImportance, drawNextCupRound, MATCHWEEKS, positionOf, recoverWeek, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type CupTie, type NewsItem } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
-import { advanceWindow, openWindow, prizeMoney } from '@engine/market'
+import { advanceWindow, openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
 import { computeAwards } from '@engine/awards'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, lineupProblems, squadWages } from './squad'
@@ -196,7 +196,9 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   weeklyRecovery(game, u, playedIds)
   const wages = squadWages(game, u)
   game.finances.wagesPaid += wages / 1000
-  game.finances.budget = Math.round((game.finances.budget - wages / 1000) * 10) / 10
+  const flow = weeklyCashFlow(game.finances, wages)
+  game.finances.budget = Math.round((game.finances.budget + flow) * 10) / 10
+  if (flow > 0) game.finances.income += flow
 
   const newTable = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
   const userRow = newTable.find((r) => r.teamId === USER_TEAM)!
@@ -375,7 +377,13 @@ export function playFriendly(game: Game, u: LoadedUniverse): void {
 }
 
 export function startSeasonProper(game: Game): void {
-  if (game.phase === 'preseason') game.phase = 'week'
+  if (game.phase === 'preseason') {
+    game.phase = 'week'
+    if (game.window?.kind === 'summer') {
+      game.season?.news.unshift({ matchweek: 0, kind: 'transfer', title: 'Summer window closed', body: 'The season is under way. The next window opens in January.' })
+      game.window = null
+    }
+  }
 }
 
 export function finishSeason(game: Game, u: LoadedUniverse): void {

@@ -270,12 +270,23 @@ export function wageBill(players: PlayerSeason[]): number {
  * Starting finances from the host club's stature and the league era.
  * Budgets are deliberately tight for the top of the market so choices matter.
  */
-export function startingFinances(u: LoadedUniverse, hostClubId: string, leagueSeason: number): Finances {
+export function startingFinances(u: LoadedUniverse, hostClubId: string, leagueSeason: number, squadWages = 0): Finances {
   const cs = u.clubSeasonByKey[`${hostClubId}@${leagueSeason}`]
   const squadValue = cs ? cs.squad.reduce((s, p) => s + p.value, 0) : 300
-  const budget = roundM(Math.max(25, Math.min(220, squadValue * 0.22)))
-  const wageCap = Math.round(Math.max(900, Math.min(4200, squadValue * 4.5)))
+  const budget = roundM(Math.max(30, Math.min(250, squadValue * 0.3)))
+  // The board underwrites the drafted squad's wages with 15% headroom, or the
+  // club's natural wage bill if that is higher.
+  const clubCap = Math.round(Math.max(900, Math.min(4500, squadValue * 5)))
+  const wageCap = Math.round(Math.max(clubCap, squadWages * 1.15))
   return { budget, wageCap, income: 0, spent: 0, wagesPaid: 0 }
+}
+
+/**
+ * Weekly cash flow: match-day and broadcast income roughly covers the wage
+ * cap. Spending under the cap drips into the budget; over it drains.
+ */
+export function weeklyCashFlow(finances: Finances, wages: number): number {
+  return (finances.wageCap - wages) / 1000
 }
 
 /** Prize money by final league position (GBP millions), roughly real-world shaped. */

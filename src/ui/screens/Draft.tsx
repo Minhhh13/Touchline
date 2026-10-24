@@ -170,7 +170,8 @@ export function Draft() {
           {!current && (
             <div className="col" style={{ alignItems: 'center', padding: '40px 10px', textAlign: 'center' }}>
               <div style={{ fontSize: 40 }}>🎡</div>
-              <h3>{complete ? 'All picks made' : 'Spin to land on a club and season'}</h3>
+              <h3>{complete ? 'All picks made' : isDynastySummer ? `Summer signings: ${total - made} spin${total - made === 1 ? '' : 's'} to add depth` : 'Spin to land on a club and season'}</h3>
+              {isDynastySummer && !complete && <p className="muted small">Your squad carries over (best eleven shown on the pitch). Each spin adds one player to the squad; the summer market is open in the Dugout too.</p>}
               <p className="muted small">The wheel only stops on squads with a player who can fill a slot you still need, so there are no dead spins. A player can be drafted once, whichever season you catch him in.</p>
             </div>
           )}
@@ -219,7 +220,7 @@ export function Draft() {
                         selected={selectedPlayer === p.id}
                         hideRatings={hide}
                         onClick={() => onPick(p)}
-                        extra={taken ? <span className="chip">already drafted</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{slots.map((s) => s.position).join('/')}</span> : null}
+                        extra={taken ? <span className="chip">already drafted</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
                         right={ok ? <span className="btn sm primary">{fillingStarters ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )

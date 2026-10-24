@@ -1,1 +1,131 @@
 # Touchline
+
+**Spin the wheel. Draft the XI. Manage the season.**
+
+A free, open web football game that fuses the spin-and-draft loop of 38-0 with the week-by-week management of Football Manager. Spin a wheel that lands on a real English top-flight club in a real season (2008-09 to 2026-27), draft one player from that squad, repeat until your side is built, then either simulate the season instantly or manage it one matchweek at a time: roles, instructions, condition, injuries, a cup, a January window, a board that counts. Your drafted side takes one real club's place and plays the other nineteen clubs' real squads of that season.
+
+No account, no server, no ads. Everything runs in the browser and saves to `localStorage`.
+
+## Features
+
+**Modes**
+
+- **Quick Draft**: eleven spins, eleven picks, one click to simulate 38 matches. Five minutes and a shareable result.
+- **Daily Challenge**: everyone gets the same wheel today (seed `daily-YYYY-MM-DD`). Streaks are tracked.
+- **Season**: draft 16 to 22 players, then manage 38 matchweeks with three pre-season friendlies, a 16-team cup, a transfer window and a board.
+- **Dynasty**: Season mode that never ends. Players age, contracts run down, some retire, you get summer bonus spins and the league moves on to the next real season.
+
+**The draft**
+
+- The wheel only lands on squads that can fill a slot you still need: no dead spins.
+- A real player can be drafted once, whichever club or season you catch him in.
+- Eight formations, position eligibility (a wing-back covers full-back, a wide midfielder covers the wing), era filters, one-club mode, hard mode (ratings hidden), re-spins and shareable seeds.
+
+**Management**
+
+- Thirty-four player roles and six team instructions whose effects are printed in every match report.
+- An xG-based match engine with a live ticker, scorers, assists, cards, injuries, substitutions and player ratings.
+- Condition, sharpness, familiarity, morale and form; suspensions at five yellow cards; injuries from a knock to a ruptured ACL.
+- Weekly training focus, pre-match team talks, dressing-room events with choices, a captain, promises you can break.
+- A cup played midweek after matchweeks 6, 14, 24 and 36, with penalties.
+- A January window with asking prices that move with form, age, rival suitors, bidding wars and deadline-day discounts; AI clubs bid for your players; budget and wage cap.
+- Board target and confidence, with optional job security (you can be sacked).
+- Awards, a team of the season, fifteen achievements, a local leaderboard and a share text for every season.
+- Calibrated or Realistic difficulty.
+
+**Explore**: browse every club-season on the wheel with its real squad and ratings, the highest-rated player-seasons by position, and a player search.
+
+## Screenshots
+
+Screenshots to follow. In the meantime run the game locally (below) or read `docs/GAME_DESIGN.md` for a full walkthrough of the systems.
+
+## Getting started
+
+Requires Node 20 or later (Node 22.13 or later to rebuild the data).
+
+```bash
+git clone https://github.com/Minhhh13/Touchline.git
+cd Touchline
+npm install
+npm run dev        # Vite dev server
+npm test           # Vitest: engine, draft, match, season and data checks
+npm run typecheck  # tsc -b --noEmit
+npm run build      # tsc -b && vite build, output in dist/
+npm run preview    # serve the production build
+```
+
+The player database ships in the repository (`public/data/england/`). To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+
+```bash
+node scripts/import/build.mjs
+```
+
+See `docs/DATA.md` for sources, method, cache location (`.cache/datasets` or `DATA_CACHE`) and the nationality enrichment step.
+
+## Project structure
+
+```
+index.html                 Entry page (fonts, favicon, meta)
+src/
+  main.tsx                 React root
+  engine/                  Pure, deterministic game engine (no React, no DOM)
+    rng.ts                 xoshiro128** PRNG, seeds, daily seed
+    types.ts               Shared domain types
+    positions.ts           Ten positions, attribute weights, position fit
+    roles.ts               34 roles with weights, unit contributions, effects
+    formations.ts          Eight formations with slot coordinates
+    ratings.ts             Role ratings, live modifiers, team strength, chemistry, auto-pick
+    tactics.ts             Team instructions, AI styles, tactical modifiers
+    match.ts               The match engine (xG, Poisson goals, events, ratings)
+    season.ts              Fixtures, table, cup, recovery, morale, board, tiers
+    draft.ts               The wheel and draft rules
+    market.ts              Transfer windows, pricing, bids, offers, finances
+    events.ts              Dressing-room and media events
+    training.ts            Weekly training focus
+    awards.ts              Awards, achievements, share text
+    universe.ts            Loads players.json and meta.json into typed structures
+    __tests__/             Vitest suites
+  game/
+    store.ts               Zustand store with Immer, persisted to localStorage
+    types.ts               Game, settings, profile types
+    logic/                 setup, quick season, weekly loop, squad, market ops, dynasty
+  ui/
+    App.tsx                Shell and routing between screens
+    screens/               Home, Setup, Draft, Dugout, MatchScreen, Summary, Explore, Profile, HowTo
+    components/            Wheel, Pitch, PlayerRow, TableView, MatchTicker, bits
+    styles.css             Theme tokens (dark "Floodlit" and light "Daylight")
+scripts/import/            Data pipeline (build.mjs, download.mjs, parsers, club and nation tables)
+public/data/england/       Generated players.json and meta.json
+docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md
+.github/workflows/ci.yml   Typecheck, test and build on Node 22
+```
+
+## Tech stack
+
+- Vite 6, React 19, TypeScript 5.8 (strict).
+- Zustand 5 with Immer for state, persisted to `localStorage` under `touchline-save-v1`.
+- Vitest 3 for tests.
+- No backend, no analytics, no external services at runtime; Google Fonts is the only third-party request.
+- Path aliases `@engine`, `@game`, `@ui`.
+
+## Data and credits
+
+Ratings and squads are built from public datasets: Stefano Leone's EA Sports FC 24 complete player dataset (CC0), nyagami's FC 25 database (Apache 2.0), justdhia's FC 26 ratings (CC0), mikedpad's FC 27 ratings (unofficial non-commercial snapshot), Hugo Mathien's European Soccer Database (ODbL), openfootball/england results (public domain) and Wikidata (CC0). A player's rating for a season comes from the edition published after it, so it reflects how he actually played. Values and wages are our own model. Full detail, method and limits are in [docs/DATA.md](docs/DATA.md).
+
+Design documents:
+
+- [docs/RESEARCH.md](docs/RESEARCH.md): 38-0 and Football Manager analysis and the fusion thesis.
+- [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): every system and formula as implemented.
+- [docs/DATA.md](docs/DATA.md): data pipeline, sources and licences.
+
+## Roadmap
+
+- Head-to-head hot-seat drafting.
+- European leagues.
+- 1992-93 to 2007-08 seasons (open data permitting).
+- Online leaderboards and shared daily results.
+- PWA packaging for offline play.
+
+## Disclaimer
+
+Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively; no official crests, logos, kits or likenesses are used. Player ratings are an independent interpretation derived from publicly available data and may differ from any official source. Datasets are credited to their authors and used under their published licences.

@@ -7,7 +7,7 @@ import { defaultTactics } from '@engine/tactics'
 import { newSquadPlayer, buildAiClubs, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset } from '@engine/season'
 import { startingFinances } from '@engine/market'
 import { computeTeamStrength } from '@engine/ratings'
-import { autoPick, teamStrength } from './squad'
+import { autoPick, squadWages, teamStrength } from './squad'
 import { playerLookup } from './players'
 
 export function createGame(settings: GameSettings): Game {
@@ -93,10 +93,16 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     boardTarget,
     sacked: false,
   }
-  if (game.year === 1) game.finances = startingFinances(u, s.hostClubId, s.leagueSeason)
+  if (game.year === 1) game.finances = startingFinances(u, s.hostClubId, s.leagueSeason, squadWages(game, u))
+  else {
+    // New season: the wage cap follows the squad again, the budget carries over.
+    const fresh = startingFinances(u, s.hostClubId, s.leagueSeason, squadWages(game, u))
+    game.finances = { ...game.finances, wageCap: fresh.wageCap, income: 0, spent: 0, wagesPaid: 0 }
+  }
   game.friendliesPlayed = 0
   game.phase = 'preseason'
-  autoPick(game, u, true)
+  // The draft order constrained who went where; start the season with the strongest eleven.
+  autoPick(game, u, false)
   game.rngState = rng.getState()
   void playerLookup
 }
