@@ -1,7 +1,7 @@
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
-import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, positionOf, seasonTier, aiTeamInput } from '@engine/season'
+import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, aiTeamInput } from '@engine/season'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -62,7 +62,7 @@ export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager,
   const table = computeTable(fixtures, ids)
   const rows = [table.find((r) => r.teamId === H2H_IDS[0])!, table.find((r) => r.teamId === H2H_IDS[1])!] as [TableRow, TableRow]
   const positions = [positionOf(table, H2H_IDS[0]), positionOf(table, H2H_IDS[1])] as [number, number]
-  const mw = (ids.length - 1) * 2
+  const mw = matchweeksFor(ids.length)
   const tiers = [seasonTier(table, H2H_IDS[0], false, mw), seasonTier(table, H2H_IDS[1], false, mw)] as [SeasonTier, SeasonTier]
   const winner: 0 | 1 | null = positions[0] < positions[1] ? 0 : positions[1] < positions[0] ? 1 : null
   const top = (g: Record<string, number>) => {

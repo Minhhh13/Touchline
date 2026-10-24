@@ -1,15 +1,119 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { ClubBadge, Rating, Pos } from '../components/bits'
+import { Bar, ClubBadge, Flag, Modal, Rating, Pos } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
 
-function Star({ on }: { on: boolean }) {
+function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
-    <span className={on ? 'star on' : 'star'} title={on ? 'On your shortlist' : 'Add to shortlist'}>
+    <span
+      className={on ? 'star on' : 'star'}
+      title={on ? 'On your shortlist' : 'Add to shortlist'}
+      onClick={(e) => {
+        if (!onClick) return
+        e.stopPropagation()
+        onClick()
+      }}
+    >
       {on ? '★' : '☆'}
     </span>
+  )
+}
+
+/** Every season of one real player across all loaded leagues, with the ratings the engine uses. */
+function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: () => void }) {
+  const { universe: u, shortlist, toggleShortlist } = useStore()
+  const seasons = useMemo(() => (u && playerId ? Object.values(u.index).filter((p) => p.playerId === playerId).sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId)) : []), [u, playerId])
+  if (!u || !playerId || !seasons.length) return null
+  const best = [...seasons].sort((a, b) => b.overall - a.overall)[0]
+  const latest = seasons[seasons.length - 1]
+  const clubs = [...new Set(seasons.map((p) => p.clubId))]
+  const peak = Math.max(...seasons.map((p) => p.overall))
+  const low = Math.min(...seasons.map((p) => p.overall))
+  return (
+    <Modal open onClose={onClose} title={latest.name} wide>
+      <div className="row wrap" style={{ marginBottom: 10 }}>
+        <Flag nation={latest.nationality} />
+        <span className="chip">
+          {seasons.length} season{seasons.length === 1 ? '' : 's'} · {clubs.length} club{clubs.length === 1 ? '' : 's'}
+        </span>
+        <span className="chip gold">Peak {peak}</span>
+        <span className="chip">
+          {latest.positions.map((x) => (
+            <Pos key={x} p={x} />
+          ))}
+        </span>
+        {seasons.some((p) => p.accolades.includes('Champion')) && <span className="chip gold">🏆 {seasons.filter((p) => p.accolades.includes('Champion')).length} title{seasons.filter((p) => p.accolades.includes('Champion')).length === 1 ? '' : 's'}</span>}
+      </div>
+      <div className="grid two">
+        <div>
+          <div className="small muted" style={{ marginBottom: 6 }}>Rating by season (peak season highlighted)</div>
+          <div className="row" style={{ gap: 3, alignItems: 'flex-end', height: 70 }}>
+            {seasons.map((p) => (
+              <div key={p.id} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: p === best ? 'var(--gold)' : 'var(--accent)', borderRadius: 3, opacity: p === best ? 1 : 0.75 }} />
+            ))}
+          </div>
+          <div className="row between small muted" style={{ marginTop: 4 }}>
+            <span>{seasonLabel(seasons[0].season)}</span>
+            <span>{seasonLabel(latest.season)}</span>
+          </div>
+          <div className="small muted" style={{ marginTop: 10, marginBottom: 6 }}>
+            Attributes at his peak: {clubName(u, best.clubId)} {seasonLabel(best.season)}
+          </div>
+          <div className="col" style={{ gap: 5 }}>
+            {(['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical', 'mentality', 'goalkeeping'] as const).map((k) => (
+              <div key={k} className="row" style={{ gap: 8 }}>
+                <span style={{ width: 90, textTransform: 'capitalize' }} className="small">
+                  {k}
+                </span>
+                <Bar value={best.attributes[k]} colour={best.attributes[k] >= 80 ? 'var(--accent)' : best.attributes[k] >= 65 ? 'var(--gold)' : 'var(--text-3)'} />
+                <span className="mono small" style={{ width: 24, textAlign: 'right' }}>
+                  {best.attributes[k]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ maxHeight: 420, overflow: 'auto' }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>Club</th>
+                <th className="num">Age</th>
+                <th className="num">OVR</th>
+                <th className="num">Value</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {seasons.map((p) => (
+                <tr key={p.id} style={p === best ? { fontWeight: 700 } : undefined}>
+                  <td>{seasonLabel(p.season)}</td>
+                  <td>
+                    <span className="row" style={{ gap: 6 }}>
+                      <ClubBadge clubId={p.clubId} size={18} /> {clubName(u, p.clubId)}
+                      {p.accolades.includes('Champion') ? ' 🏆' : ''}
+                    </span>
+                  </td>
+                  <td className="num">{p.age}</td>
+                  <td className="num">
+                    <Rating value={p.overall} />
+                  </td>
+                  <td className="num">£{p.value}M</td>
+                  <td>
+                    <button type="button" className="btn sm ghost" onClick={() => toggleShortlist(p.id)} title="Shortlist this season">
+                      <Star on={shortlist.includes(p.id)} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -19,6 +123,7 @@ export function Explore() {
   const [season, setSeason] = useState<number>(u?.lastSeason ?? 2026)
   const [clubId, setClubId] = useState<string>('')
   const [query, setQuery] = useState('')
+  const [careerId, setCareerId] = useState<string | null>(null)
   const [view, setView] = useState<'browse' | 'legends' | 'search'>('browse')
   const [posFilter, setPosFilter] = useState<'all' | Position>('all')
   if (!u) return null
@@ -134,7 +239,7 @@ export function Explore() {
                 </div>
                 <div className="plist" style={{ maxHeight: 620, overflow: 'auto' }}>
                   {selected.squad.map((p) => (
-                    <PlayerRow key={p.id} p={p} onClick={() => toggleShortlist(p.id)} right={<Star on={shortlist.includes(p.id)} />} />
+                    <PlayerRow key={p.id} p={p} onClick={() => setCareerId(p.playerId)} right={<Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} />} />
                   ))}
                 </div>
               </>
@@ -160,7 +265,10 @@ export function Explore() {
               <span className="muted">{i + 1}</span>
               <Rating value={p.overall} />
               <span>
-                <b>{p.name}</b> <span className="muted small">{p.age}y</span>{' '}
+                <b style={{ cursor: 'pointer' }} onClick={() => setCareerId(p.playerId)} title="Career">
+                  {p.name}
+                </b>{' '}
+                <span className="muted small">{p.age}y</span>{' '}
                 {p.positions.map((x) => (
                   <Pos key={x} p={x} />
                 ))}
@@ -182,12 +290,14 @@ export function Explore() {
           <input className="input" placeholder="Search a player name…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
           <div className="plist" style={{ marginTop: 10 }}>
             {results.map((p) => (
-              <PlayerRow key={p.id} p={p} showClub onClick={() => toggleShortlist(p.id)} right={<Star on={shortlist.includes(p.id)} />} />
+              <PlayerRow key={p.id} p={p} showClub onClick={() => setCareerId(p.playerId)} right={<Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} />} />
             ))}
             {query.length >= 2 && results.length === 0 && <div className="muted small">No players match.</div>}
           </div>
+          <p className="help">Click a player for his whole career; the star shortlists that season for the market.</p>
         </div>
       )}
+      <CareerModal playerId={careerId} onClose={() => setCareerId(null)} />
     </div>
   )
 }

@@ -1,7 +1,9 @@
-/* Touchline service worker: the app shell is cached on install, league packs
-   on first use, so the game opens and plays offline once visited. Updated
-   builds change the asset names, so a new worker replaces the old cache. */
-const VERSION = 'touchline-v1'
+/* Touchline service worker. The shell is cached on install and refreshed in
+   the background on every visit; hashed assets and icons are cache-first;
+   league packs are served from the cache and refreshed behind the scenes, so
+   a rebuilt pack shows up on the next visit. VERSION is stamped per build, so
+   a new deploy installs a fresh worker and drops the old cache. */
+const VERSION = 'touchline-__BUILD__'
 const SHELL = ['./', './index.html', './manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
@@ -17,15 +19,41 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return
   const url = new URL(req.url)
   if (url.origin !== location.origin) return
-  // Data packs and hashed assets: cache first, they never change under the same name
-  if (url.pathname.includes('/data/') || url.pathname.includes('/assets/') || url.pathname.includes('/icons/')) {
+  // Hashed assets and icons never change under the same name: cache first
+  if (url.pathname.includes('/assets/') || url.pathname.includes('/icons/')) {
     event.respondWith(
       caches.open(VERSION).then(async (cache) => {
         const hit = await cache.match(req)
         if (hit) return hit
         const res = await fetch(req)
-        if (res.ok) cache.put(req, res.clone())
+        if (res.ok) {
+          const copy = res.clone()
+          event.waitUntil(cache.put(req, copy))
+        }
         return res
+      }),
+    )
+    return
+  }
+  // League packs: serve the cached copy at once, refresh it in the background
+  if (url.pathname.includes('/data/')) {
+    event.respondWith(
+      caches.open(VERSION).then(async (cache) => {
+        const hit = await cache.match(req)
+        const refresh = fetch(req)
+          .then((res) => {
+            if (res.ok) {
+              const copy = res.clone()
+              event.waitUntil(cache.put(req, copy))
+            }
+            return res
+          })
+          .catch(() => hit)
+        if (hit) {
+          event.waitUntil(refresh.then(() => undefined, () => undefined))
+          return hit
+        }
+        return refresh
       }),
     )
     return
@@ -34,7 +62,10 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok && (req.mode === 'navigate' || url.pathname.endsWith('.webmanifest'))) caches.open(VERSION).then((c) => c.put(req, res.clone()))
+        if (res.ok && (req.mode === 'navigate' || url.pathname.endsWith('.webmanifest'))) {
+          const copy = res.clone()
+          event.waitUntil(caches.open(VERSION).then((c) => c.put(req, copy)))
+        }
         return res
       })
       .catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html'))),

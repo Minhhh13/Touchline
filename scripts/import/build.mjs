@@ -873,6 +873,33 @@ async function main() {
     }
     const players = [...byNameKey.values()].sort((a, b) => a.season - b.season || a.club.localeCompare(b.club) || b.overall - a.overall)
 
+    // Thin squads: a club with 8 to 11 rows in a season but a full squad in the next (or previous)
+    // one borrows the missing players from there, so the league keeps an even number of clubs
+    // instead of dropping a real entrant whose edition happened to be sparse.
+    const countBy = new Map()
+    for (const p of players) countBy.set(`${p.season}|${p.club}`, (countBy.get(`${p.season}|${p.club}`) ?? 0) + 1)
+    const extra = []
+    for (const [k, n] of countBy) {
+      if (n >= 12 || n < 8) continue
+      const [sStr, club] = k.split('|')
+      const s = Number(sStr)
+      const adj = (countBy.get(`${s + 1}|${club}`) ?? 0) >= 12 ? s + 1 : (countBy.get(`${s - 1}|${club}`) ?? 0) >= 12 ? s - 1 : null
+      if (adj === null) continue
+      const have = new Set(players.filter((p) => p.season === s && p.club === club).map((p) => p.id))
+      const pool = players.filter((p) => p.season === adj && p.club === club && !have.has(p.id)).sort((a, b) => b.overall - a.overall)
+      let added = 0
+      for (const p of pool) {
+        if (n + added >= 16) break
+        extra.push({ ...p, season: s, age: p.age + (s - adj) })
+        added++
+      }
+      warnings.push(`${leagueId} ${s}: ${club} had ${n} rows, topped up with ${added} from ${adj}`)
+    }
+    if (extra.length) {
+      players.push(...extra)
+      players.sort((a, b) => a.season - b.season || a.club.localeCompare(b.club) || b.overall - a.overall)
+    }
+
     const usedClubs = new Set(players.map((p) => p.club))
     for (const t of Object.values(tables)) for (const r of t.table) usedClubs.add(r.clubId)
     const clubs = league.clubs.filter((c) => usedClubs.has(c.id)).map(({ aliases, ...rest }) => rest)

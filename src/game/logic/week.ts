@@ -473,7 +473,9 @@ function afterMatchweek(game: Game, u: LoadedUniverse): void {
 
   const newTable = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
   const userRow = newTable.find((r) => r.teamId === USER_TEAM)!
-  const last = userRow.form[userRow.form.length - 1] ?? null
+  // On a bye week there is no new result to judge; do not count last week's again
+  const playedThisWeek = season.fixtures.some((f) => f.matchweek === mw && f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM))
+  const last = playedThisWeek ? (userRow.form[userRow.form.length - 1] ?? null) : null
   season.confidence = updateConfidence(season.confidence, newTable, USER_TEAM, season.boardTarget, mw, last)
   if (game.settings.jobSecurity && mw >= 10 && season.confidence < 12 && mw < season.matchweeks) {
     season.sacked = true
@@ -514,7 +516,7 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
   const host = u.clubById[season.hostClubId]
   const lastFixture = [...season.fixtures].filter((f) => f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)).sort((a, b) => b.matchweek - a.matchweek)[0]
   let beatRival = false
-  if (lastFixture?.result && host) {
+  if (lastFixture?.result && host && lastFixture.matchweek === season.matchweek) {
     const home = lastFixture.homeTeamId === USER_TEAM
     const opp = home ? lastFixture.awayTeamId : lastFixture.homeTeamId
     const gf = home ? lastFixture.result.homeGoals : lastFixture.result.awayGoals

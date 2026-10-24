@@ -51,7 +51,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Calibrated or Realistic difficulty.
 - One saved game per mode: a quick draft never overwrites your dynasty.
 
-**Explore**: browse every club-season in all seven leagues with its real squad and ratings, the highest-rated player-seasons by position, and a player search.
+**Explore**: browse every club-season in all seven leagues with its real squad and ratings, the highest-rated player-seasons by position, a player search, and a career page for any player: every season across every league, his peak, and a star to shortlist a season for the market.
 
 **Opposition reports** before every match, league-wide statistics (Golden Boot, assists, ratings, clean sheets) and an expanding deck of dressing-room events: contract renewals, wantaway stars, media pressure, rushed injury returns and derby bonuses.
 

@@ -27,7 +27,11 @@ function settings(partial: Partial<GameSettings> = {}): GameSettings {
 }
 
 describe('leagues with an odd number of clubs', () => {
+  // The shipped data keeps every season even; carve one club out of the 2025-26 Eredivisie to get a bye league
   const u = loadTestUniverse(['netherlands'])
+  const dropped = u.clubSeasons.find((cs) => cs.leagueId === 'netherlands' && cs.season === 2025 && cs.clubId !== 'ajax')!
+  u.clubSeasons = u.clubSeasons.filter((cs) => cs !== dropped)
+  delete u.clubSeasonByKey[`${dropped.clubId}@2025`]
 
   it('schedules bye weeks and plays the season through', () => {
     expect(matchweeksFor(17)).toBe(34)
