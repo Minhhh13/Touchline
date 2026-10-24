@@ -1354,3 +1354,12 @@ table.tbl tr.clickable:hover {
   border-color: color-mix(in srgb, var(--danger) 50%, var(--line));
   background: color-mix(in srgb, var(--danger) 10%, var(--panel-2));
 }
+
+.star {
+  font-size: 18px;
+  color: var(--text-3);
+  line-height: 1;
+}
+.star.on {
+  color: var(--gold);
+}

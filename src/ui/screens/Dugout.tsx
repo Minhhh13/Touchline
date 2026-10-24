@@ -10,6 +10,7 @@ import { playerLookup, squadPlayers } from '@game/logic/players'
 import { teamStrength, lineupProblems } from '@game/logic/squad'
 import { SQUAD_CAP } from '@game/logic/marketOps'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
+import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -363,6 +364,34 @@ function TacticsTab() {
           <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: TRAINING_LABEL[k] }))} />
           <p className="help">{TRAINING[game.training].blurb}</p>
         </div>
+        <div className="panel col">
+          <h3>Set pieces</h3>
+          {(
+            [
+              { key: 'penalties', label: 'Penalties', attr: (p: { attributes: { shooting: number; mentality: number } }) => Math.round((p.attributes.shooting + p.attributes.mentality) / 2), hint: 'Takes every penalty while he is on the pitch.' },
+              { key: 'freeKicks', label: 'Free kicks', attr: (p: { attributes: { shooting: number } }) => p.attributes.shooting, hint: 'A specialist adds chances from dead balls.' },
+              { key: 'corners', label: 'Corners', attr: (p: { attributes: { passing: number } }) => p.attributes.passing, hint: 'A good delivery adds chances; a poor one costs them.' },
+            ] as const
+          ).map((sp) => {
+            const xi = Object.values(game.lineup)
+              .map((id) => get(id))
+              .filter((p): p is NonNullable<typeof p> => !!p && p.positions[0] !== 'GK')
+              .sort((a, b) => sp.attr(b) - sp.attr(a))
+            const current = t.setPieces?.[sp.key] ?? ''
+            return (
+              <Instruction key={sp.key} label={sp.label} help={sp.hint}>
+                <select className="input" value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
+                  <option value="">Auto: best on the pitch</option>
+                  {xi.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({sp.attr(p)})
+                    </option>
+                  ))}
+                </select>
+              </Instruction>
+            )
+          })}
+        </div>
       </div>
       <div className="col">
         <div className="panel">
@@ -481,11 +510,41 @@ function MarketTab() {
   const get = playerLookup(game, u)
   const w = game.window
   const squad = squadPlayers(game, u)
+  const scout = staffTier(game.staff, 'scout')
+  const shortlisted = store.shortlist.map((id) => u.index[id]).filter((p): p is NonNullable<typeof p> => !!p)
+  const shortlistPanel = shortlisted.length > 0 && (
+    <div className="panel">
+      <h3>Shortlist</h3>
+      <p className="small muted">Players you starred in Explore.{w ? ' Click one to approach his club.' : ' Approach them when a window opens.'}</p>
+      <div className="col" style={{ gap: 4, maxHeight: 280, overflow: 'auto' }}>
+        {shortlisted.map((p) => {
+          const listed = w?.listings.find((l) => l.playerSeasonId === p.id)
+          return (
+            <PlayerRow
+              key={p.id}
+              p={p}
+              showClub
+              onClick={
+                w
+                  ? () => {
+                      const out = store.enquire(p.id)
+                      setMsg(out.message)
+                    }
+                  : () => store.toggleShortlist(p.id)
+              }
+              right={<span className="btn sm">{w ? (listed ? (listed.status === 'signed' ? 'Signed' : listed.status === 'gone' ? 'Gone' : money(listed.asking)) : 'Enquire') : '★ Remove'}</span>}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
   if (!w) {
     return (
       <div className="panel">
         <h3>Transfer market</h3>
         <p className="muted">The window is closed. The January window opens at the halfway point of the season and runs for seven market days, three per matchweek. In Dynasty mode a longer summer window opens between seasons.</p>
+        {shortlistPanel}
         <h3 style={{ marginTop: 12 }}>Squad values</h3>
         <table className="tbl">
           <thead>
@@ -553,10 +612,16 @@ function MarketTab() {
                   <PlayerRow p={p} showClub right={<span className="small muted">{wage(p.wage)}</span>} />
                   <div className="tags">
                     {l.tags.map((t) => (
-                      <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' ? 'good' : ''}`}>
+                      <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' || t === 'Scouted' ? 'good' : ''}`}>
                         {t}
                       </span>
                     ))}
+                    {scout > 0 &&
+                      traitTags(p.traits).map((t) => (
+                        <span key={t} className="chip" style={{ borderStyle: 'dashed' }} title="Scouting report">
+                          {t}
+                        </span>
+                      ))}
                     {l.suitors > 0 && <span className="chip">{l.suitors} rival{l.suitors > 1 ? 's' : ''} interested</span>}
                     {l.response && <span className="chip">{l.response}</span>}
                   </div>
@@ -636,6 +701,7 @@ function MarketTab() {
           )}
           {query.trim().length >= 2 && results.length === 0 && <div className="small muted" style={{ marginTop: 6 }}>No one by that name in the leagues and eras this game draws from.</div>}
         </div>
+        {shortlistPanel}
         <div className="panel">
           <h3>Offers for your players</h3>
           {offers.length === 0 && <div className="muted small">No offers on the table.</div>}
@@ -685,7 +751,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
   if (!u || !game?.season) return null
   const season = game.season
   const squad = squadPlayers(game, u)
-  const wages = squad.reduce((s, x) => s + x.p.wage, 0)
+  const playerWages = squad.reduce((s, x) => s + x.p.wage, 0)
+  const wages = playerWages + staffWages(game.staff)
   const host = u.clubById[season.hostClubId]
   return (
     <div className="grid two">
@@ -715,7 +782,7 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dd>{money(game.finances.budget)}</dd>
           <dt>Wage bill</dt>
           <dd>
-            {wage(wages)} of {wage(game.finances.wageCap)} cap
+            {wage(wages)} of {wage(game.finances.wageCap)} cap{staffWages(game.staff) ? ` (staff ${wage(staffWages(game.staff))})` : ''}
           </dd>
           <dt>Income this season</dt>
           <dd>{money(game.finances.income)}</dd>
@@ -725,6 +792,32 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dd>{money(game.finances.wagesPaid)}</dd>
         </div>
         <p className="help">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</p>
+      </div>
+      <div className="panel">
+        <h3>Backroom staff</h3>
+        <p className="help">Staff wages count against the wage cap. Hire and release at any time.</p>
+        <div className="col" style={{ gap: 10 }}>
+          {STAFF_ROLES.map((role) => {
+            const info = STAFF[role]
+            const tier = staffTier(game.staff, role)
+            return (
+              <div key={role} className="card">
+                <div className="row between wrap">
+                  <b>{info.label}</b>
+                  <span className="small muted">{info.tiers[tier].title}{info.tiers[tier].wage ? ` · ${wage(info.tiers[tier].wage)}` : ''}</span>
+                </div>
+                <div className="segmented" style={{ marginTop: 6 }}>
+                  {info.tiers.map((t) => (
+                    <button key={t.tier} className={t.tier === tier ? 'active' : ''} onClick={() => store.hireStaff(role, t.tier)} title={t.blurb}>
+                      {t.tier === 0 ? 'None' : t.tier === 1 ? `Good · ${wage(t.wage)}` : `Elite · ${wage(t.wage)}`}
+                    </button>
+                  ))}
+                </div>
+                <div className="small muted" style={{ marginTop: 4 }}>{info.tiers[tier].blurb}</div>
+              </div>
+            )
+          })}
+        </div>
       </div>
       <div className="panel">
         <h3>Contracts</h3>

@@ -372,10 +372,12 @@ export interface UserTeamInput {
   bench: string[]
   state: Record<string, SquadPlayer>
   teamTalk: TeamTalk
+  captainId?: string
+  talkSkill?: number
 }
 
 export function userTeamInput(u: LoadedUniverse, t: UserTeamInput): MatchTeamInput {
-  return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk }
+  return { teamId: USER_TEAM, teamName: t.teamName, shortName: t.shortName, tactics: t.tactics, lineup: t.lineup, bench: t.bench, getPlayer: (id) => u.index[id], getState: (id) => t.state[id], teamTalk: t.teamTalk, captainId: t.captainId, talkSkill: t.talkSkill }
 }
 
 /** Play one match between two inputs, returning the full result. */

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useStore } from '@game/store'
+import { staffTier } from '@engine/staff'
 import { aiTeamInput, computeTable, USER_TEAM } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
 import { STYLE_LABEL } from '@engine/tactics'
@@ -17,6 +18,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
     const strength = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
     const xi = Object.values(input.lineup).map((id) => u.index[id]).filter(Boolean)
     const stars = [...xi].sort((a, b) => b.overall - a.overall).slice(0, 3)
+    const weak = staffTier(game.staff, 'scout') >= 2 ? [...xi].filter((p) => p.positions[0] !== 'GK').sort((a, b) => a.overall - b.overall)[0] : undefined
     const table = computeTable(game.season.fixtures, [USER_TEAM, ...Object.keys(game.season.ai)])
     const row = table.find((r) => r.teamId === clubId)!
     const pos = table.indexOf(row) + 1
@@ -33,6 +35,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
     if (club.tactics.mentality === 'defensive') tips.push('They will sit deep: width and patience beat a low block.')
     if (strength.attack > strength.defence + 4) tips.push('Front-heavy: their defence is the weak unit.')
     if (strength.defence > strength.attack + 4) tips.push('Well-drilled defence, blunt attack: you can afford to commit numbers.')
+    if (weak) tips.push(`Scouts' weak link: ${weak.name} (${weak.overall}) at ${weak.positions[0]}. Attack his side.`)
     return { club, strength, stars, row, pos, injured, tips }
   }, [u, game, clubId])
   if (!u || !data) return null

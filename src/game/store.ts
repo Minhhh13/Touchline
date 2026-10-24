@@ -15,6 +15,7 @@ import { applyEventChoice, finishLiveMatch, playFriendly, playMatchweek, startSe
 import { assignPlayer, autoPick, setFormation } from './logic/squad'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
 import { talkTo, type TalkKind } from './logic/talks'
+import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
@@ -53,6 +54,8 @@ interface Store {
   game: Game | null
   /** Saved games of other kinds, parked while another game is active (one per slot). */
   parked: Record<string, Game>
+  /** Player-season ids starred in Explore; shown on the market for quick enquiries. */
+  shortlist: string[]
   h2h: H2HGame | null
   profile: Profile
   toast: string | null
@@ -101,6 +104,8 @@ interface Store {
   bid: (listingId: string, amount: number, opts?: BidOptions) => { accepted: boolean; message: string }
   loan: (listingId: string) => { accepted: boolean; message: string }
   talk: (playerSeasonId: string, kind: TalkKind) => { message: string }
+  hireStaff: (role: StaffRole, tier: number) => void
+  toggleShortlist: (playerSeasonId: string) => void
   enquire: (playerSeasonId: string) => { ok: boolean; message: string }
   acceptOffer: (index: number) => void
   rejectOffer: (index: number) => void
@@ -142,7 +147,11 @@ export const useStore = create<Store>()(
         const { game, universe } = get()
         if (!game || !universe) return
         try {
-          set({ game: produce(game, (g) => fn(g, universe)) })
+          set({
+            game: produce(game, (g) => {
+              fn(g, universe)
+            }),
+          })
         } catch (e) {
           console.error(e)
           set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
@@ -171,6 +180,7 @@ export const useStore = create<Store>()(
         setupMode: 'quick',
         game: null,
         parked: {},
+        shortlist: [],
         h2h: null,
         profile: defaultProfile,
         toast: null,
@@ -330,7 +340,7 @@ export const useStore = create<Store>()(
           }),
         setMatchView: (v) => set({ matchView: v }),
 
-        setTactics: (t) => mutate((g) => Object.assign(g.tactics, t)),
+        setTactics: (t) => mutate((g) => void Object.assign(g.tactics, t)),
         setRole: (slotId, roleId) => mutate((g) => void (g.tactics.roles[slotId] = roleId)),
         setFormation: (id) => mutate((g, u) => setFormation(g, u, id)),
         assign: (id, slot) => mutate((g, u) => assignPlayer(g, u, id, slot)),
@@ -347,6 +357,11 @@ export const useStore = create<Store>()(
           })
           unlockFromGame()
           return out
+        },
+        hireStaff: (role, tier) => mutate((g) => void ((g.staff ??= {})[role] = Math.max(0, Math.min(2, Math.round(tier))))),
+        toggleShortlist: (id) => {
+          const { shortlist } = get()
+          set({ shortlist: shortlist.includes(id) ? shortlist.filter((x) => x !== id) : [...shortlist, id].slice(-60) })
         },
         talk: (id, kind) => {
           let out = { message: 'No game' }
@@ -479,7 +494,7 @@ export const useStore = create<Store>()(
     {
       name: 'touchline-save-v1',
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ game: s.game, parked: s.parked, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
+      partialize: (s) => ({ game: s.game, parked: s.parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
       version: 1,
     },
   ),

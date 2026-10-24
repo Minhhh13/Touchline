@@ -1,3 +1,4 @@
+import { staffWages } from '@engine/staff'
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
@@ -97,6 +98,7 @@ export function teamStrength(game: Game, u: LoadedUniverse) {
   return computeTeamStrength(game.tactics, game.lineup, get, (id) => game.squad[id])
 }
 
+/** Weekly wage bill in GBP thousands: players plus backroom staff. */
 export function squadWages(game: Game, u: LoadedUniverse): number {
-  return squadPlayers(game, u).reduce((s, x) => s + x.p.wage, 0)
+  return squadPlayers(game, u).reduce((s, x) => s + x.p.wage, 0) + staffWages(game.staff)
 }

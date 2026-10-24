@@ -176,6 +176,8 @@ export interface Tactics {
   passing: PassingStyle
   /** Role id per formation slot id. Missing slots use the position's default role. */
   roles: Record<string, string>
+  /** Designated set-piece takers (player-season ids). Missing = best available on the pitch. */
+  setPieces?: { penalties?: string; freeKicks?: string; corners?: string }
 }
 
 /** Broad tactical identity of an AI-controlled club. */

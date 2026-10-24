@@ -10,6 +10,7 @@ import { computeAwards } from '@engine/awards'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, lineupProblems, squadWages } from './squad'
 import { tickWindow } from './marketOps'
+import { staffTier } from '@engine/staff'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { Tactics } from '@engine/types'
@@ -21,7 +22,7 @@ function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
 
 function userInput(game: Game, u: LoadedUniverse): MatchTeamInput {
   const get = playerLookup(game, u)
-  const input = userTeamInput(u, { teamName: game.settings.teamName, shortName: game.settings.shortName, tactics: game.tactics, lineup: game.lineup, bench: game.bench, state: game.squad, teamTalk: game.teamTalk })
+  const input = userTeamInput(u, { teamName: game.settings.teamName, shortName: game.settings.shortName, tactics: game.tactics, lineup: game.lineup, bench: game.bench, state: game.squad, teamTalk: game.teamTalk, captainId: game.captainId, talkSkill: 1 + 0.15 * staffTier(game.staff, 'assistant') })
   return { ...input, getPlayer: get }
 }
 
@@ -36,8 +37,9 @@ function aiLookups(game: Game, u: LoadedUniverse, clubId: string) {
 
 function matchBoosts(game: Game): { attack: number; defence: number } {
   const t = TRAINING[game.training]
-  let attack = t.attack
-  let defence = t.defence
+  const coach = staffTier(game.staff, 'coach')
+  let attack = t.attack * (1 + 0.01 * coach)
+  let defence = t.defence * (1 - 0.01 * coach)
   if (game.nextMatchBoost?.attack) attack *= 1 + game.nextMatchBoost.attack / 100
   if (game.nextMatchBoost?.defence) defence *= 1 - game.nextMatchBoost.defence / 100
   return { attack, defence }
@@ -63,7 +65,12 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
       continue
     }
     applyMatchToState(s, st, starters.has(st.playerSeasonId), res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result)
-    if (st.injured) news(game, { kind: 'injury', title: `${get(st.playerSeasonId)?.name} injured`, body: `${st.injured.description}. Out for around ${st.injured.weeksOut} week${st.injured.weeksOut === 1 ? '' : 's'}.` })
+    if (st.injured && s.injury) {
+      // A good physio gets him back sooner
+      const physio = staffTier(game.staff, 'physio')
+      if (physio === 2 || (physio === 1 && s.injury.weeksOut >= 3)) s.injury.weeksOut = Math.max(1, s.injury.weeksOut - 1)
+      news(game, { kind: 'injury', title: `${get(st.playerSeasonId)?.name} injured`, body: `${st.injured.description}. Out for around ${s.injury.weeksOut} week${s.injury.weeksOut === 1 ? '' : 's'}.` })
+    }
     if (st.red) news(game, { kind: 'suspension', title: `${get(st.playerSeasonId)?.name} sent off`, body: `Suspended for ${s.suspension} match${s.suspension === 1 ? '' : 'es'}.` })
     if (st.yellow && s.yellowCards % 5 === 0) news(game, { kind: 'suspension', title: `${get(st.playerSeasonId)?.name} suspended`, body: `Five yellow cards: a one-match ban.` })
   }
@@ -103,13 +110,20 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
   const get = playerLookup(game, u)
   const t = TRAINING[game.training]
   const played = new Set(game.weekPlayed)
+  const physio = staffTier(game.staff, 'physio')
+  const coach = staffTier(game.staff, 'coach')
+  const assistant = staffTier(game.staff, 'assistant')
+  const captain = game.captainId ? get(game.captainId) : undefined
+  const leader = !!captain && game.squad[captain.id] && captain.traits.professionalism >= 0.6 && captain.attributes.mentality >= 72
   for (const [id, s] of Object.entries(game.squad)) {
     const p = get(id)
     if (!p) continue
-    recoverWeek(s, p, played.has(id), t.recovery)
-    s.sharpness = Math.max(20, Math.min(100, s.sharpness + t.sharpness))
-    s.familiarity = Math.min(100, s.familiarity + t.familiarity)
+    recoverWeek(s, p, played.has(id), t.recovery + physio * 2)
+    s.sharpness = Math.max(20, Math.min(100, s.sharpness + t.sharpness + coach))
+    s.familiarity = Math.min(100, s.familiarity + t.familiarity + assistant)
     benchMoraleDrift(s, p, game.consecutiveMissed[id] ?? 0)
+    // A respected captain keeps heads up
+    if (leader && id !== captain.id && s.morale < 70) s.morale = Math.min(70, s.morale + (s.morale < 50 ? 2 : 1))
   }
   for (const club of Object.values(game.season!.ai)) {
     for (const [id, s] of Object.entries(club.state)) {
@@ -127,7 +141,8 @@ function trainingInjuries(game: Game, u: LoadedUniverse, rng: Rng): void {
     if (s.injury) continue
     const p = get(id)
     if (!p) continue
-    if (rng.chance(0.006 * t.injuryRisk * (0.5 + p.traits.injuryProneness))) {
+    const physio = staffTier(game.staff, 'physio')
+    if (rng.chance(0.006 * t.injuryRisk * (0.5 + p.traits.injuryProneness) * (physio === 2 ? 0.55 : physio === 1 ? 0.75 : 1))) {
       s.injury = { description: rng.pick(['Training ground knock', 'Tight calf', 'Rolled ankle in training']), weeksOut: rng.int(1, 3) }
       news(game, { kind: 'injury', title: `${p.name} hurt in training`, body: `${s.injury.description}. Out for ${s.injury.weeksOut} week${s.injury.weeksOut === 1 ? '' : 's'}.` })
     }

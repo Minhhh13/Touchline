@@ -5,8 +5,16 @@ import { PlayerRow } from '../components/PlayerRow'
 import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
 
+function Star({ on }: { on: boolean }) {
+  return (
+    <span className={on ? 'star on' : 'star'} title={on ? 'On your shortlist' : 'Add to shortlist'}>
+      {on ? '★' : '☆'}
+    </span>
+  )
+}
+
 export function Explore() {
-  const { universe: u, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
+  const { universe: u, go, ensureLeagues, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStore()
   const [leagueId, setLeagueId] = useState('england')
   const [season, setSeason] = useState<number>(u?.lastSeason ?? 2026)
   const [clubId, setClubId] = useState<string>('')
@@ -126,7 +134,7 @@ export function Explore() {
                 </div>
                 <div className="plist" style={{ maxHeight: 620, overflow: 'auto' }}>
                   {selected.squad.map((p) => (
-                    <PlayerRow key={p.id} p={p} />
+                    <PlayerRow key={p.id} p={p} onClick={() => toggleShortlist(p.id)} right={<Star on={shortlist.includes(p.id)} />} />
                   ))}
                 </div>
               </>
@@ -161,6 +169,9 @@ export function Explore() {
                 <ClubBadge clubId={p.clubId} size={18} /> {clubName(u, p.clubId)}
               </span>
               <span className="small muted">{seasonLabel(p.season)}</span>
+              <button type="button" className="btn sm ghost" onClick={() => toggleShortlist(p.id)} title="Shortlist">
+                <Star on={shortlist.includes(p.id)} />
+              </button>
             </div>
           ))}
         </div>
@@ -171,7 +182,7 @@ export function Explore() {
           <input className="input" placeholder="Search a player name…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
           <div className="plist" style={{ marginTop: 10 }}>
             {results.map((p) => (
-              <PlayerRow key={p.id} p={p} showClub />
+              <PlayerRow key={p.id} p={p} showClub onClick={() => toggleShortlist(p.id)} right={<Star on={shortlist.includes(p.id)} />} />
             ))}
             {query.length >= 2 && results.length === 0 && <div className="muted small">No players match.</div>}
           </div>

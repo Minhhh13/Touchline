@@ -1,7 +1,8 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
+import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
+import { staffTier } from '@engine/staff'
 import { newSquadPlayer } from '@engine/season'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, squadWages } from './squad'
@@ -139,6 +140,19 @@ export function tickWindow(game: Game, u: LoadedUniverse, rng: Rng): void {
   if (!game.window || !game.season) return
   const { signings } = advanceWindow(marketContext(game, u, rng, 1.05), game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed })), Object.keys(game.season.ai))
   applyAiSignings(game, u, signings)
+  // Scouts turn up players the open market would not have shown
+  const scout = staffTier(game.staff, 'scout')
+  if (scout > 0 && game.window.day < game.window.days) {
+    const ctx = marketContext(game, u, rng, 1)
+    const known = new Set([...ctx.ownedPlayerIds, ...game.window.listings.map((l) => u.index[l.playerSeasonId]?.playerId ?? '')])
+    const extra = openWindow({ ...ctx, ownedPlayerIds: known }, game.window.kind, scout).listings
+    for (const l of extra) {
+      l.listedDay = game.window.day
+      l.tags.push('Scouted')
+    }
+    game.window.listings.push(...extra)
+    if (extra.length) game.window.log.unshift(`Your scouts flag ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(' and ')}.`)
+  }
 }
 
 export function advanceDay(game: Game, u: LoadedUniverse): void {

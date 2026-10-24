@@ -33,6 +33,10 @@ export interface MatchTeamInput {
   teamTalk?: TeamTalk
   /** Rating points subtracted from every unit (difficulty calibration for AI clubs). */
   ratingOffset?: number
+  /** Captain (player-season id): a leader on the pitch steadies the side in big games. */
+  captainId?: string
+  /** Multiplier on how strongly team talks land (an assistant manager raises it). */
+  talkSkill?: number
 }
 
 export interface MatchOptions {
@@ -111,6 +115,8 @@ export interface TeamSnapshot {
   bench: string[]
   ratingOffset: number
   teamTalk: TeamTalk
+  captainId?: string
+  talkSkill?: number
   strength: TeamStrength
   modifiers: TacticalModifiers
   talkText: string
@@ -174,8 +180,8 @@ export function beginMatch(opts: MatchOptions): MatchInProgress {
   const am = tacticalModifiers(away.tactics, as.slots, home.tactics, hs.slots)
   const hLive = buildLive(hs.slots)
   const aLive = buildLive(as.slots)
-  const hTalk = teamTalkEffect(rng, home.teamTalk ?? 'none', hs.overall, as.overall, hLive, home.getPlayer)
-  const aTalk = teamTalkEffect(rng, away.teamTalk ?? 'none', as.overall, hs.overall, aLive, away.getPlayer)
+  const hTalk = scaleTalk(teamTalkEffect(rng, home.teamTalk ?? 'none', hs.overall, as.overall, hLive, home.getPlayer), home.talkSkill)
+  const aTalk = scaleTalk(teamTalkEffect(rng, away.teamTalk ?? 'none', as.overall, hs.overall, aLive, away.getPlayer), away.talkSkill)
 
   const cons = (live: LivePlayer[], get: MatchTeamInput['getPlayer']) => avg(live.map((p) => get(p.psId)?.traits.consistency ?? 0.5))
   const sigma = (c: number) => 0.06 + 0.12 * (1 - c)
@@ -191,6 +197,8 @@ export function beginMatch(opts: MatchOptions): MatchInProgress {
     bench: t.bench,
     ratingOffset: t.ratingOffset ?? 0,
     teamTalk: t.teamTalk ?? 'none',
+    captainId: t.captainId,
+    talkSkill: t.talkSkill,
     strength: strip(strength),
     modifiers,
     talkText,
@@ -254,7 +262,7 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     side.lineup = lineup
     const us = second.side === 'home' ? mp.halfTimeScore.home : mp.halfTimeScore.away
     const them = second.side === 'home' ? mp.halfTimeScore.away : mp.halfTimeScore.home
-    const talk = halfTimeTalk(rng, second.talk ?? 'none', us - them, live, input.getPlayer)
+    const talk = scaleTalk(halfTimeTalk(rng, second.talk ?? 'none', us - them, live, input.getPlayer), side.talkSkill)
     side.variance *= talk.factor
     htText = talk.text
     side.talkText = side.talkText ? `${side.talkText} ${talk.text}` : talk.text
@@ -351,7 +359,7 @@ export function onPitch(mp: MatchInProgress, side: 'home' | 'away'): LivePlayer[
 // Internals
 
 function inputFromSnapshot(s: TeamSnapshot, l: TeamLookups): MatchTeamInput {
-  return { teamId: s.teamId, teamName: s.teamName, shortName: s.shortName, tactics: s.tactics, lineup: s.lineup, bench: s.bench, getPlayer: l.getPlayer, getState: l.getState, teamTalk: s.teamTalk, ratingOffset: s.ratingOffset }
+  return { teamId: s.teamId, teamName: s.teamName, shortName: s.shortName, tactics: s.tactics, lineup: s.lineup, bench: s.bench, getPlayer: l.getPlayer, getState: l.getState, teamTalk: s.teamTalk, ratingOffset: s.ratingOffset, captainId: s.captainId, talkSkill: s.talkSkill }
 }
 
 function expectedGoals(mp: MatchInProgress, home: MatchTeamInput, away: MatchTeamInput, hsOverride?: TeamStrength, asOverride?: TeamStrength): { lamH: number; lamA: number } {
@@ -371,6 +379,14 @@ function expectedGoals(mp: MatchInProgress, home: MatchTeamInput, away: MatchTea
   let lamA = BASE_XG * Math.exp(K * (attackPower(as) - defencePower(hs))) * am.attack * hm.defence * awayAdv * mp.away.variance
   lamH *= mp.home.boost.attack * mp.away.boost.defence
   lamA *= mp.away.boost.attack * mp.home.boost.defence
+  // Designated set-piece takers: a good corner or free-kick specialist on the pitch adds chances
+  lamH *= 1 + setPieceBonus(mp.home, mp.hLive, home.getPlayer)
+  lamA *= 1 + setPieceBonus(mp.away, mp.aLive, away.getPlayer)
+  // A captain with a strong mentality lifts his side a touch and organises the defence
+  const hLead = leadership(mp.home, mp.hLive, home.getPlayer)
+  const aLead = leadership(mp.away, mp.aLive, away.getPlayer)
+  lamH *= (1 + hLead * 0.06) * (1 - aLead * 0.04)
+  lamA *= (1 + aLead * 0.06) * (1 - hLead * 0.04)
   if (mp.importance > 1) {
     const big = (live: LivePlayer[], get: MatchTeamInput['getPlayer']) => avg(live.map((p) => get(p.psId)?.traits.bigMatch ?? 0.5))
     lamH *= 1 + (big(mp.hLive, home.getPlayer) - 0.5) * 0.14 * (mp.importance - 1) * 2.5
@@ -398,8 +414,8 @@ function playHalf(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: Mat
     routineSubstitutions(rng, mp.hLive, home, 'home', mp.events, mp.hSubs, mp.home.modifiers.fatigue)
     routineSubstitutions(rng, mp.aLive, away, 'away', mp.events, mp.aSubs, mp.away.modifiers.fatigue)
   }
-  for (let i = 0; i < hg; i++) scoreGoal(rng, mp.hLive, mp.aLive, 'home', mp.events, home.getPlayer, away.getPlayer, from, to)
-  for (let i = 0; i < ag; i++) scoreGoal(rng, mp.aLive, mp.hLive, 'away', mp.events, away.getPlayer, home.getPlayer, from, to)
+  for (let i = 0; i < hg; i++) scoreGoal(rng, mp.hLive, mp.aLive, 'home', mp.events, home.getPlayer, away.getPlayer, from, to, mp.home.tactics.setPieces?.penalties)
+  for (let i = 0; i < ag; i++) scoreGoal(rng, mp.aLive, mp.hLive, 'away', mp.events, away.getPlayer, home.getPlayer, from, to, mp.away.tactics.setPieces?.penalties)
   if (mp.detail === 'full') {
     addChances(rng, mp.hLive, mp.aLive, 'home', Math.max(0, rng.poisson(lh * 2.2)), mp.events, home.getPlayer, away.getPlayer, from, to)
     addChances(rng, mp.aLive, mp.hLive, 'away', Math.max(0, rng.poisson(la * 2.2)), mp.events, away.getPlayer, home.getPlayer, from, to)
@@ -448,6 +464,11 @@ function buildLive(slots: SlotEvaluation[]): LivePlayer[] {
     shares: { gk: s.role.contribution.gk ?? 0, defence: s.role.contribution.defence, midfield: s.role.contribution.midfield, attack: s.role.contribution.attack },
     creativity: s.role.effects?.creativity ?? 0,
   }))
+}
+
+/** A good assistant makes a talk land harder, for better or worse. */
+function scaleTalk(t: { factor: number; text: string }, skill = 1): { factor: number; text: string } {
+  return { factor: 1 + (t.factor - 1) * skill, text: t.text }
 }
 
 function teamTalkEffect(rng: Rng, talk: TeamTalk, ours: number, theirs: number, live: LivePlayer[], get: MatchTeamInput['getPlayer']): { factor: number; text: string } {
@@ -606,6 +627,32 @@ function bringOn(live: LivePlayer[], team: MatchTeamInput, off: LivePlayer, minu
   return true
 }
 
+function stillOn(live: LivePlayer[], psId: string | undefined): LivePlayer | undefined {
+  if (!psId) return undefined
+  return live.find((p) => p.psId === psId && !p.red && p.offAt >= 90)
+}
+
+/** Extra expected goals from designated corner and free-kick takers who are on the pitch. */
+export function setPieceBonus(side: TeamSnapshot, live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
+  const sp = side.tactics.setPieces
+  if (!sp) return 0
+  let bonus = 0
+  const corners = stillOn(live, sp.corners)
+  if (corners) bonus += (((get(corners.psId)?.attributes.passing ?? 70) - 72) / 100) * 0.06
+  const fks = stillOn(live, sp.freeKicks)
+  if (fks) bonus += (((get(fks.psId)?.attributes.shooting ?? 70) - 72) / 100) * 0.05
+  return clamp(bonus, -0.04, 0.07)
+}
+
+/** -0.25..0.25: how much the captain on the pitch lifts (or fails to lift) the side. */
+export function leadership(side: TeamSnapshot, live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
+  const cap = stillOn(live, side.captainId)
+  if (!cap) return 0
+  const p = get(cap.psId)
+  if (!p) return 0
+  return clamp(((p.attributes.mentality - 75) / 100) * (0.6 + p.traits.professionalism * 0.8), -0.25, 0.25)
+}
+
 function activeAt(live: LivePlayer[], minute: number): LivePlayer[] {
   return live.filter((p) => p.onAt <= minute && p.offAt > minute && !p.red)
 }
@@ -617,7 +664,7 @@ function goalMinute(rng: Rng, from: number, to: number): number {
   return clamp(m, from, to)
 }
 
-function scoreGoal(rng: Rng, att: LivePlayer[], def: LivePlayer[], side: 'home' | 'away', events: MatchEvent[], getAtt: MatchTeamInput['getPlayer'], getDef: MatchTeamInput['getPlayer'], from: number, to: number) {
+function scoreGoal(rng: Rng, att: LivePlayer[], def: LivePlayer[], side: 'home' | 'away', events: MatchEvent[], getAtt: MatchTeamInput['getPlayer'], getDef: MatchTeamInput['getPlayer'], from: number, to: number, penaltyTaker?: string) {
   const minute = goalMinute(rng, from, to)
   const onPitch = activeAt(att, Math.min(minute, 89))
   if (!onPitch.length) return
@@ -631,10 +678,11 @@ function scoreGoal(rng: Rng, att: LivePlayer[], def: LivePlayer[], side: 'home' 
     }
   }
   if (rng.chance(0.09)) {
-    const taker = [...onPitch].filter((p) => p.position !== 'GK').map((p) => ({ p, ps: getAtt(p.psId) })).filter((x) => x.ps).sort((a, b) => b.ps!.attributes.shooting + b.ps!.attributes.mentality - (a.ps!.attributes.shooting + a.ps!.attributes.mentality))[0]
-    if (taker) {
+    const designated = penaltyTaker ? onPitch.find((p) => p.psId === penaltyTaker && p.position !== 'GK') : undefined
+    const taker = designated ? { p: designated, ps: getAtt(designated.psId) } : [...onPitch].filter((p) => p.position !== 'GK').map((p) => ({ p, ps: getAtt(p.psId) })).filter((x) => x.ps).sort((a, b) => b.ps!.attributes.shooting + b.ps!.attributes.mentality - (a.ps!.attributes.shooting + a.ps!.attributes.mentality))[0]
+    if (taker && taker.ps) {
       taker.p.goals++
-      events.push({ minute, type: 'penalty', side, playerId: taker.p.psId, playerName: taker.ps!.name, text: `${taker.ps!.name} scores from the penalty spot.` })
+      events.push({ minute, type: 'penalty', side, playerId: taker.p.psId, playerName: taker.ps.name, text: `${taker.ps.name} scores from the penalty spot.` })
       return
     }
   }

@@ -1,6 +1,7 @@
 import type { DraftState } from '@engine/draft'
 import type { FullMatchResult, MatchInProgress, TeamTalk } from '@engine/match'
 import type { Finances, Window } from '@engine/market'
+import type { StaffState } from '@engine/staff'
 import type { RngState } from '@engine/rng'
 import type { SeasonState } from '@engine/season'
 import type { GameEvent } from '@engine/events'
@@ -110,6 +111,8 @@ export interface Game {
   promisedStart?: string
   /** Matchweek each player was last spoken to, one conversation per week. */
   talks?: Record<string, number>
+  /** Backroom staff tier per role (0-2). */
+  staff?: StaffState
   nextMatchBoost?: { attack?: number; defence?: number }
   /** A match paused at half time, waiting for the manager. */
   live: LiveMatch | null
