@@ -604,7 +604,7 @@ function MarketTab() {
             {w.kind === 'summer' ? 'Summer' : 'January'} window · day {w.day}/{w.days}
             {w.day >= w.days - 1 ? ' · deadline day' : ''}
           </h3>
-          <div className="row">
+          <div className="row wrap">
             <span className="chip good">Budget {money(game.finances.budget)}</span>
             <span className="chip">Wage room {wage(Math.max(0, game.finances.wageCap - squad.reduce((s, x) => s + x.p.wage, 0)))}</span>
             <button className="btn sm" onClick={() => store.advanceDay()}>
