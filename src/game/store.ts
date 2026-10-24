@@ -15,6 +15,7 @@ import { applyEventChoice, finishLiveMatch, playFriendly, playMatchweek, startSe
 import { assignPlayer, autoPick, setFormation } from './logic/squad'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
 import { talkTo, type TalkKind } from './logic/talks'
+import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
@@ -109,6 +110,7 @@ interface Store {
   talk: (playerSeasonId: string, kind: TalkKind) => { message: string }
   hireStaff: (role: StaffRole, tier: number) => void
   setMarkTarget: (playerSeasonId: string | undefined) => void
+  signYouth: (playerSeasonId: string | null) => { ok: boolean; message: string }
   toggleShortlist: (playerSeasonId: string) => void
   enquire: (playerSeasonId: string) => { ok: boolean; message: string }
   acceptOffer: (index: number) => void
@@ -366,6 +368,13 @@ export const useStore = create<Store>()(
           return out
         },
         setMarkTarget: (id) => mutate((g) => void (g.markTarget = id)),
+        signYouth: (id) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = signYouth(g, u, id)
+          })
+          return out
+        },
         hireStaff: (role, tier) => mutate((g) => void ((g.staff ??= {})[role] = Math.max(0, Math.min(2, Math.round(tier))))),
         toggleShortlist: (id) => {
           const { shortlist } = get()

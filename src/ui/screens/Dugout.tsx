@@ -180,6 +180,26 @@ export function Dugout() {
         ]}
       />
 
+      {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
+        <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--accent)' }}>
+          <div className="panel-head">
+            <h3>🎓 Youth intake</h3>
+            <span className="small muted">Real academy prospects. Sign one for nothing on a three-year deal, or pass.</span>
+          </div>
+          <div className="col" style={{ gap: 4 }}>
+            {game.youthIntake.candidates.map((id) => {
+              const p = u.index[id]
+              if (!p) return null
+              return <PlayerRow key={id} p={p} showClub onClick={() => store.showToast(store.signYouth(id).message)} right={<span className="btn sm primary">Sign</span>} extra={p.clubId === game.settings.hostClubId ? <span className="chip gold">Homegrown</span> : undefined} />
+            })}
+          </div>
+          <div className="row" style={{ marginTop: 8 }}>
+            <button className="btn ghost sm" onClick={() => store.showToast(store.signYouth(null).message)}>
+              Pass this year
+            </button>
+          </div>
+        </div>
+      )}
       {tab === 'squad' && (
         <div className="grid dugout">
           <div className="panel">

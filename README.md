@@ -40,6 +40,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - A shortlist: star players in Explore and approach them from the market in one click.
 - In-season development: every five matchweeks young players who are playing grow and veterans fade, faster with a good coach; the dynasty summer does the big yearly step.
 - Club legends: all-time appearances, goals, assists, man-of-the-match awards and titles for everyone who ever played for your side.
+- Youth intake: every Dynasty pre-season the academy presents three real prospects aged 20 or under, preferably ones who actually came through at the club you replaced. Sign one for nothing or pass.
 - Post-match press conferences: single out your star, credit the squad, take the blame or blame the referee, and answer the job question when the table turns.
 - Man-mark the opponent's danger man from the opposition report: his influence drops, your attack loses a little, and the report tells you whether it worked.
 - A depth chart of who can cover every position in your shape, rated there.

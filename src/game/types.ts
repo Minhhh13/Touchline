@@ -128,6 +128,8 @@ export interface Game {
   development?: Record<string, { minutes: number; base: number }>
   /** All-time records for this side, keyed by real player id (dynasty legends). */
   careerStats?: Record<string, CareerRecord>
+  /** This pre-season's academy candidates (dynasty); chosen is null when passed. */
+  youthIntake?: { year: number; candidates: string[]; chosen?: string | null }
   nextMatchBoost?: { attack?: number; defence?: number }
   /** A match paused at half time, waiting for the manager. */
   live: LiveMatch | null

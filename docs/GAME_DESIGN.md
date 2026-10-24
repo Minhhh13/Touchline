@@ -375,6 +375,10 @@ Negative swings are scaled by `1.2 − 0.5 × professionalism`.
 
 `src/game/logic/development.ts`, run after matchweeks 5, 10, 15 and so on (never the last). Growth per block for a player who played every minute: +0.9 at 20 or under, +0.55 to 23, +0.2 to 26, 0 to 29, −0.15 to 32, −0.3 from 33. Positive growth is scaled by the square root of the share of available minutes he played, by `1 + 0.25 × coach tier`, and capped at `potential − overall` with `potential = overall + max(0, 27 − age) × 1.3`. Each attribute moves by the probabilistically rounded delta (pace and physical lose an extra point sometimes when fading); the overall is recomputed and value scales by 1.21 per point. The developed player is stored in `customPlayers` under the same id, so lineups and saves stay valid, and the modal shows the change since the start of the season. A development report lands in the inbox.
 
+### Youth intake
+
+`src/game/logic/youth.ts`, Dynasty only, built in `beginSeason`. Candidates are real player-seasons aged 20 or under rated 58 to 76 within the era filter and not already owned: up to two from any of the host club's real squads across the seasons (tagged Homegrown), topped up to three from the wheel leagues. Signing one costs nothing and gives a three-year contract; passing records the decision. The offer lasts through pre-season.
+
 ### Club legends
 
 `finishSeason` accumulates every squad player's appearances, goals, assists, man-of-the-match awards, seasons and titles into `game.careerStats` keyed by the real player id, so a player who ages through several dynasty seasons keeps one record. The Club tab lists the top twelve.

@@ -8,6 +8,7 @@ import { newSquadPlayer, buildAiClubs, buildContinentalClubs, continentalRounds,
 import { startingFinances } from '@engine/market'
 import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
+import { buildYouthIntake } from './youth'
 import { playerLookup } from './players'
 
 export function createGame(settings: GameSettings): Game {
@@ -127,6 +128,12 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   }
   game.friendliesPlayed = 0
   game.phase = 'preseason'
+  // Dynasty: the academy presents this year's intake
+  if (s.mode === 'dynasty') {
+    const candidates = buildYouthIntake(game, u, rng)
+    game.youthIntake = candidates.length ? { year: game.year, candidates } : undefined
+    if (candidates.length) game.season.news.unshift({ matchweek: 0, kind: 'info', title: 'Youth intake', body: `${candidates.length} academy prospects are ready for a look. Sign one for nothing, or pass.` })
+  }
   // The draft order constrained who went where; start the season with the strongest eleven.
   autoPick(game, u, false)
   game.rngState = rng.getState()
