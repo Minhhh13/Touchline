@@ -4,7 +4,7 @@ import { produce } from 'immer'
 import type { Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse } from '@engine/universe'
-import { Rng, dailySeed } from '@engine/rng'
+import { Rng, dailySeed, type RngState } from '@engine/rng'
 import { isComplete, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
@@ -16,8 +16,23 @@ import { assignPlayer, autoPick, setFormation } from './logic/squad'
 import { acceptOffer, advanceDay, bidFor, rejectOffer, releasePlayer } from './logic/marketOps'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
+import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
+import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
+import { getFormation } from '@engine/formations'
+import { QUICK_RULES } from '@engine/draft'
 
-export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto'
+export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h'
+
+export interface H2HGame {
+  managers: [H2HManager, H2HManager]
+  leagueSeason: number
+  difficulty: 'calibrated' | 'realistic'
+  seed: string
+  rngState: RngState
+  draft: H2HDraft
+  result: H2HResult | null
+  hardMode: boolean
+}
 
 export interface SetupDraft {
   mode: Mode
@@ -30,6 +45,7 @@ interface Store {
   screen: Screen
   setupMode: Mode
   game: Game | null
+  h2h: H2HGame | null
   profile: Profile
   toast: string | null
   offseason: OffseasonReport | null
@@ -75,6 +91,13 @@ interface Store {
 
   nextSeason: () => void
   dismissOffseason: () => void
+
+  startH2H: (managers: [H2HManager, H2HManager], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string) => void
+  h2hSpin: () => void
+  h2hPick: (playerSeasonId: string, slotId: string | 'bench') => void
+  h2hAuto: () => void
+  h2hFinish: () => void
+  abandonH2H: () => void
   recordResult: () => void
   setManagerName: (name: string) => void
   setTheme: (t: Profile['theme']) => void
@@ -121,6 +144,7 @@ export const useStore = create<Store>()(
         screen: 'home',
         setupMode: 'quick',
         game: null,
+        h2h: null,
         profile: defaultProfile,
         toast: null,
         offseason: null,
@@ -294,6 +318,48 @@ export const useStore = create<Store>()(
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
           set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, seasonsSimulated: profile.seasonsSimulated + 1 } })
         },
+        startH2H: (managers, leagueSeason, difficulty, hardMode, seed) => {
+          const rng = new Rng(seed)
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode })
+          set({ h2h: { managers, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
+        },
+        h2hSpin: () => {
+          const { h2h, universe } = get()
+          if (!h2h || !universe || h2h.draft.picking !== null) return
+          set({
+            h2h: produce(h2h, (h) => {
+              const rng = Rng.fromState(h.rngState)
+              h2hSpin(universe, h.draft, rng)
+              h.rngState = rng.getState()
+            }),
+          })
+        },
+        h2hPick: (id, slot) => {
+          const { h2h, universe } = get()
+          if (!h2h || !universe) return
+          try {
+            set({ h2h: produce(h2h, (h) => void h2hPick(universe, h.draft, id, slot)) })
+          } catch (e) {
+            set({ toast: e instanceof Error ? e.message : String(e) })
+          }
+        },
+        h2hAuto: () => {
+          const { h2h, universe } = get()
+          if (!h2h || !universe) return
+          set({ h2h: produce(h2h, (h) => void h2hAutoPick(universe, h.draft)) })
+        },
+        h2hFinish: () => {
+          const { h2h, universe } = get()
+          if (!h2h || !universe || !h2hComplete(h2h.draft)) return
+          set({
+            h2h: produce(h2h, (h) => {
+              const rng = Rng.fromState(h.rngState)
+              h.result = runH2HSeason(universe, rng, h.managers, h.draft.drafts, h.leagueSeason, h.difficulty)
+              h.rngState = rng.getState()
+            }),
+          })
+        },
+        abandonH2H: () => set({ h2h: null, screen: 'home' }),
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
         setTheme: (theme) => set({ profile: { ...get().profile, theme } }),
       }
@@ -301,7 +367,7 @@ export const useStore = create<Store>()(
     {
       name: 'touchline-save-v1',
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ game: s.game, profile: s.profile, screen: s.screen === 'game' ? 'game' : 'home' }) as unknown as Store,
+      partialize: (s) => ({ game: s.game, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
       version: 1,
     },
   ),

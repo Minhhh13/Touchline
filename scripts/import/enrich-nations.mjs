@@ -39,35 +39,37 @@ async function main() {
   console.log(`${targets.length} to look up on Wikidata`)
 
   const results = { ...existing }
-  const batchSize = 40
+  const batchSize = 25
   for (let i = 0; i < targets.length; i += batchSize) {
     const batch = targets.slice(i, i + batchSize)
     const values = batch.map((t) => `("${t.name.replace(/"/g, '\\"')}"@en "${t.dob}T00:00:00Z"^^xsd:dateTime)`).join(' ')
     const query = `
-SELECT ?label ?dobIn ?countryLabel ?sport WHERE {
+SELECT ?label ?dobIn ?countryLabel ?sportLabel WHERE {
   VALUES (?label ?dobIn) { ${values} }
   ?item rdfs:label ?label .
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P569 ?dob .
   FILTER(?dob = ?dobIn)
-  { ?item wdt:P1532 ?country . BIND(1 AS ?sport) } UNION { ?item wdt:P27 ?country . BIND(0 AS ?sport) }
-  ?country rdfs:label ?countryLabel . FILTER(LANG(?countryLabel) = "en")
+  OPTIONAL { ?item wdt:P27 ?country . ?country rdfs:label ?countryLabel . FILTER(LANG(?countryLabel) = "en") }
+  OPTIONAL { ?item wdt:P1532 ?sport . ?sport rdfs:label ?sportLabel . FILTER(LANG(?sportLabel) = "en") }
 }`
     try {
-      const res = await fetch(`${ENDPOINT}?format=json&query=${encodeURIComponent(query)}`, { headers: { 'User-Agent': 'touchline-game-data/1.0 (open source football game; data enrichment)' } })
-      if (!res.ok) {
-        console.log(`  batch ${i}: HTTP ${res.status}`)
-        await new Promise((r) => setTimeout(r, 5000))
-        continue
+      let res = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        res = await fetch(`${ENDPOINT}?format=json&query=${encodeURIComponent(query)}`, { headers: { 'User-Agent': 'touchline-game-data/1.0 (open source football game; data enrichment)' } })
+        if (res.ok) break
+        console.log(`  batch ${i}: HTTP ${res.status}, retrying`)
+        await new Promise((r) => setTimeout(r, 8000 * (attempt + 1)))
       }
+      if (!res || !res.ok) continue
       const json = await res.json()
       const byName = new Map()
-      // Country for sport (P1532) beats citizenship (P27): sort so sport entries come first.
-      const bindings = [...json.results.bindings].sort((x, y) => Number(y.sport?.value ?? 0) - Number(x.sport?.value ?? 0))
-      for (const b of bindings) {
+      // Country for sport (P1532) beats citizenship (P27).
+      for (const b of json.results.bindings) {
         const key = `${b.label.value}|${b.dobIn.value.slice(0, 10)}`
         if (!byName.has(key)) byName.set(key, [])
-        byName.get(key).push(b.countryLabel.value)
+        if (b.sportLabel) byName.get(key).unshift(b.sportLabel.value)
+        if (b.countryLabel) byName.get(key).push(b.countryLabel.value)
       }
       let found = 0
       for (const t of batch) {

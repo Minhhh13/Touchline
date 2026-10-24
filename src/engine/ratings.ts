@@ -115,7 +115,7 @@ export function chemistryOf(players: PlayerSeason[], states: Array<SquadPlayer |
   }
   const fam = states.filter(Boolean).map((s) => s!.familiarity)
   const avgFam = fam.length ? fam.reduce((x, y) => x + y, 0) / fam.length : 50
-  // 55 possible pairs. A full one-club-season XI scores 55 → cap at +2.
+  // 55 possible pairs. A full one-club-season XI scores 55 → cap at +1.5.
   const linkPoints = Math.min(1.5, (score / 55) * 5)
   const famPoints = ((avgFam - 50) / 50) * 1.2 // -1.2 .. +1.2
   const points = round2(linkPoints + famPoints)

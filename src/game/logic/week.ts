@@ -210,12 +210,12 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   }
   if (season.confidence < 20 && !game.unlocked.includes('survivor-pending')) game.unlocked.push('survivor-pending')
 
-  // Transfer window: opens after matchweek 19, runs for seven "days" over three matchweeks
+  // Transfer window: opens after matchweek 19; three market days pass per matchweek, so it shuts after matchweek 22
   if (mw === 19 && !game.window) {
     game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       if (game.window.day < game.window.days) advanceWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05 }, game.window, squadPlayers(game, u), Object.keys(season.ai))
     }
     if (game.window.day >= game.window.days) {

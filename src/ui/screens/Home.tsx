@@ -70,6 +70,10 @@ export function Home() {
       </div>
 
       <div className="grid three" style={{ marginTop: 16 }}>
+        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer', borderColor: 'var(--line-2)' }} onClick={() => go('h2h')}>
+          <h3>🤝 Head-to-head</h3>
+          <p className="muted small">Two managers on one device draft from the same spins, then both sides play the same season. Settle it properly.</p>
+        </button>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('explore')}>
           <h3>Explore the database</h3>
           <p className="muted small">Every club-season since 2008-09 with its real squad and ratings. Settle the argument before you spin.</p>

@@ -37,7 +37,15 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 
 ## Screenshots
 
-Screenshots to follow. In the meantime run the game locally (below) or read `docs/GAME_DESIGN.md` for a full walkthrough of the systems.
+| The draft | The dugout |
+| --- | --- |
+| ![The wheel has landed on Crystal Palace 2023-24](docs/screenshots/draft.png) | ![Squad, pitch and team talk before kick-off](docs/screenshots/dugout.png) |
+
+| Season summary | Match report |
+| --- | --- |
+| ![A quick-draft season summary with share text](docs/screenshots/summary.png) | ![Goals, stats, tactical notes and player ratings](docs/screenshots/match-report.png) |
+
+![The January transfer window](docs/screenshots/market.png)
 
 ## Getting started
 

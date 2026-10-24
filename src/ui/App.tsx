@@ -9,6 +9,7 @@ import { MatchScreen } from './screens/MatchScreen'
 import { Explore } from './screens/Explore'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
+import { H2HScreen } from './screens/H2H'
 import { Modal, Toast } from './components/bits'
 
 export function App() {
@@ -60,6 +61,7 @@ export function App() {
     else if (game.phase === 'summary') body = <Summary />
     else body = <Dugout />
   } else if (screen === 'setup') body = <Setup />
+  else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />
   else if (screen === 'howto') body = <HowTo />
@@ -81,6 +83,9 @@ export function App() {
               {game.phase === 'draft' ? 'Draft' : game.phase === 'summary' ? 'Summary' : 'Dugout'}
             </button>
           )}
+          <button className={screen === 'h2h' ? 'active' : ''} onClick={() => go('h2h')}>
+            Head-to-head
+          </button>
           <button className={screen === 'explore' ? 'active' : ''} onClick={() => go('explore')}>
             Explore
           </button>

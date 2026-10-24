@@ -57,6 +57,20 @@ export function Setup() {
     }
   }
 
+  // The daily puzzle fixes everything but the picks: formation, league, host club and difficulty come from the date.
+  const dailyFixed = (() => {
+    if (!isDaily) return null
+    const seedNum = todaysDailySeed().split('-').slice(1).join('')
+    const n = Number(seedNum) || 0
+    const complete = u.clubSeasons.filter((cs) => cs.complete)
+    const seasonsComplete = [...new Set(complete.map((cs) => cs.season))].sort()
+    const season = seasonsComplete[n % seasonsComplete.length]
+    const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()
+    const host = clubs[(n * 7) % clubs.length]
+    const formations = ['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '4-4-2-diamond']
+    return { season, host, formationId: formations[(n * 3) % formations.length] }
+  })()
+
   const start = () => {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const rules: DraftRules = { ...base, ...eraRange(), onlyClub: !isDaily && onlyClub ? onlyClub : undefined, hardMode: !isDaily && hardMode }
@@ -70,14 +84,14 @@ export function Setup() {
     const settings: GameSettings = {
       mode,
       seed: isDaily ? todaysDailySeed() : seed.trim() || randomSeed(),
-      formationId,
+      formationId: dailyFixed ? dailyFixed.formationId : formationId,
       teamName: name,
       shortName: short.length >= 2 ? short : name.slice(0, 3).toUpperCase(),
-      hostClubId: host,
-      leagueSeason,
+      hostClubId: dailyFixed ? dailyFixed.host : host,
+      leagueSeason: dailyFixed ? dailyFixed.season : leagueSeason,
       rules,
       jobSecurity: isManage ? jobSecurity : false,
-      difficulty,
+      difficulty: dailyFixed ? 'calibrated' : difficulty,
     }
     startGame(settings)
   }
@@ -98,6 +112,12 @@ export function Setup() {
               Team name
               <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={28} />
             </label>
+            {dailyFixed && (
+              <div className="notice">
+                Today's puzzle: everyone drafts a <b>{dailyFixed.formationId}</b> from the same wheel, as <b>{u.clubById[dailyFixed.host]?.name}</b> in the <b>{seasonLabel(dailyFixed.season)}</b> league, calibrated difficulty. Seed {todaysDailySeed()}.
+              </div>
+            )}
+            {!dailyFixed && (
             <label className="field">
               League season to play in
               <select className="input" value={leagueSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
@@ -109,6 +129,8 @@ export function Setup() {
               </select>
               <span className="help">Your drafted side replaces one real club and plays its 19 rivals with their real squads of that season.</span>
             </label>
+            )}
+            {!dailyFixed && (
             <label className="field">
               Club whose place you take
               <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)}>
@@ -122,6 +144,8 @@ export function Setup() {
                 <ClubBadge clubId={host} size={22} /> You inherit their colours, rivals and fixture list. Their real players sit the season out.
               </span>
             </label>
+            )}
+            {!dailyFixed && (
             <div className="field">
               Difficulty
               <Segmented
@@ -134,6 +158,7 @@ export function Setup() {
               />
               <span className="help">{difficulty === 'calibrated' ? 'The league is scaled so an average draft finishes mid-table and a great one wins it.' : 'Modern top clubs field eleven 85+ players. Only a legendary draft survives.'}</span>
             </div>
+            )}
             {!isDaily && (
               <label className="field">
                 Seed
@@ -146,7 +171,7 @@ export function Setup() {
                 <span className="help">Share a seed with a friend and you both get the same wheel.</span>
               </label>
             )}
-            {isDaily && <div className="notice">Today's puzzle: everyone spins the same wheel in the same order. Seed {todaysDailySeed()}.</div>}
+
           </div>
 
           {!isDaily && (
@@ -217,6 +242,7 @@ export function Setup() {
         </div>
 
         <div className="col">
+          {!dailyFixed && (
           <div className="panel">
             <h3>Formation</h3>
             <div className="formations">
@@ -229,6 +255,7 @@ export function Setup() {
             </div>
             <p className="help">{isManage ? 'You can change shape later, at a small cost to familiarity.' : 'The wheel only offers players who can fill a slot you still need.'}</p>
           </div>
+          )}
           <button className="btn primary big block" onClick={start}>
             {isManage ? 'Start drafting your squad' : 'Spin the wheel'}
           </button>

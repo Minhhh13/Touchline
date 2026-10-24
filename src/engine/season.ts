@@ -263,7 +263,8 @@ export function applyMatchToState(state: SquadPlayer, stats: { minutes: number; 
     state.yellowCards++
     if (state.yellowCards % 5 === 0) state.suspension = Math.max(state.suspension, 1)
   }
-  if (stats.red) state.suspension = Math.max(state.suspension, stats.rating < 5.5 ? 3 : 1 + (Math.random() < 0 ? 0 : 1))
+  // A straight red for violent conduct (a very poor rating) is three matches; otherwise two.
+  if (stats.red) state.suspension = Math.max(state.suspension, stats.rating < 5.5 ? 3 : 2)
   if (stats.injured) state.injury = { ...stats.injured }
   // morale: results and personal performance
   const resultDelta = teamResult === 'W' ? 5 : teamResult === 'D' ? 0 : -5

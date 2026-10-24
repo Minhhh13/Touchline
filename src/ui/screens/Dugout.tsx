@@ -468,7 +468,7 @@ function MarketTab() {
     return (
       <div className="panel">
         <h3>Transfer market</h3>
-        <p className="muted">The window is closed. The January window opens after matchweek 19 and runs for seven market days across three matchweeks. In Dynasty mode a longer summer window opens between seasons.</p>
+        <p className="muted">The window is closed. The January window opens after matchweek 19 and runs for seven market days, three per matchweek, so it shuts after matchweek 22. In Dynasty mode a longer summer window opens between seasons.</p>
         <h3 style={{ marginTop: 12 }}>Squad values</h3>
         <table className="tbl">
           <thead>
@@ -659,7 +659,7 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dt>Wages paid</dt>
           <dd>{money(game.finances.wagesPaid)}</dd>
         </div>
-        <p className="help">Wages come out of the budget weekly. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</p>
+        <p className="help">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</p>
       </div>
       <div className="panel">
         <h3>Contracts</h3>

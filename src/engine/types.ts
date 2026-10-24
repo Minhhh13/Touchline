@@ -55,7 +55,7 @@ export interface Club {
  * This is the unit that the wheel drafts, exactly like a "player season" in 38-0.
  */
 export interface PlayerSeason {
-  /** Unique per player-season, e.g. "p1234@2004". */
+  /** Unique per player-season: `${playerId}@${season}@${clubId}`. */
   id: string
   /** Stable across seasons for the same human being. */
   playerId: string
