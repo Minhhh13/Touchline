@@ -1,6 +1,6 @@
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
-import { modeLabel } from '@game/logic/modes'
+import { MODE_TITLE, modeLabel } from '@game/logic/modes'
 import { arenaStatus } from '@game/logic/arena'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan, weeklySettings } from '@game/logic/weekly'
@@ -21,14 +21,18 @@ export function Home() {
   const dailyReady = !!u && loadedLeagues.includes('england')
   const daily = dailyReady ? dailySettings(u, todaysDailySeed()) : null
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
-  const dailyUnderWay = !!game && game.settings.mode === 'daily' && game.settings.seed === todaysDailySeed() && game.phase !== 'summary'
+  const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
+  const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)
   const playDaily = () => {
     if (!u || !dailyReady) return
-    if (dailyUnderWay) {
+    if (isTodaysDaily(game)) {
       go('game')
       return
     }
-    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    if (isTodaysDaily(parked.quick)) return resumeGame('quick')
+    // A parked game in the quick slot (a Weekly parked by an arena run) is dropped by the start too, so it asks as well
+    const open = [game, parked.quick].find((g) => g && slotOf(g) === 'quick' && g.phase !== 'summary')
+    if (open && !confirm(`Start today's puzzle? Your current ${MODE_TITLE[open.settings.mode]} (${open.settings.teamName}) will be abandoned.`)) return
     startGame(dailyGameSettings(u, todaysDailySeed()))
   }
   // The Daily Arena: today's run continues wherever it is (active or parked); any other unfinished arena run is only dropped on a yes

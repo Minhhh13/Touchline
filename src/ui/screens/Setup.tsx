@@ -197,7 +197,8 @@ export function Setup() {
     }
   }
   const start = () => startGame(buildSettings(false))
-  const summary = summariseSetup(u, buildSettings(true))
+  // Until the week's league is in, the week has no season or host to state
+  const summary = fixed?.kind === 'weekly' && !week ? `Loading the ${u.available.find((l) => l.id === fixed.leagueId)?.name ?? fixed.leagueId}…` : summariseSetup(u, buildSettings(true))
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady
 
   return (

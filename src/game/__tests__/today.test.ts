@@ -10,6 +10,8 @@ import { weeklyGameSettings, weeklyNation, weeklyPlan, weeklySettings, weeklyThe
 import { WEEKLY_EPOCHS, WEEKLY_THEMES, type WeeklyThemeId } from '../logic/weeklyThemes'
 import { fileStreakResult } from '../logic/streaks'
 import { modeLabel, shareCardFooter } from '../logic/modes'
+import { runQuickSeason } from '../logic/quick'
+import { challengeFromGame, replayChallenge } from '../logic/challenge'
 import type { Game, GameSettings } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
 vi.hoisted(() => {
@@ -158,7 +160,8 @@ describe('Weekly Challenge', () => {
       expect(nation, leagueId).toBeTruthy()
       expect(all.nations[nation!]?.name, leagueId).not.toBe(country)
     }
-  })
+    // Seven league scans: over 5 s on a loaded machine
+  }, 30000)
 
   it('needs the week’s packs: no settings until they load, while the plan names the league from the index alone', () => {
     expect(weeklyPlan(england, 'weekly-2026-W44').leagueId).toBe('spain')
@@ -263,4 +266,51 @@ describe('Today and this week: the streak books', () => {
     expect(p.cabinet!.byMode.weekly).toBe((before.cabinet?.byMode.weekly ?? 0) + 1)
     expect(p.achievements['weekly-streak-4']).toBeTruthy()
   }, 60000)
+})
+
+describe('Today and this week: the same puzzle whatever else is loaded', () => {
+  const all = loadTestUniverse(ALL)
+  /** The assistant's draft of a game: every spin's club-season, in order. */
+  const drafted = (u: typeof england, s: GameSettings) => {
+    const g = createGame(s)
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    return { g, wheel: g.draft!.history.map((h) => `${h.clubId}@${h.season}`) }
+  }
+
+  it('a Daily Arena draws the same wheel, ladder and draw with one pack loaded or all seven', () => {
+    for (const seed of ['arena-2026-10-25', 'arena-2026-10-26']) {
+      const run = (u: typeof england) => {
+        const { g, wheel } = drafted(u, dailyArenaGameSettings(u, seed))
+        beginArena(g, u)
+        return { wheel, next: g.arena!.next, rungs: [1, 2, 3, 4, 5].map((r) => rungOpponent(g.arena!, r)), round: g.arena!.bracket?.rounds[0] ?? null }
+      }
+      expect(run(all), seed).toEqual(run(england))
+    }
+  }, 60000)
+
+  it('a week draws the same settings and wheel with only its league loaded (beside England) or all seven', () => {
+    // Weeks 45 to 49: the early years, Moneyball, hard mode, one nation and the modern game, in five different leagues
+    for (let w = 45; w <= 49; w++) {
+      const seed = `weekly-2026-W${w}`
+      const leagueId = weeklyPlan(all, seed).leagueId
+      const one = loadTestUniverse(leagueId === 'england' ? ['england'] : ['england', leagueId])
+      expect(weeklyGameSettings(one, seed), seed).toEqual(weeklyGameSettings(all, seed))
+      expect(drafted(one, weeklyGameSettings(one, seed)!).wheel, seed).toEqual(drafted(all, weeklyGameSettings(all, seed)!).wheel)
+    }
+  }, 120000)
+
+  it('a weekly result packs into a challenge link that replays and verifies', () => {
+    for (const seed of ['weekly-2026-W43', 'weekly-2026-W46']) {
+      const { g } = drafted(all, weeklyGameSettings(all, seed)!)
+      runQuickSeason(g, all)
+      g.phase = 'summary'
+      const link = challengeFromGame(g, all, 'Weekly friend')!
+      expect(link, seed).not.toBeNull()
+      const out = replayChallenge(all, link)
+      expect(out.verified, `${seed}: ${out.reason ?? ''}`).toBe('yes')
+      expect(out.result).toEqual(link.c)
+    }
+  }, 120000)
 })
