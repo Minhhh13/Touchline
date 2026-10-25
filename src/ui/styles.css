@@ -4419,3 +4419,594 @@ table.tbl.contracts .btn.sm {
     grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 34px 28px;
   }
 }
+
+/* ------------------------------------------------------- draft and dugout */
+/* The screen pass for the Draft and the Dugout (DESIGN_SYSTEM.md section 8): shared pieces first */
+.icon-chip {
+  gap: var(--space-1);
+}
+.icon-chip svg {
+  flex: none;
+}
+.icon-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* A panel title with its Info beside it */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.panel.emphasis {
+  border-color: var(--primary);
+}
+.notice.icon-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+.notice.gold {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+/* A club, or the user's side, with its badge: the name as an h2 and a line of short facts */
+.club-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.club-head h2 {
+  margin: 0;
+  line-height: 1.1;
+}
+.club-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.club-sub > span:not(.chip) + span:not(.chip)::before {
+  content: '·';
+  margin-right: var(--space-2);
+}
+/* Lined player lists: rows divided by a hairline instead of each in its own box */
+.plist.lined {
+  gap: 0;
+}
+.plist.lined > .prow {
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  padding: 10px var(--space-2);
+}
+.plist.lined > * + * {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.plist.lined > .prow:hover {
+  background: var(--bg-3);
+  box-shadow: none;
+}
+.plist.lined > .prow:hover + * {
+  box-shadow: none;
+}
+.plist.lined > .prow.selected {
+  background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.plist.lined > .prow.dim:hover {
+  background: transparent;
+}
+.scroll-list {
+  max-height: 280px;
+  overflow: auto;
+}
+/* Rating badges: tabular figures so a column of them lines up */
+.rating {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+/* The pitch sits on a neutral mat, so the grass reads as a picture inside the panel in both themes */
+.pitch-wrap {
+  border: 5px solid var(--bg-3);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.pitch-wrap .slot .sub {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+/* The Draft */
+.screen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.screen-title {
+  min-width: 0;
+}
+.screen-title h1 {
+  margin: 0 0 var(--space-1);
+}
+.screen-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.screen-meta .mono {
+  font-size: var(--fs-meta);
+}
+.draft-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 240px;
+}
+.draft-count {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.draft-count b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--text);
+}
+.pick-track {
+  display: flex;
+  gap: 3px;
+}
+.pick-track span {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-3);
+}
+.pick-track span.done {
+  background: var(--primary);
+}
+.pick-track span.now {
+  background: color-mix(in srgb, var(--primary) 40%, var(--bg-3));
+}
+.ghost-chip {
+  align-self: center;
+  white-space: normal;
+  text-align: center;
+}
+.draft-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow: auto;
+}
+.draft-log li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 0;
+}
+.draft-log li + li {
+  border-top: var(--border);
+}
+.draft-log .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.draft-log .name {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-log .muted {
+  font-size: var(--fs-sm);
+}
+.draft-log .when {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+}
+.log-twist {
+  display: inline-flex;
+  color: var(--gold-text);
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-3);
+  text-align: center;
+}
+.empty-state h3 {
+  margin: var(--space-2) 0 0;
+}
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--accent);
+}
+.draft-list {
+  max-height: 560px;
+  overflow: auto;
+}
+.twist-card .twist-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 0;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+.twist-card.next .twist-icon {
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+
+/* The Dugout */
+.club-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: var(--space-5);
+}
+.stat-strip .stat {
+  min-width: 0;
+}
+.stat-strip .stat .bar {
+  width: 120px;
+  margin: 4px 0 2px;
+}
+.panel.cta {
+  margin-bottom: var(--space-4);
+  background: radial-gradient(120% 160% at 100% 0, var(--glow), transparent 60%), var(--panel);
+}
+.cta-fixture {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.cta-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+}
+.cta-title .info {
+  vertical-align: 2px;
+}
+.brief .icon,
+.bar-brief .icon {
+  display: inline-grid;
+  place-items: center;
+}
+.unit-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+.unit-strip i {
+  font-style: normal;
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  margin-right: 2px;
+}
+.season-line {
+  color: var(--text-3);
+}
+.fixture-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cup-round {
+  margin-bottom: var(--space-4);
+}
+.cup-round h4 {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.news .item {
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+}
+.news-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+.news-icon.injury {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.news-icon.suspension {
+  background: var(--bad-soft);
+}
+.news-icon.award,
+.news-icon.cup {
+  color: var(--gold-text);
+  background: var(--gold-soft);
+}
+.news-icon.event {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.news-mw {
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+/* Tactics: formations as pictures, instructions as label and control */
+.instructions {
+  display: flex;
+  flex-direction: column;
+}
+.instruction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: 10px 0;
+}
+.instruction + .instruction {
+  border-top: var(--border);
+}
+.instruction-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+}
+.instruction select.input {
+  width: auto;
+  min-width: 200px;
+  max-width: 100%;
+}
+.role-list {
+  display: flex;
+  flex-direction: column;
+}
+.role-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: 10px 0;
+}
+.role-row + .role-row {
+  border-top: var(--border);
+}
+.role-who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.role-name {
+  font-weight: 600;
+}
+.role-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.role-pick select.input {
+  width: auto;
+  min-height: var(--control-h-sm);
+  padding: 4px 8px;
+}
+/* Market and club */
+.segmented.scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+.segmented.scroll::-webkit-scrollbar {
+  display: none;
+}
+.segmented.scroll button {
+  flex: none;
+}
+.listings {
+  max-height: 640px;
+  overflow: auto;
+}
+.market-log {
+  gap: var(--space-1);
+  max-height: 300px;
+  overflow: auto;
+}
+.player-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.meter-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sheet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.sheet-occupant .prow {
+  border-radius: var(--radius-m);
+}
+
+@media (max-width: 1050px) {
+  .draft-progress {
+    width: 100%;
+  }
+}
+/* Phones first: stats two by two, lists without inner scroll, instructions stacked */
+@media (max-width: 720px) {
+  .screen-head {
+    margin-bottom: var(--space-3);
+  }
+  .club-header {
+    gap: var(--space-3);
+  }
+  .stat-strip {
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3) var(--space-4);
+  }
+  .stat-strip .stat .value {
+    font-size: 24px;
+  }
+  .stat-strip .stat .bar {
+    width: 100%;
+  }
+  .draft-list,
+  .listings {
+    max-height: none;
+    overflow: visible;
+  }
+  .cta-title {
+    font-size: 20px;
+  }
+  .instruction {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .instruction select.input {
+    width: 100%;
+  }
+  .plist.lined > .prow {
+    padding: 10px 4px;
+  }
+}
+/* The opposition report folds: open on a desktop, closed on a phone */
+.opposition > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.opposition > summary::-webkit-details-marker {
+  display: none;
+}
+.opposition:not([open]) > summary {
+  margin-bottom: 0;
+}
+.opposition > summary .small {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.fold-chevron {
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.opposition[open] .fold-chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fold-chevron {
+    transition: none;
+  }
+}
+@media (max-width: 720px) {
+  .draft-count b {
+    font-size: 20px;
+  }
+}
+/* The Inbox as a lined list: hairlines between items, the unread ones marked by an accent bar */
+.news {
+  gap: 0;
+}
+.news .item {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px var(--space-2);
+}
+.news .item + .item {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.news .item.new {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.news .item.new + .item {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.news .item.new + .item.new {
+  box-shadow: inset 3px 0 0 var(--accent), inset 0 1px 0 var(--line);
+}
+/* A market listing is already a card: the player row inside it sits flat */
+.listing .prow {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.listing .prow:hover {
+  background: transparent;
+}
+/* A phone shows the price first, then the bid controls with full-width selects */
+@media (max-width: 720px) {
+  .listing > div:last-child {
+    order: -1;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .bidrow select {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
