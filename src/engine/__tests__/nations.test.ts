@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from './helpers'
 import { getFormation } from '../formations'
-import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationDepth, nationDepthLabel, UNKNOWN_NATION } from '../nations'
+import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepth, nationDepthFrom, nationDepthLabel, UNKNOWN_NATION } from '../nations'
 import { canCover } from '../positions'
 import type { Position } from '../types'
 
@@ -43,5 +43,20 @@ describe('nationDepth', () => {
     expect(nationDepth(u, ['england'], { fromSeason: 2016 }, f433, 22).length).toBeLessThanOrEqual(depth.length)
     // A league that is not loaded contributes nothing
     expect(nationDepth(u, ['spain'], {}, f433, 11)).toEqual([])
+  })
+
+  it('one scan filtered per squad size gives the same list as a fresh scan, so the setup slider need not rescan', () => {
+    const scan = nationCover(u, ['england'], {}, f433)
+    // The scan keeps every known nation, covered or not, and never the unknown bucket
+    expect(scan.some((n) => n.nation === UNKNOWN_NATION)).toBe(false)
+    expect(scan.some((n) => !n.covered)).toBe(true)
+    expect(scan.find((n) => n.nation === 'CIV')?.covered).toBe(false)
+    for (const squadSize of [11, 16, 18, 22]) {
+      const fromScan = nationDepthFrom(scan, squadSize)
+      expect(fromScan).toEqual(nationDepth(u, ['england'], {}, f433, squadSize))
+      for (const n of fromScan) expect(n).not.toHaveProperty('covered')
+    }
+    // Squad sizes beyond the data leave nothing
+    expect(nationDepthFrom(scan, 100000)).toEqual([])
   })
 })

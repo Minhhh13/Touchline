@@ -3,7 +3,7 @@ import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
-import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationDepth, nationDepthLabel, type EraRange } from '@engine/nations'
+import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel, type EraRange } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
 import { seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
@@ -72,8 +72,10 @@ export function Setup() {
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const eraRange = eraBounds(era, from, to, u?.firstSeason ?? 2008, isDaily)
-  // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era
-  const nations = useMemo(() => (u && !isDaily ? nationDepth(u, wheelLeagues, eraRange, getFormation(formationId), isManage ? squadSize : 11) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, formationId, isManage, squadSize])
+  // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era.
+  // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
+  const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, formationId])
+  const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : clubsInLeague[Math.floor(clubsInLeague.length / 2)] ?? ''
