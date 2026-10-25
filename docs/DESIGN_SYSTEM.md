@@ -68,7 +68,7 @@ The mark is sized to the name (the owner's "balanced and well ratioed with the t
 - The ball: r 12u resting on the line at x 28.5u, a clear 6u right of the pole and clear of the pennant at every frame of the wave. It is the flat tier below a 40 px diameter (every size in the app today), with a darker edge (`#94a3b8`), plus a soft navy rim shade, a small highlight at the top left and a contact shadow (a soft ellipse, r 0.85 × 0.14 of the ball, drawn under it) where it sits on the line.
 - Width is about 245u: 397 px at 104 px high (the Home hero), 275 px at 72 (the hero on a phone), 153 px at 40 (the top bar), 122 px at 32 (the top bar on a phone).
 
-Colours: on Floodlit the pole and the line are white; on Daylight they, and a thin ring round the ball, take `--text` (`#0d1526`), the same navy as the name. The pennant stays red on both. All of it follows the theme through CSS variables (`--tl-ink`, `--tl-ball-ring`).
+Colours: on Floodlit the pole and the line are white; on Daylight they, and a thin ring round the ball, take `--text` (`#0a1b51`), the same navy as the name. The pennant stays red on both. All of it follows the theme through CSS variables (`--tl-ink`, `--tl-ball-ring`).
 
 **Motion.** CSS keyframes only, no JavaScript; the resting state is the finished logo, so `prefers-reduced-motion` switches the animations off and shows it.
 
@@ -113,38 +113,38 @@ The profile's theme setting is Auto, Light or Dark (Profile screen). `App.tsx` a
 
 | Token | Floodlit | Daylight | Use |
 |---|---|---|---|
-| `--bg` | `#07102e` | `#f3f5fe` | Page background (with the `--glow` cyan and `--glow-2` magenta floodlights at the top) |
-| `--bg-2` | `#0a1538` | `#e9edfb` | Sunken: segmented track, toggles |
-| `--bg-3` | `#182a64` | `#e0e5f8` | Chips, bar tracks, position tags, ghost hover |
-| `--panel` | `#0c1a46` | `#ffffff` | Panels, modals, bottom bars |
-| `--panel-2` | `#112152` | `#f7f8ff` | Cards, rows and tiles inside a panel |
+| `--bg` | `#07102e` | `#eceff8` (soft cool grey-lavender) | Page background (with the `--glow` cyan and `--glow-2` magenta floodlights at the top) |
+| `--bg-2` | `#0a1538` | `#e2e6f3` | Sunken: segmented track, toggles |
+| `--bg-3` | `#182a64` | `#d9def0` | Chips, bar tracks, position tags, ghost hover |
+| `--panel` | `#0c1a46` | `#fbfcff` (off-white, a faint blue tint) | Panels, modals, bottom bars |
+| `--panel-2` | `#112152` | `#f2f4fc` | Cards, rows and tiles inside a panel |
 | `--raised` | `#172a62` | `#ffffff` | Secondary buttons, hovered rows |
-| `--line` | `#1f3270` | `#d9def3` | Default border and dividers (`--border`) |
-| `--line-2` | `#2d4386` | `#c1c8e8` | Stronger border: banners, buttons, sheets (`--border-strong`) |
+| `--line` | `#1f3270` | `#cdd3ea` | Default border and dividers (`--border`) |
+| `--line-2` | `#2d4386` | `#b3bcdf` | Stronger border: banners, buttons, sheets (`--border-strong`) |
 | `--field-bg` | `#08133a` | `#ffffff` | Inputs and selects |
-| `--field-border` | `#6075b8` | `#7680ad` | Input and select borders (3:1 against the panel) |
+| `--field-border` | `#6075b8` | `#6c77a6` | Input and select borders (3:1 against the panel) |
 | `--scrim` | navy 66 % | navy 42 % | Behind modals |
 | `--float-bg`, `--float-text`, `--float-line` | `#1a2d6a`, `#f1f4ff`, `#2d4386` | `#0a1b51`, `#ffffff`, `#0a1b51` | Tooltips and toasts |
 | `--text` | `#f1f4ff` | `#0a1b51` | Body text, titles (`--text-1` is an alias) |
-| `--text-2` | `#c3cdf0` | `#36427a` | Secondary text, labels, inactive controls |
-| `--text-3` | `#93a3d6` | `#535e92` | Captions, meta, placeholders |
+| `--text-2` | `#c3cdf0` | `#313e78` | Secondary text, labels, inactive controls |
+| `--text-3` | `#93a3d6` | `#4c588c` | Captions, meta, placeholders |
 
 ### Brand
 
 | Token | Floodlit | Daylight | Use |
 |---|---|---|---|
-| `--primary` | `#38d9f5` (cyan) | `#2747e0` (deep blue) | Selection borders, the active tab underline, bars, the mode icon badge, small primary buttons (`.btn.primary.sm`, flat so a list of them does not glow) |
-| `--primary-hover` | `#6be5fa` | `#1f37bf` | Small primary hover |
-| `--primary-active` | `#1fbfdd` | `#1a2e9e` | Any primary button pressed |
-| `--primary-grad`, `--primary-grad-hover` | cyan `#38d9f5` · `#7fa6ff` · violet `#cf7dff` | blue `#2747e0` · `#4a43e6` · violet `#7b3fe4` | The fill of `.btn.primary` (100°) at the default and big sizes and the spin button |
-| `--primary-glow` | a cyan and a violet soft shadow | the same, quieter | The glow under `.btn.primary`; off when pressed or disabled |
+| `--primary` | `#38d9f5` (cyan) | `#2a44e6` (deep blue) | Selection borders, the active tab underline, bars, the mode icon badge, small primary buttons (`.btn.primary.sm`, flat so a list of them does not glow) |
+| `--primary-hover` | `#6be5fa` | `#2035c4` | Small primary hover |
+| `--primary-active` | `#1fbfdd` | `#1a2ba0` | Any primary button pressed |
+| `--primary-grad`, `--primary-grad-hover` | cyan `#38d9f5` · `#7fa6ff` · violet `#cf7dff` | blue `#2a44f0` · `#4a3af2` · violet `#8433ec` (more saturated) | The fill of `.btn.primary` (100°) at the default and big sizes and the spin button |
+| `--primary-glow` | a cyan and a violet soft shadow | a blue and a violet shadow with a thin inner highlight | The glow under `.btn.primary`; off when pressed or disabled |
 | `--on-primary` | `#07102e` (navy) | `#ffffff` | Text and icons on `--primary` and on the gradient |
-| `--primary-soft` | primary 16 % | primary 10 % | Selected fill (rows, segments, formations, the table's own row, `.chip.info`) |
-| `--accent` | `#5ee3fb` | `#2440cc` | Text-safe highlight: links, "Line" in the wordmark, info chips, chart series |
-| `--focus` | `#5ee3fb` | `#2747e0` | The focus ring (2 px, offset 2 px; global `:focus-visible`) |
+| `--primary-soft` | primary 16 % | primary 14 % | Selected fill (rows, segments, formations, the table's own row, `.chip.info`) |
+| `--accent` | `#5ee3fb` | `#223bc8` | Text-safe highlight: links, "Line" in the wordmark, info chips, chart series |
+| `--focus` | `#5ee3fb` | `#2a44e6` | The focus ring (2 px, offset 2 px; global `:focus-visible`) |
 | `--cyan`, `--magenta` | `#38d9f5`, `#e070ff` | `#0890b4`, `#b84ae0` | The neon pair, for the art and thin decorative lines only, never for meaning. Magenta is never a UI colour: it sits too close to the pink rarity tier |
 | `--neon-blur`, `--neon-strength` | 6 px, 0.9 | 4 px, 0.55 | How strongly the art's neon glows; Daylight is the softer version |
-| `--art-sky-1`, `--art-sky-2`, `--art-ink`, `--art-body`, `--art-body-2`, `--art-light`, `--art-grass`, `--art-grass-2`, `--art-paper` | night navy sky, near-black ink, navy bodies, teal-navy grass | pale lavender sky, navy ink, pale blue bodies, pale aqua grass | The fills of the cartoon art (section 7) |
+| `--art-sky-1`, `--art-sky-2`, `--art-ink`, `--art-body`, `--art-body-2`, `--art-light`, `--art-grass`, `--art-grass-2`, `--art-paper` | night navy sky, near-black ink, navy bodies, teal-navy grass | lavender sky (`#d8dffa` to `#ebe7fb`), navy ink, pale blue bodies, pale aqua grass | The fills of the cartoon art (section 7) |
 | `--navy`, `--navy-2` | `#081544`, `#13266b` | same | Fixed dark surfaces that never follow the theme: the reel window, the wheel hub, the share card |
 | `--glow`, `--glow-2` | cyan 11 %, magenta 9 % | cyan 12 %, magenta 8 % | The two floodlight radials at the top of the page; `--glow` also lights the tier banner and the scoreboard |
 
@@ -160,7 +160,7 @@ The profile's theme setting is Auto, Light or Dark (Profile screen). `App.tsx` a
 | `--draw` | `#a3adbf` | `#5f6b80` | Draws: the D in records, form squares and result blocks |
 | `--info` | `= --accent` | `= --accent` | Info notices |
 | `--on-status` | `#07102e` | `#ffffff` | Letters on W/D/L squares |
-| `--good-soft`, `--warn-soft`, `--bad-soft`, `--gold-soft`, `--info-soft` | 14 % | 10 % (gold 22 %) | Chip and notice backgrounds |
+| `--good-soft`, `--warn-soft`, `--bad-soft`, `--gold-soft`, `--info-soft` | 14 % | 10 % (gold 24 %) | Chip and notice backgrounds |
 
 Status colours never decorate, and the primary blue never means "good".
 
@@ -168,7 +168,7 @@ Status colours never decorate, and the primary blue never means "good".
 
 | Token | Floodlit | Daylight | Use |
 |---|---|---|---|
-| `--pos-gk`, `--pos-def`, `--pos-mid`, `--pos-att` | `#fcd34d`, `#7dd3fc`, `#c4b5fd`, `#fda4af` | `#854d0e`, `#0369a1`, `#6d28d9`, `#be123c` | Position tags (`.pos.GK` and so on) on `--bg-3` |
+| `--pos-gk`, `--pos-def`, `--pos-mid`, `--pos-att` | `#fcd34d`, `#7dd3fc`, `#c4b5fd`, `#fda4af` | `#854d0e`, `#035d90`, `#6d28d9`, `#be123c` | Position tags (`.pos.GK` and so on) on `--bg-3` |
 | `--rating-90`, `--rating-85` | gold gradients | same | Rating badges 90+ and 85+ |
 | `--rating-80`, `--rating-75`, `--rating-70`, `--rating-base` | `#3b82f6`, `#93c5fd`, `#a5b4cb`, `#94a3b8` | same | Rating badges 80+, 75+, 70+, below 70 |
 | `--rating-ink` | `#0a1120` | same | The number on a rating badge |
@@ -202,29 +202,32 @@ The Home hero is the night-ground drawing under a navy scrim in both themes (Day
 
 ### Contrast
 
-Every text pair passes 4.5:1 and every UI pair 3:1, in both themes: 258 pairs (129 per theme) were checked when the neon palette was set, covering body text on every surface, coloured text, chip text on its tint, selected rows, position tags, labels on every stop of the primary gradient, rating numbers, W/D/L letters, tooltips, text on the fixed navy, and as UI pairs the primary, the focus ring, field borders, bar fills on their track, the rarity tiers on the reel window and the neon lines. Two failed on the first pass and were fixed: Daylight `--gold-text` on `--bg-3` (4.41, now `#805a00`) and the Daylight cyan line (2.67, now `#0890b4`). The ones that matter most:
+Every text pair passes 4.5:1 and every UI pair 3:1, in both themes: 258 pairs (129 per theme) covering body text on every surface, coloured text, chip text on its tint, selected rows, position tags, labels on every stop of the primary gradient, rating numbers, W/D/L letters, tooltips, text on the fixed navy, and as UI pairs the primary, the focus ring, field borders, bar fills on their track, the rarity tiers on the reel window and the neon lines. First pass fixes: Daylight `--gold-text` (now `#805a00`) and the Daylight cyan line (now `#0890b4`). The deeper Daylight pass fixed two more: `--pos-def` on the darker `--bg-3` (4.42, now `#035d90`) and warn chips on the page (status tints stay at 10 %). The ones that matter most:
 
 | Pair | Needs | Floodlit | Daylight |
 |---|---|---|---|
-| `--text` on `--panel` | 4.5:1 | 15.3 | 16.3 |
-| `--text-2` on `--panel` | 4.5:1 | 10.6 | 9.5 |
-| `--text-3` on `--panel-2` | 4.5:1 | 6.2 | 5.9 |
-| `--text-3` on `--bg-3` | 4.5:1 | 5.4 | 4.9 |
-| `--accent` on `--panel` | 4.5:1 | 11.1 | 7.8 |
-| `--accent` on `--primary-soft` over the panel (`.chip.info`) | 4.5:1 | 7.7 | 6.7 |
-| `--on-primary` on the gradient's first stop | 4.5:1 | 11.1 | 6.9 |
-| `--on-primary` on the gradient's last stop | 4.5:1 | 7.2 | 5.7 |
-| `--on-primary` on `--primary-active` | 4.5:1 | 8.5 | 10.9 |
-| `--good` / `--warn` / `--bad` on `--panel` | 4.5:1 | 8.7 / 7.4 / 6.1 | 6.6 / 6.1 / 6.5 |
-| `--gold-text` on `--panel` | 4.5:1 | 10.3 | 6.2 |
-| `--gold-text` on `--gold-soft` (a chip) | 4.5:1 | 7.8 | 5.6 |
-| `--pos-gk` on `--bg-3` | 4.5:1 | 9.4 | 5.5 |
+| `--text` on `--panel` | 4.5:1 | 15.3 | 15.9 |
+| `--text-2` on `--panel` | 4.5:1 | 10.6 | 9.8 |
+| `--text-3` on `--panel-2` | 4.5:1 | 6.2 | 6.2 |
+| `--text-3` on `--bg-3` | 4.5:1 | 5.4 | 5.1 |
+| `--accent` on `--panel` | 4.5:1 | 11.1 | 8.1 |
+| `--accent` on `--bg-3` | 4.5:1 | 8.9 | 6.2 |
+| `--accent` on `--soft:primary:panel` | 4.5:1 | 7.7 | 6.5 |
+| `--on-primary` on `--grad-a` | 4.5:1 | 11.1 | 6.6 |
+| `--on-primary` on `--grad-b` | 4.5:1 | 7.2 | 5.7 |
+| `--on-primary` on `--primary-active` | 4.5:1 | 8.5 | 11.1 |
+| `--good` on `--panel` | 4.5:1 | 8.7 | 6.5 |
+| `--warn` on `--panel` | 4.5:1 | 7.4 | 5.9 |
+| `--bad` on `--panel` | 4.5:1 | 6.1 | 6.3 |
+| `--gold-text` on `--panel` | 4.5:1 | 10.3 | 6.1 |
+| `--gold-text` on `--soft:gold:panel` | 4.5:1 | 7.8 | 5.4 |
+| `--pos-gk` on `--bg-3` | 4.5:1 | 9.4 | 5.1 |
 | `--float-text` on `--float-bg` | 4.5:1 | 11.8 | 16.3 |
-| `--primary` against `--bg` | 3:1 | 11.1 | 6.3 |
-| `--focus` against `--panel` | 3:1 | 11.1 | 6.9 |
-| `--field-border` against `--panel` | 3:1 | 3.8 | 3.8 |
-| `--meter-mid` against `--bg-3` (a bar on its track) | 3:1 | 8.3 | 3.9 |
-| `--tier-pink` against `--navy` (the reel) | 3:1 | 4.4 | 4.4 |
+| `--primary` on `--bg` | 3:1 | 11.1 | 6.0 |
+| `--focus` on `--panel` | 3:1 | 11.1 | 6.7 |
+| `--field-border` on `--panel` | 3:1 | 3.8 | 4.2 |
+| `--meter-mid` on `--bg-3` | 3:1 | 8.3 | 3.7 |
+| `--tier-pink` on `--navy` | 3:1 | 4.4 | 4.4 |
 
 A new colour pair is only added after it is checked against both themes.
 
@@ -275,7 +278,8 @@ No other spacing values in new CSS; 1 px borders and component sizes (a 44 px di
 | `--radius` | 16 px | Panels, modals and sheets, mode cards, the tier banner, the scoreboard |
 | `--radius-pill` | 999 px | Chips, top bar nav |
 | `--border` / `--border-strong` | 1 px `--line` / `--line-2` | Default / emphasised borders |
-| `--shadow` | one level | Floating layers only: modals and sheets, toasts, tooltips, fixed bottom bars, the hovered mode card. Panels are flat. |
+| `--shadow` | one level | Floating layers only: modals and sheets, toasts, tooltips, fixed bottom bars, the hovered mode card. |
+| `--panel-shadow` | Daylight only | A soft resting shadow on panels, mode cards and Home tiles so off-white panels lift off the grey page. Floodlit leaves it unset, so panels there are flat. Daylight secondary buttons also carry a 1 px hairline shadow. |
 | `--control-h`, `--control-h-sm`, `--control-h-lg` | 40, 30, 52 px | Minimum heights of buttons, inputs, toggles |
 
 Motion is short and happens once: every screen fades in over 0.22 s when it opens (`.page`, opacity only, because a transform on the page would move its fixed bottom bar); on Home the hero text and the cards rise 12 px into place (`@keyframes rise`, 0.5 to 0.6 s, staggered); the hero art fades in and settles from 104 % (`hero-in`); a short light travels along two of the hero's neon curves (`neon-run`, 7 s, the only looping motion); cards and tiles lift 2 to 3 px on hover and a mode card's neon brightens (`--neon-boost`). Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`. Under `prefers-reduced-motion: reduce` all of it is off, the travelling light included. Nothing that the smokes wait for is hidden behind an animation.
@@ -429,7 +433,7 @@ The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, 
 - **`NeonFlow`**: two flowing cyan-to-magenta curves, each a blurred halo (stroke × 4 under a Gaussian blur), the gradient core and a pale highlight. It sits along the foot of the Draft reel window (40 % opacity, behind the cards), and the same two curves run behind every mode card's subject (`CardFlows`).
 - **`HeroArt`**: the Home hero, behind the lockup under the navy scrim. A floodlit ground at night: two floodlights (one cyan, one magenta halo) with soft beams, a rounded stand with its rows and a roof, a night-teal pitch with its lines, a goal with its net and a ball flying in on a neon trail, three neon curves through the sky. `viewBox` 1600 × 700, `xMaxYMid slice`: on desktop the crop is vertical (the scene sits in the band y 130 to 570), on a phone it shows the right-hand end (the goal, the ball and a floodlight).
 - **`ModeArt kind`**: one scene per mode card, `viewBox` 400 × 200, `xMidYMid slice`, the subject scaled into x 117 to 283 so the phone's square crop still shows all of it. Quick Draft: three club cards from the reel (generic halves, stripes and a sash, never a crest) under the gold reel marker, the centre one glowing, and a ball. Daily Challenge: a calendar with a neon header and a ball bursting out of it. Season: a tactics board with markers, crosses and a dashed run. Dynasty: a gold trophy wearing a crown (rounded points, disc gems) in a magenta halo.
-- **Style**: bold rounded shapes, round joins and caps, a near-black navy ink outline made slightly sketchy by an `feTurbulence` + `feDisplacementMap` wobble (scale 3 on the hero, 1.8 on cards), white highlights, neon as the accent. Fills are classes (`.a-ink`, `.a-body`, `.a-body2`, `.a-light`, `.a-paper`, `.a-line`) reading the `--art-*` tokens, so Daylight gets the softer version (pale lavender sky, navy ink, lower `--neon-strength`) with no second drawing. The hero sets its own night tokens in both themes; Daylight turns it to a lighter dusk with a quieter glow. Gold in the art means a trophy or the reel marker, as everywhere.
+- **Style**: bold rounded shapes, round joins and caps, a near-black navy ink outline made slightly sketchy by an `feTurbulence` + `feDisplacementMap` wobble (scale 3 on the hero, 1.8 on cards), white highlights, neon as the accent. Fills are classes (`.a-ink`, `.a-body`, `.a-body2`, `.a-light`, `.a-paper`, `.a-line`) reading the `--art-*` tokens, so Daylight gets the softer version (pale lavender sky, navy ink, lower `--neon-strength`) with no second drawing. The hero sets its own night tokens in both themes; Daylight turns it to a deep dusk (sky `#2b3f9e` to `#101d5c`) with a slightly quieter glow (`--neon-strength` 0.72). Gold in the art means a trophy or the reel marker, as everywhere.
 - **Rules**: the art is decoration (`aria-hidden`, no text inside); ids are prefixed per instance (`useId`); glow strengths come from `--neon-strength` and `--neon-boost`, never per drawing; the whole file is a few kilobytes of the bundle, nothing is downloaded. New scenes reuse `Scene`, `Neon`, `Ball`, `Floodlight` and the art tokens.
 - **Icons**: [Lucide](https://lucide.dev) through `lucide-react` (pinned, ISC), imported one by one (`import { Trophy } from 'lucide-react'`) so only the icons used are bundled. 16 px in the nav and inline text, 20 px in tiles and badges, 26 px for a feature such as the trophy cabinet; default 2 px stroke, `currentColor`. An icon beside a label is decorative (Lucide sets `aria-hidden`); an icon-only button needs an `aria-label`. Keep one meaning per icon:
 
