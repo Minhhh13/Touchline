@@ -19,7 +19,8 @@ import { versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
-import { LeagueFlag, NationFlag } from '../components/Flag'
+import { LeagueFlag, NationFlag, QuickLeagueFlag } from '../components/Flag'
+import { isSuperLeague, quickLeagueName, sideNamer, superTierBlurb } from '@game/logic/superLeague'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
@@ -71,27 +72,31 @@ export function Summary() {
   const chase = chaseAt(results)
   const bests = profile.quickBests ?? emptyBests()
   const leagueId = game?.settings.leagueId ?? ''
+  // The Super League has no real seasons to measure against, no real side replaced and no real champion
+  const superOn = !!game && isSuperLeague(game.settings)
   // Where this season sits against every complete real season of the league with the same number of matches
-  const bench = useMemo(() => (!u || !record || season?.sacked ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked])
+  const bench = useMemo(() => (!u || !record || season?.sacked || superOn ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, superOn, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked])
   const challenge = game?.settings.challenge
   const ghostLineup = useMemo(() => Object.fromEntries((challenge?.picks ?? []).flatMap((p) => (p.id && p.slotId ? [[p.slotId, p.id] as [string, string]] : []))), [challenge])
   // How the club you replaced actually did that season, when a complete real table exists
   const hostClubId = game?.settings.hostClubId ?? ''
   const leagueSeason = game?.settings.leagueSeason ?? 0
   const realRow = useMemo(() => {
-    if (!u) return null
+    if (!u || superOn) return null
     const cs = u.clubSeasonByKey[`${hostClubId}@${leagueSeason}`]
     if (!cs?.complete) return null
     return u.tables[leagueId]?.[leagueSeason]?.find((r) => r.clubId === hostClubId) ?? null
-  }, [u, hostClubId, leagueSeason, leagueId])
+  }, [u, hostClubId, leagueSeason, leagueId, superOn])
   if (!u || !game || !record) return null
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: record.won + record.drawn + record.lost, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
-  const leagueName = u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? game.settings.leagueId
+  const leagueName = quickLeagueName(u, game.settings)
+  // A Super League side is named with its season: "Barcelona 2010-11"
+  const sideName = sideNamer(game, u)
   const inBooks = bench !== null && hasRecordBook(bench)
-  const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
+  const champion = superOn ? undefined : realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
   // The 38-0 options that differ from the mode's defaults: difficulty, blind, draft mode, ratings
   // The Quick Draft modes on one line ("🌀 Crazy · 💀 Hard"); Hard then leaves the tag line so it is not said twice
@@ -114,7 +119,7 @@ export function Summary() {
   if (q && results.length && chase.perfectRun < games) extraLines.push(runsLine(chase))
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
-  const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
+  const bestLine = bestWinLine(q?.results, sideName)
   if (bestLine) extraLines.push(bestLine)
   // January business and the European run of a quick season, when there were any
   const janLine = januaryLine(q?.january)
@@ -143,6 +148,7 @@ export function Summary() {
     cupWon: season?.cupWon ?? quickCupWon,
     continentalWon: season?.continental?.won ?? quickEuroWon,
     leagueSeason: game.settings.leagueSeason,
+    ...(superOn ? { where: leagueName, tierText: tierName(tier, record.position, true) } : {}),
     // A quick season's XI is the user's team, never "as" the club whose place it takes
     hostClubName: game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? clubName(u, game.settings.hostClubId) : '',
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
@@ -201,7 +207,7 @@ export function Summary() {
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
-        subtitle: `${q ? `${recordLabel(record.won, record.drawn, record.lost)} · ` : ''}${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
+        subtitle: `${q ? `${recordLabel(record.won, record.drawn, record.lost)} · ` : ''}${superOn ? leagueName : `${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`}`,
         tier,
         row,
         position: record.position,
@@ -248,7 +254,7 @@ export function Summary() {
             {game.settings.teamName}
           </span>
           <span className="bm-rest">
-            {game.settings.mode === 'quick' ? <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> : <><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {modeName}</>}
+            {game.settings.mode === 'quick' ? <><QuickLeagueFlag settings={game.settings} label={leagueName} />{superOn && ` ${leagueName}`}</> : <><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {modeName}</>}
             {modeLine && <span data-testid="summary-modes">{` · ${modeLine}`}</span>}
           </span>
         </div>
@@ -271,13 +277,13 @@ export function Summary() {
           <div className="tier-wrap">
             <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} />
             <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-              {tierName(tier, record.position)}
+              {tierName(tier, record.position, superOn)}
             </div>
           </div>
         )}
         {!replay.playing && (
           <p className="tier-blurb" data-testid="tier-blurb">
-            {tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+            {superOn ? superTierBlurb(tier, record.position, table.length || 20) : tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
           </p>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
@@ -379,7 +385,7 @@ export function Summary() {
       {q && results.length > 0 && (
         <GameByGame
           results={results}
-          opponent={(id) => ({ clubId: id, name: clubName(u, id) })}
+          opponent={(id) => ({ clubId: id, name: sideName(id) })}
           replay={replay}
           orderToggle
           strip={false}
@@ -487,7 +493,7 @@ export function Summary() {
               <div className="row between wrap">
                 <b>{challenge.name}</b>
                 <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
-                  {challenge.claim.pts} pts · {tierName(challenge.claim.t)} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
+                  {challenge.claim.pts} pts · {tierName(challenge.claim.t, undefined, superOn)} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
                 </span>
               </div>
               {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
@@ -497,7 +503,7 @@ export function Summary() {
               <div className="row between wrap">
                 <b>{game.settings.teamName}</b>
                 <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
-                  {mine.pts} pts · {tierName(mine.t)} · {mine.w}-{mine.d}-{mine.l}
+                  {mine.pts} pts · {tierName(mine.t, undefined, superOn)} · {mine.w}-{mine.d}-{mine.l}
                 </span>
               </div>
               {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
@@ -693,10 +699,10 @@ export function Summary() {
         <div className="col">
           <div className="panel">
             <h3>
-              <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> Final table{game.settings.mode === 'quick' ? '' : ` · ${seasonLabel(game.settings.leagueSeason)}`}
+              <QuickLeagueFlag settings={game.settings} label={leagueName} /> Final table{game.settings.mode === 'quick' ? '' : ` · ${seasonLabel(game.settings.leagueSeason)}`}
             </h3>
             <div className="tbl-wrap">
-              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop />
+              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} />
             </div>
           </div>
           {isManage && (

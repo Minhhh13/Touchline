@@ -3,7 +3,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput } from '@engine/match'
 import type { RngState } from '@engine/rng'
-import { aiTeamInput, aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, USER_TEAM, type AiClub } from '@engine/season'
+import { aiTeamInput, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, USER_TEAM, type AiClub } from '@engine/season'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -16,6 +16,7 @@ import { januaryBudget, januaryListings, sameListing } from './january'
 import { difficultyOf } from '@engine/draft'
 import { quickManagerBoost, settleManager } from './managers'
 import { applyChange, canPlayFor, fieldXI, injuredThrough, QUICK_CHANGES, quickBenchRule } from './quickBench'
+import { isSuperLeague, quickLeague, SUPER_LEAGUE_GAMES } from './superLeague'
 
 /** The drafted XI as the quick season fields it: the draft's lineup, every empty slot filled by `autoPickLineup` (no RNG). */
 export function quickXI(game: Game, u: LoadedUniverse): { lineup: Lineup; bench: string[] } {
@@ -40,7 +41,8 @@ export function quickXI(game: Game, u: LoadedUniverse): { lineup: Lineup; bench:
  * How many league games the user plays in a quick season: every other club twice. With an odd number of clubs each
  * matchweek holds a bye, so this is two fewer than the matchweeks (36 of 38 with 19 clubs). Pure.
  */
-export function quickSeasonGames(u: LoadedUniverse, s: Pick<Game['settings'], 'leagueId' | 'leagueSeason' | 'hostClubId'>): number {
+export function quickSeasonGames(u: LoadedUniverse, s: Pick<Game['settings'], 'leagueId' | 'leagueSeason' | 'hostClubId'> & Partial<Pick<Game['settings'], 'mode' | 'rules'>>): number {
+  if (s.mode && s.rules && isSuperLeague({ mode: s.mode, rules: s.rules })) return SUPER_LEAGUE_GAMES
   return 2 * u.clubSeasons.filter((cs) => cs.leagueId === s.leagueId && cs.season === s.leagueSeason && cs.clubId !== s.hostClubId).length
 }
 
@@ -106,8 +108,8 @@ function startRun(game: Game, u: LoadedUniverse, from: RngState = game.quickStar
   const rng = Rng.fromState(from)
   const get = playerLookup(game, u)
   const { lineup, bench } = quickXI(game, u)
-  const ai = buildAiClubs(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId)
-  const offset = aiRatingOffset(u, ai, game.settings.difficulty ?? 'calibrated')
+  // A real league season with its calibration, or the Super League's nineteen at full strength
+  const { ai, offset } = quickLeague(u, game.settings)
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
@@ -361,7 +363,8 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1 && difficultyOf(game.settings.rules) === 'hard') game.unlocked.push('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) game.unlocked.push('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) game.unlocked.push('one-nation-champions')
-  if (earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')
+  // The points record is a real league's; the Super League has no such book
+  if (!isSuperLeague(game.settings) && earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')
   game.phase = 'summary'
   if (run.benchOn) {
     // Open to bench changes while the playback runs; the store records the result when it closes

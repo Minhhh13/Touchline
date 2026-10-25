@@ -16,6 +16,7 @@ import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { pickManager } from './logic/managers'
 import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
+import { isSuperLeague } from './logic/superLeague'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import { assignmentNote } from './logic/slotSheet'
@@ -398,8 +399,8 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
             return false
           }
-          // A challenger who played the Continental Cup needs every league loaded for the replay to check it
-          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(payload.c.eu ? (get().universe?.available ?? []).map((l) => l.id) : [])])]
+          // A challenger who played the Continental Cup or the Super League needs every league loaded for the replay to check it
+          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(payload.c.eu || payload.s.r.superLeague ? (get().universe?.available ?? []).map((l) => l.id) : [])])]
           const known = (get().universe?.available ?? []).map((l) => l.id)
           const unknown = needs.filter((id) => !known.includes(id))
           if (unknown.length) {
@@ -839,6 +840,7 @@ export const useStore = create<Store>()(
             xi: Object.values(game.lineup),
             nation: game.settings.rules.onlyNation,
             ...(game.settings.challenge ? { challenge: { name: game.settings.challenge.name, points: game.settings.challenge.claim.pts } } : {}),
+            ...(isSuperLeague(game.settings) ? { superLeague: true as const } : {}),
           }
           if (profile.leaderboard.some((e) => e.id === entry.id)) return
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)
@@ -997,9 +999,9 @@ export function wipeSave(): void {
   localStorage.removeItem(SAVE_KEY)
 }
 
-/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup. */
+/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup or the Super League. */
 function leaguesFor(game: Game, allLeagues: string[]): string[] {
-  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup
+  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup || game.settings.rules?.superLeague
   return [...new Set([game.settings.leagueId ?? DEFAULT_LEAGUE, ...(game.settings.wheelLeagues ?? []), ...(wantsAll ? allLeagues : [])])]
 }
 

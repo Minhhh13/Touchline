@@ -4,12 +4,15 @@ import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } f
 import { ACHIEVEMENTS } from '@engine/awards'
 import type { LeaderboardEntry } from '@game/types'
 import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
-import { LeagueFlag } from '../components/Flag'
+import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
+import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { AchievementIcon } from '../components/icons'
 import { clubName, ordinal, seasonLabel, tierName } from '../format'
 import { modeLabel } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
+import { useSoundOn } from '../sound/prefs'
+import { quickSpinPref, usePref } from '../viewerPrefs'
 
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
@@ -24,6 +27,8 @@ function exportSave(): void {
 
 export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
+  const [soundOn, setSoundOn] = useSoundOn()
+  const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   const tipsSeen = tipsSeenCount(profile)
   const bests = profile.quickBests ?? emptyBests()
   const unlocked = Object.keys(profile.achievements).length
@@ -82,6 +87,18 @@ export function ProfileScreen() {
                 Theme <Info label="About the theme">Auto follows your device's light or dark setting. The sun and moon in the top bar flips it too.</Info>
               </span>
               <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto', hint: "Follows your device's light or dark setting" }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+            </div>
+            <div className="field">
+              <span>
+                Sound <Info label="About the sound">The case reel's ticks and reveal sounds, made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
+              </span>
+              <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
+            </div>
+            <div className="field">
+              <span>
+                Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, about seven seconds; Quick takes under three. Re-spins always run quick, and a tap on the reel skips to the landing. Kept on this device only.</Info>
+              </span>
+              <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }]} />
             </div>
             <div className="stat-strip profile-stats">
               <Stat label="Games" value={profile.gamesPlayed} />
@@ -230,7 +247,7 @@ export function ProfileScreen() {
                               {e.nation && <Flag nation={e.nation} />}
                             </span>
                             <div className="small muted">
-                              {u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)} · {modeLabel(e.mode)}
+                              {e.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <>{u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</>} · {modeLabel(e.mode)}
                             </div>
                             {(runs.length > 1 || e.challenge) && (
                               <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
@@ -246,7 +263,7 @@ export function ProfileScreen() {
                             {e.won}-{e.drawn}-{e.lost}
                           </td>
                           <td>
-                            {tierName(e.tier, e.position)}
+                            {tierName(e.tier, e.position, e.superLeague)}
                             <div className="small muted">{ordinal(e.position)}</div>
                           </td>
                         </tr>

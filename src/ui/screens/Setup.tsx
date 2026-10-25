@@ -15,7 +15,9 @@ import { poolClubSeasons } from '@engine/universe'
 import { classicFromFor, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
 import { formationName, ordinal, seasonLabel, tierName } from '../format'
 import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
-import { LeagueFlag, NationFlag } from '../components/Flag'
+import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
+import { SUPER_LEAGUE_ID, SUPER_LEAGUE_NAME } from '@engine/superLeague'
+import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, type ChoiceOption, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
@@ -91,6 +93,8 @@ export function Setup() {
   const [customEra, setCustomEra] = useState<[number, number] | null>(null)
   // Classic seasons (1992-93 to 2007-08, estimated ratings): off unless asked for, never on the Daily
   const [classicOn, setClassicOn] = useState(false)
+  // Quick Draft: the Super League (the 19 greatest club-seasons) in place of a real league season; its wheel spans every league
+  const [superOn, setSuperOn] = useState(false)
   const [onlyClub, setOnlyClub] = useState('')
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
@@ -130,7 +134,8 @@ export function Setup() {
     return () => ro.disconnect()
   }, [u])
 
-  const wheelLeagues = useMemo(() => (europe && u ? u.available.map((l) => l.id) : [leagueId]), [europe, leagueId, u])
+  const superLeague = superOn && mode === 'quick'
+  const wheelLeagues = useMemo(() => ((europe || superLeague) && u ? u.available.map((l) => l.id) : [leagueId]), [europe, superLeague, leagueId, u])
   const classicFrom = u ? classicFromFor(u, wheelLeagues) : undefined
   const classic = !isDaily && classicOn && classicFrom !== undefined
   // The seasons to play in: every season the league has, the classic ones (tagged, their ratings estimated) when Classic is on
@@ -147,7 +152,7 @@ export function Setup() {
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, modes: isManage ? [] : modes, powerUps: !isManage && powerUps, classic, ...(isManage ? {} : { managers }) })
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, modes: isManage ? [] : modes, powerUps: !isManage && powerUps, classic, superLeague, ...(isManage ? {} : { managers }) })
   const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason, classic: chosen.classic }
   const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
@@ -170,6 +175,13 @@ export function Setup() {
 
   if (!u) return <div className="page">Loading…</div>
   const pickLeague = (id: string) => {
+    // The Super League keeps the league chosen before it as the save's league; its field needs every league loaded
+    if (id === SUPER_LEAGUE_ID) {
+      setSuperOn(true)
+      void ensureLeagues(u.available.map((l) => l.id))
+      return
+    }
+    setSuperOn(false)
     setLeagueId(id)
     setHostClubId('')
     void ensureLeagues(europe ? u.available.map((l) => l.id) : [id])
@@ -319,6 +331,11 @@ export function Setup() {
               <section className="setup-step">
                 <div className="step-head-row">
                   <StepHead n={3} title="League and season" />
+                  {superLeague ? (
+                    <span className="chip super season-pick" data-testid="super-season" title={SUPER_LEAGUE_LINE}>
+                      <SuperLeagueMark /> One season, full strength
+                    </span>
+                  ) : (
                   <select className="input season-pick" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))} aria-label="Season to play" title={`${Math.max(0, clubsInLeague.length - 1)} real rivals with their real squads`} data-testid="season-select">
                     {[...seasonChoices].reverse().map(({ season: s, classic: est }) => (
                       <option key={s} value={s}>
@@ -326,10 +343,12 @@ export function Setup() {
                       </option>
                     ))}
                   </select>
+                  )}
                 </div>
                 <div className="field setup-league">
-                  <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
-                  {(loadingLeagues || europe) && <span className="help">{loadingLeagues ? 'Loading league data…' : 'Where your side plays; the wheel draws from every league.'}</span>}
+                  {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
+                  <Segmented value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
+                  {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? 'Loading league data…' : superLeague ? `${SUPER_LEAGUE_LINE}; the wheel draws from every league.` : 'Where your side plays; the wheel draws from every league.'}</span>}
                 </div>
                 {isManage && (
                   <div className="setup-replace" data-testid="you-replace">
@@ -568,6 +587,7 @@ export function Setup() {
                             </span>
                           </label>
                         )}
+                        {!superLeague && (
                         <div className="field">
                           Opposition
                           <Segmented
@@ -580,6 +600,7 @@ export function Setup() {
                           />
                           <span className="help">{opposition === 'calibrated' ? 'An average draft finishes mid-table.' : 'Full strength. Brutal.'}</span>
                         </div>
+                        )}
                         <label className="field">
                           One-club mode
                           <select

@@ -15,6 +15,7 @@ import { playerLookup } from './players'
 import { quickUserInput } from './quick'
 import { canPlayFor, fieldXI, injuredThrough, quickBenchRule } from './quickBench'
 import { sideScorers } from './gameByGame'
+import { isSuperLeague, quickLeague, superContinentalField } from './superLeague'
 
 export type QuickCupComp = 'cup' | 'continental'
 
@@ -29,8 +30,13 @@ export type QuickCupStatus = { state: 'open' } | { state: 'played'; run: QuickCu
 /** The field a cup is played against: the league's own clubs for the domestic cup, the best of the other leagues for the Continental Cup. */
 export function quickCupField(game: Game, u: LoadedUniverse, comp: QuickCupComp): Record<string, AiClub> {
   const s = game.settings
+  // The Super League has no domestic cup; its Continental Cup meets the next greatest clubs after the league's nineteen
+  if (isSuperLeague(s)) return comp === 'cup' ? {} : superContinentalField(u, s, QUICK_CUP_ENTRANTS - 1)
   return comp === 'cup' ? buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId) : buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, QUICK_CUP_ENTRANTS - 1)
 }
+
+/** Why a Super League season offers no domestic cup. */
+export const SUPER_NO_CUP = 'The Super League has no domestic cup'
 
 const FIELD_SHORT: Record<QuickCupComp, string> = { cup: 'Too few clubs in this league for a cup', continental: 'Too few clubs from the other leagues are loaded' }
 
@@ -51,6 +57,7 @@ export function quickCupProblem(game: Game, u: LoadedUniverse, comp: QuickCupCom
   if (comp === 'continental' && q.europe) return 'This season already had its Continental Cup run'
   const done = stored(q, comp)
   if (done !== undefined) return done === null ? 'Skipped' : 'Already played'
+  if (comp === 'cup' && isSuperLeague(game.settings)) return SUPER_NO_CUP
   if (comp === 'continental' && q.position > QUICK_CONTINENTAL_PLACES) return `A top-${QUICK_CONTINENTAL_PLACES} finish earns the Continental Cup`
   if (Object.keys(quickCupField(game, u, comp)).length < QUICK_CUP_ENTRANTS - 1) return FIELD_SHORT[comp]
   return null
@@ -138,8 +145,8 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   const nameOf = (id: string) => get(id)?.name
   const rng = Rng.fromState(game.rngState).fork(comp === 'cup' ? 'quick-cup' : 'quick-continental')
   const field = quickCupField(game, u, comp)
-  const league = comp === 'cup' ? field : buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
-  const offset = aiRatingOffset(u, league, s.difficulty ?? 'calibrated')
+  // The AI sides carry the league's handicap: none in the Super League, whose rivals play at full strength
+  const offset = comp === 'cup' ? aiRatingOffset(u, field, s.difficulty ?? 'calibrated') : quickLeague(u, s).offset
   const benchOn = quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0
   const formation = getFormation(game.tactics.formationId)
   const xi = quickCupXI(game, u)

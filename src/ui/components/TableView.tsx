@@ -3,7 +3,7 @@ import { USER_TEAM } from '@engine/season'
 import { ClubBadge, FormDots, TeamBadge } from './bits'
 import { useStore } from '@game/store'
 
-export function TableView({ rows, teamName, teamCode, compact, highlightTop }: { rows: TableRow[]; teamName: string; teamCode?: string; compact?: boolean; highlightTop?: boolean }) {
+export function TableView({ rows, teamName, teamCode, compact, highlightTop, nameOf }: { rows: TableRow[]; teamName: string; teamCode?: string; compact?: boolean; highlightTop?: boolean; nameOf?: (clubId: string) => string }) {
   const u = useStore((s) => s.universe)
   // Your row carries your own code (TX), as the header, the fixtures and the match day do
   const savedCode = useStore((s) => s.game?.settings.shortName)
@@ -26,7 +26,7 @@ export function TableView({ rows, teamName, teamCode, compact, highlightTop }: {
       <tbody>
         {rows.map((r, i) => {
           const me = r.teamId === USER_TEAM
-          const name = me ? teamName : u?.clubById[r.teamId]?.name ?? r.teamId
+          const name = me ? teamName : nameOf ? nameOf(r.teamId) : u?.clubById[r.teamId]?.name ?? r.teamId
           return (
             <tr key={r.teamId} className={me ? 'me' : ''} style={highlightTop && i === 0 ? { fontWeight: 700 } : undefined}>
               <td>{i + 1}</td>

@@ -13,6 +13,7 @@ import { SquadComplete } from '../components/PreSeasonOdds'
 import { QuickTeamLine } from '../components/QuickTeamLine'
 import { perfectTarget } from '@game/logic/perfect'
 import { quickSeasonGames } from '@game/logic/quick'
+import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { quickManagerOptions } from '@game/logic/managers'
 import { ManagerChip, ManagerPick } from '../components/ManagerPick'
 import { MANAGER_STYLE_HELP } from '@engine/managers'
@@ -58,7 +59,7 @@ export function KickOff() {
             </button>
             <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
               {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
-              {s.mode === 'quick' ? ` After the league you can play the Cup, and the Continental Cup with a top-${QUICK_CONTINENTAL_PLACES} finish.` : ''}
+              {isSuperLeague(s) ? ` ${SUPER_LEAGUE_LINE}. A top-${QUICK_CONTINENTAL_PLACES} finish earns the Continental Cup against the next best.` : s.mode === 'quick' ? ` After the league you can play the Cup, and the Continental Cup with a top-${QUICK_CONTINENTAL_PLACES} finish.` : ''}
             </p>
           </SquadComplete>
         </div>
