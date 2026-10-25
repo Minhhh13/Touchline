@@ -8,7 +8,8 @@ import { tierOdds } from '@game/logic/tierOdds'
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
 import { PowerUpTray } from '../components/PowerUps'
-import { POWER_UPS_ICON, powerUpsOn } from '@engine/powerups'
+import { POWER_UPS_ICON, powerUpsOn, trayKinds } from '@engine/powerups'
+import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
@@ -389,7 +390,8 @@ export function Draft() {
         {/* Squad list column */}
         {/* The power-ups sit over the landed squad, so the reel's column stays one box high on a desktop */}
         <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
-          {powerUpsOn(d) && <PowerUpTray u={u} d={d} get={get} hideRatings={hiddenAll} busy={spinning} onRerolled={() => setSelectedPlayer(null)} />}
+          <LockerBar game={game} busy={spinning} />
+          {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hiddenAll} busy={spinning} onRerolled={() => setSelectedPlayer(null)} />}
           {!powerUpsOn(d) && upgraderOn(d.rules) && d.upgradeRng && (
             <Upgrader
               players={upgradeCandidates(d).flatMap((id) => get(id) ?? [])}

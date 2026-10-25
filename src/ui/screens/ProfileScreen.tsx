@@ -6,6 +6,8 @@ import type { LeaderboardEntry } from '@game/types'
 import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
 import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
+import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
+import { lockerCount } from '@game/logic/endCase'
 import { AchievementIcon } from '../components/icons'
 import { clubName, ordinal, seasonLabel, tierName } from '../format'
 import { modeLabel } from '../screenText'
@@ -113,6 +115,12 @@ export function ProfileScreen() {
                 }
               />
               <Stat label="Achievements" value={`${unlocked}/${ACHIEVEMENTS.length}`} />
+            </div>
+            <div className="field" data-testid="profile-locker">
+              <span>
+                Locker <Info label="About the locker">Power-ups from end-of-draft cases. Unpack one in a Quick Draft played without the power-up tray; each works once, as the tray's does.</Info>
+              </span>
+              <span className="small">{POWER_UPS.filter((k) => lockerCount(profile, k) > 0).map((k) => `${POWER_UP_INFO[k].icon} ${POWER_UP_INFO[k].title} ×${lockerCount(profile, k)}`).join(' · ') || 'Empty: open a case at the end of a Quick Draft'}</span>
             </div>
             <div className="toolbar">
               <button
@@ -245,6 +253,11 @@ export function ProfileScreen() {
                             <span className="row wrap" style={{ gap: 6 }}>
                               <ClubBadge clubId={e.hostClubId} size={20} /> <b>{e.teamName}</b>
                               {e.nation && <Flag nation={e.nation} />}
+                              {e.caseIcon && (
+                                <span className="chip case-icon-chip" data-tier="icons" title="An Icon from the end-of-draft case played: non-standard">
+                                  ★ Case Icon
+                                </span>
+                              )}
                             </span>
                             <div className="small muted">
                               {e.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <>{u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</>} · {modeLabel(e.mode)}
