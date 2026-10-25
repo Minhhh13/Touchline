@@ -131,6 +131,19 @@ describe('verifyDaily: honest runs rank on the replay, with the figures the game
     expect(v.entry.claim_matched).toBe(false)
   }, 120000)
 
+  it('stores the run under the team name, never the device\'s manager name (the payload turns public)', () => {
+    const g = finished(daily, (x) => doAutoRest(x))
+    const posted = challengeFromGame(g, u, 'Jane Q Private')!
+    const v = verifyDaily(u, pin, body(g, posted), NOW, never)
+    if (!v.ok) throw new Error(v.reason)
+    const stored = decodeChallenge(v.entry.payload)
+    expect(stored.name).toBe('Verified FC')
+    expect(Buffer.from(v.entry.payload, 'base64url').toString('utf8')).not.toContain('Jane')
+    // the same draft, claim and puzzle: it still races and replays as the poster's run
+    expect({ ...stored, name: posted.name }).toEqual(decodeChallenge(encodeChallenge(posted)))
+    expect(replayChallenge(u, stored).verified).toBe('yes')
+  }, 120000)
+
   it('accepts yesterday\'s Daily shortly after midnight', () => {
     const g = finished(daily, (x) => doAutoRest(x))
     const v = verifyDaily(u, pin, body(g), new Date('2026-10-26T00:20:00Z'), never)

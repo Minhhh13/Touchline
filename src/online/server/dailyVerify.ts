@@ -6,7 +6,7 @@
  * on real packs. The engine is untouched: this only drives its primitives the way the store does.
  */
 import { autoDraft, canSpin, isComplete, picksMade, pick, spin, type DraftState } from '@engine/draft'
-import { decodeChallenge, historyKey, rulesDiff, sameClaim, type ChallengePayload } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge, historyKey, rulesDiff, sameClaim, type ChallengePayload } from '@engine/challenge'
 import { dailyDateOf, Rng } from '@engine/rng'
 import type { SeasonTier } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -146,6 +146,11 @@ export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePay
  */
 export const HIDDEN_CHARS = /[\u0000-\u001f\u007f-\u00a0\u00ad\u034f\u061c\u115f\u1160\u1680\u17b4\u17b5\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f-\u206f\u3000\u3164\ufe00-\ufe0f\ufeff\uffa0\ufff0-\uffff]/
 
+/** A posted run as a board row stores it: the same draft and claim, named after the team instead of the device's manager name. */
+export function publicPayload(c: ChallengePayload, teamName: string): string {
+  return encodeChallenge({ ...c, name: [...teamName].slice(0, 24).join('') })
+}
+
 /** The window a ranked seed may be posted in, by server time. */
 function seedWindow(kind: PuzzlePin['kind'], seed: string, now: Date): { key: string; open: boolean } | null {
   if (kind === 'daily') {
@@ -219,7 +224,10 @@ export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody
       goals_against: q.goalsAgainst,
       league_position: q.position,
       tier: q.tier,
-      payload: encoded,
+      // The stored payload is public once the day or week closes ("Race this run"). Its `name` is whatever the
+      // poster's device put there (the Profile screen's manager name, never chosen for a public board), so the
+      // row files it under the team name, which the board already shows; the draft and the claim are unchanged.
+      payload: publicPayload(c, rawTeam),
       xi: Object.values(game.lineup),
       history_key: c.k,
       draft_fingerprint: fingerprint(c.p),

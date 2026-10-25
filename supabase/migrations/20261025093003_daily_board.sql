@@ -45,7 +45,8 @@ create table if not exists private.daily_entries (
   goal_diff smallint generated always as (goals_for - goals_against) stored,
   league_position smallint not null check (league_position between 1 and 24),
   tier text not null check (tier in ('PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED')),
-  -- the submission as posted: the base64url ChallengePayload, so any row can be raced as a ghost draft later
+  -- the submission's base64url ChallengePayload, named after the team (the verifier drops the device's manager
+  -- name, since it turns public), so any row can be raced as a ghost draft later
   payload text not null check (char_length(payload) between 40 and 8000 and payload ~ '^[A-Za-z0-9_-]+$'),
   xi text[] not null check (cardinality(xi) between 11 and 18),
   history_key text not null check (char_length(history_key) between 1 and 16),

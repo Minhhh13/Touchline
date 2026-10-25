@@ -64,6 +64,8 @@ create table storage.objects (
   bucket_id text references storage.buckets (id),
   name text not null,
   owner uuid,
+  -- written by the Storage service once the bytes are stored ({ size, mimetype, ... })
+  metadata jsonb,
   created_at timestamptz default now(),
   unique (bucket_id, name)
 );
