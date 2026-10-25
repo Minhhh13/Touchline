@@ -479,28 +479,37 @@ describe('the Cup: saves and the store', () => {
 })
 
 describe('the Cup: balance guard (300 assistant runs, England wheel unless stated)', () => {
-  const lifted = (partial: Partial<ArenaChoices>, universe = u) => Array.from({ length: 300 }, (_, i) => played(`cup-guard-${i}`, partial, universe).arena!.won).filter(Boolean).length / 300
+  // The same 300 seeds in order; the sweep hands the worker's event loop a turn every 25 runs, so its reports to the
+  // runner never time out ("Timeout calling onTaskUpdate") while four 20-second sweeps run back to back on a loaded machine
+  const lifted = async (partial: Partial<ArenaChoices>, universe = u) => {
+    let won = 0
+    for (let i = 0; i < 300; i++) {
+      if (played(`cup-guard-${i}`, partial, universe).arena!.won) won++
+      if (i % 25 === 24) await new Promise((r) => setTimeout(r, 0))
+    }
+    return won / 300
+  }
 
-  it('the wheel, 16 clubs, Calibrated: lifted 12% to 32% of the time', () => {
+  it('the wheel, 16 clubs, Calibrated: lifted 12% to 32% of the time', async () => {
     expect(CUP_FIELD_TARGET.wheel).toBe(73.5)
-    const share = lifted({})
+    const share = await lifted({})
     expect(share).toBeGreaterThan(0.12)
     expect(share).toBeLessThan(0.32)
   }, 300_000)
 
-  it('the giants on Realistic: lifted under 3% of the time', () => {
-    expect(lifted({ field: 'giants', difficulty: 'realistic' })).toBeLessThan(0.03)
+  it('the giants on Realistic: lifted under 3% of the time', async () => {
+    expect(await lifted({ field: 'giants', difficulty: 'realistic' })).toBeLessThan(0.03)
   }, 300_000)
 
-  it('a decade (the 2010s) on Calibrated: lifted 6% to 30% of the time', () => {
-    const share = lifted({ field: 'decade', decade: 2010 })
+  it('a decade (the 2010s) on Calibrated: lifted 6% to 30% of the time', async () => {
+    const share = await lifted({ field: 'decade', decade: 2010 })
     expect(share).toBeGreaterThan(0.06)
     expect(share).toBeLessThan(0.3)
   }, 300_000)
 
-  it('Europe this season (all seven packs) on Calibrated: lifted 6% to 30% of the time', () => {
+  it('Europe this season (all seven packs) on Calibrated: lifted 6% to 30% of the time', async () => {
     const all = loadTestUniverse(['england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'portugal'])
-    const share = lifted({ field: 'europe' }, all)
+    const share = await lifted({ field: 'europe' }, all)
     expect(share).toBeGreaterThan(0.06)
     expect(share).toBeLessThan(0.3)
     expect(clubIdOfKey(entrants(cupGame('eu-key', { field: 'europe' }, all))[0])).not.toContain('@')

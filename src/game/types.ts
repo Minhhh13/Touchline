@@ -9,7 +9,7 @@ import type { TrainingFocus } from '@engine/training'
 import type { SeasonAwards } from '@engine/awards'
 import type { Lineup, PlayerSeason, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
 import type { DraftRules } from '@engine/draft'
-import type { ChallengeClaim } from '@engine/challenge'
+import type { ArenaClaim, ChallengeClaim } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
 import type { AiClub } from '@engine/season'
 import type { ArenaField, ArenaTier } from '@engine/knockout'
@@ -151,13 +151,15 @@ export interface ChallengeSettings {
   /** One row per spin of the challenger's draft: the full player-season id drafted (null for a re-spin or a discarded spin) and its slot. Empty when the draft could not be replayed. */
   picks: Array<{ id: string | null; slotId: string | null; clubId: string; season: number }>
   claim: ChallengeClaim
-  /** 'yes' when the replay reproduced the claim, 'no' when it did not, 'unverified' when the data or the engine differ. */
-  verified: 'yes' | 'no' | 'unverified'
+  /** 'yes' when the replay reproduced the claim, 'no' when it did not, 'unverified' when the data or the engine differ, 'hand' for an arena run managed by hand (its draft and ladder replay, its matches are the challenger's word). */
+  verified: 'yes' | 'no' | 'unverified' | 'hand'
   /** Why verification fell short, when it did. */
   reason?: string
   /** Data stamp and engine version the challenge was built on. */
   data: string
   engine: string
+  /** An arena challenge: the challenger's run step by step, and whether the assistant played every match of it. `claim` then mirrors it (`pts` is the rounds won). */
+  arena?: { claim: ArenaClaim; auto: boolean }
 }
 
 export interface Contract {

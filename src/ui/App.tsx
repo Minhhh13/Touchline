@@ -12,11 +12,13 @@ import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
 import { Arena } from './screens/Arena'
 import { ArenaSetup } from './screens/ArenaSetup'
+import { ArenaChallengeSetup } from './screens/ArenaChallengeSetup'
+import { isArenaPayload } from '@engine/challenge'
 import { ArenaSummary } from './screens/ArenaSummary'
 import { Modal, Toast } from './components/bits'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, abandonGame, openChallenge, setupMode } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, abandonGame, openChallenge, setupMode, pendingChallenge } = useStore()
   const hashHandled = useRef(false)
 
   useEffect(() => {
@@ -88,7 +90,7 @@ export function App() {
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : <Summary />
     else body = game.arena ? <Arena /> : <Dugout />
-  } else if (screen === 'setup') body = setupMode === 'arena' ? <ArenaSetup /> : <Setup />
+  } else if (screen === 'setup') body = setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />

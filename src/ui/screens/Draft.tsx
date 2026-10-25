@@ -11,6 +11,7 @@ import { ClubBadge, Pos, Rating } from '../components/bits'
 import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { finishDraftLabel } from '@game/logic/modes'
+import { challengeHeadline } from '@game/logic/arenaClaim'
 import { leagueSegments } from '../components/leagueSegments'
 import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
@@ -114,7 +115,7 @@ export function Draft() {
         <div>
           <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The Draft'}</h1>
           <div className="muted small">
-            {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challenge.claim.pts} pts) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
+            {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challengeHeadline(challenge, game.settings.arena?.format)}) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
             {nation ? `${nationLabel} only · ` : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
             {d.rules.hardMode ? 'Hard mode · ' : ''}

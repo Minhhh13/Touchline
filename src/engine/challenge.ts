@@ -21,6 +21,8 @@ import type { SeasonTier } from './types'
 import type { LoadedUniverse } from './universe'
 import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
+import type { TrainingFocus } from './training'
+import type { ArenaField } from './knockout'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
@@ -62,28 +64,76 @@ export interface ChallengePayloadV1 {
   k: string
 }
 
-/** What an arena link fixes beside the draft; `isArenaLink` checks it (the arena itself arrives with a later item). */
+/** What an arena link fixes beside the draft: the format, a Cup's size, its field and decade, and the Daily Arena's day it was played on. */
 export interface ChallengeArena {
   f: 'gauntlet' | 'cup'
   n?: number
-  fd?: string
+  fd?: ArenaField
   dc?: number
   dl?: string
 }
 
+/** One step of an arena claim: the score at 90, and the shoot-out (ours, theirs) when it was level. */
+export type ArenaClaimStep = [gf: number, ga: number] | [gf: number, ga: number, pensUs: number, pensThem: number]
+
+/** What an arena run claims: rounds won, whether it ended with the trophy (or the top of the ladder), and every step's score. */
+export interface ArenaClaim {
+  s: number
+  w: boolean
+  g: ArenaClaimStep[]
+}
+
 /**
- * Version 2: the v1 shape plus `kind` (a quick draft, or an arena run) and the
- * arena's settings. A quick link travels as v2 only when its rules use a key
- * v1 builds do not know (`payloadVersionFor`), so an older build says the link
- * is newer rather than calling it garbage.
+ * Version 2: the v1 shape plus `kind`. A quick link travels as v2 only when
+ * its rules use a key v1 builds do not know (`payloadVersionFor`), so an older
+ * build says the link is newer rather than calling it garbage.
  */
 export interface ChallengePayloadV2 extends Omit<ChallengePayloadV1, 'v'> {
   v: 2
-  kind: 'quick' | 'arena'
-  arena?: ChallengeArena
+  kind: 'quick'
 }
 
-export type ChallengePayload = ChallengePayloadV1 | ChallengePayloadV2
+/**
+ * An arena run as a link (always version 2, `kind: 'arena'`): the v1 settings
+ * and draft rows (bonus spins included, in order), the format, one training
+ * letter per step, the rung the lifeline was used at, whether the assistant
+ * played every match (`auto`; only such a run can verify) and the claim.
+ */
+export interface ArenaChallengePayload {
+  v: 2
+  kind: 'arena'
+  data: string
+  engine: string
+  name: string
+  s: ChallengePayloadV1['s']
+  arena: ChallengeArena
+  p: ChallengePick[]
+  /** One `TRAINING_CODE` letter per step played. */
+  t: string
+  lf?: number
+  auto: boolean
+  ac: ArenaClaim
+  k: string
+  /** An arena link carries its claim in `ac`, never a quick claim. */
+  c?: undefined
+}
+
+/** A quick-draft link, as `replayChallenge` and the quick Setup read it. */
+export type QuickChallengePayload = ChallengePayloadV1 | ChallengePayloadV2
+export type ChallengePayload = QuickChallengePayload | ArenaChallengePayload
+
+/** True for an arena run's link. */
+export function isArenaPayload(c: ChallengePayload): c is ArenaChallengePayload {
+  return c.v === 2 && c.kind === 'arena'
+}
+
+/** The training focus of each arena step as one letter in a link. */
+export const TRAINING_CODE: Record<TrainingFocus, string> = { balanced: 'b', attacking: 'a', defensive: 'd', 'set-pieces': 's', fitness: 'f', recovery: 'r', tactical: 't' }
+
+/** The focus a link's letter stands for, or null for a letter this build does not know. */
+export function trainingOfCode(letter: string): TrainingFocus | null {
+  return (Object.keys(TRAINING_CODE) as TrainingFocus[]).find((f) => TRAINING_CODE[f] === letter) ?? null
+}
 
 const TIERS: readonly SeasonTier[] = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED']
 
@@ -194,14 +244,54 @@ export function payloadVersionFor(diff: Partial<DraftRules>, kind: 'quick' | 'ar
   return Object.keys(diff).every((key) => (V1_RULE_KEYS as readonly string[]).includes(key)) ? 1 : 2
 }
 
-/** Whether a link's arena settings describe a run this build can replay; none yet, until the arena links item fills it in. */
-export function isArenaLink(arena: unknown): arena is ChallengeArena {
-  void arena
-  return false
+/** Most steps an arena claim may hold: a 15-rung Gauntlet with room to spare (a Cup has at most five). */
+export const ARENA_LINK_STEPS_MAX = 20
+/** Most goals (or shoot-out kicks) one side may claim in one arena step. */
+export const ARENA_LINK_SCORE_MAX = 30
+/** The Cup sizes and arena fields a link may name. */
+const ARENA_SIZES: readonly number[] = [2, 8, 16, 32]
+const ARENA_FIELDS: readonly ArenaField[] = ['wheel', 'champions', 'giants', 'decade', 'europe']
+const ARENA_KEYS: readonly string[] = ['f', 'n', 'fd', 'dc', 'dl']
+
+const isScore = (x: unknown): x is number => isInt(x) && x >= 0 && x <= ARENA_LINK_SCORE_MAX
+
+/** One claimed step: `[gf, ga]`, or `[gf, ga, pensUs, pensThem]` for a level match decided on penalties. */
+function isClaimStep(x: unknown): x is ArenaClaimStep {
+  if (!Array.isArray(x) || !x.every(isScore)) return false
+  if (x.length === 2) return true
+  return x.length === 4 && x[0] === x[1] && x[2] !== x[3]
 }
 
-/** Top-level keys a v2 link may carry; anything else is from a newer build. */
+/**
+ * Whether a decoded object carries what an arena link needs beside the v1
+ * settings and rows: a whitelisted format, size and field; a claim of at most
+ * `ARENA_LINK_STEPS_MAX` steps with scores in range; one known training letter
+ * per step; a Gauntlet's lifeline rung; and the assistant flag.
+ */
+export function isArenaLink(o: unknown): o is Pick<ArenaChallengePayload, 'arena' | 't' | 'lf' | 'auto' | 'ac'> {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return false
+  const x = o as Record<string, unknown>
+  const a = x.arena as Record<string, unknown> | undefined
+  if (!a || typeof a !== 'object' || Array.isArray(a) || Object.keys(a).some((key) => !ARENA_KEYS.includes(key))) return false
+  if (a.f !== 'gauntlet' && a.f !== 'cup') return false
+  if (a.f === 'gauntlet' && (a.n !== undefined || (a.fd !== undefined && a.fd !== 'wheel'))) return false
+  if (a.n !== undefined && !ARENA_SIZES.includes(a.n as number)) return false
+  if (a.fd !== undefined && !ARENA_FIELDS.includes(a.fd as ArenaField)) return false
+  if (a.dc !== undefined && (!isInt(a.dc) || a.fd !== 'decade' || a.dc < 1900 || a.dc > 2100)) return false
+  if (a.dl !== undefined && !(isString(a.dl) && /^\d{4}-\d{2}-\d{2}$/.test(a.dl))) return false
+  const ac = x.ac as Record<string, unknown> | undefined
+  if (!ac || typeof ac !== 'object' || Array.isArray(ac) || Object.keys(ac).some((key) => !['s', 'w', 'g'].includes(key))) return false
+  if (!Array.isArray(ac.g) || !ac.g.length || ac.g.length > ARENA_LINK_STEPS_MAX || !ac.g.every(isClaimStep)) return false
+  if (!isInt(ac.s) || ac.s < 0 || ac.s > ac.g.length || !isBool(ac.w)) return false
+  if (!isString(x.t) || x.t.length !== ac.g.length || !x.t.split('').every((ch) => trainingOfCode(ch) !== null)) return false
+  if (x.lf !== undefined && (a.f !== 'gauntlet' || !isInt(x.lf) || x.lf < 1 || x.lf > ac.g.length)) return false
+  return isBool(x.auto)
+}
+
+/** Top-level keys a v2 quick link may carry; anything else is from a newer build. */
 const V2_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 'c', 'k']
+/** Top-level keys a v2 arena link may carry. */
+const V2_ARENA_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 't', 'lf', 'auto', 'ac', 'k']
 
 /** Whether an object is a rules diff made only of known rules holding sensible values (a salary cap never beside one club or one nation, `capFits`). */
 export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
@@ -211,15 +301,13 @@ export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
 
 /** The reason a link from a later build gives. */
 export const NEWER_LINK = 'This challenge link comes from a newer version of TouchLine'
-/** The reason an arena link gives while this build has no arena to replay it in. */
-export const ARENA_LINK = 'This challenge needs the arena, which this build does not have yet'
 
 /**
  * Decode a `#c=` fragment; throws with a readable reason when it is not a challenge.
  * Version 1 reads as it always has (its rules limited to `V1_RULE_KEYS`). Version 2
  * adds `kind` (quick when missing) and refuses a kind or a top-level key it does not
- * know as coming from a newer build; an arena link is refused until `isArenaLink` accepts it.
- * Anything above version 2 is from a newer build.
+ * know as coming from a newer build; an arena link must pass `isArenaLink` and carries
+ * its claim in `ac` rather than `c`. Anything above version 2 is from a newer build.
  */
 export function decodeChallenge(text: string): ChallengePayload {
   let raw: unknown
@@ -239,13 +327,14 @@ export function decodeChallenge(text: string): ChallengePayload {
     // A kind this build does not know is a later build's mode; anything but a string is not a link
     if (typeof kind !== 'string') throw new Error('Not a Touchline challenge link')
     if (kind !== 'quick' && kind !== 'arena') throw new Error(NEWER_LINK)
-    if (kind === 'arena' && !isArenaLink(o.arena)) throw new Error(ARENA_LINK)
-    if (Object.keys(o).some((key) => !V2_KEYS.includes(key))) throw new Error(NEWER_LINK)
+    if (Object.keys(o).some((key) => !(kind === 'arena' ? V2_ARENA_KEYS : V2_KEYS).includes(key))) throw new Error(NEWER_LINK)
+    if (kind === 'arena' && !isArenaLink(raw)) throw new Error('Not a Touchline challenge link')
     if (kind === 'quick' && o.arena !== undefined) throw new Error('Not a Touchline challenge link')
   }
+  const arena = kind === 'arena'
   const s = o.s as Record<string, unknown> | undefined
   const c = o.c as Record<string, unknown> | undefined
-  if (!s || typeof s !== 'object' || !c || typeof c !== 'object') throw new Error('Not a Touchline challenge link')
+  if (!s || typeof s !== 'object' || (!arena && (!c || typeof c !== 'object'))) throw new Error('Not a Touchline challenge link')
   if (!isString(o.data) || !isString(o.engine) || !isString(o.name) || !isString(o.k)) throw new Error('Not a Touchline challenge link')
   if (!isString(s.seed) || !isString(s.f) || !isString(s.l) || !isString(s.h) || !isInt(s.ls)) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(s.wl) || !s.wl.every(isString) || !s.wl.length) throw new Error('Not a Touchline challenge link')
@@ -254,12 +343,32 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!isRulesDiff(s.r)) throw new Error('Not a Touchline challenge link')
   if (o.v === 1 && !Object.keys(s.r).every((key) => (V1_RULE_KEYS as readonly string[]).includes(key))) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
-  if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
+  const settings: ChallengePayloadV1['s'] = { seed: s.seed, f: s.f, l: s.l, wl: s.wl as string[], h: s.h, ls: s.ls, d: s.d as 'calibrated' | 'realistic', r: s.r }
+  if (arena && isArenaLink(raw)) {
+    const a = raw.arena
+    const ac = raw.ac
+    return {
+      v: 2,
+      kind: 'arena',
+      data: o.data,
+      engine: o.engine,
+      name: cleanName(o.name),
+      s: settings,
+      arena: { f: a.f, ...(a.n !== undefined ? { n: a.n } : {}), ...(a.fd !== undefined ? { fd: a.fd } : {}), ...(a.dc !== undefined ? { dc: a.dc } : {}), ...(a.dl !== undefined ? { dl: a.dl } : {}) },
+      p: o.p as ChallengePick[],
+      t: raw.t,
+      ...(raw.lf !== undefined ? { lf: raw.lf } : {}),
+      auto: raw.auto,
+      ac: { s: ac.s, w: ac.w, g: ac.g.map((step) => [...step] as ArenaClaimStep) },
+      k: o.k,
+    }
+  }
+  if (!c || !isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
   const body: Omit<ChallengePayloadV1, 'v'> = {
     data: o.data,
     engine: o.engine,
     name: cleanName(o.name),
-    s: { seed: s.seed, f: s.f, l: s.l, wl: s.wl, h: s.h, ls: s.ls, d: s.d, r: s.r },
+    s: settings,
     p: o.p as ChallengePick[],
     c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
     k: o.k,
@@ -285,33 +394,43 @@ export interface ReplayedPick {
  */
 export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: ChallengePayload): ReplayedPick[] {
   const out: ReplayedPick[] = []
-  for (let i = 0; i < c.p.length; i++) {
-    const [playerId, slotId] = c.p[i]
-    const n = i + 1
-    if (isComplete(d)) throw new Error(`Spin ${n} came after the squad was complete`)
-    if (!canSpin(u, d)) throw new Error(`Spin ${n}: the wheel had run dry`)
-    const cs = spin(u, d, rng)
-    if (playerId === null) {
-      d.respinsLeft = Math.max(0, d.respinsLeft - 1)
-      d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}) })
-      d.current = null
-      d.twist = null
-      out.push({ clubId: cs.clubId, season: cs.season, id: null, slotId: null })
-      continue
-    }
-    const id = `${playerId}@${cs.season}@${cs.clubId}`
-    if (!u.index[id]) throw new Error(`Spin ${n}: no player ${playerId} in the ${cs.clubId} ${cs.season} squad`)
-    try {
-      pick(u, d, id, slotId ?? 'bench')
-    } catch (e) {
-      throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
-    }
-    out.push({ clubId: cs.clubId, season: cs.season, id, slotId })
-  }
-  if (!isComplete(d) && !(picksMade(d) >= 11 && !canSpin(u, d))) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
+  for (let i = 0; i < c.p.length; i++) out.push(replayRow(u, d, rng, c.p[i], i + 1))
+  if (!draftClosed(u, d)) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
   if (d.spins !== c.p.length || d.history.length !== c.p.length) throw new Error('The spins do not add up')
   if (historyKey(d.history) !== c.k) throw new Error('The wheel did not land on the same club-seasons')
   return out
+}
+
+/** A draft the store would let close: complete, or a full XI on a wheel that has run dry. */
+export function draftClosed(u: LoadedUniverse, d: DraftState): boolean {
+  return isComplete(d) || (picksMade(d) >= 11 && !canSpin(u, d))
+}
+
+/**
+ * One row of the challenger's draft, spin number `n` (1-based): one `spin`,
+ * then the pick, or a re-spin or discarded spin logged as the store logs it.
+ * Throws with the spin number when the row does not fit the wheel.
+ */
+export function replayRow(u: LoadedUniverse, d: DraftState, rng: Rng, row: ChallengePick, n: number): ReplayedPick {
+  const [playerId, slotId] = row
+  if (isComplete(d)) throw new Error(`Spin ${n} came after the squad was complete`)
+  if (!canSpin(u, d)) throw new Error(`Spin ${n}: the wheel had run dry`)
+  const cs = spin(u, d, rng)
+  if (playerId === null) {
+    d.respinsLeft = Math.max(0, d.respinsLeft - 1)
+    d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}) })
+    d.current = null
+    d.twist = null
+    return { clubId: cs.clubId, season: cs.season, id: null, slotId: null }
+  }
+  const id = `${playerId}@${cs.season}@${cs.clubId}`
+  if (!u.index[id]) throw new Error(`Spin ${n}: no player ${playerId} in the ${cs.clubId} ${cs.season} squad`)
+  try {
+    pick(u, d, id, slotId ?? 'bench')
+  } catch (e) {
+    throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  return { clubId: cs.clubId, season: cs.season, id, slotId }
 }
 
 /** The claim and a replayed result agree when every figure matches. */

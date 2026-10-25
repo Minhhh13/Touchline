@@ -15,6 +15,7 @@ import { playerLookup } from '../logic/players'
 import { runQuickSeason } from '../logic/quick'
 import { storyForGame } from '../logic/story'
 import { modeLabel } from '../logic/modes'
+import { arenaVerdictOf, challengeHeadline } from '../logic/arenaClaim'
 import type { Game, GameSettings } from '../types'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
@@ -149,6 +150,11 @@ describe('audit fixes: season and squad', () => {
     // No weekly theme before the Weekly Challenge: the mode's label stands alone
     expect(n.settings.weekly).toBeUndefined()
     expect(modeLabel(n, 'short')).toBe('Season')
+    // A ghost from before arena links carries no arena claim: it still reads as a quick challenge
+    const ghost = normaliseGame({ ...old, settings: { ...oldSettings, challenge: { name: 'Minh', picks: [], claim: { pts: 70, w: 21, d: 7, l: 10, t: 'TITLE_RACE' }, verified: 'yes', data: '2026-01-01', engine: '4' } } } as unknown as Game)!
+    expect(ghost.settings.challenge?.arena).toBeUndefined()
+    expect(challengeHeadline(ghost.settings.challenge!)).toBe('70 pts')
+    expect(arenaVerdictOf(ghost)).toBeNull()
     expect(n.squad).toBe(g.squad)
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()

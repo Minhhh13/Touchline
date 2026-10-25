@@ -31,7 +31,7 @@ import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft 
 import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
-import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
+import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
 import { simToNextStop, type StopReason } from './logic/highlights'
@@ -301,8 +301,10 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
             return false
           }
-          const needs = [...new Set([payload.s.l, ...payload.s.wl])]
           const known = (get().universe?.available ?? []).map((l) => l.id)
+          // An arena field drawn from every league (the champions, the giants, Europe) needs every pack, as its setup does
+          const arena = isArenaPayload(payload) ? payload : null
+          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(arena?.arena.f === 'cup' && arenaNeedsAllLeagues({ arena: { format: 'cup', field: arena.arena.fd } }) ? known : [])])]
           const unknown = needs.filter((id) => !known.includes(id))
           if (unknown.length) {
             set({ toast: `This challenge needs a league this build does not have (${unknown.join(', ')}).` })
@@ -318,7 +320,7 @@ export const useStore = create<Store>()(
             return false
           }
           const outcome = replayChallenge(u, payload)
-          set({ pendingChallenge: { payload, challenge: challengeSettings(payload, outcome) }, screen: 'setup', setupMode: 'quick' })
+          set({ pendingChallenge: { payload, challenge: challengeSettings(payload, outcome) }, screen: 'setup', setupMode: arena ? 'arena' : 'quick' })
           return true
         },
 

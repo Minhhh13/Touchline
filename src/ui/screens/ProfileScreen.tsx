@@ -4,9 +4,9 @@ import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
 import { badgeStates, topBadges } from '@engine/badges'
 import { fetchClubLeagues } from '@engine/universe'
-import type { LeaderboardEntry } from '@game/types'
+import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
 import { MODE_TITLE, arenaFormatLabel, isQuickLike } from '@game/logic/modes'
-import { arenaClubName } from '@game/logic/arena'
+import { arenaClubName, groupRunsByLadder } from '@game/logic/arena'
 import { arenaTierLabel } from '@engine/knockout'
 import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
@@ -15,6 +15,15 @@ import { clubName, ordinal, seasonLabel } from '../format'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
 
 const FILTER_KEY = 'touchline-record-filter'
+const RUNS_VIEW_KEY = 'touchline-runs-view'
+
+function readRunsView(): 'best' | 'ladder' {
+  try {
+    return localStorage.getItem(RUNS_VIEW_KEY) === 'ladder' ? 'ladder' : 'best'
+  } catch {
+    return 'best'
+  }
+}
 
 function readFilter(): BoardFilter {
   try {
@@ -71,6 +80,41 @@ export function ProfileScreen() {
     }
   }
   const board = filterBoard(profile.leaderboard, filter)
+  // Best runs: best first, or Best on this ladder (grouped by seed); remembered per viewer
+  const [runsView, setRunsViewState] = useState<'best' | 'ladder'>(readRunsView)
+  const setRunsView = (v: 'best' | 'ladder') => {
+    setRunsViewState(v)
+    try {
+      localStorage.setItem(RUNS_VIEW_KEY, v)
+    } catch {
+      // Without storage the view just resets next visit
+    }
+  }
+  const ladders = groupRunsByLadder(profile.arenaRuns ?? [])
+  const runRow = (e: ArenaRunEntry) => (
+    <tr key={e.id}>
+      {/* The team cell wraps, so on a phone the format, result and score stay in view */}
+      <td style={{ whiteSpace: 'normal' }}>
+        <span className="row wrap" style={{ gap: 6 }}>
+          {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} {e.teamName}
+          {e.challenge && (
+            <span className={`chip ${e.score > e.challenge.score ? 'good' : e.score < e.challenge.score ? 'bad' : ''}`} data-testid="run-vs">
+              vs {e.challenge.name} {e.challenge.score}
+            </span>
+          )}
+        </span>
+        <div className="small muted">
+          {e.last && u ? `${e.fellTo ? 'Lost to' : 'Beat'} ${arenaClubName(u, e.last)}` : e.date} · seed {e.seed}
+        </div>
+      </td>
+      {/* The format and result wrap too, so a phone keeps the score column in the panel */}
+      <td style={{ whiteSpace: 'normal' }}>{arenaFormatLabel(e)}</td>
+      <td style={{ whiteSpace: 'normal' }}>{arenaTierLabel(e.tier, e.score)}</td>
+      <td className="num">
+        {e.goalsFor}-{e.goalsAgainst}
+      </td>
+    </tr>
+  )
   const downloadCard = () => {
     const best = profile.leaderboard.slice(0, 3).map((e) => ({
       title: `${e.teamName} · ${e.points} pts · ${ordinal(e.position)}`,
@@ -271,7 +315,19 @@ export function ProfileScreen() {
           </table>
         </div>
         <div className="panel" data-testid="best-runs">
-          <h3>Best runs</h3>
+          <div className="row between wrap" style={{ gap: 8 }}>
+            <h3>Best runs</h3>
+            {!!profile.arenaRuns?.length && (
+              <Segmented
+                value={runsView}
+                onChange={setRunsView}
+                options={[
+                  { value: 'best', label: 'Best first' },
+                  { value: 'ladder', label: 'Best on this ladder', hint: 'Runs on the same seed, format and field together, best first' },
+                ]}
+              />
+            )}
+          </div>
           {!profile.arenaRuns?.length && <div className="muted small">No arena runs yet. Try the Cup or the Gauntlet from Home.</div>}
           {!!profile.arenaRuns?.length && (
             <table className="tbl">
@@ -284,24 +340,16 @@ export function ProfileScreen() {
                 </tr>
               </thead>
               <tbody>
-                {profile.arenaRuns.map((e) => (
-                  <tr key={e.id}>
-                    {/* The team cell wraps, so on a phone the format, result and score stay in view */}
-                    <td style={{ whiteSpace: 'normal' }}>
-                      <span className="row wrap" style={{ gap: 6 }}>
-                        {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} {e.teamName}
-                      </span>
-                      <div className="small muted">
-                        {e.last && u ? `${e.fellTo ? 'Lost to' : 'Beat'} ${arenaClubName(u, e.last)}` : e.date} · seed {e.seed}
-                      </div>
-                    </td>
-                    <td>{arenaFormatLabel(e)}</td>
-                    <td>{arenaTierLabel(e.tier, e.score)}</td>
-                    <td className="num">
-                      {e.goalsFor}-{e.goalsAgainst}
-                    </td>
-                  </tr>
-                ))}
+                {runsView === 'best'
+                  ? profile.arenaRuns.map(runRow)
+                  : ladders.flatMap((g) => [
+                      <tr key={`h-${g.key}`} data-testid="ladder-group">
+                        <td colSpan={4} className="small muted" style={{ whiteSpace: 'normal' }}>
+                          <b>Seed {g.seed}</b> · {arenaFormatLabel(g)} · {g.runs.length} run{g.runs.length === 1 ? '' : 's'} · best {arenaTierLabel(g.runs[0].tier, g.runs[0].score).toLowerCase()}
+                        </td>
+                      </tr>,
+                      ...g.runs.map(runRow),
+                    ])}
               </tbody>
             </table>
           )}

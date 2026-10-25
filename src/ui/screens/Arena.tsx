@@ -13,6 +13,7 @@ import { Bracket } from '../components/Bracket'
 import { GAUNTLET_RUNGS, rungBandLabel, rungLabels } from '@engine/gauntlet'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { arenaFormatLabel } from '@game/logic/modes'
+import { ghostStepLine } from '@game/logic/arenaClaim'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import { lineupProblems, teamStrength } from '@game/logic/squad'
 import { Pitch } from '../components/Pitch'
@@ -57,6 +58,8 @@ export function Arena() {
   const seeded = cup && opp && a.bracket?.seeds.includes(opp.key)
   const rung = a.step + 1
   const billing = gauntlet && opp ? rungLabels(rung, opp.real).billing : undefined
+  // A challenge's ghost: the challenger's result on this step, and on every rung or round
+  const ghost = game.settings.challenge?.arena ? game.settings.challenge : undefined
   const changeDraw = () => {
     if (opp && confirm(`Change the draw? ${opp.club.name} makes way for another side from the same band. Once a run.`)) store.changeTheDraw()
   }
@@ -111,7 +114,7 @@ export function Arena() {
             <h3>The ladder · {a.step} of {GAUNTLET_RUNGS} climbed</h3>
             <span className="small muted">{a.lifelineUsed ? `Lifeline used at rung ${a.lifelineUsed}` : 'Lifeline unused'}</span>
           </div>
-          <GauntletLadder u={u} a={a} />
+          <GauntletLadder u={u} a={a} ghost={ghost} />
         </div>
       )}
       {opp && (
@@ -128,6 +131,11 @@ export function Arena() {
               <div className="small muted" data-testid="arena-rating">
                 {opp.offset > 0 ? `Plays at ${(opp.real - opp.offset).toFixed(1)} (real ${opp.real.toFixed(1)})` : `Plays at full strength, ${opp.real.toFixed(1)}`} · you {strength.overall.toFixed(1)}
               </div>
+              {ghost && (
+                <div className="small" style={{ color: 'var(--accent)' }} data-testid="ghost-here">
+                  👻 {ghostStepLine(ghost, a.step)}
+                </div>
+              )}
             </div>
           </div>
           {gauntlet && (
@@ -154,6 +162,15 @@ export function Arena() {
             <h3>The draw · {size} clubs</h3>
             <span className="small muted">Seeds kept apart in round one · four days between ties · the final on neutral ground</span>
           </div>
+          {ghost?.arena && (
+            <div className="row wrap" style={{ gap: 6 }} data-testid="ghost-trail">
+              {Array.from({ length: cupRoundCount(size) }, (_, r) => (
+                <span key={r} className="chip" title={`${cupRoundName(size, r).name}: ${ghostStepLine(ghost, r)}`}>
+                  {cupRoundName(size, r).code} 👻 {ghostStepLine(ghost, r)?.replace(`${ghost.name} `, '')}
+                </span>
+              ))}
+            </div>
+          )}
           <Bracket
             rounds={Array.from({ length: cupRoundCount(size) }, (_, r) => cupRoundName(size, r).name)}
             ties={a.bracket.rounds}

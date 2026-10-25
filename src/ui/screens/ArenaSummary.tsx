@@ -16,11 +16,16 @@ import { ClubBadge } from '../components/bits'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { minuteLabel } from '../format'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
+import { arenaChallengeFromGame, arenaVerifiedLine, challengeLink, runItBackArena } from '@game/logic/challenge'
+import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
+import { cleanName } from '@engine/challenge'
+import { ENGINE_VERSION } from '@engine/version'
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
-  const { universe: u, game, startGame, openArenaSetup, showToast } = useStore()
+  const { universe: u, game, startGame, openArenaSetup, showToast, profile } = useStore()
   const [copied, setCopied] = useState(false)
+  const [link, setLink] = useState<string | null>(null)
   // The "Copied!" label goes back after a moment; the timer is cleared if the summary closes first
   useEffect(() => {
     if (!copied) return
@@ -54,6 +59,28 @@ export function ArenaSummary() {
     const s = a.log[i]
     return `${input?.steps[i]?.code ?? ''} ${arenaStepMark(s)} ${s.gf}-${s.ga} ${arenaClubName(u, s.opponent)}${s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}`
   }
+  const challenge = game.settings.challenge?.arena ? game.settings.challenge : undefined
+  const verdict = arenaVerdictOf(game)
+  const challengeName = cleanName(profile.managerName) || cleanName(game.settings.teamName) || 'A friend'
+  const makeChallenge = async () => {
+    const c = arenaChallengeFromGame(game, u, challengeName)
+    if (!c) {
+      showToast('This run cannot be packed into a challenge.')
+      return
+    }
+    const url = challengeLink(c, location.origin, location.pathname)
+    setLink(url)
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast(`Challenge link copied (${url.length} characters). Send it to a friend.`)
+    } catch {
+      showToast('Could not copy. The link is below.')
+    }
+  }
+  const runItBack = () => {
+    const s = runItBackArena(game, u)
+    if (s) startGame(s)
+  }
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text)
@@ -76,7 +103,7 @@ export function ArenaSummary() {
         footer: shareCardFooter(game),
         hideRatings: game.settings.rules.hardMode,
         banner: { text: banner },
-        lines: gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])],
+        lines: [...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])],
       })
       downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
@@ -114,11 +141,41 @@ export function ArenaSummary() {
           <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again">
             Play again
           </button>
+          <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={a.handManaged ? 'Managed by hand: your friend sees the draft and the ladder replay, and your scores as your word' : 'Played by the assistant: your friend’s build replays and verifies it'}>
+            Challenge a friend
+          </button>
+          <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title="The same seed again, against your own run">
+            Run it back
+          </button>
           <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')}>
             New game
           </button>
         </div>
       </div>
+
+      {link && (
+        <div className="panel" style={{ marginBottom: 12 }} data-testid="arena-challenge-link">
+          <div className="panel-head">
+            <h3>Challenge link</h3>
+            <span className="small muted">
+              Whoever opens it drafts the same wheel as {challengeName} and {gauntlet ? 'climbs the same ladder' : 'faces the same draw'}, with your result on every step. {a.handManaged ? 'You managed this run by hand, so it shows as your word, never as verified.' : 'The assistant played every match, so it verifies on the same data and engine.'} Built on data {u.generatedAt}, engine {ENGINE_VERSION}.
+            </span>
+          </div>
+          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} />
+        </div>
+      )}
+
+      {challenge?.arena && (
+        <div className="panel" style={{ marginBottom: 12 }} data-testid="arena-h2h">
+          <div className="panel-head">
+            <h3>Head-to-head · vs {challenge.name}</h3>
+            <span className="small muted">{arenaVerifiedLine(challenge, a.format)}</span>
+          </div>
+          <div style={{ fontWeight: 700 }} data-testid="arena-verdict">
+            {verdict}
+          </div>
+        </div>
+      )}
 
       <div className="grid two">
         <div className="col">
@@ -139,9 +196,12 @@ export function ArenaSummary() {
                       </div>
                     </span>
                   </span>
-                  <span className={`chip ${s.gf > s.ga || (s.pens && s.pens.us > s.pens.them) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
-                    {s.gf}-{s.ga}
-                    {s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}
+                  <span className="col" style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <span className={`chip ${s.gf > s.ga || (s.pens && s.pens.us > s.pens.them) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                      {s.gf}-{s.ga}
+                      {s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}
+                    </span>
+                    {challenge && <span className="small muted" data-testid="ghost-step">{ghostStepLine(challenge, i)}</span>}
                   </span>
                 </div>
               ))}

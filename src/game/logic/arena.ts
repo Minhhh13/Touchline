@@ -29,6 +29,7 @@ import { defaultHostClub } from './setup'
 import { arenaFormatLabel } from './modes'
 import { resultId } from './cabinet'
 import { capLine, capTotal, grownBudget } from './cap'
+import { arenaVerdictOf } from './arenaClaim'
 
 /** Players drafted for a one-off final. */
 export const FINAL_SQUAD = 16
@@ -830,12 +831,36 @@ export function arenaRunEntry(game: Game, date: string): ArenaRunEntry | null {
     ...(s.rules.onlyNation ? { nation: s.rules.onlyNation } : {}),
     ...(last && !a.won ? { fellTo: last.opponent } : {}),
     ...(last ? { last: last.opponent } : {}),
+    ...(s.challenge?.arena ? { challenge: { name: s.challenge.name, score: s.challenge.arena.claim.s } } : {}),
   }
 }
 
 /** Best runs: grouped by format, then the score, then goal difference; at most 50. */
 export function sortArenaRuns(entries: ArenaRunEntry[]): ArenaRunEntry[] {
   return [...entries].sort((x, y) => (x.format === y.format ? 0 : x.format < y.format ? -1 : 1) || (y.size ?? 0) - (x.size ?? 0) || y.score - x.score || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst)).slice(0, 50)
+}
+
+/** The runs on one ladder (or one draw): the same format, size, field and seed, best first. */
+export interface LadderGroup {
+  key: string
+  seed: string
+  format: 'cup' | 'gauntlet'
+  size?: number
+  field?: ArenaField
+  runs: ArenaRunEntry[]
+}
+
+/** Best on this ladder: Best runs grouped by seed (within a format, size and field), each group best first, the groups by their best run. */
+export function groupRunsByLadder(entries: ArenaRunEntry[]): LadderGroup[] {
+  const groups = new Map<string, LadderGroup>()
+  for (const e of sortArenaRuns(entries)) {
+    const key = `${e.format}|${e.size ?? ''}|${e.field ?? ''}|${e.seed}`
+    const g = groups.get(key) ?? { key, seed: e.seed, format: e.format, ...(e.size ? { size: e.size } : {}), ...(e.field ? { field: e.field } : {}), runs: [] }
+    g.runs.push(e)
+    groups.set(key, g)
+  }
+  // Groups keep the first-seen order of their best run, which `sortArenaRuns` already put first
+  return [...groups.values()]
 }
 
 /** A club-season key in words (`Real Madrid 2017-18`), whether or not its league is loaded. */
@@ -880,9 +905,9 @@ export function cupWinnerName(game: Game, u: LoadedUniverse): string | null {
 /** Everything the arena's share text prints, for a finished run (`arenaShareText`). */
 export function arenaShareInput(game: Game, u: LoadedUniverse): ArenaShareInput | null {
   const input = arenaShareBody(game, u)
-  // Under a salary cap the money line closes the run's lines: `💰 £221M of a £252M cap`
-  const cap = capLine(game)
-  return input && cap ? { ...input, lines: [...(input.lines ?? []), cap] } : input
+  // Under a salary cap the money line closes the run's lines (`💰 £221M of a £252M cap`), then a challenge's verdict
+  const extra = [capLine(game), arenaVerdictOf(game)].filter((l): l is string => !!l)
+  return input && extra.length ? { ...input, lines: [...(input.lines ?? []), ...extra] } : input
 }
 
 function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {

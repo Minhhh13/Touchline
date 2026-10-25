@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, canUse, eligibleSlots, isComplete, pick, QUICK_RULES, respin, spin } from '@engine/draft'
-import { ARENA_LINK, CHALLENGE_NAME_MAX, cleanName, decodeChallenge, encodeChallenge, historyKey, isArenaLink, isRulesDiff, NEWER_LINK, payloadVersionFor, rulesDiff, rulesFromPayload, V1_RULE_KEYS, type ChallengePayload, type ChallengePayloadV2 } from '@engine/challenge'
+import { CHALLENGE_NAME_MAX, cleanName, decodeChallenge, encodeChallenge, historyKey, isArenaLink, isRulesDiff, NEWER_LINK, payloadVersionFor, rulesDiff, rulesFromPayload, V1_RULE_KEYS, type ChallengePayload, type ChallengePayloadV2 } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { challengeFromGame, challengeLink, challengeSettings, replayChallenge, settingsFromChallenge, verdictLine } from '../logic/challenge'
 import { createGame } from '../logic/setup'
@@ -274,9 +274,11 @@ describe('challenge payload v2 gate', () => {
     expect(() => decodeChallenge(b64({ ...v2, ghosts: [] }))).toThrow(NEWER_LINK)
     // v1 keeps its old behaviour: extra top-level keys are ignored
     expect(decodeChallenge(b64({ ...c, ghosts: [] }))).toEqual(c)
-    // An arena run, until this build has the arena
-    expect(() => decodeChallenge(b64({ ...v2, kind: 'arena', arena: { f: 'gauntlet' } }))).toThrow(ARENA_LINK)
-    expect(ARENA_LINK).toBe('This challenge needs the arena, which this build does not have yet')
+    // An arena link needs its claim, its steps and its flags (arenaChallenge.test.ts covers the real ones); a quick claim on one reads as a newer build's key
+    const { c: quickClaim, ...noClaim } = v2
+    expect(quickClaim).toEqual(c.c)
+    expect(() => decodeChallenge(b64({ ...noClaim, kind: 'arena', arena: { f: 'gauntlet' } }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ ...v2, kind: 'arena', arena: { f: 'gauntlet' } }))).toThrow(NEWER_LINK)
     expect(isArenaLink({ f: 'cup', n: 16 })).toBe(false)
     // A kind this build does not know is a later build's mode; a kind that is not a string, or arena settings on a quick link, is not a link
     expect(() => decodeChallenge(b64({ ...v2, kind: 'draft-room' }))).toThrow(NEWER_LINK)
