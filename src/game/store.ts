@@ -14,6 +14,7 @@ import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
+import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
 import { talkTo, type TalkKind } from './logic/talks'
@@ -116,6 +117,8 @@ interface Store {
   setRole: (slotId: string, roleId: string) => void
   setFormation: (id: string) => void
   assign: (playerSeasonId: string, slotId: string | 'bench') => void
+  /** The slot picker's tap: assign, then toast what moved ('Saka in at RW, Bowen to the bench'). */
+  playInSlot: (playerSeasonId: string, slotId: string | 'bench') => void
   autoPick: () => void
   setTeamTalk: (t: TeamTalk) => void
   setTraining: (t: TrainingFocus) => void
@@ -454,6 +457,14 @@ export const useStore = create<Store>()(
         setRole: (slotId, roleId) => mutate((g) => void (g.tactics.roles[slotId] = roleId)),
         setFormation: (id) => mutate((g, u) => setFormation(g, u, id)),
         assign: (id, slot) => mutate((g, u) => assignPlayer(g, u, id, slot)),
+        playInSlot: (id, slot) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          // Worded from the lineup as it stands, before the swap runs
+          const note = assignmentNote(game, universe, id, slot)
+          mutate((g, u) => assignPlayer(g, u, id, slot))
+          if (note) set({ toast: note })
+        },
         autoPick: () => mutate((g, u) => autoPick(g, u, false)),
         setTeamTalk: (t) => mutate((g) => void (g.teamTalk = t)),
         setTraining: (t) => mutate((g) => void (g.training = t)),

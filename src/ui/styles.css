@@ -1748,3 +1748,72 @@ table.tbl tr.clickable:hover {
 .wheel-wrap .hub .lbl.twist {
   color: var(--gold);
 }
+
+/* ------------------------------------------------------------ slot picker */
+/* A bottom sheet on a phone, an ordinary centred modal on wider screens */
+@media (max-width: 720px) {
+  .modal-back.sheet-back {
+    padding: 0;
+  }
+  .modal.sheet {
+    align-self: end;
+    width: 100%;
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+    padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
+    animation: sheet-up 0.22s ease-out;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal.sheet {
+    animation: none;
+  }
+}
+.sheet-occupant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.sheet-occupant .prow {
+  cursor: default;
+  border-color: var(--accent);
+}
+.sheet-group {
+  font-size: 15px;
+  margin: 10px 0 6px;
+}
+.sheet-out {
+  margin-top: 10px;
+}
+.sheet-out summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 6px 0;
+  color: var(--text-2);
+}
+.slot-disc {
+  min-width: 34px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+.slot-chip {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+}
