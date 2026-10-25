@@ -212,6 +212,9 @@ p {
 .grid.three {
   grid-template-columns: repeat(3, 1fr);
 }
+.grid.four {
+  grid-template-columns: repeat(4, 1fr);
+}
 .grid.draft {
   grid-template-columns: 300px minmax(0, 1fr) 360px;
 }
@@ -219,6 +222,9 @@ p {
   grid-template-columns: minmax(0, 1fr) 380px;
 }
 @media (max-width: 1050px) {
+  .grid.four {
+    grid-template-columns: 1fr 1fr;
+  }
   .grid.draft {
     grid-template-columns: 1fr 1fr;
   }
@@ -232,6 +238,7 @@ p {
 @media (max-width: 720px) {
   .grid.two,
   .grid.three,
+  .grid.four,
   .grid.draft {
     grid-template-columns: 1fr;
   }
@@ -991,7 +998,10 @@ table.tbl tr.clickable:hover {
   background: var(--panel-2);
 }
 .mode-card.daily > .btn {
+  /* block buttons are 100% wide; inside the card the margins must come out of that width */
   margin: 0 16px 16px;
+  width: auto;
+  align-self: stretch;
 }
 
 /* ------------------------------------------------------------------ misc */

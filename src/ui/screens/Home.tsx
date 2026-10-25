@@ -119,7 +119,7 @@ export function Home() {
         </button>
       </div>
 
-      <div className="grid three" style={{ marginTop: 16 }}>
+      <div className="grid four" style={{ marginTop: 16 }}>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer', borderColor: 'var(--line-2)' }} onClick={() => go('h2h')}>
           <h3>🤝 Head-to-head</h3>
           <p className="muted small">Two managers on one device draft from the same spins, then both sides play the same season. Settle it properly.</p>
