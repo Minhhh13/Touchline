@@ -792,7 +792,7 @@ Seed K7Q2-MX9A
 
 Line two names the host club and season; line three is the tier plus "+ CUP" where it applies; the block row is one square per win, draw and defeat; a line such as `Hard · Position First · Prime ratings` names the 38-0 options that differ from the mode's defaults (section 5); the daily variant labels the mode "Daily 2026-10-24" and omits the seed line; Dynasty labels it "Dynasty Y2".
 
-**The share text's record** reads `31-4-3 · 97 pts · 1st` (won, drawn, lost; it was `31W 4D 3L`), the tier line adds ` + Cup` and ` + Europe`, and a quick season (Quick Draft or the Daily) names the team alone, `Touchline XI, 2025-26`, never "as" the club whose place it takes (`hostClubName` empty); a managed season keeps `Touchline XI as Burnley, 2025-26`. A quick season short of perfect adds its runs (`runsLine`: `Perfect run 12-0 · unbeaten from the start 15`, or `Game 1 not won`).
+**The share text's record** reads `31-4-3 · 97 pts · 1st` (won, drawn, lost; it was `31W 4D 3L`), the tier line adds ` + Cup` and ` + Europe`, and a quick season (Quick Draft or the Daily) names the team alone, `Touchline XI, 2025-26`, never "as" the club whose place it takes (`hostClubName` empty); a managed season keeps `Touchline XI as Burnley, 2025-26`. A quick season short of perfect adds its runs when they say something (`runsLine`: `Perfect run 12-0 · unbeaten for the first 15`, `Perfect run ended in game 2`, `Unbeaten for the first 9 games`; nothing for a first game not won with no unbeaten run after it, and an unbeaten season leaves the unbeaten part out).
 
 ### In the record books
 

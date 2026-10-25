@@ -72,6 +72,9 @@
   --hero-cyan: #38d9f5;
   --hero-magenta: #e070ff;
   --hero-neon-strength: 0.9;
+  /* The summary banner's faint line sketch (ResultArt): the hero's pale light in Floodlit, its navy-violet ink in Daylight */
+  --sketch-line: var(--hero-light);
+  --sketch-opacity: 0.08;
   /* The colour of the hero's scrim (and its background while the art loads) */
   --hero-shade: var(--navy);
   /* Text on the hero art */
@@ -219,6 +222,8 @@
   --hero-cyan: #0890b4;
   --hero-magenta: #b84ae0;
   --hero-neon-strength: 0.6;
+  --sketch-line: var(--hero-ink);
+  --sketch-opacity: 0.1;
   --hero-shade: #f3f1fd;
   --on-photo: #0a1b51;
   --on-photo-2: #313e78;
@@ -7329,13 +7334,13 @@ table.tbl.match-stats th {
   font-size: 11px;
 }
 
-/* The summary's lead: the record against 38-0 */
+/* The summary's lead: the record against 38-0, wins, draws and losses in their own colours */
 .versus-perfect {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  margin: 8px 0 10px;
+  gap: 4px;
+  margin: 6px 0 12px;
 }
 .vp-record {
   font-family: var(--font-display);
@@ -7343,12 +7348,87 @@ table.tbl.match-stats th {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.vp-against {
-  font-weight: 700;
+.vp-record .vp-w {
+  color: var(--good);
+}
+.vp-record .vp-d {
+  color: var(--meter-mid);
+}
+/* Daylight's --meter-mid is a bar colour (about 4:1 on the banner); the figures take its text-strength amber */
+:root[data-theme='light'] .vp-record .vp-d {
+  color: var(--gold-text);
+}
+.vp-record .vp-l {
+  color: var(--bad);
+}
+.vp-record .vp-dash {
+  color: var(--text-3);
+  margin: 0 0.04em;
+}
+/* A nought is no colour: 38-0-0 reads as wins, not as a draw and a loss */
+.vp-record .zero,
+:root[data-theme='light'] .vp-record .zero {
+  color: var(--text-3);
+}
+.vp-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0 6px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
-.versus-perfect.perfect .vp-record {
-  color: var(--good);
+.vp-against {
+  font-weight: 700;
+  color: var(--text);
+}
+.vp-sep {
+  color: var(--text-3);
+}
+.vp-runs {
+  max-width: 40ch;
+}
+
+/* The result banner's faint sketch (ResultArt, components/Art.tsx): line art in one ink, behind everything */
+.result-banner > .result-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -2;
+  pointer-events: none;
+  opacity: var(--sketch-opacity);
+}
+.result-art .sk {
+  fill: none;
+  stroke: var(--sketch-line);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.result-art .sk-faint {
+  stroke-width: 2;
+  opacity: 0.7;
+}
+.result-art .cf {
+  stroke: none;
+}
+.result-art .cf.c0 {
+  fill: var(--hero-cyan);
+}
+.result-art .cf.c1 {
+  fill: var(--hero-magenta);
+}
+.result-art .cf.c2 {
+  fill: var(--gold);
+}
+.result-art .cf-curl {
+  stroke: var(--hero-magenta);
+}
+/* The banner's content sits over the sketch */
+.result-banner > :not(.result-art) {
+  position: relative;
 }
 .tier-banner.quick .quick-team {
   justify-content: center;
@@ -7376,6 +7456,55 @@ table.tbl.match-stats th {
   white-space: normal;
 }
 
+/* The summary's result banner: a little tighter, and its actions in even, centred rows */
+.result-banner {
+  padding: 22px var(--space-4) 20px;
+}
+.result-banner .tier-blurb {
+  margin-top: 6px;
+}
+.result-banner .banner-stats {
+  margin-top: var(--space-3);
+}
+.result-banner .blocks {
+  margin-top: var(--space-3);
+}
+.result-banner .banner-actions {
+  margin-top: var(--space-4);
+}
+/* The actions in even rows: three to a row, centred, when the banner spans the page (720 to 1100 px wide)... */
+.result-banner .banner-actions .btn {
+  flex: 0 1 calc((100% - 2 * var(--space-2)) / 3);
+  max-width: 240px;
+}
+/* ...and two to a row in a narrow banner (a phone, or the desktop's left column): the main action and the share card
+   take a row each, the rest pair up, and one left over takes the whole row */
+@media (max-width: 720px), (min-width: 1100px) {
+  .app .page.summary .result-banner .banner-actions {
+    display: flex;
+  }
+  .app .page.summary .result-banner .banner-actions .btn {
+    flex: 1 1 calc(50% - var(--space-2));
+    max-width: none;
+  }
+  .app .page.summary .result-banner .banner-actions .btn:nth-child(-n + 2),
+  .app .page.summary .result-banner .banner-actions .btn.primary {
+    flex-basis: 100%;
+  }
+}
+/* The top bar folded away: the restore pill (fixed top right, 46 px deep) never sits on the result banner */
+.app.bar-hidden .page.summary {
+  padding-top: 56px;
+}
+@media (min-width: 1100px) {
+  /* On the desktop shell the banner is the left column: only the box beside it needs to clear the pill */
+  .app.shell.bar-hidden .page.summary {
+    padding-top: var(--space-3);
+  }
+  .app.shell.bar-hidden .page.summary > .summary-body {
+    margin-top: 44px;
+  }
+}
 /* The top bar folded away: the restore pill sits top right, so the season screens' heads keep clear of it */
 .app.bar-hidden .page.fit .fit-head {
   padding-right: 150px;
