@@ -1,3 +1,4 @@
+import { seasonStop } from '@engine/era'
 import { seasonLabel } from '../format'
 
 export interface ChoiceOption<T extends string> {
@@ -21,19 +22,22 @@ export function ChoiceCards<T extends string>({ label, options, value, onChange,
   )
 }
 
-/** Two handles over a list of seasons (start years, ascending); either handle stops at the other. */
+/**
+ * Two handles over a list of seasons (start years, ascending); either handle stops at the other.
+ * The inputs step through the list's stops, not the years, so a gap in the data is never a stop.
+ */
 export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]; from: number; to: number; onChange: (from: number, to: number) => void }) {
-  const lo = seasons[0] ?? from
-  const hi = seasons[seasons.length - 1] ?? to
-  const span = Math.max(1, hi - lo)
-  const a = Math.min(Math.max(from, lo), hi)
-  const b = Math.min(Math.max(to, lo), hi)
+  if (!seasons.length) return null
+  const top = seasons.length - 1
+  const span = Math.max(1, top)
+  const a = Math.max(0, seasonStop(seasons, Math.min(from, to)))
+  const b = Math.max(a, seasonStop(seasons, Math.max(from, to)))
   return (
     <div className="season-range" data-testid="era-slider">
       <div className="track" />
-      <div className="fill" style={{ left: `${((a - lo) / span) * 100}%`, right: `${((hi - b) / span) * 100}%` }} />
-      <input type="range" min={lo} max={hi} step={1} value={a} aria-label="First season" aria-valuetext={seasonLabel(a)} onChange={(e) => onChange(Math.min(Number(e.target.value), b), b)} />
-      <input type="range" min={lo} max={hi} step={1} value={b} aria-label="Last season" aria-valuetext={seasonLabel(b)} onChange={(e) => onChange(a, Math.max(Number(e.target.value), a))} />
+      <div className="fill" style={{ left: `${(a / span) * 100}%`, right: `${((top - b) / span) * 100}%` }} />
+      <input type="range" min={0} max={top} step={1} value={a} aria-label="First season" aria-valuetext={seasonLabel(seasons[a])} onChange={(e) => onChange(seasons[Math.min(Number(e.target.value), b)], seasons[b])} />
+      <input type="range" min={0} max={top} step={1} value={b} aria-label="Last season" aria-valuetext={seasonLabel(seasons[b])} onChange={(e) => onChange(seasons[a], seasons[Math.max(Number(e.target.value), a)])} />
     </div>
   )
 }

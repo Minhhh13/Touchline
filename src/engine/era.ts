@@ -61,6 +61,17 @@ export function eraHandles(preset: Exclude<EraPreset, 'custom'>, first: number, 
   return [from, last]
 }
 
+/**
+ * The index of the slider stop for a season among `seasons` (ascending): the stop holding it, else the
+ * nearest one (the earlier on a tie), so a handle only ever rests on a season the data holds even when
+ * the seasons have gaps. -1 for an empty list.
+ */
+export function seasonStop(seasons: readonly number[], season: number): number {
+  let best = -1
+  for (let i = 0; i < seasons.length; i++) if (best < 0 || Math.abs(seasons[i] - season) < Math.abs(seasons[best] - season)) best = i
+  return best
+}
+
 /** How many of the wheel leagues' seasons an era admits, for the setup line "N of M seasons". */
 export function eraCount(u: LoadedUniverse, leagues: string[], range: EraRange): EraCount {
   const all = wheelSeasons(u, leagues)

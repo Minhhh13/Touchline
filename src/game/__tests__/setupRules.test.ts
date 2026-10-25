@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { QUICK_RULES, SEASON_RULES, autoDraft, canUse, chooseSlot, difficultyOf, eligibleSlots, isComplete, positionFirst, ratingsHidden, spin, targetSlot } from '@engine/draft'
-import { ERA_PRESETS, eraCount, eraHandles, eraRange, wheelSeasons } from '@engine/era'
+import { ERA_PRESETS, eraCount, eraHandles, eraRange, seasonStop, wheelSeasons } from '@engine/era'
 import { DAILY_RULES, createGame, dailyGameSettings, describeRules, setupRules, summariseSetup, type SetupChoices } from '../logic/setup'
 import { playerLookup } from '../logic/players'
 import type { GameSettings } from '../types'
@@ -37,6 +37,18 @@ describe('the era slider', () => {
     expect(eraHandles('modern', first, last)).toEqual([2016, 2026])
     // A preset that starts after the newest season pins both handles to it
     expect(eraHandles('modern', 2008, 2012)).toEqual([2012, 2012])
+  })
+
+  it('stops a handle only on seasons the data holds, even across a gap', () => {
+    expect(seasonStop(seasons, 2016)).toBe(seasons.indexOf(2016))
+    expect(seasonStop(seasons, 1990)).toBe(0)
+    expect(seasonStop(seasons, 2040)).toBe(seasons.length - 1)
+    // Older packs may leave gaps: a year in a gap snaps to the nearest season, the earlier on a tie
+    const gappy = [1992, 1993, 1994, 2008, 2009]
+    expect(seasonStop(gappy, 2000)).toBe(2)
+    expect(seasonStop(gappy, 2003)).toBe(3)
+    expect(seasonStop([2000, 2002], 2001)).toBe(0)
+    expect(seasonStop([], 2016)).toBe(-1)
   })
 })
 

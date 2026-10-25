@@ -282,7 +282,8 @@ export function Setup() {
               ))}
             </div>
           )}
-          <div className="pitch-mini" data-testid="formation-preview">
+          {/* A picture of the shape, not a control: inert keeps its slot discs out of the tab order and the accessibility tree */}
+          <div className="pitch-mini" data-testid="formation-preview" inert>
             <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
           </div>
           <p className="help setup-line">
