@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
 import { closeLiveMatch, eventContext, finishLiveMatch, playMatchweek, startSeasonProper } from '../logic/week'
-import { autoDraft, SEASON_RULES } from '@engine/draft'
+import { autoDraft, QUICK_RULES, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
@@ -10,6 +10,8 @@ import { normaliseGame } from '../logic/save'
 import { rollEvent } from '@engine/events'
 import { newSquadPlayer, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
+import { runQuickSeason } from '../logic/quick'
+import { storyForGame } from '../logic/story'
 import type { Game, GameSettings } from '../types'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
@@ -133,6 +135,25 @@ describe('audit fixes: season and squad', () => {
     expect(n.squad).toBe(g.squad)
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
+  })
+
+  it('a quick save from before Season Story opens and still tells its story', () => {
+    const g = createGame(settings({ mode: 'quick', seed: 'audit-story', rules: { ...QUICK_RULES, leagues: ['england'] } }))
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    runQuickSeason(g, u)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    const q = old.quickResult as unknown as Record<string, unknown>
+    delete q.clinchedAt
+    delete q.doomedAt
+    delete q.moment
+    const n = normaliseGame(old)!
+    expect(n.quickResult!.moment).toBeUndefined()
+    expect(n.quickResult!.clinchedAt).toBeUndefined()
+    const story = storyForGame(n, u)!
+    expect(story.strip).toHaveLength(38)
+    expect(story.moment.length).toBeGreaterThan(0)
   })
 })
 

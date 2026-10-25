@@ -8,6 +8,8 @@ import { getFormation } from '@engine/formations'
 import { playerLookup } from './players'
 import { earnsPointsRecord } from './records'
 import { recordUserGames } from './gameByGame'
+import { clinchMatchweeks } from '@engine/story'
+import { seasonStory } from './story'
 
 /**
  * 38-0 mode: the drafted XI plays the whole season instantly against the real
@@ -77,6 +79,11 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     // Game by game, from the fixtures already played: no random numbers are drawn here
     results: recordUserGames(fixtures, ids, USER_TEAM, (id) => get(id)?.name),
   }
+  // Season Story: when the season was decided and the line that tells it, again without a random number
+  const clinch = clinchMatchweeks(fixtures, ids, USER_TEAM)
+  quick.clinchedAt = clinch.clinchedAt
+  quick.doomedAt = clinch.doomedAt
+  quick.moment = seasonStory(quick.results!, { ...clinch, tier, matchweeks, clubs: ids.length, nameOf: (id) => u.clubById[id]?.name ?? id }).moment
   game.quickResult = quick
   game.lineup = lineup
   game.bench = bench

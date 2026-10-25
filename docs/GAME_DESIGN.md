@@ -45,6 +45,8 @@ Setup options (`src/ui/screens/Setup.tsx`):
 - Season and Dynasty only: squad size slider 16 to 22, and a job-security toggle (the board can sack you).
 - Formation: one of eight (section 4).
 
+Every finished season's summary tells its Season Story (section 12): the quick result stores `clinchedAt`, `doomedAt` and `moment` with its game-by-game `results`; Season and Dynasty retell it from the fixtures.
+
 Note on Daily: the wheel, the league season, the host club, the formation and the difficulty are all fixed by the day's seed (see "Two-tap start" below); only the team name is the player's.
 
 ### Two-tap start
@@ -633,6 +635,10 @@ Seed K7Q2-MX9A
 
 Line two names the host club and season; line three is the tier plus "+ CUP" where it applies; the block row is one square per win, draw and defeat; the daily variant labels the mode "Daily 2026-10-24" and omits the seed line; Dynasty labels it "Dynasty Y2".
 
+`extraLines` run in this order: one nation, twists, the record-books line, the Season Story moment, the verdict against the real club, the challenge verdict. For example `🏆 Title sealed at MW 34 with 4 to play` then `📊 The real Burnley finished 19th on 22 · you 1st on 93` before the seed line.
+
+**Share card** (`renderShareCard`, `src/ui/shareCard.ts`, 1080 by 1350). Optional fields, all additive, so a card without them draws exactly as before: `strip` (one 22 px cell per game under the record, up to 46, 4 px gaps), `moment` (one 30 px line under the strip), `banner` (`{ text, colour? }` in place of the tier label, for the arena modes) and `lines` (up to six lines in place of the W/D/L row and the points line, for knockout ties or a ladder). The pitch moves down and shortens by whatever sits above it. The summary passes the strip and the moment.
+
 ### In the record books
 
 `src/engine/records.ts` is pure lookups over the real league tables already shipped in `u.tables` (the season tables of each pack plus England's historic 2000-01 to 2007-08 tables); nothing in it touches the RNG.
@@ -653,7 +659,26 @@ Line two names the host club and season; line three is the tier plus "+ CUP" whe
 - **The field is optional** and read with `?? []`, so a save or a leaderboard entry written before it existed still opens; nothing about the replay is stored.
 - **The panel.** "Season, game by game" sits directly under the tier banner on the summary of a quick draft or the Daily: a strip with P W D L GF GA, points and position, then one row per game with the opponent's badge, "v Arsenal (H)" or "at Arsenal", the score as `gf-ga`, a W, D or L chip, the position after the game and the scorers as "Haaland 12', 67' · OG 80'" (minutes grouped per scorer in order of his first goal, initials dropped). The row is a grid of 44 / 22 / 1fr / auto / auto / 42 px with the scorers on a second line, so it holds at 390 px wide.
 - **The replay** (`useSeasonReplay`) is UI state only. Everything is shown on arrival; "Play the season" empties the list and reveals one game every `REPLAY_STEP_MS = 220` ms (8.4 s for 38 games), the strip and the position update as games land, the banner shows "Season in play…" with the running strip in place of the tier and record, and the tier pops in after the last game. "Skip" shows the rest at once; `prefers-reduced-motion` offers no replay button and animates nothing. The head-to-head result shows both managers' lists (`H2HResult.results`, the two derbies against the other manager included) without the replay.
-- **Share text.** `bestWinLine` adds `Best win: 5-0 v Chelsea (MW 23)` (or `3-0 at Chelsea`) to `extraLines`: the widest margin, then the most goals scored, then the earliest matchweek; a season without a win adds nothing.
+- **Share text.** `bestWinLine` writes `Best win: 5-0 v Chelsea (MW 23)` (or `3-0 at Chelsea`): the widest margin, then the most goals scored, then the earliest matchweek; a season without a win gives nothing. Since Season Story the summary's share text carries the moment line instead, whose last fallback is the same best win (`💥 Best: 5-0 v Chelsea (MW 23)`).
+
+### Season Story
+
+The moments of a finished league season, from results that already exist: no random number is drawn, so every pin and the 20 quick-season RNG states in `src/game/__tests__/story.test.ts` (computed before the story existed) hold.
+
+- **When it was decided** (`clinchMatchweeks` in `src/engine/story.ts`). After each matchweek `m`, a club's ceiling is its points plus 3 for each fixture it still has after `m` (fixtures, not matchweeks, so a bye week is no game). The title is sealed (`clinchedAt`) when the user's points beat every other club's ceiling; relegation is certain (`doomedAt`) when at least `n − 3` clubs already have more points than the user's ceiling. Once every fixture is played the final table decides, so a title won on goal difference is sealed on the last day and `clinchedAt` is set exactly when the user finishes first (`doomedAt` exactly when in the bottom three). A season cut short (a sacking) is read only up to the last fully played matchweek. One `computeTable` per matchweek.
+- **The story** (`seasonStory` in `src/game/logic/story.ts`): the strip (W, D or L per game in order), the longest winning and unbeaten runs with their matchweek spans (the first one on a tie), clean sheets, games without a goal, the biggest win (`bestWin`) and the heaviest defeat (widest margin, then most conceded, then earliest), the first game that dropped points after a winning start, and one moment line by priority:
+  1. Sacked: `🪑 Sacked after MW 21`.
+  2. PERFECT: `💎 38 from 38 · closest call 1-0 v Spurs (MW 31)` (smallest margin, then fewest scored, then the latest).
+  3. INVINCIBLE: `🛡️ Unbeaten · title sealed at MW 33`, or `… won on the last day`.
+  4. CHAMPIONS: `🏆 Title sealed at MW 34 with 4 to play` (the user's games left), or `🏁 Won it on the last day` (sealed in the final matchweek, or with no game left).
+  5. RELEGATED: `⬇️ Down at MW 35`, or `⬇️ Relegated on the last day`.
+  6. A winning start of `STORY_START_MIN = 8` or more that ended: `💔 12-0 until MW 13: 1-1 v Everton`.
+  7. A winning run of `STORY_RUN_MIN = 6` or more: `📈 9-match winning run (MW 14-22)`.
+  8. The best win: `💥 Best: 5-0 v Chelsea (MW 23)`; without a win, the longest unbeaten run (`🧱 Unbeaten in 3 (MW 3-5), never a win`) or `🥶 38 played, 38 lost`.
+- **Where it is kept.** `runQuickSeason` stores `QuickResult.clinchedAt`, `doomedAt` (a number, or null when it never happened) and `moment`. Season and Dynasty keep nothing new: `storyForGame` retells the finished season from `season.fixtures` through `recordUserGames` and `clinchMatchweeks`. A quick save written before the story has no clinch week, so its champion line reads `🏆 Champions · top from MW 20` (the first matchweek from which the user stayed top) and a relegated one `⬇️ In the bottom three from MW 30`; a quick save without `results` has no story.
+- **Measured** (200 auto-drafted quick seasons, seeds `story-measure-0` to `-199`, as Burnley 2025-26, England, 4-3-3, Calibrated, engine `'4'`, the current packs): 40 titles (20%), sealed between MW 32 and 38, median MW 37, 12 of them on the last day; no relegation; moments 124 best win, 36 winning run, 28 title sealed with games to play, 12 last-day title, none a winning start that ended (an auto-drafted XI rarely opens with eight straight wins).
+- **Verdict against the real club** (`realSeasonRow`, `realityLine`): when the host club-season is complete and the league has its table, `📊 The real Burnley finished 19th on 22 · you 1st on 93`, in every mode.
+- **Summary.** The moment sits under the W/D/L record in the tier banner; a "Season story" panel under the banner shows the moment, the strip (one cell per game, `.blocks`), the title or relegation week, the runs, the winning start, clean sheets, blanks and the best and worst results. A quick season keeps its game-by-game list and replay (both wait for the replay to finish); Season and Dynasty get the same list, compact, from the fixtures. The Record page shows `LeaderboardEntry.moment` as a muted line under the team in Best seasons (`recordResult` files it).
 
 **Profile** (local only): best 50 seasons by points then fewest defeats, daily streak and per-day results, games started, seasons simulated, manager name, theme (Auto, Floodlit, Daylight).
 

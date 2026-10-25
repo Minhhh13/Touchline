@@ -21,7 +21,8 @@ import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
-import { bestWinLine } from '@game/logic/gameByGame'
+import { realityLine, realSeasonRow, storyForGame } from '@game/logic/story'
+import { SeasonStoryPanel } from '../components/SeasonStory'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -59,8 +60,11 @@ export function Summary() {
   }
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
-  const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
-  if (bestLine) extraLines.push(bestLine)
+  // Season Story: the moment that tells the season, then how the real club did (the moment's fallback is the best win)
+  const story = useMemo(() => storyForGame(game, u), [game, u])
+  if (story) extraLines.push(story.moment)
+  const real = realSeasonRow(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId)
+  if (real) extraLines.push(realityLine(real, clubName(u, game.settings.hostClubId), record))
   // Head-to-head against the ghost this game was played against
   const challenge = game.settings.challenge
   const mine = claimOf(game)
@@ -128,11 +132,7 @@ export function Summary() {
   }
   const ghostLineup = useMemo(() => Object.fromEntries((challenge?.picks ?? []).flatMap((p) => (p.id && p.slotId ? [[p.slotId, p.id] as [string, string]] : []))), [challenge])
   // How the club you replaced actually did that season, when a complete real table exists
-  const realRow = useMemo(() => {
-    const cs = u.clubSeasonByKey[`${game.settings.hostClubId}@${game.settings.leagueSeason}`]
-    if (!cs?.complete) return null
-    return u.tables[game.settings.leagueId]?.[game.settings.leagueSeason]?.find((r) => r.clubId === game.settings.hostClubId) ?? null
-  }, [u, game.settings.hostClubId, game.settings.leagueSeason, game.settings.leagueId])
+  const realRow = useMemo(() => realSeasonRow(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId), [u, game.settings.hostClubId, game.settings.leagueSeason, game.settings.leagueId])
   const [cardUrl, setCardUrl] = useState<string | null>(null)
   const makeCard = () => {
     try {
@@ -146,6 +146,8 @@ export function Summary() {
         lineup: game.lineup,
         getPlayer: get,
         footer: shareCardFooter(game),
+        strip: story?.strip,
+        moment: story?.moment,
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
@@ -181,6 +183,11 @@ export function Summary() {
             <span className="w">{record.won}W</span>
             <span className="d">{record.drawn}D</span>
             <span className="l">{record.lost}L</span>
+          </div>
+        )}
+        {!replay.playing && story && (
+          <div style={{ marginTop: 8, fontWeight: 600 }} data-testid="moment">
+            {story.moment}
           </div>
         )}
         {!replay.playing && realRow && (
@@ -248,9 +255,20 @@ export function Summary() {
         </div>
       </div>
 
+      {story && !replay.playing && (
+        <div style={{ marginTop: 14 }}>
+          <SeasonStoryPanel story={story} opponentName={(id) => clubName(u, id)} />
+        </div>
+      )}
+
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
           <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} />
+        </div>
+      )}
+      {!q && story && (
+        <div style={{ marginTop: 14 }}>
+          <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} compact />
         </div>
       )}
 
@@ -408,7 +426,7 @@ export function Summary() {
             )}
             {game.awards && (
               <div className="col">
-                {game.awards.playerOfTheSeason && get(game.awards.playerOfTheSeason.playerSeasonId) && <PlayerRow p={get(game.awards.playerOfTheSeason.playerSeasonId)!} showClub right={<span className="chip gold">⭐ Player of the season · {game.awards.playerOfTheSeason.value}</span>} />}
+                {game.awards.playerOfTheSeason && get(game.awards.playerOfTheSeason.playerSeasonId) && <PlayerRow p={get(game.awards.playerOfTheSeason.playerSeasonId)!} showClub right={<span className="chip gold" style={{ whiteSpace: 'normal' }}>⭐ Player of the season · {game.awards.playerOfTheSeason.value}</span>} />}
                 {game.awards.goldenBoot && get(game.awards.goldenBoot.playerSeasonId) && <PlayerRow p={get(game.awards.goldenBoot.playerSeasonId)!} showClub right={<span className="chip good">👟 {game.awards.goldenBoot.value}</span>} />}
                 {game.awards.playmaker && get(game.awards.playmaker.playerSeasonId) && <PlayerRow p={get(game.awards.playmaker.playerSeasonId)!} showClub right={<span className="chip">🎯 {game.awards.playmaker.value}</span>} />}
                 {game.awards.goldenGlove && get(game.awards.goldenGlove.playerSeasonId) && <PlayerRow p={get(game.awards.goldenGlove.playerSeasonId)!} showClub right={<span className="chip">🧤 {game.awards.goldenGlove.value}</span>} />}

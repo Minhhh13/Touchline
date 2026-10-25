@@ -34,16 +34,16 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - `positions.ts`, `roles.ts` (34 roles), `ratings.ts` (role rating, live modifiers, chemistry, team strength, `autoPickLineup`), `formations.ts` (8 shapes), `tactics.ts`.
   - `draft.ts` wheel, `DraftRules`, twists; `h2h.ts` hot-seat draft; `challenge.ts` ghost-draft links (`RULE_CHECKS`; payload `v: 1 | 2`, `V1_RULE_KEYS`, `payloadVersionFor`, the `isArenaLink` gate).
   - `match.ts` xG engine, three segments 1-45 / 46-70 / 71-90 (`beginMatch`, `advanceMatch`, `finishMatch`, `simulateMatch`).
-  - `season.ts` fixtures, table, cups, Continental Cup, recovery, board; `market.ts`; `events.ts`; `status.ts`; `staff.ts`; `training.ts`; `objectives.ts`; `awards.ts`; `records.ts`; `nations.ts`.
+  - `season.ts` fixtures, table, cups, Continental Cup, recovery, board; `market.ts`; `events.ts`; `status.ts`; `staff.ts`; `training.ts`; `objectives.ts`; `awards.ts`; `records.ts`; `nations.ts`; `story.ts` (`clinchMatchweeks`: the week the title was sealed or relegation certain, pure).
   - `__tests__/helpers.ts` `loadTestUniverse(leagues = ['england'])` reads packs from disk.
 - `src/game/` the save and the game rules on top of the engine.
   - `types.ts` the persisted `Game`, `GameSettings`, `Profile`, `LiveMatch`, `QuickResult`.
   - `store.ts` Zustand store `useStore`, `SAVE_KEY = 'touchline-save-v1'`, persist `version: 1`, `partialize`, `merge` -> `normaliseGame`, the `mutate(fn)` Immer helper, every UI action.
-  - `logic/setup.ts` `createGame`, `beginSeason`, Daily mapping (frozen); `quick.ts` `runQuickSeason`; `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `slotSheet.ts` (the Dugout slot picker and Draft slot chips, pure); `modes.ts` (every mode label: `MODE_TITLE`, `modeLabel`, `shareCardFooter`, `yearLabel`, `finishDraftLabel`, `isQuickLike`, exhaustive over `Mode`); `streaks.ts` (`advanceStreak`, `streakDay`: daily and weekly streak bookkeeping, pure); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
+  - `logic/setup.ts` `createGame`, `beginSeason`, Daily mapping (frozen); `quick.ts` `runQuickSeason`; `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `slotSheet.ts` (the Dugout slot picker and Draft slot chips, pure); `modes.ts` (every mode label: `MODE_TITLE`, `modeLabel`, `shareCardFooter`, `yearLabel`, `finishDraftLabel`, `isQuickLike`, exhaustive over `Mode`); `streaks.ts` (`advanceStreak`, `streakDay`: daily and weekly streak bookkeeping, pure); `story.ts` (Season Story: `seasonStory`, `storyForGame`, `realSeasonRow`, `realityLine`, pure, no RNG); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
 - `src/ui/` React screens, no game decisions.
   - `App.tsx` screen switch on `screen` + `game.phase` (no router), challenge hash `#c=`, theme, toast.
   - `screens/` Home, Setup, Draft, Dugout (season hub), MatchScreen, Summary, H2H, Explore, ProfileScreen, HowTo, StatsTab, OppositionReport.
-  - `components/` Wheel, Pitch, PlayerRow, TableView, MatchTicker, TwistCard, bits (Rating, Modal, Tabs, Toast...), leagueSegments.
+  - `components/` Wheel, Pitch, PlayerRow, TableView, MatchTicker, TwistCard, GameByGame, SeasonStory, bits (Rating, Modal, Tabs, Toast...), leagueSegments.
   - `styles.css` one global stylesheet with tokens on `:root`; `format.ts` display helpers; `shareCard.ts` canvas PNG.
 - `src/main.tsx` React root; registers `public/sw.js` on production builds only.
 - `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`. Committed; they are also the test fixtures.

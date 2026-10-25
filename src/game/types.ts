@@ -239,6 +239,12 @@ export interface QuickResult {
   strength: { overall: number; goalkeeping: number; defence: number; midfield: number; attack: number; balance: number; chemistry: number }
   /** Every game of the season, game by game (absent on saves written before it was recorded). */
   results?: QuickGameResult[]
+  /** Season Story: the matchweek the title was sealed (null: never), absent on older saves. */
+  clinchedAt?: number | null
+  /** Season Story: the matchweek relegation became certain (null: never), absent on older saves. */
+  doomedAt?: number | null
+  /** Season Story: the one line that tells the season, absent on older saves (retold from `results`). */
+  moment?: string
 }
 
 export interface LeaderboardEntry {
@@ -260,6 +266,8 @@ export interface LeaderboardEntry {
   nation?: string
   /** Played against a ghost draft: who set it and what they scored. */
   challenge?: { name: string; points: number }
+  /** Season Story's moment line ("🏆 Title sealed at MW 34 with 4 to play"), absent on older entries. */
+  moment?: string
 }
 
 export interface Profile {
