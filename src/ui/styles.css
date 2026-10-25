@@ -5850,7 +5850,7 @@ table.tbl.match-stats th {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app > .topbar,
+  .app:not(.bar-hidden) > .topbar,
   .app.bar-hidden > .topbar,
   .topbar-restore {
     animation: none;
