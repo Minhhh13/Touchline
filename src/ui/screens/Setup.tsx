@@ -243,7 +243,7 @@ export function Setup() {
             ← Back
           </button>
         </div>
-        {isManage && !challenge && <SignInPrompt id={mode} text={`Sign in to keep this ${mode === 'dynasty' ? 'Dynasty' : 'Season'} on every device.`} />}
+        {isManage && !challenge && <SignInPrompt id={mode} text={`Back up your saves: sign in to save this ${mode === 'dynasty' ? 'Dynasty' : 'Season'}, your records and Dailies to your account.`} />}
 
         {fixed && (
           <div className="panel col">

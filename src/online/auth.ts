@@ -146,6 +146,22 @@ export function authRedirectAt(href: string): AuthRedirect | null {
 
 export type NameCheck = { ok: true; name: string } | { ok: false; message: string }
 
+/** The live name check's answer as the profile setup step shows it. `unknown`: the server could not say (offline, or
+ * the `display_name_check` migration is not applied); saving still checks, so the step never blocks on it. */
+export type NameVerdict = { state: 'invalid'; message: string } | { state: 'taken'; name: string } | { state: 'free'; name: string } | { state: 'unknown'; name: string }
+
+/** Combine the local rules with `display_name_check`'s reply (`{ name, available, reason }`), or null for no reply. Pure. */
+export function nameVerdictFrom(raw: string, reply: unknown): NameVerdict {
+  const local = checkDisplayName(raw)
+  if (!local.ok) return { state: 'invalid', message: local.message }
+  const r = reply as { available?: unknown; reason?: unknown } | null
+  if (!r || typeof r !== 'object' || typeof r.available !== 'boolean') return { state: 'unknown', name: local.name }
+  if (r.available) return { state: 'free', name: local.name }
+  if (r.reason === 'taken') return { state: 'taken', name: local.name }
+  // The server's rules are the table's; a refusal the local mirror missed reads like the mirror's own message
+  return { state: 'invalid', message: 'Use plain letters, digits and punctuation: some characters look like others on a board.' }
+}
+
 /** "Name on the leaderboards": 3 to 24 visible characters, the shape `profiles` accepts. */
 export function checkDisplayName(raw: string): NameCheck {
   const collapsed = raw.replace(/ +/g, ' ').trim()

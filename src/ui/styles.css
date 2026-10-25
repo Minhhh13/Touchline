@@ -6658,8 +6658,167 @@ table.tbl.sticky-head thead th {
 .account-chip:active {
   transform: scale(0.92);
 }
+/* Signed in: a pill of the same height with the flag and the name on the boards, opening the account menu */
+.account-menu-wrap {
+  position: relative;
+  flex: none;
+}
 .account-chip.signed-in {
-  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  max-width: 170px;
+  padding: 0 12px 0 9px;
+  border-radius: var(--radius-pill);
+  border: var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-chip.signed-in:hover {
+  background: var(--bg-3);
+}
+.account-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 60;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border-radius: var(--radius-m);
+  border: var(--border-strong);
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.account-menu-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-bottom: var(--border);
+  margin-bottom: var(--space-1);
+}
+.account-menu-item {
+  text-align: left;
+  padding: 8px var(--space-2);
+  border-radius: var(--radius-s);
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
+  background: var(--bg-3);
+}
+/* Below 1360 px the nav needs the room: the signed-in entry is round like its neighbours, the name its label */
+@media (max-width: 1360px) {
+  .account-chip.signed-in {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .account-chip-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+@media (max-width: 720px) {
+  .account-chip.signed-in {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  .account-chip-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+/* The account flow on the Account screen */
+.account-promise {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+.code-input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3em;
+  font-size: 20px;
+}
+.name-check {
+  min-height: 1.3em;
+  color: var(--text-3);
+}
+.name-check.free {
+  color: var(--good);
+}
+.name-check.taken,
+.name-check.invalid {
+  color: var(--warn);
+}
+.flag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: var(--border);
+  border-radius: var(--radius-m);
+  padding: 4px;
+}
+.flag-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.flag-pick:hover {
+  background: var(--bg-3);
+}
+.flag-pick.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.saved-line {
+  font-size: var(--fs-sm);
+}
+.saved-line.good {
+  color: var(--good);
+}
+.saved-line.warn {
+  color: var(--warn);
+}
+.saved-line.busy,
+.saved-line.muted {
+  color: var(--text-3);
 }
 .account-chip.active {
   color: var(--text);

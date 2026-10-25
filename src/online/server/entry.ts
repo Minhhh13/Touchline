@@ -19,3 +19,5 @@ export { packFiles, archivePath, classicFile, hasClassic, puzzleLeagues, univers
 export { parseRequest, parseBuildInfo, parseLeaguesIndex, logId, OPS, MAX_BODY_BYTES, DELETE_CONFIRMATION } from './validate'
 export { createServer, pinDateOf, boardIsOpen, Refusal, LIMITS, PUZZLE_LEAGUES } from './service'
 export type { Server, ServerDeps, ServerDb, ServerStorage, ServerAuth, Caller, Reply, StoredPin, DataPackRow, BoardKind } from './service'
+export { createEdgeHandler, EDGE_MAX_BODY } from './edge'
+export type { EdgeContext } from './edge'

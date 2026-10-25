@@ -7,6 +7,9 @@ export interface BuildInfo {
   engine: string
   data: string
   builtAt: string
+  /** The hashed edge bundle this build publishes (`edge/verifier-<hash16>.js`) and its SHA-256: what an Edge Function
+   * deployed for this engine pins. For people and checks only; the function trusts its own constant, never this. */
+  verifier?: { path: string; sha256: string }
 }
 
 /** Build info from the text of `src/engine/version.ts` and of `public/data/leagues.json`; throws when either is unreadable. */

@@ -401,6 +401,29 @@ describe('cloud sync engine', () => {
     expect(a.store.s.shortlist).toEqual(['p1'])
   })
 
+  it('signing in on a second device brings the seasons and records down (the account\'s promise)', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    const dyn = managed('dynasty', 'SYNC-DYN-2')
+    const best = { id: 'run-1', date: '2026-10-24', mode: 'quick' as const, teamName: 'Sync Town', points: 98, won: 32, drawn: 2, lost: 4, position: 1, tier: 'CHAMPIONS' as const, seed: 'SEED-38', leagueSeason: 2018, hostClubId: 'southampton', xi: [] }
+    a.store.set({ game: season, parked: { dynasty: dyn }, profile: { ...baseProfile(), leaderboard: [best], achievements: { champions: '2026-10-24' }, dailyResults: { 'daily-2026-10-24': { points: 70, tier: 'EUROPEAN' } }, lastDailyDate: 'daily-2026-10-24', dailyStreak: 1, seasonsSimulated: 3, favouriteClub: 'arsenal' } })
+    await a.engine.sync()
+    // A fresh browser, nothing played on it: the first sign-in there parks every game and takes every record
+    const d2 = device(b, 'b')
+    await d2.engine.sync()
+    expect(d2.store.s.game).toBeNull()
+    expect(d2.store.s.parked.season?.id).toBe(season.id)
+    expect(d2.store.s.parked.dynasty?.id).toBe(dyn.id)
+    const p = d2.store.s.profile
+    expect(p.leaderboard.map((e) => e.id)).toEqual(['run-1'])
+    expect(p.achievements).toEqual({ champions: '2026-10-24' })
+    expect(p.dailyResults['daily-2026-10-24']).toEqual({ points: 70, tier: 'EUROPEAN' })
+    expect(p.seasonsSimulated).toBe(3)
+    expect(p.favouriteClub).toBe('arsenal')
+    expect(d2.last()).toMatchObject({ syncStatus: 'idle' })
+    expect(typeof d2.last().lastSyncAt).toBe('string')
+  })
+
   it('asks before mixing two accounts on one device, and "keep" leaves this device\'s games out of the new one', async () => {
     const b = new FakeBackend()
     const a = device(b, 'a')

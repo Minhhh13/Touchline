@@ -57,6 +57,8 @@ export interface OnlineState {
   started: boolean
   session: OnlineSession | null
   account: AccountProfile | null
+  /** True once the signed-in account's `profiles` row was read: `account` null then means a new account (the setup step). */
+  accountLoaded: boolean
   syncStatus: SyncStatus
   lastSyncAt: string | null
   syncMessage: string | null
@@ -74,6 +76,7 @@ export const initialOnlineState: OnlineState = {
   started: false,
   session: null,
   account: null,
+  accountLoaded: false,
   syncStatus: 'off',
   lastSyncAt: null,
   syncMessage: null,

@@ -14,12 +14,8 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 export const BUNDLE = path.join(root, 'supabase', 'functions', '_shared', 'verifier.js')
 
-/** Globals that exist only in a browser or in Node. `crypto`, `TextEncoder`, `structuredClone` exist in Deno. */
-export const FORBIDDEN = ['window.', 'document.', 'localStorage', 'sessionStorage', 'process.', 'require(', 'navigator.']
-
-export function forbiddenIn(code) {
-  return FORBIDDEN.filter((g) => code.includes(g))
-}
+export { FORBIDDEN, forbiddenIn } from './forbidden.mjs'
+import { forbiddenIn } from './forbidden.mjs'
 
 export async function buildVerifier({ minify = true, outfile = BUNDLE } = {}) {
   mkdirSync(path.dirname(outfile), { recursive: true })

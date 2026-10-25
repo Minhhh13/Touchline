@@ -24,6 +24,7 @@ end $t$;
 \echo '--- security: authenticated adds only its own saves, profile, challenge codes and entries'
 do $t$ declare got text[]; want text[] := array[
   'private.cloud_delete_all_impl', 'private.country_filter', 'private.create_challenge_impl', 'private.daily_alltime_impl',
+  'private.display_name_check_impl', 'public.display_name_check',
   'private.daily_alltime_mine_impl', 'private.daily_board_impl', 'private.daily_is_open', 'private.daily_my_entries_impl',
   'private.daily_rank_impl', 'private.daily_revealed', 'private.daily_summary_impl', 'private.get_challenge_impl',
   'private.is_anonymous', 'private.is_clean_name', 'private.normalise_code', 'private.profile_put_impl',

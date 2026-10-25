@@ -118,10 +118,10 @@ export class Runtime {
     this.engine = null
     this.clearTimer()
     if (!s) {
-      report({ session: null, account: null, conflicts: [], accountSwitch: null, syncStatus: 'idle', syncMessage: null })
+      report({ session: null, account: null, accountLoaded: false, conflicts: [], accountSwitch: null, syncStatus: 'idle', syncMessage: null })
       return
     }
-    report({ session: s, syncStatus: 'idle' })
+    report({ session: s, syncStatus: 'idle', accountLoaded: false })
     this.engine = new SyncEngine({ transport: this.transport, store: gameStoreForSync, userId: s.userId, load: loadRecord, save: saveRecord, now: () => Date.now(), meta: metaContext(), report })
     void this.loadAccount()
     void this.flushOutbox()
@@ -134,7 +134,7 @@ export class Runtime {
     const uid = this.userId
     if (!uid) return
     try {
-      report({ account: await this.transport.getAccount(uid) })
+      report({ account: await this.transport.getAccount(uid), accountLoaded: true })
     } catch {
       // shown as "no name yet"; the boards assign a default at the first post
     }

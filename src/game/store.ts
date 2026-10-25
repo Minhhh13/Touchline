@@ -188,6 +188,8 @@ interface Store {
   abandonH2H: () => void
   recordResult: () => void
   setManagerName: (name: string) => void
+  /** The favourite club on the profile (a club id), or null to clear it. Display only; synced with the profile. */
+  setFavouriteClub: (clubId: string | null) => void
   setTheme: (t: Profile['theme']) => void
   /** A coach mark's 'Got it': it never shows again on this profile. */
   dismissTip: (id: TipId) => void
@@ -838,6 +840,11 @@ export const useStore = create<Store>()(
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
+        setFavouriteClub: (clubId) => {
+          const { favouriteClub: _old, ...rest } = get().profile
+          void _old
+          set({ profile: clubId ? { ...rest, favouriteClub: clubId } : rest })
+        },
         setTheme: (theme) => set({ profile: { ...get().profile, theme } }),
         dismissTip: (id) => {
           const { profile } = get()

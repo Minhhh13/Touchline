@@ -227,7 +227,7 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
           </span>
         </div>
       )}
-      {!session && <div className="fit-foot small muted">Sign in to add your Dailies to the all-time board.</div>}
+      {!session && <div className="fit-foot small muted">Sign in to post to the World board and add your Dailies to the all-time totals.</div>}
     </section>
   )
 }
@@ -343,7 +343,7 @@ export function WorldBoard() {
             {!session && (
               <div className="fit-foot">
                 <button className="btn sm primary block" onClick={() => go('account')} data-testid="world-signin">
-                  Sign in to post your runs
+                  Sign in to post to the World board
                 </button>
               </div>
             )}

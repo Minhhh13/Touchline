@@ -383,4 +383,6 @@ export interface Profile {
   trophies?: { league: number; cup: number; continental: number; doubles: number; trebles: number }
   /** Coach marks dismissed, tip id to the ISO date it was dismissed; missing on older saves (every tip unseen). */
   seenTips?: Record<string, string>
+  /** The manager's favourite club (a club id), chosen on the account's profile step or the Profile screen; absent when none. Display only. */
+  favouriteClub?: string
 }

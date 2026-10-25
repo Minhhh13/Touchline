@@ -12,8 +12,9 @@ import type { Runtime } from './runtime'
 import type { Resolution } from './sync'
 import type { CloudRow, ChallengeRow } from './transport'
 import { OnlineError } from './transport'
-import { checkDisplayName, sendEmailCode, signInWithGoogle, verifyEmailCode, type AuthResult } from './auth'
+import { checkDisplayName, nameVerdictFrom, sendEmailCode, signInWithGoogle, verifyEmailCode, type AuthResult, type NameVerdict } from './auth'
 import { normaliseCountry } from './core/country'
+import { googleEnabledIn, googleForced } from './core/providers'
 import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchSummary, myEntries, rankOf, type AlltimeOrder, type RankedKind } from './boards'
 import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
 
@@ -37,6 +38,23 @@ export async function startOnline(): Promise<boolean> {
 
 const notAvailable: AuthResult = { ok: false, message: 'Online features are not available in this build.' }
 
+let googleCheck: Promise<boolean> | null = null
+
+/**
+ * Whether to offer "Continue with Google": forced on by `VITE_GOOGLE_AUTH=1`, otherwise only when the project's public
+ * Auth settings report the provider enabled (read once per page; offline or unreadable means no button). Email sign-in
+ * needs neither.
+ */
+export function googleSignInAvailable(): Promise<boolean> {
+  const cfg = onlineConfig()
+  if (!cfg) return Promise.resolve(false)
+  if (googleForced(import.meta.env.VITE_GOOGLE_AUTH)) return Promise.resolve(true)
+  googleCheck ??= fetch(`${cfg.url}/auth/v1/settings`, { headers: { apikey: cfg.key } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then(googleEnabledIn, () => false)
+  return googleCheck
+}
+
 export async function emailCode(email: string): Promise<AuthResult> {
   const r = await rt()
   return r ? sendEmailCode(r.auth, email) : notAvailable
@@ -56,6 +74,19 @@ export async function signOutOnline(): Promise<void> {
   await (await rt())?.signOut()
 }
 
+/** The live name check of the profile setup step: local rules first, then `display_name_check` when signed in. */
+export async function checkName(name: string): Promise<NameVerdict> {
+  const local = nameVerdictFrom(name, null)
+  if (local.state === 'invalid') return local
+  const r = await rt()
+  if (!r || !r.userId) return local
+  try {
+    return nameVerdictFrom(name, await r.transport.rpc('display_name_check', { p_name: name }))
+  } catch {
+    return local
+  }
+}
+
 /** Save the name on the leaderboards and the flag. */
 export async function saveAccount(name: string, country: string | null): Promise<AuthResult> {
   const r = await rt()
@@ -70,7 +101,9 @@ export async function saveAccount(name: string, country: string | null): Promise
     onlineStore.setState({ account })
     return { ok: true }
   } catch (e) {
-    if (e instanceof OnlineError && e.kind === 'taken') return { ok: false, message: 'That name is taken.' }
+    if (e instanceof OnlineError && e.kind === 'taken') return { ok: false, message: 'That name is taken: try another.' }
+    // The table's own checks (look-alike or hidden characters the local mirror let through), said kindly
+    if (e instanceof OnlineError && e.kind === 'bad' && e.code === '23514') return { ok: false, message: 'Use plain letters, digits and punctuation: some characters look like others on a board.' }
     if (e instanceof OnlineError && e.kind === 'network') return { ok: false, message: 'No connection: try again when you are back online.' }
     return { ok: false, message: e instanceof Error ? e.message : String(e) }
   }
