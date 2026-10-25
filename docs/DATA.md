@@ -36,7 +36,7 @@ The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with 
 
 ### `public/data/<league>/meta.json` (about 80 KB)
 
-- `league`: `{ id: "england", name: "English Top Flight", shortName: "England" }`.
+- `league`: `{ id: "england", name: "English League", shortName: "England", country: "England" }`. `name` is a neutral display name by country, never the real competition's name (see "Display names" below).
 - `clubs`: the 46 clubs that appear in any squad or table, with name, short name, three-letter code, city, nickname, founding year, approximate kit colours, an AI playing style and a rivals list (from `scripts/import/clubs-england.mjs`, which holds 55 clubs; only the used ones are emitted).
 - `nations`: code to `{ name, flag }` for the 117 codes present.
 - `seasons`: for each season with player data, the clubs in it, whether the real table is complete, and the table (position, played, won, drawn, lost, goals for and against, points).
@@ -171,12 +171,28 @@ The builder now produces one data pack per league under `public/data/<league>/` 
 
 | League | Player-seasons | Players | Clubs | Seasons |
 | --- | ---: | ---: | ---: | --- |
-| Premier League (england) | 11,166 | 3,647 | 46 | 2008-09 to 2026-27 |
-| La Liga (spain) | 10,632 | 3,503 | 39 | 2008-09 to 2026-27 |
-| Serie A (italy) | 10,610 | 3,258 | 42 | 2008-09 to 2026-27 |
-| Bundesliga (germany) | 9,497 | 3,006 | 35 | 2008-09 to 2026-27 |
-| Ligue 1 (france) | 10,084 | 3,516 | 40 | 2008-09 to 2026-27 |
-| Eredivisie (netherlands) | 8,571 | 3,101 | 29 | 2008-09 to 2026-27 |
-| Primeira Liga (portugal) | 8,595 | 3,387 | 39 | 2008-09 to 2026-27 |
+| English League (england) | 11,166 | 3,647 | 46 | 2008-09 to 2026-27 |
+| Spanish League (spain) | 10,632 | 3,503 | 39 | 2008-09 to 2026-27 |
+| Italian League (italy) | 10,610 | 3,258 | 42 | 2008-09 to 2026-27 |
+| German League (germany) | 9,497 | 3,006 | 35 | 2008-09 to 2026-27 |
+| French League (france) | 10,084 | 3,516 | 40 | 2008-09 to 2026-27 |
+| Dutch League (netherlands) | 8,571 | 3,101 | 29 | 2008-09 to 2026-27 |
+| Portuguese League (portugal) | 8,595 | 3,387 | 39 | 2008-09 to 2026-27 |
 
 69,155 player-seasons in all (the format 3 rebuild of 2026-10-25; Serie A and the Eredivisie gained a few rows from the cached dataset snapshots). The packs run from 1.09 MB (Eredivisie) to 1.46 MB (Premier League), about 13 per cent more than format 2 for the five integer columns. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results files exist for Ligue 1, the Eredivisie or the Primeira Liga, so those club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. A club with only 8 to 11 rows in an edition (Telstar in FC 26, for instance), or any club in that season's results table with fewer than 12 rows, is topped up with its own players from the adjacent season rather than dropped, so every shipped league season keeps its real entrants; the engine still handles odd counts with bye weeks. Only seasons the player data covers are built: a historic table on its own never becomes a playable season. Leagues without result tables mark their newest season as in progress and every earlier one as complete. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.
+
+## Display names
+
+Packs carry neutral display names only. Each league's `name` in `leagues.json` and in its `meta.json` says which country's top flight it is; the real competition it is built from is named only in this document and in the pipeline's matching tables (`eaNames` in `scripts/import/leagues.mjs` and `scripts/import/clubs-europe.mjs`, which spell the competition the way each source dataset does, so rows can be matched). Club and player names stay real. A test (`src/engine/__tests__/neutralNames.test.ts`) fails if a real competition name reaches a pack's league name.
+
+| League id | Display name in the packs and the game | Built from (source competition) |
+| --- | --- | --- |
+| `england` | English League | Premier League (EA FC league id 13, European Soccer Database league 1729, openfootball `england`) |
+| `spain` | Spanish League | La Liga (53, 21518, openfootball `espana`) |
+| `italy` | Italian League | Serie A (31, 10257, openfootball `italy`) |
+| `germany` | German League | Bundesliga (19, 7809, openfootball `deutschland`) |
+| `france` | French League | Ligue 1 (16, 4769, no results file) |
+| `netherlands` | Dutch League | Eredivisie (10, 13274, no results file) |
+| `portugal` | Portuguese League | Primeira Liga (308, 17642, no results file) |
+
+The 2026-10-25 rebuild that introduced these names changed nothing else: a JSON diff of every pack against the previous commit finds exactly fourteen changed values (each league's `name` in `leagues.json` and in its `meta.json`), the seven `players.json` files are byte-identical and `generatedAt` stays 2026-10-25.

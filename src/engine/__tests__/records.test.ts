@@ -30,7 +30,7 @@ describe('the record books', () => {
     expect(b.points.equal).toBe(1)
     expect(b.records.map((m) => m.key)).not.toContain('points')
     expect(hasRecordBook(b)).toBe(true)
-    expect(recordShareLine(b, 'Premier League')).toBe('📜 Joint-best points total in Premier League history')
+    expect(recordShareLine(b, 'English League')).toBe('📜 Joint-best points total in English League history')
   })
 
   it('a 101-point season is an outright points record and says so in the share line', () => {
@@ -41,7 +41,7 @@ describe('the record books', () => {
     expect(b.records.map((m) => m.key)).toContain('points')
     expect(b.records.map((m) => m.key)).toContain('wins')
     expect(isPointsRecord(b)).toBe(true)
-    expect(recordShareLine(b, 'Premier League')).toBe('📜 New Premier League points record: 101')
+    expect(recordShareLine(b, 'English League')).toBe('📜 New English League points record: 101')
   })
 
   it('ranks a near miss behind the real seasons, best first, and knows which way is up for defeats and goals conceded', () => {
@@ -56,7 +56,7 @@ describe('the record books', () => {
     expect(b.points.rank).toBe(strictlyBetter + 1)
     expect(b.points.rank).toBe(5)
     expect(b.points.equal).toBe(1)
-    expect(recordShareLine(b, 'Premier League')).toBe('📜 5th-best points total in Premier League history')
+    expect(recordShareLine(b, 'English League')).toBe('📜 5th-best points total in English League history')
     // Fewer is better for goals conceded: 15 ties Chelsea 2004-05, so it is rank 1 but not an outright record
     expect(b.goalsAgainst.higherIsBetter).toBe(false)
     expect(b.goalsAgainst.rank).toBe(1)
@@ -73,7 +73,7 @@ describe('the record books', () => {
   it('a mid-table season adds no share line', () => {
     const b = benchmarkSeason(england, 'england', { won: 14, drawn: 10, lost: 14, points: 52, goalsFor: 50, goalsAgainst: 50 })
     expect(b.points.rank).toBeGreaterThan(10)
-    expect(recordShareLine(b, 'Premier League')).toBeNull()
+    expect(recordShareLine(b, 'English League')).toBeNull()
     expect(b.records).toEqual([])
   })
 
@@ -107,7 +107,7 @@ describe('the record books', () => {
     expect(b.records).toEqual([])
     expect(hasRecordBook(b)).toBe(false)
     expect(isPointsRecord(b)).toBe(false)
-    expect(recordShareLine(b, 'Ligue 1')).toBeNull()
+    expect(recordShareLine(b, 'French League')).toBeNull()
     expect(realChampion(france, 'france', 2019)).toBeNull()
     expect(RECORD_BOOK_MIN_SEASONS).toBe(10)
   })

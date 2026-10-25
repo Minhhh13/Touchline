@@ -1,5 +1,8 @@
 /**
  * Registry of the leagues the game ships with, and how each dataset names them.
+ * `name` is the neutral display name written to the packs and shown in the game
+ * (by country, never the real competition's name); `eaNames` spell the real
+ * competition the way the source datasets do and are used only for matching.
  */
 import { CLUBS as ENGLAND } from './clubs-england.mjs'
 import { LEAGUES as EUROPE } from './clubs-europe.mjs'
@@ -7,7 +10,7 @@ import { LEAGUES as EUROPE } from './clubs-europe.mjs'
 export const LEAGUES = {
   england: {
     id: 'england',
-    name: 'Premier League',
+    name: 'English League',
     shortName: 'England',
     country: 'England',
     clubs: ENGLAND,

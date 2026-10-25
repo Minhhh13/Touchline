@@ -250,10 +250,10 @@ export const PORTUGAL = [
 ]
 
 export const LEAGUES = {
-  spain: { id: 'spain', name: 'La Liga', shortName: 'Spain', country: 'Spain', clubs: SPAIN, fc24LeagueId: 53, eaNames: ['LALIGA EA SPORTS', 'LaLiga', 'La Liga', 'LALIGA'], euroLeagueId: 21518, openfootball: { repo: 'openfootball/espana', file: '1-liga.txt' } },
-  italy: { id: 'italy', name: 'Serie A', shortName: 'Italy', country: 'Italy', clubs: ITALY, fc24LeagueId: 31, eaNames: ['Serie A Enilive', 'Serie A', 'Serie A TIM'], euroLeagueId: 10257, openfootball: { repo: 'openfootball/italy', file: '1-seriea.txt' } },
-  germany: { id: 'germany', name: 'Bundesliga', shortName: 'Germany', country: 'Germany', clubs: GERMANY, fc24LeagueId: 19, eaNames: ['Bundesliga'], euroLeagueId: 7809, openfootball: { repo: 'openfootball/deutschland', file: '1-bundesliga.txt' } },
-  france: { id: 'france', name: 'Ligue 1', shortName: 'France', country: 'France', clubs: FRANCE, fc24LeagueId: 16, eaNames: ["Ligue 1 McDonald's", 'Ligue 1', 'Ligue 1 Uber Eats', 'Ligue 1 Conforama'], euroLeagueId: 4769, openfootball: { repo: 'openfootball/france', file: '1-ligue1.txt' } },
-  netherlands: { id: 'netherlands', name: 'Eredivisie', shortName: 'Netherlands', country: 'Netherlands', clubs: NETHERLANDS, fc24LeagueId: 10, eaNames: ['Eredivisie'], euroLeagueId: 13274, openfootball: null },
-  portugal: { id: 'portugal', name: 'Primeira Liga', shortName: 'Portugal', country: 'Portugal', clubs: PORTUGAL, fc24LeagueId: 308, eaNames: ['Liga Portugal', 'Liga Portugal Betclic', 'Liga Portugal bwin', 'Liga Portugal Bwin', 'Liga NOS', 'Liga Portugal SABSEG'], euroLeagueId: 17642, openfootball: null },
+  spain: { id: 'spain', name: 'Spanish League', shortName: 'Spain', country: 'Spain', clubs: SPAIN, fc24LeagueId: 53, eaNames: ['LALIGA EA SPORTS', 'LaLiga', 'La Liga', 'LALIGA'], euroLeagueId: 21518, openfootball: { repo: 'openfootball/espana', file: '1-liga.txt' } },
+  italy: { id: 'italy', name: 'Italian League', shortName: 'Italy', country: 'Italy', clubs: ITALY, fc24LeagueId: 31, eaNames: ['Serie A Enilive', 'Serie A', 'Serie A TIM'], euroLeagueId: 10257, openfootball: { repo: 'openfootball/italy', file: '1-seriea.txt' } },
+  germany: { id: 'germany', name: 'German League', shortName: 'Germany', country: 'Germany', clubs: GERMANY, fc24LeagueId: 19, eaNames: ['Bundesliga'], euroLeagueId: 7809, openfootball: { repo: 'openfootball/deutschland', file: '1-bundesliga.txt' } },
+  france: { id: 'france', name: 'French League', shortName: 'France', country: 'France', clubs: FRANCE, fc24LeagueId: 16, eaNames: ["Ligue 1 McDonald's", 'Ligue 1', 'Ligue 1 Uber Eats', 'Ligue 1 Conforama'], euroLeagueId: 4769, openfootball: { repo: 'openfootball/france', file: '1-ligue1.txt' } },
+  netherlands: { id: 'netherlands', name: 'Dutch League', shortName: 'Netherlands', country: 'Netherlands', clubs: NETHERLANDS, fc24LeagueId: 10, eaNames: ['Eredivisie'], euroLeagueId: 13274, openfootball: null },
+  portugal: { id: 'portugal', name: 'Portuguese League', shortName: 'Portugal', country: 'Portugal', clubs: PORTUGAL, fc24LeagueId: 308, eaNames: ['Liga Portugal', 'Liga Portugal Betclic', 'Liga Portugal bwin', 'Liga Portugal Bwin', 'Liga NOS', 'Liga Portugal SABSEG'], euroLeagueId: 17642, openfootball: null },
 }
