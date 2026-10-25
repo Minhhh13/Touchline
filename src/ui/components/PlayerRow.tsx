@@ -15,7 +15,7 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, hideRatings
       <Rating value={p.overall} hidden={hideRatings} />
       <span className="col" style={{ gap: 2 }}>
         <span className="name">
-          <Flag nation={p.nationality} /> {p.name}
+          <span><Flag nation={p.nationality} /> {p.name}</span>
           {flags}
         </span>
         <span className="meta">

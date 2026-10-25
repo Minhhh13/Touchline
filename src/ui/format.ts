@@ -96,3 +96,13 @@ export function textColourFor(bg: string): string {
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
   return lum > 0.6 ? '#111' : '#fff'
 }
+
+/**
+ * A match screen heading: the round (or matchweek) and the occasion, dropping the occasion when the round already says
+ * it ("European Nights final", not "European Nights final · European Nights final").
+ */
+export function matchHeading(ctx: { matchweek: number; competition: string; roundLabel?: string; importanceLabel?: string }): string {
+  const round = ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`)
+  const occasion = ctx.importanceLabel
+  return occasion && !round.toLowerCase().includes(occasion.toLowerCase()) ? `${round} · ${occasion}` : round
+}

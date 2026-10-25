@@ -18,6 +18,7 @@ import { ACHIEVEMENT_BY_ID, shareText } from '@engine/awards'
 import { useStore, SAVE_KEY } from '../store'
 import { Dugout } from '@ui/screens/Dugout'
 import { ProfileScreen } from '@ui/screens/ProfileScreen'
+import { matchHeading } from '@ui/format'
 import type { Game, GameSettings, Profile } from '../types'
 
 /**
@@ -54,6 +55,8 @@ function oldSave(): { game: Game; profile: Profile } {
   beginSeason(g, u)
   startSeasonProper(g)
   g.season!.news = g.season!.news.map((n) => (n.title === 'European Nights draw' ? { ...n, title: 'Continental Cup draw' } : n))
+  // Inbox lines exactly as the base build (3e9a594) wrote them after a round
+  g.season!.news.unshift({ matchweek: 10, kind: 'cup', title: 'Continental round of 16: through', body: '4-1 against RB Leipzig.' }, { matchweek: 10, kind: 'cup', title: 'Continental quarter-final draw', body: 'Home to Real Madrid, after matchweek 19.' }, { matchweek: 33, kind: 'cup', title: 'Continental final: through', body: '2-1 against Inter. Champions of the continent!' })
   const game = JSON.parse(JSON.stringify(g)) as Game
   const profile: Profile = { ...useStore.getState().profile, trophies: { league: 1, cup: 0, continental: 2, doubles: 0, trebles: 0 } }
   return { game, profile }
@@ -78,8 +81,14 @@ describe('European Nights is a display name over unchanged save fields', () => {
     expect(merged.game?.season?.continental).toEqual(game.season!.continental)
     expect(merged.game?.settings.continental).toBe(true)
     expect(merged.profile.trophies?.continental).toBe(2)
-    // The news written by the old build stays as written; nothing rewrites saved text
-    expect(merged.game?.season?.news.some((n) => n.title === 'Continental Cup draw')).toBe(true)
+    // The inbox an old build wrote reads European Nights too; only display text changes, never a field name
+    const titles = merged.game!.season!.news.map((n) => `${n.title} ${n.body}`)
+    expect(titles.filter((t) => /Continental|continent!/.test(t))).toEqual([])
+    expect(titles).toContain('European Nights draw ' + game.season!.news.find((n) => n.title === 'Continental Cup draw')!.body)
+    expect(titles).toContain('European Nights round of 16: through 4-1 against RB Leipzig.')
+    expect(titles).toContain('European Nights quarter-final draw Home to Real Madrid, after matchweek 19.')
+    expect(titles).toContain('European Nights final: through 2-1 against Inter. European Nights champions!')
+    expect(merged.game!.season!.news.length).toBe(game.season!.news.length)
 
     useStore.setState({ universe: u, loadedLeagues: ['england', 'spain', 'germany'] })
     // A static server render reads the store's initial state (React's server snapshot); point it at the loaded state
@@ -112,5 +121,14 @@ describe('European Nights is a display name over unchanged save fields', () => {
     expect(ACHIEVEMENT_BY_ID['continental'].description).toBe('Win European Nights.')
     const share = shareText({ teamName: 'X', tier: 'CHAMPIONS', row: { teamId: 'x', played: 38, won: 30, drawn: 5, lost: 3, goalsFor: 90, goalsAgainst: 20, points: 95, form: [] }, position: 1, cupWon: true, continentalWon: true, leagueSeason: 2024, hostClubName: 'Everton', mode: 'Season' })
     expect(share).toContain('CHAMPIONS + CUP + EUROPEAN NIGHTS')
+  })
+
+  it('heads a European night once, not "European Nights final · European Nights final"', () => {
+    const rounds = continentalRounds(38)
+    const headings = rounds.map((r) => matchHeading({ matchweek: r.afterMatchweek, competition: 'continental', roundLabel: r.label, importanceLabel: describeImportance(u, 'everton', 'real-madrid', null, r.afterMatchweek, r.round, 'continental').label }))
+    expect(headings).toEqual(['European Nights round of 16', 'European Nights quarter-final', 'European Nights semi-final', 'European Nights final'])
+    // A league match or a domestic cup final keeps its occasion
+    expect(matchHeading({ matchweek: 12, competition: 'league', importanceLabel: 'Derby day' })).toBe('Matchweek 12 · Derby day')
+    expect(matchHeading({ matchweek: 30, competition: 'cup', roundLabel: 'Final', importanceLabel: 'Cup final' })).toBe('Final · Cup final')
   })
 })

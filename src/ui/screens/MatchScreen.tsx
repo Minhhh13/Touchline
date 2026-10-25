@@ -8,7 +8,7 @@ import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay
 import { kitColour } from '../match/pitchGeometry'
 import { xgSeries } from '../match/charts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { clubName, clubShort, minuteLabel } from '../format'
+import { clubName, clubShort, matchHeading, minuteLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { currentScore, onPitch, SHOUTS, type Appearance, type FullMatchResult, type LivePlayer, type Shout, type TeamSnapshot, type TeamTalk } from '@engine/match'
 import type { MatchContext } from '@game/types'
@@ -82,8 +82,7 @@ export function MatchScreen() {
           <div>
             <h2>
               <CompetitionFlag ctx={live.ctx} leagueId={game.season?.leagueId} />
-              {live.ctx.roundLabel ?? (live.ctx.competition === 'cup' ? 'Cup' : `Matchweek ${live.ctx.matchweek}`)}
-              {live.ctx.importanceLabel ? ` · ${live.ctx.importanceLabel}` : ''}
+              {matchHeading(live.ctx)}
             </h2>
             <div className="small muted">
               {homeName} v {awayName} · live
@@ -142,8 +141,7 @@ export function MatchScreen() {
         <div>
           <h2>
             <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
-            {ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`)}
-            {ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}
+            {matchHeading(ctx)}
           </h2>
           <div className="small muted">
             {homeName} v {awayName}

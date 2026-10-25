@@ -402,7 +402,7 @@ export function Setup() {
                           if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                         }}
                       />
-                      <LeagueFlag leagueId="europe" /> European Nights: a midweek knockout against the best of the other leagues
+                      <span><LeagueFlag leagueId="europe" /> European Nights: a midweek knockout against the best of the other leagues</span>
                     </label>
                   )}
                 </>

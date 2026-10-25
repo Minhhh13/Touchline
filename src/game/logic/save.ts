@@ -1,5 +1,6 @@
 import type { Game, GameSettings } from '../types'
 import type { PlayerSeason } from '@engine/types'
+import type { NewsItem } from '@engine/season'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
 
@@ -12,6 +13,7 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
   return {
     ...g,
     settings,
+    season: g.season?.news ? { ...g.season, news: g.season.news.map(renameOldNews) } : g.season,
     squad: g.squad ?? {},
     contracts: g.contracts ?? {},
     customPlayers: withDepthAttributes(g.customPlayers ?? {}),
@@ -32,6 +34,17 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     pendingMove: g.pendingMove ?? null,
     quickResult: g.quickResult ?? null,
   }
+}
+
+/**
+ * Inbox text an older build wrote under the continental cup's old name ("Continental Cup draw", "Continental round of
+ * 16: through", "Champions of the continent!") reads as European Nights. News is display text only: nothing parses it.
+ */
+function renameOldNews(n: NewsItem): NewsItem {
+  const fix = (t: string) => t.replace(/\bContinental Cup\b/g, 'European Nights').replace(/\bContinental (round of 16|quarter-final|semi-final|final)\b/g, 'European Nights $1').replace('Champions of the continent!', 'European Nights champions!')
+  const title = fix(n.title)
+  const body = fix(n.body)
+  return title === n.title && body === n.body ? n : { ...n, title, body }
 }
 
 /**
