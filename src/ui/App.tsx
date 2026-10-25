@@ -12,7 +12,7 @@ import { Explore } from './screens/Explore'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
-import { Bar, ClubBadge, Modal, Toast } from './components/bits'
+import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
@@ -20,7 +20,10 @@ import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
-import { Bandage, Banknote, BookOpen, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+
+/** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
+export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
@@ -30,6 +33,32 @@ export function App() {
   const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
   // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back
   const flipTheme = () => withViewTransition(() => setTheme(toggledTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')))
+  const [barHidden, toggleBar] = useViewerFlag(TOPBAR_HIDDEN_KEY)
+  // Focus follows the control that replaces the one just pressed (the toggle and the restore pill sit in the same spot)
+  const barToggled = useRef(false)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const restoreRef = useRef<HTMLButtonElement>(null)
+  const flipBar = () => {
+    barToggled.current = true
+    toggleBar()
+  }
+  useEffect(() => {
+    if (!barToggled.current) return
+    barToggled.current = false
+    ;(barHidden ? restoreRef : toggleRef).current?.focus()
+  }, [barHidden])
+  // The \ key folds and restores the bar, except while typing
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '\\' || e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      e.preventDefault()
+      flipBar()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   useEffect(() => {
     void loadData()
@@ -113,12 +142,19 @@ export function App() {
   }
 
   let body: React.ReactNode
+  // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
+  // Setup, the kick-off step, the season playback and the match day keep their own layouts
+  let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto'
   if (screen === 'game' && game) {
+    shell = game.phase !== 'kickoff' && game.phase !== 'january' && game.phase !== 'match'
     if (game.phase === 'draft') body = <Draft />
     else if (game.phase === 'kickoff') body = <KickOff />
     // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
     // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
-    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
+    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) {
+      shell = false
+      body = <SeasonPlayback key={game.phase} />
+    }
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = <Summary />
     else body = <Dugout />
@@ -130,8 +166,8 @@ export function App() {
   else body = <Home />
 
   return (
-    <div className="app">
-      <header className="topbar">
+    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`}>
+      <header className="topbar" inert={barHidden} aria-hidden={barHidden || undefined}>
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
@@ -173,7 +209,16 @@ export function App() {
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
+        <button type="button" className="theme-switch topbar-toggle" onClick={flipBar} aria-label="Hide top bar" aria-keyshortcuts={'\\'} title={'Hide top bar (\\)'} data-testid="topbar-toggle" ref={toggleRef}>
+          <ChevronUp size={18} />
+        </button>
       </header>
+      {barHidden && (
+        <button type="button" className="topbar-restore" onClick={flipBar} aria-label="Show top bar" aria-keyshortcuts={'\\'} title={'Show top bar (\\)'} data-testid="topbar-restore" ref={restoreRef}>
+          <ChevronDown size={16} aria-hidden="true" />
+          <span>Show top bar</span>
+        </button>
+      )}
       {body}
       <Toast />
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">

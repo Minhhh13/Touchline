@@ -22,6 +22,16 @@ export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number
   )
 }
 
+/** The user's own side: their short name on the brand colour, never the badge of the club whose place they took. */
+export function TeamBadge({ code, size = 32 }: { code?: string; size?: number }) {
+  const label = (code || 'YOU').slice(0, 3).toUpperCase()
+  return (
+    <span className="badge team-badge" style={{ width: size, height: size, background: 'var(--primary)', color: 'var(--on-primary)', fontSize: size * 0.32 }}>
+      {label}
+    </span>
+  )
+}
+
 export function Rating({ value, size, hidden }: { value: number; size?: 'lg'; hidden?: boolean }) {
   const v = Math.round(value)
   return (

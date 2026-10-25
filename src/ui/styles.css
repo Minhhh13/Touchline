@@ -5765,3 +5765,354 @@ table.tbl.match-stats th {
 .award-label.good {
   color: var(--good);
 }
+
+/* ------------------------------------------------------------------ app shell */
+/*
+ * One screen, one panel (DESIGN_SYSTEM.md section 13). On a desktop the shell screens (App.tsx `shell`: Home, the
+ * Draft, the Dugout, the Summary, Head-to-head, Explore, Profile, How it works) are a 100dvh grid: the top bar, then
+ * the screen, which never scrolls the document; a long list scrolls inside its own panel (`.fill` and `.scroll-y`).
+ * Phones, Setup, the kick-off step, the season playback and the match day scroll the page as before.
+ */
+/* The top bar folds away (the toggle beside the theme switch, or the \ key) and the restore pill takes its corner */
+.topbar-toggle {
+  margin-left: calc(var(--space-2) - var(--space-4));
+}
+.topbar-toggle:active {
+  transform: scale(0.92);
+}
+.topbar-toggle svg {
+  animation: none;
+}
+.app.bar-hidden > .topbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  transform: translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
+  animation: topbar-out var(--dur-2) var(--ease-in-out);
+}
+.app:not(.bar-hidden) > .topbar {
+  animation: topbar-in var(--dur-2) var(--ease-out);
+}
+@keyframes topbar-out {
+  from {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes topbar-in {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+.topbar-restore {
+  position: fixed;
+  top: 10px;
+  right: var(--gutter);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 10px;
+  border-radius: var(--radius-pill);
+  border: var(--border-strong);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: restore-in var(--dur-2) var(--ease-out) backwards;
+  animation-delay: var(--dur-1);
+}
+.topbar-restore:hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
+.topbar-restore:active {
+  transform: scale(0.96);
+}
+@keyframes restore-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@media (max-width: 720px) {
+  .topbar-restore {
+    top: 8px;
+    height: 34px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app > .topbar,
+  .app.bar-hidden > .topbar,
+  .topbar-restore {
+    animation: none;
+  }
+}
+/* A list that would push the page: it scrolls inside its panel instead */
+.scroll-y {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+@media (min-width: 1100px) {
+  .app.shell {
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .app.shell.bar-hidden {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app.shell > .page {
+    max-width: 1600px;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  /* The bar folded away: the restore pill sits in the top-right corner, so the screen's own head keeps clear of it */
+  .app.shell.bar-hidden > .page {
+    padding-top: var(--space-3);
+  }
+  .app.shell.bar-hidden .screen-head,
+  .app.shell.bar-hidden .club-header {
+    padding-right: 150px;
+  }
+  .app.shell > .page > *,
+  .app.shell .screen-body > * {
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+  .app.shell .screen-head {
+    margin-bottom: 0;
+  }
+  /* The part of a shell screen that takes the rest of the height */
+  .app.shell > .page > .fill,
+  .app.shell .screen-body > .fill {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .app.shell .screen-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    overflow: hidden;
+  }
+  /* Boxes side by side: the last grid of a screen takes the rest of the height and each box scrolls inside itself */
+  .app.shell .screen-body > .grid:last-child,
+  .app.shell .grid.fill {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app.shell .screen-body > .grid:last-child > *,
+  .app.shell .grid.fill > * {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .screen-body > .panel:last-child {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  /* A screen of reading (How it works) scrolls its boxes together inside the body */
+  .app.shell .screen-body.scroll-whole {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .screen-body.scroll-whole > * {
+    flex: none;
+    overflow: visible;
+  }
+  .app.shell .screen-body.scroll-whole > .grid {
+    grid-template-rows: none;
+    align-items: start;
+  }
+  .app.shell .screen-body.scroll-whole > .grid > * {
+    overflow: visible;
+  }
+}
+/* Screen by screen, on the desktop shell */
+@media (min-width: 1100px) {
+  /* The summary (and the head-to-head result): the result box on the left, everything else in a box beside it */
+  .app.shell .page.summary {
+    display: grid;
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-4);
+  }
+  .app.shell .page.summary > .tier-banner {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .app.shell .page.summary > .summary-body,
+  .app.shell .page.summary > .screen-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding-right: 2px;
+  }
+  .app.shell .page.summary > .summary-body > *,
+  .app.shell .page.summary > .screen-body > * {
+    flex-shrink: 0;
+    margin-top: 0;
+  }
+  .app.shell .page.summary > .screen-body > .grid:last-child > * {
+    overflow: visible;
+  }
+  .app.shell .page.summary .banner-actions .btn {
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+  /* The Dugout: the header, the briefing and the tab bar stay; the tab's content scrolls in its own box */
+  .app.shell .tab-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+  }
+  .app.shell .tabs {
+    margin-bottom: 0;
+  }
+  .app.shell .tab-body:has(> .grid.dugout) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    overflow: hidden;
+  }
+  .app.shell .tab-body:has(> .grid.dugout) > * {
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+  .app.shell .tab-body > .grid.dugout {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app.shell .tab-body > .grid.dugout > * {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .tab-body > .grid.dugout > .col {
+    padding-right: 2px;
+  }
+  /* The draft: each column a box that scrolls inside itself; the landed squad's list takes its box's height */
+  .app.shell .grid.draft > .draft-squad {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .app.shell .grid.draft > .draft-squad > .draft-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+  .app.shell .grid.draft .draft-log {
+    max-height: none;
+  }
+  /* A pitch never taller than the box it sits in */
+  .app.shell .grid.draft .pitch-wrap,
+  .app.shell .grid.dugout .pitch-wrap {
+    max-width: max(240px, calc((100dvh - var(--shell-chrome, 300px)) * 0.75));
+    margin-inline: auto;
+  }
+  .app.shell .grid.dugout .pitch-wrap {
+    --shell-chrome: 470px;
+  }
+  .app.shell.bar-hidden .grid.dugout .pitch-wrap {
+    --shell-chrome: 410px;
+  }
+  .app.shell.bar-hidden .grid.draft .pitch-wrap {
+    --shell-chrome: 240px;
+  }
+  /* Home: the hero gives up height first, the mode pictures shorten on a short window */
+  .app.shell .page.home .hero {
+    flex: 1 1 200px;
+    min-height: 170px;
+    margin: 0;
+  }
+  .app.shell .page.home .hero-content {
+    padding: var(--space-5) 40px;
+  }
+  .app.shell .page.home .mode-art {
+    aspect-ratio: auto;
+    height: clamp(72px, calc(100dvh - 620px), 170px);
+  }
+  .app.shell .page.home .resume-card {
+    margin: 0;
+  }
+}
+@media (min-width: 1100px) and (max-height: 820px) {
+  .app.shell .page.home .hero h1 .tl-lockup {
+    --h: 72px;
+  }
+  .app.shell .page.home .hero .tag {
+    margin: var(--space-1) 0;
+  }
+  .app.shell .page.home .mode-text {
+    padding: 24px var(--space-3) var(--space-3);
+  }
+  .app.shell .page.home .mode-card h3 {
+    font-size: 20px;
+  }
+}
+/* A short desktop window: the Dugout's header and briefing tighten so the tab's box keeps its height */
+@media (min-width: 1100px) and (max-height: 820px) {
+  .app.shell .club-header {
+    padding: var(--space-3) var(--space-4);
+  }
+  .app.shell .club-header .badge {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .app.shell .stat-strip .stat .value {
+    font-size: 22px;
+  }
+  .app.shell .panel.cta {
+    padding: var(--space-3) var(--space-4);
+  }
+  .app.shell .screen-head h1 {
+    font-size: 30px;
+  }
+}
+/* The head-to-head result's two sides share the narrow result box on a desktop */
+@media (min-width: 1100px) {
+  .app.shell .page.summary .h2h-sides {
+    gap: var(--space-2);
+  }
+  .app.shell .page.summary .h2h-side {
+    min-width: 0;
+    padding: var(--space-3) var(--space-2);
+  }
+  .app.shell .page.summary .h2h-side .record {
+    font-size: 22px;
+    gap: 8px;
+  }
+  .app.shell .page.summary .h2h-side h3 {
+    font-size: 18px;
+  }
+}

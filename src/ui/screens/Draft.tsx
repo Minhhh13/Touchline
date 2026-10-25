@@ -182,7 +182,7 @@ export function Draft() {
         </div>
       </div>
 
-      <div className={`grid draft ${hiddenAll ? 'hidden-ratings' : ''}`}>
+      <div className={`grid draft fill ${hiddenAll ? 'hidden-ratings' : ''}`}>
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">

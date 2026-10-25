@@ -11,7 +11,7 @@ import { H2H_IDS } from '@game/logic/h2h'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, Info, Segmented, Stat } from '../components/bits'
+import { ClubBadge, Info, Segmented, Stat, TeamBadge } from '../components/bits'
 import { FormationPicker } from '../components/FormationPicker'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, ordinal, seasonLabel, tierName } from '../format'
@@ -53,6 +53,7 @@ export function H2HSetup() {
           ← Back
         </button>
       </div>
+      <div className="screen-body scroll-whole fill">
       <ol className="steps" aria-label="How a head-to-head works">
         {H2H_STEPS.map(({ Icon, title, line }) => (
           <li key={title}>
@@ -151,6 +152,7 @@ export function H2HSetup() {
           </button>
         </div>
       </div>
+      </div>
     </div>
   )
 }
@@ -230,7 +232,7 @@ export function H2HScreen() {
           </button>
         </div>
       </div>
-      <div className="grid draft">
+      <div className="grid draft fill">
         <div className="col">
           <div className="panel col">
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
@@ -374,7 +376,7 @@ function H2HSummary() {
     try {
       const url = await renderShareCard({
         title: m[i].name,
-        subtitle: `as ${clubName(u, m[i].hostClubId)} · head-to-head v ${m[i === 0 ? 1 : 0].name} · ${seasonLabel(h2h.leagueSeason)}`,
+        subtitle: `Head-to-head v ${m[i === 0 ? 1 : 0].name} · ${u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? ''} ${seasonLabel(h2h.leagueSeason)}`,
         tier: r.tiers[i],
         row: r.rows[i],
         position: r.positions[i],
@@ -405,12 +407,9 @@ function H2HSummary() {
           {([0, 1] as const).map((i) => (
             <div key={i} className={`h2h-side ${r.winner === i ? 'won' : ''}`}>
               <div className="club-head">
-                <ClubBadge clubId={m[i].hostClubId} size={36} />
+                <TeamBadge code={m[i].shortName} size={36} />
                 <div style={{ textAlign: 'left' }}>
                   <h3 style={{ margin: 0 }}>{m[i].name}</h3>
-                  <div className="club-sub">
-                    <span>as {clubName(u, m[i].hostClubId)}</span>
-                  </div>
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" aria-label="Winner" />}
               </div>
@@ -445,6 +444,7 @@ function H2HSummary() {
           </button>
         </div>
       </div>
+      <div className="screen-body fill">
       <div className="grid two">
         <div className="col">
           <div className="panel">
@@ -529,6 +529,7 @@ function H2HSummary() {
             <pre className="mono small share-text">{text}</pre>
           </details>
         </div>
+      </div>
       </div>
     </div>
   )

@@ -165,6 +165,7 @@ export function Explore() {
           ← Home
         </button>
       </div>
+      <div className="screen-body fill">
       <div className="explore-bar">
         <div className="segmented" role="group" aria-label="League">
           {u.available.map((l) => (
@@ -339,6 +340,7 @@ export function Explore() {
           {query.length < 2 && <p className="help">Tap a player for his career; the star shortlists him.</p>}
         </div>
       )}
+      </div>
       <CareerModal playerId={careerId} onClose={() => setCareerId(null)} />
     </div>
   )

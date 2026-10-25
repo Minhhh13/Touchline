@@ -3,7 +3,7 @@ import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Clock, Crown, Dices,
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
-import { ClubBadge } from '../components/bits'
+import { TeamBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
 import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
@@ -130,7 +130,7 @@ export function Home() {
       {game && (
         <div className="panel resume-card row between wrap">
           <div className="row">
-            <ClubBadge clubId={game.settings.hostClubId} size={36} />
+            <TeamBadge code={game.settings.shortName} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
                 {game.settings.teamName} · {game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : game.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${game.year}`}
@@ -154,7 +154,7 @@ export function Home() {
       {Object.entries(parked).map(([slot, g]) => (
         <div key={slot} className="panel resume-card parked row between wrap">
           <div className="row">
-            <ClubBadge clubId={g.settings.hostClubId} size={36} />
+            <TeamBadge code={g.settings.shortName} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
                 {g.settings.teamName} · {g.settings.mode === 'quick' ? 'Quick draft' : g.settings.mode === 'daily' ? 'Daily challenge' : g.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${g.year}`} (parked)
@@ -194,8 +194,8 @@ export function Home() {
               <span className="foot">
                 <TimeTag>5 min</TimeTag>
                 {daily && u && (
-                  <span className="daily-today" title={`Today: a ${daily.formationId} as ${u.clubById[daily.host]?.name ?? daily.host}, ${seasonLabel(daily.season)}`}>
-                    <ClubBadge clubId={daily.host} size={18} />
+                  <span className="daily-today" title={`Today: a ${daily.formationId}, ${u.leagues.find((l) => l.id === u.clubById[daily.host]?.leagueId)?.name ?? ''} ${seasonLabel(daily.season)}`}>
+                    <LeagueFlag leagueId={u.clubById[daily.host]?.leagueId ?? 'england'} />
                     {daily.formationId} · {seasonLabel(daily.season)}
                   </span>
                 )}

@@ -23,7 +23,7 @@ import { Pitch, PitchLegend } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
-import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, Tip, useViewerFlag } from '../components/bits'
+import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, TeamBadge, Tip, useViewerFlag } from '../components/bits'
 import { BriefingIcon, NewsIcon } from '../components/icons'
 import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
 import { LeagueFlag } from '../components/Flag'
@@ -112,12 +112,13 @@ export function Dugout() {
       {/* Header */}
       <div className="panel club-header">
         <div className="club-head">
-          <ClubBadge clubId={season.hostClubId} size={48} />
+          <TeamBadge code={game.settings.shortName} size={48} />
           <div>
             <h2>{game.settings.teamName}</h2>
             <div className="club-sub">
-              <span>as {clubName(u, season.hostClubId)}</span>
-              <span>{seasonLabel(season.leagueSeason)}</span>
+              <span className="chip">
+                <LeagueFlag leagueId={season.leagueId} label={u.leagues.find((l) => l.id === season.leagueId)?.name} /> {seasonLabel(season.leagueSeason)}
+              </span>
               {game.settings.mode === 'dynasty' && <span>Year {game.year}</span>}
               <span className="chip">{preseason ? 'Pre-season' : `MW ${season.matchweek} of ${season.matchweeks}`}</span>
             </div>
@@ -215,7 +216,6 @@ export function Dugout() {
         </div>
       )}
       {game.pendingEvent && <EventCard />}
-      {!done && !preseason && next && tab === 'squad' && <OppositionReport clubId={next.clubId} home={next.home} />}
 
       <Tabs<Tab>
         value={tab}
@@ -234,6 +234,9 @@ export function Dugout() {
         ]}
       />
 
+      {/* The tab's content: on a desktop it scrolls inside itself under the fixed header, briefing and tab bar */}
+      <div className="tab-body fill" data-testid="tab-body">
+      {!done && !preseason && next && tab === 'squad' && <OppositionReport clubId={next.clubId} home={next.home} />}
       {tab === 'squad' && <Tip id="dugout-first">The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
         <div className="panel emphasis" style={{ marginBottom: 'var(--space-4)' }}>
@@ -476,6 +479,7 @@ export function Dugout() {
         </div>
       )}
       {tab === 'club' && <ClubTab table={table} />}
+      </div>
 
       <PlayerModal id={playerModal} onClose={() => setPlayerModal(null)} />
       <SlotSheet slotId={sheetSlot} onClose={() => setSheetSlot(null)} />
@@ -1095,6 +1099,12 @@ function ClubTab({ table }: { table: TableRow[] }) {
       <div className="panel">
         <h3>Board</h3>
         <div className="kv tight">
+          <dt>You replace</dt>
+          <dd data-testid="you-replace">
+            <span className="row" style={{ gap: 6 }}>
+              <ClubBadge clubId={season.hostClubId} size={20} /> {clubName(u, season.hostClubId)}
+            </span>
+          </dd>
           <dt>Expectation</dt>
           <dd>Finish {ordinal(season.boardTarget)} or better</dd>
           <dt>Current</dt>

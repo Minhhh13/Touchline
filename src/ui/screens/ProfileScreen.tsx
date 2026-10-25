@@ -66,6 +66,7 @@ export function ProfileScreen() {
           ← Home
         </button>
       </div>
+      <div className="screen-body fill">
       <div className="grid two">
         <div className="col">
           <div className="panel col">
@@ -243,6 +244,7 @@ export function ProfileScreen() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

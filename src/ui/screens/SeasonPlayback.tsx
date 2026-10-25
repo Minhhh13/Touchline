@@ -53,7 +53,7 @@ export function SeasonPlayback() {
           <div>
             <h1>{j && pb.done ? 'January' : 'The season'}</h1>
             <p className="muted setup-sub">
-              {s.teamName} as {clubName(u, s.hostClubId)} · {seasonLabel(s.leagueSeason)} · game {pb.revealed} of {total}
+              {s.teamName} · {u.leagues.find((l) => l.id === s.leagueId)?.name ?? ''} {seasonLabel(s.leagueSeason)} · game {pb.revealed} of {total}
             </p>
           </div>
           {!pb.done && (

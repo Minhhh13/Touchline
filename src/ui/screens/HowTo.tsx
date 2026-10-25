@@ -82,6 +82,7 @@ export function HowTo() {
           ← Home
         </button>
       </div>
+      <div className="screen-body scroll-whole fill">
       <div className="howto-grid">
         <Section Icon={Dices} title="The wheel and the draft" lead={<>Each spin lands on a real club in a real season, across {leagues} leagues. Draft one player from that squad into an open slot, then spin again.</>}>
           <ol className="howto-steps">
@@ -175,6 +176,7 @@ export function HowTo() {
           <li>Flag icons: flag-icons 7.6.0 by Panayiotis Lipiridis (github.com/lipis/flag-icons) · MIT</li>
         </ul>
       </section>
+      </div>
     </div>
   )
 }

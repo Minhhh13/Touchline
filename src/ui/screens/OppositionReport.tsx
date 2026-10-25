@@ -12,8 +12,8 @@ import { ordinal } from '../format'
 /** Scouting summary of the next league opponent with a suggested approach. */
 export function OppositionReport({ clubId, home }: { clubId: string; home: boolean }) {
   const { universe: u, game, setMarkTarget } = useStore()
-  // Open on a desktop; folded on a phone, where it would push the squad a screen down
-  const [startOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px)').matches)
+  // Open on a tall desktop; folded on a phone or a short window, where it would push the squad out of sight
+  const [startOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px) and (min-height: 900px)').matches)
   const data = useMemo(() => {
     if (!u || !game?.season) return null
     const club = game.season.ai[clubId] ?? game.season.continental?.clubs[clubId]

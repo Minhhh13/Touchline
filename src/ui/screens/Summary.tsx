@@ -10,12 +10,12 @@ import { Pitch } from '../components/Pitch'
 import { TWIST_INFO } from '../components/TwistCard'
 import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
-import { ClubBadge, CountUp, Info, Rating, Stat } from '../components/bits'
+import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, clubShort, money, nationName, ordinal, seasonLabel, tierName } from '../format'
+import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
 import { LeagueFlag, NationFlag } from '../components/Flag'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
@@ -162,7 +162,7 @@ export function Summary() {
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
-        subtitle: `as ${clubName(u, game.settings.hostClubId)} · ${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
+        subtitle: `${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
         tier,
         row,
         position: record.position,
@@ -205,8 +205,8 @@ export function Summary() {
       <div className="tier-banner">
         <div className="banner-meta">
           <span className="bm-team">
-            <ClubBadge clubId={game.settings.hostClubId} size={22} />
-            {game.settings.teamName} as {clubName(u, game.settings.hostClubId)}
+            <TeamBadge code={game.settings.shortName} size={22} />
+            {game.settings.teamName}
           </span>
           <span className="bm-rest">
             <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {modeName}
@@ -275,15 +275,11 @@ export function Summary() {
             </span>
           )}
           {season?.objectives?.length ? iconChip(objectivesMet === season.objectives.length ? Check : Landmark, `Objectives ${objectivesMet}/${season.objectives.length}`, objectivesMet === season.objectives.length ? 'good' : '') : null}
-          {!replay.playing && realRow && vsReal && (
-            <span className="chip" title={`How the real ${clubName(u, game.settings.hostClubId)} finished that season`}>
-              Real {clubShort(u, game.settings.hostClubId)}: {ordinal(realRow.position)}, {realRow.points} pts
-            </span>
-          )}
+          {/* Against the real side whose place you took, without naming it: the replaced club stays off the result */}
           {!replay.playing && vsReal && (
-            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`}>
+            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`} title={`Against the real side's ${ordinal(realRow?.position ?? 0)} that season`}>
               {vsReal.delta > 0 ? <TrendingUp size={12} aria-hidden="true" /> : vsReal.delta < 0 ? <TrendingDown size={12} aria-hidden="true" /> : <Minus size={12} aria-hidden="true" />}
-              {vsReal.label}
+              {vsReal.delta === 0 ? 'Same place as the real side' : `${vsReal.label} than the real side`}
             </span>
           )}
         </div>
@@ -320,6 +316,8 @@ export function Summary() {
         </div>
       </div>
 
+      {/* Everything under the result: on a desktop one panel that scrolls inside itself */}
+      <div className="summary-body fill" data-testid="summary-body">
       {q && results.length > 0 && (
         <GameByGame
           results={results}
@@ -729,6 +727,7 @@ export function Summary() {
             <pre className="mono small share-text">{text}</pre>
           </details>
         </div>
+      </div>
       </div>
     </div>
   )
