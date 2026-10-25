@@ -44,6 +44,7 @@ Each item lives on its own branch until it is merged into the working branch and
 | Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on `main` (PR #21); merged into `integration` |
 | Slot picker | working branch `claude/youthful-mccarthy-a57idu` | Shipped on `main` (PR #22); merged into `integration` |
 | Football Manager style match-day dashboard | `matchday` | In progress; rebuilds the live match view |
+| Save compaction: compacted results, lz-string compression, a toast when the browser's storage is full | `save-compaction` (from `integration`) | Built, waiting to merge into `integration` |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
 | Casual modes | not started in code | Designed |
 
@@ -119,6 +120,7 @@ Both sites are static sites in their own Render workspace **TouchLine** (workspa
 - Theme "Auto" always shows the dark theme.
 - Some docs are partly stale (README's Node version, player-season count and roadmap line; DATA.md's England-only intro and totals; RESEARCH.md section 7).
 - Saves are per browser; clearing site data loses them unless exported from the Record page (cloud saves will fix this).
+- A season's full match detail passed the browser's 5 MB `localStorage` quota (4.4 MB for one Season at full time, and a parked game on top failed every write silently). Fixed on `save-compaction`: the save is compacted and compressed (about 50 K characters for a Season, under 100 K for a two-season Dynasty with a parked Season), and a refused write shows a toast instead of failing silently.
 
 ## 8. Roadmap at a glance
 
@@ -148,3 +150,5 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · Hosting notes corrected: both Render sites now live in their own TouchLine workspace; the live site deploys `main` after CI passes (https://touchline-16xv.onrender.com), the preview deploys `claude/touchline-preview` (https://touchline-preview-hfvi.onrender.com); the old `-o5ot` and `touchline-preview.onrender.com` sites are gone.
 - 2026-10-25 · owner's agent · Removed `.github/workflows/pages.yml`: its failing run on every push to `main` stopped Render's checks-pass deploy, so merges were not reaching the live site on their own.
 - 2026-10-25 · owner's agent · The working branch's latest commits merged into `integration` again (after `redesign`): the slot-picker review (a real Unused case in the tests, timeouts for two slow sweeps), the corrected hosting notes and the Pages workflow removal (already gone on `integration`). Docs only plus tests; no seeded test moved.
+- 2026-10-25 · owner's agent · `save-compaction` (from `integration`): saves are compacted (a played fixture or tie older than the user's last two league matches and last tie keeps its score, xG and penalties only, since nothing reads more) and compressed with lz-string `compressToUTF16` through a custom persist storage that still reads the plain JSON every earlier build wrote; writes are coalesced (250 ms, flushed on page hide); a full storage shows a toast and the game carries on; Record export is plain JSON from memory and import takes plain or compressed files. A Season at full time drops from 4.4 MB to about 49 K characters stored; a two-season Dynasty with a parked Season from about 8 MB to about 83 K. Window logs capped at 80 lines. No result moved (tested by playing on from a compacted save). New dependency `lz-string` 1.5.0.
+- 2026-10-25 · owner's agent (review) · `save-compaction` reviewed: every reader of the fields compaction drops checked (only scores, penalties and `winnerId` are read back; the match screen uses `lastMatch`/`lastCupMatch`); real saves from `3e9a594` (a Season at matchweek 10 parked with a Dynasty in its second season, 2.1 M characters) load, render identically and play on, and an old export imports; stored sizes 81 K and 84 K at the two Dynasty season ends with a Season parked. Docs and comments now describe the write delay as it works (one write 250 ms after a change, carrying the latest state), not as a quiet-period debounce.
