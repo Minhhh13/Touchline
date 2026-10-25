@@ -13,7 +13,7 @@ A free web football game that fuses the wheel draft of **38-0** with the depth o
 ## 2. What it does today
 
 **Modes**
-- **Quick Draft** (the 38-0 mode): 11 spins, simulate 38 matches in one click, share the result.
+- **Quick Draft** (the 38-0 mode): draft an XI in 11 picks (two re-spins), simulate the whole league season in one click, share the result.
 - **Daily Challenge**: the same wheel for everyone each day (UTC), with streaks.
 - **Season**: draft 16 to 22 players, then manage every matchweek: friendlies, live matches, a cup, a January window, a board that can sack you.
 - **Dynasty**: Season mode that never ends: ageing, contracts, retirements, youth intake, summer draft and summer window.
@@ -27,14 +27,14 @@ Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.
 
 ## 3. In progress (not shipped yet)
 
-Each item lives on its own branch until it is merged into the working branch and then `main`.
+Each item lives on its own branch until it is merged into the working branch and then `main`. On GitHub today there are only `main` (PR #1 merged), the working branch (draft PR #2 into `main`) and `claude/touchline-preview`; the feature branches below are pushed when ready, so ask before starting overlapping work.
 
 | Work | Branch | State |
 | --- | --- | --- |
-| Case-opening reel instead of the wheel; game-by-game quick season | `reel-ui` | Built, waiting to merge |
-| Football Manager depth attributes (stamina, strength, aggression, jumping, work rate) through data, engine and UI | `fm-depth` | In progress; rebuilds the data packs |
+| Case-opening reel instead of the wheel; game-by-game quick season | `reel-ui` | Built, waiting to merge; on the preview site |
+| Football Manager depth attributes (stamina, strength, aggression, jumping, work rate) through data, engine and UI | `fm-depth` | In progress; rebuilds the data packs, ENGINE_VERSION `'4'`; on the preview site |
 | Live match visuals: 2D pitch, momentum, shot map, xG race | `match-visuals` | In progress |
-| Redesign: blue palette, a proper TouchLine logo, cleaner Setup | `redesign` | In progress; previewed on `touchline-preview` |
+| Redesign: blue palette, a proper TouchLine logo, cleaner Setup | `redesign` | In progress |
 | 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
 | "While you were away" digest, coach marks, slot picker | working branch `claude/youthful-mccarthy-a57idu` | In progress |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
@@ -68,7 +68,7 @@ npm run build        # production build into dist/
 npx vite preview --port 4173 --strictPort   # serve the build
 ```
 
-Rebuilding the player data is rarely needed and downloads several GB the first time: `DATA_CACHE=/path/to/datasets node scripts/import/build.mjs` (see [DATA.md](DATA.md)).
+Rebuilding the player data is rarely needed and downloads several large archives the first time: `node scripts/import/build.mjs`, with `DATA_CACHE=/path/to/datasets` to reuse a cache (default `.cache/datasets`; see [DATA.md](DATA.md)).
 
 ## 6. Hosting and backend
 
@@ -79,7 +79,7 @@ Both sites are static sites in the Render project **TouchLine**. That Render wor
 | Service | URL | Tracks | Use |
 | --- | --- | --- | --- |
 | `touchline` | https://touchline-o5ot.onrender.com | `claude/youthful-mccarthy-a57idu` (the working branch) | The live game |
-| `touchline-preview` | https://touchline-preview.onrender.com | `claude/touchline-preview` | Redesign and other previews |
+| `touchline-preview` | https://touchline-preview.onrender.com | `claude/touchline-preview` | Previews of in-progress branches (today `reel-ui` and `fm-depth` merged) |
 
 - Build command `npm ci && npm run build`, publish directory `dist`, no `BASE_PATH`.
 - Auto-deploy on every push to the tracked branch (Render's GitHub app is installed on the repo).
@@ -109,12 +109,12 @@ Both sites are static sites in the Render project **TouchLine**. That Render wor
 - Values and wages are our own model, not real figures.
 - The product name is TouchLine, but many screens, the manifest and the share card still say "Touchline" until the redesign lands.
 - Theme "Auto" always shows the dark theme.
-- Some docs are partly stale (README league list and Node version, DATA.md totals, the "no backend" line in GAME_DESIGN.md section 15).
+- Some docs are partly stale (README's Node version, player-season count and roadmap line; DATA.md's England-only intro and totals; RESEARCH.md section 7).
 - Saves are per browser; clearing site data loses them unless exported from the Record page (cloud saves will fix this).
 
 ## 8. Roadmap at a glance
 
-Tracked as GitHub issues labelled `roadmap`: https://github.com/Minhhh13/Touchline/issues?q=is%3Aissue+label%3Aroadmap
+To be tracked as GitHub issues labelled `roadmap` (the label and the issues do not exist yet; create them first): https://github.com/Minhhh13/Touchline/issues?q=is%3Aissue+label%3Aroadmap
 
 1. Merge the finished branches (reel, FM depth, match visuals) and ship them.
 2. Redesign: blue palette, logo, cleaner Setup.

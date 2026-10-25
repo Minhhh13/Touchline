@@ -45,14 +45,15 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
 
 - `npm ci` install exactly from the lockfile.
 - `npm run dev` Vite dev server (no service worker in dev).
-- `npm test` Vitest over `src/**/*.test.ts` (about 40 s); `npx vitest run src/engine` or `src/game` for one area.
+- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 143 tests); `npx vitest run src/engine` or `src/game` for one area.
 - `npm run typecheck` `tsc -b --noEmit`. `npm run lint` is the same command; there is no ESLint or Prettier.
 - `npm run build` `tsc -b && vite build` into `dist/` (what Render runs).
 - `npx vite preview --port 4173 --strictPort` serve `dist/` for Playwright smokes and service-worker checks.
-- Rebuild data: `DATA_CACHE=/path/to/datasets node scripts/import/build.mjs`.
-  - Without a cache it downloads several GB of Kaggle archives (EA FC 24/25/26/27 ratings, the European Soccer Database sqlite) plus openfootball results into `.cache/datasets` (gitignored). Needs `unzip` on PATH and `node:sqlite`.
-  - Writes `public/data/**` and a new `generatedAt` stamp. Optional first: `node scripts/import/enrich-nations.mjs` (Wikidata, network).
-  - Large builds may need `NODE_OPTIONS=--max-old-space-size=4096`.
+- Rebuild data: `node scripts/import/build.mjs` (optionally `DATA_CACHE=/path/to/datasets node scripts/import/build.mjs`).
+  - The cache directory is `DATA_CACHE` if set, otherwise `.cache/datasets` (gitignored) (`scripts/import/config.mjs`). `ensureDatasets()` (`download.mjs`) downloads only what is missing there: several large Kaggle archives (EA FC 24/25/26/27 ratings, the European Soccer Database sqlite), unpacked with `unzip`, plus openfootball results files. Needs `unzip` on PATH and Node >= 22.13 for `node:sqlite`.
+  - Writes `public/data/**` with a new `generatedAt` stamp (today's date) and prints per-season counts, unknown nations and warnings.
+  - Nationality enrichment (optional, network): after a build, `node scripts/import/enrich-nations.mjs` reads the built packs, queries Wikidata and writes `scripts/import/nations-override.json`; then rebuild so `build.mjs` applies it.
+  - If the build runs out of memory, raise the heap with `NODE_OPTIONS=--max-old-space-size=4096`.
 
 Before every push: `npm run typecheck && npm test && npm run build`, plus the Playwright smokes for UI changes.
 
@@ -63,7 +64,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 3. **Data order is seed meaning.** `mergeUniverses` concatenates packs in `leagues.json` order. Append new leagues at the end; never reorder. Club ids and player-season ids (`${playerId}@${season}@${clubId}`) are permanent.
 4. **Never change the Daily mapping** (`dailySettings`, `DAILY_FORMATIONS` order, `dailyGameSettings` rules in `src/game/logic/setup.ts`).
 5. **Save compatibility.** New fields on anything persisted (`Game`, `GameSettings`, `Profile`, `Contract`, `DraftRules`, `DraftState`, `SeasonState`, `SquadPlayer`, `MatchInProgress`, `Tactics`, market types) are optional and read with `??` / `??=`. Defaults that must exist go in `normaliseGame` (`src/game/logic/save.ts`). Do not rename or retype fields. Do not change `SAVE_KEY` or persist `version: 1` without a `migrate`; doing so wipes every save. Keep `Game` JSON-serialisable (no Map, Set, class instances, functions).
-6. **Immer.** A recipe must not return a value: `mutate((g) => void (g.x = y))` or a block body. Engine mutators return values (`spin`, `respin`, `placeBid`, `h2hPick`), so call them as statements or with `void`. Return results through an outer `let out`. Never mutate state read from `useStore()` (it is frozen).
+6. **Immer.** A `produce` recipe that mutates its draft must not also return a value (Immer throws). `mutate(fn)` in `store.ts` already wraps `fn` in a block body, so its return value is discarded; direct `produce` calls (the head-to-head actions) need a block body or `void`, as `h2hPick`/`h2hAuto` do. Engine functions that mutate and return (`spin`, `respin`, `h2hSpin` return a `ClubSeason`; `placeBid` a `BidOutcome`) are called as statements inside recipes. Return results through an outer `let out`. Never mutate state read from `useStore()` (it is frozen).
 7. **The universe is read-only.** Never mutate `LoadedUniverse` or a `PlayerSeason` in it. Player changes go into `game.customPlayers`; resolve squad players with `playerLookup(game, u)`, not `u.index`.
 8. **TypeScript strict.** No `any` (none today), no `@ts-ignore`, no unused locals, parameters or imports (`noUnusedLocals`/`noUnusedParameters` fail CI).
 9. **Every behaviour gets a Vitest test**, seeded with a literal string, using real packs via `loadTestUniverse()` (no mocks, no `fetch` in tests). Assert statistical properties over many seeds rather than one outcome.
@@ -97,8 +98,8 @@ Specific recipes: a draft rule (optional `DraftRules` field, apply in `rulesPool
 
 ## Adding a league
 
-1. Add a club array and a `LEAGUES` entry in `scripts/import/clubs-europe.mjs` (id, names, `fc24LeagueId`, every `eaNames` spelling, `euroLeagueId`, openfootball repo/file or `null`). Keep it **last** so existing seeds do not shift.
-2. Rebuild with `DATA_CACHE=... node scripts/import/build.mjs`; read the report (per-season club counts, Unknown nations, Warnings) and fix unknown club names by adding aliases in the club tables.
+1. Add a club array and a `LEAGUES` entry in `scripts/import/clubs-europe.mjs` (spread into the registry in `scripts/import/leagues.mjs` after England) (id, names, `fc24LeagueId`, every `eaNames` spelling, `euroLeagueId`, openfootball repo/file or `null`). Keep it **last** so existing seeds do not shift.
+2. Rebuild with `node scripts/import/build.mjs` (optionally with `DATA_CACHE=...`); read the report (per-season club counts, Unknown nations, Warnings) and fix unknown club names by adding aliases in the club tables.
 3. Update the pinned stamp in `src/engine/__tests__/universe.test.ts`, add a check for the league, run all tests.
 4. Check odd club counts (bye weeks), record books (need tables) and the Continental Cup.
 5. Commit `public/data/**` with `docs/DATA.md` and README counts. Note that existing cross-league challenge links become "unverified".
@@ -113,9 +114,9 @@ Specific recipes: a draft rule (optional `DraftRules` field, apply in `rulesPool
 
 ## Deployment and services
 
-- **Render** static site `touchline` (https://touchline-o5ot.onrender.com) auto-deploys the working branch on every push: build `npm ci && npm run build`, publish `dist`, `BASE_PATH` unset (base `/`). A second site, `touchline-preview`, tracks `claude/touchline-preview` for design previews. Both are in the Render project "TouchLine"; touch nothing else in that workspace.
+- **Render** static site `touchline` (https://touchline-o5ot.onrender.com) auto-deploys the working branch `claude/youthful-mccarthy-a57idu` on every push (not `main`): build `npm ci && npm run build`, publish `dist`, `BASE_PATH` unset (base `/`). A second site, `touchline-preview` (https://touchline-preview.onrender.com), tracks `claude/touchline-preview` for previews of in-progress branches. Both are in the Render project "TouchLine"; touch nothing else in that workspace.
 - Env vars on Render: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (public publishable keys). Vite inlines `VITE_*` at build time, so a change needs a redeploy and anything `VITE_*` is public. Locally put them in `.env.local` (gitignored via `*.local`).
-- **Supabase** project id `yvqpmyqomkwtudxmkeou` (org Team TouchLine, Sydney, Free plan), schema empty today. Migrations go in `supabase/migrations/` and are applied to that project only. RLS on every table; run the security advisors after each change.
+- **Supabase** project id `yvqpmyqomkwtudxmkeou` (org Team TouchLine, Sydney, Free plan), schema empty today. Migrations will go in `supabase/migrations/` (the folder does not exist yet) and are applied to that project only. RLS on every table; run the security advisors after each change.
 - **No secrets in the repo.** The Supabase `service_role` key is never used in the browser, never in a `VITE_` var, never committed. Server-side work (Edge Functions) reads it from Supabase secrets.
 - `.github/workflows/pages.yml` is obsolete (private repo, Render hosts); the reel-ui branch removes it.
 
@@ -138,21 +139,24 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 - `store.merge` spreads persisted state over defaults, so removing a persisted key needs handling in `merge`.
 - `go()` clears `pendingChallenge`; navigating away from Setup drops an opened challenge link.
 - Theme "auto" is not OS-aware (no `prefers-color-scheme` block); auto renders dark.
-- `Rating` renders a bare text node, so `.hidden-ratings` CSS does not hide it; always pass `hideRatings`/`hidden`.
-- Wheel timing: CSS rotor transition 2.3 s, reveal at 2400 ms, `onSettled` at 2500 ms in `Wheel.tsx`; change together.
+- `Rating` (`bits.tsx`) renders the number as a bare text node inside `.rating`, and `.hidden-ratings` only hides `.rating > span`, so the CSS alone does not hide it; always pass `hideRatings`/`hidden`.
+- Wheel timing: the `.wheel-wrap .rotor` transition is 2.3 s in `styles.css`; the reveal (2400 ms) and `onSettled` (2500 ms) timers are in `Wheel.tsx`; change them together.
 - `public/sw.js` must keep the literal `__BUILD__` (stamped at build) and relative paths. Packs are unhashed and served stale-while-revalidate, so pack-shape changes must tolerate one old visit.
 - `tsconfig.*.tsbuildinfo` are committed and rewritten by `tsc -b`: expect noise and conflicts; take either side and rebuild.
 - `signYouth` hardcodes 23 instead of `SQUAD_CAP`; change both.
 - `finishSeason` parses `awards.goldenBoot.value` as `"<n> goals"`; changing award strings breaks achievements.
 - France, the Netherlands and Portugal have no tables (no record book, flat wheel weight).
-- Some docs are stale (README league list and Node version, DATA.md totals, GAME_DESIGN section 15 "no backend", RESEARCH section 7). Fix what you touch.
+- Some docs are stale (README: "Node 20 or later", the 69,118 player-season count (69,155 today) and the roadmap line listing Portugal and the Netherlands as future; DATA.md: the England-only intro and totals, and the note that `.cache` is not in `.gitignore`; RESEARCH section 7 lists youth intake, loans, staff and press conferences as not taken). Fix what you touch.
 
 ## Work in progress (not shipped; check branches before overlapping)
 
-- `reel-ui`: case-opening reel and game-by-game quick season (`logic/gameByGame.ts`), retires `pages.yml`.
-- `fm-depth`: stamina, strength, aggression, jumping, work rate; players.json format 3; ENGINE_VERSION 4 expected.
+On GitHub today: `main` (PR #1 merged), the working branch `claude/youthful-mccarthy-a57idu` (draft PR #2 into `main`) and `claude/touchline-preview`. The feature branches below are not on GitHub until they are pushed; ask the owner before overlapping them.
+
+
+- `reel-ui`: case-opening reel and game-by-game quick season (adds `logic/gameByGame.ts`), retires `pages.yml`.
+- `fm-depth`: stamina, strength, aggression, jumping, work rate (`src/engine/depth.ts`); rebuilt packs with players.json `version: 3`; bumps ENGINE_VERSION to `'4'`.
 - `match-visuals`: live 2D pitch, momentum, shot map, xG race (MatchScreen, MatchTicker).
 - `redesign`: blue palette, TouchLine logo (styles.css tokens, App brand, manifest, shareCard).
-- `replica-setup`: 38-0 style setup (difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets); rewrites Setup.tsx, adds `DraftRules` fields.
+- `replica-setup`: 38-0 style setup (difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets); expected to rewrite Setup.tsx and add `DraftRules` fields.
 - Working branch: "while you were away" digest, coach marks, slot picker.
 - Planned: online layer on Supabase (accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms) and casual modes.

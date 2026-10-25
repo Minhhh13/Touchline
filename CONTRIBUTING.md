@@ -6,9 +6,9 @@ Two people work on this repo in parallel, each with their own AI coding agent. T
 
 - All work starts from a GitHub issue: https://github.com/Minhhh13/Touchline/issues
 - Labels:
-  - Type: `enhancement`, `bug`, `documentation`.
-  - Area (create them as needed): `area:engine`, `area:game`, `area:ui`, `area:data`, `area:online`, `area:infra`.
-  - `roadmap` for planned features, `good first issue` for small self-contained tasks, `help wanted` when the owner of an area wants a second pair of hands.
+  - Type (these exist): `enhancement`, `bug`, `documentation`.
+  - Area (not created yet; create them as needed): `area:engine`, `area:game`, `area:ui`, `area:data`, `area:online`, `area:infra`.
+  - `roadmap` for planned features (not created yet), `good first issue` for small self-contained tasks, `help wanted` when the owner of an area wants a second pair of hands (both exist).
 - Prefer issues in an area nobody else is working in this week (see section 4).
 - No issue for what you want to do? Open one first with a short description and the files you expect to touch.
 
@@ -36,7 +36,7 @@ These files conflict constantly. Before touching one, check open PRs and say so 
 | `src/game/store.ts` | Every feature adds an action | Add actions at the end of their group; keep logic in `src/game/logic` |
 | `src/game/types.ts` | Every feature adds a save field | Append optional fields with a doc comment; never reorder |
 | `src/ui/screens/Dugout.tsx` | The season hub; 1,200+ lines of long JSX lines | Put new tabs and panels in their own file under `screens/` |
-| `src/ui/screens/Setup.tsx` | Rewritten by the 38-0 setup work | Coordinate first |
+| `src/ui/screens/Setup.tsx` | Due to be rewritten by the 38-0 setup work (`replica-setup`) | Coordinate first |
 | `src/engine/match.ts` | Touched by match depth and visuals; ENGINE_VERSION | One match change in flight at a time |
 | `src/game/logic/week.ts`, `quick.ts` | The season loop | Small, surgical hooks |
 | `public/data/**`, `tsconfig.*.tsbuildinfo` | Generated | See section 7 |
@@ -50,7 +50,7 @@ Run all of these locally; CI runs the same four on every push and PR:
 ```bash
 npm ci                 # after pulling a lockfile change
 npm run typecheck      # tsc strict: no any, no unused symbols
-npm test               # Vitest, real data packs, about 40 s
+npm test               # Vitest, real data packs, about 25 s
 npm run build          # what Render runs
 ```
 
@@ -77,7 +77,7 @@ Also check:
   - UI: phone width, both themes, hidden ratings stay hidden.
 - Pull the branch and play the feature on `npm run dev` for anything visible.
 - Merge with "Squash and merge" or "Create a merge commit" once approved and green. Delete the branch afterwards.
-- Render auto-deploys the tracked branch, so a merge there is live within minutes. Check the site after merging.
+- Render deploys the working branch `claude/youthful-mccarthy-a57idu`, not `main`: a push there is live within minutes, while a merge into `main` changes nothing on the live site until Render is switched to `main` (see docs/HANDOVER.md). Check the site after anything reaches the tracked branch.
 
 ## 7. Data-pack conflicts
 
@@ -85,7 +85,7 @@ Also check:
 
 1. Resolve conflicts in `scripts/import/*` (the source of truth) and in code.
 2. Take either side of the JSON (`git checkout --theirs public/data`) just to finish the merge.
-3. Rebuild on the merged pipeline: `DATA_CACHE=/path/to/datasets node scripts/import/build.mjs`.
+3. Rebuild on the merged pipeline: `node scripts/import/build.mjs` (set `DATA_CACHE=/path/to/datasets` to reuse a download cache; otherwise it uses `.cache/datasets`).
 4. Update the pinned `generatedAt` in `src/engine/__tests__/universe.test.ts`, run `npm test`, and commit the rebuilt packs in one commit ("Rebuild data packs after merging X").
 
 For `tsconfig.app.tsbuildinfo` / `tsconfig.node.tsbuildinfo`: take either side and run `npm run build`.
