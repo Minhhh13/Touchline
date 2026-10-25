@@ -14,7 +14,7 @@
  * draft the way the store does, one `spin` per history row.
  */
 import type { DraftRules, DraftState } from './draft'
-import { DIFFICULTIES, DRAFT_MODES, QUICK_RULES, RATINGS_MODES, canSpin, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
+import { DIFFICULTIES, DRAFT_MODES, QUICK_RULES, RATINGS_MODES, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
 import type { SeasonTier } from './types'
@@ -85,20 +85,33 @@ export function historyKey(history: Array<{ clubId: string; season: number }>): 
   return hashString(history.map((h) => `${h.clubId}@${h.season}`).join(',')).toString(36)
 }
 
-/** The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`). */
+/** Re-spins a quick draft had before difficulties existed; a link made then carries no `difficulty`. */
+export const LEGACY_QUICK_RESPINS = 2
+
+/**
+ * The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`).
+ * The difficulty is always written, even at the default, so a link made before difficulties existed
+ * (no `difficulty` key) can be told apart and opened with the re-spins its challenger had.
+ */
 export function rulesDiff(rules: DraftRules, base: DraftRules = QUICK_RULES): Partial<DraftRules> {
-  const out: Partial<DraftRules> = {}
+  const out: Partial<DraftRules> = { difficulty: difficultyOf(rules) }
   const b = base as unknown as Record<string, unknown>
   for (const [key, value] of Object.entries(rules) as Array<[keyof DraftRules, unknown]>) {
-    if (key === 'leagues' || value === undefined) continue
+    if (key === 'leagues' || key === 'difficulty' || value === undefined) continue
     if (b[key] !== value) (out as Record<string, unknown>)[key] = value
   }
   return out
 }
 
-/** The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. */
+/**
+ * The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. A diff without a
+ * difficulty comes from a link made before difficulties: its draft had `LEGACY_QUICK_RESPINS`
+ * re-spins unless it says otherwise, and its hard mode reads as hard.
+ */
 export function rulesFromPayload(c: ChallengePayload): DraftRules {
-  return { ...QUICK_RULES, ...c.s.r, leagues: c.s.wl }
+  const r = c.s.r
+  const legacy: Partial<DraftRules> = r.difficulty === undefined ? { respins: LEGACY_QUICK_RESPINS, difficulty: r.hardMode ? 'hard' : 'normal', ...(r.hardMode ? { showRatings: false } : {}) } : {}
+  return { ...QUICK_RULES, ...legacy, ...r, leagues: c.s.wl }
 }
 
 /** A draft's history as payload rows: the real player id of each pick (or null) and its slot. */

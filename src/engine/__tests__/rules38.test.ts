@@ -167,7 +167,7 @@ describe('position first', () => {
       expect(Object.keys(d.lineup).length).toBe(11)
       expect(new Set(d.usedClubSeasons).size).toBe(11)
     }
-  })
+  }, 30000) // 40 drafts with a re-spin each: about 3 s alone, slower while the other files run beside it
 
   it('works with one club, reopening used club-seasons when a slot needs them', () => {
     for (let i = 0; i < 6; i++) {
@@ -261,7 +261,7 @@ describe('prime ratings', () => {
     expect(u.index[mover.id].overall).toBe(mover.overall)
   })
 
-  it('looks across every loaded league: a player who moved has his best season from either', () => {
+  it('looks across the leagues it is given: a player who moved has his best season from either', () => {
     const england = loadTestUniverse()
     let found = false
     for (const p of Object.values(u.index)) {
@@ -269,9 +269,34 @@ describe('prime ratings', () => {
       const e = primeOf(england, p.playerId)!.overall
       const all = primeOf(u, p.playerId)!.overall
       expect(all).toBeGreaterThanOrEqual(e)
+      expect(primeOf(u, p.playerId, ['england', 'spain'])!.overall).toBe(all)
       if (all > e) found = true
     }
     expect(found).toBe(true)
+  })
+
+  it('depends on the wheel leagues, not on what else is loaded, so two devices rate a draft alike', () => {
+    // England alone, and England with La Liga loaded on the side: the England wheel rates every player the same
+    const england = loadTestUniverse()
+    let differs = 0
+    for (const p of Object.values(england.index)) {
+      const alone = primed(england, p, ['england'])
+      const beside = primed(u, u.index[p.id], ['england'])
+      expect(beside.overall).toBe(alone.overall)
+      expect(beside.attributes).toEqual(alone.attributes)
+      expect(primeLookup(u, p.id, ['england'])!.overall).toBe(alone.overall)
+      if (primed(u, u.index[p.id], ['england', 'spain']).overall !== alone.overall) differs++
+    }
+    // The two-league wheel does lift some England player-seasons with a better season in Spain
+    expect(differs).toBeGreaterThan(0)
+  })
+
+  it('keeps a player with a single season at that season', () => {
+    const seasons = new Map<string, number>()
+    for (const p of Object.values(u.index)) seasons.set(p.playerId, (seasons.get(p.playerId) ?? 0) + 1)
+    const once = Object.values(u.index).find((p) => seasons.get(p.playerId) === 1)!
+    expect(primeOf(u, once.playerId)!.id).toBe(once.id)
+    expect(primed(u, once)).toBe(once)
   })
 })
 

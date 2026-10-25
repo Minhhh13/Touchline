@@ -239,9 +239,9 @@ export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'
   return candidateSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
 }
 
-/** A player's rating under the draft's ratings rule: his career best under Prime, that season's otherwise. */
+/** A player's rating under the draft's ratings rule: his career best in the wheel leagues under Prime, that season's otherwise. */
 export function draftRating(u: LoadedUniverse, d: DraftState, p: PlayerSeason): number {
-  return ratingsModeOf(d.rules) === 'prime' ? primeOf(u, p.playerId)?.overall ?? p.overall : p.overall
+  return ratingsModeOf(d.rules) === 'prime' ? Math.max(p.overall, primeOf(u, p.playerId, d.rules.leagues)?.overall ?? p.overall) : p.overall
 }
 
 /**

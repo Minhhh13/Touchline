@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
-import { QUICK_RULES, autoDraft, chooseSlot, isComplete, pick, respin, spin, canUse, eligibleSlots, withDifficulty, type DraftRules } from '@engine/draft'
+import { QUICK_RULES, autoDraft, difficultyOf, ratingsHidden, chooseSlot, isComplete, pick, respin, spin, canUse, eligibleSlots, withDifficulty, type DraftRules } from '@engine/draft'
 import { primed } from '@engine/prime'
-import { rulesFromPayload } from '@engine/challenge'
+import { LEGACY_QUICK_RESPINS, decodeChallenge, encodeChallenge, rulesFromPayload } from '@engine/challenge'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
 import { createGame } from '../logic/setup'
 import { runQuickSeason } from '../logic/quick'
@@ -93,6 +93,8 @@ describe('the Daily', () => {
     expect(a.rules.onlyNation).toBeUndefined()
     // Every rule key is written out, so no default can leak in
     for (const key of ['squadSize', 'respins', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists', 'difficulty', 'showRatings', 'draftMode', 'ratings', 'leagues'] as const) expect(Object.prototype.hasOwnProperty.call(DAILY_RULES, key) && DAILY_RULES[key] !== undefined, key).toBe(true)
+    // DAILY_RULES spreads nothing, so a rule added to the quick defaults fails here until the Daily pins it
+    for (const key of Object.keys(QUICK_RULES)) expect(Object.prototype.hasOwnProperty.call(DAILY_RULES, key), key).toBe(true)
     expect(a.difficulty).toBe('calibrated')
     expect(a.leagueId).toBe('england')
     expect(u.clubSeasonByKey[`${a.host}@${a.season}`]?.complete).toBe(true)
@@ -118,7 +120,7 @@ describe('prime ratings in a quick game', () => {
     const get = playerLookup(prime, u)
     let lifted = 0
     for (const id of Object.values(base.draft!.lineup)) {
-      expect(get(id)!.overall).toBe(primed(u, u.index[id]).overall)
+      expect(get(id)!.overall).toBe(primed(u, u.index[id], prime.settings.rules.leagues).overall)
       expect(get(id)!.overall).toBeGreaterThanOrEqual(u.index[id].overall)
       if (get(id)!.overall > u.index[id].overall) lifted++
     }
@@ -194,6 +196,29 @@ describe('position first through the game', () => {
     expect(d.history[1].slotId).toBe(gk.id)
     expect(isComplete(d)).toBe(true)
     useStore.setState({ universe: null, loadedLeagues: [], game: null, toast: null })
+  })
+})
+
+describe('links made before difficulties', () => {
+  it('open with the two re-spins the challenger had, hard mode reading as hard, and still verify', () => {
+    const g = autoGame({ ...QUICK_RULES }, 'LEGACY-LINK')
+    const c = challengeFromGame(g, u, 'Minh')!
+    // A new link always names its difficulty
+    expect(c.s.r.difficulty).toBe('normal')
+    expect(rulesFromPayload(c).respins).toBe(QUICK_RULES.respins)
+    // The same link as an older build wrote it: no difficulty in the diff
+    const older = { ...c.s.r }
+    delete older.difficulty
+    const legacy = decodeChallenge(encodeChallenge({ ...c, s: { ...c.s, r: older } }))
+    expect(LEGACY_QUICK_RESPINS).toBe(2)
+    expect(rulesFromPayload(legacy)).toMatchObject({ respins: 2, difficulty: 'normal' })
+    const hard = rulesFromPayload({ ...legacy, s: { ...legacy.s, r: { hardMode: true } } })
+    expect(difficultyOf(hard)).toBe('hard')
+    expect(ratingsHidden(hard)).toBe(true)
+    expect(hard.respins).toBe(2)
+    // A re-spin budget the old link wrote out is kept
+    expect(rulesFromPayload({ ...legacy, s: { ...legacy.s, r: { respins: 0 } } }).respins).toBe(0)
+    expect(replayChallenge(u, legacy).verified).toBe('yes')
   })
 })
 

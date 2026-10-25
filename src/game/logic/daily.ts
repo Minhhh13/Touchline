@@ -1,17 +1,21 @@
 import type { LoadedUniverse } from '@engine/universe'
-import { QUICK_RULES, withDifficulty, type DraftRules } from '@engine/draft'
+import type { DraftRules } from '@engine/draft'
 
 /** Shapes the Daily rotates through, one a day. */
 export const DAILY_FORMATIONS: readonly string[] = ['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '4-4-2-diamond']
 
 /**
- * The Daily's draft rules, pinned in full so a later change to `QUICK_RULES` or a new option can
- * never make two players' Dailies differ: normal difficulty (1 re-spin), ratings shown, Squad First,
- * season ratings, twists on, all-time, every club and nationality, the Premier League wheel.
+ * The Daily's draft rules, written out in full (nothing spread from `QUICK_RULES` or the difficulty
+ * table) so a later change to the quick defaults can never make two players' Dailies differ: normal
+ * difficulty (1 re-spin), ratings shown, Squad First, season ratings, twists on, all-time, every club
+ * and nationality, the Premier League wheel. A new rule must be added here; a test checks that every
+ * key of `QUICK_RULES` is.
  */
 export const DAILY_RULES: DraftRules = {
-  ...withDifficulty(QUICK_RULES, 'normal'),
   squadSize: 11,
+  respins: 1,
+  difficulty: 'normal',
+  hardMode: false,
   minFit: 'accomplished',
   uniqueClubSeasons: true,
   twists: true,

@@ -53,8 +53,9 @@ describe('challenge links', () => {
     const g = autoGame({ rules: { ...QUICK_RULES, leagues: ['england'], fromSeason: 2014, hardMode: true, onlyClub: undefined } })
     const c = challengeFromGame(g, u, '  Minh\u0007 the Gaffer with a very long name  ')!
     expect(c).not.toBeNull()
-    expect(c.s.r).toEqual({ fromSeason: 2014, hardMode: true })
-    expect(rulesDiff(QUICK_RULES)).toEqual({})
+    expect(c.s.r).toEqual({ difficulty: 'hard', fromSeason: 2014, hardMode: true })
+    // The difficulty is always written, so a link from before difficulties is told apart
+    expect(rulesDiff(QUICK_RULES)).toEqual({ difficulty: 'normal' })
     const encoded = encodeChallenge(c)
     expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/)
     // Real player ids and a rules diff keep an eleven-pick link well under a thousand characters
@@ -66,7 +67,7 @@ describe('challenge links', () => {
     expect(back.k).toBe(c.k)
     expect(back.c).toEqual(c.c)
     expect(back.s).toEqual(c.s)
-    expect(rulesFromPayload(back)).toEqual({ ...QUICK_RULES, fromSeason: 2014, hardMode: true, leagues: ['england'] })
+    expect(rulesFromPayload(back)).toEqual({ ...QUICK_RULES, difficulty: 'hard', fromSeason: 2014, hardMode: true, leagues: ['england'] })
     // The fragment form and the bare form both decode
     expect(decodeChallenge(`#c=${encoded}`)).toEqual(back)
     expect(challengeLink(c, 'https://example.test', '/touchline/')).toBe(`https://example.test/touchline/#c=${encoded}`)

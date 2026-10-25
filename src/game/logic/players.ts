@@ -7,11 +7,14 @@ import { primeLookup } from '@engine/prime'
 /**
  * Player lookup that sees game-created players (dynasty progression, free agents) first. Under the
  * Prime ratings rule every real player-season comes back at its player's career-best overall and
- * attributes (`src/engine/prime.ts`), so the draft list, team strength and the quick season all
- * rate him there; game-created players are never re-rated.
+ * attributes in the draft's wheel leagues (`src/engine/prime.ts`), so the draft list, team strength
+ * and the quick season all rate him there; game-created players are never re-rated.
  */
 export function playerLookup(game: Game, u: LoadedUniverse): (id: string) => PlayerSeason | undefined {
-  if (ratingsModeOf(game.settings.rules) === 'prime') return (id: string) => game.customPlayers[id] ?? primeLookup(u, id)
+  if (ratingsModeOf(game.settings.rules) === 'prime') {
+    const leagues = game.settings.rules.leagues
+    return (id: string) => game.customPlayers[id] ?? primeLookup(u, id, leagues)
+  }
   return (id: string) => game.customPlayers[id] ?? u.index[id]
 }
 
