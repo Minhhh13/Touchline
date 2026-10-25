@@ -270,6 +270,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     const ball: BallMotion = kept.motion ?? { p: kept.ball, slow: kept.ball, lean: kept.ball, u: 0, v: 0, last: 0 }
     kept.motion = ball
     ball.last = 0
+    /** A new segment that finds the ball far from its kick-off (the second half): it rolls to the spot over a moment rather than snapping there. */
+    let settleUntil = -1
     /** The first frame of a brand-new match places everyone; after that a man new to the pitch walks on. */
     let first = shown.size === 0
     const entered = new Map<string, number>()
@@ -321,7 +323,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       }
       // The ball on screen eases after its path lightly at 1x and more at speed, where a hop lasts a few
       // frames: at 4x it rounds the corners of the path rather than hopping, so nothing jumps
-      const tauBall = s.speed >= 4 ? 85 : s.speed >= 2 ? 38 : 14
+      if (settleUntil < 0) settleUntil = ball.p && Math.hypot(ball.p.x - target.x, ball.p.y - target.y) > 8 ? now + 900 : 0
+      const tauBall = Math.max(s.speed >= 4 ? 85 : s.speed >= 2 ? 38 : 14, now < settleUntil ? 160 : 0)
       const prevBall = ball.p ?? target
       const cur: P = snapBall || !ball.p ? target : { x: approach(prevBall.x, target.x, dt, tauBall), y: approach(prevBall.y, target.y, dt, tauBall) }
       ball.p = cur
