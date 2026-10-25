@@ -1,8 +1,6 @@
 import type { Formation, PlayerSeason, SquadPlayer } from '@engine/types'
 import { describeFit, positionFactor } from '@engine/positions'
-
-const FIT_AMBER = 'rgba(245,197,66,0.9)'
-const FIT_RED = 'rgba(239,83,80,0.9)'
+import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
 
 export interface PitchProps {
   formation: Formation
@@ -40,12 +38,14 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const eff = p ? Math.round(p.overall * pf) : 0
         // Accomplished is a small out-of-position cost (amber, acc.); awkward or worse a big one (red, awk.)
         const fit = p ? describeFit(p, slot.position) : 'natural'
+        // The fit colour gives way to the injured/suspended red ring and the selected/eligible highlights; the label still names the fit
+        const ring = p ? fitRingColour(fit, { warn, highlighted: !!eligible || selectedSlot === slot.id }) : undefined
         // y is from own goal (bottom) to opposition goal (top)
         const left = `${slot.x}%`
         const top = `${100 - slot.y}%`
         return (
           <div key={slot.id} className="slot" style={{ left, top }} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
-            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={p && fit !== 'natural' ? { borderColor: fit === 'accomplished' ? FIT_AMBER : FIT_RED } : undefined}>
+            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={ring ? { borderColor: ring } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
             </div>
             <div className="label">{p ? p.name : ''}</div>

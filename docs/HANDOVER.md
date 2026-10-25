@@ -23,6 +23,8 @@ A free web football game that fuses the wheel draft of **38-0** with the depth o
 
 **Management systems**: 34 roles and six team instructions, an xG match engine with live stops at half time and the 70th minute (talks, subs, touchline shouts), condition / sharpness / morale / familiarity, injuries and suspensions, training focus, squad status and playing time, player conversations, captain and set-piece takers, backroom staff, man-marking, press conferences and dressing-room events, the assistant's briefing, a domestic cup and an optional Continental Cup, a transfer market with bids, loans and part-exchange, finances, board objectives, in-season development, awards, 19 achievements, record books against real seasons, a share card, save export / import.
 
+**Help on the page**: seven one-time coach marks (draft reveal, bench picks, Squad and Tactics tabs, half time, match report, market), each gone after Got it and brought back by Show tips again on the Record page; a Key chip on the Squad panel labels the condition, morale and sharpness bars and adds a pitch legend.
+
 Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.md](DATA.md). Design research: [RESEARCH.md](RESEARCH.md).
 
 ## 3. In progress (not shipped yet)
@@ -37,7 +39,8 @@ Each item lives on its own branch until it is merged into the working branch and
 | Redesign: blue palette, a proper TouchLine logo, cleaner Setup | `redesign` | In progress |
 | 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
 | "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch (live site) |
-| Coach marks, slot picker | working branch `claude/youthful-mccarthy-a57idu` | In progress |
+| Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch |
+| Slot picker | working branch `claude/youthful-mccarthy-a57idu` | In progress |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
 | Casual modes | not started in code | Designed |
 
@@ -134,3 +137,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 
 - 2026-10-25 · owner's agent · Handover written: CLAUDE.md, AGENTS.md, CONTRIBUTING.md, this page, a pull-request template, and roadmap issues #3 to #20 with area, size and status labels.
 - 2026-10-25 · owner's agent · "While you were away" digest shipped on the working branch; the preview site (`claude/touchline-preview`) carries the case-opening reel, the game-by-game quick season and the Football Manager depth attributes merged together (`ENGINE_VERSION` `'4'` there).
+- 2026-10-25 · owner's agent · Coach marks and the Key shipped on the working branch: seven first-time tips saved on the profile (`seenTips`), Show tips again on the Record page, and a Key chip that labels the state bars and draws a pitch legend; an injured or suspended player's red ring now wins over the fit colour on the pitch.
