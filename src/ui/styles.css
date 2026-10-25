@@ -268,7 +268,8 @@ p {
     font-size: 16px;
   }
   .page.has-bottom-bar {
-    padding-bottom: 150px;
+    /* The fixed bar's measured height plus a gap; 150px until it is measured */
+    padding-bottom: calc(var(--bottom-bar-h, 130px) + 20px);
   }
   .bottom-bar {
     position: fixed;

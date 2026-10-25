@@ -1,7 +1,7 @@
 import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { newDraft, QUICK_RULES } from '@engine/draft'
+import { newDraft, QUICK_RULES, SEASON_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
 import { newSquadPlayer, buildAiClubs, buildContinentalClubs, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
@@ -94,7 +94,8 @@ export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'T
 /**
  * One line stating every choice a game will start with, so the ones folded away under More options are still read:
  * "Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
- * the defaults (European Nights, era, one club or nation, hard mode, twists, squad size, job security, Europe).
+ * the defaults (European Nights, era, one club or nation, hard mode, twists changed from the mode's default, squad
+ * size, job security, Europe).
  */
 export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
@@ -105,8 +106,10 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) parts.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
   if (r.hardMode) parts.push('hard mode')
-  if (r.twists) parts.push('twists')
   const manage = s.mode === 'season' || s.mode === 'dynasty'
+  // Twists are on by default for a quick draft and off for a managed season: only a change from that is worth a word
+  const twistsDefault = !!(manage ? SEASON_RULES.twists : QUICK_RULES.twists)
+  if (!!r.twists !== twistsDefault) parts.push(r.twists ? 'twists' : 'no twists')
   if (manage) {
     parts.push(`squad of ${r.squadSize}`)
     if (!s.jobSecurity) parts.push('no sack')

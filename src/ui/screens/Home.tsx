@@ -1,4 +1,4 @@
-import { useStore, todaysDailySeed } from '@game/store'
+import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
@@ -13,6 +13,17 @@ export function Home() {
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
   const daily = dailyReady ? dailySettings(u, todaysDailySeed()) : null
+  // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
+  const dailyUnderWay = !!game && game.settings.mode === 'daily' && game.settings.seed === todaysDailySeed() && game.phase !== 'summary'
+  const playDaily = () => {
+    if (!u || !dailyReady) return
+    if (dailyUnderWay) {
+      go('game')
+      return
+    }
+    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    startGame(dailyGameSettings(u, todaysDailySeed()))
+  }
   return (
     <div className="page">
       <section className="hero">
@@ -90,8 +101,8 @@ export function Home() {
             </p>
             <span className="foot">{dailyDone ? `Played today · streak ${profile.dailyStreak}` : profile.dailyStreak ? `Streak ${profile.dailyStreak}` : 'New puzzle every day'} · tap to name your team</span>
           </button>
-          <button type="button" className="btn primary block" disabled={!u || !dailyReady} onClick={() => u && startGame(dailyGameSettings(u, todaysDailySeed()))} data-testid="daily-play">
-            {!dailyReady ? 'Loading…' : dailyDone ? 'Play it again' : "Play today's puzzle"}
+          <button type="button" className="btn primary block" disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
+            {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
           </button>
         </div>
         <button className="mode-card" onClick={() => go('setup', 'season')}>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { dailyGameSettings, dailySettings, defaultHostClub, shortNameFor, summariseSetup } from '@game/logic/setup'
@@ -82,6 +82,16 @@ export function Setup() {
   const [squadSize, setSquadSize] = useState(18)
   const [advanced, setAdvanced] = useState(readAdvanced)
   const moreRef = useRef<HTMLDivElement>(null)
+  // On a phone the start bar is fixed over the page, so the page's bottom padding follows the bar's measured height
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barHeight, setBarHeight] = useState(0)
+  useEffect(() => {
+    const el = barRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setBarHeight(Math.ceil(el.getBoundingClientRect().height)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [u])
 
   const seasons = useMemo(() => (u ? [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
@@ -173,7 +183,7 @@ export function Setup() {
   const ready = fixed ? fixedReady : leagueReady
 
   return (
-    <div className="page has-bottom-bar">
+    <div className="page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="row between wrap" style={{ marginBottom: 12 }}>
         <h1>{challenge ? 'Challenge' : MODE_TITLE[mode]}</h1>
         <button className="btn ghost" onClick={() => go('home')}>
@@ -415,7 +425,7 @@ export function Setup() {
               <p className="help">{isManage ? 'You can change shape later, at a small cost to familiarity.' : 'The wheel only offers players who can fill a slot you still need.'}</p>
             </div>
           )}
-          <div className="bottom-bar">
+          <div className="bottom-bar" ref={barRef}>
             <div className="small muted" data-testid="setup-summary">
               {summary}
               {!fixed && (
