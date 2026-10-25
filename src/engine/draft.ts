@@ -10,7 +10,7 @@
  *  - optional twists: every third spin is a golden, basement, blind or decade spin.
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
-import type { Rng } from './rng'
+import { Rng, type RngState } from './rng'
 import { canCover, describeFit, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
 import { primeOf } from './prime'
@@ -49,6 +49,12 @@ export interface DraftRules {
   draftMode?: DraftMode
   /** Rate players as they were that season (default) or at their career best (`src/engine/prime.ts`). */
   ratings?: RatingsMode
+  /**
+   * Quick Draft bench places (0 to `QUICK_BENCH_MAX`, none when absent). Any Squad First pick may go to the bench while
+   * it has room, the XI is still filled first-to-last by the wheel as without a bench, and the draft may close once the
+   * XI is full with bench places to spare. Bench spins after the XI draw from their own stream (`DraftState.benchRng`).
+   */
+  benchPicks?: number
 }
 
 export type DraftDifficulty = 'easy' | 'normal' | 'hard'
@@ -145,6 +151,13 @@ export interface DraftState {
    * with someone usable there, the pick must go into it, and a re-spin keeps it. Null or absent otherwise.
    */
   target?: string | null
+  /** Quick bench: the manager closed the draft with bench places to spare (`closeBench`). Absent otherwise. */
+  benchClosed?: boolean
+  /**
+   * Quick bench: the stream the spins after the XI is full draw from, forked off a copy of the game's stream at the
+   * first such spin, so the season (which starts from the game's stream) is the same however many bench spins follow.
+   */
+  benchRng?: RngState
 }
 
 export function newDraft(formation: Formation, rules: DraftRules): DraftState {
@@ -193,7 +206,53 @@ export function picksMade(d: DraftState): number {
 }
 
 export function isComplete(d: DraftState): boolean {
+  if (hasQuickBench(d)) return !fillingXI(d) && (d.bench.length >= benchPlaces(d.rules) || !!d.benchClosed)
   return picksMade(d) >= d.rules.squadSize
+}
+
+/** Most bench places a Quick Draft may have. */
+export const QUICK_BENCH_MAX = 5
+
+/** The Quick Draft bench places a set of rules gives: `benchPicks` within 0 to 5. */
+export function benchPlaces(rules: DraftRules): number {
+  return Math.max(0, Math.min(QUICK_BENCH_MAX, Math.floor(rules.benchPicks ?? 0)))
+}
+
+function hasQuickBench(d: DraftState): boolean {
+  return benchPlaces(d.rules) > 0
+}
+
+/**
+ * Whether a pick may go to the bench right now. A squad draft (Season, Dynasty) benches only after the XI is full;
+ * a Quick Draft with bench places benches at any point while there is room, except while a Position First spin is
+ * filling the slot chosen for it.
+ */
+export function benchRoom(d: DraftState): boolean {
+  if (isComplete(d)) return false
+  if (hasQuickBench(d)) return d.bench.length < benchPlaces(d.rules) && !positionFirst(d)
+  return !fillingXI(d)
+}
+
+/** Whether this player could be sent to the bench from the current spin. */
+export function canBench(d: DraftState, p: PlayerSeason): boolean {
+  return benchRoom(d) && !d.takenPlayers.includes(p.playerId) && nationAllows(d, p)
+}
+
+/** Quick bench: the XI is full and bench places are left, so the manager may stop drafting. */
+export function canCloseBench(d: DraftState): boolean {
+  return hasQuickBench(d) && !fillingXI(d) && !isComplete(d)
+}
+
+/**
+ * Quick bench: close the draft with bench places to spare. A spin still showing is logged as a skipped row (it drew
+ * from the bench stream, so a challenge replay spins it too). No RNG.
+ */
+export function closeBench(d: DraftState): void {
+  if (!canCloseBench(d)) throw new Error(fillingXI(d) ? 'Fill your starting XI first' : 'The draft is already complete')
+  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, skipped: true, ...(d.twist ? { twist: d.twist } : {}) })
+  d.current = null
+  d.twist = null
+  d.benchClosed = true
 }
 
 /** Whether we are still filling the XI (true) or the bench (false). */
@@ -325,8 +384,11 @@ export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): vo
  * by it. A blind spin is always possible, so a twist spin always has a twist.
  * The candidate check narrows one rules pool four times rather than rebuilding it.
  */
-export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
+export function spin(u: LoadedUniverse, d: DraftState, main: Rng): ClubSeason {
   if (positionFirst(d) && !targetSlot(d)) throw new Error('Choose a slot first')
+  // Quick bench spins after the XI draw from the draft's own bench stream and leave the game's stream where the XI left it
+  const benchSpin = hasQuickBench(d) && !fillingXI(d)
+  const rng = benchSpin ? (d.benchRng ? Rng.fromState(d.benchRng) : Rng.fromState(main.getState()).fork('bench')) : main
   d.twist = null
   // One expensive pass; each twist's wheel is that pool narrowed, exactly what `wheelPool` would return with the twist set
   const base = rulesPool(u, d)
@@ -348,6 +410,7 @@ export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
   })
   d.current = { clubId: chosen.clubId, season: chosen.season }
   d.spins++
+  if (benchSpin) d.benchRng = rng.getState()
   return chosen
 }
 
@@ -369,8 +432,8 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
   if (!nationAllows(d, p)) throw new Error(`${p.name} is not ${u.nations[d.rules.onlyNation ?? '']?.name ?? d.rules.onlyNation}`)
   if (slotId === 'bench') {
-    if (fillingXI(d)) throw new Error('Fill your starting XI first')
     if (isComplete(d)) throw new Error('Squad complete')
+    if (!benchRoom(d)) throw new Error(!hasQuickBench(d) ? 'Fill your starting XI first' : positionFirst(d) ? 'This spin fills the slot you chose' : 'The bench is full: this pick goes into the XI')
     d.bench.push(p.id)
   } else {
     const slot = d.formation.slots.find((s) => s.id === slotId)
@@ -396,7 +459,7 @@ export function suggestSlot(d: DraftState, p: PlayerSeason): string | 'bench' | 
     const natural = slots.find((s) => describeFit(p, s.position) === 'natural')
     return (natural ?? slots[0]).id
   }
-  if (!fillingXI(d) && !isComplete(d) && !d.takenPlayers.includes(p.playerId)) return 'bench'
+  if (canBench(d, p)) return 'bench'
   return null
 }
 

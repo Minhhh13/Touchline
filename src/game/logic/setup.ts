@@ -1,7 +1,7 @@
 import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { difficultyOf, draftModeOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
+import { benchPlaces, difficultyOf, draftModeOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
 import { dailySettings } from './daily'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -52,6 +52,8 @@ export interface SetupChoices {
   leagues: string[]
   onlyClub?: string
   onlyNation?: string
+  /** Quick Draft bench places (0 to 5); none when absent or 0. */
+  benchPicks?: number
 }
 
 /**
@@ -77,6 +79,7 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     onlyNation: c.onlyNation,
     twists: c.twists,
     leagues: c.leagues,
+    ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
   }
 }
 
@@ -96,6 +99,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
     r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
     r.twists ? 'Twists on' : 'No twists',
+    ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
   ]
 }
 
@@ -165,6 +169,7 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   } else {
     // The quick season's options: the January window is on by default, the Continental Cup run off
     if (s.january === false) parts.push('no January window')
+    if (benchPlaces(r)) parts.push(`bench of up to ${benchPlaces(r)}`)
     if (s.continental) parts.push('Continental Cup run')
   }
   return parts.join(', ')

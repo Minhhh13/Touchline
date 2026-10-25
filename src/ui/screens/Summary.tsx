@@ -20,7 +20,8 @@ import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
-import { bestWinLine, europeLine, europeRoundLabel, januaryLine } from '@game/logic/gameByGame'
+import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
+import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -66,6 +67,8 @@ export function Summary() {
   // January business and the European run of a quick season, when there were any
   const janLine = januaryLine(q?.january)
   if (janLine) extraLines.push(janLine)
+  const benchLine = changesLine(q?.changes, (id) => shortName(get(id)?.name ?? id))
+  if (benchLine) extraLines.push(benchLine)
   const euroLine = europeLine(q?.europe)
   if (euroLine) extraLines.push(euroLine)
   // Head-to-head against the ghost this game was played against
@@ -270,6 +273,25 @@ export function Summary() {
           </div>
           <div className="small">
             {q.january.kind === 'sign' ? `Signed ${q.january.inName} for ${money(q.january.fee)}; ${q.january.outName} left.` : `Swapped ${q.january.outName} for ${q.january.inName}.`}
+          </div>
+        </div>
+      )}
+
+      {q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="bench-summary">
+          <div className="panel-head">
+            <h3>The bench</h3>
+            <span className="small muted">
+              {q.changes?.length ?? 0} of {QUICK_CHANGES} changes · injury cover in {coveredGames(q.results)} game{coveredGames(q.results) === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="col small" style={{ gap: 4 }}>
+            {(q.changes ?? []).map((c, i) => (
+              <span key={i}>
+                Matchweek {c.from}: {get(c.inId)?.name ?? c.inId} on for {get(c.outId)?.name ?? c.outId}
+              </span>
+            ))}
+            {!q.changes?.length && <span className="muted">No changes: the XI you drafted saw it through, the bench covering injuries.</span>}
           </div>
         </div>
       )}

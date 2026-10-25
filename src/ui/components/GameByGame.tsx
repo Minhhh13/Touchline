@@ -63,6 +63,8 @@ export interface SeasonPlayback extends SeasonReplay {
   setSpeed: (s: PlaybackSpeed) => void
   /** Pause or carry on. */
   toggle: () => void
+  /** Stop on the game shown (a bench change is being made). */
+  pause: () => void
   /** Every game up to the stop is shown. */
   done: boolean
 }
@@ -100,6 +102,7 @@ export function useSeasonPlayback(total: number, from: number, stopAt = total): 
     speed,
     setSpeed,
     toggle: () => setPlaying((p) => (done ? false : !p)),
+    pause: () => setPlaying(false),
     done,
   }
 }

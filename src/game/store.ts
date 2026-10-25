@@ -5,13 +5,13 @@ import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Pro
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
-import { canSpin, chooseSlot as draftChooseSlot, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
+import { canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
-import { closeJanuary, kickOff, reopenJanuary, toKickoff } from './logic/quick'
+import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
@@ -105,8 +105,10 @@ interface Store {
   kickOff: (skip?: boolean) => void
   /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
   closeJanuary: (index: number | null) => void
-  /** The game-by-game playback is over or skipped: show the summary. */
+  /** The game-by-game playback is over or skipped: show the summary (a season with a bench is recorded now). */
   endPlayback: () => void
+  /** Quick bench: before game `revealed + 1` of the playback, put bench player `inId` into slot `slotId` (one of the three changes). */
+  benchChange: (revealed: number, slotId: string, inId: string) => void
 
   playFriendly: () => void
   startSeason: () => void
@@ -397,6 +399,8 @@ export const useStore = create<Store>()(
         finishDraft: () => {
           mutate((g, u) => {
             if (!g.draft) return
+            // A Quick Draft with a bench may close once the XI is full, bench places to spare
+            if (canCloseBench(g.draft)) closeBench(g.draft)
             // A one-nation wheel that has run dry may close with a full XI short of the squad size
             if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
             // Quick Draft and the Daily stop at the tactics step before the season
@@ -414,7 +418,8 @@ export const useStore = create<Store>()(
           mutate((g, u) => kickOff(g, u, skip))
           const { game } = get()
           if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
-          if (game?.phase === 'summary') {
+          // A season with a bench stays open to changes until the playback closes, and is recorded then
+          if (game?.phase === 'summary' && !game.quickOpen) {
             unlockFromGame()
             get().recordResult()
           }
@@ -432,11 +437,30 @@ export const useStore = create<Store>()(
           }
           if (get().game?.phase === 'summary') {
             set({ playback: { from } })
+            if (get().game?.quickOpen) return
             unlockFromGame()
             get().recordResult()
           }
         },
-        endPlayback: () => set({ playback: null }),
+        endPlayback: () => {
+          if (get().game?.quickOpen) {
+            mutate((g) => closeQuickSeason(g))
+            unlockFromGame()
+            get().recordResult()
+          }
+          set({ playback: null })
+        },
+        benchChange: (revealed, slotId, inId) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          const results = playbackResults(game)
+          const problem = quickChangeProblem(game, universe, results, revealed, { slotId, inId })
+          if (problem) {
+            set({ toast: problem })
+            return
+          }
+          mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
+        },
 
         playFriendly: () => {
           mutate((g, u) => playFriendly(g, u))

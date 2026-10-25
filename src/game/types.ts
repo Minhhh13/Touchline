@@ -195,6 +195,32 @@ export interface Game {
   quickResult: QuickResult | null
   /** A quick season's January window: open while the phase is `january`, kept with the move once the season is done. Absent on older saves. */
   quickJanuary?: QuickJanuary | null
+  /** A Quick Draft bench's voluntary changes, in the order made (at most `QUICK_CHANGES`). Absent when none were made. */
+  quickChanges?: QuickChange[]
+  /**
+   * A quick season with a bench, played but still open to changes while the game-by-game playback runs: the result is
+   * recorded (leaderboard, achievements) when the playback closes. Absent otherwise.
+   */
+  quickOpen?: boolean
+  /** The RNG state a quick season with a bench kicked off from, so a change replays the same season up to it. */
+  quickStartRng?: RngState
+}
+
+/**
+ * One voluntary change of a quick season's bench: from matchweek `from` on, the bench player `inId` takes slot
+ * `slotId` and the starter there goes to the bench in his place. It sticks until another change moves him.
+ */
+export interface QuickChange {
+  from: number
+  slotId: string
+  inId: string
+}
+
+/** An injured starter covered for one game by the best fit on the bench (a forced change: it uses none of the three). */
+export interface QuickCover {
+  slotId: string
+  outId: string
+  inId: string
 }
 
 /** How a January deal is paid for: a fee out of the window budget, or a straight player-for-player swap. */
@@ -271,6 +297,10 @@ export interface QuickGameResult {
   scorers: QuickScorer[]
   /** The user's league position after this matchweek. */
   position: number
+  /** Quick bench: the user's players injured in this game and the matchweeks each misses after it. */
+  injuries?: Array<{ id: string; out: number }>
+  /** Quick bench: injured starters covered from the bench in this game. */
+  covers?: QuickCover[]
 }
 
 export interface QuickResult {
@@ -292,6 +322,8 @@ export interface QuickResult {
   january?: { kind: JanuaryDealKind; inId: string; inName: string; outId: string; outName: string; fee: number; slotId: string }
   /** The Continental Cup run a top-four finish earned, when the option was on and a field could be drawn. */
   europe?: QuickEuropeRun
+  /** Quick bench: the voluntary changes the season was played with, with the starter each sent to the bench. */
+  changes?: Array<QuickChange & { outId: string }>
 }
 
 /** One Continental Cup tie of a quick season's European run, from the user's side. */

@@ -14,7 +14,7 @@
  * draft the way the store does, one `spin` per history row.
  */
 import type { DraftRules, DraftState } from './draft'
-import { DIFFICULTIES, DRAFT_MODES, QUICK_RULES, RATINGS_MODES, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
+import { DIFFICULTIES, DRAFT_MODES, QUICK_BENCH_MAX, QUICK_RULES, RATINGS_MODES, canCloseBench, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
 import type { DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Tempo, Width } from './types'
@@ -57,13 +57,18 @@ export interface ChallengeTactics {
 /**
  * The quick season's own choices, carried only when something differs from a default season: `t` the tactics of the
  * first half (the whole season without a window), `t2` those of the second half when they were changed at the January
- * pause, `j` the January deal as `[incoming player-season id, slot id]`.
+ * pause, `j` the January deal as `[incoming player-season id, slot id]`, `s` the bench changes of a Quick Draft with a
+ * bench as `[first matchweek, slot id, incoming player-season id]`, in order.
  */
 export interface ChallengeSeason {
   t?: ChallengeTactics
   t2?: ChallengeTactics
   j?: [playerSeasonId: string, slotId: string]
+  s?: Array<[from: number, slotId: string, playerSeasonId: string]>
 }
+
+/** Most bench changes a link may carry: the three a quick season allows. */
+export const CHALLENGE_CHANGES_MAX = 3
 
 /** The values each instruction may take in a link. */
 export const CHALLENGE_TACTIC_VALUES = {
@@ -205,6 +210,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   showRatings: isBool,
   draftMode: (v) => DRAFT_MODES.includes(v as DraftMode),
   ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
+  benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
@@ -227,10 +233,11 @@ export function isChallengeTactics(t: unknown): t is ChallengeTactics {
 export function isChallengeSeason(x: unknown): x is ChallengeSeason {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return false
   const o = x as Record<string, unknown>
-  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j')) return false
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's')) return false
   if (o.t !== undefined && !isChallengeTactics(o.t)) return false
   if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
   if (o.j !== undefined && !(Array.isArray(o.j) && o.j.length === 2 && o.j.every(isString))) return false
+  if (o.s !== undefined && !(Array.isArray(o.s) && o.s.length <= CHALLENGE_CHANGES_MAX && o.s.every((c) => Array.isArray(c) && c.length === 3 && isInt(c[0]) && c[0] >= 1 && isString(c[1]) && isString(c[2])))) return false
   return true
 }
 
@@ -319,6 +326,8 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
     }
     out.push({ clubId: cs.clubId, season: cs.season, id, slotId })
   }
+  // A Quick Draft with a bench may stop once the XI is full, bench places to spare
+  if (canCloseBench(d)) d.benchClosed = true
   if (!isComplete(d) && !(picksMade(d) >= 11 && !canSpin(u, d))) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
   if (d.spins !== c.p.length || d.history.length !== c.p.length) throw new Error('The spins do not add up')
   if (historyKey(d.history) !== c.k) throw new Error('The wheel did not land on the same club-seasons')

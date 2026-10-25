@@ -89,8 +89,9 @@ export function App() {
   if (screen === 'game' && game) {
     if (game.phase === 'draft') body = <Draft />
     else if (game.phase === 'kickoff') body = <KickOff />
-    // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary
-    else if (game.phase === 'january' || (game.phase === 'summary' && playback && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
+    // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
+    // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
+    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = <Summary />
     else body = <Dugout />

@@ -4,6 +4,8 @@ import { getFormation } from '@engine/formations'
 import { ratingsHidden } from '@engine/draft'
 import type { PlayerSeason } from '@engine/types'
 import { Pitch } from '../components/Pitch'
+import { PlayerRow } from '../components/PlayerRow'
+import { QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
 import { clubName, seasonLabel } from '../format'
 
@@ -37,6 +39,20 @@ export function KickOff() {
             <div inert>
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={hide} />
             </div>
+            {quickBenchRule(game) && game.bench.length > 0 && (
+              <div className="col" style={{ gap: 4 }} data-testid="kickoff-bench">
+                <b className="small">
+                  Bench · {QUICK_CHANGES} changes this season
+                </b>
+                <div className="plist">
+                  {game.bench.map((id) => {
+                    const p = get(id)
+                    return p ? <PlayerRow key={id} p={p} hideRatings={hide} showClub /> : null
+                  })}
+                </div>
+                <span className="help">Bring one on between games as the season plays; an injured starter is covered from the bench without using a change.</span>
+              </div>
+            )}
             <CaptainAndPenalties xi={xi} captainId={game.captainId} penalties={t.setPieces?.penalties} onCaptain={(id) => setCaptain(id ?? '')} onPenalties={(id) => setTactics({ setPieces: { ...t.setPieces, penalties: id } })} hideRatings={hide} />
           </div>
           <div className="panel col">

@@ -1,4 +1,4 @@
-import type { Game, JanuaryListing, QuickEuropeRun, QuickEuropeTie, QuickJanuary, QuickResult } from '../types'
+import type { Game, JanuaryListing, QuickChange, QuickCover, QuickEuropeRun, QuickEuropeTie, QuickGameResult, QuickJanuary, QuickResult } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
@@ -6,12 +6,13 @@ import { aiTeamInput, aiRatingOffset, buildAiClubs, buildContinentalClubs, compu
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
-import type { Fixture, Lineup, PlayerSeason, Tactics } from '@engine/types'
+import type { Fixture, Formation, Lineup, PlayerSeason, Tactics } from '@engine/types'
 import { playerLookup } from './players'
 import { earnsPointsRecord } from './records'
 import { recordUserGames } from './gameByGame'
 import { januaryBudget, januaryListings, sameListing } from './january'
 import { difficultyOf } from '@engine/draft'
+import { applyChange, canPlayFor, fieldXI, injuredThrough, QUICK_CHANGES, quickBenchRule } from './quickBench'
 
 /** A quick season finishing in this place or higher earns the Continental Cup run, when the option is on. */
 export const QUICK_EUROPE_PLACES = 4
@@ -60,15 +61,33 @@ interface QuickRun {
   /** League matchweeks before the January window: half the season. */
   half: number
   fixtures: Fixture[]
+  /** The chosen XI and bench: the draft's, then every change and the January deal as the season reaches them. */
   lineup: Lineup
   bench: string[]
   goals: Record<string, number>
   ratings: Record<string, { sum: number; n: number }>
+  formation: Formation
+  /**
+   * A Quick Draft bench with someone on it: injured starters are covered from it, the changes apply, and the match
+   * engine is handed no substitutes (the bench plays between games, not in them). Off, the season is played exactly
+   * as before benches existed.
+   */
+  benchOn: boolean
+  changes: QuickChange[]
+  /** The draft's position rule: who may cover or come into a slot. */
+  canPlay: (p: PlayerSeason, position: Formation['slots'][number]['position']) => boolean
+  /** Changes applied so far. */
+  applied: Array<QuickChange & { outId: string }>
+  /** The last matchweek each injured player misses. */
+  out: Record<string, number>
+  /** Injuries and covers of the user's game in each matchweek, for the results. */
+  notes: Record<number, Pick<QuickGameResult, 'injuries' | 'covers'>>
 }
 
 /** The season's set-up from the game's RNG state: the AI clubs, the calibration, the fixtures (the first draws). */
 function startRun(game: Game, u: LoadedUniverse): QuickRun {
-  const rng = Rng.fromState(game.rngState)
+  // A season with a bench re-runs from where it kicked off when a change is made, never from the state it ended on
+  const rng = Rng.fromState(game.quickStartRng ?? game.rngState)
   const get = playerLookup(game, u)
   const { lineup, bench } = quickXI(game, u)
   const ai = buildAiClubs(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId)
@@ -76,7 +95,49 @@ function startRun(game: Game, u: LoadedUniverse): QuickRun {
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
-  return { rng, get, ai, offset, ids, matchweeks, half: matchweeks / 2, fixtures, lineup, bench, goals: {}, ratings: {} }
+  const benchOn = quickBenchRule(game) && bench.length > 0
+  return { rng, get, ai, offset, ids, matchweeks, half: matchweeks / 2, fixtures, lineup, bench, goals: {}, ratings: {}, formation: getFormation(game.tactics.formationId), benchOn, changes: benchOn ? game.quickChanges ?? [] : [], canPlay: canPlayFor(game), applied: [], out: {}, notes: {} }
+}
+
+/** Whether a player is out injured for matchweek `mw`. */
+function isOut(run: QuickRun, id: string, mw: number): boolean {
+  return (run.out[id] ?? 0) >= mw
+}
+
+/** Apply the changes due by matchweek `mw`, in order; a change that does not fit the squad as it stands then throws. */
+function applyDueChanges(run: QuickRun, mw: number): void {
+  while (run.applied.length < run.changes.length && run.changes[run.applied.length].from <= mw) {
+    const c = run.changes[run.applied.length]
+    if (isOut(run, c.inId, c.from)) throw new Error(`${run.get(c.inId)?.name ?? c.inId} is injured`)
+    const slot = run.formation.slots.find((s) => s.id === c.slotId)
+    const p = run.get(c.inId)
+    if (!slot || !p || !run.canPlay(p, slot.position)) throw new Error(`${p?.name ?? c.inId} cannot play ${slot?.position ?? c.slotId}`)
+    const next = applyChange(run.lineup, run.bench, c)
+    run.lineup = next.lineup
+    run.bench = next.bench
+    run.applied.push({ ...c, outId: next.outId })
+  }
+}
+
+/** The tactics and captain one half of the season is played with. */
+interface QuickSide {
+  tactics: Tactics
+  captainId: string | undefined
+}
+
+/** The user's side for matchweek `mw`: with a bench, the XI fielded around injuries and no substitutes; without, the XI and bench as drafted. */
+function userFor(game: Game, run: QuickRun, side: QuickSide, mw: number): { input: MatchTeamInput; covers: QuickCover[] } {
+  if (!run.benchOn) return { input: quickUserInput(game, run.lineup, run.bench, side.tactics, side.captainId, run.get), covers: [] }
+  const { lineup, covers } = fieldXI(run.formation, run.lineup, run.bench, (id) => isOut(run, id, mw), run.get, run.canPlay)
+  return { input: quickUserInput(game, lineup, [], side.tactics, side.captainId, run.get), covers }
+}
+
+/** The user's games so far with each game's injuries and covers. */
+function userResults(run: QuickRun): QuickGameResult[] {
+  return recordUserGames(run.fixtures, run.ids, USER_TEAM, (id) => run.get(id)?.name).map((r) => {
+    const n = run.notes[r.matchweek]
+    return n ? { ...r, ...n } : r
+  })
 }
 
 /**
@@ -84,13 +145,26 @@ function startRun(game: Game, u: LoadedUniverse): QuickRun {
  * `generateFixtures` in matchweek order, so playing 1 to 19 and then 20 to 38 draws exactly what one loop over all of
  * them draws: the split is where the January window sits.
  */
-function playMatchweeks(run: QuickRun, u: LoadedUniverse, user: MatchTeamInput, from: number, to: number): void {
+function playMatchweeks(run: QuickRun, u: LoadedUniverse, game: Game, side: QuickSide, from: number, to: number): void {
+  // Without a bench one side plays every game, as it always has
+  const fixed = run.benchOn ? null : userFor(game, run, side, from).input
+  let mw = -1
   for (const f of run.fixtures) {
     if (f.matchweek < from || f.matchweek > to) continue
+    if (f.matchweek !== mw) {
+      mw = f.matchweek
+      if (run.benchOn) applyDueChanges(run, mw)
+    }
     const userIsHome = f.homeTeamId === USER_TEAM
     const userIsAway = f.awayTeamId === USER_TEAM
-    const home = userIsHome ? user : aiTeamInput(u, run.ai[f.homeTeamId], run.offset)
-    const away = userIsAway ? user : aiTeamInput(u, run.ai[f.awayTeamId], run.offset)
+    let user = fixed
+    if (!user && (userIsHome || userIsAway)) {
+      const side1 = userFor(game, run, side, mw)
+      user = side1.input
+      if (side1.covers.length) (run.notes[mw] ??= {}).covers = side1.covers
+    }
+    const home = userIsHome ? user! : aiTeamInput(u, run.ai[f.homeTeamId], run.offset)
+    const away = userIsAway ? user! : aiTeamInput(u, run.ai[f.awayTeamId], run.offset)
     const res = simulateMatch({ rng: run.rng, home, away, detail: 'summary' })
     f.result = res
     if (userIsHome || userIsAway) {
@@ -99,6 +173,11 @@ function playMatchweeks(run: QuickRun, u: LoadedUniverse, user: MatchTeamInput, 
         const r = (run.ratings[st.playerSeasonId] ??= { sum: 0, n: 0 })
         r.sum += st.rating
         r.n++
+        // With a bench an injury keeps him out of the next games; without one the quick season has never counted them
+        if (run.benchOn && st.injured) {
+          run.out[st.playerSeasonId] = Math.max(run.out[st.playerSeasonId] ?? 0, mw + st.injured.weeksOut)
+          ;((run.notes[mw] ??= {}).injuries ??= []).push({ id: st.playerSeasonId, out: st.injured.weeksOut })
+        }
       }
     }
   }
@@ -125,11 +204,11 @@ function windowAt(game: Game, u: LoadedUniverse, run: QuickRun): Pick<QuickJanua
  */
 export function openJanuary(game: Game, u: LoadedUniverse): void {
   const run = startRun(game, u)
-  playMatchweeks(run, u, quickUserInput(game, run.lineup, run.bench, game.tactics, game.captainId, run.get), 1, run.half)
+  playMatchweeks(run, u, game, { tactics: game.tactics, captainId: game.captainId }, 1, run.half)
   const w = windowAt(game, u, run)
   game.quickJanuary = {
     ...w,
-    firstHalf: recordUserGames(run.fixtures, run.ids, USER_TEAM, (id) => run.get(id)?.name),
+    firstHalf: userResults(run),
     firstHalfTactics: copyTactics(game.tactics),
     ...(game.captainId ? { firstHalfCaptainId: game.captainId } : {}),
   }
@@ -207,7 +286,9 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   const firstCaptain = j ? j.firstHalfCaptainId : game.captainId
   const opening = { ...run.lineup }
   const strength = computeTeamStrength(firstTactics, opening, get, () => undefined)
-  playMatchweeks(run, u, quickUserInput(game, run.lineup, run.bench, firstTactics, firstCaptain, get), 1, run.half)
+  // The season's unlocks are worked out afresh, so a re-run after a bench change never keeps a stale one
+  game.unlocked = game.unlocked.filter((id) => !QUICK_UNLOCKS.includes(id))
+  playMatchweeks(run, u, game, { tactics: firstTactics, captainId: firstCaptain }, 1, run.half)
   let deal: JanuaryListing | null = null
   if (j?.move) {
     const offered = windowAt(game, u, run)
@@ -215,8 +296,10 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     deal = j.move
     run.lineup = { ...run.lineup, [deal.slotId]: deal.playerSeasonId }
   }
-  const user = quickUserInput(game, run.lineup, run.bench, game.tactics, game.captainId, get)
-  playMatchweeks(run, u, user, run.half + 1, matchweeks)
+  const second: QuickSide = { tactics: game.tactics, captainId: game.captainId }
+  playMatchweeks(run, u, game, second, run.half + 1, matchweeks)
+  // The European run is played by the XI as the league season left it, injuries still out covered from the bench
+  const user = userFor(game, run, second, matchweeks + 1).input
   const { fixtures, ids, goals, ratings } = run
   const table = computeTable(fixtures, ids)
   const row = table.find((r) => r.teamId === USER_TEAM)!
@@ -243,9 +326,10 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     pots: pots ? { playerSeasonId: pots.id, rating: Math.round(pots.avg * 100) / 100 } : undefined,
     strength: { overall: strength.overall, goalkeeping: strength.goalkeeping, defence: strength.defence, midfield: strength.midfield, attack: strength.attack, balance: strength.balance, chemistry: strength.chemistry },
     // Game by game, from the fixtures already played: no random numbers are drawn here
-    results: recordUserGames(fixtures, ids, USER_TEAM, (id) => get(id)?.name),
+    results: userResults(run),
     ...(deal ? { january: { kind: deal.kind, inId: deal.playerSeasonId, inName: get(deal.playerSeasonId)?.name ?? deal.playerSeasonId, outId: deal.outId, outName: get(deal.outId)?.name ?? deal.outId, fee: deal.fee, slotId: deal.slotId } } : {}),
     ...(europe ? { europe } : {}),
+    ...(run.applied.length ? { changes: run.applied } : {}),
   }
   game.quickResult = quick
   game.lineup = run.lineup
@@ -261,8 +345,16 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')
   if (europe?.reached === 'W') game.unlocked.push('continental')
   game.phase = 'summary'
+  if (run.benchOn) {
+    // Open to bench changes while the playback runs; the store records the result when it closes
+    game.quickStartRng = game.quickStartRng ?? game.rngState
+    game.quickOpen = true
+  }
   game.rngState = rng.getState()
 }
+
+/** Every achievement a quick season can unlock (`runQuickSeason` works them out again on each run). */
+export const QUICK_UNLOCKS: readonly string[] = ['quick-perfect', 'perfect', 'champions', 'centurions', 'invincible', 'hard-champions', 'one-club-champions', 'one-nation-champions', 'record-points', 'continental']
 
 /**
  * A short Continental Cup after the league: the user and the fifteen strongest clubs of the other loaded leagues that
@@ -304,4 +396,110 @@ function europeanRun(game: Game, u: LoadedUniverse, run: QuickRun, user: MatchTe
   const last = mine.at(-1)
   if (!last) return null
   return { ties: mine, reached: last.round === 'F' && last.won ? 'W' : last.round }
+}
+
+/** What the bench panel of the playback shows before the next game: the chosen XI and bench, who is out, who covers. */
+export interface QuickSquadView {
+  /** The XI as chosen (the draft's, the changes and the January deal so far), before injury cover. */
+  lineup: Lineup
+  bench: string[]
+  /** Players out injured for the next game. */
+  out: string[]
+  /** The injured starters the bench will cover in the next game. */
+  covers: QuickCover[]
+  changesLeft: number
+  /** The matchweek of the next game, null once every game is shown. */
+  next: number | null
+}
+
+/**
+ * The squad before game `revealed + 1` of `results` (the games the playback shows), folded from the draft, the
+ * changes due by then and the January deal, with the injuries of the games already shown. Pure.
+ */
+export function quickSquadAt(game: Game, u: LoadedUniverse, results: QuickGameResult[], revealed: number): QuickSquadView {
+  const start = quickXI(game, u)
+  let lineup = start.lineup
+  let bench = start.bench
+  const next = revealed < results.length ? results[revealed].matchweek : null
+  const upTo = next ?? Infinity
+  const j = game.quickJanuary
+  let deal = j?.move ?? null
+  const half = j?.afterMatchweek ?? Infinity
+  const takeDeal = () => {
+    if (deal) lineup = { ...lineup, [deal.slotId]: deal.playerSeasonId }
+    deal = null
+  }
+  const changes = game.quickChanges ?? []
+  for (const c of changes) {
+    if (c.from > upTo) break
+    if (c.from > half) takeDeal()
+    try {
+      const n = applyChange(lineup, bench, c)
+      lineup = n.lineup
+      bench = n.bench
+    } catch {
+      // A change the season could not apply never reached the result either
+    }
+  }
+  if (upTo > half) takeDeal()
+  const through = injuredThrough(results, revealed)
+  const isOut = (id: string) => next !== null && (through[id] ?? 0) >= next
+  const get = playerLookup(game, u)
+  const covers = next === null ? [] : fieldXI(getFormation(game.tactics.formationId), lineup, bench, isOut, get, canPlayFor(game)).covers
+  return { lineup, bench, out: [...Object.values(lineup), ...bench].filter(isOut), covers, changesLeft: Math.max(0, QUICK_CHANGES - changes.length), next }
+}
+
+/**
+ * Why a change before game `revealed + 1` cannot be made, or null when it can: the season needs a bench rule and
+ * someone on it, a change left, a game still to play, the change after any made before, and (with a January window)
+ * a first-half change while the first half plays, a second-half one once the window has closed. Pure.
+ */
+export function quickChangeProblem(game: Game, u: LoadedUniverse, results: QuickGameResult[], revealed: number, c?: Pick<QuickChange, 'slotId' | 'inId'>): string | null {
+  if (!quickBenchRule(game)) return 'This draft has no bench'
+  const view = quickSquadAt(game, u, results, revealed)
+  if (!view.bench.length) return 'Nobody on the bench'
+  if (view.changesLeft <= 0) return `All ${QUICK_CHANGES} changes are used`
+  if (view.next === null) return game.phase === 'january' ? 'Make the January call first' : 'The season is over'
+  const last = game.quickChanges?.at(-1)
+  if (last && view.next < last.from) return 'That game is before your last change'
+  const j = game.quickJanuary
+  if (game.phase === 'january') {
+    if (!j || view.next > j.afterMatchweek) return 'Make the January call first'
+  } else if (game.phase === 'summary') {
+    if (!game.quickOpen) return 'The season is closed'
+    if (j && j.move !== undefined && view.next <= j.afterMatchweek) return 'The first half is done'
+  } else return 'No season is being played'
+  if (c) {
+    if (!view.bench.includes(c.inId)) return 'That player is not on the bench'
+    if (!view.lineup[c.slotId]) return 'No starter in that slot'
+    const p = playerLookup(game, u)(c.inId)
+    if (view.out.includes(c.inId)) return `${p?.name ?? 'He'} is injured`
+    const slot = getFormation(game.tactics.formationId).slots.find((s) => s.id === c.slotId)
+    if (!p || !slot || !canPlayFor(game)(p, slot.position)) return `${p?.name ?? 'He'} cannot play ${slot?.position ?? 'there'}`
+  }
+  return null
+}
+
+/**
+ * Make a bench change before game `revealed + 1` of the playback: the bench player `inId` takes slot `slotId` from
+ * that game's matchweek on. The season is played again from where it kicked off with the change in, so every game
+ * already shown comes out the same. In January's first half the window is drawn again; after the season, the result.
+ */
+export function makeQuickChange(game: Game, u: LoadedUniverse, results: QuickGameResult[], revealed: number, slotId: string, inId: string): void {
+  const problem = quickChangeProblem(game, u, results, revealed, { slotId, inId })
+  if (problem) throw new Error(problem)
+  const from = results[revealed].matchweek
+  game.quickChanges = [...(game.quickChanges ?? []), { from, slotId, inId }]
+  if (game.phase === 'january') reopenJanuary(game, u)
+  else runQuickSeason(game, u)
+}
+
+/** The playback of a season with a bench has closed: no more changes, the result stands. */
+export function closeQuickSeason(game: Game): void {
+  delete game.quickOpen
+}
+
+/** The games the playback runs over: the first half while the January window is open, else the whole season. */
+export function playbackResults(game: Game): QuickGameResult[] {
+  return game.phase === 'january' ? game.quickJanuary?.firstHalf ?? [] : game.quickResult?.results ?? []
 }

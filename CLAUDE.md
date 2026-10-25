@@ -40,7 +40,7 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
 - `src/game/` the save and the game rules on top of the engine.
   - `types.ts` the persisted `Game`, `GameSettings`, `Profile`, `LiveMatch`, `QuickResult`.
   - `store.ts` Zustand store `useStore`, `SAVE_KEY = 'touchline-save-v1'`, persist `version: 1`, `partialize`, `merge` -> `normaliseGame`, the `mutate(fn)` Immer helper, every UI action.
-  - `logic/setup.ts` `createGame`, `beginSeason`, `setupRules` (setup cards to `DraftRules`), `summariseSetup`; `daily.ts` the Daily mapping, `DAILY_RULES` and `DAILY_SEASON` (frozen, re-exported from `setup.ts`); `quick.ts` `runQuickSeason`, the tactics step (`toKickoff`, `kickOff`), the January split (`openJanuary`, `closeJanuary`) and the Continental Cup run; `january.ts` (window budget and listings, pure); `gameByGame.ts` (game-by-game results and playback helpers); `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
+  - `logic/setup.ts` `createGame`, `beginSeason`, `setupRules` (setup cards to `DraftRules`), `summariseSetup`; `daily.ts` the Daily mapping, `DAILY_RULES` and `DAILY_SEASON` (frozen, re-exported from `setup.ts`); `quick.ts` `runQuickSeason`, the tactics step (`toKickoff`, `kickOff`), the January split (`openJanuary`, `closeJanuary`), the bench changes (`makeQuickChange`, `quickSquadAt`, `quickChangeProblem`) and the Continental Cup run; `quickBench.ts` (the Quick Draft bench in the season: `fieldXI` injury cover, `applyChange`, `QUICK_CHANGES = 3`, pure); `january.ts` (window budget and listings, pure); `gameByGame.ts` (game-by-game results and playback helpers); `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
 - `src/ui/` React screens, no game decisions.
   - `App.tsx` screen switch on `screen` + `game.phase` (no router), challenge hash `#c=`, theme, toast.
   - `match/` pure helpers for the live pitch and charts (`possession.ts`, `pitchGeometry.ts`, `charts.ts`, `clockStore.ts`).
@@ -59,7 +59,7 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
 
 - `npm ci` install exactly from the lockfile.
 - `npm run dev` Vite dev server (no service worker in dev).
-- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 289 tests); `npx vitest run src/engine` or `src/game` for one area.
+- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 303 tests); `npx vitest run src/engine` or `src/game` for one area.
 - `npm run typecheck` `tsc -b --noEmit`. `npm run lint` is the same command; there is no ESLint or Prettier.
 - `npm run build` `tsc -b && vite build` into `dist/` (what Render runs).
 - `npx vite preview --port 4173 --strictPort` serve `dist/` for Playwright smokes and service-worker checks.
@@ -145,6 +145,7 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 
 ## Gotchas
 
+- A quick season with a bench (`DraftRules.benchPicks`) is played again on every bench change, from `Game.quickStartRng` (where it kicked off), never from `game.rngState`, which `runQuickSeason` leaves at the end of the season. Its result is recorded on `endPlayback`, not at kick-off (`Game.quickOpen`). Bench spins after the XI draw from `DraftState.benchRng`, not the game's stream; keep both so a bench changes nothing until it is used.
 - Rebuilding data changes `leagues.json` `generatedAt`: update the pinned stamp in `universe.test.ts`; old challenge links read as unverified. `universe.test.ts` and `records.test.ts` assert real facts and can break on a rebuild with no code change.
 - Nested RNG in cup ties: `completeUserCupTie` rebuilds from a stale `game.rngState` inside `afterLeagueMatch`. Deterministic, just correlated; fixing it needs an ENGINE_VERSION bump. Pass `rng` down rather than adding more `Rng.fromState` calls.
 - A sent-off or injured man stays in his slot inside `advanceMatch`; `shortHandedFactor` costs it. Do not "fix" it.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { QUICK_RULES, SEASON_RULES, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinnableSlots, suggestSlot, targetSlot, twistDecade, wheelPool } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, benchPlaces, benchRoom, canBench, canCloseBench, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinnableSlots, suggestSlot, targetSlot, twistDecade, wheelPool } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel } from '../components/CaseReel'
@@ -70,8 +70,12 @@ export function Draft() {
   const target = targetSlot(d)
   const tags = rulesTags(d.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES)
   const complete = isComplete(d)
-  const total = d.rules.squadSize
+  // A Quick Draft bench: the XI's eleven picks, then up to `places` more, optional
+  const places = benchPlaces(d.rules)
+  const total = places ? 11 + places : d.rules.squadSize
   const made = picksMade(d)
+  const canClose = canCloseBench(d)
+  const roomOnBench = benchRoom(d)
   const fillingStarters = fillingXI(d)
   const needs = neededPositions(d)
   const selected = selectedPlayer ? get(selectedPlayer) : undefined
@@ -88,13 +92,15 @@ export function Draft() {
 
   // Through the lookup, so Prime ratings show in the list
   const squad = current ? current.squad.map((p) => get(p.id) ?? p) : []
-  const usable = (p: PlayerSeason) => canUse(d, p)
+  const usable = (p: PlayerSeason) => canUse(d, p) || canBench(d, p)
 
   const onPick = (p: PlayerSeason) => {
     if (!usable(p)) return
     const slots = eligibleSlots(d, p)
     if (fillingStarters) {
-      if (slots.length === 1) pickPlayer(p.id, slots[0].id)
+      // With bench room a pick may go either way, so the manager chooses; a player who fits no open slot goes to the bench
+      if (!slots.length) pickPlayer(p.id, 'bench')
+      else if (slots.length === 1 && !roomOnBench) pickPlayer(p.id, slots[0].id)
       else setSelectedPlayer(p.id)
     } else {
       pickPlayer(p.id, 'bench')
@@ -131,8 +137,8 @@ export function Draft() {
           </div>
         </div>
         <div className="row">
-          <span className="chip">
-            Pick {Math.min(made + 1, total)} of {total}
+          <span className="chip" data-testid="pick-count">
+            {places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}
           </span>
           <span className="chip">{d.respinsLeft} re-spin{d.respinsLeft === 1 ? '' : 's'} left</span>
           {game.bonusSpins > 0 && <span className="chip gold">+{game.bonusSpins} bonus</span>}
@@ -179,8 +185,13 @@ export function Draft() {
                   </div>
                 )}
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
-                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 ? 'Spin the wheel' : 'Spin again'}
+                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 ? 'Spin the wheel' : places && !fillingStarters ? 'Spin for the bench' : 'Spin again'}
                 </button>
+                {canClose && (
+                  <button className="btn" disabled={spinning} onClick={() => finishDraft()} data-testid="finish-draft">
+                    {d.bench.length ? `On to kick-off with ${d.bench.length} on the bench` : 'On to kick-off without a bench'}
+                  </button>
+                )}
                 <div className="row between">
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
                     Re-spin ({d.respinsLeft})
@@ -199,7 +210,7 @@ export function Draft() {
           </div>
           <div className="panel tight">
             <div className="small muted" style={{ marginBottom: 6 }}>
-              {fillingStarters ? 'Still need' : complete ? 'Squad complete' : `Bench: ${total - made} more pick${total - made === 1 ? '' : 's'}`}
+              {fillingStarters ? 'Still need' : complete ? 'Squad complete' : `Bench: ${total - made} more pick${total - made === 1 ? '' : 's'}${places ? ', optional' : ''}`}
             </div>
             <div className="pill-list">
               {needs.map((p) => (
@@ -279,7 +290,15 @@ export function Draft() {
               {revealed && twist === 'blind' && <div className="notice">Blind pick: ratings stay hidden until you have chosen. Positions and ages are still shown.</div>}
               {revealed && selected && (
                 <div className="notice">
-                  Choose a slot for <b>{selected.name}</b> on the pitch, or{' '}
+                  Choose a slot for <b>{selected.name}</b> on the pitch,{' '}
+                  {canBench(d, selected) && (
+                    <>
+                      <button className="btn sm primary" onClick={() => { pickPlayer(selected.id, 'bench'); setSelectedPlayer(null) }} data-testid="to-bench">
+                        send him to the bench
+                      </button>{' '}
+                    </>
+                  )}
+                  or{' '}
                   <button className="btn sm" onClick={() => setSelectedPlayer(null)}>
                     cancel
                   </button>
@@ -303,7 +322,7 @@ export function Draft() {
                         hideRatings={hide}
                         onClick={() => onPick(p)}
                         extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
-                        right={ok ? <span className="btn sm primary">{fillingStarters ? 'Draft' : 'Bench'}</span> : null}
+                        right={ok ? <span className="btn sm primary">{fillingStarters && slots.length ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )
                   })}
@@ -327,18 +346,18 @@ export function Draft() {
               </button>
             )}
           </div>
-          {(d.bench.length > 0 || !fillingStarters) && (
-            <div className="panel">
+          {(d.bench.length > 0 || !fillingStarters || places > 0) && (
+            <div className="panel" data-testid="draft-bench">
               <div className="panel-head">
                 <h3>Bench</h3>
-                <span className="small muted">{d.bench.length}</span>
+                <span className="small muted">{places ? `${d.bench.length}/${places}` : d.bench.length}</span>
               </div>
               <div className="plist">
                 {d.bench.map((id) => {
                   const p = get(id)
                   return p ? <PlayerRow key={id} p={p} hideRatings={hide} showClub /> : null
                 })}
-                {d.bench.length === 0 && <div className="muted small">Fill the XI first, then bench picks follow.</div>}
+                {d.bench.length === 0 && <div className="muted small">{places ? `Up to ${places}, optional: send any pick here instead of a slot, or spin for the bench once the XI is full. In the season: 3 changes, and injured starters are covered from here.` : 'Fill the XI first, then bench picks follow.'}</div>}
               </div>
             </div>
           )}
