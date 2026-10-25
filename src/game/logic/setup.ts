@@ -61,6 +61,10 @@ export interface SetupChoices {
   benchPicks?: number
   /** Quick Draft managers on or off; the base rules' value when absent. */
   managers?: boolean
+  /** Quick Draft with managers: spin three and pick one (`DraftRules.managerSpin`) rather than pick from the drafted clubs'. Off when absent. */
+  managerSpin?: boolean
+  /** Quick Draft: the end-of-draft case (`DraftRules.endCase`). Off when absent. */
+  endCase?: boolean
   /** The Classic toggle: the wheel may land on 1992-93 to 2007-08 (estimated ratings), and `first` is then the first classic season. */
   classic?: boolean
   /** Quick Draft: the season is the Super League instead of a real league season. */
@@ -104,6 +108,8 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     leagues: c.leagues,
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
     ...(c.managers !== undefined ? { managers: c.managers } : {}),
+    ...(c.managerSpin && (c.managers ?? base.managers) ? { managerSpin: true } : {}),
+    ...(c.endCase ? { endCase: true } : {}),
     ...(c.classic ? { classic: true } : {}),
     ...(c.superLeague ? { superLeague: true } : {}),
   }
@@ -134,7 +140,8 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     ...modesOf(r).map((m) => `${MODE_INFO[m].icon} ${MODE_INFO[m].title}`),
     ...(r.upgrader ? [`${MODE_INFO.upgrader.icon} ${MODE_INFO.upgrader.title}`] : []),
     ...(r.powerUps ? [`${POWER_UPS_ICON} Power-ups`] : []),
-    ...(r.managers ? ['Manager pick'] : []),
+    ...(r.managers ? [r.managerSpin ? 'Manager spin' : 'Manager pick'] : []),
+    ...(r.endCase ? ['🎁 End case'] : []),
     ...(r.superLeague ? [SUPER_LEAGUE_NAME] : []),
   ]
 }

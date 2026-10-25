@@ -142,6 +142,12 @@ describe('audit fixes: season and squad', () => {
     // No Quick Draft manager on a save from before managers: optional, left absent, and no rule switches them on
     expect(n.manager).toBeUndefined()
     expect(n.settings.rules.managers).toBeUndefined()
+    // Nor a manager spin, an end-of-draft case or a locker draft: all optional, left absent, and no rule switches them on
+    expect(n.managerSpin).toBeUndefined()
+    expect(n.endCase).toBeUndefined()
+    expect(n.settings.rules.managerSpin).toBeUndefined()
+    expect(n.settings.rules.endCase).toBeUndefined()
+    expect(n.draft?.locker).toBeUndefined()
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
     // A quick result saved before the live table has no rounds; a January window before it, no first-half rounds
@@ -152,6 +158,8 @@ describe('audit fixes: season and squad', () => {
     expect(p.quickBests).toEqual({ perfectSeasons: 0, longestPerfectRun: 0 })
     expect(p.theme).toBe('dark')
     expect(p.dailyStreak).toBe(2)
+    // A profile from before the end-of-draft case has an empty locker
+    expect(p.inventory).toEqual({})
   })
 
   it('a save from before the happiness log and the Inbox player links loads and plays', () => {
