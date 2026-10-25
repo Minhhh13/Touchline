@@ -283,7 +283,8 @@ export function ProfileScreen() {
               <tbody>
                 {profile.arenaRuns.map((e) => (
                   <tr key={e.id}>
-                    <td>
+                    {/* The team cell wraps, so on a phone the format, result and score stay in view */}
+                    <td style={{ whiteSpace: 'normal' }}>
                       <span className="row wrap" style={{ gap: 6 }}>
                         {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} {e.teamName}
                       </span>

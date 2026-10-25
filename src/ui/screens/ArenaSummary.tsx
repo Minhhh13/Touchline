@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import { arenaShareText, arenaStepMark } from '@engine/awards'
 import { getFormation } from '@engine/formations'
@@ -17,6 +17,12 @@ import { downloadDataUrl, renderShareCard } from '../shareCard'
 export function ArenaSummary() {
   const { universe: u, game, startGame, go, showToast } = useStore()
   const [copied, setCopied] = useState(false)
+  // The "Copied!" label goes back after a moment; the timer is cleared if the summary closes first
+  useEffect(() => {
+    if (!copied) return
+    const id = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(id)
+  }, [copied])
   if (!u || !game?.arena) return null
   const a = game.arena
   const get = playerLookup(game, u)
@@ -37,7 +43,6 @@ export function ArenaSummary() {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
     } catch {
       showToast('Could not copy. Select the text manually.')
     }

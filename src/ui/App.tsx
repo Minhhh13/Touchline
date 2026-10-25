@@ -108,7 +108,7 @@ export function App() {
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => go('game')}>
-              {game.phase === 'draft' ? 'Draft' : game.phase === 'summary' ? 'Summary' : 'Dugout'}
+              {game.phase === 'draft' ? 'Draft' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}
             </button>
           )}
           <button className={screen === 'h2h' ? 'active' : ''} onClick={() => go('h2h')}>
