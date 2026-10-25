@@ -10,10 +10,10 @@ import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
 import { aiRatingOffset, aiTeamInput, buildAiClubs, buildContinentalClubs, cupRounds, continentalRounds, drawFirstRound, drawNextRound, extraTime, shootout, USER_TEAM, type AiClub, type CupRoundInfo, type CupTie } from '@engine/season'
 import { getFormation } from '@engine/formations'
-import type { Position } from '@engine/types'
+import type { Lineup, Position } from '@engine/types'
 import { playerLookup } from './players'
 import { quickUserInput } from './quick'
-import { quickBenchRule } from './quickBench'
+import { canPlayFor, fieldXI, injuredThrough, quickBenchRule } from './quickBench'
 import { sideScorers } from './gameByGame'
 
 export type QuickCupComp = 'cup' | 'continental'
@@ -126,7 +126,7 @@ function playTie(rng: Rng, tie: CupTie, home: MatchTeamInput, away: MatchTeamInp
  * Play a post-season cup through: sixteen entrants drawn at random (the user always among them), single ties round
  * by round to a neutral final, the field's ties played too so every round is drawn from real winners. The user's side
  * is the XI and tactics the league season ended with (no substitutes when a bench played between games, as in the
- * league), the AI clubs carry the league's calibration. The run stops when the user goes out. Writes the run to
+ * league; a starter still injured after the last league game is covered from that bench), the AI clubs carry the league's calibration. The run stops when the user goes out. Writes the run to
  * `QuickResult` and the trophies' achievements to `game.unlocked`; `Game.rngState` is never touched.
  */
 export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp): void {
@@ -141,9 +141,10 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   const league = comp === 'cup' ? field : buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
   const offset = aiRatingOffset(u, league, s.difficulty ?? 'calibrated')
   const benchOn = quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0
-  const user = quickUserInput(game, game.lineup, benchOn ? [] : game.bench, game.tactics, game.captainId, get)
   const formation = getFormation(game.tactics.formationId)
-  const userSlots = formation.slots.filter((sl) => game.lineup[sl.id]).map((sl) => ({ id: game.lineup[sl.id], w: SCORER_WEIGHT[sl.position] }))
+  const xi = quickCupXI(game, u)
+  const user = quickUserInput(game, xi, benchOn ? [] : game.bench, game.tactics, game.captainId, get)
+  const userSlots = formation.slots.filter((sl) => xi[sl.id]).map((sl) => ({ id: xi[sl.id], w: SCORER_WEIGHT[sl.position] }))
   const rounds = quickCupRounds(comp)
   const ties = drawFirstRound([USER_TEAM, ...Object.keys(field)], rng, rounds)
   const mine: QuickCupTie[] = []
@@ -167,6 +168,19 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   if (comp === 'cup') q.cup = run
   else q.continentalCup = run
   for (const id of cupUnlocks(q)) if (!game.unlocked.includes(id)) game.unlocked.push(id)
+}
+
+/**
+ * The XI a post-season cup is played with: the lineup the league season ended with and, when a bench played between
+ * games, every starter still injured after the last league game covered from that bench by `fieldXI`, as the league
+ * would have covered him. Draws nothing. Pure.
+ */
+export function quickCupXI(game: Game, u: LoadedUniverse): Lineup {
+  if (!quickBenchRule(game) || !(game.draft?.bench.length ?? 0)) return game.lineup
+  const results = game.quickResult?.results ?? []
+  const through = injuredThrough(results)
+  const after = Math.max(0, ...results.map((r) => r.matchweek)) + 1
+  return fieldXI(getFormation(game.tactics.formationId), game.lineup, game.bench, (id) => (through[id] ?? 0) >= after, playerLookup(game, u), canPlayFor(game)).lineup
 }
 
 /** Pass on a cup: it is not offered again. */

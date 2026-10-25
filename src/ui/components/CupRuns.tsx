@@ -20,10 +20,10 @@ function useReducedMotion(): boolean {
 /**
  * The post-season cups of a Quick Draft, under the league result: for each cup a card to play it or skip it, then the
  * run revealed tie by tie, newest at the top, ending on the trophy or the round it went out in. The store plays the
- * cups; this only paces the reveal. `onReveal` tells the summary which cup is being revealed, so its banner keeps the
- * trophy back until the final is shown.
+ * cups; this only paces the reveal. `onReveal` tells the summary when each cup's reveal starts and ends (both cups can
+ * reveal at once), so its banner keeps each trophy back until that cup's last tie is shown.
  */
-export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp | null) => void }) {
+export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp, revealing: boolean) => void }) {
   const cup = quickCupStatus(game, u, 'cup')
   const euro = quickCupStatus(game, u, 'continental')
   // An older season's in-league Continental Cup run has its own panel; a finish outside the places says what it needed
@@ -43,7 +43,7 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
   )
 }
 
-function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp | null) => void }) {
+function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp, revealing: boolean) => void }) {
   const { playCup, skipCup, loadingLeagues } = useStore()
   const status = quickCupStatus(game, u, comp)
   const reduced = useReducedMotion()
@@ -59,18 +59,18 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
     return () => clearTimeout(t)
   }, [revealing, shown])
   useEffect(() => {
-    if (run && shown !== null && shown >= total) onReveal(null)
-  }, [run, shown, total, onReveal])
+    if (run && shown !== null && shown >= total) onReveal(comp, false)
+  }, [run, shown, total, onReveal, comp])
   const play = async () => {
     setBusy(true)
     // Nothing of the run shows until the reveal starts on the first tie
     setShown(0)
-    onReveal(comp)
+    onReveal(comp, true)
     const ok = await playCup(comp)
     setBusy(false)
     if (!ok || reduced) {
       setShown(null)
-      onReveal(null)
+      onReveal(comp, false)
       return
     }
     setShown(1)

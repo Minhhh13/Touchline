@@ -5,7 +5,7 @@ import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, encodeChallenge } from '@engine/challenge'
 import { EXTRA_TIME_RATE, extraTime } from '@engine/season'
 import { kickOff, toKickoff } from '../logic/quick'
-import { addCupTrophies, cupLine, cupScoreLabel, cupUnlocks, playQuickCup, QUICK_CONTINENTAL_PLACES, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from '../logic/quickCups'
+import { addCupTrophies, cupLine, cupScoreLabel, cupUnlocks, playQuickCup, QUICK_CONTINENTAL_PLACES, quickCupProblem, quickCupXI, quickCupStatus, skipQuickCup, type QuickCupComp } from '../logic/quickCups'
 import { challengeFromGame, claimCupsLine, claimOf, replayChallenge } from '../logic/challenge'
 import { createGame } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
@@ -18,6 +18,9 @@ vi.hoisted(() => {
   })
 })
 import { useStore } from '../store'
+import { getFormation } from '@engine/formations'
+import { canPlayFor } from '../logic/quickBench'
+import { playerLookup } from '../logic/players'
 
 const u = loadTestUniverse(['england', 'spain', 'italy', 'germany'])
 
@@ -26,8 +29,8 @@ function settings(partial: Partial<GameSettings> = {}): GameSettings {
 }
 
 /** A quick game auto-drafted and its league season played. */
-function played(partial: Partial<GameSettings> = {}): Game {
-  const g = createGame(settings(partial))
+function played(partial: Partial<GameSettings> = {}, rules: Partial<GameSettings['rules']> = {}): Game {
+  const g = createGame(settings({ ...partial, ...(Object.keys(rules).length ? { rules: { ...QUICK_RULES, leagues: ['england'], ...rules } } : {}) }))
   const rng = Rng.fromState(g.rngState)
   autoDraft(u, g.draft!, rng)
   g.rngState = rng.getState()
@@ -137,6 +140,40 @@ describe('the post-season cups of a Quick Draft', { timeout: 120_000 }, () => {
       expect(quickCupProblem(g, one, 'continental')).toMatch(/Too few/)
       expect(quickCupStatus(g, one, 'continental').state).toBe('open')
     }
+  })
+
+  it('field a starter still injured after the league from the bench, and keep the XI without a bench', () => {
+    let covered = 0
+    for (const seed of SEEDS) {
+      const plain = played({ seed })
+      expect(quickCupXI(plain, u)).toEqual(plain.lineup)
+      const g = played({ seed }, { benchPicks: 5 })
+      expect(g.draft!.bench.length).toBeGreaterThan(0)
+      delete g.quickOpen
+      // Nobody hurt at the end: the XI as the league left it
+      const results = g.quickResult!.results!
+      const last = results.at(-1)!
+      const fresh = clone(g)
+      fresh.quickResult!.results = results.map((r) => ({ ...r, injuries: [] }))
+      expect(quickCupXI(fresh, u)).toEqual(fresh.lineup)
+      // A starter hurt in the last game for three more: covered by a fit bench player, who then plays the cup
+      const formation = getFormation(g.tactics.formationId)
+      const get = playerLookup(g, u)
+      const can = canPlayFor(g)
+      const slot = formation.slots.find((sl) => g.bench.some((id) => can(get(id)!, sl.position)))
+      if (!slot) continue
+      const hurt = g.lineup[slot.id]
+      const g2 = clone(fresh)
+      g2.quickResult!.results = fresh.quickResult!.results!.map((r) => (r.matchweek === last.matchweek ? { ...r, injuries: [{ id: hurt, out: 3 }] } : r))
+      const xi = quickCupXI(g2, u)
+      expect(Object.values(xi)).not.toContain(hurt)
+      expect(g2.bench).toContain(xi[slot.id])
+      expect(g2.lineup[slot.id]).toBe(hurt)
+      playQuickCup(g2, u, 'cup')
+      expect(g2.quickResult!.cup!.ties.flatMap((t) => t.scorers).some((sc) => sc.playerSeasonId === hurt)).toBe(false)
+      covered++
+    }
+    expect(covered).toBeGreaterThan(0)
   })
 
   it('keep extra time to a third of the match rate at 85%, with two draws', () => {

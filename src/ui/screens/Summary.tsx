@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
 import { TIER_LABEL, USER_TEAM, computeTable, tierBlurb, tierLabel } from '@engine/season'
@@ -33,8 +33,12 @@ export function Summary() {
   const [link, setLink] = useState<string | null>(null)
   // The game whose highlights are open, by matchweek
   const [hlWeek, setHlWeek] = useState<number | null>(null)
-  // The post-season cup being revealed tie by tie: the banner keeps its trophy back until the run is shown
-  const [revealingCup, setRevealingCup] = useState<QuickCupComp | null>(null)
+  // The post-season cups being revealed tie by tie (both can be at once): the banner keeps each trophy back until its run is shown
+  const [revealingCups, setRevealingCups] = useState<QuickCupComp[]>([])
+  const onCupReveal = useCallback((comp: QuickCupComp, on: boolean) => setRevealingCups((list) => (on ? (list.includes(comp) ? list : [...list, comp]) : list.filter((c) => c !== comp))), [])
+  // A challenge link made before a cup was played would leave the cup out: make it again on the next click
+  const cupClaim = `${game?.quickResult?.cup?.reached ?? ''}|${game?.quickResult?.continentalCup?.reached ?? ''}`
+  useEffect(() => setLink(null), [cupClaim])
   // Every game of a quick season, game by game; the replay is UI state only
   const seasonReplay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
   // Play the season hides the record and shows the tally in the banner: bring the banner up so the tally and the
@@ -84,7 +88,7 @@ export function Summary() {
   const euroLine = europeLine(q?.europe)
   if (euroLine) extraLines.push(euroLine)
   // The post-season cups, once played and revealed
-  const cupsShown = (comp: QuickCupComp) => revealingCup !== comp
+  const cupsShown = (comp: QuickCupComp) => !revealingCups.includes(comp)
   for (const [line, comp] of [[cupLine(q?.cup, 'cup'), 'cup'], [cupLine(q?.continentalCup, 'continental'), 'continental']] as Array<[string | null, QuickCupComp]>) if (line && cupsShown(comp)) extraLines.push(line)
   const quickCupWon = cupsShown('cup') && wonCup(q, 'cup')
   const quickEuroWon = (cupsShown('continental') && q?.continentalCup?.reached === 'W') || q?.europe?.reached === 'W'
@@ -283,7 +287,7 @@ export function Summary() {
 
       {q && !replay.playing && (
         <div style={{ marginTop: 14 }}>
-          <CupRuns game={game} u={u} onReveal={setRevealingCup} />
+          <CupRuns game={game} u={u} onReveal={onCupReveal} />
         </div>
       )}
 
