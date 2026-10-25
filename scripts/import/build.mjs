@@ -167,6 +167,59 @@ function traitsFor(id, { composure, reactions, age, reputation, workRate, physic
   return [pct(consistency), pct(injury), pct(bigMatch), pct(professionalism)]
 }
 
+/**
+ * The five depth attributes (stamina, strength, aggression, jumping, work rate),
+ * 0-100 integers. Raw EA / European Soccer Database values are used where the
+ * source has them; otherwise the fallbacks below derive them from the eight core
+ * attributes, age and height. `src/engine/depth.ts` holds the same formulas so
+ * the engine fills an older pack identically.
+ */
+const WORK_RATE_VALUE = { high: 80, medium: 55, low: 35 }
+function workRateValue(text) {
+  if (!text) return NaN
+  const parts = String(text).split('/').map((t) => WORK_RATE_VALUE[t.trim().toLowerCase()])
+  if (parts.length !== 2 || parts.some((v) => v === undefined)) return NaN
+  return (parts[0] + parts[1]) / 2
+}
+const clamp99 = (v) => clamp(Math.round(v), 1, 99)
+export function deriveStamina(physical, age) {
+  return clamp99(physical + 3 - Math.max(0, (Number.isFinite(age) ? age : 26) - 29) * 2)
+}
+export function deriveStrength(physical, height) {
+  const h = height > 0 ? height : 180
+  return clamp99(physical + (h - 180) * 0.35)
+}
+export function deriveAggression(defending, mentality) {
+  return clamp99(0.5 * defending + 0.5 * mentality + 1)
+}
+export function deriveJumping(height, physical) {
+  const h = height > 0 ? height : 180
+  return clamp99(0.6 * physical + 26 + (h - 180) * 0.9)
+}
+export function deriveWorkRate(mentality) {
+  return clamp(Math.round(25 + mentality * 0.5), 35, 80)
+}
+const depthStats = { raw: { sta: 0, str: 0, agg: 0, jmp: 0, wr: 0 }, derived: { sta: 0, str: 0, agg: 0, jmp: 0, wr: 0 } }
+/** `raw` holds the detailed stats {stm, str, agg, jmp} (NaN when missing); `workRate` is the source text, if any. */
+function depthFor(raw, attrs, age, height, workRate) {
+  const pick = (key, value, fallback) => {
+    if (Number.isFinite(value) && value >= 1) {
+      depthStats.raw[key]++
+      return clamp99(value)
+    }
+    depthStats.derived[key]++
+    return fallback
+  }
+  const r = raw ?? {}
+  return [
+    pick('sta', r.stm, deriveStamina(attrs.physical, age)),
+    pick('str', r.str, deriveStrength(attrs.physical, height)),
+    pick('agg', r.agg, deriveAggression(attrs.defending, attrs.mentality)),
+    pick('jmp', r.jmp, deriveJumping(height, attrs.physical)),
+    pick('wr', workRateValue(workRate), deriveWorkRate(attrs.mentality)),
+  ]
+}
+
 function ageAt(dob, season) {
   if (!dob) return NaN
   const d = new Date(dob)
@@ -181,7 +234,9 @@ function ageAt(dob, season) {
 // ---------------------------------------------------------------------------
 // Row assembly
 
-export const COLUMNS = ['id', 'season', 'club', 'name', 'nation', 'age', 'pos', 'ovr', 'pac', 'sho', 'pas', 'dri', 'def', 'phy', 'men', 'gk', 'value', 'wage', 'cons', 'inj', 'big', 'prof', 'foot', 'height']
+export const COLUMNS = ['id', 'season', 'club', 'name', 'nation', 'age', 'pos', 'ovr', 'pac', 'sho', 'pas', 'dri', 'def', 'phy', 'men', 'gk', 'value', 'wage', 'cons', 'inj', 'big', 'prof', 'foot', 'height', 'sta', 'str', 'agg', 'jmp', 'wr']
+/** players.json format: 3 added the five depth columns (stamina, strength, aggression, jumping, work rate). */
+export const PLAYERS_VERSION = 3
 
 function makeRow(p) {
   return [
@@ -206,6 +261,7 @@ function makeRow(p) {
     ...p.traits,
     p.foot,
     p.height,
+    ...p.depth,
   ]
 }
 
@@ -309,6 +365,7 @@ async function loadFc24(sofifaIndex) {
       positions,
       overall,
       attrs,
+      raw: { stm: d.stm, str: d.str, agg: d.agg, jmp: d.jmp },
       eaValue,
       traitInputs: { composure: d.com, reactions: d.rea, reputation: num(r.international_reputation), workRate: r.work_rate },
       foot: String(r.preferred_foot || 'R')[0].toUpperCase(),
@@ -397,6 +454,7 @@ async function loadFc25(sofifaIndex) {
       positions,
       overall,
       attrs,
+      raw: { stm: d.stm, str: d.str, agg: d.agg, jmp: d.jmp },
       eaValue: NaN,
       traitInputs: { composure: d.com, reactions: d.rea, reputation: overall >= 88 ? 4 : overall >= 84 ? 3 : overall >= 80 ? 2 : 1 },
       foot: String(r['Preferred foot'] || 'R')[0].toUpperCase(),
@@ -478,6 +536,7 @@ async function loadFc26() {
       positions,
       overall,
       attrs,
+      raw: { stm: d.stm, str: d.str, agg: d.agg, jmp: d.jmp },
       eaValue: NaN,
       traitInputs: { composure: d.com, reactions: d.rea, reputation: overall >= 88 ? 4 : overall >= 84 ? 3 : overall >= 80 ? 2 : 1 },
       foot: String(r.preferredFoot || 'Right')[0].toUpperCase(),
@@ -565,6 +624,7 @@ async function loadFc27(fc26Ages, sofifaIndex, currentClubs) {
       positions,
       overall,
       attrs,
+      raw: { stm: d.stm, str: d.str, agg: d.agg, jmp: d.jmp },
       eaValue: NaN,
       traitInputs: { composure: d.com, reactions: d.rea, reputation: overall >= 88 ? 4 : overall >= 84 ? 3 : overall >= 80 ? 2 : 1 },
       foot: String(r.preferred_foot || 'Right')[0].toUpperCase(),
@@ -722,6 +782,7 @@ function loadEuroSoccer(sofifaIndex) {
         positions,
         overall,
         attrs,
+        raw: { stm: d.stm, str: d.str, agg: d.agg, jmp: d.jmp },
         eaValue: NaN,
         traitInputs: { composure: d.com, reactions: d.rea, reputation: overall >= 88 ? 4 : overall >= 84 ? 3 : overall >= 80 ? 2 : 1, workRate },
         foot: String(best.preferred_foot || 'right')[0].toUpperCase(),
@@ -849,6 +910,7 @@ async function main() {
       traits: traitsFor(rec.id, { composure: ti.composure, reactions: ti.reactions, age: rec.age, reputation: ti.reputation, workRate: ti.workRate, physical: use.attrs.physical }),
       foot: rec.foot,
       height: rec.height,
+      depth: depthFor(use.raw, use.attrs, rec.age, rec.height, ti.workRate),
       apps: rec.apps,
     })
   }
@@ -934,7 +996,7 @@ async function main() {
 
     const outDir = path.join(DATA_DIR, leagueId)
     await mkdir(outDir, { recursive: true })
-    const playersOut = { version: 2, generatedAt: new Date().toISOString().slice(0, 10), columns: COLUMNS, rows: players.map(makeRow) }
+    const playersOut = { version: PLAYERS_VERSION, generatedAt: new Date().toISOString().slice(0, 10), columns: COLUMNS, rows: players.map(makeRow) }
     await writeFile(path.join(outDir, 'players.json'), JSON.stringify(playersOut))
     const meta = {
       version: 2,
@@ -950,11 +1012,14 @@ async function main() {
     const distinct = new Set(players.map((p) => p.id)).size
     grandTotal += players.length
     console.log(`\n${league.name}: ${players.length} player-seasons, ${distinct} players, ${clubs.length} clubs, ${seasons[0]}-${seasons.at(-1)}, players.json ${sizeMb} MB`)
+    const depthMeans = ['sta', 'str', 'agg', 'jmp', 'wr'].map((k, i) => `${k} ${(players.reduce((a, p) => a + p.depth[i], 0) / players.length).toFixed(1)}`).join(' ')
+    console.log(`  depth means: ${depthMeans}`)
     for (const s of seasonInfo) console.log(`  ${s.season}-${String(s.season + 1).slice(2)}: ${players.filter((p) => p.season === s.season).length} rows, ${s.clubs.length} clubs, table ${s.hasTable ? (s.complete ? 'complete' : 'partial') : 'none'}`)
     leaguesIndex.push({ id: leagueId, name: league.name, shortName: league.shortName, country: league.country, firstSeason: seasons[0], lastSeason: seasons.at(-1), playerSeasons: players.length, players: distinct, clubs: clubs.length })
   }
   await writeFile(path.join(DATA_DIR, 'leagues.json'), JSON.stringify({ version: 2, generatedAt: new Date().toISOString().slice(0, 10), leagues: leaguesIndex }))
   console.log(`\nTotal: ${grandTotal} player-seasons across ${leagueIds.length} leagues`)
+  console.log('Depth columns from source / derived:', Object.fromEntries(Object.keys(depthStats.raw).map((k) => [k, `${depthStats.raw[k]} / ${depthStats.derived[k]}`])))
   if (unknownNations.size) console.log('Unknown nations:', [...unknownNations.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30))
   const uniqWarnings = [...new Set(warnings)]
   if (uniqWarnings.length) console.log(`Warnings (${uniqWarnings.length}):\n  ` + uniqWarnings.slice(0, 80).join('\n  '))
