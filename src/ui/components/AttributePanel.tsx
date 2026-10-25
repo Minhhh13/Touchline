@@ -1,81 +1,66 @@
-import type { ReactNode } from 'react'
-import type { AttributeKey, PlayerSeason, SquadPlayer } from '@engine/types'
-import { INJURY_RISK_LABEL, injuryRiskLevel } from '@engine/depth'
+import type { AttributeKey, PlayerSeason } from '@engine/types'
+import { attributeColumns, type AttrRow } from '@game/logic/playerCard'
 import { Bar } from './bits'
-import { conditionColour } from '../format'
 
 /**
- * Football Manager-style attribute panel: labelled bars in five groups, the
- * hidden traits as bars with a word rather than a number, the injury risk as
- * a 1 to 5 scale and, for a squad player, his condition.
+ * Football Manager-style attributes in three even columns (Technical, Physical, Mental). Every row
+ * is the same grid, label | bar | value, so every bar track starts and ends at the same x: numbers,
+ * the hidden traits' words and the injury risk all sit in the one value cell.
  */
-export function AttributePanel({ p, state }: { p: PlayerSeason; state?: SquadPlayer }) {
-  const a = p.attributes
-  const t = p.traits
-  const risk = injuryRiskLevel(t)
-  const groups: Array<{ title: string; rows: ReactNode[] }> = [
-    { title: 'Technical', rows: [attr('Shooting', a.shooting), attr('Passing', a.passing), attr('Dribbling', a.dribbling)] },
-    { title: 'Physical', rows: [attr('Pace', a.pace), attr('Stamina', a.stamina), attr('Strength', a.strength), attr('Jumping', a.jumping)] },
-    {
-      title: 'Mental',
-      rows: [attr('Mentality', a.mentality), attr('Aggression', a.aggression), attr('Work rate', a.workRate), trait('Big match', t.bigMatch), trait('Consistency', t.consistency), trait('Professional', t.professionalism)],
-    },
-    { title: 'Defending', rows: [attr('Defending', a.defending)] },
-    { title: 'Goalkeeping', rows: [attr('Goalkeeping', a.goalkeeping)] },
-    {
-      title: 'Fitness',
-      rows: [
-        <div key="risk" className="row attr-row" title={`Injury risk ${risk} of 5: ${INJURY_RISK_LABEL[risk]}`}>
-          <span className="small attr-label">Injury risk</span>
-          <span className="attr-pips" data-testid="injury-risk" data-level={risk}>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <span key={n} className={`pip ${n <= risk ? (risk >= 4 ? 'bad' : risk === 3 ? 'warn' : 'good') : ''}`} />
-            ))}
-          </span>
-          <span className="small muted attr-word">{INJURY_RISK_LABEL[risk]}</span>
-        </div>,
-        ...(state
-          ? [
-              <div key="cond" className="row attr-row">
-                <span className="small attr-label">Condition</span>
-                <Bar value={state.condition} colour={conditionColour(state.condition)} />
-                <span className="mono small attr-value">{state.condition}</span>
-              </div>,
-            ]
-          : []),
-      ],
-    },
-  ]
+export function AttributePanel({ p }: { p: PlayerSeason }) {
+  const cols = attributeColumns(p)
   return (
     <div className="attr-panel" data-testid="attribute-panel">
-      {groups.map((g) => (
-        <section key={g.title} className="attr-group">
-          <h4>{g.title}</h4>
-          {g.rows}
+      {cols.map((c) => (
+        <section key={c.title} className="attr-group">
+          <h4>{c.title}</h4>
+          {c.rows.map((r) => (
+            <Row key={r.key} r={r} />
+          ))}
+          {c.rows.map((r) =>
+            r.kind === 'risk' ? (
+              <p key="note" className="attr-note" data-testid="injury-note">
+                Injury risk {r.level}/5: {r.note}
+              </p>
+            ) : null,
+          )}
         </section>
       ))}
     </div>
   )
 }
 
-function attr(label: string, value: number): ReactNode {
-  return (
-    <div key={label} className="row attr-row">
-      <span className="small attr-label">{label}</span>
-      <Bar value={value} colour={value >= 80 ? 'var(--good)' : value >= 65 ? 'var(--meter-mid)' : 'var(--text-3)'} />
-      <span className="mono small attr-value">{value}</span>
-    </div>
-  )
+function band(v: number): string {
+  return v >= 80 ? 'var(--good)' : v >= 65 ? 'var(--meter-mid)' : 'var(--text-3)'
 }
 
-/** Hidden traits are shown as a bar and a word, never as a number. */
-function trait(label: string, value: number): ReactNode {
-  const word = value >= 0.7 ? 'High' : value >= 0.45 ? 'Average' : 'Low'
+function Row({ r }: { r: AttrRow }) {
+  if (r.kind === 'attr')
+    return (
+      <div className="attr-row">
+        <span className="attr-label">{r.label}</span>
+        <Bar value={r.value} colour={band(r.value)} />
+        <span className="attr-value mono">{r.value}</span>
+      </div>
+    )
+  if (r.kind === 'trait')
+    // Hidden traits are a bar and a word, never a number
+    return (
+      <div className="attr-row" title={`${r.label}: ${r.word === 'Avg' ? 'average' : r.word.toLowerCase()} (a hidden trait)`}>
+        <span className="attr-label">{r.label}</span>
+        <Bar value={Math.round(r.value * 100)} colour={r.word === 'High' ? 'var(--good)' : r.word === 'Avg' ? 'var(--meter-mid)' : 'var(--text-3)'} />
+        <span className="attr-value">
+          <span className={`attr-badge ${r.word === 'High' ? 'good' : r.word === 'Low' ? 'low' : ''}`}>{r.word}</span>
+        </span>
+      </div>
+    )
   return (
-    <div key={label} className="row attr-row" title={`${label}: ${word.toLowerCase()}`}>
-      <span className="small attr-label">{label}</span>
-      <Bar value={Math.round(value * 100)} colour={value >= 0.7 ? 'var(--good)' : value >= 0.45 ? 'var(--meter-mid)' : 'var(--text-3)'} />
-      <span className="small muted attr-word">{word}</span>
+    <div className="attr-row" title={`Injury risk ${r.level} of 5: ${r.note}`}>
+      <span className="attr-label">{r.label}</span>
+      <Bar value={r.level * 20} colour={r.level >= 4 ? 'var(--bad)' : r.level === 3 ? 'var(--meter-mid)' : 'var(--good)'} />
+      <span className="attr-value" data-testid="injury-risk" data-level={r.level}>
+        <span className={`attr-badge ${r.level >= 4 ? 'bad' : r.level <= 2 ? 'good' : ''}`}>{r.word}</span>
+      </span>
     </div>
   )
 }

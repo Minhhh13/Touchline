@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ListOrdered, Search, Star as StarIcon, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
-import { ClubBadge, EstimatedChip, Flag, Info, Modal, Rating, Pos } from '../components/bits'
+import { ClubBadge, EstimatedChip, Info, Rating, Pos } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
-import { AttributePanel } from '../components/AttributePanel'
+import { PlayerCardModal } from '../components/PlayerCard'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
 import { classicFromFor, isEstimated } from '@game/logic/era'
+import { careerSeasons } from '@game/logic/playerCard'
 
 function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
@@ -28,98 +29,14 @@ function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   )
 }
 
-/** Every season of one real player across all loaded leagues, with the ratings the engine uses. */
+/** Every season of one real player across all loaded leagues, on the shared player card at his peak season. */
 function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: () => void }) {
-  const { universe: u, shortlist, toggleShortlist } = useStore()
-  const seasons = useMemo(() => (u && playerId ? Object.values(u.index).filter((p) => p.playerId === playerId).sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId)) : []), [u, playerId])
+  const u = useStore((s) => s.universe)
+  const seasons = useMemo(() => (u && playerId ? careerSeasons(u, playerId) : []), [u, playerId])
   if (!u || !playerId || !seasons.length) return null
   const best = [...seasons].sort((a, b) => b.overall - a.overall)[0]
   const latest = seasons[seasons.length - 1]
-  const clubs = [...new Set(seasons.map((p) => p.clubId))]
-  const peak = Math.max(...seasons.map((p) => p.overall))
-  const low = Math.min(...seasons.map((p) => p.overall))
-  const titles = seasons.filter((p) => p.accolades.includes('Champion')).length
-  const anyEstimated = seasons.some((p) => isEstimated(u, p.id))
-  return (
-    <Modal open onClose={onClose} title={latest.name} wide>
-      <div className="row wrap" style={{ marginBottom: 10 }}>
-        <Flag nation={latest.nationality} />
-        <span className="chip">
-          {seasons.length} season{seasons.length === 1 ? '' : 's'} · {clubs.length} club{clubs.length === 1 ? '' : 's'}
-        </span>
-        <span className="chip gold">Peak {peak}</span>
-        <span className="chip">
-          {latest.positions.map((x) => (
-            <Pos key={x} p={x} />
-          ))}
-        </span>
-        {titles > 0 && (
-          <span className="chip gold icon-chip">
-            <Trophy size={12} aria-hidden="true" /> {titles} title{titles === 1 ? '' : 's'}
-          </span>
-        )}
-      </div>
-      <div className="grid two">
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>Rating by season{anyEstimated ? ' · striped: est.' : ''}</div>
-          <div className="row" style={{ gap: 3, alignItems: 'flex-end', height: 70 }}>
-            {seasons.map((p) => {
-              // An estimated season is drawn striped and fainter, so the change of rating source reads at a glance
-              const est = isEstimated(u, p.id)
-              const colour = p === best ? 'var(--meter-mid)' : 'var(--accent)'
-              return <div key={p.id} data-estimated={est ? 'true' : undefined} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}${est ? ' · estimated' : ''}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: est ? `repeating-linear-gradient(135deg, ${colour} 0 3px, transparent 3px 6px)` : colour, boxShadow: est ? `inset 0 0 0 1px ${colour}` : undefined, borderRadius: 3, opacity: p === best ? 1 : est ? 0.6 : 0.75 }} />
-            })}
-          </div>
-          <div className="row between small muted" style={{ marginTop: 4 }}>
-            <span>{seasonLabel(seasons[0].season)}</span>
-            <span>{seasonLabel(latest.season)}</span>
-          </div>
-          <div className="eyebrow" style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>
-            At his peak · {clubName(u, best.clubId)} {seasonLabel(best.season)}
-          </div>
-          <AttributePanel p={best} />
-        </div>
-        <div className="tbl-wrap career-tbl">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Season</th>
-                <th>Club</th>
-                <th className="num">Age</th>
-                <th className="num">OVR</th>
-                <th className="num">Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {seasons.map((p) => (
-                <tr key={p.id} style={p === best ? { fontWeight: 700 } : undefined}>
-                  <td>{seasonLabel(p.season)}</td>
-                  <td>
-                    <span className="row" style={{ gap: 6 }}>
-                      <ClubBadge clubId={p.clubId} size={18} /> {clubName(u, p.clubId)}
-                      {p.accolades.includes('Champion') && <Trophy size={13} className="gold-ic" aria-label="Champions" />}
-                    </span>
-                  </td>
-                  <td className="num">{p.age}</td>
-                  <td className="num">
-                    <Rating value={p.overall} />
-                    {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
-                  </td>
-                  <td className="num">£{p.value}M</td>
-                  <td>
-                    <button type="button" className="btn sm ghost" onClick={() => toggleShortlist(p.id)} title="Shortlist this season" aria-label={shortlist.includes(p.id) ? 'Remove from shortlist' : 'Shortlist this season'} aria-pressed={shortlist.includes(p.id)}>
-                      <Star on={shortlist.includes(p.id)} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </Modal>
-  )
+  return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} attrCaption={<>at his peak, {clubName(u, best.clubId)} {seasonLabel(best.season)}</>} />
 }
 
 export function Explore() {
