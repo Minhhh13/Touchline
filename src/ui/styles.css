@@ -290,6 +290,209 @@ p {
 .wordmark-line {
   color: var(--accent);
 }
+/*
+ * The open lockup (components/Lockup in Logo.tsx): flag and ball at the left,
+ * the name standing on the touchline. Lengths are in u = height / 64 and match
+ * LOCKUP in brand.ts; keep the two in step. A context resizes it with --h.
+ */
+.tl-lockup {
+  --h: var(--tl-h, 64px);
+  --u: calc(var(--h) / 64);
+  --tl-ink: #ffffff;
+  --tl-ball-ring: transparent;
+  --tl-glint-edge: rgba(147, 197, 253, 0.95);
+  --tl-glint-core: #ffffff;
+  --tl-dim: rgba(0, 0, 0, 0.68);
+  --tl-dur: 1.2s;
+  --tl-delay: 0s;
+  /* One easing for the shine, the line and the ball, so they move as one */
+  --tl-ease: cubic-bezier(0.25, 0.65, 0.3, 1);
+  /* The glint crosses at an even pace, so it is seen over both halves of the name */
+  --tl-shine-ease: cubic-bezier(0.45, 0.05, 0.4, 1);
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  box-sizing: border-box;
+  height: var(--h);
+  padding: 0 calc(3 * var(--u)) 0 calc(47.5 * var(--u));
+  line-height: 0;
+  text-align: left;
+}
+:root[data-theme='light'] .tl-lockup {
+  --tl-ink: var(--text);
+  --tl-ball-ring: var(--text);
+  --tl-glint-edge: #bfdbfe;
+  --tl-glint-core: #ffffff;
+}
+.tl-rule {
+  position: absolute;
+  left: calc(7.5 * var(--u));
+  right: 0;
+  top: calc(46 * var(--u));
+  height: calc(4 * var(--u));
+  border-radius: calc(2 * var(--u));
+  background: var(--tl-ink);
+  transform-origin: left center;
+}
+/* The ball rolls inside a track that starts at the pole, so it comes out from behind the pole rather than fading in over it */
+.tl-track {
+  position: absolute;
+  left: calc(9 * var(--u));
+  top: calc(21 * var(--u));
+  width: calc(34 * var(--u));
+  height: calc(26 * var(--u));
+  overflow: hidden;
+}
+.tl-ball {
+  position: absolute;
+  left: calc(7.5 * var(--u));
+  top: calc(2 * var(--u));
+  width: calc(23 * var(--u));
+  height: calc(23 * var(--u));
+  overflow: visible;
+}
+.tl-flag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(46 * var(--u));
+  height: var(--h);
+  overflow: visible;
+}
+.tl-name {
+  position: relative;
+  display: block;
+  margin-top: calc(-1.6 * var(--u));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(44.3 * var(--u));
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--text);
+  /* The wipe: letters behind the glint at full strength, ahead of it a little dimmer; at rest all full */
+  -webkit-mask-image: linear-gradient(110deg, #000 0 51%, var(--tl-dim) 56% 100%);
+  mask-image: linear-gradient(110deg, #000 0 51%, var(--tl-dim) 56% 100%);
+  -webkit-mask-size: 250% 100%;
+  mask-size: 250% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+}
+.tl-name .wordmark-line {
+  color: var(--accent);
+}
+/* The glint: the name again, clipped to the letters, carrying a narrow diagonal band that is off the text at rest */
+.tl-shine {
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+  background: linear-gradient(110deg, transparent 0 45%, var(--tl-glint-edge) 48%, var(--tl-glint-core) 49.2% 50.8%, var(--tl-glint-edge) 52%, transparent 55% 100%) no-repeat 0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.tl-play .tl-name,
+.tl-play .tl-shine,
+.tl-play .tl-rule,
+.tl-play .tl-ball {
+  animation-duration: var(--tl-dur);
+  animation-delay: var(--tl-delay);
+  animation-timing-function: var(--tl-ease);
+  animation-fill-mode: both;
+}
+.tl-play .tl-name {
+  animation-name: tl-wipe;
+}
+.tl-play .tl-shine {
+  animation-name: tl-shine;
+  animation-timing-function: var(--tl-shine-ease);
+}
+.tl-play .tl-rule {
+  animation-name: tl-draw;
+}
+.tl-play .tl-ball {
+  animation-name: tl-roll;
+}
+/* The top-bar lockup plays on hover or keyboard focus */
+@media (hover: hover) {
+  .brand:hover .tl-hover .tl-name,
+  .brand:hover .tl-hover .tl-shine,
+  .brand:hover .tl-hover .tl-rule,
+  .brand:hover .tl-hover .tl-ball {
+    animation: var(--tl-dur) var(--tl-ease) both;
+  }
+  .brand:hover .tl-hover .tl-name {
+    animation-name: tl-wipe;
+  }
+  .brand:hover .tl-hover .tl-shine {
+    animation-name: tl-shine;
+    animation-timing-function: var(--tl-shine-ease);
+  }
+  .brand:hover .tl-hover .tl-rule {
+    animation-name: tl-draw;
+  }
+  .brand:hover .tl-hover .tl-ball {
+    animation-name: tl-roll;
+  }
+}
+.brand:focus-visible .tl-hover .tl-name {
+  animation: tl-wipe var(--tl-dur) var(--tl-ease) both;
+}
+.brand:focus-visible .tl-hover .tl-shine {
+  animation: tl-shine var(--tl-dur) var(--tl-shine-ease) both;
+}
+.brand:focus-visible .tl-hover .tl-rule {
+  animation: tl-draw var(--tl-dur) var(--tl-ease) both;
+}
+.brand:focus-visible .tl-hover .tl-ball {
+  animation: tl-roll var(--tl-dur) var(--tl-ease) both;
+}
+@keyframes tl-shine {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@keyframes tl-wipe {
+  from {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+  to {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+}
+@keyframes tl-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+/* The ball starts out of sight behind the pole and rolls 31u out to its spot: rotation = distance / radius (31 / 11.5 rad) */
+@keyframes tl-roll {
+  from {
+    transform: translateX(calc(-31 * var(--u))) rotate(-154.4deg);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-lockup .tl-name,
+  .tl-lockup .tl-shine,
+  .tl-lockup .tl-rule,
+  .tl-lockup .tl-ball {
+    animation: none !important;
+  }
+}
 .topbar nav {
   display: flex;
   gap: var(--space-1);
@@ -395,12 +598,8 @@ p {
     padding: 8px var(--gutter);
     gap: var(--space-2);
   }
-  .topbar .wordmark {
-    font-size: 21px;
-  }
-  .topbar .logo-mark {
-    width: 26px;
-    height: 26px;
+  .topbar .tl-lockup {
+    --h: 32px;
   }
   /* The nav scrolls sideways; the fade at the right edge says there is more */
   .topbar nav {
@@ -1221,6 +1420,9 @@ table.tbl tr.clickable:hover {
   font-size: var(--fs-hero);
   line-height: 0.95;
 }
+.hero h1 .tl-lockup {
+  --tl-delay: 0.15s;
+}
 .hero .tag {
   font-size: 18px;
   color: var(--text-2);
@@ -1242,6 +1444,9 @@ table.tbl tr.clickable:hover {
   }
   .hero h1 {
     font-size: 46px;
+  }
+  .hero h1 .tl-lockup {
+    --h: 72px;
   }
 }
 .mode-card {

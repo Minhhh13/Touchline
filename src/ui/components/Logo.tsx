@@ -1,58 +1,39 @@
-import { useId, type CSSProperties } from 'react'
-import { MARK, WORDMARK } from '../brand'
+import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
+import { LOCKUP, LOCKUP_FLAG_WIDTH, MARK, WORDMARK, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, type MarkVariant } from '../brand'
 
 /** Named sizes in CSS pixels; any number works too. */
 export const LOGO_SIZES = { sm: 24, md: 32, lg: 48, xl: 96 } as const
 export type LogoSize = keyof typeof LOGO_SIZES | number
 
 /**
- * colour: the blue tile with a white glyph (the default, and the app icon).
- * mono: the glyph alone in the current text colour, no tile (on a photo, a primary button or in print).
- * inverse: a white tile with a blue glyph (on a blue or navy background).
+ * colour: the blue tile, white pole and line, red pennant, black-and-white ball (the default, and the app icon).
+ * mono: the glyph alone in the current text colour, no tile, the ball's panels knocked out (on a photo or a primary button).
+ * inverse: a white tile with the glyph in the tile blue (on a blue or navy background).
  */
-export type LogoVariant = 'colour' | 'mono' | 'inverse'
+export type LogoVariant = MarkVariant
 
 function toPx(size: LogoSize): number {
   return typeof size === 'number' ? size : LOGO_SIZES[size]
 }
 
+/** useId is unique per instance; keep it to characters that are safe inside url(#…). */
+function useSvgId(prefix: string): string {
+  return `${prefix}-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`
+}
+
 /**
- * The mark: a pitch corner (touchline, goal line, corner arc) and the ball
- * struck from it, on a rounded tile. Geometry lives in brand.ts so the share
- * card and the generated icons draw the same shape. Decorative unless `title`
- * is given.
+ * The mark: a corner flag, a classic ball resting on the touchline and the line
+ * running on past it, on the blue tile. Geometry and the SVG live in brand.ts
+ * so the share card and the generated icons draw the same shape; the detail
+ * tier follows the rendered size. Decorative unless `title` is given.
  */
 export function LogoMark({ size = 'md', variant = 'colour', title }: { size?: LogoSize; variant?: LogoVariant; title?: string }) {
   const px = toPx(size)
-  // useId is unique per instance; keep it to characters that are safe inside url(#…)
-  const uid = useId().replace(/[^A-Za-z0-9_-]/g, '')
-  const gradId = `tl-grad-${uid}`
-  const maskId = `tl-ball-${uid}`
-  const detail = px >= MARK.detailFrom
-  const ink = variant === 'colour' ? '#ffffff' : variant === 'inverse' ? `url(#${gradId})` : 'currentColor'
+  const id = useSvgId('tl')
+  const tier = markTier(px)
+  const html = useMemo(() => markSvgInner(id, { tier, variant }), [id, tier, variant])
   const g = MARK.grid
-  return (
-    <svg className="logo-mark" width={px} height={px} viewBox={`0 0 ${g} ${g}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} focusable="false">
-      <defs>
-        {variant !== 'mono' && (
-          <linearGradient id={gradId} x1="0" y1="0" x2={g} y2={g} gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor={MARK.gradient[0]} />
-            <stop offset="1" stopColor={MARK.gradient[1]} />
-          </linearGradient>
-        )}
-        {detail && (
-          <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width={g} height={g}>
-            <rect width={g} height={g} fill="#ffffff" />
-            <path d={MARK.pentagon} fill="#000000" />
-          </mask>
-        )}
-      </defs>
-      {variant !== 'mono' && <rect width={g} height={g} rx={MARK.tileRadius} fill={variant === 'colour' ? `url(#${gradId})` : '#ffffff'} />}
-      <path d={MARK.lines} fill="none" stroke={ink} strokeWidth={MARK.lineWidth} strokeLinecap="round" strokeLinejoin="round" />
-      <path d={MARK.arc} fill="none" stroke={ink} strokeWidth={MARK.arcWidth} strokeLinecap="round" />
-      <circle cx={MARK.ball.cx} cy={MARK.ball.cy} r={MARK.ball.r} fill={ink} mask={detail ? `url(#${maskId})` : undefined} />
-    </svg>
-  )
+  return <svg className="logo-mark" width={px} height={px} viewBox={`0 0 ${g} ${g}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} focusable="false" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 /** "TouchLine" in the display face, "Line" in the accent blue. Real text, so it reads and copies as the name. */
@@ -65,13 +46,55 @@ export function Wordmark({ className }: { className?: string }) {
   )
 }
 
-/** The lockup: the mark with the wordmark beside it, the type scaled to the mark. */
+/** The compact lockup: the tile with the wordmark beside it, the type scaled to the mark. */
 export function Logo({ size = 'md', variant = 'colour', className }: { size?: LogoSize; variant?: LogoVariant; className?: string }) {
   const px = toPx(size)
   return (
     <span className={className ? `logo ${className}` : 'logo'} style={{ '--logo-size': `${px}px` } as CSSProperties}>
       <LogoMark size={px} variant={variant} />
       <Wordmark />
+    </span>
+  )
+}
+
+// The load animation plays on the first lockup that asks for it, once per page load
+let loadPlayed = false
+
+/**
+ * The open lockup: the corner flag and the ball at the left, "TouchLine"
+ * standing on the touchline, which runs from the foot of the pole under the
+ * whole name. `height` is in px (a stylesheet may resize it through --h; the
+ * ball's detail follows `height`). animate: 'load' plays the shine, the line
+ * drawing itself and the ball rolling out from the flag once per page load;
+ * 'hover' plays it on hover or keyboard focus; the resting state is the
+ * finished logo, so prefers-reduced-motion simply shows that.
+ */
+export function Lockup({ height = 64, animate = 'none', className }: { height?: number; animate?: 'none' | 'load' | 'hover'; className?: string }) {
+  const id = useSvgId('tll')
+  // Both StrictMode calls of the initialiser see the same flag; the effect sets it
+  const [play] = useState(() => animate === 'load' && !loadPlayed)
+  useEffect(() => {
+    if (play) loadPlayed = true
+  }, [play])
+  const tier = (height * 2 * LOCKUP.ball.r) / LOCKUP.grid >= LOCKUP.fullBallFrom ? 'full' : 'mid'
+  const flag = useMemo(() => lockupFlagSvg(id), [id])
+  const ball = useMemo(() => lockupBallSvg(id, tier), [id, tier])
+  const d = 2 * LOCKUP.ball.r
+  const cls = ['tl-lockup', play && 'tl-play', animate === 'hover' && 'tl-hover', className].filter(Boolean).join(' ')
+  return (
+    <span className={cls} style={{ '--tl-h': `${height}px` } as CSSProperties}>
+      <span className="tl-rule" aria-hidden="true" />
+      <span className="tl-track" aria-hidden="true">
+        <svg className="tl-ball" viewBox={`0 0 ${d} ${d}`} focusable="false" dangerouslySetInnerHTML={{ __html: ball }} />
+      </span>
+      <svg className="tl-flag" viewBox={`0 0 ${LOCKUP_FLAG_WIDTH} ${LOCKUP.grid}`} aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: flag }} />
+      <span className="tl-name">
+        {WORDMARK[0]}
+        <span className="wordmark-line">{WORDMARK[1]}</span>
+        <span className="tl-shine" aria-hidden="true">
+          {WORDMARK.join('')}
+        </span>
+      </span>
     </span>
   )
 }

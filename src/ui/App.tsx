@@ -11,7 +11,7 @@ import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
 import { Modal, Toast } from './components/bits'
-import { Logo } from './components/Logo'
+import { Lockup, Logo } from './components/Logo'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, abandonGame, openChallenge } = useStore()
@@ -94,7 +94,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand" onClick={() => go('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && go('home')}>
-          <Logo size={30} />
+          <Lockup height={40} animate="hover" />
         </div>
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>
