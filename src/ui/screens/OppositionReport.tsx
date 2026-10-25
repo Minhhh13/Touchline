@@ -5,6 +5,7 @@ import { aiTeamInput, computeTable, USER_TEAM } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
 import { STYLE_LABEL } from '@engine/tactics'
 import { FormDots, Rating, Pos } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 import { ordinal } from '../format'
 
 /** Scouting summary of the next league opponent with a suggested approach. */
@@ -45,7 +46,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
       <div className="panel-head">
         <h3>Opposition report: {club.name}</h3>
         <span className="small muted">
-          {home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}
+          {home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
         </span>
       </div>
       <div className="grid three">

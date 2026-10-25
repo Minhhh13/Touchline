@@ -97,7 +97,7 @@ export function nationDepth(u: LoadedUniverse, leagues: string[], era: EraRange,
   return nationDepthFrom(nationCover(u, leagues, era, formation, minFit), squadSize)
 }
 
-/** Display label for a nation option: "🇧🇷 Brazil · 412 players". */
+/** Display label for a nation option: "Brazil · 412 players". No emoji flag: the UI draws flags as images (Windows shows emoji flags as two letters), and an option cannot hold one. */
 export function nationDepthLabel(n: NationDepth): string {
-  return `${n.flag} ${n.name} · ${n.players} players`
+  return `${n.name} · ${n.players} players`
 }

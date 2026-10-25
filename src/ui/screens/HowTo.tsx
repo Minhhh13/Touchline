@@ -48,7 +48,7 @@ export function HowTo() {
           <h3>Dynasty</h3>
           <p>At the end of a season your players age a year: the young grow, the old decline, some retire, loans go home and some contracts expire. The league moves on to the next real season, you get bonus spins and a summer window, the academy presents three real prospects, bigger clubs may offer you their job, and a top-four finish earns a Continental Cup place. The Club tab keeps your all-time legends.</p>
         </div>
-        <div className="panel">
+        <div className="panel" data-testid="credits">
           <h3>Data and credits</h3>
           <p className="small muted">Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club names and player names are used descriptively. No official crests, logos or likenesses are used.</p>
           <ul className="small muted">
@@ -57,6 +57,7 @@ export function HowTo() {
                 {s.credit} · {s.licence}
               </li>
             ))}
+            <li>Flag icons: flag-icons 7.6.0 by Panayiotis Lipiridis (github.com/lipis/flag-icons) · MIT</li>
           </ul>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { ClubBadge, Flag, Modal, Rating, Pos } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 import { AttributePanel } from '../components/AttributePanel'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, ordinal, seasonLabel } from '../format'
@@ -148,7 +149,7 @@ export function Explore() {
         <div className="segmented">
           {u.available.map((l) => (
             <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { setLeagueId(l.id); setClubId(''); void ensureLeagues([l.id]) }} disabled={loadingLeagues}>
-              {l.name}
+              <LeagueFlag leagueId={l.id} /> {l.name}
             </button>
           ))}
         </div>

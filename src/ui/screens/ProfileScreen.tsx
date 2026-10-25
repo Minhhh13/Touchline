@@ -4,6 +4,7 @@ import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
 import type { LeaderboardEntry } from '@game/types'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 import { clubName, ordinal, seasonLabel } from '../format'
 
 function exportSave(): void {
@@ -161,7 +162,7 @@ export function ProfileScreen() {
                     <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>
                   </td>
                   <td>{e.mode}</td>
-                  <td>{seasonLabel(e.leagueSeason)}</td>
+                  <td>{u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</td>
                   <td className="num" style={{ fontWeight: 700 }}>
                     {e.points}
                   </td>
