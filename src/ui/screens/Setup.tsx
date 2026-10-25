@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupChips, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { FORMATIONS, getFormation } from '@engine/formations'
-import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
+import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS, POWER_UPS_ICON, POWER_UP_INFO } from '@engine/powerups'
 import { InfoTip } from '../components/PowerUpButton'
@@ -12,39 +12,40 @@ import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
-import { ordinal, seasonLabel } from '../format'
+import { leagueFlag, ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { Pitch } from '../components/Pitch'
-import { ChoiceCards, ModeCards, SeasonRange } from '../components/SetupBits'
+import { ChoiceCards, type ChoiceOption, FormationTiles, LeagueChips, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
 import { clubName } from '../format'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 const MODE_LINE: Record<Mode, string> = {
-  quick: 'Spin real club-seasons, draft an XI, then watch its season play out.',
-  daily: 'One wheel for everyone today: same spins, same rules.',
-  season: 'Draft a squad, then manage it through every matchweek.',
-  dynasty: 'Draft a squad and build a club over many seasons.',
+  quick: 'Spin, draft an XI, watch its season.',
+  daily: 'One wheel for everyone today.',
+  season: 'Draft a squad, manage every matchweek.',
+  dynasty: 'Draft a squad, build a club for years.',
 }
+const DEFAULT_TEAM = 'Touchline XI'
 
 const respinWord = (n: number) => (n === 0 ? 'No re-spins' : `${n} re-spin${n === 1 ? '' : 's'}`)
-const DIFFICULTY_OPTIONS: Array<{ value: DraftDifficulty; title: string; line: string }> = [
-  { value: 'easy', title: 'Easy', line: respinWord(DIFFICULTY_RESPINS.easy) },
-  { value: 'normal', title: 'Normal', line: respinWord(DIFFICULTY_RESPINS.normal) },
-  { value: 'hard', title: 'Hard', line: `${respinWord(DIFFICULTY_RESPINS.hard)}, ratings hidden` },
+const DIFFICULTY_OPTIONS: Array<ChoiceOption<DraftDifficulty>> = [
+  { value: 'easy', icon: '🙂', title: 'Easy', line: respinWord(DIFFICULTY_RESPINS.easy) },
+  { value: 'normal', icon: '⚖️', title: 'Normal', line: respinWord(DIFFICULTY_RESPINS.normal) },
+  { value: 'hard', icon: '💀', title: 'Hard', line: `${respinWord(DIFFICULTY_RESPINS.hard)} · blind` },
 ]
-const RATINGS_SHOWN: Array<{ value: 'on' | 'off'; title: string; line: string }> = [
-  { value: 'on', title: 'On', line: 'See every rating as you draft' },
-  { value: 'off', title: 'Off', line: 'Blind: go on names and positions' },
+const RATINGS_SHOWN: Array<ChoiceOption<'on' | 'off'>> = [
+  { value: 'on', icon: '👁️', title: 'On', line: 'See every rating' },
+  { value: 'off', icon: '🙈', title: 'Off', line: 'Names only' },
 ]
-const DRAFT_MODE_OPTIONS: Array<{ value: DraftMode; title: string; line: string }> = [
-  { value: 'squad', title: 'Squad First', line: 'Spin a club, draft anyone, then place him' },
-  { value: 'position', title: 'Position First', line: 'Choose a slot, then spin for a club to fill it' },
+const DRAFT_MODE_OPTIONS: Array<ChoiceOption<DraftMode>> = [
+  { value: 'squad', icon: '🎡', title: 'Squad First', line: 'Spin, pick, place' },
+  { value: 'position', icon: '🎯', title: 'Position First', line: 'Pick a slot, then spin' },
 ]
 /** Quick Draft bench places: off, or up to five extra picks the season can bring on (three changes, plus injury cover). */
 const BENCH_OPTIONS: Array<{ value: string; label: string }> = [{ value: '0', label: 'Off' }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))]
-const RATINGS_MODE_OPTIONS: Array<{ value: RatingsMode; title: string; line: string }> = [
-  { value: 'season', title: 'Season', line: 'Rated as he was in that very season' },
-  { value: 'prime', title: 'Prime', line: 'Every player at his career best' },
+const RATINGS_MODE_OPTIONS: Array<ChoiceOption<RatingsMode>> = [
+  { value: 'season', icon: '📅', title: 'Season', line: 'As he was that season' },
+  { value: 'prime', icon: '⭐', title: 'Prime', line: 'At his career best' },
 ]
 
 /** Whether this viewer last left More options open; a private window or blocked storage reads as closed. */
@@ -71,7 +72,7 @@ export function Setup() {
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
   const [leagueId, setLeagueId] = useState('england')
   const [europe, setEurope] = useState(false)
-  const [teamName, setTeamName] = useState('Touchline XI')
+  const [teamName, setTeamName] = useState(DEFAULT_TEAM)
   const [formationId, setFormationId] = useState('4-3-3')
   // The 38-0 options, each defaulting to the mode's base rules
   const [draftDifficulty, setDraftDifficulty] = useState<DraftDifficulty>(modeBase.difficulty ?? 'normal')
@@ -185,7 +186,7 @@ export function Setup() {
 
   /** The settings the Start button would send; a blank seed is drawn at that moment, so a preview names it as such. */
   const buildSettings = (preview: boolean): GameSettings => {
-    const name = teamName.trim() || 'Touchline XI'
+    const name = teamName.trim() || DEFAULT_TEAM
     if (fixed?.kind === 'daily') return dailyGameSettings(u, fixed.seed, name)
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
@@ -217,6 +218,7 @@ export function Setup() {
   const start = () => startGame(buildSettings(false))
   const preview = buildSettings(true)
   const summary = summariseSetup(u, preview)
+  const chips = setupChips(u, preview)
   const ready = fixed ? fixedReady : leagueReady
   const hard = draftDifficulty === 'hard'
   const crazyOn = !fixed && !isManage && modes.includes('crazy')
@@ -230,12 +232,7 @@ export function Setup() {
     setDraftDifficulty(next.includes('hard') ? 'hard' : hard ? 'normal' : draftDifficulty)
     setModes(next.filter((c): c is QuickMode | 'upgrader' => c !== 'hard'))
   }
-  const teamField = (
-    <label className="field">
-      Team name
-      <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={28} />
-    </label>
-  )
+  const teamField = <TeamNameField value={teamName} onChange={setTeamName} fallback={DEFAULT_TEAM} />
 
   return (
     <div className="page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
@@ -254,33 +251,31 @@ export function Setup() {
           <div className="panel col">
             {teamField}
             {fixed.kind === 'daily' && (
-              <div className="notice" data-testid="daily-notice">
-                Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {fixed.seed}.
+              <div className="pill-list" data-testid="daily-notice" title={`Today's puzzle: everyone drafts a ${fixed.formationId} from the same wheel, as ${u.clubById[fixed.host]?.name} in the ${seasonLabel(fixed.season)} league, calibrated difficulty. Seed ${fixed.seed}.`}>
+                <span className="chip info">📅 Today's puzzle: the same wheel for everyone</span>
               </div>
             )}
             {fixed.kind === 'challenge' && challenge && (
               <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
-                <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts as {clubName(u, fixed.host)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
-                Same seed, same wheel, {fixed.difficulty} difficulty
-                {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
-                {fixed.rules?.twists ? ', twists on' : ', no twists'}
-                {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
-                {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
-                {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(fixed.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
-                <div className="small" style={{ marginTop: 6 }}>
-                  {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
-                  {challenge.verified === 'unverified' && `Unverified: built on different data (${challenge.reason}). You can still play the same wheel.`}
-                  {challenge.verified === 'no' && `Could not verify the claim (${challenge.reason}). You can still play the same wheel.`}
-                </div>
+                <b>{challenge.name}</b>: {challenge.claim.pts} pts as {clubName(u, fixed.host)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
+                <span className="small">
+                  {challenge.verified === 'yes' && '✓ Verified on this data.'}
+                  {challenge.verified === 'unverified' && `Unverified (${challenge.reason}).`}
+                  {challenge.verified === 'no' && `Could not verify (${challenge.reason}).`}
+                </span>
               </div>
             )}
             {fixed.rules && (
               <div className="pill-list" data-testid="fixed-rules">
+                {fixed.kind === 'challenge' && <span className="chip">{fixed.difficulty === 'realistic' ? 'Realistic' : 'Calibrated'}</span>}
                 {describeRules(u, fixed.rules).map((t) => (
                   <span key={t} className="chip">
                     {t}
                   </span>
                 ))}
+                {fixed.kind === 'challenge' && fixed.rules.onlyClub && <span className="chip">{clubName(u, fixed.rules.onlyClub)} only</span>}
+                {fixed.kind === 'challenge' && fixed.rules.onlyNation && <span className="chip">{u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only</span>}
+                {fixed.kind === 'challenge' && <span className="chip mono">Seed {fixed.seed}</span>}
               </div>
             )}
           </div>
@@ -288,30 +283,35 @@ export function Setup() {
 
         {!fixed && isManage && (
           <div className="panel col">
-            <h3>Your squad</h3>
+            <SectionHead title="Your squad" />
             {teamField}
             <label className="field">
-              Squad size to draft: {squadSize}
-              <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} />
+              Squad size: {squadSize}
+              <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} data-testid="squad-size" />
             </label>
-            <label className="toggle">
-              <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
-              Job security: the board can sack you
-            </label>
+            <div className="toggle-row">
+              <label className="toggle">
+                <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
+                🪑 Job security
+              </label>
+              <InfoTip label="Job security" text="On: miss the board's target badly and you are sacked." />
+            </div>
           </div>
         )}
 
         {!fixed && !isManage && (
           <div className="panel col" data-testid="modes-panel">
-            <div className="row between wrap">
-              <h3>Modes</h3>
-              <span className="small muted">{cardsOn.length ? `${cardsOn.length} on` : 'Mix and match, or none'}</span>
-            </div>
+            {teamField}
+            <SectionHead title="Modes" info={`Mix and match, or none. ${MODE_CARDS.map((c) => `${MODE_INFO[c].title}: ${MODE_INFO[c].line}.`).join(' ')}`} testId="modes" right={<span className="small muted">{cardsOn.length ? `${cardsOn.length} on` : 'None on'}</span>} />
             <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} onToggle={toggleMode} />
-            <div className="row between wrap pu-setup">
-              <label className="toggle" data-testid="power-ups-toggle">
-                <input type="checkbox" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
-                {POWER_UPS_ICON} Power-ups
+            <div className="pu-setup">
+              <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle">
+                <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
+                <span className="micon" aria-hidden="true">
+                  {POWER_UPS_ICON}
+                </span>
+                <span className="ctitle">Power-ups</span>
+                <span className="cline">{powerUps ? 'On: six one-use boosts' : 'Six one-use boosts'}</span>
               </label>
               <InfoTip label="Power-ups" text="Six one-use power-ups in a tray on the draft: Upgrader, Re-roll season, Peek, Swap, Captain's armband and Lock. Odds are always shown first; in-game only." testId="power-ups-info" />
             </div>
@@ -328,55 +328,51 @@ export function Setup() {
         )}
 
         <div className="panel col">
-          <h3>Formation</h3>
+          <SectionHead title="Formation" />
           {crazyOn && (
             <div className="notice small" data-testid="crazy-formation">
               {crazyKnown ? `Crazy: seed ${seed.trim()} draws a ${shownFormation.name}.` : 'Crazy: the formation is drawn when you start.'}
             </div>
           )}
-          {!fixed && !crazyOn && (
-            <div className="formations">
-              {FORMATIONS.map((f) => (
-                <button key={f.id} type="button" className={f.id === formationId ? 'active' : ''} aria-pressed={f.id === formationId} onClick={() => setFormationId(f.id)}>
-                  <div className="fname">{f.name}</div>
-                </button>
-              ))}
-            </div>
+          {!fixed && !crazyOn && <FormationTiles formations={FORMATIONS} value={formationId} onChange={setFormationId} testId="formation-tiles" />}
+          {(fixed || crazyOn) && (
+            <>
+              {/* A picture of the shape, not a control: inert keeps its slot discs out of the tab order and the accessibility tree */}
+              <div className="pitch-mini" data-testid="formation-preview" inert>
+                <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
+              </div>
+              <p className="help setup-line">
+                <b>{shownFormation.name}</b>: {shownFormation.blurb}
+              </p>
+            </>
           )}
-          {/* A picture of the shape, not a control: inert keeps its slot discs out of the tab order and the accessibility tree */}
-          <div className="pitch-mini" data-testid="formation-preview" inert>
-            <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
-          </div>
-          <p className="help setup-line">
-            <b>{shownFormation.name}</b>: {shownFormation.blurb}
-          </p>
         </div>
 
         {!fixed && (
           <div className="panel col">
             <div className="setup-opt">
-              <h3>Difficulty</h3>
+              <SectionHead title="Difficulty" info="Re-spins let you throw away a spin you do not like. Hard also hides every rating." />
               <ChoiceCards label="Difficulty" testId="difficulty" options={DIFFICULTY_OPTIONS} value={draftDifficulty} onChange={setDraftDifficulty} />
             </div>
             <div className="setup-opt">
-              <h3>Show ratings</h3>
+              <SectionHead title="Show ratings" />
               <ChoiceCards label="Show ratings" testId="show-ratings" options={RATINGS_SHOWN} value={hard || !showRatings ? 'off' : 'on'} onChange={(v) => setShowRatings(v === 'on')} disabled={hard} />
-              {hard && <span className="help setup-line">Hard always hides ratings.</span>}
+              {hard && <span className="help setup-line">Hard hides them.</span>}
             </div>
             <div className="setup-opt">
-              <h3>Draft mode</h3>
+              <SectionHead title="Draft mode" info="Squad First: spin a club, draft anyone from it, then place him. Position First: choose a slot, then spin for a club to fill it." />
               <ChoiceCards label="Draft mode" testId="draft-mode" options={DRAFT_MODE_OPTIONS} value={draftMode} onChange={setDraftMode} />
             </div>
             {!isManage && (
               <div className="setup-opt" data-testid="bench-option">
-                <h3>Bench</h3>
+                <SectionHead title="Bench" info="Extra picks after the XI, optional. Any pick can go to the bench; in the season make 3 changes between games, and injured starters are covered from it." testId="bench" />
                 <Segmented value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS} />
-                <span className="help setup-line">{benchPicks ? `Up to ${benchPicks} extra pick${benchPicks === 1 ? '' : 's'}, optional. Any pick can go to the bench; in the season make 3 changes between games, and injured starters are covered from it.` : 'No bench: the XI plays every game.'}</span>
+                <span className="help setup-line">{benchPicks ? `Up to ${benchPicks} extra pick${benchPicks === 1 ? '' : 's'}.` : 'The XI plays every game.'}</span>
               </div>
             )}
             {!isManage && (
               <div className="setup-opt">
-                <h3>Player ratings</h3>
+                <SectionHead title="Player ratings" />
                 <ChoiceCards label="Player ratings" testId="ratings-mode" options={RATINGS_MODE_OPTIONS} value={ratingsMode} onChange={setRatingsMode} />
               </div>
             )}
@@ -385,12 +381,14 @@ export function Setup() {
 
         {!fixed && (
           <div className="panel col" data-testid="era">
-            <div className="row between wrap">
-              <h3>Era</h3>
-              <span className="chip" data-testid="era-count">
-                {eraLine?.label}
-              </span>
-            </div>
+            <SectionHead
+              title="Era"
+              right={
+                <span className="chip" data-testid="era-count">
+                  {eraLine?.label}
+                </span>
+              }
+            />
             <Segmented value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: 'Custom' }] : [])]} />
             <SeasonRange
               seasons={eraStops}
@@ -402,7 +400,7 @@ export function Setup() {
               }}
             />
             <span className="help setup-line" data-testid="era-caption">
-              {eraLine && eraLine.n > 0 ? `The wheel lands on ${eraLine.caption}.` : 'No seasons in this range.'}
+              {eraLine && eraLine.n > 0 ? `Lands on ${eraLine.caption}.` : 'No seasons in this range.'}
             </span>
           </div>
         )}
@@ -413,43 +411,52 @@ export function Setup() {
               <h3>{isManage ? 'More options' : 'Advanced'}</h3>
               <span className="small muted">{advanced ? 'Hide ▴' : 'Show ▾'}</span>
             </button>
-            {!advanced && (
-              <span className="help">
-                {isManage ? '' : 'Team name, '}European Nights, twists, {isManage ? '' : 'the January window, '}seed, league and season, your club, the opposition, one-club and one-nation{u.available.length >= 2 ? ', the Continental Cup' : ''}. The line above Start states them.
-              </span>
-            )}
+            {!advanced && <span className="help">League, club, seed, opposition, twists and more.</span>}
             {advanced && (
               <>
-                {u.available.length >= 2 && (
-                  <label className="toggle" data-testid="europe-toggle">
-                    <input type="checkbox" checked={europe} onChange={(e) => pickEurope(e.target.checked)} />
-                    European Nights: draft from all {u.available.length} leagues
-                  </label>
-                )}
-                <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
-                  <input type="checkbox" checked={twists || crazyOn} disabled={crazyOn} onChange={(e) => setTwistsChoice(e.target.checked)} data-testid="twists-toggle" />
-                  {crazyOn ? 'Twists: Crazy puts one on every spin' : 'Twists: every third spin is golden, basement, blind or decade'}
-                </label>
-                {!isManage && (
-                  <label className="toggle" data-testid="january-toggle" title="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change.">
-                    <input type="checkbox" checked={january} onChange={(e) => setJanuary(e.target.checked)} />
-                    January window: one deal at the halfway mark
-                  </label>
-                )}
-                {u.available.length >= 2 && (
-                  <label className="toggle" data-testid="continental-toggle" title={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'}>
-                    <input
-                      type="checkbox"
-                      checked={continental}
-                      onChange={(e) => {
-                        setContinental(e.target.checked)
-                        if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
-                      }}
-                    />
-                    {isManage ? 'Continental Cup: European nights against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
-                  </label>
-                )}
-                {!isManage && teamField}
+                <div className="toggle-grid">
+                  {u.available.length >= 2 && (
+                    <div className="toggle-row">
+                      <label className="toggle" data-testid="europe-toggle">
+                        <input type="checkbox" checked={europe} onChange={(e) => pickEurope(e.target.checked)} />
+                        🌍 European Nights
+                      </label>
+                      <InfoTip label="European Nights" text={`The wheel draws from all ${u.available.length} leagues, not just yours.`} />
+                    </div>
+                  )}
+                  <div className="toggle-row">
+                    <label className="toggle">
+                      <input type="checkbox" checked={twists || crazyOn} disabled={crazyOn} onChange={(e) => setTwistsChoice(e.target.checked)} data-testid="twists-toggle" />
+                      🃏 Twists{crazyOn ? ': every spin' : ''}
+                    </label>
+                    <InfoTip label="Twists" text={`${crazyOn ? 'Crazy puts a twist on every spin.' : 'Every third spin is golden, basement, blind or decade.'} Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.`} />
+                  </div>
+                  {!isManage && (
+                    <div className="toggle-row">
+                      <label className="toggle" data-testid="january-toggle">
+                        <input type="checkbox" checked={january} onChange={(e) => setJanuary(e.target.checked)} />
+                        ❄️ January window
+                      </label>
+                      <InfoTip label="January window" text="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change." />
+                    </div>
+                  )}
+                  {u.available.length >= 2 && (
+                    <div className="toggle-row">
+                      <label className="toggle" data-testid="continental-toggle">
+                        <input
+                          type="checkbox"
+                          checked={continental}
+                          onChange={(e) => {
+                            setContinental(e.target.checked)
+                            if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
+                          }}
+                        />
+                        🏆 {isManage ? 'Continental Cup' : 'Continental Cup run'}
+                      </label>
+                      <InfoTip label="Continental Cup" text={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'} />
+                    </div>
+                  )}
+                </div>
                 <label className="field">
                   Seed
                   <div className="row">
@@ -458,15 +465,15 @@ export function Setup() {
                       New
                     </button>
                   </div>
-                  <span className="help">Share a seed and a friend gets the same wheel.</span>
+                  <span className="help">Same seed, same wheel.</span>
                 </label>
                 <div className="field">
                   League
-                  <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: l.name, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
-                  <span className="help">{loadingLeagues ? 'Loading league data…' : europe ? 'Where your side plays; the wheel draws from every league.' : 'Where your side plays, and where the wheel draws from.'}</span>
+                  <LeagueChips leagues={u.available} value={leagueId} onChange={pickLeague} flagOf={(id) => leagueFlag(u, id)} testId="league-chips" />
+                  <span className="help">{loadingLeagues ? 'Loading league data…' : europe ? 'Where you play; the wheel uses every league.' : 'Where you play and what the wheel draws from.'}</span>
                 </div>
                 <label className="field">
-                  League season to play in
+                  Season
                   <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
                     {seasons.map((s) => (
                       <option key={s} value={s}>
@@ -474,10 +481,10 @@ export function Setup() {
                       </option>
                     ))}
                   </select>
-                  <span className="help">You replace one real club and play its {Math.max(0, clubsInLeague.length - 1)} rivals with their real squads.</span>
+                  <span className="help">{Math.max(0, clubsInLeague.length - 1)} real rivals.</span>
                 </label>
                 <label className="field">
-                  Club whose place you take
+                  Your club
                   <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)} data-testid="host-select">
                     {clubsInLeague.map((c) => (
                       <option key={c} value={c}>
@@ -487,7 +494,7 @@ export function Setup() {
                   </select>
                   <span className="help row" style={{ gap: 8 }} data-testid="host-help">
                     <ClubBadge clubId={host} size={22} />
-                    {host === defaultHost && hostRow ? `A mid-table club (${ordinal(hostRow.position)} in ${seasonLabel(effectiveSeason)}), so the board's target is reachable.` : 'You take their colours, rivals and fixtures.'}
+                    {host === defaultHost && hostRow ? `Mid-table: ${ordinal(hostRow.position)} in ${seasonLabel(effectiveSeason)}.` : 'Their colours, rivals and fixtures.'}
                   </span>
                 </label>
                 <div className="field">
@@ -500,7 +507,7 @@ export function Setup() {
                       { value: 'realistic', label: 'Realistic', hint: 'The real squads at full strength. Brutal.' },
                     ]}
                   />
-                  <span className="help">{opposition === 'calibrated' ? 'Scaled so an average draft finishes mid-table.' : 'Real squads at full strength: only a great draft survives.'}</span>
+                  <span className="help">{opposition === 'calibrated' ? 'An average draft finishes mid-table.' : 'Full strength. Brutal.'}</span>
                 </div>
                 <label className="field">
                   One-club mode
@@ -539,8 +546,8 @@ export function Setup() {
                   </select>
                   <span className="help">
                     {onlyNation && nations.some((n) => n.nation === onlyNation)
-                      ? `Every pick, signing and academy prospect comes from ${nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.`
-                      : `${nations.length} nations have ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}.`}
+                      ? `Every pick from ${nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.`
+                      : `${nations.length} nations deep enough (${NATION_SLOT_COVER}× per position${isManage ? `, ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}).`}
                   </span>
                 </label>
               </>
@@ -549,15 +556,16 @@ export function Setup() {
         )}
 
         <div className="bottom-bar" ref={barRef}>
-          <div className="small muted" data-testid="setup-summary">
-            {summary}
+          <div className="setup-chips" data-testid="setup-summary" role="group" title={summary} aria-label={summary}>
+            {chips.map((c) => (
+              <span key={c.key} className={`chip${c.key === 'seed' ? ' mono' : ''}`} data-chip={c.key}>
+                {c.key === 'host' ? `${leagueFlag(u, preview.leagueId)} ${c.text}` : c.text}
+              </span>
+            ))}
             {!fixed && (
-              <>
-                {' · '}
-                <button type="button" className="linklike" onClick={openMore}>
-                  change
-                </button>
-              </>
+              <button type="button" className="linklike small" onClick={openMore} data-testid="setup-change">
+                Change
+              </button>
             )}
           </div>
           <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>

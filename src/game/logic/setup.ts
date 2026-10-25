@@ -201,6 +201,47 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   return parts.join(', ')
 }
 
+/** One chip of the row above Start: `key` names what it states (the UI adds the league's flag to `host`). */
+export interface SetupChip {
+  key: string
+  text: string
+}
+
+/**
+ * The same choices as `summariseSetup`, as short chips for the row above Start: the formation, the club and season,
+ * the opposition and the seed always, then only what differs from the mode's defaults, in the same order.
+ */
+export function setupChips(u: LoadedUniverse, s: GameSettings): SetupChip[] {
+  const out: SetupChip[] = [
+    { key: 'formation', text: getFormation(s.formationId).name },
+    { key: 'host', text: `${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ${seasonLabel(s.leagueSeason)}` },
+    { key: 'opposition', text: (s.difficulty ?? 'calibrated') === 'realistic' ? 'Realistic' : 'Calibrated' },
+    { key: 'seed', text: `Seed ${s.seed}` },
+  ]
+  const r = s.rules
+  if (s.wheelLeagues.length > 1) out.push({ key: 'europe', text: `🌍 ${s.wheelLeagues.length} leagues` })
+  if (r.fromSeason !== undefined || r.toSeason !== undefined) out.push({ key: 'era', text: `${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}` })
+  if (r.onlyClub) out.push({ key: 'club', text: `${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only` })
+  if (r.onlyNation) out.push({ key: 'nation', text: `${u.nations[r.onlyNation]?.flag ?? ''} ${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`.trim() })
+  const manage = s.mode === 'season' || s.mode === 'dynasty'
+  for (const t of rulesTags(r, manage ? SEASON_RULES : QUICK_RULES)) out.push({ key: `tag-${t}`, text: t })
+  const twistsDefault = !!(manage ? SEASON_RULES.twists : QUICK_RULES.twists)
+  if (!!r.twists !== twistsDefault && !modesOf(r).includes('crazy')) out.push({ key: 'twists', text: r.twists ? 'Twists' : 'No twists' })
+  for (const m of modesOf(r)) out.push({ key: `mode-${m}`, text: `${MODE_INFO[m].icon} ${MODE_INFO[m].title}` })
+  if (r.upgrader) out.push({ key: 'upgrader', text: `${MODE_INFO.upgrader.icon} ${MODE_INFO.upgrader.title}` })
+  if (r.powerUps) out.push({ key: 'power-ups', text: `${POWER_UPS_ICON} Power-ups` })
+  if (manage) {
+    out.push({ key: 'squad', text: `Squad of ${r.squadSize}` })
+    if (!s.jobSecurity) out.push({ key: 'no-sack', text: 'No sack' })
+    if (s.continental) out.push({ key: 'continental', text: 'Continental Cup' })
+  } else {
+    if (s.january === false) out.push({ key: 'january', text: 'No January' })
+    if (benchPlaces(r)) out.push({ key: 'bench', text: `Bench ${benchPlaces(r)}` })
+    if (s.continental) out.push({ key: 'continental', text: 'Continental run' })
+  }
+  return out
+}
+
 export function createGame(settings: GameSettings): Game {
   const rng = new Rng(settings.seed)
   const formation = getFormation(settings.formationId)

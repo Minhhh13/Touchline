@@ -65,3 +65,12 @@ export function textColourFor(bg: string): string {
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
   return lum > 0.6 ? '#111' : '#fff'
 }
+
+/** The flag shown beside a league's name: its country's, read from the nation table by name, a few fixed by id. */
+const LEAGUE_FLAGS: Record<string, string> = { england: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', spain: '🇪🇸', italy: '🇮🇹', germany: '🇩🇪', france: '🇫🇷', netherlands: '🇳🇱', portugal: '🇵🇹' }
+export function leagueFlag(u: LoadedUniverse | null, leagueId: string): string {
+  if (LEAGUE_FLAGS[leagueId]) return LEAGUE_FLAGS[leagueId]
+  const country = u?.available.find((l) => l.id === leagueId)?.country
+  const n = country && u ? Object.values(u.nations).find((x) => x.name === country) : undefined
+  return n?.flag ?? '🏳️'
+}
