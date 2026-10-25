@@ -454,6 +454,8 @@ Everything the match-day dashboard shows is derived from one feed (`feedFromLive
 
 ## 9. Tactics and instructions
 
+On the Tactics tab each shape is a tile with its mini pitch (`FormationPicker`), each instruction is a label and its control with what the current setting does behind an info button, and each role row shows the rating in role as a badge with the role's blurb behind an info button.
+
 Six instructions plus a role per slot (`src/engine/tactics.ts`). `attack` multiplies your λ; `defence` multiplies the opponent's λ against you (lower is better); `fatigue` is extra condition lost per 90.
 
 | Instruction | Setting | Attack | Defence | Fatigue | Depends on |

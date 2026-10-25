@@ -69,6 +69,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Post-match press conferences: single out your star, credit the squad, take the blame or blame the referee, and answer the job question when the table turns.
 - Man-mark the opponent's danger man from the opposition report: his influence drops, your attack loses a little, and the report tells you whether it worked.
 - A depth chart of who can cover every position in your shape, rated there.
+- **Cleaner Draft and Dugout**: a pick track instead of counters, a draft log with drawn twist icons, the Dugout's numbers as one strip of stats, a briefing with drawn status marks, lined lists instead of a box per row, and the long explanations behind info buttons. On a phone the stats sit two by two and the opposition report folds away.
 - Export and import your save file from the Profile page (plain JSON; old exports still import), and a trophy cabinet across every game you have played.
 - Small saves: stored results keep only what the screens read and the save is compressed, so a full Season takes about 50 K characters of the browser's 5 MB, a Dynasty with a parked Season under 100 K; if the storage is ever full a toast says so and the game carries on.
 - Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
@@ -163,7 +164,7 @@ src/
   ui/
     App.tsx                Shell and routing between screens
     screens/               Home, Setup, Draft, Dugout, MatchScreen, Summary, Explore, Profile, HowTo
-    components/            CaseReel, GameByGame, Pitch, PlayerRow, TableView, MatchTicker, LivePitch, MatchCharts, AttributePanel, Logo, Celebrate, bits (with the Info tooltip)
+    components/            CaseReel, GameByGame, Pitch, PlayerRow, TableView, MatchTicker, LivePitch, MatchCharts, AttributePanel, Logo, Celebrate, icons (news, twist and briefing icons), bits (with the Info tooltip)
     matchday/              The match-day dashboard: shell and clock, widget registry, top bar and drawers, stop panel, squad strip, phone tabs, shirts and panels
     match/                 Pure pitch geometry, the ball path generator, chart series and the shared live clock; dot movement, spells of play, heat and pass maps, commentary, shirt numbers and codes
     brand.ts               The name, the mark's geometry and the canvas colours
