@@ -153,9 +153,6 @@
   .matchday.compact .md-stop-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .matchday .md-subs {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   /* Drawers become bottom sheets */
   .matchday .md-drawer-back {
@@ -177,6 +174,66 @@
   }
   .matchday .md-drawer-foot .md-chip {
     flex: 1 0 100%;
+  }
+  /* The substitution board is a full-height sheet: the pitch on top, the bench under it */
+  .matchday .md-drawer.board {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .matchday .md-drawer.board .md-drawer-body {
+    flex: 1 1 auto;
+    padding: 8px 10px;
+  }
+  .matchday .md-drawer.board .md-drawer-foot .md-chip {
+    flex: 1 1 auto;
+    font-size: 11px;
+  }
+  .matchday .sub-board {
+    --sb-pitch-h: min(46dvh, calc((100vw - 20px) * 80.2 / 68));
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 8px;
+  }
+  .matchday .sub-side {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+  .matchday .sub-bench {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .matchday .sub-bench-card {
+    grid-template-columns: 22px minmax(0, 1fr) 14px;
+    grid-template-rows: auto auto;
+    column-gap: 4px;
+    row-gap: 0;
+    padding: 3px 5px;
+    font-size: 11px;
+  }
+  .matchday .sub-bench-card > .md-shirt {
+    grid-row: 1 / span 2;
+  }
+  .matchday .sub-bench-card .pos {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .matchday .sub-bench-card .ovr,
+  .matchday .sub-bench-card .sub-fit-num {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
+  }
+  .matchday .sub-bench-card .md-condition {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .matchday .sub-slot {
+    max-width: 70px;
+  }
+  .matchday .sub-slot-name {
+    font-size: 10px;
   }
 }
 @keyframes md-sheet-in {
