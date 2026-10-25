@@ -17,6 +17,8 @@ import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
 import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
+import { canPickManager, quickManagerOptions } from '@game/logic/managers'
+import { ManagerPick } from '../components/ManagerPick'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -26,7 +28,7 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 ]
 
 export function Draft() {
-  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, finishDraft, go, showToast } = useStore()
+  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, finishDraft, pickManager, go, showToast } = useStore()
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -83,6 +85,8 @@ export function Draft() {
   const selected = selectedPlayer ? get(selectedPlayer) : undefined
   const selectedEligible = selected ? eligibleSlots(d, selected).map((s) => s.id) : []
   const isDynastySummer = game.settings.mode === 'dynasty' && game.year > 1
+  // Quick Draft managers: offered once the draft is done or may close, from the club-seasons drafted
+  const managerChoice = !d.current && !spinning && canPickManager(game, u) ? quickManagerOptions(game) : []
 
   const nation = d.rules.onlyNation
   const nationLabel = nation ? (
@@ -292,7 +296,8 @@ export function Draft() {
 
         {/* Squad list column */}
         <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
-          {!current && (
+          {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
+          {!current && !managerChoice.length && (
             <div className="empty-state">
               <span className="empty-icon" aria-hidden="true">
                 <Dices size={26} />

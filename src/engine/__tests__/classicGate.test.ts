@@ -113,7 +113,15 @@ describe('classic gate', () => {
     // fields the gate's baseline knew, in its order, still hash to it, and the whole object to the release line's own
     const legacy = a.map((d) => ({ seed: d.seed, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, season: d.season, host: d.host, formationId: d.formationId, difficulty: d.difficulty }))
     expect(hash(legacy)).toBe(DAILY_BASELINE)
-    expect(hash(a)).toBe(DAILY_RELEASE_BASELINE)
+    // The Quick Draft managers (season-release) pin `managers: false` in the Daily's rules: with that one key set aside
+    // the settings hash to the release baseline, so no date's season, host, formation or rules changed
+    expect(a.every((d) => d.rules.managers === false)).toBe(true)
+    const beforeManagers = a.map((d) => {
+      const { managers, ...rules } = d.rules
+      void managers
+      return { ...d, rules }
+    })
+    expect(hash(beforeManagers)).toBe(DAILY_RELEASE_BASELINE)
     expect(a.some((d) => d.season < 2008)).toBe(false)
   }, 60_000)
 
