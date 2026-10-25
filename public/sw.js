@@ -58,16 +58,18 @@ self.addEventListener('fetch', (event) => {
     )
     return
   }
-  // The shell: network first so a new build shows up, cache when offline
+  // The shell: network first so a new build shows up, cache when offline. A page is cached under its path only, so a
+  // sign-in redirect's one-time `?token_hash=` or `?code=` never lands in Cache Storage
+  const key = req.mode === 'navigate' ? url.origin + url.pathname : req
   event.respondWith(
     fetch(req)
       .then((res) => {
         if (res.ok && (req.mode === 'navigate' || url.pathname.endsWith('.webmanifest'))) {
           const copy = res.clone()
-          event.waitUntil(caches.open(VERSION).then((c) => c.put(req, copy)))
+          event.waitUntil(caches.open(VERSION).then((c) => c.put(key, copy)))
         }
         return res
       })
-      .catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html'))),
+      .catch(() => caches.match(key).then((hit) => hit || caches.match('./index.html'))),
   )
 })

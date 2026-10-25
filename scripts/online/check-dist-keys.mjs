@@ -6,6 +6,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 const TEXT = /\.(js|mjs|cjs|css|html|json|webmanifest|txt|map|svg)$/i
+// A key is the prefix plus its body; the bare prefix also appears in supabase-js, which recognises key types by it
+const SECRET = /sb_secret_[A-Za-z0-9_-]{8,}/
 const JWT = /eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g
 
 function* files(dir) {
@@ -31,7 +33,7 @@ let scanned = 0
 for (const file of files(dir)) {
   scanned++
   const text = readFileSync(file, 'utf8')
-  if (text.includes('sb_secret_')) problems.push(`${path.relative(dir, file)}: contains an sb_secret_ key`)
+  if (SECRET.test(text)) problems.push(`${path.relative(dir, file)}: contains an sb_secret_ key`)
   for (const m of text.matchAll(JWT)) {
     const role = roleOf(m[0])
     if (role !== null && role !== 'anon') problems.push(`${path.relative(dir, file)}: contains a JWT with role "${role}"`)

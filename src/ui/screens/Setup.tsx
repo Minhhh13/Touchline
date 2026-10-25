@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { dailyGameSettings, dailySettings, defaultHostClub, shortNameFor, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, shortNameFor, summariseSetup } from '@game/logic/setup'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
 import { rulesFromPayload } from '@engine/challenge'
@@ -11,6 +11,9 @@ import { randomSeed } from '@engine/rng'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
+import { dailyStartSettings } from '../../online/daily'
+import { useOnline } from '../../online/state'
+import { SignInPrompt } from '../online/SignInPrompt'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 
@@ -57,6 +60,8 @@ function listNames(names: string[]): string {
 
 export function Setup() {
   const { universe: u, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, pendingChallenge } = useStore()
+  // Today's pinned ranked Daily, when the online layer has read it (the local mapping otherwise)
+  const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const [leagueId, setLeagueId] = useState('england')
   const [wheelScope, setWheelScope] = useState<'league' | 'europe'>('league')
   const [teamName, setTeamName] = useState('Touchline XI')
@@ -146,8 +151,8 @@ export function Setup() {
       return { kind: 'challenge', season: c.s.ls, host: c.s.h, formationId: c.s.f, leagueId: c.s.l, wheelLeagues: c.s.wl, difficulty: c.s.d, rules: rulesFromPayload(c), seed: c.s.seed }
     }
     if (!isDaily) return null
-    const d = dailySettings(u, todaysDailySeed())
-    return { kind: 'daily', season: d.season, host: d.host, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty, rules: null, seed: d.seed }
+    const d = dailyStartSettings(u, todaysDailySeed(), teamName.trim() || 'Touchline XI', pin).settings
+    return { kind: 'daily', season: d.leagueSeason, host: d.hostClubId, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty, rules: null, seed: d.seed }
   })()
   const challenge = pendingChallenge?.challenge ?? null
   const fixedReady = !fixed || (fixed.wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(fixed.leagueId))
@@ -155,7 +160,7 @@ export function Setup() {
   /** The settings the Start button would send; a blank seed is drawn at that moment, so a preview names it as such. */
   const buildSettings = (preview: boolean): GameSettings => {
     const name = teamName.trim() || 'Touchline XI'
-    if (fixed?.kind === 'daily') return dailyGameSettings(u, fixed.seed, name)
+    if (fixed?.kind === 'daily') return dailyStartSettings(u, fixed.seed, name, pin).settings
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
@@ -190,6 +195,7 @@ export function Setup() {
           ← Back
         </button>
       </div>
+      {isManage && !challenge && <SignInPrompt id={mode} text={`Sign in to keep this ${mode === 'dynasty' ? 'Dynasty' : 'Season'} on every device.`} />}
       <div className="grid two">
         <div className="col">
           <div className="panel col">

@@ -180,7 +180,7 @@ Design documents:
 ## Roadmap
 
 - Seasons before 2008-09 (needs a ratings source for the 1990s and 2000s)
-- Online leaderboards for the daily challenge
+- Online head-to-head rooms (the optional online layer already has accounts, cloud saves for every mode, the verified world leaderboard and short challenge links)
 - More leagues (Portugal, the Netherlands) and a group stage for the Continental Cup
 - Youth intake and player development targets in Dynasty
 

@@ -1,11 +1,16 @@
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
-import { dailyGameSettings, dailySettings } from '@game/logic/setup'
+import { dailySettings } from '@game/logic/setup'
+import { dailyStartSettings } from '../../online/daily'
+import { useOnline } from '../../online/state'
+import { onlineAvailable } from '../../online/api'
+import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
 
 export function Home() {
   const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
+  const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const players = u ? u.available.reduce((s, l) => s + l.players, 0) : 0
   const clubCount = u ? u.available.reduce((s, l) => s + l.clubs, 0) : 0
@@ -13,7 +18,9 @@ export function Home() {
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
-  const daily = dailyReady ? dailySettings(u, todaysDailySeed()) : null
+  // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
+  const dailyStart = dailyReady ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
+  const daily = dailyReady ? (dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, host: dailyStart.settings.hostClubId, season: dailyStart.settings.leagueSeason } : dailySettings(u, todaysDailySeed())) : null
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
   const dailyUnderWay = !!game && game.settings.mode === 'daily' && game.settings.seed === todaysDailySeed() && game.phase !== 'summary'
   const playDaily = () => {
@@ -23,7 +30,7 @@ export function Home() {
       return
     }
     if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
-    startGame(dailyGameSettings(u, todaysDailySeed()))
+    startGame(dailyStart!.settings)
   }
   return (
     <div className="page">
@@ -36,6 +43,8 @@ export function Home() {
           {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
         </p>
       </section>
+
+      <ConflictCards />
 
       {game && (
         <div className="panel row between wrap" style={{ marginBottom: 14 }}>
@@ -103,6 +112,11 @@ export function Home() {
               )}
             </p>
             <span className="foot">{dailyDone ? `Played today · streak ${profile.dailyStreak}` : profile.dailyStreak ? `Streak ${profile.dailyStreak}` : 'New puzzle every day'} · tap to name your team</span>
+            {pin && dailyStart && (
+              <span className="foot" data-testid="daily-ranked">
+                {dailyStart.ranked ? 'Ranked today on the world leaderboard' : dailyStart.source === 'missing_data' ? "Today's ranked puzzle needs newer data: reload" : 'Unranked on this version: reload to update'}
+              </span>
+            )}
           </button>
           <button type="button" className="btn primary block" disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
             {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
@@ -127,6 +141,12 @@ export function Home() {
           <h3>🤝 Head-to-head</h3>
           <p className="muted small">Two managers on one device draft from the same spins, then both sides play the same season. Settle it properly.</p>
         </button>
+        {onlineAvailable() && (
+          <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('world')} data-testid="world-card">
+            <h3>🌍 World leaderboard</h3>
+            <p className="muted small">Today's Daily, this week's challenge and all-time Daily totals, every score verified by replay. Filter by country.</p>
+          </button>
+        )}
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('explore')}>
           <h3>Explore the database</h3>
           <p className="muted small">Every club-season in {u ? `${u.available.length} leagues` : 'seven leagues'} since 2008-09, with real squads and ratings. Settle the argument before you spin.</p>

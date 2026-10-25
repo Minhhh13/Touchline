@@ -17,5 +17,6 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   })
 }
 
-// The online layer loads only when this build carries a Supabase project (CLAUDE.md invariant 13)
-if (onlineConfig()) void import('./online/boot')
+// The online layer loads only when this build carries a Supabase project (CLAUDE.md invariant 13). The first two
+// tests are constants Vite folds, so a build without the variables does not even emit the layer's chunks.
+if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY && onlineConfig()) void import('./online/boot')

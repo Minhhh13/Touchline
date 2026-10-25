@@ -16,6 +16,9 @@ import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
+import { WorldBoard } from './online/WorldBoard'
+import { parseGameHash } from '../online/core/codes'
+import { onlineAvailable, resolveShort } from '../online/api'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
@@ -25,14 +28,20 @@ export function App() {
     void loadData()
   }, [loadData])
 
-  // A challenge link (`#c=...`) opens once the default league is in: the hash is cleared so a reload does not reopen it
+  // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
+  // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
   useEffect(() => {
     if (!universe) return
     const open = () => {
-      const m = /^#c=([A-Za-z0-9_-]+)$/.exec(location.hash)
-      if (!m) return
+      const h = parseGameHash(location.hash)
+      if (!h || h.kind === 'h') return
       history.replaceState(null, '', location.pathname + location.search)
-      void openChallenge(m[1])
+      if (h.kind === 'c') void openChallenge(h.payload)
+      else
+        void resolveShort(h.code).then((r) => {
+          if (r.ok) void openChallenge(r.encoded)
+          else useStore.getState().showToast(r.message)
+        })
     }
     if (!hashHandled.current) {
       hashHandled.current = true
@@ -92,6 +101,7 @@ export function App() {
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />
   else if (screen === 'howto') body = <HowTo />
+  else if (screen === 'world') body = <WorldBoard />
   else body = <Home />
 
   return (
@@ -115,6 +125,11 @@ export function App() {
           <button className={screen === 'explore' ? 'active' : ''} onClick={() => go('explore')}>
             Explore
           </button>
+          {onlineAvailable() && (
+            <button className={screen === 'world' ? 'active' : ''} onClick={() => go('world')} data-testid="nav-world">
+              World
+            </button>
+          )}
           <button className={screen === 'profile' ? 'active' : ''} onClick={() => go('profile')}>
             Record
           </button>

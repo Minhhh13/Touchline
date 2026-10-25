@@ -2777,3 +2777,8 @@ table.tbl tr.clickable:hover {
   font-size: 13px;
   padding: 5px 10px;
 }
+
+/* World leaderboard: the viewer's own row */
+.tbl tr.board-me td {
+  background: var(--primary-soft);
+}

@@ -19,6 +19,7 @@
     "deploy:function": "node scripts/online/deploy-function.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.117.3",
     "immer": "^11.2.9",
     "lz-string": "1.5.0",
     "react": "^19.1.0",

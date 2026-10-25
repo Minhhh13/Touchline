@@ -5,6 +5,7 @@
  * `DAILY_FORMATIONS`, `dailyGameSettings`) is not touched (CLAUDE.md invariant 4).
  */
 import { encodeChallenge } from '@engine/challenge'
+import { dailyDateOf } from '@engine/rng'
 import type { LoadedUniverse } from '@engine/universe'
 import { ENGINE_VERSION } from '@engine/version'
 import type { Game, GameSettings } from '@game/types'
@@ -60,4 +61,15 @@ export function buildRankedSubmission(game: Game, u: LoadedUniverse, name: strin
   const payload = challengeFromGame(game, u, name)
   if (!payload) return null
   return { op: isDaily ? 'daily.submit' : 'weekly.submit', encoded: encodeChallenge(payload), teamName: game.settings.teamName, shortName: game.settings.shortName }
+}
+
+/** The ranked board a game's settings belong to (the Daily's date, or the week key), or null for any other game. */
+export function rankedBoardOf(settings: GameSettings): { kind: 'daily' | 'weekly'; key: string } | null {
+  if (settings.challenge) return null
+  if (settings.mode === 'daily') {
+    const d = dailyDateOf(settings.seed)
+    return d ? { kind: 'daily', key: d.toISOString().slice(0, 10) } : null
+  }
+  const week = settings.mode === 'quick' ? weekKeyOfSeed(settings.seed) : null
+  return week ? { kind: 'weekly', key: week } : null
 }

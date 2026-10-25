@@ -75,7 +75,9 @@ describe('check:dist-keys', () => {
 
   it('passes publishable and anon keys, fails on a secret key or a service_role JWT', () => {
     expect(run({ 'index.html': '<html></html>', 'assets/a.js': `const k="${KEY}";const j="${jwt({ role: 'anon', iss: 'supabase' })}"` })).toBe(0)
-    expect(run({ 'assets/a.js': 'const k="sb_secret_x"' })).toBe(1)
+    expect(run({ 'assets/a.js': 'const k="sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"' })).toBe(1)
+    // supabase-js tells key types apart by their prefixes: the bare prefix is not a key
+    expect(run({ 'assets/runtime.js': 'const t=r=>r.startsWith("sb_publishable_")||r.startsWith("sb_secret_")' })).toBe(0)
     expect(run({ 'assets/b.js': `const j="${jwt({ role: 'service_role', iss: 'supabase' })}"` })).toBe(1)
   })
 })
