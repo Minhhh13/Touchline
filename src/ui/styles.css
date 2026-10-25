@@ -4325,6 +4325,336 @@ table.tbl.contracts .btn.sm {
   font-size: 13px;
   padding: 5px 10px;
 }
+
+/* ---------------------------------------------------------------------------
+   Match feel: the football, the goal celebration, the decisions pop-up and the
+   match-play modes. The pitch loop sets SVG attributes only; everything below
+   is CSS animation started once per goal or per dot. The pitch's whites and the
+   club colours of the goal banner are the fixed exceptions to the tokens. */
+.live-pitch {
+  position: relative;
+}
+.live-dot .dot-body {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dot-in 0.45s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+@keyframes dot-in {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.goal-burst {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 30px;
+  container-type: size;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+}
+.goal-burst .banner {
+  background: var(--burst);
+  color: var(--burst-ink);
+  border: 2px solid color-mix(in srgb, var(--burst-ink) 55%, transparent);
+  border-radius: var(--radius-s);
+  padding: 10px 22px 12px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  max-width: 86%;
+  animation: burst-in 0.5s cubic-bezier(0.2, 1.5, 0.35, 1) var(--flight) both, burst-out 0.35s ease calc(var(--burst-ms) - 650ms) forwards;
+}
+.goal-burst .title {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 11cqw, 64px);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-weight: 800;
+}
+.goal-burst .who {
+  font-weight: 700;
+  font-size: clamp(13px, 3.4cqw, 18px);
+  margin-top: 4px;
+}
+.goal-burst .who .min {
+  font-family: var(--mono);
+  opacity: 0.8;
+  font-weight: 500;
+}
+.goal-burst .new-score {
+  font-family: var(--font-display);
+  font-size: clamp(16px, 5cqw, 26px);
+  margin-top: 2px;
+}
+.goal-burst.theirs .banner {
+  padding: 6px 16px 8px;
+  opacity: 0.86;
+  filter: saturate(0.7) brightness(0.85);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  animation: burst-in-soft 0.35s ease var(--flight) both, burst-out 0.3s ease calc(var(--burst-ms) - 500ms) forwards;
+}
+.goal-burst.theirs .title {
+  font-size: clamp(22px, 7cqw, 38px);
+}
+@keyframes burst-in {
+  0% {
+    transform: scale(0.3) rotate(-6deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+@keyframes burst-in-soft {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 0.86;
+  }
+}
+@keyframes burst-out {
+  to {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+}
+.goal-burst .confetti {
+  position: absolute;
+  inset: 0;
+}
+.goal-burst .confetti span {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 1.1cqw;
+  height: 2.2cqh;
+  min-width: 4px;
+  min-height: 6px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: confetti 1.7s cubic-bezier(0.15, 0.7, 0.4, 1) calc(var(--flight) + var(--delay)) forwards;
+}
+.goal-burst .confetti span.wide {
+  width: 2cqw;
+  height: 1.2cqh;
+}
+@keyframes confetti {
+  0% {
+    transform: translate(-50%, -50%) rotate(0);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 22cqh)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+.goal-burst.still .banner {
+  animation: none;
+}
+
+
+/* The stop's decisions: a dialog centred over the match on every width, over a light scrim so the
+   score and the pitch stay in view; it scrolls inside itself and keeps its action row on screen */
+.decision-back {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: color-mix(in srgb, var(--scrim) 55%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.decision-sheet {
+  width: min(900px, 100%);
+  max-height: min(86vh, 720px);
+  max-height: min(86dvh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: decision-in 0.25s ease;
+  outline: none;
+}
+.decision-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px 8px;
+}
+.decision-head h2 {
+  margin: 0;
+}
+.decision-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 16px 10px;
+  overscroll-behavior: contain;
+}
+.decision-body .field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.decision-actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--line-2);
+  background: var(--panel);
+}
+@keyframes decision-in {
+  from {
+    transform: translateY(10px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (max-width: 720px) {
+  .decision-back {
+    padding: 12px;
+  }
+  .decision-sheet {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .decision-head {
+    padding: 10px 14px 4px;
+  }
+  .decision-body {
+    padding: 4px 12px 8px;
+  }
+  .decision-actions {
+    gap: 6px;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+  .decision-actions .btn {
+    flex: 1 1 40%;
+    padding: 8px 6px;
+    font-size: 14px;
+  }
+  .decision-actions .btn.primary {
+    flex-basis: 100%;
+  }
+}
+.decisions-pill {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  box-shadow: var(--shadow);
+}
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-2);
+  background: var(--panel-2);
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.chip-toggle.on {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.chip-toggle input {
+  accent-color: var(--primary);
+  margin: 0;
+}
+.assistant-note {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 40;
+  border-color: var(--primary);
+  box-shadow: var(--shadow);
+  padding: 8px 14px;
+}
+.match-play {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.chip-btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-2);
+  background: var(--panel-2);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.chip-btn.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+.mode-tag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  vertical-align: middle;
+}
+@media (max-width: 720px) {
+  .match-play {
+    justify-content: flex-start;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot .dot-body,
+  .decision-sheet,
+  .goal-burst .banner {
+    animation: none;
+  }
+  .goal-burst .confetti {
+    display: none;
+  }
+}
 /* Quick-season highlights: a Highlights button on each game, the reel in a modal (a bottom sheet on a phone) */
 .gbg.with-hl .gbg-game {
   grid-template-columns: 44px 22px minmax(0, 1fr) auto auto 42px 30px;

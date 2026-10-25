@@ -9,7 +9,7 @@
  * derived from it once per decision, and the per-minute views once per tick.
  * Below 1200 px it hands the same pieces to the stacked layout.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { canChangeInPlay, managerWindowsUsed, MAX_SUBS, MAX_WINDOWS, subsMade, type FullMatchResult, type LiveChanges } from '@engine/match'
 import { feedFromLive, feedFromResult, scoreAt, type MatchFeed } from '@engine/matchFeed'
 import { statsSeries, xgStory } from '@engine/matchStats'
@@ -25,6 +25,8 @@ import { LivePitch, useMediaQuery } from '../components/LivePitch'
 import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
 import { matchPath } from '../match/epochs'
+import { useLiveClock } from '../match/clockStore'
+import { goalHolds } from '../match/possession'
 import { samplePlayers } from '../match/heat'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
@@ -36,7 +38,7 @@ import { CommentaryBanner } from './panels/feedPanels'
 import { FormationPanel } from './panels/FormationPanel'
 import { StatsFlank } from './panels/StatsFlank'
 import { SquadStrip } from './SquadStrip'
-import { StopPanel } from './StopPanel'
+import { StopPanel, type StopActions } from './StopPanel'
 import { TopBar } from './TopBar'
 import type { LiveControl, MatchdayData, SideView } from './types'
 import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
@@ -47,7 +49,12 @@ import './matchday-phone.css'
 
 export type DashboardSource = { mode: 'live'; live: LiveMatch } | { mode: 'replay'; res: FullMatchResult; ctx: MatchContext }
 
-export function MatchDashboard({ source, onWhistle, onAdvance }: { source: DashboardSource; onWhistle: () => void; onAdvance?: (changes: LiveChanges) => void }) {
+/**
+ * `onAdvance` plays on from a stop with the manager's changes (held to the whistle from 70);
+ * `onSimToEnd` plays the match straight to the whistle with the assistant taking every later call
+ * (Full sim with the stop's changes, or Sim result in play without any).
+ */
+export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { source: DashboardSource; onWhistle: () => void; onAdvance?: (changes: LiveChanges) => void; onSimToEnd?: (changes?: LiveChanges) => void }) {
   const store = useStore()
   const game = store.game!
   const u = store.universe!
@@ -82,8 +89,14 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
   const stopAt = stopTarget(feed)
   const final = feed.decidedTo >= 90
   const start = live ? resumeMinute(live.mp) : 0
-  const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, onFinish: final ? onWhistle : undefined })
-  const minute = clock.clock
+  // Every goal holds the clock for its celebration: ours the full one, theirs a short one (from the same strike moments the ball path uses)
+  const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
+  const holds = useMemo(() => mpath.epochs.flatMap((e) => goalHolds(feed.events, e.from, e.to, { userSide: userSide ?? undefined, reduced })).sort((a, b) => a.t - b.t), [mpath, feed.events, userSide, reduced])
+  const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, holds, reduced, onFinish: final ? onWhistle : undefined })
+  // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
+  const revealed = useLiveClock((s) => s.revealed)
+  const pending = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock.clock && h.t >= start)
+  const minute = pending ? Math.max(start, clock.clock - 1) : clock.clock
   const whistle = clock.finished && final
 
   const [selected, setSelected] = useState<string | null>(null)
@@ -103,16 +116,16 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
   // The manager's hand on the match in play (the top bar's and the strip's controls use it)
   const control: LiveControl | null = live
     ? {
-        minute,
+        minute: clock.clock,
         stop: clock.atStop ? (stopAt === 45 ? 45 : 70) : null,
         can: canChangeInPlay(live.mp, minute, userSide ?? 'home'),
         userSide: userSide ?? 'home',
         tactics: (live.userIsHome ? live.mp.home : live.mp.away).tactics,
         shout: (live.userIsHome ? live.mp.home : live.mp.away).shout,
         // Changes the engine has decided later in the segment (a routine change at 62 seen at 50) are not made yet: the strip and the drawer count the same ones
-        subsLeft: MAX_SUBS - subsMade(live.mp, userSide ?? 'home', Math.max(0, minute)),
+        subsLeft: MAX_SUBS - subsMade(live.mp, userSide ?? 'home', Math.max(0, clock.clock)),
         windowsLeft: MAX_WINDOWS - managerWindowsUsed(live.mp, userSide ?? 'home'),
-        apply: (change) => store.interveneLive({ minute, ...change }),
+        apply: (change) => store.interveneLive({ minute: clock.clock, ...change }),
       }
     : null
 
@@ -128,6 +141,30 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
   d.hand = hand
 
   const compact = useMediaQuery('(max-width: 1199px)')
+  // On a desktop the whole board fits the window: its height is the viewport less what stands above and below it
+  const root = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = root.current
+    if (compact || !el) return
+    const fit = () => {
+      const doc = document.scrollingElement ?? document.documentElement
+      const top = Math.ceil(el.getBoundingClientRect().top + window.scrollY)
+      // Fill the window below the board's top, then give back whatever still makes the page scroll (its padding, anything under it)
+      el.style.setProperty('--md-fit', `calc(100dvh - ${top}px)`)
+      const over = Math.max(0, doc.scrollHeight - window.innerHeight)
+      if (over > 0) el.style.setProperty('--md-fit', `calc(100dvh - ${top + over}px)`)
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    // The app's top bar folds away and comes back (a class on .app): the board's top moves with it
+    const app = el.closest('.app')
+    const watch = app ? new MutationObserver(() => requestAnimationFrame(fit)) : null
+    if (app && watch) watch.observe(app, { attributes: true, attributeFilter: ['class'] })
+    return () => {
+      window.removeEventListener('resize', fit)
+      watch?.disconnect()
+    }
+  }, [compact])
   const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : ctx.competition === 'league' ? `Matchweek ${ctx.matchweek}` : 'Continental Cup')}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
   const crumb = (
     <div className="md-crumb">
@@ -144,7 +181,27 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
       </span>
     </div>
   )
-  const top = <TopBar feed={feed} clock={clock} home={home} away={away} label={label} control={control} hand={hand} />
+  // Auto-play: the assistant answers the stops for the rest of this match ("Auto from here", "Finish the match", or the saved mode)
+  const liveAuto = useStore((s) => s.liveAuto)
+  const answered = useRef(false)
+  const autoAtStop = !!live && clock.atStop && liveAuto && !!onAdvance
+  useEffect(() => {
+    if (!autoAtStop || answered.current) return
+    const id = setTimeout(() => {
+      answered.current = true
+      useStore.getState().assistantAdvance(true)
+    }, 700)
+    return () => clearTimeout(id)
+  }, [autoAtStop])
+  const playback = live
+    ? {
+        auto: liveAuto,
+        setAuto: (on: boolean) => store.setLiveAuto(on),
+        // Straight to the result: only while a stop is still to come (in the last twenty minutes, Skip to full time does it)
+        simResult: !final && onSimToEnd ? () => onSimToEnd() : undefined,
+      }
+    : undefined
+  const top = <TopBar feed={feed} clock={clock} minute={minute} home={home} away={away} label={label} control={control} hand={hand} playback={playback} />
   const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} /> : null
   const pitch = (
     <LivePitch
@@ -162,7 +219,27 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
     />
   )
   const momentum = <MomentumBar strip momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />
-  const stop = live && clock.atStop && onAdvance ? <StopPanel live={live} onPlay={onAdvance} draft={draft} setDraft={setDraft} /> : null
+  const stopActions: StopActions | null = onAdvance
+    ? {
+        onPlay: onAdvance,
+        onAssistant: () => store.assistantAdvance(true),
+        onFinish: (changes) => {
+          store.setLiveAuto(true)
+          onAdvance(changes)
+        },
+        onFullSim: (changes) => onSimToEnd?.(changes),
+      }
+    : null
+  const stop =
+    live && clock.atStop && stopActions ? (
+      autoAtStop ? (
+        <div className="panel assistant-note small" role="status" data-testid="assistant-note">
+          The assistant is making the {stopAt === 45 ? 'half-time' : '70th-minute'} calls…
+        </div>
+      ) : (
+        <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} />
+      )
+    ) : null
   const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} hand={hand} name={getName} condition={condition} />
   const banner = <CommentaryBanner d={d} />
   const slot = (id: SlotId) => <Slot key={id} slot={id} id={slots[id]} onChange={(w) => show(id, w)} d={d} compact={compact} />
@@ -170,7 +247,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
   if (compact) return <CompactLayout d={d} crumb={crumb} top={top} pitch={pitch} stop={stop} banner={banner} momentum={momentum} strip={strip} drawer={drawer} friendly={friendly} />
 
   return (
-    <div className="matchday">
+    <div className="matchday fit" ref={root}>
       {crumb}
       {top}
       <div className="md-main">
@@ -181,7 +258,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
           </div>
         </div>
         <div className="md-centre">
-          {stop ?? <div className="md-widgets">{(['A', 'B', 'C'] as const).map(slot)}</div>}
+          <div className="md-widgets">{(['A', 'B', 'C'] as const).map(slot)}</div>
           <div className="md-pitch-row">
             <StatsFlank d={d} side="home" />
             <div className="md-pitch">{pitch}</div>
@@ -199,6 +276,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
       {banner}
       {strip}
       {drawer}
+      {stop}
     </div>
   )
 }

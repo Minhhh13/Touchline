@@ -126,6 +126,7 @@
 .matchday .md-drawer {
   width: min(440px, 100%);
   max-height: calc(100vh - 160px);
+  max-height: calc(100dvh - 160px);
   display: flex;
   flex-direction: column;
   background: var(--panel);

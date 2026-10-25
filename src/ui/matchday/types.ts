@@ -16,7 +16,8 @@ import type { PlayerSample } from '../match/heat'
 import type { ManagerHand } from './useManagerHand'
 import type { SlotId, WidgetId } from './widgetIds'
 
-export type Speed = 1 | 2 | 4
+/** Replay speeds: 1x is the normal pace, slow enough to follow the ball. */
+export type Speed = 0.5 | 1 | 2 | 3 | 4
 
 export interface MatchClockApi {
   clock: number
