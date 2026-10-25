@@ -58,6 +58,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Man-mark the opponent's danger man from the opposition report: his influence drops, your attack loses a little, and the report tells you whether it worked.
 - A depth chart of who can cover every position in your shape, rated there.
 - Export and import your save file from the Record page, and a trophy cabinet across every game you have played.
+- **Trophy Room** on the Record page: twelve badges with bronze, silver and gold tiers that keep moving (Serial Winner, Centurion, Perfectionist, Cup Collector, Globetrotter, International, Grounds Tour, Regular and more), each with its progress ("3 of 5 for silver"); a postable manager card (your name, trophy counts, top six badges and three best seasons as a PNG); and a filter on Best seasons (All, Quick and Daily, Season, Dynasty). Existing records carry over: the five trophy counts exactly, the rest counted from your 50 best seasons.
 - Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.

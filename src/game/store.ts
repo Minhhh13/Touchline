@@ -14,6 +14,7 @@ import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { isQuickLike } from './logic/modes'
 import { advanceStreak, streakDay } from './logic/streaks'
+import { creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, trophiesOf } from './logic/cabinet'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
@@ -161,6 +162,7 @@ const defaultProfile: Profile = {
   seasonsSimulated: 0,
   theme: 'auto',
   managerName: '',
+  cabinet: emptyCabinet(),
 }
 
 export const useStore = create<Store>()(
@@ -532,7 +534,7 @@ export const useStore = create<Store>()(
         recordResult: () => {
           const { game, profile, universe } = get()
           if (!game || !universe || game.phase !== 'summary') return
-          const rec = game.quickResult ?? (game.history.at(-1) ? { points: game.history.at(-1)!.points, won: game.history.at(-1)!.won, drawn: game.history.at(-1)!.drawn, lost: game.history.at(-1)!.lost, position: game.history.at(-1)!.position, tier: game.history.at(-1)!.tier } : null)
+          const rec = finishedRecord(game)
           if (!rec) return
           const entry: LeaderboardEntry = {
             id: `${game.id}-${game.year}`,
@@ -547,6 +549,7 @@ export const useStore = create<Store>()(
             tier: rec.tier,
             seed: game.settings.seed,
             leagueSeason: game.settings.leagueSeason,
+            leagueId: game.history.at(-1)?.leagueId ?? game.settings.leagueId,
             hostClubId: game.settings.hostClubId,
             xi: Object.values(game.lineup),
             nation: game.settings.rules.onlyNation,
@@ -558,6 +561,7 @@ export const useStore = create<Store>()(
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)
           let { dailyStreak, lastDailyDate } = profile
           const dailyResults = { ...profile.dailyResults }
+          let newDaily = false
           if (game.settings.mode === 'daily') {
             // The result belongs to the day the puzzle was set, not the day it was finished
             const today = streakDay(game.settings.seed, previousDailySeed, dailySeed())
@@ -566,22 +570,14 @@ export const useStore = create<Store>()(
               dailyStreak = book.streak
               lastDailyDate = book.last
               dailyResults[today] = { points: rec.points, tier: rec.tier }
+              newDaily = true
             }
           }
           const achievements = { ...profile.achievements }
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
-          // Trophy cabinet
-          const trophies = { ...(profile.trophies ?? { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }) }
-          const last = game.history.at(-1)
-          const league = rec.position === 1
-          const cup = !!last?.cupWon
-          const euro = !!last?.continentalWon
-          if (league) trophies.league++
-          if (cup) trophies.cup++
-          if (euro) trophies.continental++
-          if (league && cup) trophies.doubles++
-          if (league && cup && euro) trophies.trebles++
-          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies, seasonsSimulated: profile.seasonsSimulated + 1 } })
+          // Trophy Room: the cabinet takes the credit, `trophies` mirrors its five counts for older builds
+          const cabinet = creditGame(profile.cabinet ?? rebuildCabinet(profile), game, { newDaily })
+          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies: trophiesOf(cabinet), cabinet, seasonsSimulated: profile.seasonsSimulated + 1 } })
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
@@ -614,8 +610,10 @@ export const useStore = create<Store>()(
           set({ h2h: produce(h2h, (h) => void h2hAutoPick(universe, h.draft)) })
         },
         h2hFinish: () => {
-          const { h2h, universe } = get()
+          const { h2h, universe, profile } = get()
           if (!h2h || !universe || !h2hComplete(h2h.draft)) return
+          // A hot-seat season leaves one mark in the cabinet, the first time it is played
+          if (!h2h.result) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
           set({
             h2h: produce(h2h, (h) => {
               const rng = Rng.fromState(h.rngState)
@@ -643,7 +641,9 @@ export const useStore = create<Store>()(
           if (n) parked[slot] = n
         }
         const game = normaliseGame(p.game)
-        return { ...current, ...p, game, parked, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
+        // A profile from before the Trophy Room gets its cabinet rebuilt once, from the trophies and the leaderboard
+        const profile = p.profile ? { ...p.profile, cabinet: p.profile.cabinet ? normaliseCabinet(p.profile.cabinet) : rebuildCabinet(p.profile) } : current.profile
+        return { ...current, ...p, game, parked, profile, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },
   ),

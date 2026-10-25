@@ -268,6 +268,8 @@ export interface LeaderboardEntry {
   challenge?: { name: string; points: number }
   /** Season Story's moment line ("🏆 Title sealed at MW 34 with 4 to play"), absent on older entries. */
   moment?: string
+  /** League the season was played in, absent on entries filed before the Trophy Room. */
+  leagueId?: string
 }
 
 export interface Profile {
@@ -280,6 +282,47 @@ export interface Profile {
   seasonsSimulated: number
   theme: 'auto' | 'dark' | 'light'
   managerName: string
-  /** Trophy cabinet across every game played in this browser. */
+  /** Trophy cabinet across every game played in this browser. Still written beside `cabinet`, so an older build reads the same five counts. */
   trophies?: { league: number; cup: number; continental: number; doubles: number; trebles: number }
+  /** The Trophy Room's cabinet: built from `trophies` and the leaderboard on first load (`rebuildCabinet`), credited by `recordResult` since. */
+  cabinet?: Cabinet
+}
+
+/**
+ * Everything the Trophy Room counts, across every mode. Season trophies and
+ * the arena's and run-in's live on separate shelves: a one-tie, nine-game or
+ * projected trophy never counts as a league title or a cup.
+ */
+export interface Cabinet {
+  v: 1
+  /** The five counts of `profile.trophies`, migrated exactly. */
+  league: number
+  cup: number
+  continental: number
+  doubles: number
+  trebles: number
+  /** Perfect seasons (every league match won). */
+  perfect: number
+  /** Unbeaten champions, perfect seasons included. */
+  invincible: number
+  /** Seasons of 100 points or more. */
+  centurions: number
+  /** Club ids whose place you took when you won a league, each once. Leagues won in are derived from these at render. */
+  hostsTitled: string[]
+  /** Nations of one-nation drafts that won a league, each once. */
+  nationsTitled: string[]
+  /** Results recorded per mode. */
+  byMode: Partial<Record<Mode, number>>
+  /** Days with a daily challenge result. */
+  dailies: number
+  weeklies: number
+  arenaDailies: number
+  gauntlet: { runs: number; best: number; complete: number }
+  /** Arena cups, keyed by bracket size '2' | '8' | '16' | '32'. */
+  cups: { runs: number; won: number; bySize: Record<string, number> }
+  giantKills: number
+  h2h: { played: number }
+  runIns: { played: number; met: number }
+  /** Set when the counts beyond `trophies` were rebuilt from the 50-entry leaderboard of an older save. */
+  rebuilt?: boolean
 }

@@ -696,7 +696,33 @@ The moments of a finished league season, from results that already exist: no ran
 - **Verdict against the real club** (`realSeasonRow`, `realityLine`): when the host club-season is complete and the league has its table, `📊 The real Burnley finished 19th on 22 · you 1st on 93`, in every mode.
 - **Summary.** The moment sits under the W/D/L record in the tier banner; a "Season story" panel under the banner shows the moment, the strip (one cell per game, `.blocks`), the title or relegation week, the runs, the winning start, clean sheets, blanks and the best and worst results. A quick season keeps its game-by-game list and replay (both wait for the replay to finish); Season and Dynasty get the same list, compact, from the fixtures. The Record page shows `LeaderboardEntry.moment` as a muted line under the team in Best seasons (`recordResult` files it).
 
-**Profile** (local only): best 50 seasons by points then fewest defeats, daily streak and per-day results, games started, seasons simulated, manager name, theme (Auto, Floodlit, Daylight).
+**Profile** (local only): best 50 seasons by points then fewest defeats, daily streak and per-day results, games started, seasons simulated, manager name, theme (Auto, Floodlit, Daylight), and the Trophy Room's cabinet.
+
+### Cabinet and Trophy Room
+
+- **The cabinet** (`Profile.cabinet?: Cabinet`, `src/game/types.ts`; logic in `src/game/logic/cabinet.ts`, pure, no RNG). It holds the five season trophy counts (league, cup, continental, doubles, trebles), perfect seasons, unbeaten champions (perfect ones included), 100-point seasons, `hostsTitled` (each club whose place you took when you won a league, once), `nationsTitled` (each nation of a one-nation draft that won a league, once), results per mode (`byMode`), dailies, the head-to-head seasons played, and shelves for the arena and the run-in (weeklies, arena dailies, Gauntlet runs and best, arena cups by size, giant kills, run-ins played and met) that stay at zero until those modes ship.
+- **Crediting.** `recordResult` calls `creditGame(cabinet, game, { newDaily })` only when the leaderboard entry is new (its id dedupe), for every mode. A title is first place on a season that was not sacked (`isTitle`: a sacked season is filed RELEGATED whatever the table said, so it wins nothing in the league, unlike the old counter); the cup and the Continental Cup come from the last history row; the host is that row's club (a dynasty can move). `countsAsLeagueSeason(mode)` is exhaustive over `Mode`: a one-tie, nine-game or projected trophy (the arena, the run-in) must answer no and credit its own shelf, so it never counts as a league title or a cup. `h2hFinish` credits `h2h.played` once per head-to-head (the first time it is played), the only record a hot-seat game leaves. `newDaily` is set when the result filed its day for the first time, so `dailies` counts days. `profile.trophies` is still written, as the cabinet's five counts (`trophiesOf`), so an older build reading the save sees the same numbers.
+- **Migration.** The persist `merge` gives a profile without a cabinet `rebuildCabinet(profile)`: the five trophy counts copied exactly, perfect, invincible, centurions, `hostsTitled`, `nationsTitled` and `byMode` counted from the 50-entry leaderboard, `dailies` from the `dailyResults` keys, and `rebuilt: true` when there was a leaderboard to count, which shows "counted from your 50 best seasons before the Trophy Room" on the Record page. A cabinet that is present is filled out by `normaliseCabinet`.
+- **Leagues won in** are derived, not stored (`leaguesWon`): each titled host's league from the loaded clubs, or from every pack's club list (`fetchClubLeagues`, the small `meta.json` files only, fetched by the Record page when a host is not loaded), plus `LeaderboardEntry.leagueId`, which entries carry from now on.
+- **Badges** (`BADGES`, `src/engine/badges.ts`, reading a structural `BadgeCabinet`): `badgeTier` gives bronze, silver or gold, `badgeProgress` "3 of 5 for silver" (or "Gold"), and a badge at zero shows greyed.
+
+  | Badge | Counts | Bronze / silver / gold |
+  | --- | --- | --- |
+  | Serial Winner | league titles | 1 / 5 / 20 |
+  | Centurion | 100-point seasons | 1 / 5 / 15 |
+  | Perfectionist | perfect seasons | 1 / 3 / 10 |
+  | Cup Collector | season cups plus arena cups | 1 / 5 / 20 |
+  | Globetrotter | leagues won in | 2 / 4 / 7 |
+  | International | nations titled in one-nation drafts | 1 / 3 / 8 |
+  | Grounds Tour | different clubs titled | 5 / 15 / 40 |
+  | Regular | daily challenges | 7 / 30 / 100 |
+  | Sunday League | weekly challenges | 4 / 12 / 52 |
+  | Ironman | rungs in the best Gauntlet | 5 / 10 / 15 |
+  | Giant Killer | arena wins on Realistic over sides with real team strength 85+ | 1 / 10 / 50 |
+  | Survival Artist | run-in briefs met | 1 / 5 / 20 |
+
+- **Record page.** The Trophy cabinet row adds 38-0s, Invincibles and Centurions to the five trophies; arena and run-in trophies will get their own shelves rather than joining these totals. The Trophy Room panel (above the achievements) shows every badge with its tier ring and progress, the leagues won in, and "Download manager card". Best seasons has a filter, All · Quick and Daily · Season · Dynasty (`filterBoard`, `boardGroup`), remembered per browser under `touchline-record-filter`; arena and run-in results will get their own tables.
+- **Manager card** (`renderManagerCard`, `src/ui/shareCard.ts`, 1080 by 1350 PNG): the manager name and seasons simulated, a 3 by 2 grid of trophy counts (league titles, cups, Continental Cups, doubles, trebles, perfect seasons), the top six badges with their tier rings (`topBadges`: highest tier, then nearest the next tier, then table order), the three best seasons, the data stamp and the TOUCHLINE footer.
 
 ## 13. Difficulty calibration
 

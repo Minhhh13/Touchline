@@ -2027,3 +2027,50 @@ table.tbl tr.clickable:hover {
     transition: none;
   }
 }
+/* Trophy Room: badges with a tier ring (bronze, silver, gold); a badge at zero is greyed like a locked achievement */
+.badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.badge-tile {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.badge-tile.locked {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.badge-tile .title {
+  font-weight: 700;
+}
+.badge-tile .desc {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.badge-ring {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 20px;
+  border: 3px solid var(--line-2);
+  background: var(--bg-2);
+}
+.badge-ring.bronze {
+  border-color: #cd8a4a;
+}
+.badge-ring.silver {
+  border-color: #a9b6bd;
+}
+.badge-ring.gold {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent);
+}

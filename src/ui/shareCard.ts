@@ -5,6 +5,8 @@
 import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/types'
 import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
+import type { BadgeState, BadgeTier } from '@engine/badges'
+import type { Cabinet } from '@game/types'
 
 export interface ShareCardInput {
   title: string
@@ -363,6 +365,137 @@ export function renderMatchCard(input: MatchCardInput): string {
   ctx.fillStyle = '#3ddc84'
   ctx.font = font(34)
   ctx.fillText('TOUCHLINE', W / 2, H - 36)
+  return canvas.toDataURL('image/png')
+}
+
+export interface ManagerCardInput {
+  name: string
+  seasons: number
+  cabinet: Pick<Cabinet, 'league' | 'cup' | 'continental' | 'doubles' | 'trebles' | 'perfect'>
+  /** Up to six badges, best first (`topBadges`). */
+  badges: Array<Pick<BadgeState, 'tier' | 'progress'> & { badge: Pick<BadgeState['badge'], 'icon' | 'title'> }>
+  /** Up to three best seasons, already worded: a title line and a detail line each. */
+  best: Array<{ title: string; detail: string }>
+  dataStamp: string
+}
+
+const RING_COLOUR: Record<BadgeTier, string> = { bronze: '#cd8a4a', silver: '#c9d3d8', gold: '#f5c542' }
+
+/**
+ * The Trophy Room's manager card, 1080 by 1350: the name and seasons
+ * simulated, a 3 by 2 grid of trophy counts, the top six badges with their
+ * tier rings, three best seasons and the footer. Returns a data URL.
+ */
+export function renderManagerCard(input: ManagerCardInput): string {
+  const W = 1080
+  const H = 1350
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createLinearGradient(0, 0, 0, H)
+  g.addColorStop(0, '#132019')
+  g.addColorStop(1, '#0b1410')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, W, H)
+  ctx.fillStyle = 'rgba(245,197,66,0.07)'
+  ctx.beginPath()
+  ctx.arc(W / 2, -220, 700, 0, Math.PI * 2)
+  ctx.fill()
+  const font = (size: number, weight = 700, family = "'Barlow Condensed', 'Arial Narrow', Impact, sans-serif") => `${weight} ${size}px ${family}`
+  const body = "'Inter', system-ui, sans-serif"
+
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#b4c6ba'
+  ctx.font = font(26, 600, body)
+  ctx.fillText('MANAGER CARD', W / 2, 70)
+  ctx.fillStyle = '#eef5f0'
+  ctx.font = font(84)
+  ctx.fillText(fit(ctx, input.name.toUpperCase(), W - 140), W / 2, 160)
+  ctx.fillStyle = '#b4c6ba'
+  ctx.font = font(28, 400, body)
+  ctx.fillText(`${input.seasons} season${input.seasons === 1 ? '' : 's'} simulated`, W / 2, 205)
+
+  // Trophy counts, 3 by 2
+  const c = input.cabinet
+  const trophies: Array<[string, string, number]> = [
+    ['🏆', 'League titles', c.league],
+    ['🥇', 'Cups', c.cup],
+    ['🌍', 'Continental Cups', c.continental],
+    ['🏆🏆', 'Doubles', c.doubles],
+    ['👑', 'Trebles', c.trebles],
+    ['💎', 'Perfect seasons', c.perfect],
+  ]
+  const cellW = (W - 180) / 3
+  trophies.forEach(([icon, label, n], i) => {
+    const x = 90 + (i % 3) * cellW
+    const y = 240 + Math.floor(i / 3) * 170
+    ctx.fillStyle = 'rgba(255,255,255,0.05)'
+    roundRect(ctx, x + 10, y, cellW - 20, 150, 16)
+    ctx.fill()
+    ctx.globalAlpha = n ? 1 : 0.45
+    ctx.font = font(40, 400, body)
+    ctx.fillText(icon, x + cellW / 2, y + 50)
+    ctx.fillStyle = n ? '#f5c542' : '#eef5f0'
+    ctx.font = font(56)
+    ctx.fillText(String(n), x + cellW / 2, y + 108)
+    ctx.fillStyle = '#b4c6ba'
+    ctx.font = font(22, 400, body)
+    ctx.fillText(label, x + cellW / 2, y + 138)
+    ctx.globalAlpha = 1
+  })
+
+  // Badges with their tier rings, 3 by 2
+  ctx.fillStyle = '#eef5f0'
+  ctx.font = font(34)
+  ctx.fillText('TROPHY ROOM', W / 2, 620)
+  input.badges.slice(0, 6).forEach((b, i) => {
+    const cx = 90 + (i % 3) * cellW + cellW / 2
+    const cy = 700 + Math.floor(i / 3) * 190
+    ctx.globalAlpha = b.tier ? 1 : 0.45
+    ctx.beginPath()
+    ctx.arc(cx, cy, 52, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(8,20,14,0.9)'
+    ctx.fill()
+    ctx.lineWidth = 8
+    ctx.strokeStyle = b.tier ? RING_COLOUR[b.tier] : 'rgba(255,255,255,0.25)'
+    ctx.stroke()
+    ctx.fillStyle = '#eef5f0'
+    ctx.font = font(44, 400, body)
+    ctx.fillText(b.badge.icon, cx, cy + 16)
+    ctx.font = font(28)
+    ctx.fillText(fit(ctx, b.badge.title, cellW - 20), cx, cy + 88)
+    ctx.fillStyle = b.tier ? RING_COLOUR[b.tier] : '#7f9587'
+    ctx.font = font(20, 400, body)
+    ctx.fillText(fit(ctx, b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress, cellW - 20), cx, cy + 116)
+    ctx.globalAlpha = 1
+  })
+
+  // Best seasons
+  ctx.fillStyle = '#eef5f0'
+  ctx.font = font(34)
+  ctx.fillText('BEST SEASONS', W / 2, 1060)
+  if (!input.best.length) {
+    ctx.fillStyle = '#7f9587'
+    ctx.font = font(26, 400, body)
+    ctx.fillText('Nothing yet. Spin the wheel.', W / 2, 1106)
+  }
+  input.best.slice(0, 3).forEach((s, i) => {
+    const y = 1104 + i * 58
+    ctx.fillStyle = '#eef5f0'
+    ctx.font = font(30)
+    ctx.fillText(fit(ctx, s.title, W - 180), W / 2, y)
+    ctx.fillStyle = '#b4c6ba'
+    ctx.font = font(20, 400, body)
+    ctx.fillText(fit(ctx, s.detail, W - 180), W / 2, y + 24)
+  })
+
+  ctx.fillStyle = '#7f9587'
+  ctx.font = font(22, 400, body)
+  ctx.fillText(input.dataStamp, W / 2, H - 70)
+  ctx.fillStyle = '#3ddc84'
+  ctx.font = font(34)
+  ctx.fillText('TOUCHLINE', W / 2, H - 28)
   return canvas.toDataURL('image/png')
 }
 

@@ -1,11 +1,26 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore, SAVE_KEY } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
+import { badgeStates, topBadges } from '@engine/badges'
+import { fetchClubLeagues } from '@engine/universe'
 import type { LeaderboardEntry } from '@game/types'
 import { MODE_TITLE } from '@game/logic/modes'
+import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
+import { downloadDataUrl, renderManagerCard } from '../shareCard'
+
+const FILTER_KEY = 'touchline-record-filter'
+
+function readFilter(): BoardFilter {
+  try {
+    const v = localStorage.getItem(FILTER_KEY)
+    return BOARD_FILTERS.some((f) => f.value === v) ? (v as BoardFilter) : 'all'
+  } catch {
+    return 'all'
+  }
+}
 
 function exportSave(): void {
   const raw = localStorage.getItem(SAVE_KEY)
@@ -27,6 +42,40 @@ export function ProfileScreen() {
   const runsBySeed = new Map<string, LeaderboardEntry[]>()
   for (const e of profile.leaderboard) if (e.mode === 'quick' || e.mode === 'daily') runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
   const fileRef = useRef<HTMLInputElement>(null)
+  // Trophy Room: leagues won in come from the titled hosts' leagues, the loaded clubs first, then the packs' club lists
+  const cabinet = normaliseCabinet(profile.cabinet ?? {})
+  const [clubLeagues, setClubLeagues] = useState<Record<string, { leagueId: string; name: string }> | null>(null)
+  const won = leaguesWon(cabinet, profile.leaderboard, (id) => u?.clubById[id]?.leagueId ?? clubLeagues?.[id]?.leagueId)
+  const needsClubLeagues = won.unresolved.length > 0 && !clubLeagues
+  useEffect(() => {
+    if (!needsClubLeagues) return
+    let live = true
+    fetchClubLeagues()
+      .then((m) => live && setClubLeagues(m))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [needsClubLeagues])
+  const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
+  const [filter, setFilterState] = useState<BoardFilter>(readFilter)
+  const setFilter = (f: BoardFilter) => {
+    setFilterState(f)
+    try {
+      localStorage.setItem(FILTER_KEY, f)
+    } catch {
+      // A per-viewer convenience: without storage the filter just resets next visit
+    }
+  }
+  const board = filterBoard(profile.leaderboard, filter)
+  const downloadCard = () => {
+    const best = profile.leaderboard.slice(0, 3).map((e) => ({
+      title: `${e.teamName} · ${e.points} pts · ${ordinal(e.position)}`,
+      detail: `${TIER_LABEL[e.tier]} · ${u?.clubById[e.hostClubId] ? clubName(u, e.hostClubId) : (clubLeagues?.[e.hostClubId]?.name ?? e.hostClubId)} ${seasonLabel(e.leagueSeason)} · ${MODE_TITLE[e.mode] ?? e.mode}`,
+    }))
+    const url = renderManagerCard({ name: profile.managerName.trim() || 'The Gaffer', seasons: profile.seasonsSimulated, cabinet, badges: topBadges(badges), best, dataStamp: u ? `Data ${u.generatedAt}` : 'Trophy Room' })
+    downloadDataUrl(url, 'touchline-manager-card.png')
+  }
   const importSave = async (file: File) => {
     try {
       const text = await file.text()
@@ -75,18 +124,23 @@ export function ProfileScreen() {
               <dd>
                 {unlocked} / {ACHIEVEMENTS.length}
               </dd>
+              <dt>Head-to-head seasons</dt>
+              <dd>{cabinet.h2h.played}</dd>
             </div>
           </div>
-          <div className="panel">
+          <div className="panel" data-testid="trophy-cabinet">
             <h3>Trophy cabinet</h3>
             <div className="row wrap" style={{ gap: 14 }}>
               {(
                 [
-                  ['🏆', 'League titles', profile.trophies?.league ?? 0],
-                  ['🥇', 'Cups', profile.trophies?.cup ?? 0],
-                  ['🌍', 'Continental Cups', profile.trophies?.continental ?? 0],
-                  ['🏆🏆', 'Doubles', profile.trophies?.doubles ?? 0],
-                  ['👑', 'Trebles', profile.trophies?.trebles ?? 0],
+                  ['🏆', 'League titles', cabinet.league],
+                  ['🥇', 'Cups', cabinet.cup],
+                  ['🌍', 'Continental Cups', cabinet.continental],
+                  ['🏆🏆', 'Doubles', cabinet.doubles],
+                  ['👑', 'Trebles', cabinet.trebles],
+                  ['💎', '38-0s', cabinet.perfect],
+                  ['🛡️', 'Invincibles', cabinet.invincible],
+                  ['💯', 'Centurions', cabinet.centurions],
                 ] as const
               ).map(([icon, label, n]) => (
                 <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
@@ -96,6 +150,30 @@ export function ProfileScreen() {
                 </div>
               ))}
             </div>
+          </div>
+          <div className="panel col" data-testid="trophy-room">
+            <div className="row between wrap">
+              <h3>Trophy Room</h3>
+              <button className="btn sm" data-testid="manager-card" onClick={downloadCard}>
+                Download manager card
+              </button>
+            </div>
+            <div className="badges">
+              {badges.map((b) => (
+                <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${b.badge.title}: ${b.value} ${b.badge.counts}`}>
+                  <span className={`badge-ring ${b.tier ?? ''}`}>{b.badge.icon}</span>
+                  <span>
+                    <div className="title">{b.badge.title}</div>
+                    <div className="desc">
+                      {b.value} {b.badge.counts}
+                    </div>
+                    <div className="small muted">{b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress}</div>
+                  </span>
+                </div>
+              ))}
+            </div>
+            {won.leagues.length > 0 && <div className="small muted" data-testid="leagues-won">Leagues won in: {won.leagues.map((id) => u?.available.find((l) => l.id === id)?.name ?? id).join(', ')}</div>}
+            {cabinet.rebuilt && <div className="small muted" data-testid="cabinet-rebuilt">Badges beyond the five trophy counts are counted from your 50 best seasons before the Trophy Room.</div>}
           </div>
           <div className="panel">
             <h3>Achievements</h3>
@@ -133,8 +211,14 @@ export function ProfileScreen() {
           </div>
         </div>
         <div className="panel">
-          <h3>Best seasons</h3>
+          <div className="row between wrap" style={{ marginBottom: 8 }}>
+            <h3>Best seasons</h3>
+            <span data-testid="board-filter">
+              <Segmented value={filter} onChange={setFilter} options={[...BOARD_FILTERS]} />
+            </span>
+          </div>
           {profile.leaderboard.length === 0 && <div className="muted small">Nothing yet. Spin the wheel.</div>}
+          {profile.leaderboard.length > 0 && board.length === 0 && <div className="muted small">No {BOARD_FILTERS.find((f) => f.value === filter)?.label} seasons yet.</div>}
           <table className="tbl">
             <thead>
               <tr>
@@ -147,7 +231,7 @@ export function ProfileScreen() {
               </tr>
             </thead>
             <tbody>
-              {profile.leaderboard.map((e) => {
+              {board.map((e) => {
                 const runs = runsBySeed.get(e.seed) ?? [e]
                 const rank = runs.indexOf(e) + 1
                 return (
