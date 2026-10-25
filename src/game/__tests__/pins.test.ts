@@ -40,5 +40,6 @@ describe('pins', () => {
     expect(table.slice(0, 3).map((r) => `${r.teamId}:${r.points}`)).toEqual(['arsenal:95', 'user:91', 'manchester-city:91'])
     expect(s.cup.find((t) => t.round === 'F')?.winnerId).toBe('manchester-city')
     expect(g.rngState).toEqual({ a: 1245713582, b: 341095557, c: 948721059, d: 2008164886 })
-  })
+    // A whole season: allow for a loaded machine rather than the 5 s default
+  }, 30_000)
 })

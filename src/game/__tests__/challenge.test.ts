@@ -278,8 +278,10 @@ describe('challenge payload v2 gate', () => {
     expect(() => decodeChallenge(b64({ ...v2, kind: 'arena', arena: { f: 'gauntlet' } }))).toThrow(ARENA_LINK)
     expect(ARENA_LINK).toBe('This challenge needs the arena, which this build does not have yet')
     expect(isArenaLink({ f: 'cup', n: 16 })).toBe(false)
-    // A kind that does not exist, or arena settings on a quick link
-    expect(() => decodeChallenge(b64({ ...v2, kind: 'draft-room' }))).toThrow('Not a Touchline challenge link')
+    // A kind this build does not know is a later build's mode; a kind that is not a string, or arena settings on a quick link, is not a link
+    expect(() => decodeChallenge(b64({ ...v2, kind: 'draft-room' }))).toThrow(NEWER_LINK)
+    expect(() => decodeChallenge(b64({ ...v2, kind: null }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ ...v2, kind: 7 }))).toThrow('Not a Touchline challenge link')
     expect(() => decodeChallenge(b64({ ...v2, arena: { f: 'cup' } }))).toThrow('Not a Touchline challenge link')
     // A v1 link carrying a rule v1 builds never wrote
     expect(() => decodeChallenge(b64({ ...c, s: { ...c.s, r: { budget: 500 } } }))).toThrow('Not a Touchline challenge link')

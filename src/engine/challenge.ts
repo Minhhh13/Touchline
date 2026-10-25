@@ -211,8 +211,8 @@ export const ARENA_LINK = 'This challenge needs the arena, which this build does
 /**
  * Decode a `#c=` fragment; throws with a readable reason when it is not a challenge.
  * Version 1 reads as it always has (its rules limited to `V1_RULE_KEYS`). Version 2
- * adds `kind` (quick when missing) and refuses a top-level key it does not know as
- * coming from a newer build; an arena link is refused until `isArenaLink` accepts it.
+ * adds `kind` (quick when missing) and refuses a kind or a top-level key it does not
+ * know as coming from a newer build; an arena link is refused until `isArenaLink` accepts it.
  * Anything above version 2 is from a newer build.
  */
 export function decodeChallenge(text: string): ChallengePayload {
@@ -228,9 +228,11 @@ export function decodeChallenge(text: string): ChallengePayload {
   const o = raw as Record<string, unknown>
   if (typeof o.v === 'number' && o.v > 2) throw new Error(NEWER_LINK)
   if (o.v !== 1 && o.v !== 2) throw new Error('Not a Touchline challenge link')
-  const kind = o.v === 2 ? (o.kind ?? 'quick') : 'quick'
+  const kind = o.v === 2 && o.kind !== undefined ? o.kind : 'quick'
   if (o.v === 2) {
-    if (kind !== 'quick' && kind !== 'arena') throw new Error('Not a Touchline challenge link')
+    // A kind this build does not know is a later build's mode; anything but a string is not a link
+    if (typeof kind !== 'string') throw new Error('Not a Touchline challenge link')
+    if (kind !== 'quick' && kind !== 'arena') throw new Error(NEWER_LINK)
     if (kind === 'arena' && !isArenaLink(o.arena)) throw new Error(ARENA_LINK)
     if (Object.keys(o).some((key) => !V2_KEYS.includes(key))) throw new Error(NEWER_LINK)
     if (kind === 'quick' && o.arena !== undefined) throw new Error('Not a Touchline challenge link')
