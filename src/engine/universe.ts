@@ -355,6 +355,36 @@ export function fetchLeague(leagueId: string, baseUrl?: string): Promise<LoadedU
   return leagueCache.get(leagueId)!
 }
 
+let clubLeaguesCache: Promise<Record<string, { leagueId: string; name: string }>> | null = null
+
+/** Club id to its league and name for every pack, read from the small meta files only (the Record page places titled hosts without loading any players). Cached. */
+export function fetchClubLeagues(baseUrl?: string): Promise<Record<string, { leagueId: string; name: string }>> {
+  if (!clubLeaguesCache) {
+    const b = base(baseUrl)
+    clubLeaguesCache = fetchAvailableLeagues(baseUrl)
+      .then((leagues) =>
+        Promise.all(
+          leagues.map((l) =>
+            fetch(`${b}data/${l.id}/meta.json`).then(async (r) => {
+              if (!r.ok) throw new Error(`${l.id}/meta.json ${r.status}`)
+              return { id: l.id, meta: (await r.json()) as MetaFile }
+            }),
+          ),
+        ),
+      )
+      .then((metas) => {
+        const out: Record<string, { leagueId: string; name: string }> = {}
+        for (const { id, meta } of metas) for (const c of meta.clubs) out[c.id] = { leagueId: id, name: c.name }
+        return out
+      })
+      .catch((e: unknown) => {
+        clubLeaguesCache = null
+        throw e
+      })
+  }
+  return clubLeaguesCache
+}
+
 /** Load and merge the given leagues (defaults to England). */
 export async function loadUniverse(leagueIds: string[] = [DEFAULT_LEAGUE], baseUrl?: string): Promise<LoadedUniverse> {
   const ids = [...new Set(leagueIds)]

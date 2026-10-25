@@ -19,6 +19,7 @@ import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
+import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { Pitch, PitchLegend } from '../components/Pitch'
@@ -36,6 +37,7 @@ import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
+import { RunInBanner } from '../components/RunInBanner'
 import { DressingRoomTab } from './DressingRoomTab'
 import { PlannerTab } from './PlannerTab'
 import { InboxActions } from '../components/InboxActions'
@@ -83,11 +85,14 @@ export function Dugout() {
   // Above the early return, so the hooks run in the same order on every render
   const fixtures = game?.season?.fixtures
   const ai = game?.season?.ai
-  const table = useMemo(() => (fixtures && ai ? computeTable(fixtures, [USER_TEAM, ...Object.keys(ai)]) : []), [fixtures, ai])
+  // A run-in's table carries the points the clubs had when the manager took over
+  const carryIn = game?.season?.carryIn
+  const table = useMemo(() => (fixtures && ai ? computeTable(fixtures, [USER_TEAM, ...Object.keys(ai)], carryIn) : []), [fixtures, ai, carryIn])
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
+
   const pos = positionOf(table, USER_TEAM)
   const row = table.find((r) => r.teamId === USER_TEAM)!
   const next = nextOpponent(game)
@@ -100,6 +105,9 @@ export function Dugout() {
   const openOffers = game.window?.offers.filter((o) => o.status === 'open').length ?? 0
   const briefing = weeklyBriefing(game, u)
   const headline = briefingHeadline(briefing)
+  // Highlights: the stop the last run made (only while the game still stands where it stopped) and whether the next week is itself one
+  const stopped = store.simStop && store.simStop.gameId === game.id && store.simStop.year === game.year && store.simStop.matchweek === season.matchweek ? store.simStop.stop : null
+  const bigNext = done ? null : nextStop(game, u)
   const act = (a: BriefingAction) => {
     if (a.op === 'autoPick') store.autoPick()
     else if (a.op === 'friendly') store.playFriendly()
@@ -150,6 +158,7 @@ export function Dugout() {
         </div>
       </div>
 
+      <RunInBanner />
       {/* Next match CTA: the fixture, the assistant's briefing and the buttons (a fixed bottom bar on phones) */}
       {!done && (
         <div className="panel cta" data-testid="cta">
@@ -172,6 +181,12 @@ export function Dugout() {
                     <span>{STYLE_LABEL[u.clubById[next.clubId]?.style ?? 'balanced']} side</span>
                     <span>{ordinal(positionOf(table, next.clubId))}</span>
                     {u.clubById[season.hostClubId]?.rivals.includes(next.clubId) && <span className="chip warn">Derby</span>}
+                    {/* Season Highlights: why the last Sim to the next big match stopped here (a chip, so the box keeps its height) */}
+                    {stopped && (
+                      <span className="chip info" data-testid="sim-stop" title={stopLine(stopped, u)}>
+                        ⏸ {stopped.label}
+                      </span>
+                    )}
                     {cupTie && <span>then {cupTie.label} {cupTie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} {clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId)} midweek</span>}
                   </div>
                 </div>
@@ -179,7 +194,14 @@ export function Dugout() {
             ) : (
               <div className="cta-fixture">
                 <div>
-                  <div className="eyebrow">Matchweek {season.matchweek + 1}</div>
+                  <div className="eyebrow">
+                    Matchweek {season.matchweek + 1}
+                    {stopped && (
+                      <span className="chip info" data-testid="sim-stop" title={stopLine(stopped, u)} style={{ marginLeft: 8 }}>
+                        ⏸ {stopped.label}
+                      </span>
+                    )}
+                  </div>
                   <div className="cta-title">
                     Free weekend <Info label="Why a free weekend">An odd number of clubs means everyone sits one round out.</Info>
                   </div>
@@ -227,6 +249,9 @@ export function Dugout() {
                 {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
+              <button className="btn" data-testid="sim-big" onClick={() => store.simToNextBigMatch()} disabled={!!game.pendingEvent || !!bigNext} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
+                {bigNext ? `${bigNext.label} next` : simToLabel(game, u)}
+              </button>
               <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
                 Sim 5
               </button>
@@ -249,7 +274,7 @@ export function Dugout() {
           { id: 'planner', label: 'Planner' },
           { id: 'fixtures', label: 'Fixtures' },
           { id: 'table', label: 'Table' },
-          { id: 'cup', label: 'Cup' },
+          ...(season.cup.length ? [{ id: 'cup' as const, label: 'Cup' }] : []),
           ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
@@ -425,8 +450,16 @@ export function Dugout() {
         <div className="panel">
           <h3>Fixtures and results</h3>
           <div className="fixture-list">
+            {season.takeoverAt ? (
+              <div className="fixture me" data-testid="before-you-arrived">
+                <span className="mw">MW 1-{season.takeoverAt}</span>
+                <span className="muted small" style={{ gridColumn: '2 / -1' }}>
+                  Before you arrived: the table you took over is projected from the real final one.
+                </span>
+              </div>
+            ) : null}
             {season.fixtures
-              .filter((f) => f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)
+              .filter((f) => (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM) && f.matchweek > (season.takeoverAt ?? 0))
               .sort((a, b) => a.matchweek - b.matchweek)
               .map((f) => {
                 const home = f.homeTeamId === USER_TEAM
@@ -458,7 +491,7 @@ export function Dugout() {
         <div className="panel">
           <div className="panel-head">
             <span className="head-title">
-              <h3><LeagueFlag leagueId={season.leagueId} label={u.leagues.find((l) => l.id === season.leagueId)?.name} /> League table · {seasonLabel(season.leagueSeason)}</h3>
+              <h3><LeagueFlag leagueId={season.leagueId} label={u.leagues.find((l) => l.id === season.leagueId)?.name} /> League table · {seasonLabel(season.leagueSeason)}{season.carryIn ? ` · from MW ${season.takeoverAt}, projected` : ''}</h3>
               <Info label="About the table">The other clubs field their real squads from that season, with their own injuries and form.</Info>
             </span>
           </div>
@@ -650,7 +683,7 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
   )
 }
 
-function TacticsTab() {
+export function TacticsTab() {
   const store = useStore()
   const { universe: u, game } = store
   if (!u || !game) return null

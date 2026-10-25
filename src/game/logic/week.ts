@@ -2,7 +2,7 @@ import type { Game, LiveMatch } from '../types'
 import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { advanceMatch, beginMatch, changeInPlay, finishMatch, simulateMatch, type FullMatchResult, type InPlayChange, type InPlayOutcome, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
-import { aiTeamInput, applyMatchToState, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
+import { aiTeamInput, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
 import { openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
@@ -16,7 +16,10 @@ import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { SquadPlayer } from '@engine/types'
-import { earnsPointsRecord } from './records'
+import { earnsPointsRecord, inRecordBooks } from './records'
+import { earnsMoneyball } from './cap'
+import { earnsChainChampions } from './chain'
+import { runInUnlocks } from './runin'
 import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
 import { difficultyOf } from '@engine/draft'
 import { postNews } from './news'
@@ -287,7 +290,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
 
   const mw = season.matchweek + 1
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   const week = season.fixtures.filter((f) => f.matchweek === mw)
   const boosts = matchBoosts(game)
 
@@ -646,7 +649,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
   game.finances.budget = Math.round((game.finances.budget + flow) * 10) / 10
   if (flow > 0) game.finances.income += flow
 
-  const newTable = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const newTable = seasonTable(season)
   const userRow = newTable.find((r) => r.teamId === USER_TEAM)!
   // On a bye week there is no new result to judge; do not count last week's again
   const playedThisWeek = season.fixtures.some((f) => f.matchweek === mw && f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM))
@@ -690,9 +693,9 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
   }
 }
 
-export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: ReturnType<typeof computeTable>): EventContext {
+export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: ReturnType<typeof seasonTable>): EventContext {
   const season = game.season!
-  const t = table ?? computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const t = table ?? seasonTable(season)
   const row = t.find((r) => r.teamId === USER_TEAM)!
   const next = nextOpponent(game)
   const host = u.clubById[season.hostClubId]
@@ -846,7 +849,7 @@ export function startSeasonProper(game: Game): void {
 
 export function finishSeason(game: Game, u: LoadedUniverse): void {
   const season = game.season!
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   const row = table.find((r) => r.teamId === USER_TEAM)!
   const pos = positionOf(table, USER_TEAM)
   const tier = season.sacked ? 'RELEGATED' : seasonTier(table, USER_TEAM, season.cupWon, season.matchweeks)
@@ -911,6 +914,8 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
     bootGoals: game.awards.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
   })
   const unlock = (id: string) => {
+    // A run-in's ten games are no league season: only the job's own achievements count
+    if (season.carryIn && id !== 'survivor' && !runInUnlocks(game, u, pos).includes(id)) return
     if (!game.unlocked.includes(id)) game.unlocked.push(id)
   }
   if (tier === 'PERFECT') unlock('perfect')
@@ -926,8 +931,11 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1 && difficultyOf(game.settings.rules) === 'hard') unlock('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) unlock('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) unlock('one-nation-champions')
-  if (earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')
+  if (pos === 1 && !season.sacked && earnsMoneyball(game)) unlock('moneyball')
+  if (pos === 1 && !season.sacked && earnsChainChampions(game)) unlock('chain-champions')
+  if (inRecordBooks(game) && earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')
   if (game.unlocked.includes('survivor-pending') && !season.sacked) unlock('survivor')
+  for (const id of runInUnlocks(game, u, pos)) unlock(id)
   const titles = game.history.slice(-3).filter((h) => h.position === 1).length
   if (titles >= 3) unlock('dynasty-3')
   game.unlocked = game.unlocked.filter((x) => x !== 'survivor-pending')

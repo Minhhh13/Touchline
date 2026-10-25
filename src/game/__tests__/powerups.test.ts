@@ -342,7 +342,7 @@ describe('power-ups in links, the log and the share text', () => {
     expect(isChallengePowerUps([['s', 1, 'a']], 11)).toBe(false)
     expect(isChallengePowerUps('r', 11)).toBe(false)
     const c = challengeFromGame(playWithAll('PU-LINK-BAD'), u, 'Power')!
-    expect(() => decodeChallenge(encodeChallenge({ ...c, w: [['r', 99]] }))).toThrow()
+    expect(() => decodeChallenge(encodeChallenge({ ...c, w: [['r', 99] as ['r', number]] }))).toThrow()
   }, 60_000)
 
   it('show one log line per power-up used and a share line of icons', () => {

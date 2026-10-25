@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES, type DraftRules } from '@engine/draft'
-import { decodeChallenge, encodeChallenge, isRulesDiff, rulesDiff, rulesFromPayload } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge, isRulesDiff, rulesDiff, rulesFromPayload , type QuickChallengePayload } from '@engine/challenge'
 import { MANAGER_EDGE } from '@engine/managers'
 import { closeJanuary, kickOff, quickUserInput, quickXI, toKickoff } from '../logic/quick'
 import { playQuickCup } from '../logic/quickCups'
@@ -200,7 +200,7 @@ describe('the manager in links, saves and the share text', () => {
     const c = challengeFromGame(g, u, 'Tester')!
     expect(c.x?.m).toBe(g.manager!.id)
     expect(isRulesDiff(rulesDiff(g.settings.rules))).toBe(true)
-    const back = decodeChallenge(encodeChallenge(c))
+    const back = decodeChallenge(encodeChallenge(c)) as QuickChallengePayload
     expect(back.x?.m).toBe(g.manager!.id)
     expect(replayChallenge(u, back).verified).toBe('yes')
     const bogus = { ...back, x: { ...back.x, m: 'Q999999999' } }

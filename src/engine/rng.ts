@@ -204,6 +204,74 @@ export function dailySeed(date = new Date()): string {
   return `daily-${y}-${m}-${d}`
 }
 
+const DAY_MS = 86400000
+
+/** `YYYY-MM-DD` of a date in UTC. */
+function utcDay(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+}
+
+/** Seed string for the shared Daily Arena, e.g. "arena-2026-10-25" (UTC). */
+export function arenaDailySeed(date = new Date()): string {
+  return `arena-${utcDay(date)}`
+}
+
+/** The calendar day a Daily Arena seed was set for, or null for any other seed. */
+export function arenaDailyDateOf(seed: string): Date | null {
+  const m = /^arena-(\d{4})-(\d{2})-(\d{2})$/.exec(seed)
+  if (!m) return null
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
+  // A day that does not exist (2026-02-30) rolls over in Date.UTC: refuse it rather than file it under another day
+  return Number.isNaN(d.getTime()) || utcDay(d) !== `${m[1]}-${m[2]}-${m[3]}` ? null : d
+}
+
+/** The Daily Arena seed of the day before the given one. */
+export function previousArenaDailySeed(seed: string): string | null {
+  const d = arenaDailyDateOf(seed)
+  return d ? arenaDailySeed(new Date(d.getTime() - DAY_MS)) : null
+}
+
+/**
+ * The ISO 8601 week of a date in UTC: weeks run Monday to Sunday and belong to
+ * the year of their Thursday, so 2026-12-31 and 2027-01-01 are 2026-W53 and
+ * 2027-01-04 is 2027-W01.
+ */
+export function isoWeekOf(date: Date): { year: number; week: number } {
+  const day = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  const weekday = (new Date(day).getUTCDay() + 6) % 7
+  const thursday = new Date(day + (3 - weekday) * DAY_MS)
+  const year = thursday.getUTCFullYear()
+  const dayOfYear = Math.round((thursday.getTime() - Date.UTC(year, 0, 1)) / DAY_MS)
+  return { year, week: Math.floor(dayOfYear / 7) + 1 }
+}
+
+/** Seed string for the Weekly Challenge, e.g. "weekly-2026-W44" (the ISO week, UTC). */
+export function weeklySeed(date = new Date()): string {
+  const { year, week } = isoWeekOf(date)
+  return `weekly-${year}-W${String(week).padStart(2, '0')}`
+}
+
+/** The Monday a weekly seed's week starts on (UTC), or null for any other seed or a week the year does not have. */
+export function weeklyDateOf(seed: string): Date | null {
+  const m = /^weekly-(\d{4})-W(\d{2})$/.exec(seed)
+  if (!m) return null
+  const year = Number(m[1])
+  const week = Number(m[2])
+  if (week < 1 || week > 53) return null
+  const jan4 = Date.UTC(year, 0, 4)
+  const firstMonday = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * DAY_MS
+  const monday = new Date(firstMonday + (week - 1) * 7 * DAY_MS)
+  // W53 only exists in a long year: a 52-week year's "W53" is the next year's W01
+  const back = isoWeekOf(monday)
+  return back.year === year && back.week === week ? monday : null
+}
+
+/** The weekly seed of the week before the given one. */
+export function previousWeeklySeed(seed: string): string | null {
+  const d = weeklyDateOf(seed)
+  return d ? weeklySeed(new Date(d.getTime() - 7 * DAY_MS)) : null
+}
+
 /** A random, human-shareable seed such as "K7Q2-MX9A". */
 export function randomSeed(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

@@ -11,9 +11,16 @@ import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketO
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame, normaliseProfile } from '../logic/save'
 import { matchPlayOf } from '../logic/assistant'
+import { capOfGame } from '../logic/cap'
+import { chainOfGame } from '../logic/chain'
 import { rollEvent } from '@engine/events'
-import { newSquadPlayer, USER_TEAM } from '@engine/season'
+import { computeTable, newSquadPlayer, seasonTable, USER_TEAM } from '@engine/season'
+import { briefStanding, runInVerdict, takeoverTable } from '../logic/runin'
 import { playerLookup } from '../logic/players'
+import { runQuickSeason } from '../logic/quick'
+import { storyForGame } from '../logic/story'
+import { modeLabel } from '../logic/modes'
+import { arenaVerdictOf, challengeHeadline } from '../logic/arenaClaim'
 import type { Game, GameSettings, Profile } from '../types'
 import { maskedView, setAssignment, setRecruitFocus } from '../logic/scouting'
 import { contractDemand } from '../logic/contracts'
@@ -129,17 +136,48 @@ describe('audit fixes: season and squad', () => {
     delete old.jobOffers
     delete old.pendingMove
     delete old.customPlayers
+    delete old.arena
+    delete old.capSpent
+    delete old.teammateChain
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
+    delete oldSettings.weekly
+    delete oldSettings.runIn
     delete oldSettings.matchPlay
     old.settings = oldSettings
+    const oldSeason: Record<string, unknown> = { ...g.season! }
+    delete oldSeason.carryIn
+    delete oldSeason.takeoverAt
+    old.season = oldSeason
     const n = normaliseGame(old as unknown as Game)!
     expect(n.weekPlayed).toEqual([])
     expect(n.live).toBeNull()
     expect(n.jobOffers).toEqual([])
     expect(n.pendingMove).toBeNull()
     expect(n.customPlayers).toEqual({})
+    expect(n.arena).toBeNull()
+    // No salary cap before the Moneyball wheel: nothing to say about money
+    expect(n.settings.rules.budget).toBeUndefined()
+    expect(capOfGame(n)).toBeNull()
+    // Nor a teammate chain before the chain
+    expect(n.settings.rules.chain).toBeUndefined()
+    expect(chainOfGame(n)).toBeNull()
     expect(n.settings.wheelLeagues).toEqual(['england'])
+    // No weekly theme before the Weekly Challenge: the mode's label stands alone
+    expect(n.settings.weekly).toBeUndefined()
+    expect(modeLabel(n, 'short')).toBe('Season')
+    // A season from before the Run-in carries no table in: it reads from its fixtures alone, with no brief
+    expect(n.settings.runIn).toBeUndefined()
+    expect(n.season!.carryIn).toBeUndefined()
+    expect(seasonTable(n.season!)).toEqual(computeTable(n.season!.fixtures, [USER_TEAM, ...Object.keys(n.season!.ai)]))
+    expect(takeoverTable(n.season!)).toBeNull()
+    expect(briefStanding(n)).toBeNull()
+    expect(runInVerdict(n, u)).toBeNull()
+    // A ghost from before arena links carries no arena claim: it still reads as a quick challenge
+    const ghost = normaliseGame({ ...old, settings: { ...oldSettings, challenge: { name: 'Minh', picks: [], claim: { pts: 70, w: 21, d: 7, l: 10, t: 'TITLE_RACE' }, verified: 'yes', data: '2026-01-01', engine: '4' } } } as unknown as Game)!
+    expect(ghost.settings.challenge?.arena).toBeUndefined()
+    expect(challengeHeadline(ghost.settings.challenge!)).toBe('70 pts')
+    expect(arenaVerdictOf(ghost)).toBeNull()
     // The match-play preference stays unset and reads as Watch (today's stops at 45 and 70)
     expect(n.settings.matchPlay).toBeUndefined()
     expect(matchPlayOf(n)).toBe('watch')
@@ -167,6 +205,24 @@ describe('audit fixes: season and squad', () => {
     expect(p.inventory).toEqual({})
   })
 
+  it('a quick save from before Season Story opens and still tells its story', () => {
+    const g = createGame(settings({ mode: 'quick', seed: 'audit-story', rules: { ...QUICK_RULES, leagues: ['england'] } }))
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    runQuickSeason(g, u)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    const q = old.quickResult as unknown as Record<string, unknown>
+    delete q.clinchedAt
+    delete q.doomedAt
+    delete q.moment
+    const n = normaliseGame(old)!
+    expect(n.quickResult!.moment).toBeUndefined()
+    expect(n.quickResult!.clinchedAt).toBeUndefined()
+    const story = storyForGame(n, u)!
+    expect(story.strip).toHaveLength(38)
+    expect(story.moment.length).toBeGreaterThan(0)
+  })
   it('a save from before the happiness log and the Inbox player links loads and plays', () => {
     const g = started(u, { seed: 'pre-happiness-save' })
     playMatchweek(g, u, true)

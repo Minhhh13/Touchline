@@ -5,10 +5,12 @@
  */
 import type { Rng } from './rng'
 import type { SeasonState, CupTie } from './season'
-import { USER_TEAM, computeTable, positionOf } from './season'
+import { USER_TEAM, positionOf, seasonTable } from './season'
 import type { PlayerSeason, SquadPlayer } from './types'
+import { ordinal } from './universe'
 
-export type ObjectiveId = 'cup-qf' | 'cup-sf' | 'goals' | 'home-form' | 'youth' | 'continental-qf' | 'rivals'
+/** The last three are a run-in's brief (never drawn by `pickObjectives`): a place to finish in or above, held in `target`. */
+export type ObjectiveId = 'cup-qf' | 'cup-sf' | 'goals' | 'home-form' | 'youth' | 'continental-qf' | 'rivals' | 'title' | 'top-four' | 'survive'
 
 export interface Objective {
   id: ObjectiveId
@@ -65,7 +67,7 @@ export function evaluateObjective(o: Objective, ctx: ObjectiveContext): { met: b
       return { met, progress: met ? 'Reached' : season.continental?.eliminated ? 'Knocked out in the round of 16' : 'Still in Europe' }
     }
     case 'goals': {
-      const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+      const table = seasonTable(season)
       const row = table.find((r) => r.teamId === USER_TEAM)
       const gf = row?.goalsFor ?? 0
       return { met: gf >= (o.target ?? 0), progress: `${gf} of ${o.target}` }
@@ -88,6 +90,14 @@ export function evaluateObjective(o: Objective, ctx: ObjectiveContext): { met: b
         return gf < ga
       }).length
       return { met: lost === 0, progress: lost ? `Lost ${lost} derb${lost === 1 ? 'y' : 'ies'}` : 'Unbeaten in derbies so far' }
+    }
+    case 'title':
+    case 'top-four':
+    case 'survive': {
+      // A run-in's brief: judged on the final position of the table it carried in
+      const pos = positionOf(seasonTable(season), USER_TEAM)
+      const target = o.target ?? 1
+      return { met: pos <= target, progress: `${ordinal(pos)} now, ${ordinal(target)} or better needed` }
     }
   }
 }

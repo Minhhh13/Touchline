@@ -16,6 +16,8 @@ import { buildYouthIntake } from './youth'
 import { pickObjectives, OBJECTIVE_REWARD } from '@engine/objectives'
 import { playerLookup, squadPlayers } from './players'
 import { defaultStatuses } from '@engine/status'
+import { newArenaState } from './arena'
+import { chainRecord } from './chain'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { isSuperLeague } from './superLeague'
 
@@ -204,6 +206,8 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   if (r.classic) parts.push('classic seasons (estimated ratings)')
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) parts.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
+  if (r.budget !== undefined) parts.push(`cap £${r.budget}M`)
+  if (r.chain) parts.push('teammate chain')
   const manage = s.mode === 'season' || s.mode === 'dynasty'
   // The 38-0 options, only where they differ from the mode's defaults: `hard mode`, `easy mode`, `blind`, `Position First`, `prime ratings`
   for (const t of rulesTags(r, manage ? SEASON_RULES : QUICK_RULES)) parts.push(TAG_WORDS[t] ?? t)
@@ -337,12 +341,17 @@ export function createGame(settings: GameSettings): Game {
     jobOffers: [],
     pendingMove: null,
     quickResult: null,
+    // The arena's own streams of the game seed (field, ties, draw), seeded here with the game so they never touch `rngState`
+    arena: settings.arena ? newArenaState(settings.arena, { field: new Rng(`${settings.seed}#field`).getState(), ties: new Rng(`${settings.seed}#ties`).getState(), draw: new Rng(`${settings.seed}#draw`).getState() }) : null,
   }
 }
 
-/** Move the drafted players into the squad and prepare the season. */
-export function beginSeason(game: Game, u: LoadedUniverse): void {
-  const rng = Rng.fromState(game.rngState)
+/**
+ * The draft's picks into the squad (a new man gets a one-to-three-year contract
+ * drawn from `rng`), its lineup and bench onto the game, then the draft closed
+ * and its bonus spins spent. Shared by `beginSeason` and the run-in's `beginRunIn`.
+ */
+export function moveDraftToSquad(game: Game, rng: Rng): void {
   const d = game.draft
   if (d) {
     for (const id of [...Object.values(d.lineup), ...d.bench]) {
@@ -353,6 +362,10 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     }
     game.lineup = { ...d.lineup }
     game.bench = [...d.bench]
+    // The salary cap's spend outlives the draft, for the summary and the Record page
+    if (d.spent !== undefined) game.capSpent = d.spent
+    // So does the Teammate Chain, for the summary's link line and the Dressing Room achievement
+    if (d.rules.chain) game.teammateChain = chainRecord(d)
     // A summer signing made while the wheel was still spinning is in the squad but not the draft
     const placed = new Set([...Object.values(game.lineup), ...game.bench])
     for (const id of Object.keys(game.squad)) if (!placed.has(id)) game.bench.push(id)
@@ -360,6 +373,12 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   game.draft = null
   // The draft's squad size already included every bonus spin, so they are spent now
   game.bonusSpins = 0
+}
+
+/** Move the drafted players into the squad and prepare the season. */
+export function beginSeason(game: Game, u: LoadedUniverse): void {
+  const rng = Rng.fromState(game.rngState)
+  moveDraftToSquad(game, rng)
   // The host club must exist in that league season; otherwise take a random one's place.
   const inLeague = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === game.settings.leagueSeason).map((cs) => cs.clubId)
   if (inLeague.length && !inLeague.includes(game.settings.hostClubId)) game.settings = { ...game.settings, hostClubId: rng.pick(inLeague) }

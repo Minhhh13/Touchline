@@ -16,6 +16,7 @@ import { staminaCostFactor } from '@engine/depth'
 import type { Position } from '@engine/types'
 import { isAvailable, playerLookup } from './players'
 import { advanceLiveMatch, closeLiveMatch, playMatchweek } from './week'
+import { advanceArenaMatch } from './arena'
 
 /** How the main play button plays the next match. */
 export type MatchPlayMode = 'watch' | 'auto' | 'sim'
@@ -139,7 +140,9 @@ function fitFactor(positions: Position[], position: Position): number {
 /** Play on from the stop the live match stands at with the assistant's calls; `hold` keeps the last twenty minutes live for the dashboard to play (`advanceLiveMatch`). */
 export function advanceWithAssistant(game: Game, u: LoadedUniverse, hold = false): void {
   if (!game.live) return
-  advanceLiveMatch(game, u, assistantCall(game, u), false, hold)
+  // An arena match plays on through the arena's own path, the same calls made
+  if (game.live.kind === 'arena') advanceArenaMatch(game, u, assistantCall(game, u), hold)
+  else advanceLiveMatch(game, u, assistantCall(game, u), false, hold)
 }
 
 /** Which match a live match is (a cup tie that follows the league match is a different one). */
@@ -159,7 +162,10 @@ function liveKey(game: Game): string | null {
 export function finishWithAssistant(game: Game, u: LoadedUniverse, first?: LiveChanges): void {
   const key = liveKey(game)
   if (!key) return
-  if (first) advanceLiveMatch(game, u, first)
+  if (first) {
+    if (game.live?.kind === 'arena') advanceArenaMatch(game, u, first)
+    else advanceLiveMatch(game, u, first)
+  }
   for (let i = 0; i < 3 && game.live && liveKey(game) === key; i++) advanceWithAssistant(game, u)
 }
 

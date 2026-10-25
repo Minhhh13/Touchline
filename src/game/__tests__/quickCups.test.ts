@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
-import { decodeChallenge, encodeChallenge } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge , type QuickChallengePayload } from '@engine/challenge'
 import { EXTRA_TIME_RATE, extraTime } from '@engine/season'
 import { kickOff, toKickoff } from '../logic/quick'
 import { addCupTrophies, cupLine, cupReachLabel, cupRoundLabel, cupScoreLabel, cupUnlocks, playQuickCup, QUICK_CONTINENTAL_PLACES, quickCupProblem, quickCupXI, quickCupStatus, skipQuickCup, type QuickCupComp } from '../logic/quickCups'
@@ -231,7 +231,8 @@ describe('the post-season cups of a Quick Draft', { timeout: 120_000 }, () => {
     const claim = claimOf(g)!
     expect(claim.cu).toBe(g.quickResult!.cup!.reached)
     const c = challengeFromGame(g, u, 'Cupper')!
-    const decoded = decodeChallenge(encodeChallenge(c))
+    // A quick link decodes as one (the union also holds arena links)
+    const decoded = decodeChallenge(encodeChallenge(c)) as QuickChallengePayload
     expect(decoded.c.cu).toBe(claim.cu)
     expect(replayChallenge(u, decoded).verified).toBe('yes')
     expect(claimCupsLine(decoded.c)).toMatch(/^Cup/)

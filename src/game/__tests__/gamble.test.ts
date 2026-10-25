@@ -312,8 +312,8 @@ describe('the Player Upgrader', () => {
       expect(out.reason).toBeUndefined()
       expect(out.verified).toBe('yes')
       // A link with the upgrade stripped plays a different season or at least is checked without it
-      expect(() => decodeChallenge(encodeChallenge({ ...c, g: [99, 10] }))).toThrow()
-      expect(() => decodeChallenge(encodeChallenge({ ...c, g: [0, 3] }))).toThrow()
+      expect(() => decodeChallenge(encodeChallenge({ ...c, g: [99, 10] as [number, number] }))).toThrow()
+      expect(() => decodeChallenge(encodeChallenge({ ...c, g: [0, 3] as [number, number] }))).toThrow()
     }
   }, 60_000)
 })

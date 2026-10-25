@@ -1,6 +1,15 @@
 import type { LoadedUniverse } from '@engine/universe'
 import { benchmarkSeason, isPointsRecord, playedOf, type SeasonFigures } from '@engine/records'
-import type { GameSettings } from '../types'
+import type { Game, GameSettings } from '../types'
+
+/**
+ * Whether a finished game's season goes in the record books: not when the
+ * board sacked the manager (fewer matches), and never for a run-in, whose
+ * first 28 weeks are a projection of the real table.
+ */
+export function inRecordBooks(game: Pick<Game, 'season'>): boolean {
+  return !game.season?.sacked && !game.season?.carryIn
+}
 
 /**
  * The Record Books achievement: an outright league points record, set on

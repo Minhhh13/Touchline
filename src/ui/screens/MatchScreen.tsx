@@ -17,6 +17,8 @@ import type { MatchContext } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
+import { arenaContinueLabel } from '@game/logic/arena'
+import { ShootoutPanel } from '../components/ShootoutPanel'
 import { MatchDashboard } from '../matchday/MatchDashboard'
 import { cardSeries, reportFigures } from '../matchday/model'
 import { XgStory } from '../matchday/panels/XgStory'
@@ -103,8 +105,14 @@ export function MatchScreen() {
   const outcome = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat'
   const seasonOver = game.phase === 'summary' || !!game.seasonEnding
   const cupNext = !!game.live && holdLive
-  const continueLabel = seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
+  // The arena: penalties first, then the run's summary or its next match
+  const arena = game.arena
+  const continueLabel = arena ? arenaContinueLabel(game) : seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
   const onContinue = () => {
+    if (arena) {
+      closeMatch()
+      return
+    }
     if (seasonOver) {
       // The final whistle has gone; closing the match closes the season
       if (game.seasonEnding) closeMatch()
@@ -122,6 +130,32 @@ export function MatchScreen() {
 
   const tabs = <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
   const replay = matchView === 'ticker'
+  // An arena match level at the whistle: the shoot-out is the whole screen (a shell box that scrolls inside itself)
+  if (arena?.pending) {
+    return (
+      <div className="page fit arena-shootout">
+        <div className="fit-head">
+          <div>
+            <h2>
+              <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
+              {ctx.roundLabel ?? 'Penalties'}
+            </h2>
+            <div className="small muted">
+              {homeName} {res.homeGoals}-{res.awayGoals} {awayName} · level at 90
+            </div>
+          </div>
+          <button className="btn primary" disabled data-testid="match-continue">
+            {continueLabel}
+          </button>
+        </div>
+        <div className="fit-grid">
+          <div className="fit-cell">
+            <ShootoutPanel />
+          </div>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className={`page ${replay ? 'matchday-page' : ''}`}>
       {/* The replay's dashboard names the match in its own line, so the page head is one slim row: the tabs and the buttons */}
@@ -149,12 +183,14 @@ export function MatchScreen() {
               </button>
             </div>
           )}
-          <button className="btn primary" onClick={onContinue}>
+          <button className="btn primary" onClick={onContinue} disabled={!!arena?.pending} data-testid="match-continue">
             {continueLabel}
           </button>
         </div>
       </div>
 
+      {/* The shoot-out's kicks reveal on the report; the replay dashboard keeps its one-screen fit */}
+      {arena && !replay && <ShootoutPanel />}
       {!replay && tabs}
 
       {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} />}

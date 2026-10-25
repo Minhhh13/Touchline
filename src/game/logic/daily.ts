@@ -32,6 +32,9 @@ export const DAILY_RULES: DraftRules = {
   onlyNation: undefined,
   leagues: ['england'],
   modes: undefined,
+  // The casual modes' rules: never on the Daily (written out, so a later default cannot reach it)
+  budget: undefined,
+  chain: undefined,
 }
 
 export interface DailySettings {

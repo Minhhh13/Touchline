@@ -11,6 +11,8 @@ import type { Fixture, Formation, Lineup, PlayerSeason, Tactics } from '@engine/
 import { playerLookup } from './players'
 import { earnsPointsRecord } from './records'
 import { recordUserGames } from './gameByGame'
+import { earnsMoneyball } from './cap'
+import { earnsChainChampions } from './chain'
 import { packRounds } from './liveTable'
 import { januaryBudget, januaryListings, sameListing } from './january'
 import { difficultyOf } from '@engine/draft'
@@ -359,6 +361,8 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     // Every club's results by matchweek, from the fixtures already played: the playback's live table
     rounds: packRounds(fixtures, ids),
   }
+  // Season Story is told from `results` and `rounds` when it is read (`storyForGame`): nothing more is stored, so the
+  // quick result is byte for byte what it was before the story existed
   game.quickResult = quick
   game.lineup = run.lineup
   game.bench = run.bench
@@ -368,6 +372,8 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (row.points >= 100) game.unlocked.push('centurions')
   if (tier === 'INVINCIBLE' || tier === 'PERFECT') game.unlocked.push('invincible')
   if (pos === 1 && difficultyOf(game.settings.rules) === 'hard') game.unlocked.push('hard-champions')
+  if (pos === 1 && earnsMoneyball(game)) game.unlocked.push('moneyball')
+  if (pos === 1 && earnsChainChampions(game)) game.unlocked.push('chain-champions')
   if (pos === 1 && game.settings.rules.onlyClub) game.unlocked.push('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) game.unlocked.push('one-nation-champions')
   // The points record is a real league's; the Super League has no such book

@@ -2670,6 +2670,12 @@ table.tbl.contracts .btn.sm {
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-3);
 }
+@media (min-width: 901px) {
+  /* Home's rows of three: Today and this week, then the three mode cards */
+  .modes.three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 @media (max-width: 900px) {
   .modes {
     grid-template-columns: repeat(2, 1fr);
@@ -5294,6 +5300,53 @@ table.tbl.contracts .btn.sm {
     animation: none;
     transition: none;
   }
+}
+/* Trophy Room: badges with a tier ring (bronze, silver, gold); a badge at zero is greyed like a locked achievement */
+.badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.badge-tile {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.badge-tile.locked {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.badge-tile .title {
+  font-weight: 700;
+}
+.badge-tile .desc {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.badge-ring {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 20px;
+  border: 3px solid var(--line-2);
+  background: var(--bg-2);
+}
+.badge-ring.bronze {
+  border-color: #cd8a4a;
+}
+.badge-ring.silver {
+  border-color: #a9b6bd;
+}
+.badge-ring.gold {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent);
 }
 
 /* ------------------------------------------------------------ slot picker */
@@ -9672,6 +9725,84 @@ table.tbl.contracts-overview .link-btn.name {
   }
 }
 
+/* ------------------------------------------------------------ casual modes */
+/* Home's casual row: five compact tiles (the Daily Arena, the Weekly, the Cup, the Gauntlet, the Run-in) above the four links */
+.home-tiles.casual {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.home-tiles.casual .tile-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.home-tiles.casual .home-tile {
+  min-width: 0;
+  overflow: hidden;
+}
+.home-tiles.casual .tile-text b,
+.home-tiles.casual .tile-text span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-tile:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+@media (max-width: 900px) {
+  .home-tiles.casual {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Setup's Modes row carries the two casual cards too (Moneyball, Teammate chain): eleven across, two rows of six below 1200px */
+@media (min-width: 1000px) {
+  .setup-modes-row {
+    grid-template-columns: repeat(11, minmax(0, auto));
+  }
+}
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .setup-modes-row {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+/* The arena hub: the head, then the opponent, the team sheet and the pitch with the calls as three boxes (`.page.fit`) */
+.arena-stats {
+  grid-template-columns: repeat(2, auto);
+}
+@media (min-width: 1100px) and (min-height: 600px) {
+  .fit-grid.arena-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.95fr);
+  }
+  .arena-hub .fit-head h1 {
+    font-size: 24px !important;
+  }
+  .arena-hub .stat-strip .stat .value {
+    font-size: 22px;
+  }
+  .arena-hub .pitch-wrap {
+    max-width: max(220px, calc((100dvh - 470px) * 0.75));
+    margin-inline: auto;
+  }
+}
+/* On a phone the Modes row's switch cards (Power-ups, Moneyball, Teammate chain) wrap instead of running off the side */
+@media (max-width: 999px) {
+  .setup-modes-row .pu-setup {
+    flex-wrap: wrap;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card .cline {
+    white-space: normal;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card > * {
+    min-width: 0;
+  }
+}
 /* ------------------------------------------------------------------ recruitment: scouting, contract talks, the board, the data hub */
 .good-text {
   color: var(--good);
