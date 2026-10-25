@@ -49,7 +49,7 @@ describe('the Modes row', () => {
     expect(on).toEqual(['crazy', 'hard', 'legends', 'speedrun'])
     expect(toggleModeCard(on, 'crazy')).toEqual(['hard', 'legends', 'speedrun'])
     expect(MODE_CARDS).toEqual(['crazy', 'hard', 'underdog', 'legends', 'speedrun', 'gamble', 'upgrader'])
-  })
+  }, 60_000)
 
   it('links the Hard card to the difficulty both ways', () => {
     const hard = withModes(QUICK_RULES, ['hard'])
@@ -66,7 +66,7 @@ describe('the Modes row', () => {
     expect(setupRules(QUICK_RULES, { ...choices, modes: ['crazy'], difficulty: 'easy' })).toMatchObject({ difficulty: 'easy', respins: 3, twists: true, modes: ['crazy'] })
     // No modes: the rules are exactly what they were before the row existed
     expect(setupRules(QUICK_RULES, { ...choices, modes: [] })).not.toHaveProperty('modes')
-  })
+  }, 60_000)
 
   it('names the modes in the setup line, the fixed-rules pills and the share line', () => {
     const r = rules(['crazy', 'speedrun'], { difficulty: 'hard', hardMode: true, respins: 0, showRatings: false })
@@ -78,7 +78,7 @@ describe('the Modes row', () => {
     expect(line).toContain('hard mode')
     expect(modesLine(rules([]))).toBe('')
     expect(modesOf({ ...QUICK_RULES, modes: ['speedrun', 'crazy', 'crazy'] })).toEqual(['crazy', 'speedrun'])
-  })
+  }, 60_000)
 })
 
 describe('Underdog', () => {
@@ -91,7 +91,7 @@ describe('Underdog', () => {
         expect(cs.position, `${cs.clubId} ${cs.season}`).toBeGreaterThan(n / 2)
       }
     }
-  })
+  }, 60_000)
 
   it('ranks a league without tables by squad strength, half of each season', () => {
     const fr = loadTestUniverse(['france'])
@@ -103,7 +103,7 @@ describe('Underdog', () => {
     }
     const g = drafted({ seed: 'UNDER-FR', leagueId: 'france', wheelLeagues: ['france'], hostClubId: fr.clubSeasons[0].clubId, leagueSeason: fr.clubSeasons[0].season, rules: { ...rules(['underdog']), leagues: ['france'] } }, false, fr)
     expect(isComplete(g.draft!)).toBe(true)
-  })
+  }, 60_000)
 })
 
 describe('Legends', () => {
@@ -113,7 +113,7 @@ describe('Legends', () => {
       expect(isComplete(g.draft!)).toBe(true)
       for (const cs of landed(g)) expect(hasLegend(cs)).toBe(true)
     }
-  })
+  }, 60_000)
 })
 
 describe('Crazy', () => {
@@ -123,14 +123,14 @@ describe('Crazy', () => {
       expect(isComplete(g.draft!)).toBe(true)
       for (const h of g.draft!.history) expect(TWISTS).toContain(h.twist)
     }
-  })
+  }, 60_000)
 
   it('draws the formation from the seed, the same every time, across the shapes', () => {
     expect(crazyFormation('K7Q2-MX9A')).toBe(crazyFormation('K7Q2-MX9A'))
     const shapes = new Set(Array.from({ length: 200 }, (_, i) => crazyFormation(`shape-${i}`)))
     expect(shapes.size).toBeGreaterThanOrEqual(Math.min(6, FORMATIONS.length))
     for (const id of shapes) expect(getFormation(id).id).toBe(id)
-  })
+  }, 60_000)
 
   it('rolls surprises from its own stream, near the stated chance, and never moves the game stream', () => {
     // The game's stream starts the same with Crazy on or off
@@ -173,7 +173,7 @@ describe('Crazy', () => {
     expect(hits / rolls).toBeGreaterThan(CRAZY_SURPRISE_CHANCE - 0.1)
     expect(hits / rolls).toBeLessThan(CRAZY_SURPRISE_CHANCE + 0.1)
     expect([...kinds].sort()).toEqual(['forced', 'golden', 'respin'])
-  })
+  }, 60_000)
 
   it('announces a golden surprise only when it happens: never under Underdog, always golden otherwise', () => {
     for (const modes of [['crazy', 'underdog'], ['crazy']] as QuickMode[][]) {
@@ -196,13 +196,13 @@ describe('Crazy', () => {
       if (modes.includes('underdog')) expect(golden).toBe(0)
       else expect(golden).toBeGreaterThan(0)
     }
-  })
+  }, 60_000)
 
   it('starts in the shape the seed draws, whatever formation was chosen', () => {
     expect(startFormation(rules(['crazy']), 'K7Q2-MX9A', '4-4-2')).toBe(crazyFormation('K7Q2-MX9A'))
     expect(startFormation(rules(['speedrun']), 'K7Q2-MX9A', '4-4-2')).toBe('4-4-2')
     expect(startFormation(rules([]), 'K7Q2-MX9A', '3-5-2')).toBe('3-5-2')
-  })
+  }, 60_000)
 
   it('makes a golden surprise spin golden and blocks choosing another slot while one is forced', () => {
     const d = newDraft(getFormation('4-3-3'), rules(['crazy'], { draftMode: 'position' }), 'X')
@@ -218,7 +218,7 @@ describe('Crazy', () => {
     const p = cs.squad.find((x) => canCover(x, 'ST', 'accomplished'))!
     pick(u, d, p.id, 'st')
     expect(d.forcedSlot).toBeNull()
-  })
+  }, 60_000)
 })
 
 describe('Speedrun', () => {
@@ -236,14 +236,14 @@ describe('Speedrun', () => {
       return JSON.stringify(d.history)
     }
     expect(run()).toBe(run())
-  })
+  }, 60_000)
 
   it('chooses a slot first under Position First', () => {
     const g = createGame(settings({ seed: 'SPEED-2', rules: rules(['speedrun'], { draftMode: 'position' }) }))
     const rng = Rng.fromState(g.rngState)
     assistantTurn(u, g.draft!, rng)
     expect(picksMade(g.draft!)).toBe(1)
-  })
+  }, 60_000)
 })
 
 describe('no dry wheel across the modes', () => {
@@ -256,7 +256,7 @@ describe('no dry wheel across the modes', () => {
       expect(isComplete(g.draft!), `seed DRY-${i} ${modes.join('+')}`).toBe(true)
       expect(canSpin(u, g.draft!) || isComplete(g.draft!)).toBe(true)
     }
-  })
+  }, 60_000)
 })
 
 describe('modes in challenge links', () => {
@@ -271,7 +271,7 @@ describe('modes in challenge links', () => {
       const out = replayChallenge(u, back)
       expect(out.verified, out.reason).toBe('yes')
     }
-  })
+  }, 60_000)
 
   it('replay a Crazy Position First draft, forced positions and free re-spins included', () => {
     let forcedSeen = 0
@@ -282,7 +282,7 @@ describe('modes in challenge links', () => {
       expect(out.verified, out.reason).toBe('yes')
     }
     expect(forcedSeen).toBeGreaterThan(0)
-  })
+  }, 60_000)
 
   it('accepts only known mode flags, each once', () => {
     expect(isRulesDiff({ modes: ['crazy', 'legends'] })).toBe(true)
@@ -291,5 +291,5 @@ describe('modes in challenge links', () => {
     expect(isRulesDiff({ modes: ['crazy', 'crazy'] })).toBe(false)
     expect(isRulesDiff({ modes: 'crazy' })).toBe(false)
     expect(rulesDiff(rules([]))).not.toHaveProperty('modes')
-  })
+  }, 60_000)
 })

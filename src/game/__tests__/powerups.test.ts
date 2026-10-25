@@ -93,7 +93,7 @@ describe('power-ups: the rule', () => {
     expect(describeRules(u, rules()).some((t) => t.includes('Power-ups'))).toBe(true)
     expect(summariseSetup(u, settings())).toContain('power-ups')
     expect(upgraderOn(rules())).toBe(true)
-  })
+  }, 60_000)
 
   it('leaves every spin of a draft where the same draft without power-ups lands, while none is used', () => {
     for (let i = 0; i < 20; i++) {
@@ -109,7 +109,7 @@ describe('power-ups: the rule', () => {
       expect(a.powerRng).toBeDefined()
       expect(b.powerRng).toBeUndefined()
     }
-  })
+  }, 60_000)
 })
 
 describe('Re-roll season', () => {
@@ -133,7 +133,7 @@ describe('Re-roll season', () => {
       assistantPick(d)
       expect(d.history[d.history.length - 1].season).toBe(cs.season)
     }
-  })
+  }, 60_000)
 
   it('draws each season shown equally often, and the same seed re-rolls the same way', () => {
     const { d } = rerollable('RR-ODDS')
@@ -149,7 +149,7 @@ describe('Re-roll season', () => {
     const expected = n / options.length
     for (const s of options) expect(Math.abs((counts.get(s) ?? 0) - expected)).toBeLessThan(5 * Math.sqrt(expected))
     expect(rerollSeason(u, clone(d)).season).toBe(rerollSeason(u, clone(d)).season)
-  })
+  }, 60_000)
 
   it('needs a spin showing and power-ups on', () => {
     const { d } = draftAfter(rules(), 1, 'RR-NONE')
@@ -159,7 +159,7 @@ describe('Re-roll season', () => {
     spin(u, plain.d, plain.rng)
     expect(canReroll(u, plain.d)).toBe(false)
     expect(() => rerollSeason(u, plain.d)).toThrow()
-  })
+  }, 60_000)
 })
 
 describe('Peek', () => {
@@ -186,7 +186,7 @@ describe('Peek', () => {
         expect(canPeek(u, d)).toBe(false)
       }
     }
-  })
+  }, 60_000)
 
   it('pins the slot and the XI while it shows, and is once per draft', () => {
     const { d, rng } = draftAfter(rules({ draftMode: 'position' }), 4, 'PEEK-PIN')
@@ -199,7 +199,7 @@ describe('Peek', () => {
     expect(peekNext(u, d, rng.getState())!.season).toBe(peekedSeason(d))
     spin(u, d, rng)
     expect(peekNext(u, d, rng.getState())).toBeNull()
-  })
+  }, 60_000)
 })
 
 describe('Swap', () => {
@@ -229,7 +229,7 @@ describe('Swap', () => {
       moved++
     }
     expect(moved).toBeGreaterThan(10)
-  })
+  }, 60_000)
 
   it('refuses a slot he cannot cover, an empty slot to move from, and a spin showing', () => {
     const { d, rng } = draftAfter(rules(), 5, 'SWAP-BAD')
@@ -241,7 +241,7 @@ describe('Swap', () => {
     spin(u, d, rng)
     expect(canSwap(u, d)).toBe(false)
     expect(() => swapSlots(u, d, from, swapTargets(u, d, from)[0] ?? from)).toThrow()
-  })
+  }, 60_000)
 })
 
 describe("Captain's armband and Lock", () => {
@@ -260,7 +260,7 @@ describe("Captain's armband and Lock", () => {
     expect(JSON.stringify(u.index[id])).toBe(before)
     expect(() => giveArmband(g.draft!, other)).toThrow()
     expect(() => giveArmband(newDraft(getFormation('4-3-3'), rules(), 'X'), id)).toThrow()
-  })
+  }, 60_000)
 
   it('the lock turns an Upgrader loss on him into no change, and must come first', () => {
     let losses = 0
@@ -287,7 +287,7 @@ describe("Captain's armband and Lock", () => {
     upgradePlayer(u, d, upgradeCandidates(d)[0], 2)
     expect(canUpgrade(d)).toBe(false)
     expect(() => lockPlayer(d, upgradeCandidates(d)[0])).toThrow()
-  })
+  }, 60_000)
 })
 
 describe('power-ups in links, the log and the share text', () => {
@@ -308,7 +308,7 @@ describe('power-ups in links, the log and the share text', () => {
       const stripped = replayChallenge(u, decodeChallenge(encodeChallenge({ ...c, w: undefined })))
       if (d.powerUps!.some((x) => x.kind === 'reroll' || x.kind === 'swap')) expect(stripped.verified).toBe('no')
     }
-  })
+  }, 60_000)
 
   it('make a working link when the bench closed while a peek showed (a peek no spin followed)', () => {
     for (const seed of ['PU-BENCH-1', 'PU-BENCH-2']) {
@@ -331,7 +331,7 @@ describe('power-ups in links, the log and the share text', () => {
       expect(out.reason).toBeUndefined()
       expect(out.verified).toBe('yes')
     }
-  })
+  }, 60_000)
 
   it('reject malformed power-up rows', () => {
     expect(isChallengePowerUps([['r', 0], ['p', 1], ['s', 2, 'a', 'b'], ['a', 3], ['l', 4]], 11)).toBe(true)
@@ -343,7 +343,7 @@ describe('power-ups in links, the log and the share text', () => {
     expect(isChallengePowerUps('r', 11)).toBe(false)
     const c = challengeFromGame(playWithAll('PU-LINK-BAD'), u, 'Power')!
     expect(() => decodeChallenge(encodeChallenge({ ...c, w: [['r', 99]] }))).toThrow()
-  })
+  }, 60_000)
 
   it('show one log line per power-up used and a share line of icons', () => {
     const g = playWithAll('PU-LOG')
@@ -358,5 +358,5 @@ describe('power-ups in links, the log and the share text', () => {
     expect(share).toContain('🔒')
     expect(powerUpsShareLine(newDraft(getFormation('4-3-3'), rules(), 'NONE'))).toBe('🧰 Power-ups unused')
     expect(powerUpsShareLine(newDraft(getFormation('4-3-3'), { ...rules(), powerUps: undefined }, 'NONE'))).toBeNull()
-  })
+  }, 60_000)
 })

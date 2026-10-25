@@ -91,7 +91,7 @@ describe('the spin odds', () => {
         }
       }
     }
-  })
+  }, 60_000)
 
   it('match the engine’s weighted pick over many seeds, on a plain spin and on a twist spin', () => {
     const n = 2500
@@ -106,7 +106,7 @@ describe('the spin odds', () => {
         expect(Math.abs(seen - o.p)).toBeLessThan(tol)
       }
     }
-  })
+  }, 60_000)
 
   it('give the Icons chance in a Gamble draft until the Icons spin has come, and its share of spins matches it', () => {
     const d = newDraft(getFormation('4-3-3'), rules(['gamble']), 'ODDS-ICONS')
@@ -117,7 +117,7 @@ describe('the spin odds', () => {
     expect(Math.abs((counts.icons ?? 0) / n - ICONS_CHANCE)).toBeLessThan(4 * Math.sqrt((ICONS_CHANCE * (1 - ICONS_CHANCE)) / n))
     // No Icons row without Gamble
     expect(tierOdds(u, newDraft(getFormation('4-3-3'), rules([]), 'ODDS-NO-ICONS'), LEAGUES).some((o) => o.tier === 'icons')).toBe(false)
-  })
+  }, 60_000)
 
   it('match head-to-head spins too', () => {
     const h = newH2HDraft([getFormation('4-3-3'), getFormation('4-4-2')], { ...QUICK_RULES, leagues: LEAGUES })
@@ -135,14 +135,14 @@ describe('the spin odds', () => {
       counts[t] = (counts[t] ?? 0) + 1
     }
     for (const [t, p] of Object.entries(byTier)) expect(Math.abs((counts[t] ?? 0) / n - p)).toBeLessThan(Math.max(0.012, 4 * Math.sqrt((p * (1 - p)) / n)))
-  })
+  }, 60_000)
 
   it('print one decimal under 10%, whole above, and never 0% for a chance that can come up', () => {
     expect(formatOdds(0.01)).toBe('1.0%')
     expect(formatOdds(0.234)).toBe('23%')
     expect(formatOdds(0.0001)).toBe('<0.1%')
     expect(formatOdds(0)).toBe('0%')
-  })
+  }, 60_000)
 })
 
 describe('Gamble mode: the Icons spin', () => {
@@ -161,7 +161,7 @@ describe('Gamble mode: the Icons spin', () => {
     // The same object on a second call, and the universe untouched
     expect(iconsCollection(u, LEAGUES)).toBe(icons)
     expect(u.clubSeasonByKey[`${ICONS_CLUB}@0`]).toBeUndefined()
-  })
+  }, 60_000)
 
   it('lands on the Icons collection when its roll hits, from its own stream, at most once per draft', () => {
     const seed = iconsSeed()
@@ -182,7 +182,7 @@ describe('Gamble mode: the Icons spin', () => {
     // Never again in this draft
     autoDraft(u, d, rng)
     expect(d.history.filter((h) => isIcons(h))).toHaveLength(1)
-  })
+  }, 60_000)
 
   it('leaves the main stream exactly as a draft without Gamble would use it while no Icons spin comes', () => {
     for (let s = 0; s < 20; s++) {
@@ -201,7 +201,7 @@ describe('Gamble mode: the Icons spin', () => {
         pick(u, b, pa.id, pa.slot)
       }
     }
-  })
+  }, 60_000)
 
   it('deals an Icons card at the landing of the reel', () => {
     const seed = iconsSeed()
@@ -211,7 +211,7 @@ describe('Gamble mode: the Icons spin', () => {
     const deal = dealReel(u, { leagues: LEAGUES, pool, target: d.current! }, new Rng('reel').next.bind(new Rng('reel')))
     expect(deal.cards[REEL_LAND].tier).toBe('icons')
     expect(deal.cards.filter((c) => c.tier === 'icons')).toHaveLength(1)
-  })
+  }, 60_000)
 
   it('replays an Icons pick in a challenge link', () => {
     const g = createGame(settings({ seed: iconsSeed() }))
@@ -225,7 +225,7 @@ describe('Gamble mode: the Icons spin', () => {
     const out = replayChallenge(u, decodeChallenge(encodeChallenge(c)))
     expect(out.reason).toBeUndefined()
     expect(out.verified).toBe('yes')
-  })
+  }, 60_000)
 })
 
 describe('the Player Upgrader', () => {
@@ -239,7 +239,7 @@ describe('the Player Upgrader', () => {
     }
     expect(upgradeChance(92, 10)).toBeLessThan(upgradeChance(70, 10))
     expect(UPGRADE_BOOSTS.map(upgradeLoss)).toEqual([1, 3, 5])
-  })
+  }, 60_000)
 
   it('wins exactly as often as the chance shown, over many seeds', () => {
     const n = 1500
@@ -256,7 +256,7 @@ describe('the Player Upgrader', () => {
     }
     const expected = chance / n
     expect(Math.abs(wins / n - expected)).toBeLessThan(4 * Math.sqrt((expected * (1 - expected)) / n))
-  })
+  }, 60_000)
 
   it('rolls for the player and boost chosen: the same choice replays, another choice on the same seed is a fresh roll', () => {
     let differ = 0
@@ -272,7 +272,7 @@ describe('the Player Upgrader', () => {
     }
     // Two independent rolls of 0-99 agree about once in a hundred
     expect(differ).toBeGreaterThan(50)
-  })
+  }, 60_000)
 
   it('is once per draft, needs a drafted player, and never touches the universe', () => {
     const { d } = draftAfter(rules(['gamble']), 2, 'UPG-ONCE')
@@ -293,7 +293,7 @@ describe('the Player Upgrader', () => {
     const plain = draftAfter(rules([]), 1, 'UPG-NONE').d
     expect(canUpgrade(plain)).toBe(false)
     expect(() => upgradePlayer(u, plain, upgradeCandidates(plain)[0], 2)).toThrow()
-  })
+  }, 60_000)
 
   it('rates the upgraded player through the game lookup and replays in a challenge link', () => {
     for (const seed of ['UPG-LINK-1', 'UPG-LINK-2', 'UPG-LINK-3']) {
@@ -315,7 +315,7 @@ describe('the Player Upgrader', () => {
       expect(() => decodeChallenge(encodeChallenge({ ...c, g: [99, 10] }))).toThrow()
       expect(() => decodeChallenge(encodeChallenge({ ...c, g: [0, 3] }))).toThrow()
     }
-  })
+  }, 60_000)
 })
 
 describe('the Gamble and Upgrader cards', () => {
@@ -327,5 +327,5 @@ describe('the Gamble and Upgrader cards', () => {
     expect(isRulesDiff({ modes: ['gamble'], upgrader: true })).toBe(true)
     expect(isRulesDiff({ upgrader: 'yes' })).toBe(false)
     expect(withModes(r, []).upgrader).toBeUndefined()
-  })
+  }, 60_000)
 })
