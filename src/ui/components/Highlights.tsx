@@ -14,7 +14,7 @@ import { playerLookup } from '@game/logic/players'
 import { LivePitch } from './LivePitch'
 import { Modal } from './bits'
 import { publishClock } from '../match/clockStore'
-import { kitColours } from '../match/pitchGeometry'
+import { kitColours } from '../match/shirts'
 import { minuteLabel } from '../format'
 
 /** Milliseconds per match minute of a moment's build-up. */

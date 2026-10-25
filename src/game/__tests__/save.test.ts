@@ -156,6 +156,10 @@ function withFullDetailEverywhere(g: Game): Game {
   return full
 }
 
+/** What a compacted result of a round the dashboard can reveal keeps: each goal's minute, type, side and scorer. */
+const goalEvents = (r: { events: FullMatchResult['events'] }) =>
+  r.events.filter((e) => e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal').map((e) => ({ minute: e.minute, type: e.type, side: e.side, ...(e.playerName !== undefined ? { playerName: e.playerName } : {}), text: '' }))
+
 describe('save compaction', () => {
   it('keeps the user\'s matches of the current and previous matchweek and the last cup tie whole, and only the score of the rest', () => {
     const g = playTo(started({ seed: 'compact-keep' }), 16)
@@ -168,7 +172,10 @@ describe('save compaction', () => {
       const original = g.season!.fixtures.find((x) => x.matchweek === f.matchweek && x.homeTeamId === f.homeTeamId)!.result!
       if (whole) expect(f.result).toBe(original)
       else {
-        expect(f.result).toEqual({ homeTeamId: original.homeTeamId, awayTeamId: original.awayTeamId, homeGoals: original.homeGoals, awayGoals: original.awayGoals, events: [], homeStats: [], awayStats: [], xg: original.xg })
+        // The other matches of the current and previous rounds keep their goals (minute, side, scorer) for the match-day reveal
+        const goals = f.matchweek >= mw - 1 ? goalEvents(original) : []
+        expect(f.result).toEqual({ homeTeamId: original.homeTeamId, awayTeamId: original.awayTeamId, homeGoals: original.homeGoals, awayGoals: original.awayGoals, events: goals, homeStats: [], awayStats: [], xg: original.xg })
+        if (f.matchweek >= mw - 1) expect(goals.length).toBe(original.homeGoals + original.awayGoals)
       }
     }
     // Two cup rounds are played by matchweek 16 (after 6 and 14): the user's later tie stays whole, AI ties keep score and penalties
@@ -178,9 +185,10 @@ describe('save compaction', () => {
     const last = myTies.reduce((a, b) => (b.afterMatchweek >= a.afterMatchweek ? b : a))
     expect(last.result!.events.length).toBeGreaterThan(0)
     for (const t of played.filter((x) => !mine(x))) {
-      expect(t.result!.events).toEqual([])
-      expect(t.result!.homeStats).toEqual([])
       const original = g.season!.cup.find((x) => x.round === t.round && x.homeTeamId === t.homeTeamId)!.result!
+      // The ties of the user's last round keep their goals for the replay's latest scores
+      expect(t.result!.events).toEqual(t.round === last.round ? goalEvents(original) : [])
+      expect(t.result!.homeStats).toEqual([])
       expect(t.result!.penalties).toEqual(original.penalties)
     }
     // Never mutates the game it was given, and a second pass changes nothing

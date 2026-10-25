@@ -12,9 +12,6 @@ import type { Appearance } from '@engine/match'
 import type { PitchPoint } from '@engine/matchDetail'
 import { FORMATION_BY_ID, FORMATIONS } from '@engine/formations'
 import type { FormationSlot, Position, Tactics } from '@engine/types'
-import type { LoadedUniverse } from '@engine/universe'
-import { USER_TEAM } from '@engine/season'
-import { BRAND_COLOURS } from '../brand'
 
 export type Side = 'home' | 'away'
 
@@ -87,17 +84,6 @@ export function kitColour(ours: { primary: string; secondary: string } | undefin
   if (colourDistance(ours.primary, theirs) >= 90) return ours.primary
   if (colourDistance(ours.secondary, theirs) >= 90) return ours.secondary
   return ours.primary
-}
-
-/** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
-export function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, awayTeamId: string): { home: string; away: string } {
-  const clubOf = (teamId: string) => u.clubById[teamId === USER_TEAM ? hostClubId : teamId.replace(/^friendly-/, '')]
-  const h = clubOf(homeTeamId)
-  const a = clubOf(awayTeamId)
-  // A club without colours wears the accent blue at home and near-white away (hex, as kitColour compares them)
-  const home = kitColour(h?.colours, a?.colours.primary ?? BRAND_COLOURS.draw, BRAND_COLOURS.accent)
-  const away = kitColour(a?.colours, home, BRAND_COLOURS.text)
-  return { home, away }
 }
 
 /** A rough distance between two hex colours (0..~441). */

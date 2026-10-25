@@ -1,5 +1,5 @@
 import type { Game } from '../types'
-import type { Fixture, MatchResult } from '@engine/types'
+import type { Fixture, MatchEvent, MatchResult } from '@engine/types'
 import { USER_TEAM, type CupTie, type SeasonState } from '@engine/season'
 
 /** A stored result: what a fixture or a tie keeps once nothing will show its detail again. */
@@ -17,18 +17,37 @@ export type StoredResult = MatchResult & { penalties?: { home: number; away: num
  * stored shape stays a valid `MatchResult`), except for the user's league
  * matches of the current and the previous matchweek and the user's last tie
  * in each knockout, which stay complete.
+ *
+ * The match-day dashboard reveals the other scores of the round in play (and
+ * of a replayed match's round) goal by goal at the user's clock, so with
+ * `keepGoals` the other matches of those rounds also keep their goal events,
+ * cut to minute, type, side and scorer (`text` empty): a few dozen bytes a
+ * goal. Everything else is dropped as for any other result.
  */
-export function compactResult(r: StoredResult): StoredResult {
-  if (isCompact(r)) return r
-  const out: StoredResult = { homeTeamId: r.homeTeamId, awayTeamId: r.awayTeamId, homeGoals: r.homeGoals, awayGoals: r.awayGoals, events: [], homeStats: [], awayStats: [], xg: r.xg }
+export function compactResult(r: StoredResult, keepGoals = false): StoredResult {
+  if (isCompact(r, keepGoals)) return r
+  const events = keepGoals ? goalsOnly(r.events ?? []) : []
+  const out: StoredResult = { homeTeamId: r.homeTeamId, awayTeamId: r.awayTeamId, homeGoals: r.homeGoals, awayGoals: r.awayGoals, events, homeStats: [], awayStats: [], xg: r.xg }
   if (r.penalties) out.penalties = r.penalties
   return out
 }
 
 const COMPACT_KEYS = new Set(['homeTeamId', 'awayTeamId', 'homeGoals', 'awayGoals', 'events', 'homeStats', 'awayStats', 'xg', 'penalties'])
+const GOAL_TYPES = new Set(['goal', 'penalty', 'own_goal'])
+const GOAL_KEYS = new Set(['minute', 'type', 'side', 'playerName', 'text'])
 
-function isCompact(r: StoredResult): boolean {
-  return !r.events?.length && !r.homeStats?.length && !r.awayStats?.length && Object.keys(r).every((k) => COMPACT_KEYS.has(k))
+function goalsOnly(events: MatchEvent[]): MatchEvent[] {
+  return events.filter((e) => GOAL_TYPES.has(e.type)).map((e) => ({ minute: e.minute, type: e.type, side: e.side, ...(e.playerName !== undefined ? { playerName: e.playerName } : {}), text: '' }))
+}
+
+function isGoalOnly(e: MatchEvent): boolean {
+  return GOAL_TYPES.has(e.type) && e.text === '' && Object.keys(e).every((k) => GOAL_KEYS.has(k))
+}
+
+function isCompact(r: StoredResult, keepGoals: boolean): boolean {
+  const events = r.events ?? []
+  const eventsOk = keepGoals ? events.every(isGoalOnly) : !events.length
+  return eventsOk && !r.homeStats?.length && !r.awayStats?.length && Object.keys(r).every((k) => COMPACT_KEYS.has(k))
 }
 
 const isUsers = (x: { homeTeamId: string; awayTeamId: string }) => x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM
@@ -36,8 +55,11 @@ const isUsers = (x: { homeTeamId: string; awayTeamId: string }) => x.homeTeamId 
 function compactFixtures(fixtures: Fixture[], matchweek: number): Fixture[] {
   let changed = false
   const out = fixtures.map((f) => {
-    if (!f.result || (isUsers(f) && f.matchweek >= matchweek - 1)) return f
-    const result = compactResult(f.result)
+    // The user's recent matches stay whole; the rest of their rounds (the previous, the
+    // current and, while a match is live, the one in play) keep their goals for the reveal
+    const recent = f.matchweek >= matchweek - 1
+    if (!f.result || (isUsers(f) && recent)) return f
+    const result = compactResult(f.result, recent)
     if (result === f.result) return f
     changed = true
     return { ...f, result }
@@ -51,10 +73,14 @@ function compactTies(ties: CupTie[]): CupTie[] {
   ties.forEach((t, i) => {
     if (t.result && isUsers(t) && (lastMine < 0 || t.afterMatchweek >= ties[lastMine].afterMatchweek)) lastMine = i
   })
+  // The rounds the dashboard can reveal: the user's last played tie's and the one in play
+  const rounds = new Set<string>()
+  if (lastMine >= 0) rounds.add(ties[lastMine].round)
+  for (const t of ties) if (!t.result && isUsers(t)) rounds.add(t.round)
   let changed = false
   const out = ties.map((t, i) => {
     if (!t.result || i === lastMine) return t
-    const result = compactResult(t.result)
+    const result = compactResult(t.result, rounds.has(t.round))
     if (result === t.result) return t
     changed = true
     return { ...t, result }

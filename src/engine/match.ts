@@ -19,7 +19,7 @@
  */
 import type { Injury, Lineup, MatchEvent, MatchResult, PlayerMatchStats, PlayerSeason, Position, SquadPlayer, Tactics, TeamStrength } from './types'
 import { Rng, type RngState } from './rng'
-import { momentumBins, placeEvents } from './matchDetail'
+import { binOf, momentumBins, placeEvents } from './matchDetail'
 import { autoPickLineup, computeTeamStrength, type SlotEvaluation } from './ratings'
 import { tacticalModifiers, type TacticalModifiers } from './tactics'
 import { getFormation } from './formations'
@@ -114,6 +114,64 @@ export const SHOUTS: Record<Shout, { label: string; hint: string; ownAttack: num
 /** Where a paused match stands: after the first half, after the 70th minute, or finished. */
 export type MatchClock = 45 | 70 | 90
 
+/** The six instructions a manager can change while the ball is in play (formation and roles are fixed: the lineup is keyed by slot). */
+export type Instructions = Pick<Tactics, 'mentality' | 'pressing' | 'tempo' | 'width' | 'defensiveLine' | 'passing'>
+export const INSTRUCTION_KEYS = ['mentality', 'pressing', 'tempo', 'width', 'defensiveLine', 'passing'] as const
+
+/** A change of instructions, set-piece takers, shout or personnel, as it happened. */
+export interface TimelineEntry {
+  /** The change applies from minute + 1; 0 is kick-off. */
+  minute: number
+  side: 'home' | 'away'
+  by: 'kickoff' | 'manager' | 'ai'
+  /** Only the fields that changed (all six at kick-off). */
+  instructions?: Partial<Instructions>
+  setPieces?: Tactics['setPieces']
+  shout?: Shout
+  /** Substitutions the manager made at this minute (a window unless the minute is 45). */
+  subs?: number
+}
+
+/** The canonical segment last played (1-45, 46-70 or 71-90) and the index of its first event in `mp.events`. */
+export interface SegmentInPlay {
+  from: number
+  to: number
+  eventStart: number
+}
+
+/** Every change counts towards the five (routine, injury and the manager's). */
+export const MAX_SUBS = 5
+/** The manager's substitution windows while the ball is in play; half time is free. */
+export const MAX_WINDOWS = 3
+
+/** A change the manager makes with the ball in play, at `minute`: it applies from the next minute. */
+export interface InPlayChange {
+  side: 'home' | 'away'
+  minute: number
+  tactics?: Tactics
+  substitutions?: Array<{ off: string; on: string }>
+  shout?: Shout
+}
+
+export type InPlayRefusal = 'no-change' | 'no-segment' | 'outside-segment' | 'too-late' | 'in-the-past' | 'summary-match'
+
+export interface InPlayOutcome {
+  applied: boolean
+  refusal?: InPlayRefusal
+  made: Substitution[]
+  /** `before-kick-off`: a substitution at minute 0 (the team is picked before the match, not changed in it). */
+  refused: Array<{ off: string; on: string; why: 'no-window' | 'no-subs-left' | 'not-on-pitch' | 'unavailable' | 'already-played' | 'before-kick-off' }>
+  /** A shout asked for before the 70th minute. */
+  shoutRefused?: boolean
+}
+
+export interface InPlayCheck {
+  ok: boolean
+  refusal?: InPlayRefusal
+  /** The stop a refused change can wait for instead (an old save), or null. */
+  nextStop: 45 | 70 | null
+}
+
 
 export interface FullMatchResult extends MatchResult {
   homeName: string
@@ -127,6 +185,12 @@ export interface FullMatchResult extends MatchResult {
   halfTimeScore: { home: number; away: number }
   /** The home side's share of the pressure in each five-minute bin (eighteen values, 0..1). Absent on results written before the pitch views. */
   momentum?: number[]
+  /** Kick-off instructions and every change after them (full-detail matches only). */
+  timeline?: TimelineEntry[]
+  /** A key read off the match's own stream, for the match-day views' decoration streams (full-detail matches only). */
+  seedKey?: string
+  /** Played at a neutral venue (full-detail matches only, written only when true). */
+  neutral?: boolean
 }
 
 /** Serialisable state of a player on the team sheet. */
@@ -174,6 +238,10 @@ export interface TeamSnapshot {
   halfTimeText?: string
   /** The human side's touchline shout at 70 minutes, as it landed. */
   lateText?: string
+  /** The shout in force from the 71st minute, so a change after 70 plays the rest under it. */
+  shout?: Shout
+  /** The late fade applied at 70 (full-detail matches), reused by a change in play after 70 so it never applies twice. */
+  lateFadeAt70?: number
 }
 
 export interface MatchInProgress {
@@ -199,6 +267,12 @@ export interface MatchInProgress {
   pendingSubs?: { home: Substitution[]; away: Substitution[] }
   /** The home side's share of the pressure per five-minute bin, for the segments played so far. */
   momentum?: number[]
+  /** The canonical segment last played, for a change with the ball in play (full detail; absent on older saves). */
+  segment?: SegmentInPlay
+  /** Kick-off instructions and every change since (full detail; absent on older saves). */
+  timeline?: TimelineEntry[]
+  /** Read off the match stream at half time, never drawn (full detail; absent on older saves). */
+  seedKey?: string
 }
 
 export interface SecondHalfOptions {
@@ -296,13 +370,91 @@ export function beginMatch(opts: MatchOptions): MatchInProgress {
   mp.lamH = lamH
   mp.lamA = lamA
 
+  if (detail === 'full') {
+    mp.timeline = [kickOffEntry('home', home.tactics), kickOffEntry('away', away.tactics)]
+    mp.segment = { from: 1, to: 45, eventStart: mp.events.length }
+  }
   playSegment(mp, rng, home, away, 1, 45, lamH, lamA)
   mp.halfTimeScore = score(mp.events)
-  mp.events.push({ minute: 45, type: 'half_time', side: 'home', text: `Half time: ${home.shortName} ${mp.halfTimeScore.home}-${mp.halfTimeScore.away} ${away.shortName}.` })
+  mp.events.push({ minute: 45, type: 'half_time', side: 'home', text: halfTimeText(home.shortName, away.shortName, mp.halfTimeScore) })
   // The second half draws from its own stream, so the caller's rng (which goes on to the
   // week's other fixtures) is never replayed when the paused match resumes.
   mp.rngState = rng.fork('second-half').getState()
+  // A name for the match's decoration streams, read off that state (nothing is drawn)
+  if (detail === 'full') mp.seedKey = [mp.rngState.a, mp.rngState.b, mp.rngState.c, mp.rngState.d].map((n) => (n >>> 0).toString(36)).join('-')
   return mp
+}
+
+function halfTimeText(home: string, away: string, s: { home: number; away: number }): string {
+  return `Half time: ${home} ${s.home}-${s.away} ${away}.`
+}
+
+function kickOffEntry(side: 'home' | 'away', t: Tactics): TimelineEntry {
+  return { minute: 0, side, by: 'kickoff', instructions: pickInstructions(t) }
+}
+
+function pickInstructions(t: Tactics): Instructions {
+  return { mentality: t.mentality, pressing: t.pressing, tempo: t.tempo, width: t.width, defensiveLine: t.defensiveLine, passing: t.passing }
+}
+
+function instructionDiff(before: Tactics, after: Tactics): Partial<Instructions> {
+  const out: Partial<Record<keyof Instructions, string>> = {}
+  for (const k of INSTRUCTION_KEYS) if (before[k] !== after[k]) out[k] = after[k]
+  return out as Partial<Instructions>
+}
+
+function sameSetPieces(a: Tactics['setPieces'], b: Tactics['setPieces']): boolean {
+  return (a?.penalties ?? '') === (b?.penalties ?? '') && (a?.freeKicks ?? '') === (b?.freeKicks ?? '') && (a?.corners ?? '') === (b?.corners ?? '')
+}
+
+/**
+ * Write a change into the timeline (when the match keeps one): the instructions
+ * that differ, new set-piece takers, a shout and the number of substitutions. A
+ * change at the same minute by the same side and hand as the last entry is
+ * merged into it. The first change of set-piece takers backfills the side's
+ * kick-off entry with the takers it started with, so the timeline can replay them.
+ */
+function recordChange(mp: MatchInProgress, side: 'home' | 'away', minute: number, by: 'manager' | 'ai', before: Tactics, after: Tactics, extra: { shout?: Shout; subs?: number } = {}): void {
+  const timeline = mp.timeline
+  if (!timeline) return
+  const diff = instructionDiff(before, after)
+  const spChanged = !sameSetPieces(before.setPieces, after.setPieces)
+  if (!Object.keys(diff).length && !spChanged && !extra.shout && !extra.subs) return
+  if (spChanged) {
+    const kick = timeline.find((e) => e.side === side && e.by === 'kickoff')
+    if (kick && !kick.setPieces && !timeline.some((e) => e.side === side && e.by !== 'kickoff' && e.setPieces)) kick.setPieces = { ...(before.setPieces ?? {}) }
+  }
+  const last = timeline[timeline.length - 1]
+  const entry: TimelineEntry = last && last.side === side && last.minute === minute && last.by === by ? last : { minute, side, by }
+  if (Object.keys(diff).length) entry.instructions = { ...(entry.instructions ?? {}), ...diff }
+  if (spChanged) entry.setPieces = { ...(after.setPieces ?? {}) }
+  if (extra.shout) entry.shout = extra.shout
+  if (extra.subs) entry.subs = (entry.subs ?? 0) + extra.subs
+  if (entry !== last) timeline.push(entry)
+}
+
+/**
+ * The timeline as a result keeps it. A side's kick-off entry keeps only the
+ * instructions a later entry of that side changes (the others never moved, so
+ * the final tactics say them) and is dropped when nothing is left and its
+ * set-piece takers never changed. The match feed reads it back whole. Saves
+ * keep a whole season of results, so every byte here counts.
+ */
+export function compactTimeline(timeline: TimelineEntry[]): TimelineEntry[] {
+  const out: TimelineEntry[] = []
+  for (const e of timeline) {
+    if (e.by !== 'kickoff') {
+      out.push(e)
+      continue
+    }
+    const later = timeline.filter((x) => x.side === e.side && x.by !== 'kickoff')
+    const keys = new Set(later.flatMap((x) => Object.keys(x.instructions ?? {})))
+    const kept: Partial<Record<keyof Instructions, string>> = {}
+    for (const k of INSTRUCTION_KEYS) if (keys.has(k) && e.instructions?.[k] !== undefined) kept[k] = e.instructions[k]
+    if (!Object.keys(kept).length && !e.setPieces) continue
+    out.push({ ...e, instructions: kept as Partial<Instructions> })
+  }
+  return out
 }
 
 /** The score as it stands in a paused match. */
@@ -334,6 +486,7 @@ export function advanceMatch(mp: MatchInProgress, lookups: { home: TeamLookups; 
     const live = second.side === 'home' ? mp.hLive : mp.aLive
     const subs = second.side === 'home' ? mp.hSubs : mp.aSubs
     const input = second.side === 'home' ? home : away
+    const before = side.tactics
     if (second.tactics) side.tactics = second.tactics
     let madeNow = 0
     for (const s of second.substitutions ?? []) {
@@ -365,10 +518,12 @@ export function advanceMatch(mp: MatchInProgress, lookups: { home: TeamLookups; 
       if (second.shout) {
         shout = SHOUTS[second.shout]
         side.lateText = shout.text
+        side.shout = second.shout
       }
       // The manager has taken the changes into his own hands: the assistant's routine ones are off
       if (madeNow > 0) pending[second.side] = []
     }
+    recordChange(mp, second.side, clock, 'manager', before, side.tactics, { shout: clock === 45 ? undefined : second.shout, subs: madeNow })
   }
 
   // The AI side reacts to the scoreline: at the break a two-goal swing changes the mentality;
@@ -376,6 +531,7 @@ export function advanceMatch(mp: MatchInProgress, lookups: { home: TeamLookups; 
   for (const sideKey of ['home', 'away'] as const) {
     if (second?.side === sideKey) continue
     const side = sideKey === 'home' ? mp.home : mp.away
+    const before = side.tactics
     const us = sideKey === 'home' ? current.home : current.away
     const them = sideKey === 'home' ? current.away : current.home
     const diff = us - them
@@ -386,41 +542,56 @@ export function advanceMatch(mp: MatchInProgress, lookups: { home: TeamLookups; 
       if (diff < 0) side.tactics = { ...side.tactics, mentality: 'attacking', tempo: 'fast' }
       else if (diff === 1) side.tactics = { ...side.tactics, mentality: 'defensive', defensiveLine: 'deep' }
     }
+    recordChange(mp, sideKey, clock, 'ai', before, side.tactics)
   }
 
   // Recompute strengths and modifiers (the pitch may have changed)
+  let { lamH, lamA } = recomputeRates(mp, home, away)
+  // A shout costs both ways and only for the segment it was made for
+  if (shout && second) {
+    const r = applyShout(mp, second.side, shout, lamH, lamA)
+    lamH = r.lamH
+    lamA = r.lamA
+  }
+
+  if (to === 90) {
+    // Legs go after the 70th minute: the men who started lose up to a tenth of their effective
+    // rating by stamina, and the side whose legs go hands the last twenty minutes to the other.
+    // Applied once, here; a change in play after 70 reuses the stored fade (lateFadeAt70) and
+    // never cuts the legs twice.
+    const fadeH = applyLateFade(mp.hLive, home.getPlayer)
+    const fadeA = applyLateFade(mp.aLive, away.getPlayer)
+    lamH *= (1 - fadeH) * (1 + fadeA)
+    lamA *= (1 - fadeA) * (1 + fadeH)
+    if (mp.detail === 'full') {
+      mp.home.lateFadeAt70 = fadeH
+      mp.away.lateFadeAt70 = fadeA
+    }
+  }
+
+  if (mp.detail === 'full') mp.segment = { from, to, eventStart: mp.events.length }
+  playSegment(mp, rng, home, away, from, to, lamH, lamA)
+  mp.clock = to
+  mp.rngState = rng.getState()
+}
+
+/** Strengths, modifiers, marking and expected goals for the pitch as it stands. Draws nothing. */
+function recomputeRates(mp: MatchInProgress, home: MatchTeamInput, away: MatchTeamInput): { lamH: number; lamA: number } {
   const hs = withOffset(computeTeamStrength(mp.home.tactics, mp.home.lineup, home.getPlayer, home.getState), mp.home.ratingOffset)
   const as = withOffset(computeTeamStrength(mp.away.tactics, mp.away.lineup, away.getPlayer, away.getState), mp.away.ratingOffset)
   mp.home.modifiers = tacticalModifiers(mp.home.tactics, hs.slots, mp.away.tactics, as.slots)
   mp.away.modifiers = tacticalModifiers(mp.away.tactics, as.slots, mp.home.tactics, hs.slots)
   applyMarking(mp.home, mp.aLive, mp.home.modifiers, away.getPlayer, false)
   applyMarking(mp.away, mp.hLive, mp.away.modifiers, home.getPlayer, false)
-  let { lamH, lamA } = expectedGoals(mp, home, away, hs, as)
-  // A shout costs both ways and only for the segment it was made for
-  if (shout && second) {
-    const side = second.side === 'home' ? mp.home : mp.away
-    side.modifiers.fatigue += shout.fatigue
-    if (second.side === 'home') {
-      lamH *= shout.ownAttack
-      lamA *= shout.oppAttack
-    } else {
-      lamA *= shout.ownAttack
-      lamH *= shout.oppAttack
-    }
-  }
+  return expectedGoals(mp, home, away, hs, as)
+}
 
-  if (to === 90) {
-    // Legs go after the 70th minute: the men who started lose up to a tenth of their effective
-    // rating by stamina, and the side whose legs go hands the last twenty minutes to the other
-    const fadeH = applyLateFade(mp.hLive, home.getPlayer)
-    const fadeA = applyLateFade(mp.aLive, away.getPlayer)
-    lamH *= (1 - fadeH) * (1 + fadeA)
-    lamA *= (1 - fadeA) * (1 + fadeH)
-  }
-
-  playSegment(mp, rng, home, away, from, to, lamH, lamA)
-  mp.clock = to
-  mp.rngState = rng.getState()
+/** A shout's cost in legs for the shouting side and its multipliers on both sides' expected goals. */
+function applyShout(mp: MatchInProgress, sideKey: 'home' | 'away', shout: (typeof SHOUTS)[Shout], lamH: number, lamA: number): { lamH: number; lamA: number } {
+  const side = sideKey === 'home' ? mp.home : mp.away
+  side.modifiers.fatigue += shout.fatigue
+  if (sideKey === 'home') return { lamH: lamH * shout.ownAttack, lamA: lamA * shout.oppAttack }
+  return { lamH: lamH * shout.oppAttack, lamA: lamA * shout.ownAttack }
 }
 
 /**
@@ -535,12 +706,298 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     importanceLabel: mp.importanceLabel,
     halfTimeScore: mp.halfTimeScore,
     momentum: mp.momentum,
+    ...(mp.timeline ? { timeline: compactTimeline(mp.timeline) } : {}),
+    ...(mp.seedKey ? { seedKey: mp.seedKey } : {}),
+    ...(mp.detail === 'full' && mp.neutral ? { neutral: true } : {}),
   }
 }
 
 /** Players currently on the pitch for a side (for the UI at a stop). */
 export function onPitch(mp: MatchInProgress, side: 'home' | 'away'): LivePlayer[] {
   return (side === 'home' ? mp.hLive : mp.aLive).filter((p) => p.offAt >= 90 && !p.red)
+}
+
+// ---------------------------------------------------------------------------
+// Changes with the ball in play
+//
+// The engine decides each canonical segment (1-45, 46-70, 71-90) ahead of the
+// clock, exactly as `simulateMatch` does, so an untouched match never changes.
+// A change at minute k cuts the segment in play: everything up to k stands as
+// it was shown, everything after k in the segment is rolled back and replayed
+// from k + 1 with the new instructions and players, from a stream forked off a
+// copy of the match's own. The match's stream itself never moves, so the next
+// segment and the report draw exactly what they would have.
+
+const MANAGER_REASONS = new Set(['manager', '70th minute'])
+
+function isManagerWindow(s: Substitution): boolean {
+  return MANAGER_REASONS.has(s.reason) && s.minute !== 45
+}
+
+/** The manager's substitution windows used so far: minutes other than 45 at which he made at least one change. */
+export function managerWindowsUsed(mp: MatchInProgress, side: 'home' | 'away'): number {
+  const subs = side === 'home' ? mp.hSubs : mp.aSubs
+  return new Set(subs.filter(isManagerWindow).map((s) => s.minute)).size
+}
+
+/** Substitutions a side has made (every kind), up to `minute` when given. */
+export function subsMade(mp: MatchInProgress, side: 'home' | 'away', minute?: number): number {
+  const subs = side === 'home' ? mp.hSubs : mp.aSubs
+  return minute === undefined ? subs.length : subs.filter((s) => s.minute <= minute).length
+}
+
+/** The men on the pitch at minute k by the decided events: on by k, not yet off, not sent off. */
+export function onPitchAtMinute(mp: MatchInProgress, side: 'home' | 'away', minute: number): LivePlayer[] {
+  const m = Math.min(minute, 89)
+  return (side === 'home' ? mp.hLive : mp.aLive).filter((p) => p.onAt <= m && m < p.offAt)
+}
+
+/** Bench men who have not appeared by minute k and are fit and unsuspended: who can still come on. */
+export function benchAt(mp: MatchInProgress, side: 'home' | 'away', minute: number, getState: (id: string) => SquadPlayer | undefined): string[] {
+  const live = side === 'home' ? mp.hLive : mp.aLive
+  const snap = side === 'home' ? mp.home : mp.away
+  return snap.bench.filter((id) => {
+    if (live.some((p) => p.psId === id && p.onAt <= minute)) return false
+    const st = getState(id)
+    return !st?.injury && (st?.suspension ?? 0) <= 0
+  })
+}
+
+/** The minute of the side's last change by the manager (a stop or in play), or -1. */
+function lastManagerMinute(mp: MatchInProgress, side: 'home' | 'away'): number {
+  let last = -1
+  for (const e of mp.timeline ?? []) if (e.side === side && e.by === 'manager') last = Math.max(last, e.minute)
+  for (const s of side === 'home' ? mp.hSubs : mp.aSubs) if (MANAGER_REASONS.has(s.reason) || s.reason === 'half-time') last = Math.max(last, s.minute)
+  return last
+}
+
+/**
+ * Whether a change at `minute` can be made with the ball in play. A summary
+ * match and a save from before in-play changes cannot be cut (the change waits
+ * for `nextStop`); stoppage time is too late; a minute outside the segment in
+ * play (the stops themselves included) belongs to `advanceMatch`. With `side`,
+ * a minute before that side's last change is in the past.
+ */
+export function canChangeInPlay(mp: MatchInProgress, minute: number, side?: 'home' | 'away'): InPlayCheck {
+  const waitFor = (m: number): 45 | 70 | null => (m <= 45 ? 45 : m <= 70 ? 70 : null)
+  if (mp.detail !== 'full') return { ok: false, refusal: 'summary-match', nextStop: waitFor(minute) }
+  const seg = mp.segment
+  if (!seg) return { ok: false, refusal: 'no-segment', nextStop: waitFor(minute) }
+  if (minute >= 90) return { ok: false, refusal: 'too-late', nextStop: null }
+  const lo = seg.from === 1 ? 0 : seg.from
+  if (minute < lo || minute >= seg.to) return { ok: false, refusal: 'outside-segment', nextStop: waitFor(minute) }
+  if (side && minute < lastManagerMinute(mp, side)) return { ok: false, refusal: 'in-the-past', nextStop: null }
+  return { ok: true, nextStop: null }
+}
+
+/**
+ * Roll the segment in play back to the end of minute k: every event after k is
+ * removed and undone (goals, assists, saves, cards, injuries, substitutions),
+ * except the half-time whistle and a substitution that replaces a man whose
+ * injury is kept. A routine change removed goes back into the parked changes at
+ * its minute. Afterwards the end-of-segment state is the state at k.
+ */
+export function rollBackSegment(mp: MatchInProgress, minute: number): void {
+  const seg = mp.segment
+  if (!seg) return
+  const pending = (mp.pendingSubs ??= { home: [], away: [] })
+  const injuredKept = new Set<string>()
+  for (const e of mp.events.slice(seg.eventStart)) if (e.type === 'injury' && e.minute <= minute && e.playerId) injuredKept.add(`${e.side}:${e.playerId}`)
+  for (let i = mp.events.length - 1; i >= seg.eventStart; i--) {
+    const e = mp.events[i]
+    if (e.minute <= minute || e.type === 'half_time') continue
+    if (e.type === 'substitution' && e.playerId && injuredKept.has(`${e.side}:${e.playerId}`)) continue
+    undoEvent(mp, e, pending)
+    mp.events.splice(i, 1)
+  }
+  pending.home.sort((a, b) => a.minute - b.minute)
+  pending.away.sort((a, b) => a.minute - b.minute)
+}
+
+function undoEvent(mp: MatchInProgress, e: MatchEvent, pending: { home: Substitution[]; away: Substitution[] }): void {
+  const own = e.side === 'home' ? mp.hLive : mp.aLive
+  const opp = e.side === 'home' ? mp.aLive : mp.hLive
+  const find = (list: LivePlayer[], id: string | undefined) => (id ? list.find((p) => p.psId === id) : undefined)
+  switch (e.type) {
+    case 'goal': {
+      const s = find(own, e.playerId)
+      if (s) s.goals--
+      const a = find(own, e.secondaryId)
+      if (a) a.assists--
+      break
+    }
+    case 'penalty': {
+      const s = find(own, e.playerId)
+      if (s) s.goals--
+      break
+    }
+    case 'save': {
+      const gk = find(opp, e.secondaryId)
+      if (gk) gk.saves--
+      break
+    }
+    case 'yellow': {
+      const p = find(own, e.playerId)
+      if (p) {
+        p.yellow = false
+        delete p.cardAt
+      }
+      break
+    }
+    case 'red': {
+      const p = find(own, e.playerId)
+      if (p) {
+        p.red = false
+        p.offAt = 90
+      }
+      break
+    }
+    case 'injury': {
+      const p = find(own, e.playerId)
+      if (p) {
+        p.injury = null
+        p.offAt = 90
+      }
+      break
+    }
+    case 'substitution': {
+      const subs = e.side === 'home' ? mp.hSubs : mp.aSubs
+      const idx = own.findIndex((p) => p.psId === e.secondaryId && p.onAt === e.minute)
+      if (idx >= 0) own.splice(idx, 1)
+      const off = find(own, e.playerId)
+      if (off) off.offAt = 90
+      const si = subs.findIndex((s) => s.minute === e.minute && s.off === e.playerId && s.on === e.secondaryId)
+      if (si >= 0) {
+        const [s] = subs.splice(si, 1)
+        if (s.reason === 'tired' || s.reason === 'tactical') pending[e.side].push(s)
+      }
+      break
+    }
+    default:
+      break
+  }
+}
+
+/**
+ * Make a change with the ball in play, at `change.minute` (it applies from the
+ * next minute): instructions and set-piece takers, substitutions (a window
+ * each minute, three windows and five changes in all) and, from the 70th
+ * minute, a shout. A change that changes nothing is refused before the match is
+ * touched, so an untouched match stays identical to `simulateMatch`.
+ */
+export function changeInPlay(mp: MatchInProgress, lookups: { home: TeamLookups; away: TeamLookups }, change: InPlayChange): InPlayOutcome {
+  const k = change.minute
+  const check = canChangeInPlay(mp, k, change.side)
+  if (!check.ok) return { applied: false, refusal: check.refusal, made: [], refused: [] }
+  const seg = mp.segment!
+  // Work on a copy: a refused change leaves the match exactly as it was
+  const work = JSON.parse(JSON.stringify(mp)) as MatchInProgress
+  rollBackSegment(work, k)
+  const sideKey = change.side
+  const side = sideKey === 'home' ? work.home : work.away
+  const live = sideKey === 'home' ? work.hLive : work.aLive
+  const subs = sideKey === 'home' ? work.hSubs : work.aSubs
+  const look = lookups[sideKey]
+
+  const before = side.tactics
+  const proposed: Tactics = change.tactics ? { ...before, ...pickInstructions(change.tactics), setPieces: change.tactics.setPieces } : before
+  const instructionsChanged = Object.keys(instructionDiff(before, proposed)).length > 0
+  const setPiecesChanged = !sameSetPieces(before.setPieces, proposed.setPieces)
+
+  let shoutRefused: boolean | undefined
+  let shout: Shout | undefined
+  if (change.shout) {
+    if (seg.from < 71) shoutRefused = true
+    else if (change.shout !== side.shout) shout = change.shout
+  }
+
+  const made: Substitution[] = []
+  const refused: InPlayOutcome['refused'] = []
+  const windowAtK = subs.some((s) => s.minute === k && isManagerWindow(s))
+  const windows = managerWindowsUsed(work, sideKey)
+  for (const s of change.substitutions ?? []) {
+    // A substitution needs the ball in play: before kick-off the manager picks the team instead
+    if (k < 1) {
+      refused.push({ ...s, why: 'before-kick-off' })
+      continue
+    }
+    // On the pitch at k, and not a man who came on this very minute
+    const off = live.find((p) => p.psId === s.off && p.offAt >= 90 && !p.red && p.onAt < k)
+    if (!off) {
+      refused.push({ ...s, why: 'not-on-pitch' })
+      continue
+    }
+    const on = look.getPlayer(s.on)
+    if (on && live.some((p) => p.psId === s.on)) {
+      refused.push({ ...s, why: 'already-played' })
+      continue
+    }
+    const st = look.getState(s.on)
+    if (!on || st?.injury || (st?.suspension ?? 0) > 0) {
+      refused.push({ ...s, why: 'unavailable' })
+      continue
+    }
+    if (subs.length >= MAX_SUBS) {
+      refused.push({ ...s, why: 'no-subs-left' })
+      continue
+    }
+    if (!windowAtK && !made.length && windows >= MAX_WINDOWS) {
+      refused.push({ ...s, why: 'no-window' })
+      continue
+    }
+    const offName = look.getPlayer(off.psId)?.name
+    off.offAt = k
+    live.push({ psId: on.id, slotId: off.slotId, position: off.position, onAt: k, offAt: 90, yellow: false, red: false, injury: null, goals: 0, assists: 0, saves: 0, effective: on.overall * positionFactor(on, off.position), shares: { ...off.shares }, creativity: off.creativity })
+    const sub: Substitution = { minute: k, off: off.psId, on: on.id, reason: 'manager' }
+    subs.push(sub)
+    made.push(sub)
+    work.events.push({ minute: k, type: 'substitution', side: sideKey, playerId: off.psId, playerName: offName, secondaryId: on.id, secondaryName: on.name, text: `Change on ${k} minutes: ${on.name} replaces ${offName}.` })
+  }
+
+  if (!instructionsChanged && !setPiecesChanged && !shout && !made.length) return { applied: false, refusal: 'no-change', made: [], refused, shoutRefused }
+
+  side.tactics = proposed
+  const pending = (work.pendingSubs ??= { home: [], away: [] })
+  // The manager has taken the changes into his own hands: the assistant's routine ones are off
+  if (made.length) pending[sideKey] = []
+  if (shout) {
+    side.shout = shout
+    side.lateText = SHOUTS[shout].text
+  }
+  const lineup: Lineup = {}
+  for (const p of live) lineup[p.slotId] = p.psId
+  side.lineup = lineup
+  work.timeline ??= []
+  recordChange(work, sideKey, k, 'manager', before, proposed, { shout, subs: made.length })
+
+  // The rates for the rest of the segment, the shouts in force re-applied after 70
+  const home = inputFromSnapshot(work.home, lookups.home)
+  const away = inputFromSnapshot(work.away, lookups.away)
+  let { lamH, lamA } = recomputeRates(work, home, away)
+  if (seg.from > 70) {
+    for (const s of ['home', 'away'] as const) {
+      const sh = (s === 'home' ? work.home : work.away).shout
+      if (!sh) continue
+      const r = applyShout(work, s, SHOUTS[sh], lamH, lamA)
+      lamH = r.lamH
+      lamA = r.lamA
+    }
+    // The late fade was applied to the legs at 70 (the effective ratings carry it); only its
+    // pull on the expected goals is re-applied here, from the value stored then
+    const fadeH = work.home.lateFadeAt70 ?? lateFade(work.hLive, home.getPlayer)
+    const fadeA = work.away.lateFadeAt70 ?? lateFade(work.aLive, away.getPlayer)
+    lamH *= (1 - fadeH) * (1 + fadeA)
+    lamA *= (1 - fadeA) * (1 + fadeH)
+  }
+  const momentumFrom = (binOf(k) + 1) * 5 + 1
+  playSegment(work, Rng.fromState(work.rngState).fork(`cut-${k}`), home, away, k + 1, seg.to, lamH, lamA, { replay: true, momentumFrom })
+  if (seg.to <= 45) {
+    work.halfTimeScore = score(work.events)
+    const ht = work.events.find((e) => e.type === 'half_time')
+    if (ht) ht.text = halfTimeText(work.home.shortName, work.away.shortName, work.halfTimeScore)
+  }
+  Object.assign(mp, work)
+  return { applied: true, made, refused, shoutRefused }
 }
 
 // ---------------------------------------------------------------------------
@@ -600,7 +1057,7 @@ function expectedGoals(mp: MatchInProgress, home: MatchTeamInput, away: MatchTea
  * drawn once at the restart; those due after the 70th minute wait in
  * `pendingSubs` so the pitch at the 70' stop is the one the manager sees.
  */
-function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: MatchTeamInput, from: number, to: number, lamH: number, lamA: number): void {
+function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: MatchTeamInput, from: number, to: number, lamH: number, lamA: number, opts: { replay?: boolean; momentumFrom?: number } = {}): void {
   const derby = mp.importance >= 1.2
   const pending = mp.pendingSubs ?? { home: [], away: [] }
   disciplineAndInjuries(rng, mp.hLive, home, 'home', mp.events, mp.hSubs, mp.home.tactics, derby, from, to, pending.home)
@@ -613,7 +1070,11 @@ function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: 
   const la = clamp(lamA * share * aShort.ownAttack * hShort.oppAttackBoostFor, 0.02, 3.5)
   const hg = rng.poisson(lh)
   const ag = rng.poisson(la)
-  if (from === 46) {
+  if (opts.replay) {
+    // A replay after a change: the routine changes already decided go ahead at their minutes
+    applyPendingSubstitutions(mp.hLive, home, 'home', mp.events, mp.hSubs, pending.home, to)
+    applyPendingSubstitutions(mp.aLive, away, 'away', mp.events, mp.aSubs, pending.away, to)
+  } else if (from === 46) {
     routineSubstitutions(rng, mp.hLive, home, 'home', mp.events, mp.hSubs, mp.home.modifiers.fatigue, pending.home)
     routineSubstitutions(rng, mp.aLive, away, 'away', mp.events, mp.aSubs, mp.away.modifiers.fatigue, pending.away)
   } else if (from > 70) {
@@ -636,7 +1097,9 @@ function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: 
   if (mp.detail !== 'full') return
   const detail = Rng.fromState(rng.getState()).fork(`detail-${from}`)
   placeEvents(detail, mp.events, from, to)
-  mp.momentum = momentumBins(detail, { lamH: lh, lamA: la, homeTactics: mp.home.tactics, awayTactics: mp.away.tactics, events: mp.events, from, to, previous: mp.momentum ?? [] })
+  // A replay keeps the bins already shown (up to the one holding the change) and redraws the rest
+  const binsFrom = opts.momentumFrom ?? from
+  if (binsFrom <= to) mp.momentum = momentumBins(detail, { lamH: lh, lamA: la, homeTactics: mp.home.tactics, awayTactics: mp.away.tactics, events: mp.events, from: binsFrom, to, previous: mp.momentum ?? [] })
 }
 
 function score(events: MatchEvent[]): { home: number; away: number } {
@@ -783,8 +1246,12 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
       events.push({ minute, type: 'red', side, playerId: p.psId, playerName: ps.name, text: `Straight red for ${ps.name}!` })
     }
   }
+  // Injuries fall in 3..88. A canonical segment always has room; a replay after a change at 88 or 89
+  // has none, and drawing a minute from an empty range would land one at or before the change
+  const injuryFrom = Math.max(from, 3)
+  const injuryTo = Math.min(to, 88)
   for (const p of [...live]) {
-    if (p.red || p.offAt < 90 || p.injury) continue
+    if (p.red || p.offAt < 90 || p.injury || injuryFrom > injuryTo) continue
     const ps = team.getPlayer(p.psId)
     if (!ps) continue
     const st = team.getState(p.psId)
@@ -793,7 +1260,7 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
     // Tired legs on an outfielder with little stamina: up to 30 per cent more risk (never a keeper)
     const pInj = 0.021 * (0.5 + ps.traits.injuryProneness) * condF * (p.position === 'GK' ? 1 : fatigueInjuryFactor(ps.attributes.stamina, cond)) * halfF
     if (rng.chance(pInj)) {
-      const minute = rng.int(Math.max(from, 3), Math.min(to, 88))
+      const minute = rng.int(injuryFrom, injuryTo)
       const injury = rollInjury(rng)
       p.injury = injury
       p.offAt = minute
@@ -852,7 +1319,16 @@ function routineSubstitutions(rng: Rng, live: LivePlayer[], team: MatchTeamInput
 }
 
 /** Make the parked routine changes, skipping any the last twenty minutes have overtaken (a red, an injury, a used substitute). */
-function applyPendingSubstitutions(live: LivePlayer[], team: MatchTeamInput, side: 'home' | 'away', events: MatchEvent[], subs: Substitution[], pending: Substitution[]) {
+function applyPendingSubstitutions(live: LivePlayer[], team: MatchTeamInput, side: 'home' | 'away', events: MatchEvent[], subs: Substitution[], pending: Substitution[], dueBy?: number) {
+  if (dueBy !== undefined) {
+    // Only the changes due by the end of the replayed stretch; later ones stay parked
+    const later = pending.filter((s) => s.minute > dueBy)
+    const due = pending.filter((s) => s.minute <= dueBy)
+    pending.length = 0
+    applyPendingSubstitutions(live, team, side, events, subs, due)
+    pending.push(...later)
+    return
+  }
   for (const s of pending) {
     if (subs.length >= 5) break
     const off = live.find((p) => p.psId === s.off)
