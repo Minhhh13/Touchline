@@ -92,13 +92,24 @@ describe('the slot picker', () => {
     expect(whereabouts(g, starter)).toEqual({ kind: 'starting', slotId: 'cm1', position: 'CM' })
     expect(whereaboutsLabel(whereabouts(g, starter))).toBe('Starting at CM')
     expect(whereaboutsLabel(whereabouts(g, g.bench[0]))).toBe('Bench')
-    const inXI = new Set(Object.values(g.lineup))
-    const unused = Object.keys(g.squad).find((id) => !inXI.has(id) && !g.bench.includes(id))
-    if (unused) expect(whereaboutsLabel(whereabouts(g, unused))).toBe('Unused')
-    // Rows in the sheet carry the same whereabouts
+    // An 18-man squad fills the XI and a bench of seven, so take one man off the bench to have someone unused
+    const unused = g.bench[g.bench.length - 1]
+    g.bench = g.bench.filter((id) => id !== unused)
+    expect(whereabouts(g, unused)).toEqual({ kind: 'unused' })
+    expect(whereaboutsLabel(whereabouts(g, unused))).toBe('Unused')
+    // Rows in the sheet carry the same whereabouts, and the unused man is among them
     const sheet = slotSheet(g, u, 'st')!
-    for (const o of [...sheet.cover, ...sheet.outOfPosition]) expect(o.where).toEqual(whereabouts(g, o.p.id))
+    const rows = [...sheet.cover, ...sheet.outOfPosition]
+    for (const o of rows) expect(o.where).toEqual(whereabouts(g, o.p.id))
+    expect(rows.find((o) => o.p.id === unused)?.where.kind).toBe('unused')
     expect(formation.slots.length).toBe(11)
+    // An unused man put in a slot pushes the occupant to the bench, as a bench man does
+    const st = g.lineup.st
+    expect(assignmentNote(g, u, unused, 'st')).toBe(`${surname((g.customPlayers[unused] ?? u.index[unused])!.name)} in at ST, ${surname((g.customPlayers[st] ?? u.index[st])!.name)} to the bench`)
+    assignPlayer(g, u, unused, 'st')
+    expect(g.lineup.st).toBe(unused)
+    expect(g.bench).toContain(st)
+    expect(g.bench).not.toContain(unused)
   })
 
   it('greys out exactly the men lineupProblems would refuse: injured or suspended', () => {
