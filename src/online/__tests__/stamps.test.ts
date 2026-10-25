@@ -40,6 +40,11 @@ describe('data stamps', () => {
     for (const l of index.leagues) {
       const players = JSON.parse(readFileSync(path.join(DATA, l.id, 'players.json'), 'utf8')) as { generatedAt: string }
       expect(players.generatedAt, `${l.id}/players.json`).toBe(stamp)
+      // The classic pack is archived and replayed with the league, under the same stamp
+      if ((l as { classicFrom?: number }).classicFrom !== undefined) {
+        const classic = JSON.parse(readFileSync(path.join(DATA, l.id, 'players-classic.json'), 'utf8')) as { generatedAt: string }
+        expect(classic.generatedAt, `${l.id}/players-classic.json`).toBe(stamp)
+      }
     }
   })
 

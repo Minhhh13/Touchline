@@ -18,7 +18,7 @@ import { dailyGameSettings } from '@game/logic/setup'
 import type { BuildInfo } from '../buildInfo'
 import { weekKeyOf, weekKeyOfSeed, weekStartOf, weeklyGameSettings, weeklyIsOpen } from '../weekly'
 import { puzzleOf, settingsHash, verifyRanked, type PuzzlePin, type PuzzleSettings, type RankedEntry } from './dailyVerify'
-import { archivePath, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from './packs'
+import { archivePath, classicFile, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from './packs'
 import { logId, parseBuildInfo, parseLeaguesIndex, parseRequest, type ServerRequest } from './validate'
 
 export type BoardKind = PuzzlePin['kind']
@@ -215,10 +215,10 @@ export function createServer(deps: ServerDeps): Server {
       if (!index.ok) throw refuse(503, 'packs_unavailable', index.reason)
       const leagues = index.value.leagues.map((l) => l.id)
       const bytesOf: Record<string, Uint8Array> = { 'leagues.json': indexBytes }
-      for (const file of packFiles(leagues).slice(1)) {
+      for (const file of packFiles(leagues, index.value).slice(1)) {
         const b = await deps.fetchSite(`data/${file}`)
         if (!b) throw refuse(503, 'packs_unavailable', `The live site did not serve ${file}`)
-        if (file.endsWith('/players.json')) {
+        if (file.endsWith('/players.json') || file.endsWith('/players-classic.json')) {
           const stamp = (parseJson(b) as { generatedAt?: unknown }).generatedAt
           if (stamp !== version) throw refuse(503, 'packs_unavailable', `${file} is stamped ${String(stamp)}, not ${version}`)
         }
@@ -252,7 +252,11 @@ export function createServer(deps: ServerDeps): Server {
     const index = parseLeaguesIndex(await read('leagues.json'), reg.version)
     if (!index.ok) throw refuse(503, 'packs_unavailable', index.reason)
     const packs: Record<string, LeaguePack> = {}
-    for (const id of leagues) packs[id] = { players: (await read(`${id}/players.json`)) as PlayersFile, meta: (await read(`${id}/meta.json`)) as MetaFile }
+    for (const id of leagues) {
+      // A version archived with a classic pack rebuilds with it, as the browser that played on it did
+      const classic = reg.files[classicFile(id)] ? ((await read(classicFile(id))) as PlayersFile) : undefined
+      packs[id] = { players: (await read(`${id}/players.json`)) as PlayersFile, meta: (await read(`${id}/meta.json`)) as MetaFile, ...(classic ? { classic } : {}) }
+    }
     return universeFromPacks(index.value, packs, leagues)
   }
 

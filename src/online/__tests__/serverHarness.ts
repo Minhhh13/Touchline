@@ -46,7 +46,7 @@ export function siteFile(file: string, stamp: string | null): Uint8Array | null 
   } catch {
     return null
   }
-  if (stamp && (file === 'leagues.json' || file.endsWith('/players.json'))) text = text.replace(/"generatedAt":"[^"]*"/, `"generatedAt":"${stamp}"`)
+  if (stamp && (file === 'leagues.json' || file.endsWith('/players.json') || file.endsWith('/players-classic.json'))) text = text.replace(/"generatedAt":"[^"]*"/, `"generatedAt":"${stamp}"`)
   return enc.encode(text)
 }
 

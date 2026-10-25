@@ -4,6 +4,7 @@ import { Rng } from '../rng'
 import { advanceMatch, beginMatch, currentScore, finishMatch, onPitch, simulateMatch, teamInputFromPool, type MatchInProgress, type MatchTeamInput } from '../match'
 import { tacticsForStyle } from '../tactics'
 import type { PlayerSeason } from '../types'
+import { isClassic } from '../universe'
 
 /** Best distinct players per position within an overall band, so every slot has a natural fit. */
 function bestXIpool(all: PlayerSeason[], minOverall: number, maxOverall: number): PlayerSeason[] {
@@ -26,7 +27,8 @@ function bestXIpool(all: PlayerSeason[], minOverall: number, maxOverall: number)
 
 describe('match engine', () => {
   const u = loadTestUniverse()
-  const all = Object.values(u.index)
+  // the standard seasons' players: the pins below predate the classic pack, which is opt-in
+  const all = Object.values(u.index).filter((p) => !isClassic(u, p))
   const elite = bestXIpool(all, 86, 99)
   const mid = bestXIpool(all, 72, 76)
   const weak = bestXIpool(all, 62, 66)
@@ -109,7 +111,11 @@ describe('match engine', () => {
   // from the aerial set-piece term and the rest a different random stream (1.5σ at this
   // sample size); injuries use the same formula when no live state is passed, so their
   // 4.8% is stream noise (1.3σ). A later change that moves any of these by 3% is noticed.
-  const BASELINE = { goals: 4.122, cards: 2.812, injuries: 0.3935 }
+  // The 2026-10-25 data rebuild (no engine change) re-pins at 4.154, 2.828 and 0.3545: the pools are
+  // real players, and un-swapping the 2008-14 left and right positions put C. Ronaldo 2008-09 in the
+  // elite pool for D. Silva 2012-13 (the pool's injury proneness fell from 35.0 to 32.4) while 47
+  // players of the mid and weak pools got their real consistency instead of a missing value.
+  const BASELINE = { goals: 4.154, cards: 2.828, injuries: 0.3545 }
   const TOLERANCE = 0.03
 
   it('keeps goal, card and injury means within 3% of the depth engine\'s pinned values over 2,000 seeded matches', () => {

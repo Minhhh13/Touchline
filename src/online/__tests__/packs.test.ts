@@ -3,12 +3,13 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '@engine/__tests__/helpers'
 import type { LeaguesFile, MetaFile, PlayersFile } from '@engine/universe'
-import { archivePath, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from '../server/packs'
+import { archivePath, classicFile, hasClassic, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from '../server/packs'
 
 const DATA = path.resolve(__dirname, '..', '..', '..', 'public', 'data')
 const read = <T>(file: string) => JSON.parse(readFileSync(path.join(DATA, file), 'utf8')) as T
 const index = read<LeaguesFile>('leagues.json')
-const pack = (id: string): LeaguePack => ({ players: read<PlayersFile>(`${id}/players.json`), meta: read<MetaFile>(`${id}/meta.json`) })
+// As the browser loads a league: its classic pack too when the index gives it a `classicFrom`
+const pack = (id: string): LeaguePack => ({ players: read<PlayersFile>(`${id}/players.json`), meta: read<MetaFile>(`${id}/meta.json`), ...(hasClassic(index, id) ? { classic: read<PlayersFile>(classicFile(id)) } : {}) })
 
 describe('universeFromPacks', () => {
   it('builds England exactly as the tests (and the browser) do', () => {
@@ -30,6 +31,18 @@ describe('universeFromPacks', () => {
     expect(Object.keys(u.index).length).toBe(Object.keys(expected.index).length)
     expect(u.clubSeasons[0].leagueId).toBe('england')
     expect(u.leagues.map((l) => l.id)).toEqual(['england', second])
+  }, 60000)
+
+  it('archives and loads the classic pack of a league the index gives one, and keeps its classic seasons last', () => {
+    expect(hasClassic(index, 'england')).toBe(true)
+    expect(packFiles(['england'], index)).toEqual(['leagues.json', 'england/players.json', 'england/meta.json', 'england/players-classic.json'])
+    expect(packFiles(['england'])).toEqual(['leagues.json', 'england/players.json', 'england/meta.json'])
+    const u = universeFromPacks(index, { england: pack('england') }, ['england'])
+    const firstClassic = u.clubSeasons.findIndex((cs) => cs.classic)
+    expect(firstClassic).toBeGreaterThan(0)
+    expect(u.clubSeasons.slice(firstClassic).every((cs) => cs.classic)).toBe(true)
+    const p = pack('england')
+    expect(() => universeFromPacks(index, { england: { ...p, classic: { ...p.classic!, generatedAt: '1999-01-01' } } }, ['england'])).toThrow(/players-classic.json is stamped 1999-01-01/)
   }, 60000)
 
   it('refuses a missing league, a missing pack and a players file under another stamp', () => {

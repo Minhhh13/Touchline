@@ -5,15 +5,17 @@ import { benchmarkSeason, hasRecordBook, historicRows, isPointsRecord, playedOf,
 describe('the record books', () => {
   const england = loadTestUniverse(['england'])
 
-  it('reads only complete seasons: the 2000-07 historic tables are in, the season in progress is out', () => {
+  it('reads only complete seasons: the 1992-2007 historic tables are in, the season in progress is out', () => {
     const rows = historicRows(england, 'england')
     const seasons = [...new Set(rows.map((r) => r.season))]
-    expect(seasons).toEqual(Array.from({ length: 26 }, (_, i) => 2000 + i))
+    expect(seasons).toEqual(Array.from({ length: 34 }, (_, i) => 1992 + i))
     expect(seasons).not.toContain(england.currentSeason)
-    expect(rows).toHaveLength(26 * 20)
+    // 22 clubs and 42 games each until 1994-95, 20 clubs and 38 games since
+    expect(rows).toHaveLength(3 * 22 + 31 * 20)
     for (const r of rows) {
-      expect(r.played).toBe(38)
-      expect(playedOf(r.row)).toBe(38)
+      const played = r.season <= 1994 ? 42 : 38
+      expect(r.played).toBe(played)
+      expect(playedOf(r.row)).toBe(played)
     }
   })
 
@@ -22,9 +24,10 @@ describe('the record books', () => {
     expect(city.points).toBe(100)
     const b = benchmarkSeason(england, 'england', city)
     expect(b.played).toBe(38)
-    expect(b.seasons).toBe(26)
+    // Only the 38-game seasons: 1995-96 onwards
+    expect(b.seasons).toBe(31)
     expect(b.points.rank).toBe(1)
-    expect(b.points.of).toBe(520)
+    expect(b.points.of).toBe(620)
     expect(b.points.better).toEqual([])
     // It is compared against itself, so it ties the record rather than beating it
     expect(b.points.equal).toBe(1)
@@ -117,7 +120,9 @@ describe('the record books', () => {
     expect(realChampion(england, 'england', 2003)).toBe('arsenal')
     expect(realChampion(england, 'england', 2015)).toBe('leicester-city')
     expect(realChampion(england, 'england', 2026)).toBeNull()
-    expect(realChampion(england, 'england', 1999)).toBeNull()
+    expect(realChampion(england, 'england', 1999)).toBe('manchester-united')
+    expect(realChampion(england, 'england', 1994)).toBe('blackburn-rovers')
+    expect(realChampion(england, 'england', 1991)).toBeNull()
     expect(realChampion(england, 'spain', 2017)).toBeNull()
   })
 })

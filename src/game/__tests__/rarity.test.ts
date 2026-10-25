@@ -20,9 +20,15 @@ function shares(table: TierTable): Record<Tier, number> {
 }
 
 /** Strengths per tier, to check the order: every gold at least as strong as every red, and so on down. */
+/** Classic club-seasons (estimated ratings) are ranked apart from the standard ones, so each group is checked on its own. */
 function monotone(u: LoadedUniverse, table: TierTable): boolean {
+  const ranked = u.clubSeasons.filter((cs) => table[`${cs.clubId}@${cs.season}`])
+  return [false, true].every((classic) => !ranked.some((cs) => !!cs.classic === classic) || monotoneIn(ranked.filter((cs) => !!cs.classic === classic), table))
+}
+
+function monotoneIn(clubSeasons: LoadedUniverse['clubSeasons'], table: TierTable): boolean {
   const byTier = new Map<Tier, number[]>(TIERS.map((t) => [t, []]))
-  for (const cs of u.clubSeasons) {
+  for (const cs of clubSeasons) {
     const t = table[`${cs.clubId}@${cs.season}`]
     if (t) byTier.get(t)!.push(clubSeasonStrength(cs))
   }

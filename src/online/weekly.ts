@@ -59,7 +59,8 @@ export function weeklyIsOpen(key: string, now: Date): boolean {
  */
 export function weeklyGameSettings(u: LoadedUniverse, key: string, teamName = 'Touchline XI'): GameSettings {
   const n = hashString(weeklySeed(key))
-  const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england')
+  // Standard seasons only, like the Daily: classic club-seasons (1992-93 to 2007-08) are opt-in and never ranked
+  const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england' && !cs.classic)
   const seasons = [...new Set(complete.map((cs) => cs.season))].sort()
   const season = seasons[n % seasons.length]
   const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()

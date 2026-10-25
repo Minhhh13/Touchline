@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ListOrdered, Search, Star as StarIcon, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
-import { ClubBadge, Flag, Info, Modal, Rating, Pos } from '../components/bits'
+import { ClubBadge, EstimatedChip, Flag, Info, Modal, Rating, Pos } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { AttributePanel } from '../components/AttributePanel'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
+import { classicFromFor, isEstimated } from '@game/logic/era'
 
 function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
@@ -38,6 +39,7 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
   const peak = Math.max(...seasons.map((p) => p.overall))
   const low = Math.min(...seasons.map((p) => p.overall))
   const titles = seasons.filter((p) => p.accolades.includes('Champion')).length
+  const anyEstimated = seasons.some((p) => isEstimated(u, p.id))
   return (
     <Modal open onClose={onClose} title={latest.name} wide>
       <div className="row wrap" style={{ marginBottom: 10 }}>
@@ -59,11 +61,14 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
       </div>
       <div className="grid two">
         <div>
-          <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>Rating by season</div>
+          <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>Rating by season{anyEstimated ? ' · striped: est.' : ''}</div>
           <div className="row" style={{ gap: 3, alignItems: 'flex-end', height: 70 }}>
-            {seasons.map((p) => (
-              <div key={p.id} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: p === best ? 'var(--meter-mid)' : 'var(--accent)', borderRadius: 3, opacity: p === best ? 1 : 0.75 }} />
-            ))}
+            {seasons.map((p) => {
+              // An estimated season is drawn striped and fainter, so the change of rating source reads at a glance
+              const est = isEstimated(u, p.id)
+              const colour = p === best ? 'var(--meter-mid)' : 'var(--accent)'
+              return <div key={p.id} data-estimated={est ? 'true' : undefined} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}${est ? ' · estimated' : ''}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: est ? `repeating-linear-gradient(135deg, ${colour} 0 3px, transparent 3px 6px)` : colour, boxShadow: est ? `inset 0 0 0 1px ${colour}` : undefined, borderRadius: 3, opacity: p === best ? 1 : est ? 0.6 : 0.75 }} />
+            })}
           </div>
           <div className="row between small muted" style={{ marginTop: 4 }}>
             <span>{seasonLabel(seasons[0].season)}</span>
@@ -99,6 +104,7 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
                   <td className="num">{p.age}</td>
                   <td className="num">
                     <Rating value={p.overall} />
+                    {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
                   </td>
                   <td className="num">£{p.value}M</td>
                   <td>
@@ -119,7 +125,7 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
 export function Explore() {
   const { universe: u, go, ensureLeagues, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStore()
   const [leagueId, setLeagueId] = useState('england')
-  const [season, setSeason] = useState<number>(u?.lastSeason ?? 2026)
+  const [pickedSeason, setSeason] = useState<number>(u?.lastSeason ?? 2026)
   const [clubId, setClubId] = useState<string>('')
   const [query, setQuery] = useState('')
   const [careerId, setCareerId] = useState<string | null>(null)
@@ -146,10 +152,15 @@ export function Explore() {
       .slice(0, 120)
   }, [u, query])
   if (!u) return null
-  const seasons = Array.from({ length: u.lastSeason - u.firstSeason + 1 }, (_, i) => u.firstSeason + i)
+  // Classic seasons (estimated ratings) come first for a league that has them
+  const firstShown = classicFromFor(u, [leagueId]) ?? u.firstSeason
+  const seasons = Array.from({ length: u.lastSeason - firstShown + 1 }, (_, i) => firstShown + i)
+  // A classic season picked in one league is not on another league's list: show that league's first season instead
+  const season = Math.max(pickedSeason, firstShown)
   const table = u.tables[leagueId]?.[season] ?? []
   const clubsInSeason = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
   const selected = clubId ? u.clubSeasonByKey[`${clubId}@${season}`] : undefined
+  const seasonEstimated = clubsInSeason.some((cs) => cs.estimated)
 
   return (
     <div className="page">
@@ -198,10 +209,16 @@ export function Explore() {
                 {seasons.map((s) => (
                   <option key={s} value={s}>
                     {seasonLabel(s)}
+                    {s < u.firstSeason ? ' (est.)' : ''}
                   </option>
                 ))}
               </select>
             </div>
+            {seasonEstimated && (
+              <p className="help" style={{ marginTop: 0 }} data-testid="explore-estimated">
+                <EstimatedChip compact /> Real squads and table; ratings are TouchLine's estimate.
+              </p>
+            )}
             <div className="tbl-wrap">
             <table className="tbl">
               <thead>
@@ -274,6 +291,7 @@ export function Explore() {
                         </span>
                       )}
                       <span>{selected.squad.length} players</span>
+                      {selected.estimated && <EstimatedChip compact />}
                     </div>
                   </div>
                 </div>
@@ -316,7 +334,10 @@ export function Explore() {
               <span className="row small" style={{ gap: 6 }}>
                 <ClubBadge clubId={p.clubId} size={18} /> {clubName(u, p.clubId)}
               </span>
-              <span className="small muted">{seasonLabel(p.season)}</span>
+              <span className="small muted">
+                {seasonLabel(p.season)}
+                {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
+              </span>
               <button type="button" className="btn sm ghost" onClick={() => toggleShortlist(p.id)} title="Shortlist" aria-label={shortlist.includes(p.id) ? 'Remove from shortlist' : 'Shortlist'} aria-pressed={shortlist.includes(p.id)}>
                 <Star on={shortlist.includes(p.id)} />
               </button>

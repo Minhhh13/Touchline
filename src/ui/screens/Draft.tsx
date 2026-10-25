@@ -8,11 +8,12 @@ import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
+import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
 import { TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
+import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
 import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
@@ -142,7 +143,7 @@ export function Draft() {
             {nation && <span className="chip">{nationLabel} only</span>}
             {(d.rules.fromSeason || d.rules.toSeason) && (
               <span className="chip">
-                {seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to {seasonLabel(d.rules.toSeason ?? u.lastSeason)}
+                {seasonLabel(eraFirstSeason(u, d.rules))} to {seasonLabel(d.rules.toSeason ?? u.lastSeason)}
               </span>
             )}
             {tags.map((t) => (
@@ -150,6 +151,7 @@ export function Draft() {
                 {t}
               </span>
             ))}
+            {d.rules.classic && <span className="chip">Classic seasons</span>}
             {d.rules.twists && <span className="chip">Twists</span>}
             <span className="mono">seed {game.settings.seed}</span>
           </div>
@@ -187,7 +189,7 @@ export function Draft() {
         <div className="col">
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} />}
-            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} onSettled={() => setSettled(d.current)} />
+            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} onSettled={() => setSettled(d.current)} />
             {ghost && challenge && revealed && (
               <div className="chip info ghost-chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`}>
                 <Ghost size={14} aria-hidden="true" />
@@ -343,6 +345,7 @@ export function Draft() {
                         </span>
                       )}
                       {tiers[`${current.clubId}@${current.season}`] && <TierChip tier={tiers[`${current.clubId}@${current.season}`]} />}
+                      {current.estimated && <EstimatedChip compact />}
                     </div>
                   </div>
                 </div>

@@ -62,6 +62,7 @@ function candidatesFor(game: Game, u: LoadedUniverse, position: Position, inSqua
   const out: PlayerSeason[] = []
   for (const cs of u.clubSeasons) {
     if (!leagues.includes(cs.leagueId)) continue
+    if (cs.classic && !r.classic) continue
     if (r.fromSeason !== undefined && cs.season < r.fromSeason) continue
     if (r.toSeason !== undefined && cs.season > r.toSeason) continue
     if (r.onlyClub && cs.clubId !== r.onlyClub) continue

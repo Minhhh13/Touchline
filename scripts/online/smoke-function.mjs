@@ -70,7 +70,7 @@ check(pin.status === 200, `daily.pin ${pin.body.pin?.seed ?? ''} on data ${pin.b
 if (pin.status !== 200) process.exit(1)
 
 const index = await site('data/leagues.json')
-const u = V.universeFromPacks(index, { england: { players: await site('data/england/players.json'), meta: await site('data/england/meta.json') } }, ['england'])
+const u = V.universeFromPacks(index, { england: { players: await site('data/england/players.json'), meta: await site('data/england/meta.json'), ...(V.hasClassic(index, 'england') ? { classic: await site(`data/${V.classicFile('england')}`) } : {}) } }, ['england'])
 function played(settings) {
   const g = V.createGame(settings)
   const rng = V.Rng.fromState(g.rngState)

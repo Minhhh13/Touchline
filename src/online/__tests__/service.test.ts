@@ -82,7 +82,9 @@ describe('pinning a puzzle from the data the live site serves', () => {
     const index = JSON.parse(new TextDecoder().decode(siteFile('leagues.json', null)!)) as LeaguesFile
     const reg = h.packs.get(STAMP)!
     expect(reg.leagues).toEqual(index.leagues.map((l) => l.id))
-    expect(Object.keys(reg.files)).toHaveLength(1 + 2 * index.leagues.length)
+    // The index, each league's players and meta, and the classic pack of each league the index gives one
+    expect(Object.keys(reg.files)).toHaveLength(1 + 2 * index.leagues.length + index.leagues.filter((l) => l.classicFrom !== undefined).length)
+    expect(reg.files['england/players-classic.json']).toMatch(/^[0-9a-f]{64}$/)
     expect([...h.archive.keys()].every((k) => k.startsWith(`v/${STAMP}/`))).toBe(true)
     expect(h.archive.size).toBe(Object.keys(reg.files).length)
     // A second call (and the weekly pin) reuse the archive: no pack is fetched again
@@ -199,7 +201,7 @@ describe('daily.submit: the replay is the official result', () => {
     h.site.build = { ...LIVE, data: NEW }
     h.site.stamp = NEW
     const index = JSON.parse(new TextDecoder().decode(siteFile('leagues.json', NEW)!)) as LeaguesFile
-    const uNew = universeFromPacks(index, { england: { players: JSON.parse(new TextDecoder().decode(siteFile('england/players.json', NEW)!)) as PlayersFile, meta: JSON.parse(new TextDecoder().decode(siteFile('england/meta.json', NEW)!)) as MetaFile } }, ['england'])
+    const uNew = universeFromPacks(index, { england: { players: JSON.parse(new TextDecoder().decode(siteFile('england/players.json', NEW)!)) as PlayersFile, meta: JSON.parse(new TextDecoder().decode(siteFile('england/meta.json', NEW)!)) as MetaFile, classic: JSON.parse(new TextDecoder().decode(siteFile('england/players-classic.json', NEW)!)) as PlayersFile } }, ['england'])
     expect(uNew.generatedAt).toBe(NEW)
     const gNew = autoPlayed(uNew, dailyGameSettings(uNew, SEED, 'Verified FC'))
     const r = await call(h, submitBody('daily.submit', gNew, uNew), BOB)
@@ -219,7 +221,7 @@ describe('the live build.json cache', () => {
     h.site.build = { ...LIVE, data: NEW }
     h.site.stamp = NEW
     const index = JSON.parse(new TextDecoder().decode(siteFile('leagues.json', NEW)!)) as LeaguesFile
-    const uNew = universeFromPacks(index, { england: { players: JSON.parse(new TextDecoder().decode(siteFile('england/players.json', NEW)!)) as PlayersFile, meta: JSON.parse(new TextDecoder().decode(siteFile('england/meta.json', NEW)!)) as MetaFile } }, ['england'])
+    const uNew = universeFromPacks(index, { england: { players: JSON.parse(new TextDecoder().decode(siteFile('england/players.json', NEW)!)) as PlayersFile, meta: JSON.parse(new TextDecoder().decode(siteFile('england/meta.json', NEW)!)) as MetaFile, classic: JSON.parse(new TextDecoder().decode(siteFile('england/players-classic.json', NEW)!)) as PlayersFile } }, ['england'])
     const gNew = autoPlayed(uNew, dailyGameSettings(uNew, SEED, 'Verified FC'))
     const r = await call(h, submitBody('daily.submit', gNew, uNew), BOB)
     expect(r.body).toMatchObject({ status: 'ranked' })

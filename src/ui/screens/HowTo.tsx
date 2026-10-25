@@ -3,7 +3,8 @@ import { Activity, ArrowLeftRight, Armchair, Banknote, BookOpen, CalendarDays, C
 import { useStore } from '@game/store'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
-import { Rating } from '../components/bits'
+import { EstimatedChip, Rating } from '../components/bits'
+import { seasonLabel } from '../format'
 import type { Twist } from '@engine/draft'
 
 /** One section of How it works: a picture, a title, a line or two, then what illustrates it. */
@@ -131,6 +132,11 @@ export function HowTo() {
             ))}
           </div>
           <p className="help">Out of position costs rating: a little for a related role, a lot for a stretch. Values and wages are our own estimates.</p>
+          {u?.classicFirstSeason !== undefined && (
+            <p className="help" data-testid="howto-estimated">
+              <EstimatedChip compact /> Classic seasons ({seasonLabel(u.classicFirstSeason)} to {seasonLabel(u.firstSeason - 1)}) have no official ratings: TouchLine estimates them from real starts, goals, age, caps and club results. Squads and tables are real. Opt-in in Setup, never in the Daily.
+            </p>
+          )}
         </Section>
 
         <Section Icon={Activity} title="The match engine" lead="Each XI is scored by unit, shaped by roles, fit and live state. Your instructions meet theirs, expected goals follow, and goals are drawn from them minute by minute.">

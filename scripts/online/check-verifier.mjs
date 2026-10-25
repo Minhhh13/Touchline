@@ -79,7 +79,8 @@ const caller = { userId: '11111111-1111-4111-8111-111111111111', isAnonymous: fa
 const call = (body) => server.handle(caller, JSON.stringify(body))
 
 // The universe the bundle itself builds, for playing the honest runs
-const england = { players: JSON.parse(readFileSync(path.join(DATA, 'england/players.json'), 'utf8')), meta: JSON.parse(readFileSync(path.join(DATA, 'england/meta.json'), 'utf8')) }
+// As the browser loads England: with its classic pack when the index gives it one
+const england = { players: JSON.parse(readFileSync(path.join(DATA, 'england/players.json'), 'utf8')), meta: JSON.parse(readFileSync(path.join(DATA, 'england/meta.json'), 'utf8')), ...(V.hasClassic(index, 'england') ? { classic: JSON.parse(readFileSync(path.join(DATA, V.classicFile('england')), 'utf8')) } : {}) }
 const u = V.universeFromPacks(index, { england }, ['england'])
 expect(u.generatedAt === index.generatedAt, 'the bundle built a universe with another stamp')
 
