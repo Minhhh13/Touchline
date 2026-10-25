@@ -2907,6 +2907,12 @@ table.tbl tr.clickable:hover {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
+.pu-head {
+  gap: 2px 8px;
+}
+.pu-head b {
+  white-space: nowrap;
+}
 .pu-upgrader {
   display: contents;
 }

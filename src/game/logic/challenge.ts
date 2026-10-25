@@ -89,6 +89,7 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
   const s = game.settings
   const x = seasonOf(game)
   const upgraded = d.upgrade ? d.history.findIndex((h) => h.pickedId === d.upgrade!.id) : -1
+  const w = powerUpRows(d)
   return {
     v: 1,
     data: u.generatedAt,
@@ -100,7 +101,7 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
     k: historyKey(d.history),
     ...(x ? { x } : {}),
     ...(upgraded >= 0 && d.upgrade ? { g: [upgraded, d.upgrade.boost] as [number, number] } : {}),
-    ...(d.powerUps?.length ? { w: powerUpRows(d) } : {}),
+    ...(w.length ? { w } : {}),
   }
 }
 
@@ -111,8 +112,9 @@ function powerUpRows(d: DraftState): ChallengePowerUp[] {
     switch (x.kind) {
       case 'reroll':
         return [['r', x.at]]
+      // A peek no spin followed (the bench closed while it showed) changed nothing, and has no row to name
       case 'peek':
-        return [['p', x.at]]
+        return x.at < d.history.length ? [['p', x.at]] : []
       case 'swap':
         return [['s', x.at, x.from, x.to]]
       case 'armband':

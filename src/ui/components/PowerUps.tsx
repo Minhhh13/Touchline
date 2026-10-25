@@ -45,7 +45,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
   const rerollUse = d.powerUps?.find((x) => x.kind === 'reroll')
   const swapUse = d.powerUps?.find((x) => x.kind === 'swap')
   const status = {
-    reroll: rerollUse && rerollUse.kind === 'reroll' ? `${seasonLabel(rerollUse.from)} → ${seasonLabel(rerollUse.to)}` : busy ? 'Reel running' : !d.current ? 'After a spin' : options.length ? `${options.length} season${options.length === 1 ? '' : 's'}` : 'No other season',
+    reroll: rerollUse && rerollUse.kind === 'reroll' ? `→ ${seasonLabel(rerollUse.to)}` : busy ? 'Reel running' : !d.current ? 'After a spin' : options.length ? `${options.length} season${options.length === 1 ? '' : 's'}` : 'No other season',
     peek: peekUse && peekUse.kind === 'peek' ? (peeked !== null ? `Next: ${peeked === ICONS_SEASON ? 'Icons' : seasonLabel(peeked)}` : `Saw ${peekUse.season === ICONS_SEASON ? 'Icons' : seasonLabel(peekUse.season)}`) : complete ? 'Draft complete' : d.current ? 'Before a spin' : positionFirst(d) && !targetSlot(d) ? 'Choose a slot' : 'Ready',
     swap: swapUse && swapUse.kind === 'swap' ? `${slotPos(swapUse.from)} ⇄ ${slotPos(swapUse.to)}` : d.current ? 'Between spins' : canSwap(u, d) ? 'Ready' : 'No move yet',
     armband: band ? `${nameOf(band)} +${ARMBAND_BOOST}` : canArmband(d) ? 'Ready' : 'Draft a player',
@@ -56,7 +56,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
 
   return (
     <div className="panel tight pu-tray" data-testid="power-ups">
-      <div className="row between" style={{ marginBottom: 8 }}>
+      <div className="row between wrap pu-head" style={{ marginBottom: 8 }}>
         <b>{POWER_UPS_ICON} Power-ups</b>
         <span className="small muted">One use each · in-game only</span>
       </div>

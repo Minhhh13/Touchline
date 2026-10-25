@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
-import { assistantChoice, autoDraft, chooseSlot, isComplete, newDraft, pick, QUICK_RULES, spin, spinClubSeason, spinnableSlots, upgraderOn, type DraftRules, type DraftState, type QuickMode } from '@engine/draft'
+import { assistantChoice, autoDraft, chooseSlot, closeBench, fillingXI, isComplete, newDraft, pick, QUICK_RULES, spin, spinClubSeason, spinnableSlots, upgraderOn, type DraftRules, type DraftState, type QuickMode } from '@engine/draft'
 import { ARMBAND_BOOST, armbandId, canLock, canPeek, canReroll, canSwap, draftBoost, giveArmband, lockPlayer, lockedId, peekedSeason, peekNext, powerUpUsed, rerollOptions, rerollSeason, swapSlots, swapTargets, usePeek } from '@engine/powerups'
 import { canUpgrade, upgradeCandidates, upgradePlayer } from '@engine/upgrader'
 import { decodeChallenge, encodeChallenge, isChallengePowerUps, isRulesDiff } from '@engine/challenge'
@@ -307,6 +307,29 @@ describe('power-ups in links, the log and the share text', () => {
       // Without the power-ups the same picks do not replay to the same draft or season
       const stripped = replayChallenge(u, decodeChallenge(encodeChallenge({ ...c, w: undefined })))
       if (d.powerUps!.some((x) => x.kind === 'reroll' || x.kind === 'swap')) expect(stripped.verified).toBe('no')
+    }
+  })
+
+  it('make a working link when the bench closed while a peek showed (a peek no spin followed)', () => {
+    for (const seed of ['PU-BENCH-1', 'PU-BENCH-2']) {
+      const g = createGame(settings({ seed, rules: rules({ benchPicks: 3 }) }))
+      const d = g.draft!
+      const rng = Rng.fromState(g.rngState)
+      while (fillingXI(d)) {
+        spin(u, d, rng)
+        assistantPick(d)
+      }
+      g.rngState = rng.getState()
+      expect(canPeek(u, d)).toBe(true)
+      usePeek(u, d, g.rngState)
+      closeBench(d)
+      toKickoff(g, u)
+      kickOff(g, u, true)
+      const c = challengeFromGame(g, u, 'Bench')!
+      expect(c.w).toBeUndefined()
+      const out = replayChallenge(u, decodeChallenge(encodeChallenge(c)))
+      expect(out.reason).toBeUndefined()
+      expect(out.verified).toBe('yes')
     }
   })
 
