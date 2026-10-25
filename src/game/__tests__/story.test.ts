@@ -125,18 +125,19 @@ describe('the records of the story', () => {
   })
 })
 
-// The RNG state after each of the 20 quick seasons below, computed on the commit before Season Story existed
+// The RNG state after each of the 20 quick seasons below, computed on origin/main (d4d9b2f) with main's own code, where no
+// Season Story exists: main's Quick Draft (managers on by default, the bench, `rounds`) moved them from the casual base's values
 const BASELINE_RNG = [
   '-1509896484.-761973302.-511992811.-38524568',
-  '-2118901421.521488338.354304170.-1510480910',
+  '1925302781.1995987543.-810666289.-152282912',
   '832487304.1696875379.1937717928.-1097388836',
   '1581457983.-1640830323.681847758.2007154297',
-  '-996795342.-413169413.1155218804.-1359974390',
-  '453036493.2008131083.-146748090.1154596414',
+  '299738579.-1804466756.-1846967195.1660388495',
+  '-109640033.-1248905111.-2001508468.79268452',
   '1375165708.833231991.-2084486842.1493252488',
-  '-1228967488.1203216289.-730354127.1137445310',
+  '292747559.-1274543797.-873980512.-2082135149',
   '-1338245327.-1694048876.-924437708.1382015195',
-  '-1634541839.657122910.1969502821.43692502',
+  '-1054725274.-1253665348.1772307518.-1899671308',
   '-172894465.2133887246.1699404779.1238997398',
   '2097393702.-212257117.-1330937162.-411779530',
   '-1858212.545522456.1527992155.-351803695',
@@ -165,26 +166,26 @@ describe('Season Story on seeded quick seasons', () => {
       expect(story.strip.filter((o) => o === 'W')).toHaveLength(q.won)
       expect(story.strip.filter((o) => o === 'D')).toHaveLength(q.drawn)
       expect(story.strip.filter((o) => o === 'L')).toHaveLength(q.lost)
-      expect(q.clinchedAt != null).toBe(q.position === 1)
-      expect(q.doomedAt != null).toBe(q.position > 17)
-      expect(q.moment).toBeTruthy()
-      expect(story.moment).toBe(q.moment)
+      // Nothing of the story is stored: it is told from `results` and `rounds` when read
+      expect(q.clinchedAt).toBeUndefined()
+      expect(q.moment).toBeUndefined()
+      expect(story.clinchedAt != null).toBe(q.position === 1)
+      expect(story.doomedAt != null).toBe(q.position > 17)
+      expect(story.moment).toBeTruthy()
       if (q.position === 1) {
         champions++
-        expect(q.moment!).toMatch(q.clinchedAt! >= 38 ? /last day/ : new RegExp(`MW ${q.clinchedAt}\\b`))
+        expect(story.moment).toMatch(story.clinchedAt! >= 38 ? /last day/ : new RegExp(`MW ${story.clinchedAt}\\b`))
         // Sealed means sealed: the user led the table as it stood that week
-        expect(q.results!.find((r) => r.matchweek === q.clinchedAt)!.position).toBe(1)
+        expect(q.results!.find((r) => r.matchweek === story.clinchedAt)!.position).toBe(1)
       }
     }
     expect(champions).toBeGreaterThanOrEqual(5)
   })
 
-  it('an older quick save without the story fields is retold from its results', () => {
+  it('an older quick save without the rounds (or the story fields of the casual branch) is retold from its results', () => {
     const g = games.find((x) => x.quickResult!.position === 1)!
     const old = JSON.parse(JSON.stringify(g)) as Game
-    delete old.quickResult!.clinchedAt
-    delete old.quickResult!.doomedAt
-    delete old.quickResult!.moment
+    delete old.quickResult!.rounds
     const n = normaliseGame(old)!
     const story = storyForGame(n, u)!
     expect(story.clinchedAt).toBeUndefined()
@@ -202,9 +203,9 @@ describe('Season Story on seeded quick seasons', () => {
     expect(realSeasonRow(u, 'england', u.currentSeason ?? -1, 'liverpool')).toBeNull()
     const verdict = realityLine({ position: 19, points: 22 }, 'Burnley', { position: 1, points: 93 })
     expect(verdict).toBe('📊 The real Burnley finished 19th on 22 · you 1st on 93')
-    const text = shareText({ teamName: 'Story XI', tier: q.tier, row: { teamId: USER_TEAM, played: 38, won: q.won, drawn: q.drawn, lost: q.lost, goalsFor: q.goalsFor, goalsAgainst: q.goalsAgainst, points: q.points, form: [] }, position: q.position, cupWon: false, continentalWon: false, leagueSeason: 2025, hostClubName: 'Burnley', mode: 'Quick Draft', seed: 'story-1', extraLines: [q.moment!, verdict] })
+    const text = shareText({ teamName: 'Story XI', tier: q.tier, row: { teamId: USER_TEAM, played: 38, won: q.won, drawn: q.drawn, lost: q.lost, goalsFor: q.goalsFor, goalsAgainst: q.goalsAgainst, points: q.points, form: [] }, position: q.position, cupWon: false, continentalWon: false, leagueSeason: 2025, hostClubName: 'Burnley', mode: 'Quick Draft', seed: 'story-1', extraLines: [storyForGame(g, u)!.moment, verdict] })
     const lines = text.split('\n')
-    expect(lines.indexOf(q.moment!)).toBe(lines.indexOf(verdict) - 1)
+    expect(lines.indexOf(storyForGame(g, u)!.moment)).toBe(lines.indexOf(verdict) - 1)
     expect(lines.at(-1)).toBe('Seed story-1')
   })
 })
@@ -247,7 +248,7 @@ describe('the Record page keeps the moment', () => {
     useStore.setState({ universe: u, game: g, loadedLeagues: ['england'] })
     useStore.getState().recordResult()
     const entry = useStore.getState().profile.leaderboard.find((e) => e.id === `${g.id}-${g.year}`)!
-    expect(entry.moment).toBe(g.quickResult!.moment)
+    expect(entry.moment).toBe(storyForGame(g, u)!.moment)
     useStore.setState({ game: null, universe: null, loadedLeagues: [] })
   })
 })

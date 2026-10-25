@@ -121,7 +121,8 @@ export function weeklySettings(u: LoadedUniverse, seed: string): WeeklySettings 
   const loaded = new Set(u.leagues.map((l) => l.id))
   if (!loaded.has(plan.leagueId) || !plan.wheelLeagues.every((l) => loaded.has(l))) return null
   const n = weeklyNumber(seed)
-  const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === plan.leagueId)
+  // Never a classic season: the Weekly's mapping was frozen before the classic packs and has no opt-in
+  const complete = u.clubSeasons.filter((cs) => cs.complete && !cs.classic && cs.leagueId === plan.leagueId)
   const seasons = [...new Set(complete.map((cs) => cs.season))].sort((a, b) => a - b)
   if (!seasons.length) return null
   const season = seasons[(n * 7) % seasons.length]

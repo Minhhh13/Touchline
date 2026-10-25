@@ -6,7 +6,7 @@
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import { familiarityGainFactor } from './depth'
 import type { Rng } from './rng'
-import type { LoadedUniverse } from './universe'
+import { isClassicSeason, ordinal, poolClubSeasons, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
@@ -102,6 +102,8 @@ export interface NewsItem {
   kind: 'result' | 'injury' | 'suspension' | 'board' | 'transfer' | 'award' | 'event' | 'cup' | 'training' | 'info'
   title: string
   body: string
+  /** The player the item is about, when there is one, so the Inbox can offer to act on him. Absent on older saves. */
+  playerId?: string
 }
 
 export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer> = {}): SquadPlayer {
@@ -154,15 +156,24 @@ export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
 export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason && cs.clubId !== hostClubId)
-  for (const cs of clubs) {
-    const club = u.clubById[cs.clubId]
-    const style = club?.style ?? 'balanced'
-    const tactics = tacticsForStyle(style, formationForStyle(style))
-    const state: Record<string, SquadPlayer> = {}
-    for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
-    ai[cs.clubId] = { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
-  }
+  for (const cs of clubs) ai[cs.clubId] = aiClubOf(u, cs)
   return ai
+}
+
+/** One real club-season as an AI side: its style's tactics and shape, its squad, every player fresh. Draws nothing. */
+export function aiClubOf(u: LoadedUniverse, cs: ClubSeason): AiClub {
+  const club = u.clubById[cs.clubId]
+  const style = club?.style ?? 'balanced'
+  const tactics = tacticsForStyle(style, formationForStyle(style))
+  const state: Record<string, SquadPlayer> = {}
+  for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
+  return { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
+}
+
+/** An AI side's overall team strength as the season fields it: its auto-picked best XI rated by `computeTeamStrength`. Pure. */
+export function aiStrength(u: LoadedUniverse, club: AiClub): number {
+  const inp = aiTeamInput(u, club)
+  return computeTeamStrength(club.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
 }
 
 export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0): MatchTeamInput {
@@ -186,10 +197,7 @@ export const CALIBRATED_LEAGUE_AVERAGE = 75
 
 export function aiRatingOffset(u: LoadedUniverse, ai: Record<string, AiClub>, difficulty: 'calibrated' | 'realistic'): number {
   if (difficulty === 'realistic') return 0
-  const strengths = Object.values(ai).map((c) => {
-    const inp = aiTeamInput(u, c)
-    return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
-  })
+  const strengths = Object.values(ai).map((c) => aiStrength(u, c))
   const avg = strengths.reduce((a, b) => a + b, 0) / Math.max(1, strengths.length)
   return Math.max(0, Math.round((avg - CALIBRATED_LEAGUE_AVERAGE) * 10) / 10)
 }
@@ -320,18 +328,20 @@ export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng
 export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15): Record<string, AiClub> {
   const others = u.leagues.filter((l) => l.id !== leagueId)
   const picked: ClubSeason[] = []
+  // Classic club-seasons only enter the field of a classic league season
+  const pool = poolClubSeasons(u, isClassicSeason(u, leagueId, leagueSeason))
   for (const league of others) {
-    const seasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))]
+    const seasons = [...new Set(pool.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))]
     if (!seasons.length) continue
     const season = seasons.includes(leagueSeason) ? leagueSeason : seasons.sort((a, b) => Math.abs(a - leagueSeason) - Math.abs(b - leagueSeason))[0]
-    const field = u.clubSeasons.filter((cs) => cs.leagueId === league.id && cs.season === season && cs.clubId !== hostClubId).sort((a, b) => (a.position || 99) - (b.position || 99) || avgTop(b) - avgTop(a))
+    const field = pool.filter((cs) => cs.leagueId === league.id && cs.season === season && cs.clubId !== hostClubId).sort((a, b) => (a.position || 99) - (b.position || 99) || avgTop(b) - avgTop(a))
     // Four per league keeps the field spread; the remainder is filled by strength below.
     picked.push(...field.slice(0, 4))
   }
   // Top up with the strongest remaining clubs if fewer than four leagues are loaded
   if (picked.length < n) {
     const have = new Set(picked.map((cs) => `${cs.clubId}@${cs.season}`))
-    const rest = u.clubSeasons.filter((cs) => cs.leagueId !== leagueId && cs.clubId !== hostClubId && !have.has(`${cs.clubId}@${cs.season}`) && Math.abs(cs.season - leagueSeason) <= 1).sort((a, b) => avgTop(b) - avgTop(a))
+    const rest = pool.filter((cs) => cs.leagueId !== leagueId && cs.clubId !== hostClubId && !have.has(`${cs.clubId}@${cs.season}`) && Math.abs(cs.season - leagueSeason) <= 1).sort((a, b) => avgTop(b) - avgTop(a))
     const seen = new Set(picked.map((cs) => cs.clubId))
     for (const cs of rest) {
       if (picked.length >= n) break
@@ -420,15 +430,53 @@ export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, m
   return 'RELEGATED'
 }
 
+/**
+ * The season tiers as plain outcomes. The ids are saved (game, history, challenge links, daily results) and never
+ * change; only the words do. EUROPEAN covers 3rd to 6th: `tierLabel` splits it into Top 4 and Top 6
+ * when the position is known, and this table carries the wider name for where it is not.
+ */
 export const TIER_LABEL: Record<SeasonTier, string> = {
-  PERFECT: '38-0: THE PERFECT SEASON',
-  INVINCIBLE: 'INVINCIBLES',
-  CHAMPIONS: 'CHAMPIONS',
-  TITLE_RACE: 'TITLE RACE',
-  EUROPEAN: 'EUROPEAN NIGHTS',
-  MID_TABLE: 'MID-TABLE',
-  RELEGATION_BATTLE: 'RELEGATION BATTLE',
-  RELEGATED: 'RELEGATED',
+  PERFECT: 'Perfect season',
+  INVINCIBLE: 'Invincibles',
+  CHAMPIONS: 'Champions',
+  TITLE_RACE: 'Title race',
+  EUROPEAN: 'Top 6',
+  MID_TABLE: 'Mid-table',
+  RELEGATION_BATTLE: 'Relegation battle',
+  RELEGATED: 'Relegated',
+}
+
+/** The tier's headline, with the position when it is known: a 3rd or 4th place reads as "Top 4". */
+export function tierLabel(tier: SeasonTier, position?: number): string {
+  if (tier === 'EUROPEAN' && position !== undefined && position >= 1 && position <= 4) return 'Top 4'
+  return TIER_LABEL[tier]
+}
+
+/**
+ * One short line under the headline saying what the tier means. `teams` is the size of the league (20 by default),
+ * `sacked` a managed season cut short.
+ */
+export function tierBlurb(tier: SeasonTier, position: number, teams = 20, sacked = false): string {
+  const place = `${ordinal(position)} of ${teams}`
+  if (sacked) return `Sacked at ${place}.`
+  switch (tier) {
+    case 'PERFECT':
+      return 'Every game won.'
+    case 'INVINCIBLE':
+      return 'Champions without a defeat.'
+    case 'CHAMPIONS':
+      return 'Top of the table.'
+    case 'TITLE_RACE':
+      return 'Runners-up, just short.'
+    case 'EUROPEAN':
+      return `${place}, ${position <= 4 ? 'a top-four' : 'a top-six'} side.`
+    case 'MID_TABLE':
+      return `${place}, safe.`
+    case 'RELEGATION_BATTLE':
+      return `${place}, survived.`
+    case 'RELEGATED':
+      return `${place}, down a division.`
+  }
 }
 
 /**
@@ -513,6 +561,17 @@ export function shootout(rng: Rng, homeMentality: number, awayMentality: number)
     if (rng.chance(pA)) a++
   }
   return { home: h, away: a }
+}
+
+/** Extra time is thirty minutes, a third of a match, played by tired legs at 85% of the ninety minutes' rate. */
+export const EXTRA_TIME_RATE = 0.85 / 3
+
+/**
+ * Extra time after a level ninety minutes: each side's goals are Poisson draws from its expected goals over the match
+ * times `EXTRA_TIME_RATE`, home first. Two draws, nothing else.
+ */
+export function extraTime(rng: Rng, xg: { home: number; away: number }): { home: number; away: number } {
+  return { home: rng.poisson(Math.max(0, xg.home) * EXTRA_TIME_RATE), away: rng.poisson(Math.max(0, xg.away) * EXTRA_TIME_RATE) }
 }
 
 export function clubSeasonFor(u: LoadedUniverse, clubId: string, season: number): ClubSeason | undefined {

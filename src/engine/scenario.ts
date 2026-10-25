@@ -7,7 +7,7 @@
  * `suggestRunIns`' own stream of the setup seed.
  */
 import type { LeagueSeasonRow } from './types'
-import type { LoadedUniverse } from './universe'
+import { isClassicSeason, type LoadedUniverse } from './universe'
 import { Rng } from './rng'
 import { computeTable, positionOf, USER_TEAM, type CarryRow } from './season'
 
@@ -136,6 +136,8 @@ export function runInCatalogue(u: LoadedUniverse, template: RunInTemplate): RunI
   const jobs: RunInJob[] = []
   for (const league of u.leagues) {
     for (const season of Object.keys(u.tables[league.id] ?? {}).map(Number)) {
+      // The classic seasons (estimated ratings) are opt-in elsewhere and the run-in has no opt-in: never a job
+      if (isClassicSeason(u, league.id, season)) continue
       const rows = completeTable(u, league.id, season)
       if (!rows) continue
       for (const r of rows) if (fits(template, rows, r)) jobs.push(jobOf(template, league.id, season, rows, r))

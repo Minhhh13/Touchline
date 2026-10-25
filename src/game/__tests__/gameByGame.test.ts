@@ -3,7 +3,7 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame } from '../logic/setup'
 import { runQuickSeason } from '../logic/quick'
 import { runH2HSeason, H2H_IDS } from '../logic/h2h'
-import { bestWin, bestWinLine, foldResults, outcomeOf, recordUserGames, scorersLabel, shortName } from '../logic/gameByGame'
+import { bestWin, bestWinLine, countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, outcomeOf, paceLine, pointsPace, recordUserGames, scorersLabel, shortName } from '../logic/gameByGame'
 import { autoDraft, isComplete, newDraft, QUICK_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { ENGINE_VERSION } from '@engine/version'
@@ -31,28 +31,31 @@ function quickGame(seed: string) {
 // The final table of seed `game-by-game`. The recording was proved to add no draws against the commit
 // before it (same table, same RNG state); the snapshot is pinned to ENGINE_VERSION so a deliberate engine
 // change (as FM depth's '4' was) re-pins it on purpose rather than failing for an unrelated reason.
+// Re-pinned for the 2026-10-25 data rebuild (2008-14 left and right positions un-swapped, finite
+// hidden traits): the same draws, but the players behind them changed, so seven clubs' goal tallies
+// moved by one or two while every won/drawn/lost count stayed put.
 const BASELINE_ENGINE = '4'
 const BASELINE_TABLE = [
-  'chelsea:79/22/13/3/62/24',
-  'user:75/22/9/7/91/36',
+  'chelsea:79/22/13/3/63/25',
+  'user:75/22/9/7/93/35',
   'arsenal:74/22/8/8/71/39',
   'aston-villa:73/22/7/9/66/36',
   'liverpool:67/18/13/7/76/45',
   'manchester-united:60/15/15/8/60/38',
   'manchester-city:60/16/12/10/61/40',
-  'everton:57/17/6/15/43/49',
+  'everton:57/17/6/15/43/50',
   'brighton:52/13/13/12/52/55',
   'nottingham-forest:47/13/8/17/43/50',
   'wolverhampton-wanderers:47/12/11/15/35/47',
-  'newcastle-united:46/12/10/16/62/60',
+  'newcastle-united:46/12/10/16/61/61',
   'tottenham-hotspur:44/12/8/18/55/82',
-  'crystal-palace:43/12/7/19/45/63',
+  'crystal-palace:43/12/7/19/45/62',
   'bournemouth:43/12/7/19/56/78',
   'sunderland:42/10/12/16/54/67',
   'brentford:39/10/9/19/53/82',
   'west-ham-united:32/8/8/22/46/74',
-  'fulham:30/4/18/16/36/62',
-  'leeds-united:27/5/12/21/36/76',
+  'fulham:30/4/18/16/35/62',
+  'leeds-united:27/5/12/21/37/77',
 ]
 const BASELINE_RNG = { a: 1559925814, b: 500370932, c: 2083791800, d: 1089738077 }
 
@@ -224,5 +227,62 @@ describe('the replay helpers', () => {
     expect(shortName('Neymar')).toBe('Neymar')
     expect(shortName('K. De Bruyne')).toBe('De Bruyne')
     expect(shortName('Virgil van Dijk')).toBe('Virgil van Dijk')
+  })
+})
+
+describe('the season list, newest first', () => {
+  it('shows the games revealed so far with the newest at the top, without touching the season', () => {
+    for (const seed of ['newest-first-a', 'newest-first-b', 'newest-first-c']) {
+      const g = quickGame(seed)
+      const results = g.quickResult!.results!
+      const before = JSON.stringify(results)
+      for (const revealed of [0, 1, 2, 19, results.length]) {
+        const newest = gamesInOrder(results, revealed, 'newest')
+        const oldest = gamesInOrder(results, revealed, 'oldest')
+        expect(newest).toHaveLength(revealed)
+        expect(oldest.map((r) => r.matchweek)).toEqual(results.slice(0, revealed).map((r) => r.matchweek))
+        expect(newest.map((r) => r.matchweek)).toEqual([...oldest].reverse().map((r) => r.matchweek))
+        if (revealed) expect(newest[0]).toBe(results[revealed - 1])
+        for (let i = 1; i < newest.length; i++) expect(newest[i - 1].matchweek).toBeGreaterThan(newest[i].matchweek)
+      }
+      expect(gamesInOrder(results, 99, 'newest')).toHaveLength(results.length)
+      expect(gamesInOrder(results, -3, 'newest')).toHaveLength(0)
+      expect(JSON.stringify(results)).toBe(before)
+    }
+  })
+
+  it('prints the goal difference with its sign and counts up to the new value', () => {
+    expect(goalDifferenceLabel(4, 5)).toBe('-1')
+    expect(goalDifferenceLabel(5, 2)).toBe('+3')
+    expect(goalDifferenceLabel(1, 1)).toBe('0')
+    expect(countUpValue(3, 6, 0)).toBe(3)
+    expect(countUpValue(3, 6, 1)).toBe(6)
+    expect(countUpValue(3, 6, 2)).toBe(6)
+    let last = 3
+    for (let t = 0; t <= 1; t += 0.05) {
+      const v = countUpValue(3, 6, t)
+      expect(v).toBeGreaterThanOrEqual(last)
+      expect(v).toBeLessThanOrEqual(6)
+      last = v
+    }
+  })
+})
+
+describe('the January pace line', () => {
+  const totals = (position: number, played: number, points: number) => ({ played, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points, position })
+  it('projects the points over the whole season at the rate so far', () => {
+    expect(pointsPace(totals(10, 19, 25), 38)).toBe(50)
+    expect(pointsPace(totals(10, 18, 20), 36)).toBe(40)
+    expect(pointsPace(totals(0, 0, 0), 38)).toBe(0)
+  })
+  it('names the place the side is on course for and what it means at either end', () => {
+    expect(paceLine(totals(1, 19, 45), 38, 20)).toBe('Top at the turn and on course for the title, at a 90-point pace.')
+    expect(paceLine(totals(3, 19, 36), 38, 20)).toContain('3rd, inside the top four')
+    expect(paceLine(totals(10, 19, 25), 38, 20)).toBe('On course for 10th, at a 50-point pace.')
+    expect(paceLine(totals(20, 19, 6), 38, 20)).toContain('20th, in the bottom three')
+    expect(paceLine(totals(17, 19, 20), 38, 20)).not.toContain('bottom three')
+    expect(paceLine(totals(18, 17, 12), 34, 18)).toContain('bottom three')
+    expect(paceLine(totals(1, 19, 44), 38, 20)).toContain('at an 88-point pace')
+    expect(paceLine(totals(20, 19, 9), 38, 20)).toContain('at an 18-point pace')
   })
 })

@@ -6,6 +6,7 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { playerLookup } from './players'
+import { logMorale } from './happiness'
 
 export type TalkKind = 'praise' | 'criticise' | 'promise' | 'reassure'
 
@@ -101,7 +102,9 @@ export function talkTo(game: Game, u: LoadedUniverse, id: string, kind: TalkKind
   }
   // Professionals shrug off harsh words; mavericks take them personally.
   if (delta < 0) delta *= 1.2 - 0.5 * pro
+  const before = s.morale
   s.morale = clamp(s.morale + delta)
+  logMorale(s, week, before, 'talk', kind)
   talks[id] = week
   return { message }
 }

@@ -1,5 +1,5 @@
 import type { Game } from '../types'
-import type { LoadedUniverse } from '@engine/universe'
+import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import type { PlayerSeason } from '@engine/types'
 import { overallOf } from '@engine/positions'
@@ -10,6 +10,7 @@ import { autoPickLineup } from '@engine/ratings'
 import { releasePlayer } from './marketOps'
 import { openWindow } from '@engine/market'
 import { WAGE_MULT } from '@engine/status'
+import { logMorale } from './happiness'
 
 /**
  * Age a player-season by one year. Young players grow towards an estimated
@@ -74,7 +75,9 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   const get = playerLookup(game, u)
   game.year += 1
   const targetLeague = game.pendingMove?.leagueId ?? game.settings.leagueId
-  const leagueSeasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === targetLeague).map((cs) => cs.season))].sort()
+  // Classic seasons are in the cycle only for a game that opted in or is playing one
+  const classicOk = !!game.settings.rules.classic || isClassicSeason(u, game.settings.leagueId, game.settings.leagueSeason)
+  const leagueSeasons = [...new Set(poolClubSeasons(u, classicOk).filter((cs) => cs.leagueId === targetLeague).map((cs) => cs.season))].sort()
   const idx = leagueSeasons.indexOf(game.settings.leagueSeason)
   const nextSeason = leagueSeasons[(idx + 1) % leagueSeasons.length] ?? leagueSeasons[0]
   // The host club may not exist in the next league season; pick the same club if present, else a random club of similar stature.
@@ -125,7 +128,9 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     if (aged.overall > p.overall + 1) report.improved.push({ name: p.name, from: p.overall, to: aged.overall })
     if (aged.overall < p.overall - 1) report.declined.push({ name: p.name, from: p.overall, to: aged.overall })
     idMap[id] = aged.id
-    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], recentMinutes: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 } }
+    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], recentMinutes: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 }, moraleLog: undefined }
+    // A new season starts a new happiness log; the summer lift is its first line
+    logMorale(newSquad[aged.id], 0, s.morale, 'summer')
   }
   game.squad = newSquad
   game.contracts = newContracts
@@ -169,7 +174,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   d.bench = pool.filter((p) => !inXI.has(p.id)).map((p) => p.id)
   game.draft = d
   game.phase = 'draft'
-  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation }, 'summer', 40)
+  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic }, 'summer', 40)
   game.rngState = rng.getState()
   void releasePlayer
   return report

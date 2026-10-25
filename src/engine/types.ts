@@ -111,6 +111,15 @@ export interface ClubSeason {
   /** False while the real season is still being played. */
   complete: boolean
   squad: PlayerSeason[]
+  /**
+   * A classic season (1992-93 to 2007-08). Opt-in: the wheel, the market and
+   * every all-season pool skip it unless the rules say `classic`, and classic
+   * club-seasons sit after every standard one in `Universe.clubSeasons`, so no
+   * existing seed changes meaning.
+   */
+  classic?: boolean
+  /** Ratings estimated by TouchLine's model (no official ratings exist for the season). */
+  estimated?: boolean
 }
 
 export interface LeagueSeasonRow {
@@ -122,6 +131,8 @@ export interface LeagueSeasonRow {
   lost: number
   goalsFor: number
   goalsAgainst: number
+  /** Points deducted by the league that season; `points` is already net of it. */
+  deduction?: number
 }
 
 export interface LeagueInfo {
@@ -134,6 +145,10 @@ export interface LeagueInfo {
   playerSeasons: number
   players: number
   clubs: number
+  /** First classic season (opt-in, estimated ratings) when the league has any; `firstSeason` stays the first standard one. */
+  classicFrom?: number
+  /** Player-seasons in the classic pack (`players-classic.json`), not counted in `playerSeasons`. */
+  classicPlayerSeasons?: number
 }
 
 export interface Universe {
@@ -231,6 +246,22 @@ export interface SquadPlayer {
     cleanSheets: number
     motm: number
   }
+  /** Why his morale moved: the last few changes, oldest first (the user's squad only; capped in `logMorale`). Absent on older saves. */
+  moraleLog?: MoraleEntry[]
+}
+
+/** What moved a player's morale: a result, his minutes against his status, the captain, a promise, an event, a talk, a status change, the summer. */
+export type MoraleReason = 'result' | 'cup' | 'minutes' | 'captain' | 'promise' | 'event' | 'talk' | 'status' | 'summer'
+
+/** One morale change, as `src/game/logic/happiness.ts` records it: kept short because it is saved for every player. */
+export interface MoraleEntry {
+  /** Matchweek it happened in. */
+  w: number
+  /** The change actually applied (after the clamp), to one decimal. */
+  d: number
+  r: MoraleReason
+  /** A detail for the line: the result and rating ("W 7.4"), the share against the expectation ("30/85"), an event title, a talk or a status. */
+  n?: string
 }
 
 /** Mapping from formation slot id to player-season id. */

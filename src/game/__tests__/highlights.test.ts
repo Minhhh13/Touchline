@@ -1,292 +1,209 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { createGame } from '../logic/setup'
+import { closeJanuary, kickOff, makeQuickChange, playbackResults, quickSquadAt, toKickoff } from '../logic/quick'
+import { buildUpFrom, canShowHighlights, quickHighlights } from '../logic/highlights'
+import { canPlayFor } from '../logic/quickBench'
+import { compactGame } from '../logic/compact'
+import { normaliseGame } from '../logic/save'
+import { decodeSave, encodeSave } from '../saveStorage'
+import { playerLookup } from '../logic/players'
+import { autoDraft, isComplete, QUICK_RULES, type DraftRules } from '@engine/draft'
+import { appearancesFromEvents } from '@engine/highlights'
+import { getFormation } from '@engine/formations'
+import { defaultTactics } from '@engine/tactics'
 import { Rng } from '@engine/rng'
-import { autoDraft, SEASON_RULES } from '@engine/draft'
-import { computeTable, positionOf, USER_TEAM } from '@engine/season'
-import { createGame, beginSeason } from '../logic/setup'
-import { playMatchweek, startSeasonProper } from '../logic/week'
-import { BOARD_ALARM, foreseeStop, nextStop, RUN_IN_WEEKS, simToLabel, simToNextStop, stopAfterWeek, stopLine, weekMark } from '../logic/highlights'
-import type { Game, GameSettings } from '../types'
-// The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
-vi.hoisted(() => {
-  const mem = new Map<string, string>()
-  Object.defineProperty(globalThis, 'localStorage', {
-    value: { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) },
-    configurable: true,
-  })
-})
-import { useStore } from '../store'
+import type { Game, GameSettings, QuickGameResult } from '../types'
 
-const u = loadTestUniverse()
+const u = loadTestUniverse(['england'])
 
-function settings(partial: Partial<GameSettings> = {}): GameSettings {
-  return {
-    mode: 'season',
-    seed: 'highlights-1',
-    formationId: '4-3-3',
-    teamName: 'Highlights XI',
-    shortName: 'HLX',
-    leagueId: 'england',
-    wheelLeagues: ['england'],
-    hostClubId: 'everton',
-    leagueSeason: 2025,
-    rules: { ...SEASON_RULES, leagues: ['england'] },
-    jobSecurity: false,
-    difficulty: 'calibrated',
-    ...partial,
-  }
+function settings(partial: Partial<GameSettings> = {}, rules: Partial<DraftRules> = {}): GameSettings {
+  return { mode: 'quick', seed: 'hl-1', formationId: '4-3-3', teamName: 'Reel XI', shortName: 'REL', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'], ...rules }, jobSecurity: false, difficulty: 'calibrated', january: false, ...partial }
 }
 
-/** A drafted season in pre-season. */
-function seasonGame(partial: Partial<GameSettings> = {}): Game {
-  const g = createGame(settings(partial))
+/** A quick game drafted by the assistant and standing at the tactics step. */
+function drafted(partial: Partial<GameSettings> = {}, rules: Partial<DraftRules> = {}): Game {
+  const g = createGame(settings(partial, rules))
   const rng = Rng.fromState(g.rngState)
   autoDraft(u, g.draft!, rng)
   g.rngState = rng.getState()
-  beginSeason(g, u)
+  expect(isComplete(g.draft!)).toBe(true)
+  toKickoff(g, u)
   return g
 }
 
-/** Sim 5's step, repeated until `matchweek` has been played. */
-function simTo(g: Game, matchweek: number): void {
-  if (g.phase === 'preseason') startSeasonProper(g)
-  while (g.season!.matchweek < matchweek && g.phase !== 'summary') {
-    playMatchweek(g, u, true)
-    if (g.phase === 'match') g.phase = 'week'
+const snapshot = (g: Game) => JSON.stringify(g)
+const GOALS = new Set(['goal', 'penalty', 'own_goal'])
+
+/** Every game of the list rebuilds to the score, side and opponent shown, and its goals are the scorers the list names. */
+function expectEveryGameRebuilt(g: Game, results: QuickGameResult[]): void {
+  const before = snapshot(g)
+  for (const r of results) {
+    const hl = quickHighlights(g, u, r.matchweek)
+    expect(hl, `matchweek ${r.matchweek}`).not.toBeNull()
+    const mine = hl!.userHome ? 'home' : 'away'
+    expect(hl!.userHome).toBe(r.home)
+    expect(hl!.userHome ? hl!.awayTeamId : hl!.homeTeamId).toBe(r.opponentId)
+    expect(hl!.userHome ? [hl!.homeGoals, hl!.awayGoals] : [hl!.awayGoals, hl!.homeGoals]).toEqual([r.gf, r.ga])
+    const last = hl!.moments.at(-1)?.score ?? { home: 0, away: 0 }
+    expect([last.home, last.away]).toEqual([hl!.homeGoals, hl!.awayGoals])
+    const ours = hl!.events.filter((e) => GOALS.has(e.type) && e.side === mine).map((e) => e.minute)
+    expect(ours).toEqual(r.scorers.map((s) => s.minute))
   }
+  // Rebuilding never moves the save
+  expect(snapshot(g)).toBe(before)
 }
 
-function nextOpponentId(g: Game): string {
-  const mw = g.season!.matchweek + 1
-  const f = g.season!.fixtures.find((x) => x.matchweek === mw && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))!
-  return f.homeTeamId === USER_TEAM ? f.awayTeamId : f.homeTeamId
-}
-
-/** Rewrite every played result's score; only the goals feed the table. */
-function rescore(g: Game, score: (home: string, away: string) => [number, number]): void {
-  for (const f of g.season!.fixtures) {
-    if (!f.result) continue
-    const [h, a] = score(f.homeTeamId, f.awayTeamId)
-    f.result.homeGoals = h
-    f.result.awayGoals = a
-  }
-}
-
-/** A matchweek at or after `from` whose opponent is no rival of the host, played up to the week before it. */
-function quietWeekFrom(g: Game, from: number): string {
-  simTo(g, from - 1)
-  const rivals = u.clubById[g.season!.hostClubId].rivals
-  while (rivals.includes(nextOpponentId(g))) simTo(g, g.season!.matchweek + 1)
-  return nextOpponentId(g)
-}
-
-/** A store holding this game, as the Dugout sees it. */
-function storeWith(g: Game) {
-  useStore.setState({ universe: u, game: g, screen: 'game', simStop: null })
-  return useStore.getState()
-}
-
-describe('nextStop', () => {
-  it('stops for Derby day the week before Everton play Liverpool', () => {
-    expect(u.clubById.everton.rivals).toContain('liverpool')
-    const g = seasonGame()
-    const derby = g.season!.fixtures.filter((f) => (f.homeTeamId === USER_TEAM && f.awayTeamId === 'liverpool') || (f.awayTeamId === USER_TEAM && f.homeTeamId === 'liverpool')).map((f) => f.matchweek)
-    expect(derby).toHaveLength(2)
-    for (const mw of derby) {
-      simTo(g, mw - 1)
-      const stop = nextStop(g, u)
-      // A cup semi-final or final the same midweek outranks the derby; neither falls on these weeks for this seed
-      expect(stop).toMatchObject({ kind: 'derby', matchweek: mw, label: 'Derby day', opponentClubId: 'liverpool' })
-      expect(stopLine(stop!, u)).toBe(`Stopped for Derby day ${stop!.home ? 'v' : 'at'} Liverpool, MW ${mw}`)
-    }
-  })
-
-  it('names a title decider from a constructed table', () => {
-    const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-title' })
-    const opp = quietWeekFrom(g, 30)
-    // The user and the next opponent win every game except the one between them, which the user won
-    rescore(g, (h, a) => (h === USER_TEAM || (h === opp && a !== USER_TEAM) ? [2, 0] : a === USER_TEAM || (a === opp && h !== USER_TEAM) ? [0, 2] : [1, 1]))
-    const table = computeTable(g.season!.fixtures, [USER_TEAM, ...Object.keys(g.season!.ai)])
-    expect(positionOf(table, USER_TEAM)).toBe(1)
-    expect(positionOf(table, opp)).toBe(2)
-    expect(nextStop(g, u)).toMatchObject({ kind: 'title-decider', label: 'Title decider', opponentClubId: opp, matchweek: g.season!.matchweek + 1 })
-  })
-
-  it('stops before a pending cup semi-final and final, in either competition', () => {
-    const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-cup' })
-    quietWeekFrom(g, 12)
-    const mw = g.season!.matchweek + 1
-    expect(nextStop(g, u)).toBeNull()
-    g.season!.cupEliminated = false
-    g.season!.cupWon = false
-    g.season!.cup.push({ round: 'SF', afterMatchweek: mw, homeTeamId: 'arsenal', awayTeamId: USER_TEAM })
-    const sf = nextStop(g, u)
-    expect(sf).toMatchObject({ kind: 'semi-final', label: 'Cup semi-final', comp: 'cup', opponentClubId: 'arsenal', home: false, matchweek: mw })
-    expect(stopLine(sf!, u)).toBe(`Stopped for the Cup semi-final at Arsenal, midweek after MW ${mw}`)
-    g.season!.cup[g.season!.cup.length - 1].round = 'F'
-    expect(nextStop(g, u)).toMatchObject({ kind: 'final', label: 'Cup final' })
-    // Out of the cup: the tie no longer stops anything
-    g.season!.cupEliminated = true
-    expect(nextStop(g, u)?.kind).not.toBe('final')
-  })
-
-  it('stops for an open title race in the run-in, and not before it', () => {
-    const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-race' })
-    const opp = quietWeekFrom(g, 38 - RUN_IN_WEEKS + 1)
-    const rival = Object.keys(g.season!.ai).find((id) => id !== opp && !u.clubById.burnley.rivals.includes(id))!
-    // The user and one rival win everything but their meeting (a draw); the next opponent scores nothing and loses to both
-    rescore(g, (h, a) => {
-      const pair = [h, a]
-      if (pair.includes(USER_TEAM) && pair.includes(rival)) return [1, 1]
-      if (h === USER_TEAM || h === rival) return [2, 0]
-      if (a === USER_TEAM || a === rival) return [0, 2]
-      return h === opp || a === opp ? [0, 0] : [1, 1]
-    })
-    const stop = nextStop(g, u)
-    expect(stop).toMatchObject({ kind: 'title-run-in', label: 'Title run-in' })
-    expect(Math.abs(stop!.gap!)).toBeLessThanOrEqual(3)
-    // The same race five weeks earlier is not the run-in yet
-    const early = seasonGame({ hostClubId: 'burnley', seed: 'highlights-race' })
-    quietWeekFrom(early, 28)
-    rescore(early, (h, a) => (h === USER_TEAM ? [2, 0] : a === USER_TEAM ? [0, 2] : [1, 1]))
-    expect(early.season!.matchweek + 1).toBeLessThanOrEqual(38 - RUN_IN_WEEKS)
-    expect(nextStop(early, u)?.kind).not.toBe('title-run-in')
-  })
-
-  it('stops for an open relegation fight, but not once the drop is certain', () => {
-    const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-drop' })
-    const opp = quietWeekFrom(g, 38 - RUN_IN_WEEKS + 1)
-    const leader = Object.keys(g.season!.ai).find((id) => id !== opp)!
-    // One club wins everything; the rest draw 1-1, the user 0-0, so the user sits last on goals scored, level on points with safety
-    rescore(g, (h, a) => (h === leader ? [1, 0] : a === leader ? [0, 1] : h === USER_TEAM || a === USER_TEAM ? [0, 0] : [1, 1]))
-    const stop = nextStop(g, u)
-    expect(stop).toMatchObject({ kind: 'survival-run-in', inDrop: true })
-    expect(stopLine(stop!, u)).toMatch(/^Stopped for the survival run-in, MW \d+: in the bottom three/)
-    // Lose everything and safety is out of reach: nothing left to manage
-    rescore(g, (h, a) => (h === USER_TEAM ? [0, 3] : a === USER_TEAM ? [3, 0] : [1, 1]))
-    expect(nextStop(g, u)).toBeNull()
-  })
-})
-
-describe('stops after a simmed week', () => {
-  it('stops the week the January window opens, and only that week', () => {
-    const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-window' })
-    const half = Math.floor(g.season!.matchweeks / 2)
-    simTo(g, half - 1)
-    let m = weekMark(g)
-    simTo(g, half)
-    expect(stopAfterWeek(g, m)).toMatchObject({ kind: 'window', matchweek: half })
-    expect(g.window).toMatchObject({ kind: 'january', day: 0 })
-    expect(stopLine(stopAfterWeek(g, m)!, u)).toBe(`Stopped: the January window opened after MW ${half}`)
-    m = weekMark(g)
-    simTo(g, half + 1)
-    expect(stopAfterWeek(g, m)).toBeNull()
-  })
-
-  it('stops for the board only when confidence crosses below 25 with job security on', () => {
-    const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-board', jobSecurity: true })
-    simTo(g, 12)
-    const season = g.season!
-    season.confidence = BOARD_ALARM - 3
-    expect(stopAfterWeek(g, { confidence: BOARD_ALARM + 1, januaryOpen: false })).toMatchObject({ kind: 'board', confidence: BOARD_ALARM - 3, matchweek: 12 })
-    expect(stopAfterWeek(g, { confidence: BOARD_ALARM, januaryOpen: false })?.kind).toBe('board')
-    // Already below before the week, or still above after it: no stop
-    expect(stopAfterWeek(g, { confidence: BOARD_ALARM - 1, januaryOpen: false })).toBeNull()
-    season.confidence = BOARD_ALARM
-    expect(stopAfterWeek(g, { confidence: BOARD_ALARM + 10, januaryOpen: false })).toBeNull()
-    // Without job security the board cannot sack you, so it never stops the sim
-    season.confidence = BOARD_ALARM - 3
-    g.settings.jobSecurity = false
-    expect(stopAfterWeek(g, { confidence: BOARD_ALARM + 1, januaryOpen: false })).toBeNull()
-  })
-})
-
-describe('simToNextStop and the store action', () => {
-  it('from pre-season stops before the first stop week, and the next Play plays it live', () => {
-    const g = seasonGame()
-    expect(simToLabel(g, u)).toMatch(/^Sim to (Derby day|the January window|Cup (semi-)?final|Continental (semi-)?final) \(MW \d+\)$/)
-    const seen = foreseeStop(g, u)!
-    const store = storeWith(g)
-    store.simToNextBigMatch()
-    const after = useStore.getState().game!
-    const stop = useStore.getState().simStop!.stop
-    expect(after.phase).toBe('week')
-    expect(after.live).toBeNull()
-    // The sim never runs past what it could see coming
-    const reached = stop.kind === 'window' || stop.kind === 'board' ? stop.matchweek : stop.matchweek - 1
-    expect(reached).toBeLessThanOrEqual(seen.matchweek)
-    expect(useStore.getState().simStop).toMatchObject({ gameId: after.id, year: after.year, matchweek: after.season!.matchweek })
-    if (stop.kind !== 'window' && stop.kind !== 'board') {
-      // A match stop leaves that week unplayed for the manager
-      expect(stop.matchweek).toBe(after.season!.matchweek + 1)
-      expect(nextStop(after, u)).toEqual(stop)
-      useStore.getState().playWeek()
-      expect(useStore.getState().game!.live?.kind).toBe('league')
-    }
-  })
-
-  it('plays exactly the weeks Sim 5 would play before the stop', () => {
-    for (const [host, seed] of [['everton', 'hl-eq-1'], ['burnley', 'hl-eq-2'], ['fulham', 'hl-eq-3'], ['brentford', 'hl-eq-4']]) {
-      const a = seasonGame({ hostClubId: host, seed })
-      const b = structuredClone(a)
-      storeWith(a).simToNextBigMatch()
-      const ran = useStore.getState().game!
-      const k = ran.season!.matchweek
-      storeWith(b).simWeeks(k)
-      const sim = useStore.getState().game!
-      expect(sim.rngState).toEqual(ran.rngState)
-      expect(JSON.stringify(sim)).toBe(JSON.stringify(ran))
-    }
-  }, 120000) // whole runs through the persisted store: 12 to 15 s alone on a loaded machine, so 30 s timed out under the full suite
-
-  it('the store plays a season to the summary through its stops', () => {
-    for (const [host, seed, jobSecurity] of [['everton', 'hl-store-1', false], ['crystal-palace', 'hl-store-2', true]] as const) {
-      storeWith(seasonGame({ hostClubId: host, seed, jobSecurity }))
-      for (let guard = 0; guard < 60 && useStore.getState().game!.phase !== 'summary'; guard++) {
-        useStore.getState().simToNextBigMatch()
-        const s = useStore.getState()
-        // The run that ends the season leaves no stop behind and files the result
-        if (s.game!.phase === 'summary') expect(s.simStop).toBeNull()
-        // The manager takes the big match (here the assistant plays it, as Sim 5 would)
-        else if (s.simStop!.stop.kind !== 'window' && s.simStop!.stop.kind !== 'board') s.simWeeks(1)
-      }
-      expect(useStore.getState().game!.phase).toBe('summary')
-      expect(useStore.getState().profile.leaderboard.some((e) => e.seed === seed)).toBe(true)
-    }
-  }, 120000) // whole runs through the persisted store: 12 to 15 s alone on a loaded machine, so 30 s timed out under the full suite
-
-  it('stops a few times a season, every season (balance guard)', () => {
-    const counts: number[] = []
-    const hosts = ['burnley', 'everton', 'brentford', 'fulham', 'nottingham-forest', 'crystal-palace']
-    for (let i = 0; i < 12; i++) {
-      const g = seasonGame({ hostClubId: hosts[i % hosts.length], seed: `hl-run-${i}`, jobSecurity: i % 2 === 1 })
-      let stops = 0
-      for (let stop = simToNextStop(g, u); stop; stop = simToNextStop(g, u)) {
-        stops++
-        if (stop.kind === 'window') expect(g.window).toMatchObject({ kind: 'january', day: 0 })
-        if (stop.kind !== 'window' && stop.kind !== 'board') {
-          expect(stop.matchweek).toBe(g.season!.matchweek + 1)
-          playMatchweek(g, u, true)
-          if (g.phase === 'match') g.phase = 'week'
-        }
-      }
-      expect(g.phase).toBe('summary')
-      counts.push(stops)
-    }
-    const mean = counts.reduce((x, y) => x + y, 0) / counts.length
-    // Measured 5.0 stops a season over 108 auto-managed seasons (p10/p50/p90 1/5/9, the window included); all stops or none is a regression
-    expect(mean).toBeGreaterThan(2.5)
-    expect(mean).toBeLessThan(8)
-    expect(Math.min(...counts)).toBeGreaterThanOrEqual(1)
-    expect(Math.max(...counts)).toBeLessThan(15)
-  }, 120000) // twelve seasons: 17 s alone on a loaded machine
-
-  it('reads nothing once the season is over', () => {
-    const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-end' })
-    simTo(g, 38)
+// Whole seasons replayed game by game: seconds alone, slower beside the other files
+describe('highlights of any game of a quick season', { timeout: 300_000 }, () => {
+  // One season per test: a whole season replayed game by game is long synchronous work for one worker
+  it.each(['hl-1', 'hl-2'])('rebuilds every game of a season (%s) to exactly the score shown, the same reel every time, the save untouched', (seed) => {
+    const g = drafted({ seed })
+    kickOff(g, u)
     expect(g.phase).toBe('summary')
-    expect(nextStop(g, u)).toBeNull()
-    expect(foreseeStop(g, u)).toBeNull()
-    expect(simToNextStop(g, u)).toBeNull()
+    expect(g.quickResult!.startRng).toBeDefined()
+    expect(canShowHighlights(g)).toBe(true)
+    const results = g.quickResult!.results!
+    expect(results).toHaveLength(38)
+    expectEveryGameRebuilt(g, results)
+    expect(quickHighlights(g, u, 7)).toEqual(quickHighlights(g, u, 7))
+  })
+
+  it('rebuilds a season with a January deal and tactics changed in the window, and the first half while the window is open', () => {
+    const g = drafted({ seed: 'hl-jan', january: true })
+    kickOff(g, u)
+    expect(g.phase).toBe('january')
+    expect(canShowHighlights(g)).toBe(true)
+    expectEveryGameRebuilt(g, playbackResults(g))
+    expect(g.quickJanuary!.listings.length).toBeGreaterThan(0)
+    g.tactics = { ...defaultTactics(g.tactics.formationId), mentality: 'attacking', pressing: 'high' }
+    closeJanuary(g, u, 0)
+    expect(g.phase).toBe('summary')
+    expect(g.quickResult!.january).toBeDefined()
+    expectEveryGameRebuilt(g, g.quickResult!.results!)
+  })
+
+  it('rebuilds a season with a bench and a change made during the playback', () => {
+    const g = drafted({ seed: 'hl-bench' }, { benchPicks: 3 })
+    kickOff(g, u)
+    const games = playbackResults(g)
+    const v = quickSquadAt(g, u, games, 12)
+    const get = playerLookup(g, u)
+    const slot = getFormation(g.tactics.formationId).slots.find((s) => v.lineup[s.id] && v.bench.some((id) => !v.out.includes(id) && canPlayFor(g)(get(id)!, s.position)))!
+    const inId = v.bench.find((id) => !v.out.includes(id) && canPlayFor(g)(get(id)!, slot.position))!
+    makeQuickChange(g, u, games, 12, slot.id, inId)
+    expect(g.quickResult!.changes).toHaveLength(1)
+    expectEveryGameRebuilt(g, g.quickResult!.results!)
+  })
+
+  it('keeps a bench season open, its changes and every game watchable through the compacted, compressed save and a reload', () => {
+    const g = drafted({ seed: 'hl-save' }, { benchPicks: 3 })
+    kickOff(g, u)
+    const games = playbackResults(g)
+    const v = quickSquadAt(g, u, games, 10)
+    const get = playerLookup(g, u)
+    const slot = getFormation(g.tactics.formationId).slots.find((s) => v.lineup[s.id] && v.bench.some((id) => !v.out.includes(id) && canPlayFor(g)(get(id)!, s.position)))!
+    const inId = v.bench.find((id) => !v.out.includes(id) && canPlayFor(g)(get(id)!, slot.position))!
+    makeQuickChange(g, u, games, 10, slot.id, inId)
+    // What the store writes (compactGame, then lz-string) and reads back (decode, then normaliseGame)
+    const stored = encodeSave(JSON.stringify(compactGame(g)))
+    const back = normaliseGame(JSON.parse(decodeSave(stored)!) as Game)!
+    expect(back.quickOpen).toBe(g.quickOpen)
+    expect(back.quickChanges).toEqual(g.quickChanges)
+    expect(back.quickStartRng).toEqual(g.quickStartRng)
+    expect(back.draft?.rules.benchPicks).toBe(3)
+    expect(back.draft?.bench).toEqual(g.draft?.bench)
+    expect(back.quickResult).toEqual(g.quickResult)
+    expect(canShowHighlights(back)).toBe(true)
+    expectEveryGameRebuilt(back, back.quickResult!.results!)
+  })
+
+  it('shows the moments worth watching: every goal and card, chances and saves across seasons, men on the pitch when they act', () => {
+    let chances = 0
+    let saves = 0
+    let games = 0
+    for (const seed of ['hl-s1', 'hl-s2', 'hl-s3']) {
+      const g = drafted({ seed })
+      kickOff(g, u)
+      for (const r of g.quickResult!.results!.filter((_, i) => i % 3 === 0)) {
+        const hl = quickHighlights(g, u, r.matchweek)!
+        games++
+        const kinds = hl.moments.map((m) => m.kind)
+        expect(kinds.filter((k) => GOALS.has(k))).toHaveLength(r.gf + r.ga)
+        expect(kinds.filter((k) => k === 'yellow' || k === 'red')).toHaveLength(hl.events.filter((e) => e.type === 'yellow' || e.type === 'red').length)
+        expect(hl.moments.map((m) => m.minute)).toEqual([...hl.moments.map((m) => m.minute)].sort((a, b) => a - b))
+        chances += kinds.filter((k) => k === 'chance').length
+        saves += kinds.filter((k) => k === 'save').length
+        // Eleven men a side from kick-off, and every shot by a man on the pitch at the time
+        for (const side of ['home', 'away'] as const) {
+          expect(hl[side].appearances.filter((a) => a.onAt === 0)).toHaveLength(11)
+          for (const e of hl.events.filter((x) => (x.type === 'chance' || x.type === 'save' || x.type === 'goal') && x.side === side)) {
+            const a = hl[side].appearances.find((x) => x.psId === e.playerId)
+            expect(a, e.text).toBeDefined()
+            expect(a!.onAt).toBeLessThanOrEqual(e.minute)
+          }
+        }
+        for (const e of hl.events.filter((x) => x.type === 'chance' || x.type === 'save' || GOALS.has(x.type))) expect(e.position).toBeDefined()
+        expect(hl.momentum).toHaveLength(18)
+      }
+    }
+    // Two a side per half at most, so a reel stays short; across 39 games there are plenty of both
+    expect(chances / games).toBeGreaterThan(0.5)
+    expect(saves / games).toBeGreaterThan(0.3)
+    expect((chances + saves) / games).toBeLessThanOrEqual(8)
+  })
+
+  it('offers nothing for an older save without the start state, or for a game that no longer replays to its score', () => {
+    const g = drafted({ seed: 'hl-old' })
+    kickOff(g, u)
+    const old = JSON.parse(snapshot(g)) as Game
+    delete old.quickResult!.startRng
+    expect(canShowHighlights(old)).toBe(false)
+    expect(quickHighlights(old, u, 1)).toBeNull()
+    const forged = JSON.parse(snapshot(g)) as Game
+    forged.quickResult!.results![4].gf += 1
+    expect(quickHighlights(forged, u, 5)).toBeNull()
+    expect(quickHighlights(g, u, 99)).toBeNull()
+  })
+
+  it('offers nothing, and does not throw, when a bench change no longer replays on the data loaded', () => {
+    const g = drafted({ seed: 'hl-bench-gone' }, { benchPicks: 3 })
+    kickOff(g, u)
+    const slot = getFormation(g.tactics.formationId).slots[0].id
+    const broken = JSON.parse(snapshot(g)) as Game
+    broken.quickChanges = [{ from: 3, slotId: slot, inId: 'nobody@2025@nowhere' }]
+    expect(() => quickHighlights(broken, u, 10)).not.toThrow()
+    expect(quickHighlights(broken, u, 10)).toBeNull()
+    // The games before the change still replay
+    expect(quickHighlights(broken, u, 2)).not.toBeNull()
+  })
+})
+
+describe('appearances from a summary match', () => {
+  it('puts a substitute in the slot of the man he replaced and ends a game at a red card or an injury', () => {
+    const tactics = defaultTactics('4-3-3')
+    const slots = getFormation('4-3-3').slots
+    const lineup = Object.fromEntries(slots.map((s, i) => [s.id, `p${i}`]))
+    const apps = appearancesFromEvents({ lineup, tactics }, [
+      { minute: 30, type: 'red', side: 'home', playerId: 'p3', text: '' },
+      { minute: 60, type: 'substitution', side: 'home', playerId: 'p9', secondaryId: 'sub1', text: '' },
+      { minute: 70, type: 'injury', side: 'home', playerId: 'p5', text: '' },
+      { minute: 50, type: 'substitution', side: 'away', playerId: 'p1', secondaryId: 'x', text: '' },
+    ], 'home')
+    expect(apps).toHaveLength(12)
+    expect(apps.find((a) => a.psId === 'p3')).toMatchObject({ red: true, offAt: 30 })
+    expect(apps.find((a) => a.psId === 'p5')).toMatchObject({ injured: true, offAt: 70 })
+    expect(apps.find((a) => a.psId === 'p9')!.offAt).toBe(60)
+    expect(apps.find((a) => a.psId === 'sub1')).toMatchObject({ slotId: slots[9].id, position: slots[9].position, onAt: 60, offAt: 90 })
+    expect(apps.find((a) => a.psId === 'p1')!.offAt).toBe(90)
+  })
+})
+
+describe('the reel build-up', () => {
+  it('starts two minutes before a moment, never back over the moment before, and never after the moment', () => {
+    const at = (minute: number) => ({ minute, kind: 'goal' as const, side: 'home' as const, text: '', score: { home: 0, away: 0 } })
+    const ms = [at(1), at(10), at(11), at(11), at(40)]
+    expect(ms.map((_, i) => buildUpFrom(ms, i))).toEqual([1, 8, 11, 11, 38])
+    expect(buildUpFrom(ms, 5)).toBe(0)
   })
 })

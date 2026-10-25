@@ -1,0 +1,1338 @@
+/* ------------------------------------------------------------------ match-day dashboard
+ * Tokens only (the redesign restyles it through them), every rule scoped under
+ * .matchday (and the page that holds it). Dense and dark like a match screen:
+ * small type, tabular numbers, thin rules, the pitch in the middle.
+ */
+.page.matchday-page {
+  max-width: 1680px;
+  padding-top: 6px;
+  padding-bottom: 28px;
+}
+.matchday {
+  --md-gap: 10px;
+  --md-widget-h: clamp(178px, 14.4vw, 236px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+.matchday .mono {
+  font-variant-numeric: tabular-nums;
+}
+.matchday .md-crumb {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-height: 18px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-crumb b {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------------ top bar */
+.matchday .md-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--md-gap);
+  min-height: 52px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+.matchday .md-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+.matchday .md-playback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.matchday .scoreboard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+}
+.matchday .scoreboard .score {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+  min-width: 64px;
+  text-align: center;
+}
+.matchday .scoreboard .clock {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text);
+  min-width: 108px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+.matchday .md-sb-code,
+.matchday .md-code {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 16px;
+  line-height: 1.15;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.matchday .md-code {
+  font-size: 12px;
+  padding: 1px 5px;
+}
+
+/* ------------------------------------------------------------------ main grid */
+.matchday .md-main {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 2.6fr) minmax(240px, 0.9fr);
+  gap: var(--md-gap);
+  align-items: stretch;
+}
+/* The side columns take the centre's height; their lower slot scrolls inside itself */
+.matchday .md-side {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+.matchday .md-side-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-gap);
+}
+.matchday .md-side-inner > .md-formation {
+  flex: none;
+}
+.matchday .md-side-inner > .md-slot {
+  flex: 1 1 0;
+  min-height: 120px;
+}
+.matchday .md-centre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-gap);
+  min-width: 0;
+}
+.matchday .md-widgets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--md-gap);
+  height: var(--md-widget-h);
+}
+.matchday .md-pitch-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 104px;
+  gap: 8px;
+  align-items: stretch;
+}
+@media (min-width: 1500px) {
+  .matchday .md-pitch-row {
+    grid-template-columns: 120px minmax(0, 1fr) 120px;
+  }
+}
+.matchday .md-pitch {
+  min-width: 0;
+}
+.matchday .live-legend {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+/* ------------------------------------------------------------------ panels */
+.matchday .md-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+.matchday .md-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.matchday .md-slot-pick {
+  flex: 1;
+  min-width: 0;
+}
+.matchday .md-select {
+  width: 100%;
+  max-width: 100%;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.matchday .md-slot-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 8px;
+}
+.matchday .md-empty {
+  color: var(--text-3);
+  font-size: 12px;
+  padding: 6px 2px;
+}
+.matchday .md-icon {
+  flex: none;
+  vertical-align: -2px;
+}
+
+/* ------------------------------------------------------------------ formation panels and vertical pitches */
+.matchday .md-vpitch-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  background: repeating-linear-gradient(0deg, var(--pitch) 0 12.5%, var(--pitch-2) 12.5% 25%);
+}
+.matchday .md-formation .md-vpitch-wrap {
+  margin: 6px;
+  width: calc(100% - 12px);
+  container: vpitch / inline-size;
+}
+/*
+ * A small formation pitch (the desktop side columns at 1280 to 1440): no room for names, role codes and ratings side
+ * by side, so each man is his shirt number with the rating under it; the name, the full role and the rating are in
+ * the button's tooltip.
+ */
+@container vpitch (max-width: 230px) {
+  .matchday .md-formation .md-man-name {
+    display: none;
+  }
+  .matchday .md-formation .md-man {
+    transform: translate(-50%, -50%);
+  }
+  .matchday .md-formation .md-man-shirt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .matchday .md-formation .md-man-shirt .md-shirt {
+    width: 20px;
+    height: 20px;
+  }
+  .matchday .md-formation .md-man-shirt .md-rating {
+    position: static;
+    min-width: 0;
+    padding: 0 2px;
+    font-size: 10px;
+    line-height: 12px;
+  }
+}
+.matchday .md-vpitch {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.matchday .md-vpitch-layer {
+  position: absolute;
+  inset: 4% 6%;
+}
+.matchday .md-man {
+  position: absolute;
+  transform: translate(-50%, -42%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  max-width: 76px;
+  transition: left 0.6s ease, top 0.6s ease;
+}
+.matchday .md-man:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.matchday .md-man.selected .md-shirt {
+  filter: drop-shadow(0 0 3px var(--primary));
+}
+.matchday .md-man.out {
+  opacity: 0.45;
+}
+.matchday .md-man-shirt {
+  position: relative;
+  display: block;
+  line-height: 0;
+}
+.matchday .md-man-shirt .md-rating {
+  position: absolute;
+  right: -20px;
+  top: 2px;
+}
+.matchday .md-man-sub {
+  position: absolute;
+  left: -9px;
+  top: 0;
+}
+.matchday .md-man-card {
+  position: absolute;
+  left: -9px;
+  bottom: -1px;
+  line-height: 0;
+}
+.matchday .md-man-card .md-icon {
+  width: 10px;
+  height: 10px;
+}
+.matchday .md-man-name {
+  /* The man's own width caps it: 76px, or the gap to a team-mate level with him (labelRoom) */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+/* On the grass in both themes: a pale cyan that keeps 4.5:1 on the pitch green (the theme's accent fell to 1.3:1 in Daylight) */
+.matchday .md-role {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #dff7ff;
+}
+.matchday .md-shirt.dim {
+  filter: grayscale(1);
+}
+.matchday .md-rating {
+  display: inline-block;
+  min-width: 26px;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+}
+.matchday .md-rating.good {
+  background: var(--good);
+  border-color: var(--good);
+  color: var(--on-status);
+}
+.matchday .md-rating.bad {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text);
+}
+.matchday .md-rating.none {
+  color: var(--text-3);
+}
+
+/* ------------------------------------------------------------------ stats flanks */
+.matchday .md-flank {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+.matchday .md-flank-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  border-bottom: 3px solid;
+  padding-bottom: 2px;
+}
+.matchday .md-flank.away .md-flank-head,
+.matchday .md-flank.away dd,
+.matchday .md-flank.away dt {
+  text-align: right;
+}
+.matchday .md-flank dl {
+  flex: 1;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.matchday .md-flank-row dt {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-flank-row dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.matchday .md-view-stats {
+  flex: none;
+  width: 100%;
+  font-size: 11px;
+  padding: 3px 4px;
+}
+/* Possession reads next to the shots, not last under the cards */
+.matchday .md-flank-row:is([data-stat='shots'], [data-stat='onTarget'], [data-stat='xg']) {
+  order: -2;
+}
+.matchday .md-flank-row[data-stat='possession'] {
+  order: -1;
+}
+/*
+ * On a desktop the flank is as tall as the pitch row: the rows that matter least drop out as it gets short, and what
+ * is left scrolls inside the list, so View stats always stays inside the box.
+ */
+@media (min-width: 1200px) {
+  .matchday.fit .md-flank {
+    container: flank / size;
+  }
+  .matchday.fit .md-flank dl {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+}
+@container flank (max-height: 470px) {
+  .matchday .md-flank-row:is([data-stat='distanceKm'], [data-stat='fouls'], [data-stat='corners']) {
+    display: none;
+  }
+}
+@container flank (max-height: 360px) {
+  .matchday .md-flank-row:is([data-stat='tackles'], [data-stat='yellows'], [data-stat='passPct']) {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ momentum strip, banner */
+.matchday .momentum-strip {
+  padding: 4px 10px 2px;
+}
+.matchday .momentum-strip svg {
+  margin-top: 0;
+}
+.matchday .md-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-2);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+.matchday .md-banner.goal {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+.matchday .md-banner.card {
+  border-left-color: var(--gold);
+}
+.matchday .md-banner .min {
+  flex: none;
+  min-width: 44px;
+  color: var(--text-3);
+}
+.matchday .md-banner .txt {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  color: var(--text);
+}
+/*
+ * Only the moments slide in: a line of play changes every minute and must stay readable. The slide starts most of
+ * the way to full strength, so a line caught mid-slide (or a run of quick lines at 4x) never reads as pale grey.
+ */
+.matchday .md-banner.key .txt {
+  animation: md-in 0.3s ease;
+  font-weight: 600;
+}
+@keyframes md-in {
+  from {
+    opacity: 0.7;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ squad strip */
+.matchday .md-strip {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  scroll-snap-type: x proximity;
+}
+.matchday .md-strip-squad {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 96px;
+  padding: 4px 10px;
+  border-right: 1px solid var(--line);
+  font-size: 12px;
+}
+.matchday .md-strip-squad b {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+.matchday .md-card {
+  flex: 1 0 86px;
+  max-width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.matchday .md-card:hover {
+  border-color: var(--line-2);
+}
+.matchday .md-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.matchday .md-card.out {
+  opacity: 0.5;
+}
+.matchday .md-card-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  align-self: stretch;
+  min-height: 15px;
+}
+.matchday .md-pos {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-right: auto;
+}
+.matchday .md-card-sub {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  color: var(--accent);
+}
+.matchday .md-card-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+.matchday .md-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  align-self: stretch;
+}
+.matchday .md-cond {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.matchday .md-cond > span {
+  display: block;
+  height: 100%;
+}
+
+/* ------------------------------------------------------------------ event lists */
+.matchday .md-events,
+.matchday .md-commentary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 100%;
+  overflow: auto;
+}
+.matchday .md-slot-body > .md-events,
+.matchday .md-slot-body > .md-commentary {
+  max-height: none;
+  overflow: visible;
+}
+.matchday .md-ev,
+.matchday .md-line {
+  display: grid;
+  grid-template-columns: 38px 16px minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  animation: md-in 0.25s ease;
+}
+.matchday .md-line {
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+}
+.matchday .md-ev .txt,
+.matchday .md-line .txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-ev .txt {
+  white-space: nowrap;
+}
+.matchday .md-ev .min,
+.matchday .md-line .min {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.matchday .md-ev.away {
+  grid-template-columns: minmax(0, 1fr) 16px 38px;
+  text-align: right;
+}
+.matchday .md-ev.away .min {
+  order: 3;
+}
+.matchday .md-ev.away .md-icon {
+  order: 2;
+}
+.matchday .md-ev.away .txt {
+  order: 1;
+}
+.matchday .md-ev.goal,
+.matchday .md-ev.penalty,
+.matchday .md-ev.own_goal {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 700;
+}
+.matchday .md-ev.whistle {
+  color: var(--text-3);
+  border-top: 1px dashed var(--line);
+}
+.matchday .md-ev.change .txt {
+  white-space: normal;
+  color: var(--info);
+}
+.matchday .md-line.goal {
+  font-weight: 700;
+  color: var(--accent);
+}
+.matchday .md-line.play {
+  color: var(--text-2);
+}
+.matchday .md-line.elsewhere {
+  color: var(--info);
+}
+
+/* ------------------------------------------------------------------ stats table, momentum widget, dugout */
+.matchday .md-stats-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.matchday .md-stat-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  gap: 6px;
+  align-items: center;
+  padding: 1px 0;
+  font-size: 12px;
+}
+.matchday .md-stat-row .a {
+  text-align: right;
+}
+.matchday .md-stat-row .mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.matchday .md-stat-row .lbl {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.matchday .md-share {
+  display: flex;
+  width: 100%;
+  height: 4px;
+  gap: 1px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--bg-3);
+}
+.matchday .md-share > span {
+  display: block;
+  height: 100%;
+  transition: width 0.4s ease;
+}
+.matchday .md-momentum svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.matchday .md-spells {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.matchday .md-counters {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.matchday .md-counters b {
+  font-size: 15px;
+}
+.matchday .md-bench {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 6px;
+}
+.matchday .md-bench .lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+.matchday .md-bench-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+.matchday .md-bench-row.used {
+  color: var(--text-3);
+}
+.matchday .md-bench-row.unavailable {
+  color: var(--danger);
+}
+.matchday .md-notes {
+  margin: 0;
+  padding-left: 16px;
+}
+
+/* ------------------------------------------------------------------ map widgets */
+.matchday .md-map {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+.matchday .md-map .pitch-svg,
+.matchday .md-map .shot-map .pitch-svg {
+  border-radius: 6px;
+}
+/* In the row over the pitch the maps size by the slot's height */
+.matchday .md-widgets .md-map .pitch-svg {
+  height: calc(var(--md-widget-h) - 94px);
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 111 / 74;
+  margin: 0 auto;
+}
+.matchday .md-widgets .md-map .shot-map .pitch-svg {
+  height: calc(var(--md-widget-h) - 84px);
+}
+.matchday .md-map .live-legend {
+  font-size: 10px;
+}
+.matchday .md-toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.matchday .md-toggle button {
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.matchday .md-toggle button.active {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.matchday .md-links {
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.matchday .md-channels {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+  gap: 8px;
+  font-size: 11px;
+}
+.matchday .md-heat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+.matchday .md-heat .md-vpitch-wrap {
+  width: 100%;
+}
+.matchday .md-widgets .md-heat .md-vpitch-wrap {
+  height: calc(var(--md-widget-h) - 46px);
+  width: auto;
+}
+.matchday .md-heat-side .md-select {
+  font-size: 11px;
+  width: 100%;
+}
+.matchday .md-heat-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.matchday .md-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-3);
+}
+.matchday .md-heat-scale {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 15%, transparent), var(--gold), var(--danger));
+}
+
+/* ------------------------------------------------------------------ latest scores, live table, info */
+.matchday .md-scores {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.matchday .md-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 40px;
+  gap: 2px 6px;
+  align-items: center;
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.matchday .md-score .code {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-score .h {
+  text-align: right;
+}
+.matchday .md-score .res {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  font-weight: 700;
+  text-align: center;
+}
+.matchday .md-score .st {
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: right;
+}
+.matchday .md-score .scorer {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-score.fresh .res {
+  background: var(--primary);
+  color: var(--on-primary);
+  animation: md-pulse 1s ease;
+}
+@keyframes md-pulse {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.matchday .md-table {
+  height: 100%;
+  overflow: auto;
+}
+.matchday .md-slot-body > .md-table {
+  margin: -6px -8px;
+  height: calc(100% + 12px);
+}
+.matchday .md-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.matchday .md-tbl th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+  color: var(--text-3);
+  font-weight: 600;
+  font-size: 11px;
+  text-align: left;
+  padding: 3px 4px;
+}
+.matchday .md-tbl td {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.matchday .md-tbl .num {
+  text-align: right;
+}
+.matchday .md-tbl .team {
+  max-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-tbl .team .nm {
+  color: var(--text-3);
+}
+.matchday .md-tbl .pts {
+  font-weight: 700;
+}
+.matchday .md-tbl tr.user td {
+  background: var(--primary-soft);
+  font-weight: 700;
+}
+.matchday .md-tbl .mv {
+  width: 12px;
+  padding: 0;
+  font-size: 9px;
+  text-align: center;
+}
+.matchday .md-tbl .mv.up {
+  color: var(--good);
+}
+.matchday .md-tbl .mv.down {
+  color: var(--danger);
+}
+.matchday .md-playing {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+.matchday .md-note {
+  padding: 4px 6px;
+}
+.matchday .md-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.matchday .md-info-side {
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+.matchday .md-xg {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.matchday .md-xg-foot {
+  font-size: 11px;
+  text-align: center;
+}
+.matchday .md-goals {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+/* ------------------------------------------------------------------ stop panel */
+.matchday .md-stop {
+  border-color: var(--primary);
+  border-radius: var(--radius-s);
+  padding: 10px 12px;
+}
+.matchday .md-stop .panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.matchday .md-stop .panel-head h2 {
+  font-size: 22px;
+}
+.matchday .md-stop-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.matchday .md-stop-actions .btn.big {
+  padding: 8px 16px;
+  font-size: 15px;
+}
+.matchday .md-stop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.matchday .md-stop .field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.matchday .md-stop .field .help {
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-stop .segmented {
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+.matchday .md-stop .segmented button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.matchday .md-stop .col {
+  gap: 8px;
+  min-width: 0;
+}
+.matchday .md-stop .plist {
+  max-height: 220px;
+  overflow: auto;
+}
+.matchday .md-stop .prow {
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.matchday .md-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--md-gap);
+}
+
+/* ------------------------------------------------------------------ stacked layout (under 1200 px) */
+.matchday.compact {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+.matchday.compact .md-topbar {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'board' 'tools' 'play';
+}
+.matchday.compact .scoreboard {
+  grid-area: board;
+  justify-content: center;
+}
+.matchday.compact .md-tools {
+  grid-area: tools;
+}
+.matchday.compact .md-playback {
+  grid-area: play;
+  flex-wrap: wrap;
+}
+.matchday.compact .md-pulse {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--md-gap);
+}
+.matchday.compact .md-pulse > .mchart {
+  background: var(--panel);
+  padding: 6px 10px;
+}
+.matchday.compact .md-stack {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--md-gap);
+}
+.matchday.compact .md-slot-body {
+  flex: none;
+  max-height: 380px;
+}
+.matchday.compact .md-heat .md-vpitch-wrap {
+  height: auto;
+  width: 100%;
+  max-width: none;
+}
+.matchday.compact .md-heat {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  height: auto;
+}
+.matchday.compact .md-stop-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.matchday.compact .md-strip-scroll {
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .matchday {
+    font-size: 12px;
+  }
+  .matchday .md-topbar {
+    padding: 6px;
+  }
+  .matchday .scoreboard {
+    gap: 6px;
+    padding: 4px 8px;
+  }
+  .matchday .scoreboard .score {
+    font-size: 26px;
+    min-width: 48px;
+  }
+  .matchday .scoreboard .clock {
+    min-width: 0;
+    font-size: 12px;
+    padding-left: 6px;
+  }
+  .matchday.compact .md-pulse,
+  .matchday.compact .md-stack,
+  .matchday .md-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .matchday .md-strip {
+    flex-wrap: nowrap;
+  }
+  .matchday .md-card {
+    flex: 0 0 86px;
+  }
+  .matchday .md-stop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .matchday .md-stop-actions {
+    margin-left: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ motion */
+@media (prefers-reduced-motion: reduce) {
+  .matchday .md-banner .txt,
+  .matchday .md-ev,
+  .matchday .md-line,
+  .matchday .md-score.fresh .res {
+    animation: none;
+  }
+  .matchday .md-man,
+  .matchday .md-share > span {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ desktop: the board fits the window
+ * From 1200 px wide the dashboard is exactly the window's height less what stands above and below it
+ * (`--md-fit`, set by the shell): the widget row and the strip keep their size, the pitch row takes the
+ * rest and the pitch is sized by whichever of the row's width and height runs out first. No page scroll. */
+@media (min-width: 1200px) {
+  .page.matchday-page {
+    padding-bottom: 8px;
+  }
+  .matchday.fit {
+    height: var(--md-fit, auto);
+    min-height: 0;
+  }
+  .matchday.fit .md-main {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .matchday.fit .md-centre {
+    min-height: 0;
+  }
+  .matchday.fit .md-widgets {
+    flex: none;
+    height: clamp(112px, 19vh, 236px);
+  }
+  .matchday.fit .md-pitch-row {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .matchday.fit .md-pitch-row > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .matchday.fit .md-pitch {
+    display: flex;
+    flex-direction: column;
+  }
+  .matchday.fit .md-pitch .live-pitch {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .matchday.fit .md-pitch .live-pitch > .pitch-svg-box {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    container-type: size;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .matchday.fit .md-pitch .pitch-svg-box > .pitch-svg {
+    width: min(100cqw, calc(100cqh * 111 / 74));
+    height: auto;
+  }
+  .matchday.fit .md-pitch .live-legend {
+    width: 100%;
+    flex: none;
+  }
+  .matchday.fit .md-strip,
+  .matchday.fit .md-banner,
+  .matchday.fit .md-topbar,
+  .matchday.fit .md-crumb,
+  .matchday.fit .momentum-strip {
+    flex: none;
+  }
+}
+@media (min-width: 1200px) {
+  /* The side columns share the centre's height: the formation pitch is sized by the room it has, the widget slot under it takes a fixed share */
+  .matchday.fit .md-side-inner > .md-formation {
+    flex: 1 1 0;
+    min-height: 0;
+    container-type: size;
+  }
+  .matchday.fit .md-formation .md-vpitch-wrap {
+    flex: none;
+    align-self: center;
+    width: min(calc(100cqw - 12px), calc((100cqh - 42px) * 68 / 80.24));
+  }
+  .matchday.fit .md-side-inner > .md-slot {
+    flex: 0 0 40%;
+    min-height: 0;
+  }
+}
+/* A short desktop window (720 to 940 px high): the momentum strip gives its room to the pitch (it is still a widget), the widget row and the squad cards slim down */
+@media (min-width: 1200px) and (max-height: 940px) {
+  .matchday.fit .md-centre > .momentum-strip {
+    display: none;
+  }
+  .matchday.fit .md-widgets {
+    height: clamp(96px, 15vh, 160px);
+  }
+  .matchday.fit .md-strip {
+    padding: 4px;
+  }
+  .matchday.fit .md-card {
+    gap: 0;
+    padding: 2px 6px;
+  }
+  .matchday.fit {
+    gap: 6px;
+  }
+}
+/* The app's top bar folded away: the restore pill sits in the top-right corner, in the competition line's row, clear of the board's controls */
+@media (min-width: 1200px) {
+  .app.bar-hidden > .page.matchday-page {
+    padding-top: 8px;
+  }
+}
+.app.bar-hidden .matchday .md-crumb {
+  min-height: 40px;
+  align-items: center;
+  padding-right: 180px;
+}

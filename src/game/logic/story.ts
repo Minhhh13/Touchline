@@ -1,9 +1,9 @@
 import type { LoadedUniverse } from '@engine/universe'
-import type { LeagueSeasonRow, SeasonTier } from '@engine/types'
+import type { Fixture, LeagueSeasonRow, MatchResult, SeasonTier } from '@engine/types'
 import { matchweeksFor, USER_TEAM } from '@engine/season'
 import { clinchMatchweeks } from '@engine/story'
 import { ordinal } from '@engine/awards'
-import type { Game, QuickGameResult } from '../types'
+import type { Game, QuickGameResult, QuickRounds } from '../types'
 import { bestWin, outcomeOf, recordUserGames, type Outcome } from './gameByGame'
 import { playerLookup } from './players'
 
@@ -192,7 +192,10 @@ export function storyForGame(game: Game, u: LoadedUniverse): SeasonStory | null 
   const q = game.quickResult
   if (q) {
     if (!q.results?.length) return null
-    const story = seasonStory(q.results, { clinchedAt: q.clinchedAt, doomedAt: q.doomedAt, tier, matchweeks: matchweeksFor(q.table.length), clubs: q.table.length, nameOf })
+    // The weeks it was decided come from every club's results by matchweek (`rounds`); a save from the casual-modes
+    // branch stored them instead, and one with neither is retold from the positions
+    const clinch = q.clinchedAt === undefined && q.rounds ? clinchMatchweeks(roundsFixtures(q.rounds), q.rounds.ids, USER_TEAM) : { clinchedAt: q.clinchedAt, doomedAt: q.doomedAt }
+    const story = seasonStory(q.results, { ...clinch, tier, matchweeks: matchweeksFor(q.table.length), clubs: q.table.length, nameOf })
     // The line written when the season was played wins over a retelling
     return q.moment ? { ...story, moment: q.moment } : story
   }
@@ -205,6 +208,19 @@ export function storyForGame(game: Game, u: LoadedUniverse): SeasonStory | null 
   // A run-in is told from the week it took over, on the table it carried in
   const clinch = clinchMatchweeks(season.takeoverAt ? season.fixtures.filter((f) => f.matchweek > season.takeoverAt!) : season.fixtures, ids, USER_TEAM, 3, season.carryIn)
   return seasonStory(results, { ...clinch, tier, matchweeks: season.matchweeks, clubs: ids.length, nameOf, sacked: season.sacked })
+}
+
+/** A quick season's packed rounds as played fixtures (scores only), what `clinchMatchweeks` reads. Pure. */
+export function roundsFixtures(r: QuickRounds): Fixture[] {
+  const out: Fixture[] = []
+  r.weeks.forEach((w, i) => {
+    for (let k = 0; k + 3 < w.length; k += 4) {
+      const homeTeamId = r.ids[w[k]]
+      const awayTeamId = r.ids[w[k + 1]]
+      out.push({ matchweek: i + 1, homeTeamId, awayTeamId, result: { homeTeamId, awayTeamId, homeGoals: w[k + 2], awayGoals: w[k + 3], events: [], homeStats: [], awayStats: [], xg: { home: 0, away: 0 } } as MatchResult } as Fixture)
+    }
+  })
+  return out
 }
 
 /** How the club the user replaced really did that season, when its club-season is complete and the league has the table. */

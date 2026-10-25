@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
 import type { Appearance } from '@engine/match'
-import { territory, xgSeries } from '../match/charts'
+import { momentumScale, territory, xgSeries } from '../match/charts'
 import { metres, placeSide, separateSides } from '../match/pitchGeometry'
 import { buildBallPath, MAX_HOP } from '../match/possession'
 
@@ -62,5 +62,16 @@ describe('separating mirrored shapes', () => {
       const path = buildBallPath({ from: 0, to: 90, momentum: [], events: [], home: sep.home, away: sep.away, seed: hf + af })
       for (let i = 1; i < path.length; i++) if (path[i].kind !== 'reset') expect(Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y)).toBeLessThanOrEqual(MAX_HOP + 1)
     }
+  })
+})
+
+describe('momentum scale', () => {
+  it('is the largest swing played so far, rounded up to 5 per cent, between 10 and 50', () => {
+    const momentum = Array.from({ length: 18 }, (_, i) => (i === 3 ? 0.66 : i === 12 ? 0.18 : 0.52))
+    expect(momentumScale(momentum, 30)).toBeCloseTo(0.2, 10)
+    expect(momentumScale(momentum, 95)).toBeCloseTo(0.35, 10)
+    expect(momentumScale(momentum, 0)).toBeCloseTo(0.1, 10)
+    expect(momentumScale(Array(18).fill(0.5), 95)).toBeCloseTo(0.1, 10)
+    expect(momentumScale(Array(18).fill(1), 95)).toBeCloseTo(0.5, 10)
   })
 })

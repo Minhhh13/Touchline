@@ -80,7 +80,7 @@ export function yearLabel(game: LabelledGame): string | null {
   return game.settings.mode === 'dynasty' ? `Year ${game.year}` : null
 }
 
-/** Modes whose draft ends in one click into the quick season (`runQuickSeason`) rather than a managed one. */
+/** Modes whose draft ends in the quick season (the kick-off step, then `runQuickSeason`) rather than a managed one. */
 export function isQuickLike(mode: Mode): boolean {
   switch (mode) {
     case 'quick':
@@ -110,7 +110,8 @@ export function isSharedPuzzle(mode: Mode): boolean {
  * wheel has run dry and the squad goes on short (`Go to pre-season with 15`).
  */
 export function finishDraftLabel(game: LabelledGame, made?: number): string {
-  if (isQuickLike(game.settings.mode)) return 'Simulate the season'
+  // Quick-like drafts stop at the tactics step (`toKickoff`) before the season
+  if (isQuickLike(game.settings.mode)) return 'On to kick-off'
   if (game.settings.mode === 'arena') return game.arena && game.arena.step > 0 ? 'Back to the ladder' : arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : game.settings.arena?.format === 'gauntlet' ? 'Onto the ladder' : 'On to the draw'
   if (game.settings.mode === 'dynasty' && game.year > 1) return 'Into the new season'
   if (game.settings.mode === 'runin') return 'Take the job'

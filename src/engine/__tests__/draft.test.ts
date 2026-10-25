@@ -73,7 +73,7 @@ describe('one-nation draft', () => {
       expect(isComplete(auto)).toBe(true)
       for (const id of Object.values(auto.lineup)) expect(u.index[id].nationality).toBe('BRA')
     }
-  }, 30000) // 40 drafts, about 4 s alone: a sweep that hit the 5 s default on a loaded machine
+  }, 30000) // 40 full drafts: about 4 s alone, so the 5-second default flakes under a loaded parallel run
 
   it('refuses a pick of another nationality and reports the nation by name', () => {
     const d = newDraft(getFormation('4-3-3'), rules)
@@ -518,7 +518,7 @@ describe('teammate chain', () => {
     }
   }, 60000)
 
-  it('the index holds no club-season outside the wheel leagues', () => {
+  it('the index holds no club-season outside the wheel leagues, and never a classic one', () => {
     const u3 = loadTestUniverse(['england', 'spain', 'italy'])
     for (const leagues of [['england'], ['spain', 'italy']]) {
       const index = teammateIndex(u3, leagues)
@@ -528,7 +528,7 @@ describe('teammate chain', () => {
           expect(leagues).toContain(u3.clubSeasonByKey[key].leagueId)
           n++
         }
-      expect(n).toBe(u3.clubSeasons.filter((cs) => leagues.includes(cs.leagueId)).reduce((t, cs) => t + cs.squad.length, 0))
+      expect(n).toBe(u3.clubSeasons.filter((cs) => !cs.classic && leagues.includes(cs.leagueId)).reduce((t, cs) => t + cs.squad.length, 0))
       // Memoised by universe and leagues, whatever their order
       expect(teammateIndex(u3, [...leagues].reverse())).toBe(index)
     }

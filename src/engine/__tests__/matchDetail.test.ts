@@ -5,6 +5,7 @@ import { advanceMatch, beginMatch, finishMatch, simulateMatch, teamInputFromPool
 import { binOf, momentumBins, MOMENTUM_BINS, PITCH, shotPosition } from '../matchDetail'
 import { tacticsForStyle } from '../tactics'
 import type { MatchEvent, PlayerSeason } from '../types'
+import { isClassic } from '../universe'
 
 function bestXIpool(all: PlayerSeason[], minOverall: number, maxOverall: number): PlayerSeason[] {
   const seen = new Set<string>()
@@ -28,7 +29,8 @@ const SHOTS = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', 'chanc
 
 describe('match detail: shot positions and momentum', () => {
   const u = loadTestUniverse()
-  const all = Object.values(u.index)
+  // the standard seasons' players: the pins below predate the classic pack, which is opt-in
+  const all = Object.values(u.index).filter((p) => !isClassic(u, p))
   const elite = bestXIpool(all, 86, 99)
   const mid = bestXIpool(all, 72, 76)
   const sides = (i: number) => ({
@@ -197,4 +199,5 @@ describe('match detail: shot positions and momentum', () => {
   })
 })
 
-const PINNED = { goals: 432, chances: 769, state: { a: -1802413461, b: 1017949396, c: -1306234288, d: -1031035180 } }
+// Re-pinned for the 2026-10-25 data rebuild (positions and hidden traits of 2008-14 rows): the RNG state is unchanged.
+const PINNED = { goals: 448, chances: 768, state: { a: -1802413461, b: 1017949396, c: -1306234288, d: -1031035180 } }

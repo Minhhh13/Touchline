@@ -1,17 +1,18 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
+import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, logLine, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
 import { staffTier } from '@engine/staff'
 import { newSquadPlayer, type AiClub } from '@engine/season'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, squadWages } from './squad'
 import { naturalStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from '@engine/status'
+import { postNews } from './news'
 
 export const SQUAD_CAP = 23
 
 function log(game: Game, text: string): void {
-  if (game.window) game.window.log.unshift(text)
+  if (game.window) logLine(game.window, text)
 }
 
 /** Humans we hold: the squad, plus anyone picked in a draft still in progress (the summer wheel runs alongside the summer window). */
@@ -22,7 +23,7 @@ export function ownedHumans(game: Game, u: LoadedUniverse): Set<string> {
 }
 
 function marketContext(game: Game, u: LoadedUniverse, rng: Rng, priceLevel: number): MarketContext {
-  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation }
+  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic }
 }
 
 export interface BidOptions {
@@ -67,7 +68,7 @@ export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount:
   if (out.accepted) {
     if (exchange) {
       releasePlayer(game, u, exchange.p.id)
-      if (game.season) game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: `${exchange.p.name} leaves in part-exchange`, body: `Valued at £${out.credit ?? 0}M in the deal for ${u.index[listing.playerSeasonId]?.name ?? 'a new signing'}.` })
+      if (game.season) postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: `${exchange.p.name} leaves in part-exchange`, body: `Valued at £${out.credit ?? 0}M in the deal for ${u.index[listing.playerSeasonId]?.name ?? 'a new signing'}.` })
     }
     signListing(game, u, listing, amount, { years: clampYears(opts.years, target?.age ?? 27), status })
   }
@@ -122,7 +123,7 @@ function signListing(game: Game, u: LoadedUniverse, listing: Listing, amount: nu
   if (!terms.loan && amount < listing.opening * 0.7 && !game.unlocked.includes('dealmaker')) game.unlocked.push('dealmaker')
   if (game.season) {
     const from = `${u.clubById[p.clubId]?.name ?? p.clubId} (${p.season}-${String((p.season + 1) % 100).padStart(2, '0')})`
-    game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: terms.loan ? `${p.name} joins on loan` : `${p.name} signs`, body: terms.loan ? `Season-long loan from ${from}, £${amount}M fee. He returns in the summer.` : `£${amount}M from ${from}. Contract: ${terms.years} year${terms.years > 1 ? 's' : ''} as ${STATUS_LABEL[terms.status].toLowerCase()}.` })
+    postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: terms.loan ? `${p.name} joins on loan` : `${p.name} signs`, body: terms.loan ? `Season-long loan from ${from}, £${amount}M fee. He returns in the summer.` : `£${amount}M from ${from}. Contract: ${terms.years} year${terms.years > 1 ? 's' : ''} as ${STATUS_LABEL[terms.status].toLowerCase()}.` })
   }
 }
 
@@ -146,7 +147,7 @@ export function acceptOffer(game: Game, u: LoadedUniverse, index: number): void 
   releasePlayer(game, u, offer.playerSeasonId)
   applyAiSignings(game, u, [{ playerSeasonId: offer.playerSeasonId, clubId: offer.fromClubId, fee: offer.amount }])
   log(game, `${p?.name ?? 'Player'} sold to ${u.clubById[offer.fromClubId]?.name ?? 'a rival'} for £${offer.amount}M.`)
-  if (game.season) game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: `${p?.name} sold`, body: `£${offer.amount}M from ${u.clubById[offer.fromClubId]?.name ?? 'a rival'}.` })
+  if (game.season) postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: `${p?.name} sold`, body: `£${offer.amount}M from ${u.clubById[offer.fromClubId]?.name ?? 'a rival'}.` })
   // Any other open offers for the same player are void
   for (const o of game.window.offers) if (o !== offer && o.playerSeasonId === offer.playerSeasonId && o.status === 'open') o.status = 'withdrawn'
 }
@@ -217,7 +218,7 @@ export function tickWindow(game: Game, u: LoadedUniverse, rng: Rng): void {
       l.tags.push('Scouted')
     }
     game.window.listings.push(...extra)
-    if (extra.length) game.window.log.unshift(`Your scouts flag ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(' and ')}.`)
+    if (extra.length) logLine(game.window, `Your scouts flag ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(' and ')}.`)
   }
 }
 
@@ -226,7 +227,7 @@ export function advanceDay(game: Game, u: LoadedUniverse): void {
   const rng = Rng.fromState(game.rngState)
   tickWindow(game, u, rng)
   if (game.window.day >= game.window.days) {
-    game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: 'Window closed', body: `The ${game.window.kind === 'summer' ? 'summer' : 'January'} window has shut.` })
+    postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: 'Window closed', body: `The ${game.window.kind === 'summer' ? 'summer' : 'January'} window has shut.` })
     game.window = null
   }
   game.rngState = rng.getState()

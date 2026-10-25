@@ -68,12 +68,15 @@ describe('the run-in catalogue', () => {
     for (const l of ['france', 'netherlands', 'portugal']) expect(RUN_IN_LEAGUES as readonly string[]).not.toContain(l)
   })
 
-  it('pins the counts to the data stamp (title 28, Europe 72, survival 104 on the 2026-10-25 packs)', () => {
+  it('pins the counts to the data stamp (title 28, Europe 71, survival 105 on the 2026-10-25 packs)', () => {
     // A data rebuild moves these: re-baseline them with the stamp
     expect(all.generatedAt).toBe('2026-10-25')
     expect(count('title')).toEqual({ england: 9, spain: 9, italy: 7, germany: 3 })
-    expect(count('europe')).toEqual({ england: 23, spain: 9, italy: 16, germany: 24 })
-    expect(count('survival')).toEqual({ england: 28, spain: 24, italy: 19, germany: 33 })
+    // Main's historic overrides (cited points deductions applied to the real tables) moved one Serie A chase for Europe
+    // (16 to 15) and added one Premier League survival job (28 to 29) under the same 2026-10-25 stamp when it merged
+    // into the casual modes; its classic seasons (1992-93 to 2007-08) are never jobs (`isClassicSeason`)
+    expect(count('europe')).toEqual({ england: 23, spain: 9, italy: 15, germany: 24 })
+    expect(count('survival')).toEqual({ england: 29, spain: 24, italy: 19, germany: 33 })
   }, 30000)
 
   it('fits every job to its template, newest season first, the takeover nine or ten from the end', () => {

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { useStore, SAVE_KEY } from '@game/store'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
+import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
-import { TIER_LABEL } from '@engine/season'
 import { badgeStates, topBadges } from '@engine/badges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
@@ -10,10 +10,17 @@ import { arenaClubName, groupRunsByLadder } from '@game/logic/arena'
 import { arenaTierLabel } from '@engine/knockout'
 import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
-import { ClubBadge, Flag, Segmented } from '../components/bits'
-import { clubName, ordinal, seasonLabel } from '../format'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
 import { RunInsTable } from '../components/RunInsTable'
+import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
+import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
+import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
+import { AchievementIcon } from '../components/icons'
+import { clubName, ordinal, seasonLabel, tierName } from '../format'
+import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
+import { emptyBests, recordLabel } from '@game/logic/perfect'
+import { useSoundOn } from '../sound/prefs'
+import { quickSpinPref, usePref } from '../viewerPrefs'
 
 const FILTER_KEY = 'touchline-record-filter'
 const RUNS_VIEW_KEY = 'touchline-runs-view'
@@ -35,10 +42,25 @@ function readFilter(): BoardFilter {
   }
 }
 
+/** The Trophy Room's badges drawn as Lucide icons (the badge's emoji stays as data, for the manager card). */
+const BADGE_ICON: Record<string, LucideIcon> = {
+  'serial-winner': Trophy,
+  centurion: Target,
+  perfectionist: Gem,
+  'cup-collector': Medal,
+  globetrotter: Compass,
+  international: FlagIcon,
+  'grounds-tour': Landmark,
+  regular: CalendarDays,
+  'sunday-league': CalendarRange,
+  ironman: ChevronsUp,
+  'giant-killer': Axe,
+  'survival-artist': LifeBuoy,
+}
+
 function exportSave(): void {
-  const raw = localStorage.getItem(SAVE_KEY)
-  if (!raw) return
-  const blob = new Blob([raw], { type: 'application/json' })
+  // The game in memory, as plain JSON: it exports even when the browser's storage is full
+  const blob = new Blob([exportSaveJson()], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -48,7 +70,11 @@ function exportSave(): void {
 }
 
 export function ProfileScreen() {
-  const { profile, universe: u, go, setManagerName, setTheme, showToast } = useStore()
+  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
+  const [soundOn, setSoundOn] = useSoundOn()
+  const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
+  const tipsSeen = tipsSeenCount(profile)
+  const bests = profile.quickBests ?? emptyBests()
   const unlocked = Object.keys(profile.achievements).length
   // Quick and Daily runs on the same wheel (seed) sit together: the table is already best-first, so a seed's first row
   // is its best. Season and Dynasty entries share one seed across their years, which is not the same wheel twice.
@@ -97,7 +123,7 @@ export function ProfileScreen() {
       {/* The team cell wraps, so on a phone the format, result and score stay in view */}
       <td style={{ whiteSpace: 'normal' }}>
         <span className="row wrap" style={{ gap: 6 }}>
-          {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} {e.teamName}
+          {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} <b>{e.teamName}</b>
           {e.challenge && (
             <span className={`chip ${e.score > e.challenge.score ? 'good' : e.score < e.challenge.score ? 'bad' : ''}`} data-testid="run-vs">
               vs {e.challenge.name} {e.challenge.score}
@@ -108,7 +134,6 @@ export function ProfileScreen() {
           {e.last && u ? `${e.fellTo ? 'Lost to' : 'Beat'} ${arenaClubName(u, e.last)}` : e.date} · seed {e.seed}
         </div>
       </td>
-      {/* The format and result wrap too, so a phone keeps the score column in the panel */}
       <td style={{ whiteSpace: 'normal' }}>{arenaFormatLabel(e)}</td>
       <td style={{ whiteSpace: 'normal' }}>{arenaTierLabel(e.tier, e.score)}</td>
       <td className="num">
@@ -119,18 +144,17 @@ export function ProfileScreen() {
   const downloadCard = () => {
     const best = profile.leaderboard.slice(0, 3).map((e) => ({
       title: `${e.teamName} · ${e.points} pts · ${ordinal(e.position)}`,
-      detail: `${TIER_LABEL[e.tier]} · ${u?.clubById[e.hostClubId] ? clubName(u, e.hostClubId) : (clubLeagues?.[e.hostClubId]?.name ?? e.hostClubId)} ${seasonLabel(e.leagueSeason)} · ${MODE_TITLE[e.mode] ?? e.mode}`,
+      detail: `${tierName(e.tier, e.position, e.superLeague)} · ${u?.clubById[e.hostClubId] ? clubName(u, e.hostClubId) : (clubLeagues?.[e.hostClubId]?.name ?? e.hostClubId)} ${seasonLabel(e.leagueSeason)} · ${MODE_TITLE[e.mode] ?? e.mode}`,
     }))
     const url = renderManagerCard({ name: profile.managerName.trim() || 'The Gaffer', seasons: profile.seasonsSimulated, cabinet, badges: topBadges(badges), best, dataStamp: u ? `Data ${u.generatedAt}` : 'Trophy Room' })
     downloadDataUrl(url, 'touchline-manager-card.png')
   }
   const importSave = async (file: File) => {
     try {
-      const text = await file.text()
-      const parsed = JSON.parse(text) as { state?: { profile?: unknown } }
-      if (!parsed || typeof parsed !== 'object' || !parsed.state || typeof parsed.state !== 'object') throw new Error('not a Touchline save')
+      // Plain JSON from any build, or a compressed save; a file that is neither, or does not fit, leaves this save alone
+      const save = readSaveFile(await file.text())
       if (!confirm('Replace everything in this browser with the imported save? This cannot be undone.')) return
-      localStorage.setItem(SAVE_KEY, text)
+      storeImportedSave(save)
       location.reload()
     } catch (e) {
       showToast(`Could not import: ${e instanceof Error ? e.message : String(e)}`)
@@ -138,108 +162,179 @@ export function ProfileScreen() {
   }
   const wipe = () => {
     if (!confirm('Delete every saved game, your record and achievements from this browser?')) return
-    localStorage.removeItem(SAVE_KEY)
+    wipeSave()
     location.reload()
   }
+  // The cabinet's season shelf, then the arena's and the run-in's own (never counted as league titles or cups)
+  const trophies: Array<[ReactNode, string, number]> = [
+    [<Trophy size={26} />, 'League titles', cabinet.league],
+    [<Medal size={26} />, 'Cups', cabinet.cup],
+    [<Globe size={26} />, 'Continental Cups', cabinet.continental],
+    [<><Trophy size={22} /><Trophy size={22} /></>, 'Doubles', cabinet.doubles],
+    [<Crown size={26} />, 'Trebles', cabinet.trebles],
+    [<Gem size={26} />, '38-0s', cabinet.perfect],
+    [<Shield size={26} />, 'Invincibles', cabinet.invincible],
+    [<Target size={26} />, 'Centurions', cabinet.centurions],
+    [<Award size={26} />, 'Arena cups', cabinet.cups.won],
+    [<ChevronsUp size={26} />, 'Best Gauntlet', cabinet.gauntlet.best],
+    [<Timer size={26} />, 'Run-in briefs', cabinet.runIns.met],
+  ]
   return (
     <div className="page">
-      <div className="row between wrap" style={{ marginBottom: 10 }}>
-        <h1>Your record</h1>
+      <div className="screen-head">
+        <div className="screen-title">
+          <h1>Profile</h1>
+          <div className="screen-meta">
+            <span>{profile.managerName ? `${profile.managerName}, manager` : 'Your record, trophies and settings'}</span>
+          </div>
+        </div>
         <button className="btn ghost" onClick={() => go('home')}>
           ← Home
         </button>
       </div>
+      <div className="screen-body fill">
       <div className="grid two">
         <div className="col">
           <div className="panel col">
-            <h3>Manager</h3>
+            <h3 style={{ margin: 0 }}>Manager</h3>
             <label className="field">
               Name
               <input className="input" value={profile.managerName} onChange={(e) => setManagerName(e.target.value)} placeholder="The Gaffer" />
             </label>
             <div className="field">
-              Theme
-              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto' }, { value: 'dark', label: 'Floodlit' }, { value: 'light', label: 'Daylight' }]} />
+              <span>
+                Theme <Info label="About the theme">Auto follows your device's light or dark setting. The sun and moon in the top bar flips it too.</Info>
+              </span>
+              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto', hint: "Follows your device's light or dark setting" }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
             </div>
-            <div className="kv">
-              <dt>Games started</dt>
-              <dd>{profile.gamesPlayed}</dd>
-              <dt>Seasons simulated</dt>
-              <dd>{profile.seasonsSimulated}</dd>
-              <dt>Daily streak</dt>
-              <dd>{profile.dailyStreak}</dd>
-              <dt>Achievements</dt>
-              <dd>
-                {unlocked} / {ACHIEVEMENTS.length}
-              </dd>
-              <dt>Head-to-head seasons</dt>
-              <dd>{cabinet.h2h.played}</dd>
+            <div className="field">
+              <span>
+                Sound <Info label="About the sound">The case reel's ticks and reveal sounds, made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
+              </span>
+              <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
+            </div>
+            <div className="field">
+              <span>
+                Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, about seven seconds; Quick takes under three. Re-spins always run quick, and a tap on the reel skips to the landing. Kept on this device only.</Info>
+              </span>
+              <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }]} />
+            </div>
+            <div className="stat-strip profile-stats">
+              <Stat label="Games" value={profile.gamesPlayed} />
+              <Stat label="Seasons" value={profile.seasonsSimulated} />
+              <Stat
+                label="Daily streak"
+                value={
+                  <span className="icon-title">
+                    <Flame size={20} className={profile.dailyStreak ? 'streak-on' : ''} aria-hidden="true" />
+                    {profile.dailyStreak}
+                  </span>
+                }
+              />
+              <Stat label="Achievements" value={`${unlocked}/${ACHIEVEMENTS.length}`} />
+              <Stat label="Head-to-head" value={cabinet.h2h.played} />
+            </div>
+            <div className="toolbar">
+              <button
+                className="btn sm"
+                data-testid="reset-tips"
+                disabled={tipsSeen === 0}
+                onClick={() => {
+                  resetTips()
+                  showToast('The coach marks will show again where they first appeared.')
+                }}
+              >
+                Show tips again
+              </button>
+              <span className="small muted">
+                {tipsSeen === 0 ? `All ${TIP_IDS.length} tips are showing` : `${tipsSeen} of ${TIP_IDS.length} tips dismissed`}
+              </span>
             </div>
           </div>
           <div className="panel" data-testid="trophy-cabinet">
             <h3>Trophy cabinet</h3>
-            <div className="row wrap" style={{ gap: 14 }}>
-              {(
-                [
-                  ['🏆', 'League titles', cabinet.league],
-                  ['🥇', 'Cups', cabinet.cup],
-                  ['🌍', 'Continental Cups', cabinet.continental],
-                  ['🏆🏆', 'Doubles', cabinet.doubles],
-                  ['👑', 'Trebles', cabinet.trebles],
-                  ['💎', '38-0s', cabinet.perfect],
-                  ['🛡️', 'Invincibles', cabinet.invincible],
-                  ['💯', 'Centurions', cabinet.centurions],
-                  // The arena's own shelf: never in the league and cup totals
-                  ['🏟️', 'Arena cups', cabinet.cups.won],
-                  ['🪜', 'Best Gauntlet', cabinet.gauntlet.best],
-                  // So is the run-in's: a brief met is never a league title
-                  ['⏱️', 'Run-in briefs', cabinet.runIns.met],
-                ] as const
-              ).map(([icon, label, n]) => (
-                <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
-                  <span style={{ fontSize: 26 }}>{icon}</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 24 }}>{n}</span>
+            <div className="cabinet">
+              {trophies.map(([icon, label, n]) => (
+                <div key={label} className={`cabinet-slot ${n ? '' : 'empty'}`}>
+                  <span className="cabinet-icon">{icon}</span>
+                  <span className="cabinet-n">{n}</span>
                   <span className="small muted">{label}</span>
                 </div>
               ))}
             </div>
           </div>
           <div className="panel col" data-testid="trophy-room">
-            <div className="row between wrap">
-              <h3>Trophy Room</h3>
+            <div className="panel-head" style={{ marginBottom: 0 }}>
+              <span className="head-title">
+                <h3>Trophy Room</h3>
+                <Info label="About the Trophy Room">Badges count every mode: bronze, silver and gold at their thresholds. {cabinet.rebuilt ? 'Badges beyond the five trophy counts are counted from your 50 best seasons before the Trophy Room.' : ''}</Info>
+              </span>
               <button className="btn sm" data-testid="manager-card" onClick={downloadCard}>
-                Download manager card
+                <Download size={16} aria-hidden="true" /> Manager card
               </button>
             </div>
             <div className="badges">
-              {badges.map((b) => (
-                <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${b.badge.title}: ${b.value} ${b.badge.counts}`}>
-                  <span className={`badge-ring ${b.tier ?? ''}`}>{b.badge.icon}</span>
-                  <span>
-                    <div className="title">{b.badge.title}</div>
-                    <div className="desc">
-                      {b.value} {b.badge.counts}
-                    </div>
-                    <div className="small muted">{b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress}</div>
-                  </span>
-                </div>
-              ))}
+              {badges.map((b) => {
+                const Icon = BADGE_ICON[b.badge.id] ?? Award
+                return (
+                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${b.badge.title}: ${b.value} ${b.badge.counts}`}>
+                    <span className={`badge-ring ${b.tier ?? ''}`}>
+                      <Icon size={20} aria-hidden="true" />
+                    </span>
+                    <span>
+                      <div className="title">{b.badge.title}</div>
+                      <div className="desc">
+                        {b.value} {b.badge.counts}
+                      </div>
+                      <div className="small muted">{b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress}</div>
+                    </span>
+                  </div>
+                )
+              })}
             </div>
             {won.leagues.length > 0 && <div className="small muted" data-testid="leagues-won">Leagues won in: {won.leagues.map((id) => u?.available.find((l) => l.id === id)?.name ?? id).join(', ')}</div>}
-            {cabinet.rebuilt && <div className="small muted" data-testid="cabinet-rebuilt">Badges beyond the five trophy counts are counted from your 50 best seasons before the Trophy Room.</div>}
+            {cabinet.rebuilt && <div className="small muted" data-testid="cabinet-rebuilt">Counted from your 50 best seasons before the Trophy Room.</div>}
+          </div>
+          <div className="panel" data-testid="quick-bests">
+            <h3>The 38-0 chase</h3>
+            <div className="kv">
+              <dt>Best record</dt>
+              <dd data-testid="best-record">{bests.bestRecord ? `${recordLabel(bests.bestRecord.won, bests.bestRecord.drawn, bests.bestRecord.lost)} · ${bests.bestRecord.points} pts` : '—'}</dd>
+              <dt>Longest perfect run</dt>
+              <dd data-testid="best-run">{bests.longestPerfectRun ? `${bests.longestPerfectRun}-0` : '—'}</dd>
+              <dt>Perfect seasons</dt>
+              <dd data-testid="perfect-seasons">{bests.perfectSeasons ?? 0}</dd>
+            </div>
+            <p className="help" style={{ margin: '8px 0 0' }}>Quick Draft and Daily seasons in this browser. The goal: win every game.</p>
           </div>
           <div className="panel">
-            <h3>Achievements</h3>
+            <div className="panel-head">
+              <h3>Achievements</h3>
+              <span className="small muted">
+                {unlocked}/{ACHIEVEMENTS.length}
+              </span>
+            </div>
             <div className="achievements">
               {ACHIEVEMENTS.map((a) => {
                 const date = profile.achievements[a.id]
                 return (
                   <div key={a.id} className={`ach ${date ? '' : 'locked'}`}>
-                    <span className="icon">{a.icon}</span>
+                    <span className="icon" aria-hidden="true">
+                      <AchievementIcon id={a.id} />
+                      {!date && (
+                        <span className="ach-lock">
+                          <Lock size={11} />
+                        </span>
+                      )}
+                    </span>
                     <span>
                       <div className="title">{a.title}</div>
                       <div className="desc">{a.description}</div>
-                      {date && <div className="small muted">{date}</div>}
+                      {date && (
+                        <div className="ach-date">
+                          <CalendarDays size={11} aria-hidden="true" /> {date}
+                        </div>
+                      )}
                     </span>
                   </div>
                 )
@@ -247,117 +342,149 @@ export function ProfileScreen() {
             </div>
           </div>
         </div>
-        <div className="panel col">
-          <h3>Save data</h3>
-          <p className="help">Everything lives in this browser. Export a file to back it up or move it to another device, import one to restore it.</p>
-          <div className="row wrap">
-            <button className="btn" onClick={exportSave}>
-              Export save file
-            </button>
-            <button className="btn" onClick={() => fileRef.current?.click()}>
-              Import save file
-            </button>
-            <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importSave(f); e.target.value = '' }} />
-            <button className="btn ghost danger" onClick={wipe}>
-              Delete all data
-            </button>
+        <div className="col">
+          <div className="panel col">
+            <div className="panel-head" style={{ marginBottom: 0 }}>
+              <span className="head-title">
+                <h3>Save data</h3>
+                <Info label="About save data">Everything lives in this browser. Export a file to back it up or move it to another device; import one to restore it.</Info>
+              </span>
+            </div>
+            <div className="toolbar">
+              <button className="btn" onClick={exportSave}>
+                <Download size={16} aria-hidden="true" /> Export save file
+              </button>
+              <button className="btn" onClick={() => fileRef.current?.click()}>
+                <Upload size={16} aria-hidden="true" /> Import save file
+              </button>
+              <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importSave(f); e.target.value = '' }} />
+              <button className="btn ghost danger" onClick={wipe}>
+                <Trash2 size={16} aria-hidden="true" /> Delete all data
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="panel">
-          <div className="row between wrap" style={{ marginBottom: 8 }}>
-            <h3>Best seasons</h3>
-            <span data-testid="board-filter">
-              <Segmented value={filter} onChange={setFilter} options={[...BOARD_FILTERS]} />
-            </span>
-          </div>
-          {profile.leaderboard.length === 0 && <div className="muted small">Nothing yet. Spin the wheel.</div>}
-          {profile.leaderboard.length > 0 && board.length === 0 && <div className="muted small">{BOARD_FILTERS.find((f) => f.value === filter)?.empty ?? `No ${BOARD_FILTERS.find((f) => f.value === filter)?.label} seasons yet.`}</div>}
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Team</th>
-                <th>Mode</th>
-                <th>League</th>
-                <th className="num">Pts</th>
-                <th className="num">W-D-L</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {board.map((e) => {
-                const runs = runsBySeed.get(e.seed) ?? [e]
-                const rank = runs.indexOf(e) + 1
-                return (
-                <tr key={e.id}>
-                  <td>
-                    <span className="row wrap" style={{ gap: 6 }}>
-                      <ClubBadge clubId={e.hostClubId} size={20} /> {e.teamName}
-                      {e.nation && <Flag nation={e.nation} />}
-                      {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">Best on this wheel · {runs.length} runs</span> : <span className="chip">{ordinal(rank)} of {runs.length} on this wheel</span>)}
-                      {e.budget !== undefined && <span className="chip" data-testid="entry-cap" title={`Drafted under a ${capTotal(e.budget)} salary cap`}>£ {capTotal(e.spent ?? 0)} of {capTotal(e.budget)}</span>}
-                      {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
-                    </span>
-                    <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>
-                    {e.moment && <div className="small muted" data-testid="entry-moment">{e.moment}</div>}
-                  </td>
-                  <td>{MODE_TITLE[e.mode] ?? e.mode}</td>
-                  <td>{seasonLabel(e.leagueSeason)}</td>
-                  <td className="num" style={{ fontWeight: 700 }}>
-                    {e.points}
-                  </td>
-                  <td className="num">
-                    {e.won}-{e.drawn}-{e.lost}
-                  </td>
-                  <td>
-                    {TIER_LABEL[e.tier]} · {ordinal(e.position)}
-                  </td>
-                </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className="panel" data-testid="best-runs">
-          <div className="row between wrap" style={{ gap: 8 }}>
-            <h3>Best runs</h3>
-            {!!profile.arenaRuns?.length && (
-              <Segmented
-                value={runsView}
-                onChange={setRunsView}
-                options={[
-                  { value: 'best', label: 'Best first' },
-                  { value: 'ladder', label: 'Best on this ladder', hint: 'Runs on the same seed, format and field together, best first' },
-                ]}
-              />
+          <div className="panel">
+            <div className="panel-head">
+              <h3>Best seasons</h3>
+              {profile.leaderboard.length > 0 && (
+                <span data-testid="board-filter">
+                  <Segmented value={filter} onChange={setFilter} options={[...BOARD_FILTERS]} />
+                </span>
+              )}
+            </div>
+            {profile.leaderboard.length > 0 && board.length === 0 && <div className="muted small">{BOARD_FILTERS.find((f) => f.value === filter)?.empty ?? `No ${BOARD_FILTERS.find((f) => f.value === filter)?.label} seasons yet.`}</div>}
+            {profile.leaderboard.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-icon" aria-hidden="true">
+                  <Trophy size={26} />
+                </span>
+                <h3>Nothing yet</h3>
+                <p className="muted small">Spin the wheel; your best seasons land here.</p>
+              </div>
+            ) : (
+              <div className="tbl-wrap">
+                <table className="tbl best-tbl">
+                  <thead>
+                    <tr>
+                      <th>Team</th>
+                      <th className="num">Pts</th>
+                      <th className="num">W-D-L</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {board.map((e) => {
+                      const runs = runsBySeed.get(e.seed) ?? [e]
+                      const rank = runs.indexOf(e) + 1
+                      return (
+                        <tr key={e.id}>
+                          <td>
+                            <span className="row wrap" style={{ gap: 6 }}>
+                              <ClubBadge clubId={e.hostClubId} size={20} /> <b>{e.teamName}</b>
+                              {e.nation && <Flag nation={e.nation} />}
+                            </span>
+                            <div className="small muted">
+                              {e.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <>{u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</>} · {MODE_TITLE[e.mode] ?? e.mode}
+                            </div>
+                            {e.moment && <div className="small muted" data-testid="entry-moment">{e.moment}</div>}
+                            {(runs.length > 1 || e.challenge || e.budget !== undefined) && (
+                              <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
+                                {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">Best on this wheel · {runs.length} runs</span> : <span className="chip">{ordinal(rank)} of {runs.length} on this wheel</span>)}
+                                {e.budget !== undefined && <span className="chip" data-testid="entry-cap" title={`Drafted under a ${capTotal(e.budget)} salary cap`}>£ {capTotal(e.spent ?? 0)} of {capTotal(e.budget)}</span>}
+                                {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
+                              </div>
+                            )}
+                          </td>
+                          <td className="num" style={{ fontWeight: 700 }}>
+                            {e.points}
+                          </td>
+                          <td className="num">
+                            {e.won}-{e.drawn}-{e.lost}
+                          </td>
+                          <td>
+                            {tierName(e.tier, e.position, e.superLeague)}
+                            <div className="small muted">{ordinal(e.position)}</div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
-          {!profile.arenaRuns?.length && <div className="muted small">No arena runs yet. Try the Cup or the Gauntlet from Home.</div>}
-          {!!profile.arenaRuns?.length && (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  <th>Format</th>
-                  <th>Result</th>
-                  <th className="num">GF-GA</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runsView === 'best'
-                  ? profile.arenaRuns.map(runRow)
-                  : ladders.flatMap((g) => [
-                      <tr key={`h-${g.key}`} data-testid="ladder-group">
-                        <td colSpan={4} className="small muted" style={{ whiteSpace: 'normal' }}>
-                          <b>Seed {g.seed}</b> · {arenaFormatLabel(g)} · {g.runs.length} run{g.runs.length === 1 ? '' : 's'} · best {arenaTierLabel(g.runs[0].tier, g.runs[0].score).toLowerCase()}
-                        </td>
-                      </tr>,
-                      ...g.runs.map(runRow),
-                    ])}
-              </tbody>
-            </table>
-          )}
+          <div className="panel" data-testid="best-runs">
+            <div className="panel-head">
+              <h3>Best runs</h3>
+              {!!profile.arenaRuns?.length && (
+                <Segmented
+                  value={runsView}
+                  onChange={setRunsView}
+                  options={[
+                    { value: 'best', label: 'Best first' },
+                    { value: 'ladder', label: 'Best on this ladder', hint: 'Runs on the same seed, format and field together, best first' },
+                  ]}
+                />
+              )}
+            </div>
+            {!profile.arenaRuns?.length && (
+              <div className="empty-state">
+                <span className="empty-icon" aria-hidden="true">
+                  <Award size={26} />
+                </span>
+                <p className="muted small">No arena runs yet: try the Cup or the Gauntlet from Home.</p>
+              </div>
+            )}
+            {!!profile.arenaRuns?.length && (
+              <div className="tbl-wrap">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>Team</th>
+                      <th>Format</th>
+                      <th>Result</th>
+                      <th className="num">GF-GA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runsView === 'best'
+                      ? profile.arenaRuns.map(runRow)
+                      : ladders.flatMap((g) => [
+                          <tr key={`h-${g.key}`} data-testid="ladder-group">
+                            <td colSpan={4} className="small muted" style={{ whiteSpace: 'normal' }}>
+                              <b>Seed {g.seed}</b> · {arenaFormatLabel(g)} · {g.runs.length} run{g.runs.length === 1 ? '' : 's'} · best {arenaTierLabel(g.runs[0].tier, g.runs[0].score).toLowerCase()}
+                            </td>
+                          </tr>,
+                          ...g.runs.map(runRow),
+                        ])}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <RunInsTable />
         </div>
-        <RunInsTable />
+      </div>
       </div>
     </div>
   )

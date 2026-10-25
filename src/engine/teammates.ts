@@ -35,6 +35,8 @@ export function teammateIndex(u: LoadedUniverse, leagues?: readonly string[]): T
   const index: TeammateIndex = new Map()
   for (const cs of u.clubSeasons) {
     if (leagues && !leagues.includes(cs.leagueId)) continue
+    // A classic club-season (estimated ratings) never links a chain: the wheel only lands on one with the opt-in
+    if (cs.classic) continue
     const csKey = `${cs.clubId}@${cs.season}`
     for (const p of cs.squad) {
       let set = index.get(p.playerId)

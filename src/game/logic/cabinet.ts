@@ -119,7 +119,8 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
   if (!countsAsLeagueSeason(mode)) return c
   const title = isTitle(rec.position, rec.tier)
   const cup = !!last?.cupWon
-  const euro = !!last?.continentalWon
+  // A quick season's Continental Cup run counts as the managed modes' trophy does
+  const euro = !!last?.continentalWon || game.quickResult?.europe?.reached === 'W'
   if (title) c.league += 1
   if (cup) c.cup += 1
   if (euro) c.continental += 1

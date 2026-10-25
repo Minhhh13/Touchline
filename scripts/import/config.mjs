@@ -53,8 +53,23 @@ export const SOURCES = {
 }
 
 export const OPENFOOTBALL_BASE = 'https://raw.githubusercontent.com'
-/** Season start years with a results file we try to fetch. */
-export const OPENFOOTBALL_SEASONS = Array.from({ length: 27 }, (_, i) => 2000 + i) // 2000-01 .. 2026-27
+/** Last season start year with a results file we try to fetch (the current season). */
+export const OPENFOOTBALL_LAST = 2026
+/** Season start years with a results file we try to fetch for a league without its own `openfootball.from`. */
+export const OPENFOOTBALL_SEASONS = Array.from({ length: OPENFOOTBALL_LAST - 1999 }, (_, i) => 2000 + i) // 2000-01 .. 2026-27
+/** The seasons to fetch for one league: England's files start with the Premier League in 1992-93. */
+export function openfootballSeasons(league) {
+  const from = league?.openfootball?.from ?? 2000
+  return Array.from({ length: OPENFOOTBALL_LAST - from + 1 }, (_, i) => from + i)
+}
+/**
+ * Path of a season's folder inside an openfootball repository: seasons before
+ * 2000-01 live under `archive/<decade>s/` (1999-00 is in `archive/1990s`).
+ */
+export function openfootballPath(season) {
+  const slug = seasonSlug(season)
+  return season < 2000 ? `archive/${Math.floor(season / 10) * 10}s/${slug}` : slug
+}
 export const DATA_DIR = path.join(ROOT, 'public', 'data')
 
 export function seasonSlug(startYear) {

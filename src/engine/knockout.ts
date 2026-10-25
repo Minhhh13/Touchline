@@ -77,7 +77,8 @@ export function arenaPool(u: LoadedUniverse, scope: Omit<FieldScope, 'field'>): 
   const lo = scope.fromSeason ?? -Infinity
   const hi = scope.toSeason ?? Infinity
   return u.clubSeasons
-    .filter((cs) => scope.leagues.includes(cs.leagueId) && cs.season >= lo && cs.season <= hi && cs.squad.length >= 11)
+    // Never a classic club-season (estimated ratings): the arena has no classic opt-in, so its fields stay as they were
+    .filter((cs) => !cs.classic && scope.leagues.includes(cs.leagueId) && cs.season >= lo && cs.season <= hi && cs.squad.length >= 11)
     .sort((a, b) => (clubSeasonKey(a) < clubSeasonKey(b) ? -1 : clubSeasonKey(a) > clubSeasonKey(b) ? 1 : 0))
 }
 

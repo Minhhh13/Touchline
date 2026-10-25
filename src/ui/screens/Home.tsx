@@ -1,20 +1,76 @@
+import type { ReactNode } from 'react'
+import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Timer, Trophy, Zap, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
-import { dailyGameSettings, dailySettings } from '@game/logic/setup'
-import { MODE_TITLE, modeLabel } from '@game/logic/modes'
+import { dailySettings } from '@game/logic/setup'
+import { modeLabel } from '@game/logic/modes'
 import { arenaStatus } from '@game/logic/arena'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
-import { weeklyPlan, weeklySettings } from '@game/logic/weekly'
+import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
-import { TIER_LABEL } from '@engine/season'
 import { arenaDailySeed, weeklySeed } from '@engine/rng'
-import { seasonLabel } from '../format'
-import { ClubBadge } from '../components/bits'
+import { seasonLabel, formationName } from '../format'
+import { TeamBadge } from '../components/bits'
+import { Lockup } from '../components/Logo'
+import { LeagueFlag } from '../components/Flag'
+import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
+import { withViewTransition } from '../motion'
+
+/** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
+function compact(n: number): string {
+  return n >= 10_000 ? `${Math.floor(n / 1000)}k` : n.toLocaleString()
+}
+
+/** The card's picture is our own drawing (components/Art.tsx), with the mode's icon on the edge. */
+function ModeArt({ kind, icon: Icon }: { kind: ModeArtKind; icon: LucideIcon }) {
+  return (
+    <span className="mode-art">
+      <ModeScene kind={kind} />
+      <span className="mode-icon">
+        <Icon size={20} />
+      </span>
+    </span>
+  )
+}
+
+function TimeTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="time-tag">
+      <Clock size={13} />
+      {children}
+    </span>
+  )
+}
+
+/** The card is the button; this only shows where to tap, lined up with the Daily card's own button. Hidden on a phone, where cards are rows. */
+function GoLabel() {
+  return (
+    <span className="mode-go" aria-hidden>
+      Start
+      <ArrowRight size={16} />
+    </span>
+  )
+}
+
+function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string; disabled?: boolean }) {
+  return (
+    <button type="button" className="home-tile" onClick={onClick} data-testid={testId} disabled={disabled}>
+      <span className="tile-icon">
+        <Icon size={20} />
+      </span>
+      <span className="tile-text">
+        <b>{title}</b>
+        <span>{meta}</span>
+      </span>
+    </button>
+  )
+}
 
 export function Home() {
-  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues, openArenaSetup, startWeekly, loadingLeagues } = useStore()
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
+  // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
+  const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
+  const openArenaSetup = (format: 'cup' | 'gauntlet') => withViewTransition(() => openArenaNow(format))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
-  const players = u ? u.available.reduce((s, l) => s + l.players, 0) : 0
-  const clubCount = u ? u.available.reduce((s, l) => s + l.clubs, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
@@ -29,12 +85,12 @@ export function Home() {
       go('game')
       return
     }
+    // Parked by an arena run or a Weekly: today's puzzle comes back as it was left
     if (isTodaysDaily(parked.quick)) return resumeGame('quick')
-    // A parked game in the quick slot (a Weekly parked by an arena run) is dropped by the start too, so it asks as well
-    const open = [game, parked.quick].find((g) => g && slotOf(g) === 'quick' && g.phase !== 'summary')
-    if (open && !confirm(`Start today's puzzle? Your current ${MODE_TITLE[open.settings.mode]} (${open.settings.teamName}) will be abandoned.`)) return
-    startGame(dailyGameSettings(u, todaysDailySeed()))
+    // The button opens the Daily setup, as the card does: the team name, today's puzzle, and Start Draft there
+    go('setup', 'daily')
   }
+  const achievements = Object.keys(profile.achievements).length
   // The Daily Arena: today's run continues wherever it is (active or parked); any other unfinished arena run is only dropped on a yes
   const arenaSeed = arenaDailySeed()
   const arenaToday = dailyArenaSettings(arenaSeed)
@@ -49,42 +105,73 @@ export function Home() {
     if (open && !confirm(`Start today's arena? Your current ${modeLabel(open, 'short')} run (${open.settings.teamName}) will be abandoned.`)) return
     startGame(dailyArenaGameSettings(u, arenaSeed))
   }
-  // The Weekly Challenge: the week's packs load when it starts; the card names the season once its league is in
+  // The Weekly Challenge: its setup names the team and loads the week's packs; this week's run under way continues
   const weekSeed = weeklySeed()
   const weekPlan = u ? weeklyPlan(u, weekSeed) : null
-  const week = u && weekPlan && loadedLeagues.includes(weekPlan.leagueId) ? weeklySettings(u, weekSeed) : null
   const weekDone = profile.weekly?.results[weekSeed]
   const isThisWeek = (g: typeof game) => !!g && g.settings.mode === 'weekly' && g.settings.seed === weekSeed && g.phase !== 'summary'
-  const weekUnderWay = isThisWeek(game) ? 'active' : isThisWeek(parked.quick) ? 'parked' : null
   const playWeekly = () => {
-    if (!u) return
-    if (weekUnderWay === 'active') return go('game')
-    if (weekUnderWay === 'parked') return resumeGame('quick')
-    const open = [game, parked.quick].find((g) => g && slotOf(g) === 'quick' && g.phase !== 'summary')
-    if (open && !confirm(`Start this week's challenge? Your current ${modeLabel(open, 'short')} (${open.settings.teamName}) will be abandoned.`)) return
-    void startWeekly(weekSeed)
+    if (isThisWeek(game)) return go('game')
+    if (isThisWeek(parked.quick)) return resumeGame('quick')
+    go('setup', 'weekly')
   }
-  const leagueName = (id: string) => u?.available.find((l) => l.id === id)?.name ?? id
+  const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? `${done}${streak ? ` · streak ${streak}` : ''}` : streak ? `Streak ${streak} · ${fallback}` : fallback)
   return (
-    <div className="page">
+    <div className="page home">
       <section className="hero">
-        <h1>Touchline</h1>
-        <div className="tag">Spin the wheel. Draft the XI. Manage the season.</div>
-        <p className="muted small" style={{ marginTop: 10 }}>
-          {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
-        </p>
+        <div className="hero-photo">
+          <HeroArt />
+        </div>
+        <div className="hero-content">
+          <h1>
+            <Lockup height={104} animate="load" />
+          </h1>
+          <p className="tag">Spin the wheel. Draft the XI. Manage the season.</p>
+          <dl className="hero-stats" aria-live="polite">
+            {u ? (
+              <>
+                <div>
+                  <dt>Player-seasons</dt>
+                  <dd>{compact(playerSeasons)}</dd>
+                </div>
+                <div>
+                  <dt>Leagues</dt>
+                  <dd>{u.available.length}</dd>
+                </div>
+                <div>
+                  <dt>Seasons</dt>
+                  <dd>
+                    {seasonLabel(u.firstSeason).slice(0, 4)}–{seasonLabel(u.lastSeason).slice(-2)}
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <div>
+                <dt>Database</dt>
+                <dd>Loading…</dd>
+              </div>
+            )}
+          </dl>
+          {u && (
+            <div className="row wrap hero-flags" aria-label="Leagues">
+              {u.available.map((l) => (
+                <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {game && (
-        <div className="panel row between wrap" style={{ marginBottom: 14 }}>
+        <div className="panel resume-card row between wrap">
           <div className="row">
-            <ClubBadge clubId={game.settings.hostClubId} size={36} />
+            <TeamBadge code={game.settings.shortName} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
                 {game.settings.teamName} · {modeLabel(game, 'short')}
               </div>
               <div className="small muted">
-                {game.arena ? arenaStatus(game) : game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
+                {game.arena ? arenaStatus(game) : game.phase === 'draft' ? 'Drafting' : game.phase === 'kickoff' ? 'Kick-off' : game.phase === 'january' ? 'January window' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
               </div>
             </div>
           </div>
@@ -100,14 +187,14 @@ export function Home() {
       )}
 
       {Object.entries(parked).map(([slot, g]) => (
-        <div key={slot} className="panel row between wrap" style={{ marginBottom: 14, opacity: 0.9 }}>
+        <div key={slot} className="panel resume-card parked row between wrap">
           <div className="row">
-            <ClubBadge clubId={g.settings.hostClubId} size={36} />
+            <TeamBadge code={g.settings.shortName} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
                 {g.settings.teamName} · {modeLabel(g, 'short')} (parked)
               </div>
-              <div className="small muted">{g.arena ? arenaStatus(g) : g.phase === 'draft' ? 'Drafting' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
+              <div className="small muted">{g.arena ? arenaStatus(g) : g.phase === 'draft' ? 'Drafting' : g.phase === 'kickoff' ? 'Kick-off' : g.phase === 'january' ? 'January window' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
             </div>
           </div>
           <div className="row">
@@ -120,135 +207,84 @@ export function Home() {
           </div>
         </div>
       ))}
-      <div className="row between wrap" style={{ marginBottom: 8 }}>
-        <h2>Today and this week</h2>
-        <span className="small muted">The same puzzles for everyone, with streaks. Days and weeks run on UTC.</span>
-      </div>
-      <div className="modes three" data-testid="today-row" style={{ marginBottom: 18 }}>
+
+      <div className="modes">
+        <button className="mode-card" onClick={() => go('setup', 'quick')}>
+          <ModeArt kind="quick" icon={Dices} />
+          <span className="mode-text">
+            <h3>Quick Draft</h3>
+            <p>Eleven spins, one XI, a whole season.</p>
+            <span className="foot">
+              <TimeTag>5 min</TimeTag>
+            </span>
+            <GoLabel />
+          </span>
+        </button>
         <div className="mode-card daily" data-testid="daily-card">
           <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title="Open the full setup to name your team">
-            <span className="icon">📅</span>
-            <h3>Daily Challenge</h3>
-            <p>
-              Everyone gets the same spins today. Build the best XI from the same wheel and compare.
-              {daily && u && (
-                <>
-                  {' '}
-                  Today: a <b>{daily.formationId}</b> as <b>{u.clubById[daily.host]?.name ?? daily.host}</b>, {seasonLabel(daily.season)}.
-                </>
-              )}
-            </p>
-            <span className="foot">{dailyDone ? `Played today · streak ${profile.dailyStreak}` : profile.dailyStreak ? `Streak ${profile.dailyStreak}` : 'New puzzle every day'} · tap to name your team</span>
+            <ModeArt kind="daily" icon={CalendarDays} />
+            <span className="mode-text">
+              <h3>Daily Challenge</h3>
+              <p>Same spins for everyone, every day.</p>
+              <span className="foot">
+                <TimeTag>5 min</TimeTag>
+                {daily && u && (
+                  <span className="daily-today" title={`Today: a ${formationName(daily.formationId)}, ${u.leagues.find((l) => l.id === u.clubById[daily.host]?.leagueId)?.name ?? ''} ${seasonLabel(daily.season)}`}>
+                    <LeagueFlag leagueId={u.clubById[daily.host]?.leagueId ?? 'england'} />
+                    {formationName(daily.formationId)} · {seasonLabel(daily.season)}
+                  </span>
+                )}
+                {profile.dailyStreak > 0 && (
+                  <span className="streak" title={dailyDone ? 'Played today' : 'Daily streak'}>
+                    <Flame size={13} />
+                    {profile.dailyStreak}
+                  </span>
+                )}
+              </span>
+            </span>
           </button>
           <button type="button" className="btn primary block" disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
             {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
           </button>
         </div>
-        <div className="mode-card daily" data-testid="arena-daily-card">
-          <button type="button" className="mode-card-body" onClick={playArenaDaily} title="Play today's arena">
-            <span className="icon">🏟️</span>
-            <h3>Daily Arena</h3>
-            <p>
-              Everyone climbs the same ladder or faces the same draw today. Today: <b>{u ? dailyArenaLine(u, arenaToday) : arenaToday.format}</b>, a <b>{arenaToday.formationId}</b>.
-            </p>
-            <span className="foot" data-testid="arena-daily-foot">{arenaDone ? `Played: ${arenaDone.label} · streak ${profile.arenaDaily?.streak ?? 1}` : profile.arenaDaily?.streak ? `Streak ${profile.arenaDaily.streak}` : 'The Gauntlet and the Cup in turn'}</span>
-          </button>
-          <button type="button" className="btn primary block" disabled={!dailyReady} onClick={playArenaDaily} data-testid="arena-daily-play">
-            {!dailyReady ? 'Loading…' : arenaUnderWay ? "Continue today's arena" : arenaDone ? 'Play it again' : "Play today's arena"}
-          </button>
-        </div>
-        <div className="mode-card daily" data-testid="weekly-card">
-          <button type="button" className="mode-card-body" onClick={() => go('setup', 'weekly')} title="Open the setup to name your team">
-            <span className="icon">🗓️</span>
-            <h3>Weekly Challenge</h3>
-            <p>
-              One themed wheel a week, for everyone.{' '}
-              {weekPlan && (
-                <>
-                  <b style={{ whiteSpace: 'nowrap' }}>{weekPlan.week}</b> · <b>{weeklyThemeName(weekPlan.theme)}</b> in {leagueName(weekPlan.leagueId)}
-                  {week ? ` ${seasonLabel(week.season)}` : ''} · ends Sunday
-                </>
-              )}
-            </p>
-            <span className="foot" data-testid="weekly-foot">{weekDone ? `Played: ${weekDone.points} pts, ${TIER_LABEL[weekDone.tier]} · streak ${profile.weekly?.streak ?? 1}` : profile.weekly?.streak ? `Streak ${profile.weekly.streak}` : 'New theme every Monday'} · tap to name your team</span>
-          </button>
-          <button type="button" className="btn primary block" disabled={!u || loadingLeagues} onClick={playWeekly} data-testid="weekly-play">
-            {loadingLeagues ? 'Loading…' : weekUnderWay ? "Continue this week's" : weekDone ? 'Play it again' : "Play this week's"}
-          </button>
-        </div>
-      </div>
-      <div className="modes three">
-        <button className="mode-card" onClick={() => go('setup', 'quick')}>
-          <span className="icon">🎡</span>
-          <h3>Quick Draft</h3>
-          <p>The 38-0 classic. Spin for a club and season, draft one player, repeat eleven times, simulate the season instantly.</p>
-          <span className="foot">5 minutes · shareable result</span>
-        </button>
         <button className="mode-card" onClick={() => go('setup', 'season')}>
-          <span className="icon">📋</span>
-          <h3>Season</h3>
-          <p>Draft a squad of eighteen, then manage it week by week: tactics, roles, rotation, injuries, the cup, the January window, the board.</p>
-          <span className="foot">15 to 45 minutes · sim to the big matches</span>
+          <ModeArt kind="season" icon={ClipboardList} />
+          <span className="mode-text">
+            <h3>Season</h3>
+            <p>Draft eighteen, then manage every week.</p>
+            <span className="foot">
+              <TimeTag>45 min</TimeTag>
+            </span>
+            <GoLabel />
+          </span>
         </button>
         <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
-          <span className="icon">👑</span>
-          <h3>Dynasty</h3>
-          <p>Season mode that never ends. Players age, contracts expire, summer windows open and the league moves on a year at a time.</p>
-          <span className="foot">Multi-season career</span>
+          <ModeArt kind="dynasty" icon={Crown} />
+          <span className="mode-text">
+            <h3>Dynasty</h3>
+            <p>Season mode that never ends.</p>
+            <span className="foot">
+              <TimeTag>Career</TimeTag>
+            </span>
+            <GoLabel />
+          </span>
         </button>
       </div>
 
-      <div className="row between wrap" style={{ marginTop: 18, marginBottom: 8 }}>
-        <h2>Arena</h2>
-        <span className="small muted">One sitting, real club-seasons, no season attached.</span>
-      </div>
-      <div className="modes" data-testid="arena-row">
-        <button className="mode-card" onClick={() => openArenaSetup('cup')} data-testid="arena-cup-card">
-          <span className="icon">🏆</span>
-          <h3>The Cup</h3>
-          <p>Draft sixteen, then a knockout of real club-seasons in one sitting: seeded draws, four days between ties, bans that carry and penalties when it is level. Eight, sixteen or thirty-two clubs, or one final.</p>
-          <span className="foot">10 minutes · lift a trophy tonight</span>
-        </button>
-        <button className="mode-card" onClick={() => openArenaSetup('gauntlet')} data-testid="arena-gauntlet-card">
-          <span className="icon">🪜</span>
-          <h3>The Gauntlet</h3>
-          <p>Draft fourteen, then climb fifteen rungs of real club-seasons, each stronger than the last. Lose once and it is over: one lifeline, a bonus spin every second rung, and tired legs to rotate.</p>
-          <span className="foot">5 minutes · how far can you climb?</span>
-        </button>
+      {/* The casual modes: one sitting each, beside the four ways to play above */}
+      <div className="home-tiles casual" data-testid="casual-row" aria-label="More ways to play">
+        <Tile icon={Zap} testId="arena-daily-card" title="Daily Arena" meta={streakMeta(arenaDone ? `Played: ${arenaDone.label}` : null, profile.arenaDaily?.streak, u ? dailyArenaLine(u, arenaToday) : 'Same draw for everyone')} onClick={playArenaDaily} disabled={!dailyReady} />
+        <Tile icon={CalendarRange} testId="weekly-card" title="Weekly Challenge" meta={streakMeta(weekDone ? `Played: ${weekDone.points} pts` : null, profile.weekly?.streak, weekPlan ? `${weeklyThemeName(weekPlan.theme) || 'This week'} · ends Sunday` : 'One themed wheel a week')} onClick={playWeekly} disabled={!u} />
+        <Tile icon={Award} testId="arena-cup-card" title="The Cup" meta="Draft 16, win a knockout" onClick={() => openArenaSetup('cup')} />
+        <Tile icon={ChevronsUp} testId="arena-gauntlet-card" title="The Gauntlet" meta="Climb 15 rungs, lose once and out" onClick={() => openArenaSetup('gauntlet')} />
+        <Tile icon={Timer} testId="runin-card" title="Run-in" meta="Take over at MW 28, ten games left" onClick={() => go('setup', 'runin')} />
       </div>
 
-      <div className="row between wrap" style={{ marginTop: 18, marginBottom: 8 }}>
-        <h2>Scenarios</h2>
-        <span className="small muted">A real club, a real season, the job half done.</span>
-      </div>
-      <div className="modes" data-testid="scenario-row">
-        <button className="mode-card" onClick={() => go('setup', 'runin')} data-testid="runin-card">
-          <span className="icon">⏱️</span>
-          <h3>Run-in</h3>
-          <p>Take over a real club at matchweek 28 with its real squad and a brief: win the title, reach the top four or stay up. Four spins to strengthen, then the last ten games, judged against what really happened.</p>
-          <span className="foot">10 minutes · ten games to save a season</span>
-        </button>
-      </div>
-
-      <div className="grid four" style={{ marginTop: 16 }}>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer', borderColor: 'var(--line-2)' }} onClick={() => go('h2h')}>
-          <h3>🤝 Head-to-head</h3>
-          <p className="muted small">Two managers on one device draft from the same spins, then both sides play the same season. Settle it properly.</p>
-        </button>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('explore')}>
-          <h3>Explore the database</h3>
-          <p className="muted small">Every club-season in {u ? `${u.available.length} leagues` : 'seven leagues'} since 2008-09, with real squads and ratings. Settle the argument before you spin.</p>
-        </button>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('profile')}>
-          <h3>Your record</h3>
-          <p className="muted small">
-            {profile.seasonsSimulated} seasons simulated · {Object.keys(profile.achievements).length} achievements
-          </p>
-        </button>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('howto')}>
-          <h3>How it works</h3>
-          <p className="muted small">The wheel, the draft rules, how matches are simulated and what the board expects.</p>
-        </button>
+      <div className="home-tiles">
+        <Tile icon={Swords} title="Head-to-head" meta="Two managers, one device" onClick={() => go('h2h')} />
+        <Tile icon={Search} title="Explore database" meta={u ? `${u.available.length} leagues of real squads` : 'Real squads since 2008-09'} onClick={() => go('explore')} />
+        <Tile icon={Trophy} title="Profile" meta={`${profile.seasonsSimulated} seasons · ${achievements} achievements`} onClick={() => go('profile')} />
+        <Tile icon={BookOpen} title="How it works" meta="The wheel, matches, the board" onClick={() => go('howto')} />
       </div>
     </div>
   )

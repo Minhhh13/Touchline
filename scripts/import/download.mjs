@@ -6,7 +6,7 @@ import { mkdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { CACHE, SOURCES, OPENFOOTBALL_BASE, OPENFOOTBALL_SEASONS, seasonSlug } from './config.mjs'
+import { CACHE, SOURCES, OPENFOOTBALL_BASE, openfootballSeasons, openfootballPath, seasonSlug } from './config.mjs'
 import { LEAGUES } from './leagues.mjs'
 
 const run = promisify(execFile)
@@ -55,13 +55,13 @@ export async function ensureDatasets() {
     if (!league.openfootball) continue
     const ofDir = path.join(CACHE, 'openfootball', league.id)
     await mkdir(ofDir, { recursive: true })
-    for (const season of OPENFOOTBALL_SEASONS) {
+    for (const season of openfootballSeasons(league)) {
       const slug = seasonSlug(season)
       const dest = path.join(ofDir, `${slug}.txt`)
       const missing = path.join(ofDir, `${slug}.missing`)
       if ((await exists(dest)) || (await exists(missing))) continue
       try {
-        await download(`${OPENFOOTBALL_BASE}/${league.openfootball.repo}/master/${slug}/${league.openfootball.file}`, dest)
+        await download(`${OPENFOOTBALL_BASE}/${league.openfootball.repo}/master/${openfootballPath(season)}/${league.openfootball.file}`, dest)
       } catch (e) {
         // Only a season that really is not published is remembered as missing; a network blip is retried next run
         if (e.status === 404) await writeFile(missing, String(e.message))

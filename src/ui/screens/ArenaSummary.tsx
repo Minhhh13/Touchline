@@ -12,7 +12,8 @@ import { Bracket } from '../components/Bracket'
 import { modeLabel, shareCardFooter } from '@game/logic/modes'
 import { playerLookup } from '@game/logic/players'
 import { Pitch } from '../components/Pitch'
-import { ClubBadge } from '../components/bits'
+import { ClubBadge, Info, Stat, TeamBadge } from '../components/bits'
+import { Check, Copy, Dices, ImageDown, Plus, RotateCcw, Send } from 'lucide-react'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { minuteLabel } from '../format'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
@@ -89,9 +90,9 @@ export function ArenaSummary() {
       showToast('Could not copy. Select the text manually.')
     }
   }
-  const card = () => {
+  const card = async () => {
     try {
-      const url = renderShareCard({
+      const url = await renderShareCard({
         title: game.settings.teamName,
         subtitle: `${modeLabel(game, 'short')} · ${input?.wheel ?? ''}`,
         tier: a.won ? 'CHAMPIONS' : 'MID_TABLE',
@@ -111,162 +112,188 @@ export function ArenaSummary() {
     }
   }
 
+  const won = (s: (typeof a.log)[number]) => s.gf > s.ga || (!!s.pens && s.pens.us > s.pens.them)
   return (
-    <div className="page">
-      <div className="tier-banner" data-testid="arena-banner">
-        <div className="muted small">
-          {game.settings.teamName} · {modeLabel(game, 'short')}
+    // Main's summary layout: the result box on the left, everything else in a box beside it that scrolls inside itself
+    <div className="page summary arena-summary" data-testid="summary">
+      <div className="tier-banner result-banner" data-testid="arena-banner">
+        <div className="banner-meta">
+          <span className="bm-team">
+            <TeamBadge code={game.settings.shortName} size={22} />
+            {game.settings.teamName}
+          </span>
+          <span className="bm-rest">{modeLabel(game, 'short')}</span>
         </div>
-        <div className={`tier ${a.won ? 'CHAMPIONS' : ''}`} data-testid="tier">
-          {a.won ? (gauntlet ? '🏔️ ' : '🏆 ') : gauntlet ? '🪜 ' : ''}
-          {banner}
+        <div className="tier-wrap">
+          <div className={`tier ${a.won ? 'CHAMPIONS' : ''}`} data-testid="tier">
+            {banner}
+          </div>
         </div>
         {winner && (
-          <div className="muted" style={{ marginTop: 6 }} data-testid="cup-winner">
-            🏆 Won by {winner}
-          </div>
+          <p className="tier-blurb" data-testid="cup-winner">
+            Won by {winner}
+          </p>
         )}
+        <div className="banner-stats">
+          <Stat label={gauntlet ? 'Rungs' : 'Won'} value={a.log.filter(won).length} />
+          <Stat label="Played" value={a.log.length} />
+          <Stat label="Goals" value={`${a.log.reduce((x, s) => x + s.gf, 0)}-${a.log.reduce((x, s) => x + s.ga, 0)}`} />
+        </div>
+        <div className="blocks" aria-hidden="true">
+          {a.log.map((s, i) => (
+            <span key={i} style={{ background: won(s) ? 'var(--good)' : 'var(--bad)' }} />
+          ))}
+        </div>
         {gauntlet && (
-          <div className="row" style={{ justifyContent: 'center', marginTop: 10 }}>
+          <div className="row" style={{ justifyContent: 'center' }}>
             <GauntletLadder u={u} a={a} />
           </div>
         )}
-        <div className="row" style={{ justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
+        <div className="banner-actions">
           <button className="btn primary" onClick={() => void copy()} data-testid="arena-copy">
-            {copied ? 'Copied!' : 'Copy result to share'}
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
           </button>
           <button className="btn" onClick={card} data-testid="arena-card">
-            Download share card
+            <ImageDown size={16} aria-hidden="true" /> Download share card
           </button>
           <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again">
-            Play again
+            <Dices size={16} aria-hidden="true" /> Play again
           </button>
           <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={a.handManaged ? 'Managed by hand: your friend sees the draft and the ladder replay, and your scores as your word' : 'Played by the assistant: your friend’s build replays and verifies it'}>
-            Challenge a friend
+            <Send size={16} aria-hidden="true" /> Challenge a friend
           </button>
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title="The same seed again, against your own run">
-            Run it back
+            <RotateCcw size={16} aria-hidden="true" /> Run it back
           </button>
           <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')}>
-            New game
+            <Plus size={16} aria-hidden="true" /> New game
           </button>
         </div>
       </div>
 
-      {link && (
-        <div className="panel" style={{ marginBottom: 12 }} data-testid="arena-challenge-link">
-          <div className="panel-head">
-            <h3>Challenge link</h3>
-            <span className="small muted">
-              Whoever opens it drafts the same wheel as {challengeName} and {gauntlet ? 'climbs the same ladder' : 'faces the same draw'}, with your result on every step. {a.handManaged ? 'You managed this run by hand, so it shows as your word, never as verified.' : 'The assistant played every match, so it verifies on the same data and engine.'} Built on data {u.generatedAt}, engine {ENGINE_VERSION}.
-            </span>
-          </div>
-          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} />
-        </div>
-      )}
-
-      {challenge?.arena && (
-        <div className="panel" style={{ marginBottom: 12 }} data-testid="arena-h2h">
-          <div className="panel-head">
-            <h3>Head-to-head · vs {challenge.name}</h3>
-            <span className="small muted">{arenaVerifiedLine(challenge, a.format)}</span>
-          </div>
-          <div style={{ fontWeight: 700 }} data-testid="arena-verdict">
-            {verdict}
-          </div>
-        </div>
-      )}
-
-      <div className="grid two">
-        <div className="col">
-          <div className="panel" data-testid="arena-log">
-            <h3>The run</h3>
-            <div className="col" style={{ gap: 8 }}>
-              {a.log.map((s, i) => (
-                <div key={i} className="row between wrap">
-                  <span className="row" style={{ gap: 8 }}>
-                    <ClubBadge clubId={clubIdOfKey(s.opponent)} size={26} />
-                    <span>
-                      <div style={{ fontWeight: 600 }}>
-                        {s.label} v {arenaClubName(u, s.opponent)}
-                      </div>
-                      <div className="small muted">
-                        {s.neutral ? 'Neutral ground' : s.home ? 'Home' : 'Away'} · real strength {s.realStrength.toFixed(1)}
-                        {s.offset > 0 ? `, played at ${(s.realStrength - s.offset).toFixed(1)}` : ''} · {s.live ? 'managed live' : 'the assistant'}
-                      </div>
-                    </span>
-                  </span>
-                  <span className="col" style={{ alignItems: 'flex-end', gap: 2 }}>
-                    <span className={`chip ${s.gf > s.ga || (s.pens && s.pens.us > s.pens.them) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
-                      {s.gf}-{s.ga}
-                      {s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}
-                    </span>
-                    {challenge && <span className="small muted" data-testid="ghost-step">{ghostStepLine(challenge, i)}</span>}
-                  </span>
-                </div>
-              ))}
+      <div className="summary-body fill" data-testid="summary-body">
+        {link && (
+          <div className="panel" data-testid="arena-challenge-link">
+            <div className="panel-head">
+              <span className="head-title">
+                <h3>Challenge link</h3>
+                <Info label="About the link">
+                  Whoever opens it drafts the same wheel as {challengeName} and {gauntlet ? 'climbs the same ladder' : 'faces the same draw'}, with your result on every step. {a.handManaged ? 'You managed this run by hand, so it shows as your word, never as verified.' : 'The assistant played every match, so it verifies on the same data and engine.'} Built on data {u.generatedAt}, engine {ENGINE_VERSION}.
+                </Info>
+              </span>
             </div>
-            {!gauntlet && last?.pens && (
-              <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
-                {last.pens.kicks.map((k, i) => (
-                  <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`}>
-                    {k.us ? '' : '⇢ '}
-                    {(k.us ? get(k.takerId)?.name : u.index[k.takerId]?.name) ?? k.takerId} {k.scored ? '✓' : '✗'}
-                  </span>
+            <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} />
+          </div>
+        )}
+
+        {challenge?.arena && (
+          <div className="panel" data-testid="arena-h2h">
+            <div className="panel-head">
+              <span className="head-title">
+                <h3>Head-to-head · vs {challenge.name}</h3>
+                <Info label="About the claim">{arenaVerifiedLine(challenge, a.format)}</Info>
+              </span>
+            </div>
+            <div style={{ fontWeight: 700 }} data-testid="arena-verdict">
+              {verdict}
+            </div>
+          </div>
+        )}
+
+        <div className="grid two">
+          <div className="col">
+            <div className="panel" data-testid="arena-log">
+              <h3>The run</h3>
+              <div className="plist lined">
+                {a.log.map((s, i) => (
+                  <div key={i} className="row between" style={{ gap: 8, padding: '6px 0' }}>
+                    <span className="row" style={{ gap: 8, minWidth: 0 }}>
+                      <ClubBadge clubId={clubIdOfKey(s.opponent)} size={26} />
+                      <span style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>
+                          {s.label} v {arenaClubName(u, s.opponent)}
+                        </div>
+                        <div className="small muted">
+                          {s.neutral ? 'Neutral ground' : s.home ? 'Home' : 'Away'} · real {s.realStrength.toFixed(1)}
+                          {s.offset > 0 ? `, played at ${(s.realStrength - s.offset).toFixed(1)}` : ''} · {s.live ? 'managed live' : 'the assistant'}
+                        </div>
+                      </span>
+                    </span>
+                    <span className="col" style={{ alignItems: 'flex-end', gap: 2 }}>
+                      <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                        {s.gf}-{s.ga}
+                        {s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}
+                      </span>
+                      {challenge && <span className="small muted" data-testid="ghost-step">{ghostStepLine(challenge, i)}</span>}
+                    </span>
+                  </div>
                 ))}
               </div>
-            )}
-          </div>
-          <div className="panel">
-            <h3>{runLong ? 'The run’s scorers' : 'Man of the match and scorers'}</h3>
-            {motm && <div style={{ fontWeight: 600 }}>⭐ {cup ? 'Final man of the match: ' : ''}{motm}</div>}
-            {runLong && runScorers.length === 0 && <div className="muted small">No goals for us.</div>}
-            {runLong &&
-              runScorers.map(([id, s]) => (
-                <div key={id} className="row between small">
-                  <span>
-                    ⚽ {get(id)?.name ?? id}
-                    {s.seasonStats.motm > 0 ? ` · ⭐ ${s.seasonStats.motm}` : ''}
-                  </span>
-                  <span className="mono muted">{s.seasonStats.goals}</span>
+              {!gauntlet && last?.pens && (
+                <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
+                  {last.pens.kicks.map((k, i) => (
+                    <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`}>
+                      {k.us ? '' : '⇢ '}
+                      {(k.us ? get(k.takerId)?.name : u.index[k.takerId]?.name) ?? k.takerId} {k.scored ? '✓' : '✗'}
+                    </span>
+                  ))}
                 </div>
-              ))}
-            {!runLong && goals.length === 0 && <div className="muted small">No goals for us.</div>}
-            {!runLong && goals.map((g, i) => (
-              <div key={i} className="row between small">
-                <span>
-                  ⚽ {g.playerName}
-                  {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
-                </span>
-                <span className="mono muted">{minuteLabel(g.minute)}</span>
-              </div>
-            ))}
+              )}
+            </div>
+            <div className="panel">
+              <h3>{runLong ? 'The run’s scorers' : 'Man of the match and scorers'}</h3>
+              {motm && <div style={{ fontWeight: 600 }}>{cup ? 'Final man of the match: ' : 'Man of the match: '}{motm}</div>}
+              {runLong && runScorers.length === 0 && <div className="muted small">No goals for us.</div>}
+              {runLong &&
+                runScorers.map(([id, s]) => (
+                  <div key={id} className="row between small">
+                    <span>
+                      ⚽ {get(id)?.name ?? id}
+                      {s.seasonStats.motm > 0 ? ` · MOTM ${s.seasonStats.motm}` : ''}
+                    </span>
+                    <span className="mono muted">{s.seasonStats.goals}</span>
+                  </div>
+                ))}
+              {!runLong && goals.length === 0 && <div className="muted small">No goals for us.</div>}
+              {!runLong &&
+                goals.map((g, i) => (
+                  <div key={i} className="row between small">
+                    <span>
+                      ⚽ {g.playerName}
+                      {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
+                    </span>
+                    <span className="mono muted">{minuteLabel(g.minute)}</span>
+                  </div>
+                ))}
+            </div>
           </div>
           <div className="panel">
-            <h3>Share</h3>
-            <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="arena-share-text">
-              {text}
-            </pre>
+            <h3>The XI · {formation.name}</h3>
+            <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={game.settings.rules.hardMode} />
           </div>
         </div>
-        <div className="panel">
-          <h3>The XI · {formation.name}</h3>
-          <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={game.settings.rules.hardMode} />
-        </div>
+        {cup && a.bracket && (
+          <div className="panel" data-testid="arena-bracket">
+            <h3>The draw · {size} clubs</h3>
+            <Bracket
+              rounds={Array.from({ length: cupRoundCount(size) }, (_, r) => cupRoundName(size, r).name)}
+              ties={a.bracket.rounds}
+              nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
+              badgeOf={(k) => (k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k))}
+              userId={USER_TEAM}
+              seeds={a.bracket.seeds}
+            />
+          </div>
+        )}
+        <details className="panel fold">
+          <summary className="fold-head">
+            <h3>Share text</h3>
+          </summary>
+          <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="arena-share-text">
+            {text}
+          </pre>
+        </details>
       </div>
-      {cup && a.bracket && (
-        <div className="panel" style={{ marginTop: 12 }} data-testid="arena-bracket">
-          <h3>The draw · {size} clubs</h3>
-          <Bracket
-            rounds={Array.from({ length: cupRoundCount(size) }, (_, r) => cupRoundName(size, r).name)}
-            ties={a.bracket.rounds}
-            nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
-            badgeOf={(k) => (k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k))}
-            userId={USER_TEAM}
-            seeds={a.bracket.seeds}
-          />
-        </div>
-      )}
     </div>
   )
 }

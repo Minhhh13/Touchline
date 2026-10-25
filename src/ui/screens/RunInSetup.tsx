@@ -5,8 +5,9 @@ import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
 import { randomSeed } from '@engine/rng'
 import { jobLine, RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, RUN_IN_TEMPLATE_LABEL, runInGameSettings, summariseRunIn } from '@game/logic/runin'
-import { ClubBadge, Segmented } from '../components/bits'
-import { clubName, seasonLabel } from '../format'
+import { ClubBadge, Info, Segmented } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
+import { clubName, formationName, seasonLabel } from '../format'
 
 const keyOf = (j: RunInJob) => `${j.clubId}@${j.season}`
 
@@ -70,99 +71,133 @@ export function RunInSetup() {
   )
 
   return (
-    <div className="page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
-      <div className="row between wrap" style={{ marginBottom: 12 }}>
-        <h1>Run-in</h1>
-        <button className="btn ghost" onClick={() => go('home')}>
-          ← Back
-        </button>
-      </div>
-      <div className="grid two">
-        <div className="col">
-          <div className="panel col">
-            <h3>The job</h3>
-            <div className="field" data-testid="runin-template">
-              Brief
-              <Segmented
-                value={template}
-                onChange={(t) => {
-                  setTemplate(t)
-                  setPicked(null)
-                }}
-                options={[
-                  { value: 'title', label: RUN_IN_TEMPLATE_LABEL.title, hint: 'Second or third, within six points of the top: win the title' },
-                  { value: 'europe', label: RUN_IN_TEMPLATE_LABEL.europe, hint: 'Fifth to eighth, within five points of fourth: reach the top four' },
-                  { value: 'survival', label: RUN_IN_TEMPLATE_LABEL.survival, hint: 'In the bottom three, within six points of safety: stay up' },
-                ]}
-              />
-            </div>
-            <div className="field" data-testid="runin-league">
-              League
-              <Segmented
-                value={leagueId}
-                onChange={(id) => {
-                  setLeagueId(id)
-                  setPicked(null)
-                }}
-                options={leagues.map((l) => ({ value: l.id, label: l.name }))}
-              />
-              <span className="help">Only leagues with real final tables offer run-ins. The table you take over is projected from the final one, scaled back to matchweek 28.</span>
-            </div>
-            <label className="field">
-              Seed
-              <div className="row">
-                <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} data-testid="runin-seed" />
-                <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                  New
-                </button>
-              </div>
-              <span className="help">The seed draws the three suggested jobs, your {RUN_IN_SPINS} spins and the rest of the season.</span>
-            </label>
+    // Main's setup layout: numbered steps in two boxes, one screen on a desktop (the job list scrolls inside its box)
+    <div className="page setup-page runin-setup has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+      <div className="setup-flow setup-wide">
+        <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <h1>Run-in</h1>
+            <p className="muted setup-sub">
+              Take over a real club at matchweek 28 with a brief, four spins and ten games.{' '}
+              <Info label="About the run-in">Only leagues with real final tables offer run-ins. The table you take over is projected from the final one, scaled back to matchweek 28. The real squad lines up in your shape; Realistic, and the board can sack you from the first week.</Info>
+            </p>
           </div>
-          <div className="panel col">
-            <h3>Shape</h3>
-            <select className="input" value={formation} onChange={(e) => setFormation(e.target.value)} data-testid="runin-formation">
-              <option value="club">The club's own ({formationForStyle(clubStyle)})</option>
-              {FORMATIONS.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-            <span className="help">The real squad lines up in it. Four spins of the {leagues.find((l) => l.id === leagueId)?.name ?? 'league'} wheel add to it; Realistic, and the board can sack you from the first week.</span>
-          </div>
+          <button className="btn ghost" onClick={() => go('home')}>
+            ← Back
+          </button>
         </div>
 
-        <div className="col">
-          <div className="panel col" data-testid="runin-suggested">
-            <h3>Three jobs for this seed</h3>
-            {!ready && <span className="muted small">Loading league data…</span>}
-            {ready && suggested.length === 0 && <span className="muted small">No jobs of this kind in this league.</span>}
-            {suggested.map((j, i) => row(j, `runin-job-${i}`))}
-          </div>
-          {ready && jobs.length > 0 && (
-            <details className="panel" data-testid="runin-browse">
-              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Browse all {jobs.length}</summary>
-              <div className="col" style={{ marginTop: 8, gap: 6 }}>
-                {bySeason.map((g) => (
-                  <div key={g.season} className="col" style={{ gap: 4 }}>
-                    <div className="small muted">{seasonLabel(g.season)}</div>
-                    {g.jobs.map((j) => row(j))}
-                  </div>
-                ))}
+        <div className="setup-grid">
+          <div className="panel setup-box">
+            <section className="setup-step">
+              <StepHead n={1} title="Choose the brief" />
+              <div className="field" data-testid="runin-template">
+                <Segmented
+                  value={template}
+                  onChange={(t) => {
+                    setTemplate(t)
+                    setPicked(null)
+                  }}
+                  options={[
+                    { value: 'title', label: RUN_IN_TEMPLATE_LABEL.title, hint: 'Second or third, within six points of the top: win the title' },
+                    { value: 'europe', label: RUN_IN_TEMPLATE_LABEL.europe, hint: 'Fifth to eighth, within five points of fourth: reach the top four' },
+                    { value: 'survival', label: RUN_IN_TEMPLATE_LABEL.survival, hint: 'In the bottom three, within six points of safety: stay up' },
+                  ]}
+                />
               </div>
-            </details>
-          )}
-          <div className="bottom-bar" ref={barRef}>
-            <div className="small muted" data-testid="runin-summary">
-              {settings ? summariseRunIn(u, settings) : ready ? 'Pick a job' : 'Loading league data…'}
-            </div>
-            <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !job} data-testid="runin-start">
-              {!ready ? 'Loading league data…' : job ? `Take over ${clubName(u, job.clubId)}` : 'Pick a job'}
-            </button>
+            </section>
+            <section className="setup-step">
+              <StepHead n={2} title="Choose your league" />
+              <div className="field setup-league" data-testid="runin-league">
+                <Segmented
+                  value={leagueId}
+                  onChange={(id) => {
+                    setLeagueId(id)
+                    setPicked(null)
+                  }}
+                  options={leagues.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))}
+                />
+              </div>
+            </section>
+            <section className="setup-step">
+              <StepHead n={3} title="Shape and seed" />
+              <label className="field">
+                <span>
+                  Shape <Info label="About the shape">The real squad lines up in it. Four spins of the {leagues.find((l) => l.id === leagueId)?.name ?? 'league'} wheel add to it.</Info>
+                </span>
+                <select className="input" value={formation} onChange={(e) => setFormation(e.target.value)} data-testid="runin-formation">
+                  <option value="club">The club's own ({formationName(formationForStyle(clubStyle))})</option>
+                  {FORMATIONS.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>
+                  Seed <Info label="About the seed">The seed draws the three suggested jobs, your {RUN_IN_SPINS} spins and the rest of the season.</Info>
+                </span>
+                <div className="row">
+                  <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} data-testid="runin-seed" />
+                  <button className="btn sm" onClick={() => setSeed(randomSeed())}>
+                    New
+                  </button>
+                </div>
+              </label>
+            </section>
+          </div>
+
+          <div className="panel setup-box">
+            <section className="setup-step">
+              <StepHead n={4} title="Pick the job" />
+              <div className="setup-rules runin-jobs">
+                <div className="setup-opt setup-wide-opt col" data-testid="runin-suggested">
+                  <h3>Three jobs for this seed</h3>
+                  {!ready && <span className="muted small">Loading league data…</span>}
+                  {ready && suggested.length === 0 && <span className="muted small">No jobs of this kind in this league.</span>}
+                  {suggested.map((j, i) => row(j, `runin-job-${i}`))}
+                </div>
+                {ready && jobs.length > 0 && (
+                  <details className="setup-opt setup-wide-opt" data-testid="runin-browse">
+                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Browse all {jobs.length}</summary>
+                    <div className="col" style={{ marginTop: 8, gap: 6 }}>
+                      {bySeason.map((g) => (
+                        <div key={g.season} className="col" style={{ gap: 4 }}>
+                          <div className="eyebrow">{seasonLabel(g.season)}</div>
+                          {g.jobs.map((j) => row(j))}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            </section>
+            <section className="setup-step setup-start bottom-bar" ref={barRef}>
+              <StepHead n={5} title="Take the job" />
+              <div className="small muted" data-testid="runin-summary">
+                {settings ? summariseRunIn(u, settings) : ready ? 'Pick a job' : 'Loading league data…'}
+              </div>
+              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !job} data-testid="runin-start">
+                {!ready ? 'Loading league data…' : job ? `Take over ${clubName(u, job.clubId)}` : 'Pick a job'}
+              </button>
+            </section>
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+/** A step's numbered badge and short title, as Setup draws it. */
+function StepHead({ n, title }: { n: number; title: string }) {
+  return (
+    <h3 className="step-head">
+      <span className="step-num" aria-hidden="true">
+        {n}
+      </span>
+      <span className="sr-only">Step {n}: </span>
+      {title}
+    </h3>
   )
 }

@@ -80,7 +80,8 @@ describe('the teammate chain: lines and links', () => {
   }, 30000)
 
   it('the rule is off unless set: an unset or false chain adds nothing to a link, a set one makes it v2', () => {
-    expect(rulesDiff({ ...QUICK_RULES, leagues: ['england'], chain: undefined })).toEqual({})
+    // Main's rulesDiff always writes the difficulty and the manager rule; nothing else, so no chain key
+    expect(rulesDiff({ ...QUICK_RULES, leagues: ['england'], chain: undefined })).toEqual({ difficulty: 'normal', managers: true })
     expect(payloadVersionFor(rulesDiff({ ...QUICK_RULES, chain: true }), 'quick')).toBe(2)
   })
 
@@ -89,7 +90,7 @@ describe('the teammate chain: lines and links', () => {
     runQuickSeason(g, u)
     const c = challengeFromGame(g, u, 'Minh')!
     expect(c.v).toBe(2)
-    expect(c.s.r).toEqual({ chain: true })
+    expect(c.s.r).toEqual({ difficulty: 'normal', managers: true, chain: true })
     const back = decodeChallenge(encodeChallenge(c))
     expect(back).toEqual(c)
     expect(rulesFromPayload(back).chain).toBe(true)
@@ -114,8 +115,9 @@ describe('Dressing Room', () => {
   })
 
   it('the quick season unlocks it on a chained title and only then', () => {
-    // Seeds found by sweeping 60 chained England drafts (2 titles, mean 50.6 points; unchained 16 titles, 69.6)
-    for (const [seed, champion] of [['chain-measure-53', true], ['chain-measure-58', true], ['chain-measure-0', false]] as const) {
+    // Seeds found by sweeping 60 chained England drafts (2 titles, mean 50.6 points; unchained 16 titles, 69.6); re-swept
+    // over 100 on main's Quick Draft defaults when main merged in (titles on 53 and 78, both unbroken)
+    for (const [seed, champion] of [['chain-measure-53', true], ['chain-measure-78', true], ['chain-measure-0', false]] as const) {
       const g = drafted({ seed })
       runQuickSeason(g, u)
       expect(g.quickResult!.position === 1, seed).toBe(champion)

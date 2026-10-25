@@ -15,7 +15,7 @@ import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { autoDraft, capForSquad, picksMade, QUICK_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
-import { advanceMatch, beginMatch, finishMatch, onPitch, type FullMatchResult, type LiveChanges, type MatchInProgress, type MatchOptions, type MatchTeamInput, type SecondHalfOptions, type TeamLookups } from '@engine/match'
+import { advanceMatch, beginMatch, changeInPlay, finishMatch, onPitch, type FullMatchResult, type InPlayChange, type InPlayOutcome, type LiveChanges, type MatchInProgress, type MatchOptions, type MatchTeamInput, type SecondHalfOptions, type TeamLookups } from '@engine/match'
 import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, USER_TEAM, userTeamInput, type AiClub } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { arenaClub, arenaPool, arenaTierLabel, clubIdOfKey, clubSeasonKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
@@ -461,9 +461,10 @@ function kickOff(mp: MatchInProgress, userIsHome: boolean): Set<string> {
 /**
  * Play the paused arena match on from its stop with the manager's changes,
  * `advanceLiveMatch`'s pattern: only the substitutions the engine made are
- * written back to the lineup. At the whistle the step resolves.
+ * written back to the lineup. `hold` keeps the last twenty minutes live for the
+ * match-day dashboard (`completeArenaMatch` then blows the whistle). At the whistle the step resolves.
  */
-export function advanceArenaMatch(game: Game, u: LoadedUniverse, changes?: LiveChanges): void {
+export function advanceArenaMatch(game: Game, u: LoadedUniverse, changes?: LiveChanges, hold = false): void {
   const live = game.live
   const a = game.arena
   if (!live || live.kind !== 'arena' || !a) return
@@ -473,19 +474,13 @@ export function advanceArenaMatch(game: Game, u: LoadedUniverse, changes?: LiveC
   const opts: SecondHalfOptions | undefined = changes ? { side: live.userIsHome ? 'home' : 'away', talk: changes.talk, tactics: changes.tactics, substitutions: changes.substitutions, shout: changes.shout } : undefined
   if (changes?.tactics) game.tactics = changes.tactics
   const stop = live.mp.clock ?? 45
-  const persistSubs = () => {
-    const made = live.userIsHome ? live.mp.hSubs : live.mp.aSubs
-    for (const s of (changes?.substitutions ?? []).filter((s) => made.some((m) => m.minute === stop && m.off === s.off && m.on === s.on))) {
-      const slot = Object.keys(game.lineup).find((k) => game.lineup[k] === s.off)
-      if (slot && game.squad[s.on]) {
-        game.lineup[slot] = s.on
-        game.bench = game.bench.filter((id) => id !== s.on)
-        if (!game.bench.includes(s.off)) game.bench.push(s.off)
-      }
-    }
+  if (stop >= 90) {
+    completeArenaMatch(game, u)
+    return
   }
-  if (stop < 70) {
-    advanceMatch(live.mp, lookups, opts, 70)
+  const persistSubs = () => persistArenaSubs(game, live.userIsHome, live.mp, stop, changes?.substitutions ?? [])
+  if (stop < 70 || hold) {
+    advanceMatch(live.mp, lookups, opts, stop < 70 ? 70 : 90)
     persistSubs()
     return
   }
@@ -494,6 +489,52 @@ export function advanceArenaMatch(game: Game, u: LoadedUniverse, changes?: LiveC
   game.live = null
   persistSubs()
   resolveArenaStep(game, u, res, live.mp, live.ctx, kickOffXI, true)
+}
+
+/** The match-day dashboard's whistle: the arena match to full time from wherever it stands, then the step resolved. */
+export function completeArenaMatch(game: Game, u: LoadedUniverse): void {
+  const live = game.live
+  const a = game.arena
+  if (!live || live.kind !== 'arena' || !a) return
+  const club = a.clubs[live.opponentId]
+  if (!club) return
+  const lookups = lookupsFor(game, u, club, live.userIsHome)
+  if ((live.mp.clock ?? 45) < 70) advanceMatch(live.mp, lookups, undefined, 70)
+  const kickOffXI = kickOff(live.mp, live.userIsHome)
+  const res = finishMatch(live.mp, lookups)
+  game.live = null
+  resolveArenaStep(game, u, res, live.mp, live.ctx, kickOffXI, true)
+}
+
+/**
+ * A change with the ball in play in an arena match (`changeLiveMatch`'s pattern): the instructions into
+ * `game.tactics`, the substitutions the engine made into the lineup and bench. A change by hand marks the run hand-managed.
+ */
+export function changeArenaMatch(game: Game, u: LoadedUniverse, change: Omit<InPlayChange, 'side'>): InPlayOutcome {
+  const live = game.live
+  const a = game.arena
+  const club = live && a ? a.clubs[live.opponentId] : undefined
+  if (!live || live.kind !== 'arena' || !a || !club) return { applied: false, refusal: 'no-segment', made: [], refused: [] }
+  const side: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
+  const out = changeInPlay(live.mp, lookupsFor(game, u, club, live.userIsHome), { ...change, side })
+  if (!out.applied) return out
+  game.tactics = { ...(side === 'home' ? live.mp.home : live.mp.away).tactics }
+  persistArenaSubs(game, live.userIsHome, live.mp, change.minute, out.made)
+  if (!a.over) a.handManaged = true
+  return out
+}
+
+/** Write the substitutions the engine made at `minute` into the lineup and bench, so the squad matches the pitch. */
+function persistArenaSubs(game: Game, userIsHome: boolean, mp: MatchInProgress, minute: number, asked: Array<{ off: string; on: string }>): void {
+  const made = userIsHome ? mp.hSubs : mp.aSubs
+  for (const s of asked.filter((s) => made.some((m) => m.minute === minute && m.off === s.off && m.on === s.on))) {
+    const slot = Object.keys(game.lineup).find((k) => game.lineup[k] === s.off)
+    if (slot && game.squad[s.on]) {
+      game.lineup[slot] = s.on
+      game.bench = game.bench.filter((id) => id !== s.on)
+      if (!game.bench.includes(s.off)) game.bench.push(s.off)
+    }
+  }
 }
 
 /** The men still on the pitch for a side at the whistle: the kick-off XI less substitutes taken off, red cards and injuries. */

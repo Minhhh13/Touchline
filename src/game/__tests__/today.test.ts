@@ -253,6 +253,9 @@ describe('Today and this week: the streak books', () => {
     expect(started.settings.rules.chain).toBe(true)
     useStore.getState().autoDraftRest()
     useStore.getState().finishDraft()
+    // Main's quick seasons stop at the kick-off step, and the Daily (and a Weekly with one) at the January window
+    useStore.getState().kickOff()
+    if (useStore.getState().game?.phase === 'january') useStore.getState().closeJanuary(null)
     const g = useStore.getState().game!
     expect(g.phase).toBe('summary')
     const p = useStore.getState().profile

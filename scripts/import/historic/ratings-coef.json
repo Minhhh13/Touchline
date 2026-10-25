@@ -1,0 +1,319 @@
+{
+ "note": "Linear rating models per position group, fitted on European Soccer Database England 2008-09 to 2013-14 (EA ratings as target; ridge, lambda 5). PW: playing time, team and Wikidata features. PWB: PW plus a later EA rating projected back with curve. heldOutPW: PW fitted on 2008-09 to 2011-12 only, for the held-out check on 2012-13 and 2013-14 (validate-ratings.mjs). curve: one-season backward step x(age-1) = x + a + b (x - 65), fitted on ESD pairs.",
+ "PW": {
+  "GK": {
+   "intercept": 68.493,
+   "share": 2.584,
+   "share2": 0.206,
+   "logRank": -0.544,
+   "gdpg": 1.361,
+   "rankFrac": -0.823,
+   "shareXppg": 2.38,
+   "goals": 0.009,
+   "age": 0.265,
+   "age2": -0.02,
+   "logLinks": 0.965,
+   "wdMissing": 2.993,
+   "logCaps": 0.401,
+   "intlActive": 1.279
+  },
+  "DEF": {
+   "intercept": 65.738,
+   "share": 1.68,
+   "share2": -0.434,
+   "logRank": -0.302,
+   "gdpg": 2.159,
+   "rankFrac": -1.047,
+   "shareXppg": 2.454,
+   "goals": 1.383,
+   "age": 0.104,
+   "age2": -0.053,
+   "logLinks": 2.107,
+   "wdMissing": 5.072,
+   "logCaps": 0.214,
+   "intlActive": 0.156
+  },
+  "MID": {
+   "intercept": 62.108,
+   "share": 1.997,
+   "share2": -1.018,
+   "logRank": 0.125,
+   "gdpg": 1.4,
+   "rankFrac": -2.339,
+   "shareXppg": 2.573,
+   "goals": 3.536,
+   "age": 0.015,
+   "age2": -0.047,
+   "logLinks": 3.306,
+   "wdMissing": 9.428,
+   "logCaps": 0.108,
+   "intlActive": -0.021
+  },
+  "FWD": {
+   "intercept": 64.055,
+   "share": 0.963,
+   "share2": -0.965,
+   "logRank": -0.308,
+   "gdpg": 1.678,
+   "rankFrac": -1.048,
+   "shareXppg": 2.241,
+   "goals": 3.66,
+   "age": -0.009,
+   "age2": -0.042,
+   "logLinks": 2.839,
+   "wdMissing": 9.242,
+   "logCaps": 0.327,
+   "intlActive": 0.712
+  }
+ },
+ "PWB": {
+  "GK": {
+   "intercept": 68.956,
+   "share": 2.206,
+   "share2": 0.438,
+   "logRank": -0.474,
+   "gdpg": 1.001,
+   "rankFrac": -0.598,
+   "shareXppg": 1.074,
+   "goals": -0.002,
+   "age": 0.104,
+   "age2": 0.001,
+   "logLinks": 0.426,
+   "wdMissing": 1.373,
+   "logCaps": 0.201,
+   "intlActive": 0.663,
+   "bp": 0.325,
+   "bpXgap": 0.084,
+   "bpMissing": 1.604,
+   "bpGap": -1.074
+  },
+  "DEF": {
+   "intercept": 65.001,
+   "share": 0.822,
+   "share2": -0.193,
+   "logRank": -0.188,
+   "gdpg": 1.266,
+   "rankFrac": -1.085,
+   "shareXppg": 1.47,
+   "goals": 0.817,
+   "age": 0.057,
+   "age2": -0.001,
+   "logLinks": 0.966,
+   "wdMissing": 2.672,
+   "logCaps": 0.102,
+   "intlActive": 0.244,
+   "bp": 0.453,
+   "bpXgap": 0.047,
+   "bpMissing": 3.439,
+   "bpGap": -0.263
+  },
+  "MID": {
+   "intercept": 63.666,
+   "share": 1.469,
+   "share2": -0.872,
+   "logRank": 0.151,
+   "gdpg": 0.954,
+   "rankFrac": -2.116,
+   "shareXppg": 1.6,
+   "goals": 2.473,
+   "age": -0.062,
+   "age2": -0.004,
+   "logLinks": 1.588,
+   "wdMissing": 4.716,
+   "logCaps": 0.11,
+   "intlActive": -0.234,
+   "bp": 0.476,
+   "bpXgap": 0.037,
+   "bpMissing": 3.026,
+   "bpGap": -0.284
+  },
+  "FWD": {
+   "intercept": 63.574,
+   "share": 0.687,
+   "share2": -0.972,
+   "logRank": -0.474,
+   "gdpg": 1.326,
+   "rankFrac": -0.629,
+   "shareXppg": 1.479,
+   "goals": 2.601,
+   "age": -0.037,
+   "age2": -0.007,
+   "logLinks": 1.607,
+   "wdMissing": 5.025,
+   "logCaps": 0.202,
+   "intlActive": 0.688,
+   "bp": 0.52,
+   "bpXgap": -0.007,
+   "bpMissing": 4.243,
+   "bpGap": 0.24
+  }
+ },
+ "heldOutPW": {
+  "GK": {
+   "intercept": 68.909,
+   "share": 2.023,
+   "share2": 0.1,
+   "logRank": -0.667,
+   "gdpg": 1.459,
+   "rankFrac": -1.109,
+   "shareXppg": 2.26,
+   "goals": -0.01,
+   "age": 0.321,
+   "age2": -0.028,
+   "logLinks": 1.093,
+   "wdMissing": 1.773,
+   "logCaps": 0.452,
+   "intlActive": 1.005
+  },
+  "DEF": {
+   "intercept": 66.478,
+   "share": 1.435,
+   "share2": -0.137,
+   "logRank": -0.418,
+   "gdpg": 2.343,
+   "rankFrac": -1.179,
+   "shareXppg": 2.411,
+   "goals": 1.53,
+   "age": 0.074,
+   "age2": -0.053,
+   "logLinks": 2.047,
+   "wdMissing": 4.219,
+   "logCaps": 0.211,
+   "intlActive": 0.166
+  },
+  "MID": {
+   "intercept": 63.854,
+   "share": 2.131,
+   "share2": -0.046,
+   "logRank": -0.078,
+   "gdpg": 1.607,
+   "rankFrac": -2.787,
+   "shareXppg": 2.092,
+   "goals": 3.012,
+   "age": 0,
+   "age2": -0.048,
+   "logLinks": 3.026,
+   "wdMissing": 6.947,
+   "logCaps": 0.125,
+   "intlActive": 0.082
+  },
+  "FWD": {
+   "intercept": 65.466,
+   "share": 0.88,
+   "share2": -0.114,
+   "logRank": -0.363,
+   "gdpg": 1.872,
+   "rankFrac": -1.371,
+   "shareXppg": 1.961,
+   "goals": 3.16,
+   "age": -0.034,
+   "age2": -0.038,
+   "logLinks": 2.581,
+   "wdMissing": 7.624,
+   "logCaps": 0.222,
+   "intlActive": 1.093
+  }
+ },
+ "curve": {
+  "16": {
+   "a": -3.034,
+   "b": -0.1982
+  },
+  "17": {
+   "a": -1.798,
+   "b": -0.1738
+  },
+  "18": {
+   "a": -0.87,
+   "b": -0.2163
+  },
+  "19": {
+   "a": -0.598,
+   "b": -0.1471
+  },
+  "20": {
+   "a": -0.462,
+   "b": -0.1259
+  },
+  "21": {
+   "a": -0.201,
+   "b": -0.0969
+  },
+  "22": {
+   "a": 0.106,
+   "b": -0.0976
+  },
+  "23": {
+   "a": 0.573,
+   "b": -0.1079
+  },
+  "24": {
+   "a": 0.872,
+   "b": -0.1142
+  },
+  "25": {
+   "a": 0.989,
+   "b": -0.11
+  },
+  "26": {
+   "a": 1.207,
+   "b": -0.1146
+  },
+  "27": {
+   "a": 1.347,
+   "b": -0.1121
+  },
+  "28": {
+   "a": 1.735,
+   "b": -0.1292
+  },
+  "29": {
+   "a": 1.872,
+   "b": -0.1263
+  },
+  "30": {
+   "a": 2.143,
+   "b": -0.1345
+  },
+  "31": {
+   "a": 2.219,
+   "b": -0.129
+  },
+  "32": {
+   "a": 2.203,
+   "b": -0.1157
+  },
+  "33": {
+   "a": 2.18,
+   "b": -0.1164
+  },
+  "34": {
+   "a": 1.932,
+   "b": -0.0894
+  },
+  "35": {
+   "a": 2.025,
+   "b": -0.1058
+  },
+  "36": {
+   "a": 1.967,
+   "b": -0.1093
+  },
+  "37": {
+   "a": 2.198,
+   "b": -0.1543
+  },
+  "38": {
+   "a": 2.578,
+   "b": -0.204
+  },
+  "39": {
+   "a": 2.578,
+   "b": -0.204
+  },
+  "40": {
+   "a": 2.578,
+   "b": -0.204
+  }
+ }
+}

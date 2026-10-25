@@ -1,7 +1,20 @@
-import type { Game, GameSettings } from '../types'
-import type { PlayerSeason } from '@engine/types'
+import type { Game, GameSettings, Profile, QuickBests } from '../types'
+import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
+import { DIFFICULTY_RESPINS, type DraftRules } from '@engine/draft'
+import { MORALE_LOG_CAP } from './happiness'
+
+/**
+ * Draft rules written before the 38-0 options: the difficulty is read from hard mode (hard) or the
+ * re-spin budget (3 or more is easy, anything else normal), ratings are shown unless hard, the draft
+ * is Squad First and players are rated by season. The re-spin budget itself is left as it was saved.
+ */
+export function normaliseRules(r: DraftRules): DraftRules {
+  const difficulty = r.difficulty ?? (r.hardMode ? 'hard' : r.respins >= DIFFICULTY_RESPINS.easy ? 'easy' : 'normal')
+  const hard = difficulty === 'hard'
+  return { ...r, difficulty, hardMode: !!r.hardMode || hard, showRatings: hard ? false : r.showRatings ?? true, draftMode: r.draftMode ?? 'squad', ratings: r.ratings ?? 'season' }
+}
 
 /** Fill in fields added since the save was written; null for anything that is not a game. */
 export function normaliseGame(g: Game | null | undefined): Game | null {
@@ -9,10 +22,13 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
   const settings: GameSettings = { ...g.settings }
   settings.leagueId ??= DEFAULT_LEAGUE
   settings.wheelLeagues ??= [settings.leagueId]
+  if (settings.rules && typeof settings.rules === 'object') settings.rules = normaliseRules(settings.rules)
+  const draft = g.draft && typeof g.draft === 'object' && g.draft.rules ? { ...g.draft, rules: normaliseRules(g.draft.rules), target: g.draft.target ?? null } : g.draft
   return {
     ...g,
     settings,
-    squad: g.squad ?? {},
+    draft,
+    squad: withMoraleLogs(g.squad ?? {}),
     contracts: g.contracts ?? {},
     customPlayers: withDepthAttributes(g.customPlayers ?? {}),
     lineup: g.lineup ?? {},
@@ -32,6 +48,8 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     pendingMove: g.pendingMove ?? null,
     quickResult: g.quickResult ?? null,
     arena: g.arena ?? null,
+    // A season paused for a January window that is not there cannot go on: back to the tactics step, which replays it
+    phase: g.phase === 'january' && !g.quickJanuary ? 'kickoff' : g.phase,
   }
 }
 
@@ -55,4 +73,37 @@ function withDepthAttributes(players: Record<string, PlayerSeason>): Record<stri
     changed = true
   }
   return changed ? out : players
+}
+
+/**
+ * The happiness log (`SquadPlayer.moraleLog`) is optional: a save from before it simply has none, and every reader
+ * uses `?? []`. A log that is not a list is dropped and one longer than the cap is trimmed to its newest entries; a
+ * squad that needs neither is returned as it was.
+ */
+function withMoraleLogs(squad: Record<string, SquadPlayer>): Record<string, SquadPlayer> {
+  let changed = false
+  const out: Record<string, SquadPlayer> = {}
+  for (const [id, s] of Object.entries(squad)) {
+    const log = s?.moraleLog
+    if (log === undefined || (Array.isArray(log) && log.length <= MORALE_LOG_CAP)) {
+      out[id] = s
+      continue
+    }
+    changed = true
+    const rest = { ...s }
+    delete rest.moraleLog
+    out[id] = Array.isArray(log) ? { ...rest, moraleLog: log.slice(-MORALE_LOG_CAP) } : rest
+  }
+  return changed ? out : squad
+}
+
+/**
+ * A profile from any build: the defaults under whatever was saved, and the Quick Draft bests (added with the 38-0
+ * chase) filled in, so a profile written before them reads as no perfect seasons and no run yet.
+ */
+export function normaliseProfile(p: Partial<Profile> | null | undefined, defaults: Profile): Profile {
+  const saved = p && typeof p === 'object' ? p : {}
+  const b: QuickBests = saved.quickBests && typeof saved.quickBests === 'object' ? saved.quickBests : {}
+  const quickBests: QuickBests = { perfectSeasons: b.perfectSeasons ?? 0, longestPerfectRun: b.longestPerfectRun ?? 0, ...(b.bestRecord ? { bestRecord: b.bestRecord } : {}) }
+  return { ...defaults, ...saved, quickBests }
 }

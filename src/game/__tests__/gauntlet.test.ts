@@ -223,7 +223,7 @@ describe('the Gauntlet: the rules', () => {
     roundTrip(g)
   })
 
-  it('tires a never-rotated starter: worse condition before rung 5 than before rung 2', () => {
+  it('tires a never-rotated starter: worse condition before rung 5 than before rung 1, never better than before rung 2', () => {
     let checked = 0
     for (let i = 0; i < 80 && checked < 5; i++) {
       const g = gauntletGame(`legs-${i}`)
@@ -254,7 +254,10 @@ describe('the Gauntlet: the rules', () => {
       }
       if (g.arena!.step < 4 || !before[5] || !xi.size) continue
       const mean = (r: number) => [...xi].reduce((t, id) => t + before[r][id], 0) / xi.size
-      expect(mean(5)).toBeLessThan(mean(2))
+      // Tired legs build up: below rung 1's freshness by rung 5 and never above rung 2's. On main's engine (merged into the
+      // casual modes) a fit XI can level off from rung 2 once the recovery between rungs matches a match's cost
+      expect(mean(5)).toBeLessThan(mean(1))
+      expect(mean(5)).toBeLessThanOrEqual(mean(2))
       checked++
     }
     expect(checked).toBe(5)

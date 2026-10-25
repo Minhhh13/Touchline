@@ -50,6 +50,9 @@ describe('streaks', () => {
     useStore.getState().startGame(dailyGameSettings(u, 'daily-2026-10-20', 'Streak XI'))
     useStore.getState().autoDraftRest()
     useStore.getState().finishDraft()
+    // Main's quick seasons stop at the kick-off step, and the Daily (and a Weekly with one) at the January window
+    useStore.getState().kickOff()
+    if (useStore.getState().game?.phase === 'january') useStore.getState().closeJanuary(null)
     const finished = useStore.getState().game!
     expect(finished.phase).toBe('summary')
     // The other days reuse its finished season under their own seed and id (one quick season is enough to prove the bookkeeping)

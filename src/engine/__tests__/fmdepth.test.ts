@@ -5,7 +5,7 @@ import { loadTestUniverse } from './helpers'
 import { Rng } from '../rng'
 import { aerialBonus, aerialOf, beginMatch, lateFade, simulateMatch, teamInputFromPool, type MatchTeamInput } from '../match'
 import { tacticalModifiers, tacticsForStyle } from '../tactics'
-import { buildLeague, type MetaFile, type PlayersFile } from '../universe'
+import { buildLeague, isClassic, type MetaFile, type PlayersFile } from '../universe'
 import { aggressionCardFactor, DEPTH_KEYS, deriveAggression, deriveJumping, deriveStamina, deriveStrength, deriveWorkRate, familiarityGainFactor, fatigueInjuryFactor, injuryRiskLevel, legs, mismatchFactor, staminaCostFactor, withDepth, workRateEdge } from '../depth'
 import { computeTeamStrength } from '../ratings'
 import { ENGINE_VERSION } from '../version'
@@ -174,7 +174,8 @@ describe('depth helpers', () => {
 
 describe('depth in the match engine', () => {
   const u = loadTestUniverse()
-  const all = Object.values(u.index)
+  // the standard seasons' players: the pins below predate the classic pack, which is opt-in
+  const all = Object.values(u.index).filter((p) => !isClassic(u, p))
   const elite = bestXIpool(all, 86, 99)
   const mid = bestXIpool(all, 72, 76)
   const low = withAttr(mid, { stamina: 35 })
@@ -187,7 +188,9 @@ describe('depth in the match engine', () => {
     let highLate = 0
     let lowEarly = 0
     let highEarly = 0
-    const n = 600
+    // 4,000 matches: at 600 the late-goal shares (about 0.24 each, a difference near 0.014) sat
+    // within one standard error, and the 2026-10-25 data rebuild flipped them on the same seeds
+    const n = 4000
     for (let i = 0; i < n; i++) {
       const rng = new Rng(`stamina-${i}`)
       const home = teamInputFromPool('L', 'Low', 'LOW', tacticsForStyle('balanced', '4-3-3'), low)
@@ -214,7 +217,7 @@ describe('depth in the match engine', () => {
     const mp = beginMatch({ rng: new Rng('fade'), home: teamInputFromPool('L', 'Low', 'LOW', tacticsForStyle('balanced', '4-3-3'), low), away: teamInputFromPool('H', 'High', 'HIG', tacticsForStyle('balanced', '4-3-3'), high), detail: 'summary' })
     expect(lateFade(mp.hLive, (id) => low.find((p) => p.id === id))).toBeCloseTo((0.08 * 10) / 11, 5)
     expect(lateFade(mp.aLive, (id) => high.find((p) => p.id === id))).toBe(0)
-  })
+  }, 30000)
 
   it('a keeper\'s low stamina, a convention of the data, costs him nothing', () => {
     // Only the keeper differs: stamina 20 against 95. He does not fade, loses the same condition
@@ -331,7 +334,7 @@ describe('depth in the match engine', () => {
     expect(tiredLow / tiredHigh).toBeLessThan(1.5)
     // Fresh legs: stamina alone changes nothing
     expect(Math.abs(freshLow - freshHigh) / freshHigh).toBeLessThan(0.1)
-  })
+  }, 30000)
 
   it('a seeded match is deterministic and pinned to the engine version', () => {
     expect(ENGINE_VERSION).toBe('4')
@@ -347,7 +350,9 @@ describe('depth in the match engine', () => {
     const summary = { score: `${a.homeGoals}-${a.awayGoals}`, events: a.events.length, xg: `${a.xg.home}/${a.xg.away}`, cards: a.events.filter((e) => e.type === 'yellow' || e.type === 'red').length }
     console.log('depth-pin', JSON.stringify(summary))
     // Pinned on ENGINE_VERSION 4. Any change to the draws a match takes from the seed moves these,
-    // and must bump the version: a mismatch here is the reminder.
-    expect(summary).toEqual({ score: '1-0', events: 25, xg: '3.2/0.37', cards: 5 })
+    // and must bump the version: a mismatch here is the reminder. A data rebuild can move them too
+    // (the pools are real players): 3.2 became 3.18 when the 2026-10-25 rebuild un-swapped the
+    // 2008-14 left and right positions and C. Ronaldo 2008-09 joined the elite pool as a right winger.
+    expect(summary).toEqual({ score: '1-0', events: 25, xg: '3.18/0.37', cards: 5 })
   })
 })

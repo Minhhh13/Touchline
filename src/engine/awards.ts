@@ -3,7 +3,7 @@
  */
 import type { PlayerSeason, SquadPlayer, TableRow, SeasonTier, Position } from './types'
 import { FORMATION_BY_ID } from './formations'
-import { TIER_LABEL } from './season'
+import { tierLabel } from './season'
 
 export interface AwardWinner {
   playerSeasonId: string
@@ -105,6 +105,7 @@ export interface SeasonSummaryForShare {
   cupWon: boolean
   continentalWon?: boolean
   leagueSeason: number
+  /** The club whose place the side takes in a managed season; empty for a quick season, whose XI is the user's own team. */
   hostClubName: string
   mode: string
   seed?: string
@@ -113,16 +114,20 @@ export interface SeasonSummaryForShare {
   bootGoals?: number
   /** Extra lines a mode or feature appends (one nation, a record, a twist, a challenge verdict), printed before the seed. */
   extraLines?: string[]
+  /** Printed in place of the season label ("Super League"); the season label when absent. */
+  where?: string
+  /** Printed in place of the tier's own headline ("Super League champions"); `tierLabel` when absent. */
+  tierText?: string
 }
 
 export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): string {
   const blocks = formBlocks(s.row)
-  const seasonLabel = `${s.leagueSeason}-${String((s.leagueSeason + 1) % 100).padStart(2, '0')}`
+  const seasonLabel = s.where ?? `${s.leagueSeason}-${String((s.leagueSeason + 1) % 100).padStart(2, '0')}`
   const lines = [
     `${appName} · ${s.mode}`,
-    `${s.teamName} as ${s.hostClubName}, ${seasonLabel}`,
-    `${TIER_LABEL[s.tier]}${s.cupWon ? ' + CUP' : ''}${s.continentalWon ? ' + EUROPE' : ''}`,
-    `${s.row.won}W ${s.row.drawn}D ${s.row.lost}L · ${s.row.points} pts · ${ordinal(s.position)}`,
+    s.hostClubName ? `${s.teamName} as ${s.hostClubName}, ${seasonLabel}` : `${s.teamName}, ${seasonLabel}`,
+    `${s.tierText ?? tierLabel(s.tier, s.position)}${s.cupWon ? ' + Cup' : ''}${s.continentalWon ? ' + Europe' : ''}`,
+    `${s.row.won}-${s.row.drawn}-${s.row.lost} · ${s.row.points} pts · ${ordinal(s.position)}`,
     blocks,
   ]
   if (s.bootName) lines.push(`⚽ ${s.bootName} ${s.bootGoals}`)

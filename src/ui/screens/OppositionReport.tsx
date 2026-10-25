@@ -1,10 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { Bandage, ChevronDown } from 'lucide-react'
 import { useStore } from '@game/store'
 import { staffTier } from '@engine/staff'
 import { aiTeamInput, seasonTable, type AiClub } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
 import { STYLE_LABEL } from '@engine/tactics'
 import { FormDots, Rating, Pos } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 import { ordinal } from '../format'
 
 /**
@@ -14,6 +16,8 @@ import { ordinal } from '../format'
  */
 export function OppositionReport({ clubId, home, club: given, aiOffset, neutral }: { clubId: string; home: boolean; club?: AiClub; aiOffset?: number; neutral?: boolean }) {
   const { universe: u, game, setMarkTarget } = useStore()
+  // Open on a tall desktop; folded on a phone or a short window, where it would push the squad out of sight
+  const [startOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px) and (min-height: 900px)').matches)
   const data = useMemo(() => {
     if (!u || !game || (!game.season && !given)) return null
     const club = given ?? game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]
@@ -45,16 +49,17 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral 
   if (!u || !data) return null
   const { club, strength, stars, row, pos, injured, tips } = data
   return (
-    <div className="panel" style={{ marginBottom: 12 }}>
-      <div className="panel-head">
+    <details className="panel opposition" open={startOpen} style={{ marginBottom: 'var(--space-4)' }}>
+      <summary className="panel-head">
         <h3>Opposition report: {club.name}</h3>
         <span className="small muted">
-          {neutral ? 'Neutral' : home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}
+          {neutral ? 'Neutral' : home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
+          <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
         </span>
-      </div>
+      </summary>
       <div className="grid three">
         <div className="col" style={{ gap: 6 }}>
-          <div className="small muted">Units</div>
+          <div className="eyebrow">Units</div>
           <div className="kv">
             <dt>Rating</dt>
             <dd>{strength.overall.toFixed(1)}</dd>
@@ -75,15 +80,18 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral 
               </>
             )}
             <dt>Injured</dt>
-            <dd>{injured}</dd>
+            <dd className="icon-title" style={{ gap: 'var(--space-1)' }}>
+              {injured > 0 && <Bandage size={13} className="ic-injury" aria-hidden="true" />}
+              {injured}
+            </dd>
           </div>
         </div>
         <div className="col" style={{ gap: 6 }}>
-          <div className="small muted">Danger men</div>
+          <div className="eyebrow">Danger men</div>
           {stars.map((p) => (
             <div key={p.id} className="row" style={{ gap: 8 }}>
               <Rating value={p.overall} />
-              <span>{p.name}</span>
+              <span className="danger-name" title={p.name}>{p.name}</span>
               <Pos p={p.positions[0]} />
               {p.positions[0] !== 'GK' && (
                 <button type="button" className={`btn sm ${game?.markTarget === p.id ? 'primary' : 'ghost'}`} title="Man-mark him: his influence drops, your attack loses a little" onClick={() => setMarkTarget(game?.markTarget === p.id ? undefined : p.id)}>
@@ -94,12 +102,12 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral 
           ))}
         </div>
         <div className="col" style={{ gap: 6 }}>
-          <div className="small muted">Assistant's notes</div>
-          <ul className="small" style={{ margin: 0, paddingLeft: 16 }}>
+          <div className="eyebrow">Assistant's notes</div>
+          <ul className="notes-list small">
             {tips.length ? tips.map((t, i) => <li key={i}>{t}</li>) : <li>Nothing stands out. Play your game.</li>}
           </ul>
         </div>
       </div>
-    </div>
+    </details>
   )
 }

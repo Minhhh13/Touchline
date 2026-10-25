@@ -1,7 +1,7 @@
 import { gameLabel, type SeasonStory } from '@game/logic/story'
 import type { QuickGameResult } from '@game/types'
 
-const CELL: Record<'W' | 'D' | 'L', string> = { W: 'var(--accent)', D: '#cfd8d2', L: 'var(--danger)' }
+const CELL: Record<'W' | 'D' | 'L', string> = { W: 'var(--good)', D: 'var(--draw)', L: 'var(--bad)' }
 
 /** Season Story on the summary: the moment, the game-by-game strip and the records of the season. */
 export function SeasonStoryPanel({ story, opponentName }: { story: SeasonStory; opponentName: (teamId: string) => string }) {

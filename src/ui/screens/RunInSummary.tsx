@@ -4,8 +4,9 @@ import { seasonTable } from '@engine/season'
 import { RUN_IN_TEMPLATE_LABEL, runInShare, runInVerdict } from '@game/logic/runin'
 import { gameLabel, storyForGame } from '@game/logic/story'
 import { TableView } from '../components/TableView'
-import { ClubBadge } from '../components/bits'
-import { clubName, ordinal, seasonLabel } from '../format'
+import { ClubBadge, Info, Stat } from '../components/bits'
+import { Check, Copy, House, RotateCcw } from 'lucide-react'
+import { clubName, ordinal, outcomeClass, outcomeOf, seasonLabel } from '../format'
 
 /** The end of a run-in: the brief's chip, the verdict against the real club, the ten games, the final table and the share text. */
 export function RunInSummary() {
@@ -33,45 +34,57 @@ export function RunInSummary() {
     }
   }
   return (
-    <div className="page">
-      <div className="tier-banner" data-testid="runin-verdict" style={{ marginBottom: 12 }}>
-        <div className="small muted" style={{ marginBottom: 6 }}>
-          Run-in · {RUN_IN_TEMPLATE_LABEL[v.template]} · {clubName(u, host)} {seasonLabel(game.settings.leagueSeason)}
+    // Main's summary layout: the verdict box on the left, the games, the table and the share text in a box beside it
+    <div className="page summary runin-summary" data-testid="summary">
+      <div className="tier-banner result-banner" data-testid="runin-verdict">
+        <div className="banner-meta">
+          <span className="bm-team">
+            <ClubBadge clubId={host} size={22} />
+            {clubName(u, host)} {seasonLabel(game.settings.leagueSeason)}
+          </span>
+          <span className="bm-rest">Run-in · {RUN_IN_TEMPLATE_LABEL[v.template]}</span>
         </div>
-        <div className={`tier ${v.met ? 'CHAMPIONS' : 'RELEGATED'}`} data-testid="runin-chip">
-          {v.icon} {v.chip}
+        <div className="tier-wrap">
+          <div className={`tier ${v.met ? 'CHAMPIONS' : 'RELEGATED'}`} data-testid="runin-chip">
+            {v.chip}
+          </div>
         </div>
-        <div style={{ fontWeight: 700, marginTop: 10 }} data-testid="runin-line">
+        <p className="tier-blurb" data-testid="runin-line">
           {v.line}
+        </p>
+        <div className="banner-stats">
+          <Stat label="Took over" value={ordinal(v.from.position)} sub={`MW ${v.from.matchweek}, ${v.from.points} pts (projected)`} />
+          <Stat label="Finished" value={ordinal(v.position)} sub={`${v.points} pts`} />
         </div>
-        <div className="small muted" style={{ marginTop: 6 }}>
-          Took over after MW {v.from.matchweek}: {ordinal(v.from.position)} on {v.from.points} (projected) · finished {ordinal(v.position)} on {v.points}
+        {story && story.strip.length > 0 && (
+          <div className="blocks" aria-hidden="true">
+            {story.strip.map((o, i) => (
+              <span key={i} style={{ background: o === 'W' ? 'var(--good)' : o === 'D' ? 'var(--draw)' : 'var(--bad)' }} />
+            ))}
+          </div>
+        )}
+        {game.season.sacked && <div className="notice danger">The board sacked you before the end.</div>}
+        <div className="banner-actions">
+          <button className="btn primary" onClick={() => go('setup', 'runin')} data-testid="runin-again">
+            <RotateCcw size={16} aria-hidden="true" /> Another run-in
+          </button>
+          <button className="btn" onClick={copy}>
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
+          </button>
+          <button className="btn ghost" onClick={() => go('home')}>
+            <House size={16} aria-hidden="true" /> Home
+          </button>
         </div>
       </div>
-      <div className="row wrap" style={{ marginBottom: 12 }}>
-        <button className="btn primary" onClick={() => go('setup', 'runin')} data-testid="runin-again">
-          Another run-in
-        </button>
-        <button className="btn" onClick={copy}>
-          {copied ? 'Copied' : 'Copy the result'}
-        </button>
-        <button className="btn ghost" onClick={() => go('home')}>
-          Home
-        </button>
-      </div>
-      <div className="grid two">
-        <div className="col">
+      <div className="summary-body fill" data-testid="summary-body">
+        <div className="grid two">
           <div className="panel" data-testid="runin-games">
             <h3>The run-in</h3>
-            {story && story.strip.length > 0 && (
-              <div className="mono" style={{ marginBottom: 8 }}>
-                {story.strip.map((o) => (o === 'W' ? '🟩' : o === 'D' ? '🟨' : '🟥')).join('')}
-              </div>
-            )}
-            <div className="col" style={{ gap: 4 }}>
+            <div className="plist lined">
               {(story?.results ?? []).map((r) => (
-                <div key={r.matchweek} className="row between small">
+                <div key={r.matchweek} className="row between small" style={{ padding: '4px 0' }}>
                   <span className="row" style={{ gap: 6 }}>
+                    <span className={`chip ${outcomeClass(outcomeOf(r.gf, r.ga))}`}>{outcomeOf(r.gf, r.ga)}</span>
                     <ClubBadge clubId={r.opponentId} size={18} />
                     {gameLabel(r, (id) => clubName(u, id))}
                   </span>
@@ -79,20 +92,27 @@ export function RunInSummary() {
                 </div>
               ))}
             </div>
-            {game.season.sacked && <div className="notice danger" style={{ marginTop: 8 }}>The board sacked you before the end.</div>}
           </div>
           <div className="panel">
-            <h3>Share</h3>
-            <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="runin-share-text">
-              {text}
-            </pre>
+            <div className="panel-head">
+              <span className="head-title">
+                <h3>Final table</h3>
+                <Info label="About the table">
+                  The first {v.from.matchweek} matchweeks are projected from the real final table; the last {game.season.matchweeks - v.from.matchweek} were played.
+                </Info>
+              </span>
+            </div>
+            <TableView rows={table} teamName={game.settings.teamName} compact highlightTop />
           </div>
         </div>
-        <div className="panel">
-          <h3>Final table</h3>
-          <TableView rows={table} teamName={game.settings.teamName} compact highlightTop />
-          <p className="help">The first {v.from.matchweek} matchweeks are projected from the real final table; the last {game.season.matchweeks - v.from.matchweek} were played.</p>
-        </div>
+        <details className="panel fold">
+          <summary className="fold-head">
+            <h3>Share text</h3>
+          </summary>
+          <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="runin-share-text">
+            {text}
+          </pre>
+        </details>
       </div>
     </div>
   )

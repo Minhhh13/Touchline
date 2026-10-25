@@ -14,10 +14,10 @@
  * draft the way the store does, one `spin` per history row.
  */
 import type { DraftRules, DraftState } from './draft'
-import { QUICK_RULES, canSpin, capFits, isComplete, picksMade, pick, spin } from './draft'
+import { DIFFICULTIES, DRAFT_MODES, QUICK_BENCH_MAX, QUICK_MODES, QUICK_RULES, RATINGS_MODES, canCloseBench, canSpin, capFits, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type QuickMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
-import type { SeasonTier } from './types'
+import type { ClubSeason, DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Tempo, Width } from './types'
 import type { LoadedUniverse } from './universe'
 import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
@@ -25,9 +25,16 @@ import type { TrainingFocus } from './training'
 import type { ArenaField } from './knockout'
 import { GAUNTLET_RUNGS } from './gauntlet'
 import { cupRoundCount } from './cup'
+import { isIcons } from './icons'
+import { isUpgradeBoost } from './upgrader'
+import { rerollSeason, swapSlots, usePeek } from './powerups'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
+
+/** How far a post-season cup run went: the round it ended in, W for winners. */
+export type CupReach = 'R16' | 'QF' | 'SF' | 'F' | 'W'
+export const CUP_REACHES: readonly CupReach[] = ['R16', 'QF', 'SF', 'F', 'W']
 
 export interface ChallengeClaim {
   pts: number
@@ -35,10 +42,61 @@ export interface ChallengeClaim {
   d: number
   l: number
   t: SeasonTier
+  /** The post-season domestic cup, when the challenger played it. Older builds ignore it. */
+  cu?: CupReach
+  /** The post-season Continental Cup, when the challenger played it. */
+  eu?: CupReach
 }
 
-/** One spin of the challenger's draft: the real player id drafted (`s200458`) and the slot, or nulls for a spin that drafted no one. */
+/**
+ * One spin of the challenger's draft: the real player id drafted (`s200458`) and the slot, or nulls for a
+ * spin that drafted no one. Under Position First a spin that drafted no one carries the slot it was filling.
+ */
 export type ChallengePick = [playerId: string | null, slotId: string | null]
+
+/**
+ * Team instructions a quick season was played with, only those off the defaults (`defaultTactics`), plus the captain
+ * and the penalty taker as player-season ids.
+ */
+export interface ChallengeTactics {
+  mentality?: Mentality
+  pressing?: Pressing
+  tempo?: Tempo
+  width?: Width
+  defensiveLine?: DefensiveLine
+  passing?: PassingStyle
+  captain?: string
+  penalties?: string
+}
+
+/**
+ * The quick season's own choices, carried only when something differs from a default season: `t` the tactics of the
+ * first half (the whole season without a window), `t2` those of the second half when they were changed at the January
+ * pause, `j` the January deal as `[incoming player-season id, slot id]`, `s` the bench changes of a Quick Draft with a
+ * bench as `[first matchweek, slot id, incoming player-season id]`, in order, `m` the manager picked.
+ */
+export interface ChallengeSeason {
+  t?: ChallengeTactics
+  t2?: ChallengeTactics
+  j?: [playerSeasonId: string, slotId: string]
+  s?: Array<[from: number, slotId: string, playerSeasonId: string]>
+  /** The manager picked for the season (a Wikidata id or an `arch-` archetype id), when the draft had one. */
+  m?: string
+}
+
+/** Most bench changes a link may carry: the three a quick season allows. */
+export const CHALLENGE_CHANGES_MAX = 3
+
+/** The values each instruction may take in a link. */
+export const CHALLENGE_TACTIC_VALUES = {
+  mentality: ['defensive', 'balanced', 'attacking'],
+  pressing: ['low', 'mid', 'high'],
+  tempo: ['slow', 'standard', 'fast'],
+  width: ['narrow', 'standard', 'wide'],
+  defensiveLine: ['deep', 'standard', 'high'],
+  passing: ['short', 'mixed', 'direct'],
+} as const satisfies Record<Exclude<keyof ChallengeTactics, 'captain' | 'penalties'>, readonly string[]>
+
 
 /** A quick-draft link as every build since ghost drafts reads it. */
 export interface ChallengePayloadV1 {
@@ -64,6 +122,38 @@ export interface ChallengePayloadV1 {
   c: ChallengeClaim
   /** `historyKey` of the challenger's draft history. */
   k: string
+  /** The season's tactics and January deal, when they differ from a default season; absent on older links. */
+  x?: ChallengeSeason
+  /**
+   * The Player Upgrader's gamble, when one was made: the index of the row in `p` whose pick was upgraded, and the boost.
+   * The roll is the draft's own stream's, so a replay reproduces the outcome. Absent otherwise (and on older links).
+   */
+  g?: [row: number, boost: number]
+  /**
+   * The power-ups used, in order, when any were (`./powerups`): `['r', row]` re-rolled the season of that row's spin,
+   * `['p', row]` peeked before it, `['s', row, from, to]` swapped two slots before it (row = the number of rows when the
+   * draft ended for a swap after the last spin), `['a', row]` and `['l', row]` gave the armband and the lock to that
+   * row's pick. Absent otherwise (and on older links).
+   */
+  w?: ChallengePowerUp[]
+}
+
+export type ChallengePowerUp = ['r', number] | ['p', number] | ['s', number, string, string] | ['a', number] | ['l', number]
+
+/** Whether a `w` block is well formed: known kinds, each once, rows inside the link's `rowCount` rows. */
+export function isChallengePowerUps(w: unknown, rowCount: number): w is ChallengePowerUp[] {
+  if (!Array.isArray(w) || w.length > 5) return false
+  const kinds = new Set<string>()
+  for (const x of w) {
+    if (!Array.isArray(x) || !isString(x[0]) || kinds.has(x[0]) || !isInt(x[1]) || x[1] < 0) return false
+    kinds.add(x[0])
+    if (x[0] === 's') {
+      if (x.length !== 4 || x[1] > rowCount || !isString(x[2]) || !isString(x[3])) return false
+    } else if (x[0] === 'r' || x[0] === 'p' || x[0] === 'a' || x[0] === 'l') {
+      if (x.length !== 2 || x[1] >= rowCount) return false
+    } else return false
+  }
+  return true
 }
 
 /** What an arena link fixes beside the draft: the format, a Cup's size, its field and decade, and the Daily Arena's day it was played on. */
@@ -116,7 +206,7 @@ export interface ArenaChallengePayload {
   auto: boolean
   ac: ArenaClaim
   k: string
-  /** An arena link carries its claim in `ac`, never a quick claim. */
+  /** An arena link carries its claim in `ac`, never a quick claim (nor a quick season's `x`, `g` or `w`). */
   c?: undefined
 }
 
@@ -158,25 +248,41 @@ export function historyKey(history: Array<{ clubId: string; season: number }>): 
   return hashString(history.map((h) => `${h.clubId}@${h.season}`).join(',')).toString(36)
 }
 
-/** The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`). */
+/** Re-spins a quick draft had before difficulties existed; a link made then carries no `difficulty`. */
+export const LEGACY_QUICK_RESPINS = 2
+
+/**
+ * The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`).
+ * The difficulty and the manager rule are always written, even at the default, so a link made before
+ * either existed (no `difficulty` or `managers` key) can be told apart and opened as its challenger played.
+ */
 export function rulesDiff(rules: DraftRules, base: DraftRules = QUICK_RULES): Partial<DraftRules> {
-  const out: Partial<DraftRules> = {}
+  // The manager rule is always written too: a link made before managers existed (no `managers` key) replays without one
+  const out: Partial<DraftRules> = { difficulty: difficultyOf(rules), managers: rules.managers === true }
   const b = base as unknown as Record<string, unknown>
   for (const [key, value] of Object.entries(rules) as Array<[keyof DraftRules, unknown]>) {
-    if (key === 'leagues' || value === undefined) continue
+    if (key === 'leagues' || key === 'difficulty' || key === 'managers' || value === undefined) continue
     if (b[key] !== value) (out as Record<string, unknown>)[key] = value
   }
   return out
 }
 
-/** The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. */
+/**
+ * The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. A diff without a
+ * difficulty comes from a link made before difficulties: its draft had `LEGACY_QUICK_RESPINS`
+ * re-spins unless it says otherwise, and its hard mode reads as hard. A diff without `managers`
+ * comes from a link made before managers, and reads as managers off.
+ */
 export function rulesFromPayload(c: ChallengePayload): DraftRules {
-  return { ...QUICK_RULES, ...c.s.r, leagues: c.s.wl }
+  const r = c.s.r
+  const legacy: Partial<DraftRules> = r.difficulty === undefined ? { respins: LEGACY_QUICK_RESPINS, difficulty: r.hardMode ? 'hard' : 'normal', ...(r.hardMode ? { showRatings: false } : {}) } : {}
+  // No `managers` key: the link predates managers, so its challenger played without one
+  return { ...QUICK_RULES, ...legacy, managers: false, ...r, leagues: c.s.wl }
 }
 
 /** A draft's history as payload rows: the real player id of each pick (or null) and its slot. */
 export function picksFromHistory(history: DraftState['history'], playerIdOf: (playerSeasonId: string) => string | undefined): ChallengePick[] {
-  return history.map((h) => [h.pickedId ? playerIdOf(h.pickedId) ?? null : null, h.pickedId ? h.slotId : null])
+  return history.map((h) => [h.pickedId ? playerIdOf(h.pickedId) ?? null : null, h.pickedId ? h.slotId : h.target ?? null])
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -225,6 +331,18 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   hardMode: isBool,
   uniqueClubSeasons: isBool,
   twists: isBool,
+  difficulty: (v) => DIFFICULTIES.includes(v as DraftDifficulty),
+  showRatings: isBool,
+  draftMode: (v) => DRAFT_MODES.includes(v as DraftMode),
+  ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
+  benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
+  // A list of known mode flags, each once (Hard travels as the difficulty)
+  modes: (v) => Array.isArray(v) && v.length <= QUICK_MODES.length && v.every((m) => QUICK_MODES.includes(m as QuickMode)) && new Set(v).size === v.length,
+  upgrader: isBool,
+  powerUps: isBool,
+  managers: isBool,
+  classic: isBool,
+  superLeague: isBool,
   // A v2 rule: a capped link travels as version 2 (`payloadVersionFor`), so a v1 build reads it as newer
   budget: (v) => isNumber(v) && v >= CHALLENGE_BUDGET_RANGE[0] && v <= CHALLENGE_BUDGET_RANGE[1],
   // A v2 rule too: a teammate chain link travels as version 2
@@ -232,13 +350,12 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
 }
 
 /**
- * The rule keys a v1 link may carry: the `RULE_CHECKS` keys when the v2 gate
- * landed. Never add to this list (a v1 build would refuse the key); a new rule
- * goes in `RULE_CHECKS` only, and a link that uses it travels as v2. When
- * replica-setup merges, its four rules (difficulty, showRatings, draftMode,
- * ratings) join this list in that merge, because v1 builds with them exist.
+ * The rule keys a v1 link may carry: every rule a v1 build (the live site before the casual modes) knows, the
+ * 38-0 setup, Quick Draft modes, power-ups, classic seasons and the Super League included, so every link those
+ * builds made still opens. Never add to this list (a v1 build would refuse the key); a new rule goes in
+ * `RULE_CHECKS` only, and a link that uses it travels as v2 (`budget` and `chain` do).
  */
-export const V1_RULE_KEYS: readonly (keyof DraftRules)[] = ['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists']
+export const V1_RULE_KEYS: readonly (keyof DraftRules)[] = ['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists', 'difficulty', 'showRatings', 'draftMode', 'ratings', 'benchPicks', 'modes', 'upgrader', 'powerUps', 'managers', 'classic', 'superLeague']
 
 /** The payload version a link needs: 1 for a quick link whose rules a v1 build knows, 2 otherwise. */
 export function payloadVersionFor(diff: Partial<DraftRules>, kind: 'quick' | 'arena'): 1 | 2 {
@@ -307,7 +424,7 @@ export function isArenaLink(o: unknown): o is Pick<ArenaChallengePayload, 'arena
 }
 
 /** Top-level keys a v2 quick link may carry; anything else is from a newer build. */
-const V2_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 'c', 'k']
+const V2_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 'c', 'k', 'x', 'g', 'w']
 /** Top-level keys a v2 arena link may carry. */
 const V2_ARENA_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 't', 'lf', 'auto', 'ac', 'k']
 
@@ -316,6 +433,30 @@ export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return false
   return Object.entries(r).every(([key, value]) => Object.prototype.hasOwnProperty.call(RULE_CHECKS, key) && RULE_CHECKS[key as keyof DraftRules](value)) && capFits(r as Partial<DraftRules>)
 }
+
+/** Whether an object is a set of instructions made only of known keys holding allowed values. */
+export function isChallengeTactics(t: unknown): t is ChallengeTactics {
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return false
+  return Object.entries(t).every(([key, value]) => {
+    if (key === 'captain' || key === 'penalties') return isString(value)
+    const allowed = (CHALLENGE_TACTIC_VALUES as Record<string, readonly string[]>)[key]
+    return !!allowed && allowed.includes(value as string)
+  })
+}
+
+/** Whether an object is a well-formed `x` block: optional tactics for each half and an optional January deal. */
+export function isChallengeSeason(x: unknown): x is ChallengeSeason {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return false
+  const o = x as Record<string, unknown>
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm')) return false
+  if (o.m !== undefined && !(isString(o.m) && /^(Q\d{1,12}|arch-[a-z-]{1,20})$/.test(o.m))) return false
+  if (o.t !== undefined && !isChallengeTactics(o.t)) return false
+  if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
+  if (o.j !== undefined && !(Array.isArray(o.j) && o.j.length === 2 && o.j.every(isString))) return false
+  if (o.s !== undefined && !(Array.isArray(o.s) && o.s.length <= CHALLENGE_CHANGES_MAX && o.s.every((c) => Array.isArray(c) && c.length === 3 && isInt(c[0]) && c[0] >= 1 && isString(c[1]) && isString(c[2])))) return false
+  return true
+}
+
 
 /** The reason a link from a later build gives. */
 export const NEWER_LINK = 'This challenge link comes from a newer version of TouchLine'
@@ -361,6 +502,9 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!isRulesDiff(s.r)) throw new Error('Not a Touchline challenge link')
   if (o.v === 1 && !Object.keys(s.r).every((key) => (V1_RULE_KEYS as readonly string[]).includes(key))) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
+  if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
+  if (o.w !== undefined && !isChallengePowerUps(o.w, o.p.length)) throw new Error('Not a Touchline challenge link')
+  if (o.g !== undefined && !(Array.isArray(o.g) && o.g.length === 2 && isInt(o.g[0]) && o.g[0] >= 0 && o.g[0] < o.p.length && isUpgradeBoost(o.g[1]))) throw new Error('Not a Touchline challenge link')
   const settings: ChallengePayloadV1['s'] = { seed: s.seed, f: s.f, l: s.l, wl: s.wl as string[], h: s.h, ls: s.ls, d: s.d as 'calibrated' | 'realistic', r: s.r }
   if (arena && isArenaLink(raw)) {
     const a = raw.arena
@@ -382,14 +526,18 @@ export function decodeChallenge(text: string): ChallengePayload {
     }
   }
   if (!c || !isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
+  if ((c.cu !== undefined && !CUP_REACHES.includes(c.cu as CupReach)) || (c.eu !== undefined && !CUP_REACHES.includes(c.eu as CupReach))) throw new Error('Not a Touchline challenge link')
   const body: Omit<ChallengePayloadV1, 'v'> = {
     data: o.data,
     engine: o.engine,
     name: cleanName(o.name),
     s: settings,
     p: o.p as ChallengePick[],
-    c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
+    c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier, ...(c.cu !== undefined ? { cu: c.cu as CupReach } : {}), ...(c.eu !== undefined ? { eu: c.eu as CupReach } : {}) },
     k: o.k,
+    ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
+    ...(o.g !== undefined ? { g: o.g as [number, number] } : {}),
+    ...(o.w !== undefined ? { w: o.w as ChallengePowerUp[] } : {}),
   }
   return o.v === 1 ? { v: 1, ...body } : { v: 2, kind: 'quick', ...body }
 }
@@ -412,7 +560,11 @@ export interface ReplayedPick {
  */
 export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: ChallengePayload): ReplayedPick[] {
   const out: ReplayedPick[] = []
-  for (let i = 0; i < c.p.length; i++) out.push(replayRow(u, d, rng, c.p[i], i + 1))
+  const w = isArenaPayload(c) ? [] : c.w ?? []
+  for (let i = 0; i < c.p.length; i++) out.push(replayRow(u, d, rng, c.p[i], i + 1, w))
+  swapAt(u, d, w, c.p.length)
+  // A Quick Draft with a bench may stop once the XI is full, bench places to spare
+  if (canCloseBench(d)) d.benchClosed = true
   if (!draftClosed(u, d)) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
   if (d.spins !== c.p.length || d.history.length !== c.p.length) throw new Error('The spins do not add up')
   if (historyKey(d.history) !== c.k) throw new Error('The wheel did not land on the same club-seasons')
@@ -424,25 +576,50 @@ export function draftClosed(u: LoadedUniverse, d: DraftState): boolean {
   return isComplete(d) || (picksMade(d) >= 11 && !canSpin(u, d))
 }
 
+/** A swap power-up made before row `row`'s spin (or after the last one, `row` = the row count), as the challenger made it. */
+function swapAt(u: LoadedUniverse, d: DraftState, w: ChallengePowerUp[], row: number): void {
+  for (const x of w) if (x[0] === 's' && x[1] === row) swapSlots(u, d, x[2], x[3])
+}
+
 /**
- * One row of the challenger's draft, spin number `n` (1-based): one `spin`,
- * then the pick, or a re-spin or discarded spin logged as the store logs it.
- * Throws with the spin number when the row does not fit the wheel.
+ * One row of the challenger's draft, spin number `n` (1-based): a swap power-up before it, the Position First slot,
+ * a peek, one `spin` (and a season re-roll), then the pick, or a re-spin or discarded spin logged as the store logs
+ * it. `w` is the link's power-ups (none for an arena link). Throws with the spin number when the row does not fit the wheel.
  */
-export function replayRow(u: LoadedUniverse, d: DraftState, rng: Rng, row: ChallengePick, n: number): ReplayedPick {
+export function replayRow(u: LoadedUniverse, d: DraftState, rng: Rng, row: ChallengePick, n: number, w: ChallengePowerUp[] = []): ReplayedPick {
   const [playerId, slotId] = row
+  const i = n - 1
   if (isComplete(d)) throw new Error(`Spin ${n} came after the squad was complete`)
+  try {
+    swapAt(u, d, w, i)
+  } catch (e) {
+    throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  // Position First: every spin of the XI fills the slot its row names, chosen before the spin as the player did
+  if (positionFirst(d)) {
+    if (!slotId || !openSlots(d).some((s) => s.id === slotId)) throw new Error(`Spin ${n}: no open slot ${slotId ?? ''} to fill`.trim())
+    d.target = slotId
+  }
   if (!canSpin(u, d)) throw new Error(`Spin ${n}: the wheel had run dry`)
-  const cs = spin(u, d, rng)
+  // Power-ups: a peek before the spin (it draws nothing), a season re-roll after it (from the draft's own stream)
+  let cs: ClubSeason
+  try {
+    if (w.some((x) => x[0] === 'p' && x[1] === i)) usePeek(u, d, rng.getState())
+    cs = spin(u, d, rng)
+    if (w.some((x) => x[0] === 'r' && x[1] === i)) cs = rerollSeason(u, d)
+  } catch (e) {
+    throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
+  }
   if (playerId === null) {
     d.respinsLeft = Math.max(0, d.respinsLeft - 1)
-    d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}) })
+    d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}), ...(d.target ? { target: d.target } : {}) })
     d.current = null
     d.twist = null
     return { clubId: cs.clubId, season: cs.season, id: null, slotId: null }
   }
-  const id = `${playerId}@${cs.season}@${cs.clubId}`
-  if (!u.index[id]) throw new Error(`Spin ${n}: no player ${playerId} in the ${cs.clubId} ${cs.season} squad`)
+  // An Icons spin's squad holds each icon at his own club and season, so the id is looked up there
+  const id = isIcons(cs) ? cs.squad.find((p) => p.playerId === playerId)?.id ?? '' : `${playerId}@${cs.season}@${cs.clubId}`
+  if (!u.index[id]) throw new Error(`Spin ${n}: no player ${playerId} in the ${isIcons(cs) ? 'Icons collection' : `${cs.clubId} ${cs.season} squad`}`)
   try {
     pick(u, d, id, slotId ?? 'bench')
   } catch (e) {
@@ -451,7 +628,12 @@ export function replayRow(u: LoadedUniverse, d: DraftState, rng: Rng, row: Chall
   return { clubId: cs.clubId, season: cs.season, id, slotId }
 }
 
-/** The claim and a replayed result agree when every figure matches. */
+/** The cup runs a claim names agree with a replay's: every cup the claim names went as far. */
+export function sameCups(claim: ChallengeClaim, replay: ChallengeClaim): boolean {
+  return (claim.cu === undefined || claim.cu === replay.cu) && (claim.eu === undefined || claim.eu === replay.eu)
+}
+
+/** The claim and a replayed result agree when every league figure matches (the cups are checked by `sameCups`). */
 export function sameClaim(a: ChallengeClaim, b: ChallengeClaim): boolean {
   return a.pts === b.pts && a.w === b.w && a.d === b.d && a.l === b.l && a.t === b.t
 }

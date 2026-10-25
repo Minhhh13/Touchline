@@ -129,13 +129,14 @@ describe('the salary cap: presets and lines', () => {
   })
 
   it('the quick season unlocks it on a cheap title and only then', () => {
-    // Seeds found by sweeping 100: a title on £120M and on £150M, one on £180M (too dear), and a £150M season that missed it
+    // Seeds found by sweeping 100 (re-swept on main's Quick Draft defaults when main merged in): a title on £120M and on
+    // £150M, one on £180M (too dear), and a £150M season that missed it
     const run = (seed: string, budget: number) => {
       const g = drafted({ seed, rules: { ...QUICK_RULES, leagues: ['england'], budget } })
       runQuickSeason(g, u)
       return g
     }
-    for (const [seed, budget, unlocks] of [['cap-measure-14', 120, true], ['cap-measure-73', 150, true], ['cap-measure-25', 180, false], ['cap-measure-0', 150, false]] as const) {
+    for (const [seed, budget, unlocks] of [['cap-measure-14', 120, true], ['cap-measure-73', 150, true], ['cap-measure-79', 180, false], ['cap-measure-0', 150, false]] as const) {
       const g = run(seed, budget)
       expect(g.quickResult!.position === 1, seed).toBe(seed !== 'cap-measure-0')
       expect(g.unlocked.includes('moneyball'), seed).toBe(unlocks)
