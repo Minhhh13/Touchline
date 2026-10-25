@@ -126,6 +126,24 @@ describe('match detail: shot positions and momentum', () => {
     expect({ goals, chances, state: rng.getState() }).toEqual(PINNED)
   })
 
+  it('a summary match carries no pitch detail and plays exactly as it did with it', () => {
+    // Every summary result is kept in the save's fixtures (342 a season besides the user's), and
+    // nothing draws its pitch: positions, momentum, appearances and tactics took a full season
+    // past the browser's storage quota. The detail never drew from the match stream, so skipping
+    // it moves no summary result (the season and game-by-game pins hold).
+    const rng = new Rng('detail-summary')
+    for (let i = 0; i < 30; i++) {
+      const r = simulateMatch({ rng, ...sides(i), detail: 'summary' })
+      expect(r.momentum).toBeUndefined()
+      for (const e of r.events) expect(e.position).toBeUndefined()
+      expect(r.homeReport.appearances).toBeUndefined()
+      expect(r.awayReport.tactics).toBeUndefined()
+    }
+    const full = simulateMatch({ rng: new Rng('detail-summary-full'), ...sides(1) })
+    expect(full.homeReport.appearances!.length).toBeGreaterThanOrEqual(11)
+    expect(full.momentum).toHaveLength(MOMENTUM_BINS)
+  })
+
   it('a match paused before the detail existed still finishes with eighteen bins, the missing ones at the base share', () => {
     const split = sides(4)
     const mp: MatchInProgress = beginMatch({ rng: new Rng('detail-old-save'), ...split })

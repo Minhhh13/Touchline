@@ -508,8 +508,11 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     teamTalkEffect: side.talkText,
     halfTimeEffect: side.halfTimeText,
     lateEffect: side.lateText,
-    appearances: live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury })),
-    tactics: side.tactics,
+    // Only a full-detail match carries the pitch views' data: a summary match (the other
+    // fixtures of a week, a quick season, head-to-head) is stored in every fixture of the save
+    ...(mp.detail === 'full'
+      ? { appearances: live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury })), tactics: side.tactics }
+      : {}),
   })
 
   mp.rngState = rng.getState()
@@ -628,7 +631,9 @@ function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: 
     tallySaves(rng, mp.hLive, Math.min(4, rng.poisson(la * 2.2)), from, to)
   }
   // The pitch views' detail comes from a stream forked off a copy of the generator, once the
-  // segment is decided: the match's own draws, and the week's after it, never move.
+  // segment is decided: the match's own draws, and the week's after it, never move. Summary
+  // matches skip it: nothing shows their pitch, and every one is kept in the save's fixtures.
+  if (mp.detail !== 'full') return
   const detail = Rng.fromState(rng.getState()).fork(`detail-${from}`)
   placeEvents(detail, mp.events, from, to)
   mp.momentum = momentumBins(detail, { lamH: lh, lamA: la, homeTactics: mp.home.tactics, awayTactics: mp.away.tactics, events: mp.events, from, to, previous: mp.momentum ?? [] })
