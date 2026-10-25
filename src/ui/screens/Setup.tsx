@@ -330,7 +330,7 @@ export function Setup() {
                   </div>
                   {era === 'custom' && (
                     <div className="row">
-                      <select className="input" value={from} onChange={(e) => setFrom(Number(e.target.value))}>
+                      <select className="input" value={Math.max(from, rangeSeasons[0] ?? from)} onChange={(e) => setFrom(Number(e.target.value))}>
                         {rangeSeasons.map((s) => (
                           <option key={s} value={s}>
                             {seasonLabel(s)}
@@ -338,7 +338,7 @@ export function Setup() {
                         ))}
                       </select>
                       <span>to</span>
-                      <select className="input" value={to} onChange={(e) => setTo(Number(e.target.value))}>
+                      <select className="input" value={Math.max(to, rangeSeasons[0] ?? to)} onChange={(e) => setTo(Number(e.target.value))}>
                         {rangeSeasons.map((s) => (
                           <option key={s} value={s}>
                             {seasonLabel(s)}

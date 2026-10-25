@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { textColourFor } from '../format'
+import { EstimatedChip } from './bits'
 
 export interface WheelSegment {
   id: string
@@ -31,7 +32,7 @@ interface Run {
  * jitter so it rarely stops dead centre. The season year flickers while the strip
  * moves and settles with the card.
  */
-export function CaseReel({ segments, targetId, year, onSettled, spinning, spinKey, twist }: { segments: WheelSegment[]; targetId: string | null; year: number | null; onSettled?: () => void; spinning: boolean; spinKey?: number; /** Name of the twist on this spin, shown while the reel runs. */ twist?: string | null }) {
+export function CaseReel({ segments, targetId, year, onSettled, spinning, spinKey, twist, estimated }: { segments: WheelSegment[]; targetId: string | null; year: number | null; onSettled?: () => void; spinning: boolean; spinKey?: number; /** Name of the twist on this spin, shown while the reel runs. */ twist?: string | null; /** The landed club-season is a classic one: its ratings are TouchLine's estimate. */ estimated?: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [run, setRun] = useState<Run | null>(null)
   const [moving, setMoving] = useState(false)
@@ -100,6 +101,7 @@ export function CaseReel({ segments, targetId, year, onSettled, spinning, spinKe
           <>
             <span className="lbl">Season</span>
             <span className="year">{year}</span>
+            {estimated && <EstimatedChip compact />}
           </>
         ) : spinning ? (
           <>

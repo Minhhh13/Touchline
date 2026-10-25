@@ -142,7 +142,7 @@ export function Draft() {
         <div className="col">
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} />}
-            <CaseReel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title.replace(' spin', '') : null} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <CaseReel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title.replace(' spin', '') : null} estimated={!!current?.estimated} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {ghost && challenge && revealed && (
               <div className="chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`} style={{ alignSelf: 'center', whiteSpace: 'normal', textAlign: 'center' }}>
                 👻{' '}

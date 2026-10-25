@@ -94,7 +94,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 ## Conventions
 
 - Style: 2 spaces, LF, no semicolons, single quotes, long single-line JSX is normal. Do not reflow existing lines (it creates huge conflicts).
-- Hooks above early returns in new components (Dugout, Summary and Explore currently break this; hoist when you touch them).
+- Hooks above early returns in new components (Dugout currently breaks this; hoist when you touch it).
 - Display names and numbers go through `src/ui/format.ts` (money in millions, wages in thousands per week).
 - No real crests, kits, logos or photos: club identity is colours plus a code (`ClubBadge`).
 - Persist only what must survive reload; per-viewer UI conveniences get their own `localStorage` key inside try/catch.

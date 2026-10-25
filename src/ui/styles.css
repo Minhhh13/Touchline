@@ -1453,6 +1453,11 @@ label.field,
 .reel-hub .lbl.twist {
   color: var(--gold);
 }
+.reel-hub .chip {
+  align-self: center;
+  font-family: var(--font-body);
+  text-transform: none;
+}
 .reel-hub.rolling .year {
   animation: flicker 0.12s steps(2) infinite;
 }

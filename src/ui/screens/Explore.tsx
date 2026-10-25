@@ -115,7 +115,7 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
 export function Explore() {
   const { universe: u, go, ensureLeagues, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStore()
   const [leagueId, setLeagueId] = useState('england')
-  const [season, setSeason] = useState<number>(u?.lastSeason ?? 2026)
+  const [pickedSeason, setSeason] = useState<number>(u?.lastSeason ?? 2026)
   const [clubId, setClubId] = useState<string>('')
   const [query, setQuery] = useState('')
   const [careerId, setCareerId] = useState<string | null>(null)
@@ -138,6 +138,8 @@ export function Explore() {
   // Classic seasons (estimated ratings) come first for a league that has them
   const firstShown = classicFromFor(u, [leagueId]) ?? u.firstSeason
   const seasons = Array.from({ length: u.lastSeason - firstShown + 1 }, (_, i) => firstShown + i)
+  // A classic season picked in one league is not on another league's list: show that league's first season instead
+  const season = Math.max(pickedSeason, firstShown)
   const table = u.tables[leagueId]?.[season] ?? []
   const clubsInSeason = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
   const selected = clubId ? u.clubSeasonByKey[`${clubId}@${season}`] : undefined

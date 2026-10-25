@@ -5,7 +5,11 @@ import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { challengeFromGame } from '../logic/challenge'
 import { decodeChallenge, encodeChallenge, rulesFromPayload } from '@engine/challenge'
 import { classicFromFor, eraRules, eraSeasons, estimatedNote, isEstimated, leagueSeasonChoices, type EraChoice } from '../logic/era'
-import { createGame, summariseSetup } from '../logic/setup'
+import { beginSeason, createGame, summariseSetup } from '../logic/setup'
+import { playMatchweek, startSeasonProper } from '../logic/week'
+import { advanceToNextSeason, ageOneYear } from '../logic/dynasty'
+import { playerLookup } from '../logic/players'
+import { SEASON_RULES } from '@engine/draft'
 import { runQuickSeason } from '../logic/quick'
 import type { GameSettings } from '../types'
 
@@ -137,5 +141,42 @@ describe('estimated ratings', () => {
     // The standard wheel: no classic pick without the opt-in, but the league itself is classic
     expect(Object.values(g.draft!.lineup).some((id) => isEstimated(u, id))).toBe(false)
     expect(estimatedNote(u, Object.values(g.lineup), 'england', 1992)).toBe('Estimated ratings: a classic league season')
+  })
+
+  it('still marks a dynasty\'s aged copy of a classic player, whose id names no season', () => {
+    const classic = u.clubSeasonByKey['arsenal@2003']!.squad[0]
+    const standard = u.clubSeasonByKey['arsenal@2015']!.squad[0]
+    const aged = ageOneYear(classic, new Rng('era-aged'), 2)
+    expect(aged.id).toBe(`${classic.playerId}@dyn2`)
+    expect(isEstimated(u, aged)).toBe(true)
+    expect(isEstimated(u, ageOneYear(standard, new Rng('era-aged'), 2))).toBe(false)
+    expect(estimatedNote(u, [aged, standard.id], 'england', 2015)).toBe('Estimated ratings: 1 classic pick')
+  })
+
+  it('runs a classic-era dynasty from 2007-08 into 2008-09, labels and all', () => {
+    const rules = { ...SEASON_RULES, leagues: ['england'], ...eraRules(u, choice({ era: 'classic' })) }
+    const host = u.clubSeasons.find((cs) => cs.season === 2007 && cs.position === 10)!.clubId
+    const g = createGame(settings({ mode: 'dynasty', seed: 'era-dynasty', leagueSeason: 2007, hostClubId: host, rules }))
+    let rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    startSeasonProper(g)
+    while (g.phase !== 'summary') playMatchweek(g, u, true)
+    const get = playerLookup(g, u)
+    const before = Object.values(g.lineup).map((id) => get(id)!)
+    expect(before.every((p) => isEstimated(u, p))).toBe(true)
+    advanceToNextSeason(g, u)
+    expect(g.settings.leagueSeason).toBe(2008)
+    // The kept players are aged copies now, still counted as estimated by the club-season they came from
+    const kept = Object.keys(g.squad).map((id) => playerLookup(g, u)(id)!)
+    expect(kept.length).toBeGreaterThan(0)
+    expect(kept.every((p) => p.id.includes('@dyn') && isEstimated(u, p))).toBe(true)
+    rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    expect(g.season!.leagueSeason).toBe(2008)
+    expect(Object.keys(g.season!.ai).length).toBe(19)
   })
 })

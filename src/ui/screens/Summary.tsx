@@ -28,14 +28,12 @@ export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
   const [copied, setCopied] = useState(false)
   const [link, setLink] = useState<string | null>(null)
-  if (!u || !game) return null
-  const get = playerLookup(game, u)
-  const q = game.quickResult
-  const season = game.season
-  const last = game.history.at(-1)
-  const tier = game.tier ?? 'MID_TABLE'
+  const [cardUrl, setCardUrl] = useState<string | null>(null)
+  // Every hook runs before the early returns below, so the hook order never changes between renders
+  const q = game?.quickResult
+  const season = game?.season
+  const last = game?.history.at(-1)
   const record = q ? { won: q.won, drawn: q.drawn, lost: q.lost, points: q.points, position: q.position, goalsFor: q.goalsFor, goalsAgainst: q.goalsAgainst } : last ? { won: last.won, drawn: last.drawn, lost: last.lost, points: last.points, position: last.position, goalsFor: last.goalsFor, goalsAgainst: last.goalsAgainst } : null
-  if (!record) return null
   const table: TableRow[] = useMemo(() => {
     if (q) return q.table.map((r) => ({ ...r, played: (q.table.length - 1) * 2, form: [] }))
     if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
@@ -44,11 +42,25 @@ export function Summary() {
   // Every game of a quick season, game by game; the replay is UI state only
   const results = q?.results ?? []
   const replay = useSeasonReplay(results.length)
+  // Where this season sits against every complete real season of the league with the same number of matches
+  const leagueId = game?.settings.leagueId ?? ''
+  const bench = useMemo(() => (!u || !record || season?.sacked ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked])
+  const challenge = game?.settings.challenge
+  const ghostLineup = useMemo(() => Object.fromEntries((challenge?.picks ?? []).flatMap((p) => (p.id && p.slotId ? [[p.slotId, p.id] as [string, string]] : []))), [challenge])
+  // How the club you replaced actually did that season, when a complete real table exists
+  const hostClubId = game?.settings.hostClubId ?? ''
+  const leagueSeason = game?.settings.leagueSeason ?? 0
+  const realRow = useMemo(() => {
+    const cs = u?.clubSeasonByKey[`${hostClubId}@${leagueSeason}`]
+    if (!u || !cs?.complete) return null
+    return u.tables[leagueId]?.[leagueSeason]?.find((r) => r.clubId === hostClubId) ?? null
+  }, [u, hostClubId, leagueSeason, leagueId])
+  if (!u || !game || !record) return null
+  const get = playerLookup(game, u)
+  const tier = game.tier ?? 'MID_TABLE'
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: record.won + record.drawn + record.lost, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
-  // Where this season sits against every complete real season of the league with the same number of matches
   const leagueName = u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? game.settings.leagueId
-  const bench = useMemo(() => (season?.sacked ? null : benchmarkSeason(u, game.settings.leagueId, record)), [u, game.settings.leagueId, record.won, record.drawn, record.lost, record.points, record.goalsFor, record.goalsAgainst, season?.sacked])
   const inBooks = bench !== null && hasRecordBook(bench)
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
@@ -63,10 +75,10 @@ export function Summary() {
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
   if (bestLine) extraLines.push(bestLine)
   // A classic pick or a classic league season: the numbers are TouchLine's estimate, and the share says so
-  const estimated = estimatedNote(u, Object.values(game.lineup), game.settings.leagueId, game.settings.leagueSeason)
+  // The player-seasons themselves, so a dynasty's aged copy still counts by the club-season it was drafted from
+  const estimated = estimatedNote(u, Object.values(game.lineup).map((id) => get(id) ?? id), game.settings.leagueId, game.settings.leagueSeason)
   if (estimated) extraLines.push(estimated)
   // Head-to-head against the ghost this game was played against
-  const challenge = game.settings.challenge
   const mine = claimOf(game)
   if (challenge && mine) extraLines.push(verdictLine(challenge, mine))
   const text = shareText({
@@ -130,14 +142,6 @@ export function Summary() {
       },
     })
   }
-  const ghostLineup = useMemo(() => Object.fromEntries((challenge?.picks ?? []).flatMap((p) => (p.id && p.slotId ? [[p.slotId, p.id] as [string, string]] : []))), [challenge])
-  // How the club you replaced actually did that season, when a complete real table exists
-  const realRow = useMemo(() => {
-    const cs = u.clubSeasonByKey[`${game.settings.hostClubId}@${game.settings.leagueSeason}`]
-    if (!cs?.complete) return null
-    return u.tables[game.settings.leagueId]?.[game.settings.leagueSeason]?.find((r) => r.clubId === game.settings.hostClubId) ?? null
-  }, [u, game.settings.hostClubId, game.settings.leagueSeason, game.settings.leagueId])
-  const [cardUrl, setCardUrl] = useState<string | null>(null)
   const makeCard = () => {
     try {
       const url = renderShareCard({

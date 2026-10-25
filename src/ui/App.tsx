@@ -279,7 +279,7 @@ function NewsGroup({ title, icon, items }: { title: string; icon: string; items:
 function ThemeToggle({ light, onToggle }: { light: boolean; onToggle: () => void }) {
   const label = light ? 'Switch to dark mode (Floodlit)' : 'Switch to light mode (Daylight)'
   return (
-    <button type="button" className="theme-toggle" onClick={onToggle} aria-label={label} title={label} aria-pressed={light} data-testid="theme-toggle">
+    <button type="button" className="theme-toggle" onClick={onToggle} aria-label={label} title={label} data-testid="theme-toggle">
       {light ? (
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor" />

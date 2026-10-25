@@ -12,7 +12,7 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, hideRatings
   if (state?.injury) flags.push(<span key="inj" className="chip bad" title={state.injury.description}>🩹 {state.injury.weeksOut}w</span>)
   if (state && state.suspension > 0) flags.push(<span key="sus" className="chip bad">🟥 {state.suspension}</span>)
   if (p.accolades.includes('Champion')) flags.push(<span key="ch" className="chip gold" title="Won the league that season">🏆</span>)
-  if (u && isEstimated(u, p.id)) flags.push(<EstimatedChip key="est" compact />)
+  if (u && isEstimated(u, p)) flags.push(<EstimatedChip key="est" compact />)
   return (
     <button type="button" className={`prow ${dim ? 'dim' : ''} ${selected ? 'selected' : ''}`} onClick={dim ? undefined : onClick} disabled={dim && !onClick}>
       <Rating value={p.overall} hidden={hideRatings} />
