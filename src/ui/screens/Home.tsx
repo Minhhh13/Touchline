@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Trophy, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
@@ -6,19 +6,18 @@ import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
-
-/** Photos are served from public/img (credits in docs/CREDITS.md); BASE_URL keeps them working under a sub-path. */
-const img = (file: string) => `${import.meta.env.BASE_URL}img/${file}`
+import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
 function compact(n: number): string {
   return n >= 10_000 ? `${Math.floor(n / 1000)}k` : n.toLocaleString()
 }
 
-function ModeArt({ file, icon: Icon }: { file: string; icon: LucideIcon }) {
+/** The card's picture is our own drawing (components/Art.tsx), with the mode's icon on the edge. */
+function ModeArt({ kind, icon: Icon }: { kind: ModeArtKind; icon: LucideIcon }) {
   return (
     <span className="mode-art">
-      <img src={img(file)} alt="" loading="lazy" decoding="async" width={720} height={360} />
+      <ModeScene kind={kind} />
       <span className="mode-icon">
         <Icon size={20} />
       </span>
@@ -79,18 +78,12 @@ export function Home() {
     startGame(dailyGameSettings(u, todaysDailySeed()))
   }
   const achievements = Object.keys(profile.achievements).length
-  // The hero photo fades in once it has decoded, so a slow connection shows the navy card rather than a half-drawn picture
-  const [heroReady, setHeroReady] = useState(false)
-  const heroRef = useCallback((el: HTMLImageElement | null) => {
-    if (el?.complete && el.naturalWidth > 0) setHeroReady(true)
-  }, [])
   return (
     <div className="page home">
       <section className="hero">
-        <picture className={`hero-photo${heroReady ? ' ready' : ''}`}>
-          <source media="(max-width: 720px)" srcSet={img('hero-floodlit-800.webp')} />
-          <img src={img('hero-floodlit-1600.webp')} alt="" width={1600} height={798} fetchPriority="high" decoding="async" ref={heroRef} onLoad={() => setHeroReady(true)} />
-        </picture>
+        <div className="hero-photo">
+          <HeroArt />
+        </div>
         <div className="hero-content">
           <h1>
             <Lockup height={104} animate="load" />
@@ -179,7 +172,7 @@ export function Home() {
 
       <div className="modes">
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
-          <ModeArt file="mode-quick.webp" icon={Dices} />
+          <ModeArt kind="quick" icon={Dices} />
           <span className="mode-text">
             <h3>Quick Draft</h3>
             <p>Eleven spins, one XI, a whole season.</p>
@@ -191,7 +184,7 @@ export function Home() {
         </button>
         <div className="mode-card daily" data-testid="daily-card">
           <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title="Open the full setup to name your team">
-            <ModeArt file="mode-daily.webp" icon={CalendarDays} />
+            <ModeArt kind="daily" icon={CalendarDays} />
             <span className="mode-text">
               <h3>Daily Challenge</h3>
               <p>Same spins for everyone, every day.</p>
@@ -217,7 +210,7 @@ export function Home() {
           </button>
         </div>
         <button className="mode-card" onClick={() => go('setup', 'season')}>
-          <ModeArt file="mode-season.webp" icon={ClipboardList} />
+          <ModeArt kind="season" icon={ClipboardList} />
           <span className="mode-text">
             <h3>Season</h3>
             <p>Draft eighteen, then manage every week.</p>
@@ -228,7 +221,7 @@ export function Home() {
           </span>
         </button>
         <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
-          <ModeArt file="mode-dynasty.webp" icon={Crown} />
+          <ModeArt kind="dynasty" icon={Crown} />
           <span className="mode-text">
             <h3>Dynasty</h3>
             <p>Season mode that never ends.</p>

@@ -62,8 +62,8 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - A depth chart of who can cover every position in your shape, rated there.
 - Export and import your save file from the Profile page (plain JSON; old exports still import), and a trophy cabinet across every game you have played.
 - Small saves: stored results keep only what the screens read and the save is compressed, so a full Season takes about 50 K characters of the browser's 5 MB, a Dynasty with a parked Season under 100 K; if the storage is ever full a toast says so and the game carries on.
-- Installable as an app: a service worker caches the shell, the Home photos and any league pack you have opened, so the game starts and plays offline.
-- **Light and dark**: the sun and moon in the top bar flips between them and remembers the choice; Auto on the Profile page follows the device's light or dark setting live. Home opens on a floodlit photo with the three numbers that matter, photo cards for the four modes and compact tiles for the rest, with one icon set (Lucide) throughout.
+- Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
+- **Light and dark**: the sun and moon in the top bar flips between them and remembers the choice; Auto on the Profile page follows the device's light or dark setting live. The palette is night navy with cyan and violet-magenta neon accents (a cool lavender Daylight theme); Home opens on our own cartoon drawing of a floodlit ground at night with the three numbers that matter, a drawn picture on each of the four mode cards and compact tiles for the rest, with one icon set (Lucide) throughout.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.
 - **In the record books**: the summary ranks your points, wins, goals scored, goals conceded and defeats against every complete real season of your league in the data with the same number of matches (26 Premier League seasons back to 2000-01, 16 Bundesliga seasons of 34 games), names the three seasons ahead of you and the real champions that year, and marks an outright league record with a gold chip; the share text adds a line for a top-ten points total. A new points record on Realistic difficulty over a full season unlocks the Record Books achievement; leagues without tables (Ligue 1, the Eredivisie, the Primeira Liga) have no record book. Dynasty history shows the real champions beside each of your seasons.
@@ -122,7 +122,6 @@ See `docs/DATA.md` for sources, method, cache location (`.cache/datasets` or `DA
 ```
 index.html                 Entry page (fonts, favicon, meta)
 public/favicon.svg         The mark; public/icons/ holds the app icons rendered from it
-public/img/                The Home photos (WebP; credits in docs/CREDITS.md)
 src/
   main.tsx                 React root
   engine/                  Pure, deterministic game engine (no React, no DOM)
@@ -176,7 +175,7 @@ docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.m
 
 Ratings and squads are built from public datasets: Stefano Leone's EA Sports FC 24 complete player dataset (CC0), nyagami's FC 25 database (Apache 2.0), justdhia's FC 26 ratings (CC0), mikedpad's FC 27 ratings (unofficial non-commercial snapshot), Hugo Mathien's European Soccer Database (ODbL), openfootball/england results (public domain) and Wikidata (CC0). A player's rating for a season comes from the edition published after it, so it reflects how he actually played. Values and wages are our own model. Full detail, method and limits are in [docs/DATA.md](docs/DATA.md).
 
-The Home photos are from Unsplash under the Unsplash License, by Jonathan Petersson, Riccardo Bernucci, Michal Balog, Izuddin Helmi Adnan and Christopher Le; icons are Lucide (ISC). Titles and links are in [docs/CREDITS.md](docs/CREDITS.md).
+The Home art is our own (inline SVG in `src/ui/components/Art.tsx`); icons are Lucide (ISC) and flags are flag-icons (MIT), credited in [docs/CREDITS.md](docs/CREDITS.md).
 
 Design documents:
 
@@ -184,7 +183,7 @@ Design documents:
 - [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): every system and formula as implemented.
 - [docs/DATA.md](docs/DATA.md): data pipeline, sources and licences.
 - [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md): the logo, the blue palette for both themes, type, spacing and the component rules every screen follows.
-- [docs/CREDITS.md](docs/CREDITS.md): every photo and the icon set, with author, source and licence.
+- [docs/CREDITS.md](docs/CREDITS.md): the flags and the icon set, with author, source and licence.
 
 ## Roadmap
 
