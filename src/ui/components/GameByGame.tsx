@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
-import { foldResults, outcomeOf, scorersLabel } from '@game/logic/gameByGame'
+import { foldResults, nextReveal, outcomeOf, playbackDelay, scorersLabel, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
 
@@ -58,6 +58,88 @@ export function useSeasonReplay(total: number): SeasonReplay {
   }
 }
 
+export interface SeasonPlayback extends SeasonReplay {
+  speed: PlaybackSpeed
+  setSpeed: (s: PlaybackSpeed) => void
+  /** Pause or carry on. */
+  toggle: () => void
+  /** Stop on the game shown (a bench change is being made). */
+  pause: () => void
+  /** Every game up to the stop is shown. */
+  done: boolean
+}
+
+/**
+ * The season playback after kick-off: it starts on its own from game `from` and reveals one game every
+ * `PLAYBACK_STEP_MS / speed` ms (700, 350 or 175) up to `stopAt` (the January pause, or the last game). Pause, speed
+ * and skip are UI state only: the season itself was simulated before the first game is shown.
+ */
+export function useSeasonPlayback(total: number, from: number, stopAt = total): SeasonPlayback {
+  const cap = Math.min(total, stopAt)
+  const [revealed, setRevealed] = useState(() => Math.min(from, cap))
+  const [playing, setPlaying] = useState(() => from < cap)
+  const [speed, setSpeed] = useState<PlaybackSpeed>(1)
+  useEffect(() => {
+    if (!playing) return
+    if (revealed >= cap) {
+      setPlaying(false)
+      return
+    }
+    const t = setTimeout(() => setRevealed((r) => nextReveal(r, total, cap)), playbackDelay(speed))
+    return () => clearTimeout(t)
+  }, [playing, revealed, total, cap, speed])
+  const done = revealed >= cap
+  return {
+    revealed: Math.min(revealed, cap),
+    playing,
+    used: true,
+    canReplay: false,
+    start: () => setPlaying(true),
+    skip: () => {
+      setRevealed(cap)
+      setPlaying(false)
+    },
+    speed,
+    setSpeed,
+    toggle: () => setPlaying((p) => (done ? false : !p)),
+    pause: () => setPlaying(false),
+    done,
+  }
+}
+
+/** One game of the season, large: the latest result of the playback. */
+export function GameCard({ r, opponent, onHighlights }: { r: QuickGameResult; opponent: Opponent; onHighlights?: (r: QuickGameResult) => void }) {
+  const o = outcomeOf(r)
+  const scorers = scorersLabel(r.scorers)
+  const chip: Record<ReturnType<typeof outcomeOf>, string> = { W: 'chip good', D: 'chip warn', L: 'chip bad' }
+  return (
+    <div className={`gbg-card ${o}`} data-testid="playback-latest" data-outcome={o} key={r.matchweek}>
+      <div className="row between wrap">
+        <span className="small muted">
+          Matchweek {r.matchweek} · {r.home ? 'Home' : 'Away'}
+        </span>
+        <span className={chip[o]}>{o === 'W' ? 'Win' : o === 'D' ? 'Draw' : 'Defeat'}</span>
+      </div>
+      <div className="gbg-card-main">
+        <ClubBadge clubId={opponent.clubId} size={36} />
+        <span className="gbg-card-opp">{r.home ? `v ${opponent.name}` : `at ${opponent.name}`}</span>
+        <span className="gbg-card-score">
+          {r.gf}-{r.ga}
+        </span>
+      </div>
+      <div className="row between wrap small">
+        <span className="muted">{scorers || 'No goals for you'}</span>
+        <span>{ordinal(r.position)} in the table</span>
+      </div>
+      {onHighlights && (
+        <button className="btn sm" onClick={() => onHighlights(r)} data-testid="card-highlights">
+          ▶ Highlights
+        </button>
+      )}
+    </div>
+  )
+}
+
 export interface Opponent {
   /** The club whose badge and colours stand for the opponent. */
   clubId: string
@@ -95,19 +177,23 @@ export function RunningStrip({ results, upTo }: { results: QuickGameResult[]; up
   )
 }
 
-export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean }) {
+export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void }) {
   const revealed = replay ? replay.revealed : results.length
   const playing = replay?.playing ?? false
   const lastRef = useRef<HTMLLIElement | null>(null)
+  const listRef = useRef<HTMLOListElement | null>(null)
   useEffect(() => {
-    if (playing && lastRef.current) lastRef.current.scrollIntoView({ block: 'nearest' })
-  }, [playing, revealed])
+    // A compact list scrolls inside itself, so the page never jumps under the reader; a full list brings the new game into view
+    if (compact) {
+      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
+    } else if (playing && lastRef.current) lastRef.current.scrollIntoView({ block: 'nearest' })
+  }, [playing, revealed, compact])
   const outcomeChip: Record<ReturnType<typeof outcomeOf>, string> = { W: 'chip good', D: 'chip warn', L: 'chip bad' }
   return (
-    <div className={`panel gbg ${compact ? 'compact' : ''}`} data-testid="game-by-game">
+    <div className={`panel gbg ${compact ? 'compact' : ''} ${onHighlights ? 'with-hl' : ''}`} data-testid="game-by-game">
       <div className="panel-head">
         <h3>{title}</h3>
-        <span className="small muted">{results.length} games</span>
+        <span className="small muted">{revealed < results.length ? `${revealed} of ${results.length}` : `${results.length} games`}</span>
       </div>
       {replay?.canReplay && (
         <div className="row between wrap" style={{ marginBottom: 8 }}>
@@ -123,8 +209,8 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
           <span className="small muted">{playing ? `Matchweek ${revealed} of ${results.length}` : 'One game every fifth of a second.'}</span>
         </div>
       )}
-      <RunningStrip results={results} upTo={revealed} />
-      <ol className="gbg-list" aria-label={title}>
+      {strip && <RunningStrip results={results} upTo={revealed} />}
+      <ol className="gbg-list" aria-label={title} ref={listRef}>
         {results.slice(0, revealed).map((r, i) => {
           const opp = opponent(r.opponentId)
           const o = outcomeOf(r)
@@ -141,6 +227,11 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               <span className="gbg-pos" title="League position after this matchweek">
                 {ordinal(r.position)}
               </span>
+              {onHighlights && (
+                <button className="btn sm ghost gbg-hl" onClick={() => onHighlights(r)} title="Highlights" aria-label={`Highlights of matchweek ${r.matchweek}`} data-testid="gbg-highlights">
+                  ▶
+                </button>
+              )}
               {scorers && <span className="gbg-scorers small muted">{scorers}</span>}
             </li>
           )

@@ -14,10 +14,10 @@
  * draft the way the store does, one `spin` per history row.
  */
 import type { DraftRules, DraftState } from './draft'
-import { QUICK_RULES, canSpin, isComplete, picksMade, pick, spin } from './draft'
+import { DIFFICULTIES, DRAFT_MODES, QUICK_BENCH_MAX, QUICK_RULES, RATINGS_MODES, canCloseBench, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
-import type { SeasonTier } from './types'
+import type { DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Tempo, Width } from './types'
 import type { LoadedUniverse } from './universe'
 import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
@@ -33,8 +33,52 @@ export interface ChallengeClaim {
   t: SeasonTier
 }
 
-/** One spin of the challenger's draft: the real player id drafted (`s200458`) and the slot, or nulls for a spin that drafted no one. */
+/**
+ * One spin of the challenger's draft: the real player id drafted (`s200458`) and the slot, or nulls for a
+ * spin that drafted no one. Under Position First a spin that drafted no one carries the slot it was filling.
+ */
 export type ChallengePick = [playerId: string | null, slotId: string | null]
+
+/**
+ * Team instructions a quick season was played with, only those off the defaults (`defaultTactics`), plus the captain
+ * and the penalty taker as player-season ids.
+ */
+export interface ChallengeTactics {
+  mentality?: Mentality
+  pressing?: Pressing
+  tempo?: Tempo
+  width?: Width
+  defensiveLine?: DefensiveLine
+  passing?: PassingStyle
+  captain?: string
+  penalties?: string
+}
+
+/**
+ * The quick season's own choices, carried only when something differs from a default season: `t` the tactics of the
+ * first half (the whole season without a window), `t2` those of the second half when they were changed at the January
+ * pause, `j` the January deal as `[incoming player-season id, slot id]`, `s` the bench changes of a Quick Draft with a
+ * bench as `[first matchweek, slot id, incoming player-season id]`, in order.
+ */
+export interface ChallengeSeason {
+  t?: ChallengeTactics
+  t2?: ChallengeTactics
+  j?: [playerSeasonId: string, slotId: string]
+  s?: Array<[from: number, slotId: string, playerSeasonId: string]>
+}
+
+/** Most bench changes a link may carry: the three a quick season allows. */
+export const CHALLENGE_CHANGES_MAX = 3
+
+/** The values each instruction may take in a link. */
+export const CHALLENGE_TACTIC_VALUES = {
+  mentality: ['defensive', 'balanced', 'attacking'],
+  pressing: ['low', 'mid', 'high'],
+  tempo: ['slow', 'standard', 'fast'],
+  width: ['narrow', 'standard', 'wide'],
+  defensiveLine: ['deep', 'standard', 'high'],
+  passing: ['short', 'mixed', 'direct'],
+} as const satisfies Record<Exclude<keyof ChallengeTactics, 'captain' | 'penalties'>, readonly string[]>
 
 export interface ChallengePayload {
   v: 1
@@ -59,6 +103,8 @@ export interface ChallengePayload {
   c: ChallengeClaim
   /** `historyKey` of the challenger's draft history. */
   k: string
+  /** The season's tactics and January deal, when they differ from a default season; absent on older links. */
+  x?: ChallengeSeason
 }
 
 const TIERS: readonly SeasonTier[] = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED']
@@ -82,25 +128,38 @@ export function historyKey(history: Array<{ clubId: string; season: number }>): 
   return hashString(history.map((h) => `${h.clubId}@${h.season}`).join(',')).toString(36)
 }
 
-/** The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`). */
+/** Re-spins a quick draft had before difficulties existed; a link made then carries no `difficulty`. */
+export const LEGACY_QUICK_RESPINS = 2
+
+/**
+ * The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`).
+ * The difficulty is always written, even at the default, so a link made before difficulties existed
+ * (no `difficulty` key) can be told apart and opened with the re-spins its challenger had.
+ */
 export function rulesDiff(rules: DraftRules, base: DraftRules = QUICK_RULES): Partial<DraftRules> {
-  const out: Partial<DraftRules> = {}
+  const out: Partial<DraftRules> = { difficulty: difficultyOf(rules) }
   const b = base as unknown as Record<string, unknown>
   for (const [key, value] of Object.entries(rules) as Array<[keyof DraftRules, unknown]>) {
-    if (key === 'leagues' || value === undefined) continue
+    if (key === 'leagues' || key === 'difficulty' || value === undefined) continue
     if (b[key] !== value) (out as Record<string, unknown>)[key] = value
   }
   return out
 }
 
-/** The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. */
+/**
+ * The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. A diff without a
+ * difficulty comes from a link made before difficulties: its draft had `LEGACY_QUICK_RESPINS`
+ * re-spins unless it says otherwise, and its hard mode reads as hard.
+ */
 export function rulesFromPayload(c: ChallengePayload): DraftRules {
-  return { ...QUICK_RULES, ...c.s.r, leagues: c.s.wl }
+  const r = c.s.r
+  const legacy: Partial<DraftRules> = r.difficulty === undefined ? { respins: LEGACY_QUICK_RESPINS, difficulty: r.hardMode ? 'hard' : 'normal', ...(r.hardMode ? { showRatings: false } : {}) } : {}
+  return { ...QUICK_RULES, ...legacy, ...r, leagues: c.s.wl }
 }
 
 /** A draft's history as payload rows: the real player id of each pick (or null) and its slot. */
 export function picksFromHistory(history: DraftState['history'], playerIdOf: (playerSeasonId: string) => string | undefined): ChallengePick[] {
-  return history.map((h) => [h.pickedId ? playerIdOf(h.pickedId) ?? null : null, h.pickedId ? h.slotId : null])
+  return history.map((h) => [h.pickedId ? playerIdOf(h.pickedId) ?? null : null, h.pickedId ? h.slotId : h.target ?? null])
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -147,12 +206,39 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   hardMode: isBool,
   uniqueClubSeasons: isBool,
   twists: isBool,
+  difficulty: (v) => DIFFICULTIES.includes(v as DraftDifficulty),
+  showRatings: isBool,
+  draftMode: (v) => DRAFT_MODES.includes(v as DraftMode),
+  ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
+  benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
 export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return false
   return Object.entries(r).every(([key, value]) => Object.prototype.hasOwnProperty.call(RULE_CHECKS, key) && RULE_CHECKS[key as keyof DraftRules](value))
+}
+
+/** Whether an object is a set of instructions made only of known keys holding allowed values. */
+export function isChallengeTactics(t: unknown): t is ChallengeTactics {
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return false
+  return Object.entries(t).every(([key, value]) => {
+    if (key === 'captain' || key === 'penalties') return isString(value)
+    const allowed = (CHALLENGE_TACTIC_VALUES as Record<string, readonly string[]>)[key]
+    return !!allowed && allowed.includes(value as string)
+  })
+}
+
+/** Whether an object is a well-formed `x` block: optional tactics for each half and an optional January deal. */
+export function isChallengeSeason(x: unknown): x is ChallengeSeason {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return false
+  const o = x as Record<string, unknown>
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's')) return false
+  if (o.t !== undefined && !isChallengeTactics(o.t)) return false
+  if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
+  if (o.j !== undefined && !(Array.isArray(o.j) && o.j.length === 2 && o.j.every(isString))) return false
+  if (o.s !== undefined && !(Array.isArray(o.s) && o.s.length <= CHALLENGE_CHANGES_MAX && o.s.every((c) => Array.isArray(c) && c.length === 3 && isInt(c[0]) && c[0] >= 1 && isString(c[1]) && isString(c[2])))) return false
+  return true
 }
 
 /** Decode a `#c=` fragment; throws with a readable reason when it is not a challenge. */
@@ -180,6 +266,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!isRulesDiff(s.r)) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
+  if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
   return {
     v: 1,
     data: o.data,
@@ -189,6 +276,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     p: o.p as ChallengePick[],
     c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
     k: o.k,
+    ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
   }
 }
 
@@ -214,11 +302,16 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
     const [playerId, slotId] = c.p[i]
     const n = i + 1
     if (isComplete(d)) throw new Error(`Spin ${n} came after the squad was complete`)
+    // Position First: every spin of the XI fills the slot its row names, chosen before the spin as the player did
+    if (positionFirst(d)) {
+      if (!slotId || !openSlots(d).some((s) => s.id === slotId)) throw new Error(`Spin ${n}: no open slot ${slotId ?? ''} to fill`.trim())
+      d.target = slotId
+    }
     if (!canSpin(u, d)) throw new Error(`Spin ${n}: the wheel had run dry`)
     const cs = spin(u, d, rng)
     if (playerId === null) {
       d.respinsLeft = Math.max(0, d.respinsLeft - 1)
-      d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}) })
+      d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}), ...(d.target ? { target: d.target } : {}) })
       d.current = null
       d.twist = null
       out.push({ clubId: cs.clubId, season: cs.season, id: null, slotId: null })
@@ -233,6 +326,8 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
     }
     out.push({ clubId: cs.clubId, season: cs.season, id, slotId })
   }
+  // A Quick Draft with a bench may stop once the XI is full, bench places to spare
+  if (canCloseBench(d)) d.benchClosed = true
   if (!isComplete(d) && !(picksMade(d) >= 11 && !canSpin(u, d))) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
   if (d.spins !== c.p.length || d.history.length !== c.p.length) throw new Error('The spins do not add up')
   if (historyKey(d.history) !== c.k) throw new Error('The wheel did not land on the same club-seasons')

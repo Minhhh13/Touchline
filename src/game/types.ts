@@ -13,7 +13,11 @@ import type { ChallengeClaim } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty'
-export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
+/**
+ * Where a game stands. `kickoff` (Quick Draft and the Daily) is the tactics step between the draft and the season;
+ * `january` is a quick season paused after the halfway matchweek with its January window open.
+ */
+export type Phase = 'draft' | 'kickoff' | 'january' | 'preseason' | 'week' | 'match' | 'summary'
 
 export interface GameSettings {
   mode: Mode
@@ -34,8 +38,13 @@ export interface GameSettings {
   jobSecurity: boolean
   /** 'calibrated' handicaps AI clubs so an average draft competes; 'realistic' does not. */
   difficulty: 'calibrated' | 'realistic'
-  /** Enter the Continental Cup in the first season (later seasons qualify by finishing top four). */
+  /**
+   * Season and Dynasty: enter the Continental Cup in the first season (later seasons qualify by finishing top four).
+   * Quick Draft: a top-four finish earns a short Continental Cup run after the league season.
+   */
   continental?: boolean
+  /** Quick Draft and the Daily: the season stops after the halfway matchweek for a January window. Absent (older saves) is off. */
+  january?: boolean
   /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
   challenge?: ChallengeSettings
 }
@@ -184,6 +193,68 @@ export interface Game {
   pendingMove: { leagueId: string; clubId: string } | null
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
+  /** A quick season's January window: open while the phase is `january`, kept with the move once the season is done. Absent on older saves. */
+  quickJanuary?: QuickJanuary | null
+  /** A Quick Draft bench's voluntary changes, in the order made (at most `QUICK_CHANGES`). Absent when none were made. */
+  quickChanges?: QuickChange[]
+  /**
+   * A quick season with a bench, played but still open to changes while the game-by-game playback runs: the result is
+   * recorded (leaderboard, achievements) when the playback closes. Absent otherwise.
+   */
+  quickOpen?: boolean
+  /** The RNG state a quick season with a bench kicked off from, so a change replays the same season up to it. */
+  quickStartRng?: RngState
+}
+
+/**
+ * One voluntary change of a quick season's bench: from matchweek `from` on, the bench player `inId` takes slot
+ * `slotId` and the starter there goes to the bench in his place. It sticks until another change moves him.
+ */
+export interface QuickChange {
+  from: number
+  slotId: string
+  inId: string
+}
+
+/** An injured starter covered for one game by the best fit on the bench (a forced change: it uses none of the three). */
+export interface QuickCover {
+  slotId: string
+  outId: string
+  inId: string
+}
+
+/** How a January deal is paid for: a fee out of the window budget, or a straight player-for-player swap. */
+export type JanuaryDealKind = 'sign' | 'swap'
+
+/** One player offered in a quick season's January window, for one slot of the XI. */
+export interface JanuaryListing {
+  /** The player-season coming in. */
+  playerSeasonId: string
+  /** The slot he would take. */
+  slotId: string
+  /** The drafted player who leaves to make room (sold, or sent the other way in a swap). */
+  outId: string
+  kind: JanuaryDealKind
+  /** GBP millions out of the window budget; 0 for a swap. */
+  fee: number
+}
+
+/** The January window of a quick season: what the halfway pause offered and what the manager did with it. */
+export interface QuickJanuary {
+  /** The window opens after this matchweek: half the league season. */
+  afterMatchweek: number
+  /** League position at the pause, which (with the XI's value) set the budget. */
+  position: number
+  /** GBP millions the board will spend. */
+  budget: number
+  listings: JanuaryListing[]
+  /** The user's first-half games, shown while the window is open (the full list lands in `QuickResult.results`). */
+  firstHalf: QuickGameResult[]
+  /** The tactics and captain the first half was played with; the second half uses `Game.tactics` and `Game.captainId`. */
+  firstHalfTactics: Tactics
+  firstHalfCaptainId?: string
+  /** The deal taken, null for a pass; absent while the window is still open. */
+  move?: JanuaryListing | null
 }
 
 export interface CareerRecord {
@@ -226,6 +297,10 @@ export interface QuickGameResult {
   scorers: QuickScorer[]
   /** The user's league position after this matchweek. */
   position: number
+  /** Quick bench: the user's players injured in this game and the matchweeks each misses after it. */
+  injuries?: Array<{ id: string; out: number }>
+  /** Quick bench: injured starters covered from the bench in this game. */
+  covers?: QuickCover[]
 }
 
 export interface QuickResult {
@@ -243,6 +318,32 @@ export interface QuickResult {
   strength: { overall: number; goalkeeping: number; defence: number; midfield: number; attack: number; balance: number; chemistry: number }
   /** Every game of the season, game by game (absent on saves written before it was recorded). */
   results?: QuickGameResult[]
+  /** The January deal, when one was made: names kept so the summary reads without the window. */
+  january?: { kind: JanuaryDealKind; inId: string; inName: string; outId: string; outName: string; fee: number; slotId: string }
+  /** The Continental Cup run a top-four finish earned, when the option was on and a field could be drawn. */
+  europe?: QuickEuropeRun
+  /** Quick bench: the voluntary changes the season was played with, with the starter each sent to the bench. */
+  changes?: Array<QuickChange & { outId: string }>
+  /** The RNG state the season kicked off from, so the highlights of any game can be played again. Absent on older saves. */
+  startRng?: RngState
+}
+
+/** One Continental Cup tie of a quick season's European run, from the user's side. */
+export interface QuickEuropeTie {
+  round: 'R16' | 'QF' | 'SF' | 'F'
+  opponentId: string
+  home: boolean
+  gf: number
+  ga: number
+  /** Shoot-out score from the user's side, after a draw. */
+  pens?: { for: number; against: number }
+  won: boolean
+}
+
+export interface QuickEuropeRun {
+  ties: QuickEuropeTie[]
+  /** Furthest round reached; W for winners. */
+  reached: 'R16' | 'QF' | 'SF' | 'F' | 'W'
 }
 
 export interface LeaderboardEntry {

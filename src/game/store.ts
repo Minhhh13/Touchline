@@ -5,7 +5,7 @@ import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Pro
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
-import { canSpin, isComplete, picksMade, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
+import { canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
@@ -13,7 +13,7 @@ import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
-import { runQuickSeason } from './logic/quick'
+import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import { assignmentNote } from './logic/slotSheet'
@@ -86,6 +86,8 @@ interface Store {
   matchView: 'ticker' | 'report'
   /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
   pendingChallenge: { payload: ChallengePayload; challenge: ChallengeSettings } | null
+  /** The quick season being revealed game by game from game `from` (transient, never saved): a reload goes straight to the result. */
+  playback: { from: number } | null
 
   loadData: () => Promise<void>
   /** Make sure these league packs are loaded and merged into the universe. */
@@ -104,9 +106,19 @@ interface Store {
 
   spin: () => void
   respin: () => void
+  /** Position First: choose the open slot the next spin fills. */
+  chooseSlot: (slotId: string) => void
   pickPlayer: (playerSeasonId: string, slotId: string | 'bench') => void
   autoDraftRest: () => void
   finishDraft: () => void
+  /** Quick Draft and the Daily: leave the tactics step and play the season (to the January window when it is on); `skip` restores the default tactics first. */
+  kickOff: (skip?: boolean) => void
+  /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
+  closeJanuary: (index: number | null) => void
+  /** The game-by-game playback is over or skipped: show the summary (a season with a bench is recorded now). */
+  endPlayback: () => void
+  /** Quick bench: before game `revealed + 1` of the playback, put bench player `inId` into slot `slotId` (one of the three changes). */
+  benchChange: (revealed: number, slotId: string, inId: string) => void
 
   playFriendly: () => void
   startSeason: () => void
@@ -225,6 +237,21 @@ export const useStore = create<Store>()(
       }
       /** League loads run one after another so two callers never overwrite each other's universe. */
       let pendingLoad: Promise<unknown> = Promise.resolve()
+      /**
+       * A quick season with a bench is held open while its playback runs; leaving it for another game (or abandoning it)
+       * closes it and records it first, so a season that was played never goes missing from the record.
+       */
+      const settleQuickSeason = () => {
+        const { game } = get()
+        if (!game?.quickOpen || game.phase !== 'summary') return
+        set({
+          game: produce(game, (g) => {
+            closeQuickSeason(g)
+          }),
+        })
+        unlockFromGame()
+        get().recordResult()
+      }
       const unlockFromGame = () => {
         const { game, profile } = get()
         if (!game) return
@@ -256,6 +283,7 @@ export const useStore = create<Store>()(
         digest: null,
         matchView: 'ticker',
         pendingChallenge: null,
+        playback: null,
 
         loadData: async () => {
           if (get().universe || get().loading) return
@@ -343,16 +371,21 @@ export const useStore = create<Store>()(
         },
 
         startGame: (settings) => {
+          settleQuickSeason()
           const game = createGame(settings)
           const { game: current, parked } = get()
           const next = { ...parked }
           // Park a game of a different kind rather than losing it; a finished one is dropped.
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
-          set({ game, parked: next, screen: 'game', pendingChallenge: null, digest: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          set({ game, parked: next, screen: 'game', pendingChallenge: null, digest: null, playback: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
-        abandonGame: () => set({ game: null, screen: 'home', offseason: null, digest: null }),
+        abandonGame: () => {
+          settleQuickSeason()
+          set({ game: null, screen: 'home', offseason: null, digest: null, playback: null })
+        },
         resumeGame: (slot) => {
+          settleQuickSeason()
           const { game: current, parked } = get()
           const target = parked[slot]
           if (!target) return
@@ -364,7 +397,7 @@ export const useStore = create<Store>()(
           void get()
             .ensureLeagues(ids)
             .then((ok) => {
-              if (ok) set({ game: target, parked: next, screen: 'game', digest: null })
+              if (ok) set({ game: target, parked: next, screen: 'game', digest: null, playback: null })
             })
         },
         discardParked: (slot) => {
@@ -373,9 +406,22 @@ export const useStore = create<Store>()(
           set({ parked: next })
         },
 
+        chooseSlot: (slotId) =>
+          mutate((g, u) => {
+            if (!g.draft) return
+            try {
+              draftChooseSlot(u, g.draft, slotId)
+            } catch (e) {
+              set({ toast: e instanceof Error ? e.message : String(e) })
+            }
+          }),
         spin: () =>
           mutate((g, u) => {
             if (!g.draft || g.draft.current) return
+            if (positionFirst(g.draft) && !targetSlot(g.draft)) {
+              set({ toast: 'Choose a slot on the pitch first.' })
+              return
+            }
             if (!canSpin(u, g.draft)) {
               set({ toast: `The wheel has run dry for ${u.nations[g.draft.rules.onlyNation ?? '']?.name ?? 'this draft'}.` })
               return
@@ -406,7 +452,8 @@ export const useStore = create<Store>()(
             const rng = Rng.fromState(g.rngState)
             // A pending spin is discarded with its twist, but it consumed the RNG, so it stays in the history
             // as a skipped row (a challenge replay needs every spin) and the assistant's first `canSpin` sees the plain wheel
-            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}) })
+            // Position First keeps the slot being filled, so the assistant fills it next and a replay can set it again
+            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: g.draft.target! } : {}) })
             g.draft.current = null
             g.draft.twist = null
             autoDraft(u, g.draft, rng)
@@ -415,9 +462,12 @@ export const useStore = create<Store>()(
         finishDraft: () => {
           mutate((g, u) => {
             if (!g.draft) return
+            // A Quick Draft with a bench may close once the XI is full, bench places to spare
+            if (canCloseBench(g.draft)) closeBench(g.draft)
             // A one-nation wheel that has run dry may close with a full XI short of the squad size
             if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
-            if (g.settings.mode === 'quick' || g.settings.mode === 'daily') runQuickSeason(g, u)
+            // Quick Draft and the Daily stop at the tactics step before the season
+            if (g.settings.mode === 'quick' || g.settings.mode === 'daily') toKickoff(g, u)
             else beginSeason(g, u)
           })
           const { game } = get()
@@ -425,6 +475,50 @@ export const useStore = create<Store>()(
             unlockFromGame()
             get().recordResult()
           }
+        },
+        kickOff: (skip) => {
+          if (get().game?.phase !== 'kickoff') return
+          mutate((g, u) => kickOff(g, u, skip))
+          const { game } = get()
+          if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
+          // A season with a bench stays open to changes until the playback closes, and is recorded then
+          if (game?.phase === 'summary' && !game.quickOpen) {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        closeJanuary: (index) => {
+          const before = get().game
+          if (before?.phase !== 'january' || !before.quickJanuary) return
+          const from = before.quickJanuary.firstHalf.length
+          mutate((g, u) => closeJanuary(g, u, index))
+          if (get().game?.phase === 'january') {
+            // The deal did not replay (the league data changed since the window opened): draw the window again rather than stay stuck
+            mutate((g, u) => reopenJanuary(g, u))
+            set({ toast: 'The league data changed since the window opened, so the first half and the window were drawn again.' })
+            return
+          }
+          if (get().game?.phase === 'summary') {
+            set({ playback: { from } })
+            if (get().game?.quickOpen) return
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        endPlayback: () => {
+          settleQuickSeason()
+          set({ playback: null })
+        },
+        benchChange: (revealed, slotId, inId) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          const results = playbackResults(game)
+          const problem = quickChangeProblem(game, universe, results, revealed, { slotId, inId })
+          if (problem) {
+            set({ toast: problem })
+            return
+          }
+          mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
         },
 
         playFriendly: () => {
@@ -503,7 +597,12 @@ export const useStore = create<Store>()(
         autoPick: () => mutate((g, u) => autoPick(g, u, false)),
         setTeamTalk: (t) => mutate((g) => void (g.teamTalk = t)),
         setTraining: (t) => mutate((g) => void (g.training = t)),
-        setCaptain: (id) => mutate((g) => void (g.captainId = id)),
+        setCaptain: (id) =>
+          mutate((g) => {
+            // An empty id takes the armband off
+            if (id) g.captainId = id
+            else delete g.captainId
+          }),
         setStatus: (id, status) => mutate((g, u) => setSquadStatus(g, u, id, status)),
 
         resolveEvent: (choiceId) => mutate((g, u) => applyEventChoice(g, u, choiceId)),
@@ -622,7 +721,8 @@ export const useStore = create<Store>()(
           const last = game.history.at(-1)
           const league = rec.position === 1
           const cup = !!last?.cupWon
-          const euro = !!last?.continentalWon
+          // A quick season's Continental Cup run counts as the managed modes' trophy does
+          const euro = !!last?.continentalWon || game.quickResult?.europe?.reached === 'W'
           if (league) trophies.league++
           if (cup) trophies.cup++
           if (euro) trophies.continental++
@@ -632,7 +732,7 @@ export const useStore = create<Store>()(
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
-          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, leagues: wheelLeagues, twists: false })
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, difficulty: hardMode ? 'hard' : 'normal', showRatings: !hardMode, leagues: wheelLeagues, twists: false })
           set({ h2h: { managers, leagueId, wheelLeagues, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
         },
         h2hSpin: () => {

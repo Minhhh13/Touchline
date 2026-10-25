@@ -5,10 +5,9 @@ import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs, Tip } from '../components
 import { LeagueFlag } from '../components/Flag'
 import type { PitchSide } from '../components/LivePitch'
 import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay, XgRace } from '../components/MatchCharts'
-import { kitColour } from '../match/pitchGeometry'
+import { kitColours } from '../match/pitchGeometry'
 import { xgSeries } from '../match/charts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { BRAND_COLOURS } from '../brand'
 import { clubName, clubShort, minuteLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { currentScore, onPitch, SHOUTS, type Appearance, type FullMatchResult, type LivePlayer, type Shout, type TeamSnapshot, type TeamTalk } from '@engine/match'
@@ -28,18 +27,6 @@ function CompetitionFlag({ ctx, leagueId }: { ctx: MatchContext; leagueId?: stri
     </>
   )
 }
-
-/** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
-function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, awayTeamId: string): { home: string; away: string } {
-  const clubOf = (teamId: string) => u.clubById[teamId === USER_TEAM ? hostClubId : teamId.replace(/^friendly-/, '')]
-  const h = clubOf(homeTeamId)
-  const a = clubOf(awayTeamId)
-  // A club without colours wears the accent blue at home and near-white away (hex, as kitColour compares them)
-  const home = kitColour(h?.colours, a?.colours.primary ?? BRAND_COLOURS.draw, BRAND_COLOURS.accent)
-  const away = kitColour(a?.colours, home, BRAND_COLOURS.text)
-  return { home, away }
-}
-
 function appearancesOf(live: LivePlayer[]): Appearance[] {
   return live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury }))
 }
