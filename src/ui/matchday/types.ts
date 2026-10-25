@@ -13,6 +13,7 @@ import type { Game, LiveMatch, MatchContext } from '@game/types'
 import type { CommentaryLine } from '../match/commentary'
 import type { MatchPath } from '../match/epochs'
 import type { PlayerSample } from '../match/heat'
+import type { ManagerHand } from './useManagerHand'
 import type { SlotId, WidgetId } from './widgetIds'
 
 export type Speed = 1 | 2 | 4
@@ -112,6 +113,8 @@ export interface MatchdayData {
   u: LoadedUniverse
   getPlayer: (id: string) => PlayerSeason | undefined
   getName: (id: string) => string | undefined
+  /** The manager's controls (the dugout's "Make a change" opens the substitutions drawer). */
+  hand?: ManagerHand
 }
 
 export interface PanelProps {

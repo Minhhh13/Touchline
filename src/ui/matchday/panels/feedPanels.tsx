@@ -165,6 +165,11 @@ export function Dugout({ d }: PanelProps) {
             <b className="mono">{MAX_WINDOWS - windows}</b>/{MAX_WINDOWS} stoppages
           </span>
         )}
+        {mp && d.hand?.editable && (
+          <button type="button" className="btn sm md-dugout-btn" onClick={() => d.hand?.open('subs')} aria-haspopup="dialog">
+            Make a change
+          </button>
+        )}
       </div>
       {fs.bench.length > 0 ? (
         <div className="md-bench">

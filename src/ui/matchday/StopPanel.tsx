@@ -12,16 +12,19 @@ import type { Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import type { LiveMatch } from '@game/types'
 import { Pos, Rating, Segmented } from '../components/bits'
+import { draftChanges, type StopDraft } from './controls'
 import { BallIcon, CardIcon } from './icons'
 
-export function StopPanel({ live, onPlay }: { live: LiveMatch; onPlay: (changes: LiveChanges) => void }) {
+export function StopPanel({ live, onPlay, draft, setDraft }: { live: LiveMatch; onPlay: (changes: LiveChanges) => void; draft: StopDraft; setDraft: (d: StopDraft) => void }) {
   const store = useStore()
   const { universe: u, game } = store
-  const [talk, setTalk] = useState<TeamTalk>('encourage')
-  const [shout, setShout] = useState<Shout>('keep-shape')
-  const [tactics, setTactics] = useState<Tactics | null>(null)
-  const [subs, setSubs] = useState<Array<{ off: string; on: string }>>([])
   const [subbingOff, setSubbingOff] = useState<string | null>(null)
+  // The pending changes live in the dashboard, so the top bar's drawers edit the same ones
+  const { talk, shout, tactics, subs } = draft
+  const setTalk = (v: TeamTalk) => setDraft({ ...draft, talk: v })
+  const setShout = (v: Shout) => setDraft({ ...draft, shout: v })
+  const setTactics = (v: Tactics | null) => setDraft({ ...draft, tactics: v })
+  const setSubs = (v: Array<{ off: string; on: string }>) => setDraft({ ...draft, subs: v })
   if (!u || !game) return null
   const mp = live.mp
   const clock = mp.clock ?? 45
@@ -41,7 +44,7 @@ export function StopPanel({ live, onPlay }: { live: LiveMatch; onPlay: (changes:
   const subbedOn = new Set(subs.map((s) => s.on))
   const subbedOff = new Set(subs.map((s) => s.off))
   const benchOptions = game.bench.filter((id) => !appeared.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
-  const play = () => onPlay(atBreak ? { talk, tactics: tactics ?? undefined, substitutions: subs } : { shout, tactics: tactics ?? undefined, substitutions: subs })
+  const play = () => onPlay(draftChanges(draft, atBreak ? 45 : 70))
   const stateLabel = us > them ? `ahead ${us}-${them}` : us < them ? `behind ${us}-${them}` : `level ${us}-${them}`
   return (
     <div className="panel md-stop" data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
@@ -57,8 +60,7 @@ export function StopPanel({ live, onPlay }: { live: LiveMatch; onPlay: (changes:
           <button
             className="btn ghost"
             onClick={() => {
-              setTactics(null)
-              setSubs([])
+              setDraft({ ...draft, tactics: null, subs: [] })
               onPlay(atBreak ? { talk: 'none' } : {})
             }}
             data-testid="no-changes"

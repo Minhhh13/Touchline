@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { canChangeInPlay, managerWindowsUsed, MAX_SUBS, MAX_WINDOWS, subsMade, type FullMatchResult, type LiveChanges } from '@engine/match'
 import { feedFromLive, feedFromResult, scoreAt, type MatchFeed } from '@engine/matchFeed'
 import { statsSeries, xgStory } from '@engine/matchStats'
-import { ratingsAt } from '@engine/liveRatings'
+import { liveCondition, ratingsAt } from '@engine/liveRatings'
 import { getFormation } from '@engine/formations'
 import { USER_TEAM } from '@engine/season'
 import { useStore } from '@game/store'
@@ -27,6 +27,9 @@ import { matchPath } from '../match/epochs'
 import { samplePlayers } from '../match/heat'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
+import { emptyDraft, type StopDraft } from './controls'
+import { ActiveDrawer } from './drawers/Drawers'
+import { useManagerHand } from './useManagerHand'
 import { elsewhereLines, resumeMinute, segmentStart, stopTarget } from './model'
 import { CommentaryBanner } from './panels/feedPanels'
 import { FormationPanel } from './panels/FormationPanel'
@@ -38,6 +41,8 @@ import type { LiveControl, MatchdayData, SideView } from './types'
 import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
 import { readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
 import './matchday.css'
+import './matchday-controls.css'
+import './matchday-phone.css'
 
 export type DashboardSource = { mode: 'live'; live: LiveMatch } | { mode: 'replay'; res: FullMatchResult; ctx: MatchContext }
 
@@ -109,6 +114,17 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
       }
     : null
 
+  // The stop's pending changes: the stop panel and the top bar's drawers edit the same ones (an old save queues into them too)
+  const [draft, setDraft] = useState<StopDraft>(emptyDraft)
+  const stripSide = userSide ?? 'home'
+  // Condition moves only in play: a finished match has already taken it off
+  const condition = (psId: string): number | null => {
+    const start = game.squad[psId]?.condition
+    return feed.source === 'live' && start !== undefined ? liveCondition(feed, stripSide, psId, Math.max(0, minute), start, get) : null
+  }
+  const hand = useManagerHand({ feed, live, control, clock, side: stripSide, draft, setDraft, squad: game.squad, name: getName, toast: (t) => store.showToast(t) })
+  d.hand = hand
+
   const compact = useMediaQuery('(max-width: 1199px)')
   const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : ctx.competition === 'league' ? `Matchweek ${ctx.matchweek}` : 'Continental Cup')}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
   const crumb = (
@@ -119,7 +135,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
       </span>
     </div>
   )
-  const top = <TopBar feed={feed} clock={clock} home={home} away={away} label={label} control={control} />
+  const top = <TopBar feed={feed} clock={clock} home={home} away={away} label={label} control={control} hand={hand} />
+  const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} /> : null
   const pitch = (
     <LivePitch
       home={{ name: home.name, shortName: home.code, colour: home.colour, tactics: feed.home.tactics, appearances: feed.home.appearances }}
@@ -136,13 +153,12 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
     />
   )
   const momentum = <MomentumBar strip momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />
-  const stop = live && clock.atStop && onAdvance ? <StopPanel live={live} onPlay={onAdvance} /> : null
-  const stripSide = userSide ?? 'home'
-  const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} />
+  const stop = live && clock.atStop && onAdvance ? <StopPanel live={live} onPlay={onAdvance} draft={draft} setDraft={setDraft} /> : null
+  const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} hand={hand} name={getName} condition={condition} />
   const banner = <CommentaryBanner d={d} />
   const slot = (id: SlotId) => <Slot key={id} slot={id} id={slots[id]} onChange={(w) => show(id, w)} d={d} compact={compact} />
 
-  if (compact) return <CompactLayout d={d} crumb={crumb} top={top} pitch={pitch} stop={stop} banner={banner} momentum={momentum} slots={slots} slot={slot} strip={strip} />
+  if (compact) return <CompactLayout d={d} crumb={crumb} top={top} pitch={pitch} stop={stop} banner={banner} momentum={momentum} strip={strip} drawer={drawer} friendly={friendly} />
 
   return (
     <div className="matchday">
@@ -173,6 +189,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
       </div>
       {banner}
       {strip}
+      {drawer}
     </div>
   )
 }
