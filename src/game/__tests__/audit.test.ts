@@ -154,6 +154,20 @@ describe('audit fixes: season and squad', () => {
     expect(p.dailyStreak).toBe(2)
   })
 
+  it('a save from before the happiness log and the Inbox player links loads and plays', () => {
+    const g = started(u, { seed: 'pre-happiness-save' })
+    playMatchweek(g, u, true)
+    playMatchweek(g, u, true)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    for (const s of Object.values(old.squad)) delete s.moraleLog
+    for (const item of old.season!.news) delete item.playerId
+    const n = normaliseGame(old)!
+    expect(n.squad).toBe(old.squad)
+    expect(Object.values(n.squad).every((s) => s.moraleLog === undefined)).toBe(true)
+    while (n.season!.matchweek < 6) playMatchweek(n, u, true)
+    expect(Object.values(n.squad).some((s) => (s.moraleLog?.length ?? 0) > 0)).toBe(true)
+  }, 60_000)
+
   it('a quick draft saved before Gamble mode reads with no Icons, no upgrader and the same lookup', () => {
     const g = createGame({ mode: 'quick', seed: 'OLD-GAMBLE', formationId: '4-3-3', teamName: 'Old XI', shortName: 'OLD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
     const old = JSON.parse(JSON.stringify(g)) as Record<string, unknown>
@@ -181,6 +195,7 @@ describe('audit fixes: season and squad', () => {
     const id = u.clubSeasons[0].squad[0].id
     expect(playerLookup(n, u)(id)).toBe(u.index[id])
   })
+
   it('a save from before classic seasons (no `classic` rule) loads and plays without ever meeting one', () => {
     const g = started(u, { seed: 'pre-classic-save', leagueSeason: 2008, hostClubId: 'chelsea' })
     const rules: Record<string, unknown> = { ...g.settings.rules }

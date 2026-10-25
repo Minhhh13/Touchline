@@ -14,6 +14,7 @@ import { activeModeCards, modesLine } from '@engine/modes'
 import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
+import { LeagueAwards } from '../components/LeagueAwards'
 import { versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
@@ -651,6 +652,7 @@ export function Summary() {
               </div>
             )}
           </div>
+          <LeagueAwards />
           {isManage && (
             <div className="panel">
               <h3>Squad statistics</h3>

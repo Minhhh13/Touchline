@@ -21,6 +21,8 @@ import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type Squ
 import { difficultyOf } from '@engine/draft'
 import { postNews } from './news'
 import { ASSISTANT_DECIDED } from './digest'
+import { logMorale } from './happiness'
+import { eventPlayer } from './inboxActions'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
   postNews(game, { matchweek: game.season!.matchweek, ...item })
@@ -61,7 +63,7 @@ function matchBoosts(game: Game): { attack: number; defence: number } {
   return { attack, defence }
 }
 
-function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, userIsHome: boolean, countStats = true, kickOffXI?: Set<string>): void {
+function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, userIsHome: boolean, countStats = true, kickOffXI?: Set<string>, week = game.season?.matchweek ?? 0, cup = false): void {
   const stats = userIsHome ? res.homeStats : res.awayStats
   const gf = userIsHome ? res.homeGoals : res.awayGoals
   const ga = userIsHome ? res.awayGoals : res.homeGoals
@@ -81,16 +83,18 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
       if (st.injured) s.injury = { ...st.injured }
       continue
     }
+    const before = s.morale
     applyMatchToState(s, st, starters.has(st.playerSeasonId), res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result, get(st.playerSeasonId)?.attributes.workRate)
+    logMorale(s, week, before, cup ? 'cup' : 'result', `${result} ${st.rating.toFixed(1)}`)
     recordMinutes(game, s, st.playerSeasonId, st.minutes)
     if (st.injured && s.injury) {
       // A good physio gets him back sooner
       const physio = staffTier(game.staff, 'physio')
       if (physio === 2 || (physio === 1 && s.injury.weeksOut >= 3)) s.injury.weeksOut = Math.max(1, s.injury.weeksOut - 1)
-      news(game, { kind: 'injury', title: `${get(st.playerSeasonId)?.name} injured`, body: `${st.injured.description}. Out for around ${s.injury.weeksOut} week${s.injury.weeksOut === 1 ? '' : 's'}.` })
+      news(game, { kind: 'injury', title: `${get(st.playerSeasonId)?.name} injured`, body: `${st.injured.description}. Out for around ${s.injury.weeksOut} week${s.injury.weeksOut === 1 ? '' : 's'}.`, playerId: st.playerSeasonId })
     }
-    if (st.red) news(game, { kind: 'suspension', title: `${get(st.playerSeasonId)?.name} sent off`, body: `Suspended for ${s.suspension} match${s.suspension === 1 ? '' : 'es'}.` })
-    if (st.yellow && s.yellowCards % 5 === 0) news(game, { kind: 'suspension', title: `${get(st.playerSeasonId)?.name} suspended`, body: `Five yellow cards: a one-match ban.` })
+    if (st.red) news(game, { kind: 'suspension', title: `${get(st.playerSeasonId)?.name} sent off`, body: `Suspended for ${s.suspension} match${s.suspension === 1 ? '' : 'es'}.`, playerId: st.playerSeasonId })
+    if (st.yellow && s.yellowCards % 5 === 0) news(game, { kind: 'suspension', title: `${get(st.playerSeasonId)?.name} suspended`, body: `Five yellow cards: a one-match ban.`, playerId: st.playerSeasonId })
   }
   if (!countStats) return
   for (const id of played) game.weekPlayed.push(id)
@@ -103,8 +107,10 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
     const kept = starters.has(game.promisedStart)
     const s = game.squad[game.promisedStart]
     if (s) {
+      const before = s.morale
       s.morale = Math.max(10, Math.min(100, s.morale + (kept ? 5 : -16)))
-      news(game, { kind: 'event', title: kept ? 'Promise kept' : 'Promise broken', body: kept ? `${get(game.promisedStart)?.name} started as promised.` : `${get(game.promisedStart)?.name} was promised a start and did not get one. He is furious.` })
+      logMorale(s, week, before, 'promise', kept ? 'kept' : 'broken')
+      news(game, { kind: 'event', title: kept ? 'Promise kept' : 'Promise broken', body: kept ? `${get(game.promisedStart)?.name} started as promised.` : `${get(game.promisedStart)?.name} was promised a start and did not get one. He is furious.`, playerId: game.promisedStart })
     }
     game.promisedStart = undefined
   }
@@ -167,9 +173,19 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
     }
     // Playing time against his squad status moves morale, instead of a flat bench penalty
     const share = minutesShare(s.recentMinutes ?? [])
-    if (share !== null) statusMoraleDrift(s, p, statusOf(game, id), share)
+    const week = game.season!.matchweek
+    if (share !== null) {
+      const before = s.morale
+      const status = statusOf(game, id)
+      statusMoraleDrift(s, p, status, share)
+      logMorale(s, week, before, 'minutes', `${Math.round(share * 100)}/${Math.round(EXPECTED_SHARE[status] * 100)}`)
+    }
     // A respected captain keeps heads up
-    if (leader && id !== captain.id && s.morale < 70) s.morale = Math.min(70, s.morale + (s.morale < 50 ? 2 : 1))
+    if (leader && id !== captain.id && s.morale < 70) {
+      const before = s.morale
+      s.morale = Math.min(70, s.morale + (s.morale < 50 ? 2 : 1))
+      logMorale(s, week, before, 'captain')
+    }
   }
   for (const club of [...Object.values(game.season!.ai), ...Object.values(game.season!.continental?.clubs ?? {})]) {
     for (const [id, s] of Object.entries(club.state)) {
@@ -200,7 +216,7 @@ function trainingInjuries(game: Game, u: LoadedUniverse, rng: Rng): void {
     const physio = staffTier(game.staff, 'physio')
     if (rng.chance(0.006 * t.injuryRisk * (0.5 + p.traits.injuryProneness) * (physio === 2 ? 0.55 : physio === 1 ? 0.75 : 1))) {
       s.injury = { description: rng.pick(['Training ground knock', 'Tight calf', 'Rolled ankle in training']), weeksOut: rng.int(1, 3) }
-      news(game, { kind: 'injury', title: `${p.name} hurt in training`, body: `${s.injury.description}. Out for ${s.injury.weeksOut} week${s.injury.weeksOut === 1 ? '' : 's'}.` })
+      news(game, { kind: 'injury', title: `${p.name} hurt in training`, body: `${s.injury.description}. Out for ${s.injury.weeksOut} week${s.injury.weeksOut === 1 ? '' : 's'}.`, playerId: id })
     }
   }
 }
@@ -259,7 +275,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
     // The assistant takes the second option; the choice goes on record before the event's own item follows it
     const ev = game.pendingEvent
     const choice = ev.choices[Math.min(1, ev.choices.length - 1)]
-    news(game, { kind: 'event', title: `${ASSISTANT_DECIDED}${ev.title}`, body: choice.label })
+    news(game, { kind: 'event', title: `${ASSISTANT_DECIDED}${ev.title}`, body: choice.label, playerId: eventPlayer(ev) })
     applyEventChoice(game, u, choice.id)
   }
   if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
@@ -317,7 +333,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
 
 function recordUserLeagueResult(game: Game, u: LoadedUniverse, res: FullMatchResult, userIsHome: boolean, opponentId: string, ctx: LiveMatch['ctx'], kickOffXI?: Set<string>): void {
   const season = game.season!
-  applyResultToUser(game, u, res, userIsHome, true, kickOffXI)
+  applyResultToUser(game, u, res, userIsHome, true, kickOffXI, ctx.matchweek)
   applyResultToAi(game, opponentId, res, !userIsHome)
   game.lastMatch = res
   game.lastMatchContext = ctx
@@ -551,7 +567,7 @@ function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: Ful
   const season = game.season!
   const comp = live.comp ?? 'cup'
   const rng = Rng.fromState(game.rngState)
-  applyResultToUser(game, u, res, live.userIsHome, true, kickOffXI)
+  applyResultToUser(game, u, res, live.userIsHome, true, kickOffXI, live.ctx.matchweek, true)
   applyResultToAi(game, live.opponentId, res, !live.userIsHome)
   game.lastCupMatch = res
   game.lastCupContext = live.ctx
@@ -726,11 +742,21 @@ export function applyEventChoice(game: Game, u: LoadedUniverse, choiceId: string
   const rng = Rng.fromState(game.rngState)
   const ctx = eventContext(game, u, rng)
   const out = resolveEvent(ev, choiceId, ctx)
+  const week = game.season?.matchweek ?? 0
   for (const m of out.moraleDelta ?? []) {
     const s = game.squad[m.playerSeasonId]
-    if (s) s.morale = Math.max(10, Math.min(100, s.morale + m.delta))
+    if (!s) continue
+    const before = s.morale
+    s.morale = Math.max(10, Math.min(100, s.morale + m.delta))
+    logMorale(s, week, before, 'event', ev.title)
   }
-  if (out.teamMoraleDelta) for (const s of Object.values(game.squad)) s.morale = Math.max(10, Math.min(100, s.morale + out.teamMoraleDelta))
+  if (out.teamMoraleDelta) {
+    for (const s of Object.values(game.squad)) {
+      const before = s.morale
+      s.morale = Math.max(10, Math.min(100, s.morale + out.teamMoraleDelta))
+      logMorale(s, week, before, 'event', ev.title)
+    }
+  }
   for (const c of out.conditionDelta ?? []) {
     const s = game.squad[c.playerSeasonId]
     if (s) s.condition = Math.max(5, Math.min(100, s.condition + c.delta))
@@ -763,7 +789,7 @@ export function applyEventChoice(game: Game, u: LoadedUniverse, choiceId: string
     if (s && s.injury) {
       if (rng.chance(out.clearInjury.setbackChance)) {
         s.injury.weeksOut += rng.int(2, 4)
-        news(game, { kind: 'injury', title: 'Setback', body: `${playerLookup(game, u)(out.clearInjury.playerSeasonId)?.name} broke down in training. ${s.injury.weeksOut} more weeks.` })
+        news(game, { kind: 'injury', title: 'Setback', body: `${playerLookup(game, u)(out.clearInjury.playerSeasonId)?.name} broke down in training. ${s.injury.weeksOut} more weeks.`, playerId: out.clearInjury.playerSeasonId })
       } else {
         s.injury = null
         s.sharpness = Math.max(40, s.sharpness - 10)
@@ -771,7 +797,7 @@ export function applyEventChoice(game: Game, u: LoadedUniverse, choiceId: string
     }
   }
   if (ev.id === 'agent' && choiceId === 'meet') game.bonusSpins += 1
-  news(game, { kind: 'event', title: ev.title, body: out.text })
+  news(game, { kind: 'event', title: ev.title, body: out.text, playerId: eventPlayer(ev) })
   game.pendingEvent = null
   game.rngState = rng.getState()
 }

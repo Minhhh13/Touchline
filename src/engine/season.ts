@@ -89,6 +89,8 @@ export interface NewsItem {
   kind: 'result' | 'injury' | 'suspension' | 'board' | 'transfer' | 'award' | 'event' | 'cup' | 'training' | 'info'
   title: string
   body: string
+  /** The player the item is about, when there is one, so the Inbox can offer to act on him. Absent on older saves. */
+  playerId?: string
 }
 
 export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer> = {}): SquadPlayer {
