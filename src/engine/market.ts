@@ -5,7 +5,7 @@
  */
 import type { PlayerSeason, Position, SquadPlayer } from './types'
 import type { Rng } from './rng'
-import type { LoadedUniverse } from './universe'
+import { poolClubSeasons, type LoadedUniverse } from './universe'
 import { acceptsStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from './status'
 
 export interface Listing {
@@ -102,6 +102,8 @@ export interface MarketContext {
   leagues?: string[]
   /** One-nation draft: only players of this nationality are listed, and approaches for anyone else are refused. */
   onlyNation?: string
+  /** The game opted in to classic seasons (`DraftRules.classic`): their players may be listed. */
+  classic?: boolean
 }
 
 function nationNameOf(u: LoadedUniverse, nation: string): string {
@@ -170,7 +172,7 @@ export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36)
   const nation = ctx.onlyNation
   const eligible = (p: PlayerSeason): boolean => !nation || p.nationality === nation
   // A one-nation market only samples club-seasons that hold someone of that nation, so a thin nation still fills the window
-  const pool = u.clubSeasons.filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason) && (!ctx.leagues || ctx.leagues.includes(cs.leagueId)) && (!nation || cs.squad.some(eligible)))
+  const pool = poolClubSeasons(u, ctx.classic).filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason) && (!ctx.leagues || ctx.leagues.includes(cs.leagueId)) && (!nation || cs.squad.some(eligible)))
   const candidates: PlayerSeason[] = []
   const seenHumans = new Set<string>()
   // Sample club-seasons, then take a few players from each with a bias to quality so the market is interesting.

@@ -55,7 +55,7 @@ export const DAILY_SEASON = { january: true, continental: false } as const
  */
 export function dailySettings(u: LoadedUniverse, seed: string): DailySettings {
   const n = Number(seed.split('-').slice(1).join('')) || 0
-  const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england')
+  const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england' && !cs.classic)
   const seasons = [...new Set(complete.map((cs) => cs.season))].sort()
   const season = seasons[n % seasons.length]
   const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()

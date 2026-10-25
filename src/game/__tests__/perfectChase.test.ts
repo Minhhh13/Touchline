@@ -9,8 +9,8 @@ import { preSeasonOdds } from '../logic/odds'
 import type { Game } from '../types'
 
 /**
- * Is 38-0 reachable? An elite XI (the best-rated player for each slot of a 4-3-3 across every Premier League season
- * in the pack, one per human) plays the 2025-26 season again and again, one seed each, through the real engine. The
+ * Is 38-0 reachable? An elite XI (the best-rated player for each slot of a 4-3-3 across every standard Premier League
+ * season in the pack (2008-09 on; the opt-in classic seasons are left out), one per human) plays the 2025-26 season again and again, one seed each, through the real engine. The
  * goal is meant to be rare but possible. PERFECT_SEEDS and PERFECT_OFFSET run a longer or another slice of seeds
  * (the release measured 2,000); the default is a quick sample.
  */
@@ -23,7 +23,8 @@ function eliteLineup(): Record<string, string> {
   const lineup: Record<string, string> = {}
   for (const s of getFormation('4-3-3').slots) {
     const best = Object.values(u.index)
-      .filter((p) => !used.has(p.playerId))
+      // Standard seasons only (2008-09 on): the classic seasons' ratings are estimates and opt-in
+      .filter((p) => !used.has(p.playerId) && !u.clubSeasonByKey[`${p.clubId}@${p.season}`]?.classic)
       .sort((a, b) => ratingAt(b, s.position) - ratingAt(a, s.position) || a.id.localeCompare(b.id))[0]
     used.add(best.playerId)
     lineup[s.id] = best.id

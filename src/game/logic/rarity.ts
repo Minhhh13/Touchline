@@ -76,8 +76,15 @@ export function tierTable(u: LoadedUniverse, leagues?: readonly string[], rating
   if (hit) return hit
 
   const wanted = new Set(ids)
-  const ranked = u.clubSeasons
-    .filter((cs) => wanted.has(cs.leagueId))
+  const table: Record<string, Tier> = {}
+  // Standard and classic club-seasons are ranked apart, so loading the classic pack moves no standard tier
+  for (const classic of [false, true]) rankInto(table, u.clubSeasons.filter((cs) => wanted.has(cs.leagueId) && !!cs.classic === classic), rating)
+  byRating.set(rating, table)
+  return table
+}
+
+function rankInto(table: Record<string, Tier>, clubSeasons: readonly ClubSeason[], rating: RatingOf): void {
+  const ranked = clubSeasons
     .map((cs) => ({ key: `${cs.clubId}@${cs.season}`, strength: clubSeasonStrength(cs, rating) }))
     .sort((a, b) => b.strength - a.strength || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
   const n = ranked.length
@@ -89,14 +96,11 @@ export function tierTable(u: LoadedUniverse, leagues?: readonly string[], rating
     ends.push(Math.round(cum * n))
   }
   ends[ends.length - 1] = n
-  const table: Record<string, Tier> = {}
   let tier = 0
   ranked.forEach((r, i) => {
     while (i >= ends[tier]) tier++
     table[r.key] = TIERS[tier]
   })
-  byRating.set(rating, table)
-  return table
 }
 
 /** The tier of one club-season in a league set, or null when it is not in those leagues. */

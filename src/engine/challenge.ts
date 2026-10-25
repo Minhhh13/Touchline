@@ -225,6 +225,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
   benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
   managers: isBool,
+  classic: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */

@@ -26,7 +26,8 @@ describe('manager facts', () => {
   })
 
   it('covers most club-seasons of the Premier League packs', () => {
-    const cs = u.clubSeasons.filter((c) => c.leagueId === 'england')
+    // The standard seasons: the manager facts predate the classic seasons, which fall back to archetypes
+    const cs = u.clubSeasons.filter((c) => c.leagueId === 'england' && !c.classic)
     const covered = cs.filter((c) => managersOf(c.clubId, c.season).length > 0).length
     expect(covered / cs.length).toBeGreaterThan(0.5)
   })

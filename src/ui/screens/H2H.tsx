@@ -4,6 +4,7 @@ import { useStore } from '@game/store'
 import { APP_NAME } from '../brand'
 import { getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
+import { poolClubSeasons } from '@engine/universe'
 import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
 import { H2H_IDS } from '@game/logic/h2h'
@@ -31,7 +32,7 @@ export function H2HSetup() {
   const [hardMode, setHardMode] = useState(false)
   const [seed, setSeed] = useState(() => randomSeed())
   if (!u) return null
-  const seasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort()
+  const seasons = [...new Set(poolClubSeasons(u, false).filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort()
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1]
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort()
   const wheelLeagues = wheelScope === 'europe' ? u.available.map((l) => l.id) : [leagueId]

@@ -31,28 +31,31 @@ function quickGame(seed: string) {
 // The final table of seed `game-by-game`. The recording was proved to add no draws against the commit
 // before it (same table, same RNG state); the snapshot is pinned to ENGINE_VERSION so a deliberate engine
 // change (as FM depth's '4' was) re-pins it on purpose rather than failing for an unrelated reason.
+// Re-pinned for the 2026-10-25 data rebuild (2008-14 left and right positions un-swapped, finite
+// hidden traits): the same draws, but the players behind them changed, so seven clubs' goal tallies
+// moved by one or two while every won/drawn/lost count stayed put.
 const BASELINE_ENGINE = '4'
 const BASELINE_TABLE = [
-  'chelsea:79/22/13/3/62/24',
-  'user:75/22/9/7/91/36',
+  'chelsea:79/22/13/3/63/25',
+  'user:75/22/9/7/93/35',
   'arsenal:74/22/8/8/71/39',
   'aston-villa:73/22/7/9/66/36',
   'liverpool:67/18/13/7/76/45',
   'manchester-united:60/15/15/8/60/38',
   'manchester-city:60/16/12/10/61/40',
-  'everton:57/17/6/15/43/49',
+  'everton:57/17/6/15/43/50',
   'brighton:52/13/13/12/52/55',
   'nottingham-forest:47/13/8/17/43/50',
   'wolverhampton-wanderers:47/12/11/15/35/47',
-  'newcastle-united:46/12/10/16/62/60',
+  'newcastle-united:46/12/10/16/61/61',
   'tottenham-hotspur:44/12/8/18/55/82',
-  'crystal-palace:43/12/7/19/45/63',
+  'crystal-palace:43/12/7/19/45/62',
   'bournemouth:43/12/7/19/56/78',
   'sunderland:42/10/12/16/54/67',
   'brentford:39/10/9/19/53/82',
   'west-ham-united:32/8/8/22/46/74',
-  'fulham:30/4/18/16/36/62',
-  'leeds-united:27/5/12/21/36/76',
+  'fulham:30/4/18/16/35/62',
+  'leeds-united:27/5/12/21/37/77',
 ]
 const BASELINE_RNG = { a: 1559925814, b: 500370932, c: 2083791800, d: 1089738077 }
 

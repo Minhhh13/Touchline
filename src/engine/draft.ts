@@ -61,6 +61,8 @@ export interface DraftRules {
    * off when absent, so older saves and every other mode are unchanged.
    */
   managers?: boolean
+  /** The wheel may land on classic club-seasons (1992-93 to 2007-08, estimated ratings). Off when omitted, so older saves and links are unchanged. */
+  classic?: boolean
 }
 
 export type DraftDifficulty = 'easy' | 'normal' | 'hard'
@@ -306,7 +308,7 @@ export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'
 
 /** A player's rating under the draft's ratings rule: his career best in the wheel leagues under Prime, that season's otherwise. */
 export function draftRating(u: LoadedUniverse, d: DraftState, p: PlayerSeason): number {
-  return ratingsModeOf(d.rules) === 'prime' ? Math.max(p.overall, primeOf(u, p.playerId, d.rules.leagues)?.overall ?? p.overall) : p.overall
+  return ratingsModeOf(d.rules) === 'prime' ? Math.max(p.overall, primeOf(u, p.playerId, d.rules.leagues, d.rules.classic)?.overall ?? p.overall) : p.overall
 }
 
 /**
@@ -320,6 +322,7 @@ function rulesPool(u: LoadedUniverse, d: DraftState, slots: Formation['slots'] =
 /** The era, club and league rules for one club-season (the cheap half of `rulesPool`). */
 function rulesAdmit(d: DraftState, cs: ClubSeason): boolean {
   const r = d.rules
+  if (cs.classic && !r.classic) return false
   if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
   if (r.toSeason !== undefined && cs.season > r.toSeason) return false
   if (r.onlyClub && cs.clubId !== r.onlyClub) return false

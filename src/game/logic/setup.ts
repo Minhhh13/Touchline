@@ -3,6 +3,7 @@ import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { benchPlaces, difficultyOf, draftModeOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
 import { dailySettings } from './daily'
+import { eraFirstSeason } from './era'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
 import { newSquadPlayer, buildAiClubs, buildContinentalClubs, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
@@ -56,6 +57,8 @@ export interface SetupChoices {
   benchPicks?: number
   /** Quick Draft managers on or off; the base rules' value when absent. */
   managers?: boolean
+  /** The Classic toggle: the wheel may land on 1992-93 to 2007-08 (estimated ratings), and `first` is then the first classic season. */
+  classic?: boolean
 }
 
 /**
@@ -83,6 +86,7 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     leagues: c.leagues,
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
     ...(c.managers !== undefined ? { managers: c.managers } : {}),
+    ...(c.classic ? { classic: true } : {}),
   }
 }
 
@@ -100,7 +104,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on',
     draftModeOf(r) === 'position' ? 'Position First' : 'Squad First',
     ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
-    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
+    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
     r.twists ? 'Twists on' : 'No twists',
     ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
     ...(r.managers ? ['Manager pick'] : []),
@@ -159,7 +163,8 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
   const r = s.rules
   if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
-  if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
+  if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
+  if (r.classic) parts.push('classic seasons (estimated ratings)')
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) parts.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
   const manage = s.mode === 'season' || s.mode === 'dynasty'

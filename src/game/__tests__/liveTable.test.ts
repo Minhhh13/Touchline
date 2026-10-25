@@ -81,6 +81,23 @@ describe('the live league table', { timeout: 180_000 }, () => {
     }
   })
 
+  it('works for a classic season of 22 clubs: 42 games each, no byes, the final week the summary\'s table', () => {
+    const cs = u.clubSeasons.filter((c) => c.leagueId === 'england' && c.season === 1993)
+    expect(cs.length).toBe(22)
+    const g = season('live-classic', { leagueSeason: 1993, hostClubId: cs[0].clubId, rules: { ...QUICK_RULES, leagues: ['england'], classic: true } })
+    const q = g.quickResult!
+    expect(q.results).toHaveLength(42)
+    const tables = weeklyTables(q.rounds!)
+    expect(tables).toHaveLength(42)
+    for (const t of tables) expect(t).toHaveLength(22)
+    // Every matchweek has eleven fixtures: nobody sits one out
+    for (const w of q.rounds!.weeks) expect(w.length).toBe(11 * 4)
+    expect(tables.at(-1)!.map((r) => [r.teamId, r.points])).toEqual(q.table.map((r) => [r.teamId, r.points]))
+    expect(positionSeries(tables, q.results!, USER_TEAM)).toEqual(q.results!.map((r) => r.position))
+    expect(zoneOf(20, 22)).toBe('releg')
+    expect(zoneOf(19, 22)).toBeNull()
+  })
+
   it('shows nothing for a season saved before the live table', () => {
     expect(tableAfterGame([], [], 3)).toEqual([])
     expect(positionSeries([], [{ matchweek: 1 }], USER_TEAM)).toEqual([0])

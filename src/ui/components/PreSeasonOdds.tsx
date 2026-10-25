@@ -143,7 +143,7 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
         </div>
       </div>
       <p className="help" style={{ margin: 0 }}>
-        The pundits' call, from {ODDS_SEASONS.toLocaleString('en-GB')} trial runs of this XI against the {seasonLabel(game.settings.leagueSeason)} league. The real season is played once.
+        The pundits' call, from {ODDS_SEASONS.toLocaleString('en-GB')} trial runs of this XI against {game.settings.mode === 'quick' ? 'this' : `the ${seasonLabel(game.settings.leagueSeason)}`} league. The real season is played once.
       </p>
       {children}
     </div>

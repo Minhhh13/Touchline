@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
-import { closeLiveMatch, eventContext, finishLiveMatch, playMatchweek, startSeasonProper } from '../logic/week'
+import { closeLiveMatch, eventContext, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from '../logic/week'
+import { buildYouthIntake } from '../logic/youth'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
@@ -150,6 +151,51 @@ describe('audit fixes: season and squad', () => {
     expect(p.theme).toBe('dark')
     expect(p.dailyStreak).toBe(2)
   })
+
+  it('a save from before classic seasons (no `classic` rule) loads and plays without ever meeting one', () => {
+    const g = started(u, { seed: 'pre-classic-save', leagueSeason: 2008, hostClubId: 'chelsea' })
+    const rules: Record<string, unknown> = { ...g.settings.rules }
+    delete rules.classic
+    const n = normaliseGame({ ...g, settings: { ...g.settings, rules } } as unknown as Game)!
+    expect(n.settings.rules.classic).toBeUndefined()
+    const classicIds = (ids: string[]) => ids.filter((id) => u.clubSeasonByKey[`${u.index[id]?.clubId}@${u.index[id]?.season}`]?.classic)
+    toWindow(n, u)
+    expect(classicIds(n.window!.listings.map((l) => l.playerSeasonId))).toEqual([])
+    while (n.phase !== 'summary') playMatchweek(n, u, true)
+    n.settings.mode = 'dynasty'
+    advanceToNextSeason(n, u)
+    expect(n.settings.leagueSeason).toBe(2009)
+    expect(classicIds(n.window?.listings.map((l) => l.playerSeasonId) ?? [])).toEqual([])
+    expect(classicIds(Object.keys(n.squad))).toEqual([])
+  }, 120_000)
+
+  it('friendlies and the youth intake never reach a classic season without the opt-in, and do with it', () => {
+    const opponents = (classic: boolean) => {
+      const g = createGame(settings({ seed: `classic-friendly-${classic}`, leagueSeason: 2010, hostClubId: 'everton', mode: 'dynasty', rules: { ...SEASON_RULES, leagues: ['england'], ...(classic ? { classic: true } : {}) } }))
+      const rng = Rng.fromState(g.rngState)
+      autoDraft(u, g.draft!, rng)
+      g.rngState = rng.getState()
+      beginSeason(g, u)
+      const seasons: number[] = []
+      const youth: string[] = []
+      for (let i = 0; i < 80; i++) {
+        g.rngState = new Rng(`classic-friendly-${i}`).getState()
+        g.live = null
+        g.friendliesPlayed = 0
+        playFriendly(g, u)
+        seasons.push(Number(g.live!.opponentId.split('@')[1]))
+        youth.push(...buildYouthIntake(g, u, new Rng(`classic-youth-${i}`)))
+      }
+      return { seasons, youth: youth.map((id) => u.index[id].season) }
+    }
+    const off = opponents(false)
+    expect(off.seasons.every((s) => s >= 2008)).toBe(true)
+    expect(off.youth.length).toBeGreaterThan(0)
+    expect(off.youth.every((s) => s >= 2008)).toBe(true)
+    const on = opponents(true)
+    expect(on.seasons.some((s) => s < 2008)).toBe(true)
+    expect(on.youth.some((s) => s < 2008)).toBe(true)
+  }, 180_000)
 })
 
 describe('audit fixes: transfer market', () => {
@@ -176,10 +222,12 @@ describe('audit fixes: transfer market', () => {
     g.finances.budget = 9999
     g.finances.wageCap = 999999
     const get = playerLookup(g, u)
-    // A fringe player of a league rival, old enough that no club calls him untouchable
+    // A fringe player of a league rival, old enough that no club calls him untouchable, and not
+    // the same man as one we drafted from another season (the market refuses those)
+    const owned = new Set(Object.keys(g.squad).map((id) => get(id)?.playerId))
     let target: { psId: string; clubId: string } | null = null
     for (const [clubId, club] of Object.entries(g.season!.ai)) {
-      const fringe = club.squad.map((id) => u.index[id]).filter((p) => p && p.age >= 24 && p.age < 33 && p.overall < 78)
+      const fringe = club.squad.map((id) => u.index[id]).filter((p) => p && p.age >= 24 && p.age < 33 && p.overall < 78 && !owned.has(p.playerId))
       const notListed = fringe.find((p) => !g.window!.listings.some((l) => u.index[l.playerSeasonId]?.playerId === p.playerId))
       if (notListed) {
         target = { psId: notListed.id, clubId }
