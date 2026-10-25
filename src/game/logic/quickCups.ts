@@ -228,9 +228,12 @@ export function addCupTrophies(t: Trophies, before: QuickResult, after: QuickRes
 
 const ROUND_NAME: Record<QuickCupReach, string> = { R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }
 
-/** "round of 16" to "final", or "winners". */
-export function cupReachLabel(r: QuickCupReach): string {
-  return ROUND_NAME[r]
+/**
+ * "round of 16" to "final", or "winners". The Cup's first round is the fourth round, as its tie heading says
+ * (`cupRoundLabel`), so a Cup run out at the first hurdle reads "fourth round", never "round of 16".
+ */
+export function cupReachLabel(r: QuickCupReach, comp: QuickCupComp = 'continental'): string {
+  return comp === 'cup' && r === 'R16' ? 'fourth round' : ROUND_NAME[r]
 }
 
 /** The cup's name as the summary prints it. */
@@ -250,7 +253,7 @@ export function cupLine(run: QuickCupRun | null | undefined, comp: QuickCupComp)
   if (!run) return null
   const icon = comp === 'cup' ? '🏆' : '🌍'
   const name = comp === 'cup' ? 'Cup' : 'Continental Cup'
-  return run.reached === 'W' ? `${icon} ${name} winners` : `${icon} ${name}: ${ROUND_NAME[run.reached]}`
+  return run.reached === 'W' ? `${icon} ${name} winners` : `${icon} ${name}: ${cupReachLabel(run.reached, comp)}`
 }
 
 /** The round of a tie as a heading: "Fourth round", "Quarter-final", "Final". */

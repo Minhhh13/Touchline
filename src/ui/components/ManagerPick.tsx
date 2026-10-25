@@ -32,7 +32,7 @@ export function ManagerPick({ options, picked, onPick }: { options: Manager[]; p
             </span>
             <span className="cline">{origin(m, (id) => clubName(u, id))}</span>
             <span className="chip manager-style">{MANAGER_STYLE_LABEL[m.style]}</span>
-            <span className="cline">{MANAGER_STYLE_HELP[m.style]}</span>
+            <span className="cline manager-help">{MANAGER_STYLE_HELP[m.style]}</span>
           </button>
         ))}
       </div>

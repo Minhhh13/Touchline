@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, QUICK_RULES, type DraftRules } from '@engine/draft'
-import { decodeChallenge, encodeChallenge, isRulesDiff, rulesDiff } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge, isRulesDiff, rulesDiff, rulesFromPayload } from '@engine/challenge'
 import { MANAGER_EDGE } from '@engine/managers'
 import { closeJanuary, kickOff, quickUserInput, quickXI, toKickoff } from '../logic/quick'
 import { playQuickCup } from '../logic/quickCups'
 import { canPickManager, managerLine, managersOn, pickManager, quickManagerBoost, quickManagerOptions, setManager } from '../logic/managers'
-import { challengeFromGame, replayChallenge } from '../logic/challenge'
+import { challengeFromGame, challengeSettings, replayChallenge, settingsFromChallenge } from '../logic/challenge'
 import { createGame, DAILY_RULES, dailyGameSettings, describeRules, setupRules, summariseSetup } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
 import { playerLookup } from '../logic/players'
@@ -212,17 +212,25 @@ describe('the manager in links, saves and the share text', () => {
     expect(replayChallenge(u, decodeChallenge(encodeChallenge(c2))).verified).toBe('yes')
   })
 
-  it('a link with no manager (made before managers) replays with none', () => {
-    const g = play(drafted('mgr-link-3'))
-    const c = challengeFromGame(g, u, 'Tester')!
-    const { m: _m, ...x } = c.x ?? {}
-    void _m
-    const old = { ...c, x: Object.keys(x).length ? x : undefined }
-    // Without its manager the claim is a different season, unless the manager changed nothing
+  it('a link made before managers (no managers rule, no manager) replays, and is taken up, with none', () => {
+    const off = play(drafted('mgr-link-3', { managers: false }))
+    const c = challengeFromGame(off, u, 'Tester')!
+    // As such a link was written: no `managers` key in the rules and no manager in the season
+    const { managers: _r, ...r } = c.s.r
+    void _r
+    const old = decodeChallenge(encodeChallenge({ ...c, s: { ...c.s, r } }))
+    expect(old.s.r.managers).toBeUndefined()
+    expect(rulesFromPayload(old).managers).toBe(false)
     const out = replayChallenge(u, old)
-    expect(['yes', 'no']).toContain(out.verified)
-    const plain = play(drafted('mgr-link-3', { managers: false }))
-    expect(out.result?.pts).toBe(plain.quickResult!.points)
+    expect(out.verified).toBe('yes')
+    expect(out.result?.pts).toBe(off.quickResult!.points)
+    // The friend who opens it drafts under the same rules: no manager pick for him either
+    expect(managersOn({ settings: settingsFromChallenge(old, 'Taker', 'TAK', challengeSettings(old, out)) })).toBe(false)
+    // A link made with managers on says so, and the taker gets the pick
+    const on = play(drafted('mgr-link-4'))
+    const c2 = challengeFromGame(on, u, 'Tester')!
+    expect(c2.s.r.managers).toBe(true)
+    expect(rulesFromPayload(decodeChallenge(encodeChallenge(c2))).managers).toBe(true)
   })
 
   it('an older save without the field loads and plays with no manager', () => {

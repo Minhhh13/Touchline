@@ -78,7 +78,7 @@ export function claimOf(game: Game): ChallengeClaim | null {
 
 /** The trophies line of a claim for the head-to-head: "Cup winners · Continental Cup: final", or null without cups. */
 export function claimCupsLine(c: ChallengeClaim): string | null {
-  const parts = [c.cu ? (c.cu === 'W' ? 'Cup winners' : `Cup: ${cupReachLabel(c.cu)}`) : null, c.eu ? (c.eu === 'W' ? 'Continental Cup winners' : `Continental Cup: ${cupReachLabel(c.eu)}`) : null].filter((x): x is string => !!x)
+  const parts = [c.cu ? (c.cu === 'W' ? 'Cup winners' : `Cup: ${cupReachLabel(c.cu, 'cup')}`) : null, c.eu ? (c.eu === 'W' ? 'Continental Cup winners' : `Continental Cup: ${cupReachLabel(c.eu)}`) : null].filter((x): x is string => !!x)
   return parts.length ? parts.join(' · ') : null
 }
 

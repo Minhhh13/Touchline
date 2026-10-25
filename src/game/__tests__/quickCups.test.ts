@@ -5,7 +5,7 @@ import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, encodeChallenge } from '@engine/challenge'
 import { EXTRA_TIME_RATE, extraTime } from '@engine/season'
 import { kickOff, toKickoff } from '../logic/quick'
-import { addCupTrophies, cupLine, cupScoreLabel, cupUnlocks, playQuickCup, QUICK_CONTINENTAL_PLACES, quickCupProblem, quickCupXI, quickCupStatus, skipQuickCup, type QuickCupComp } from '../logic/quickCups'
+import { addCupTrophies, cupLine, cupReachLabel, cupRoundLabel, cupScoreLabel, cupUnlocks, playQuickCup, QUICK_CONTINENTAL_PLACES, quickCupProblem, quickCupXI, quickCupStatus, skipQuickCup, type QuickCupComp } from '../logic/quickCups'
 import { challengeFromGame, claimCupsLine, claimOf, replayChallenge } from '../logic/challenge'
 import { createGame } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
@@ -199,6 +199,10 @@ describe('the post-season cups of a Quick Draft', { timeout: 120_000 }, () => {
     expect(cupLine({ ties: [], reached: 'W' }, 'cup')).toBe('🏆 Cup winners')
     expect(cupLine({ ties: [], reached: 'SF' }, 'continental')).toBe('🌍 Continental Cup: semi-finals')
     expect(cupLine(null, 'cup')).toBeNull()
+    // A run out at the first hurdle says the same round its tie heading names: the Cup's fourth round, the Continental round of 16
+    expect(cupLine({ ties: [], reached: 'R16' }, 'cup')).toBe('🏆 Cup: fourth round')
+    expect(cupLine({ ties: [], reached: 'R16' }, 'continental')).toBe('🌍 Continental Cup: round of 16')
+    for (const comp of ['cup', 'continental'] as QuickCupComp[]) expect(cupReachLabel('R16', comp)).toBe(cupRoundLabel(comp, 'R16').toLowerCase())
     expect(cupLine(undefined, 'continental')).toBeNull()
     expect(cupScoreLabel({ gf: 2, ga: 0 })).toBe('2-0')
     expect(cupScoreLabel({ gf: 3, ga: 2, et: { for: 1, against: 0 } })).toBe('3-2 aet')

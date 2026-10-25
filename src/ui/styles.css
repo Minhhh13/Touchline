@@ -2761,5 +2761,10 @@ table.tbl tr.clickable:hover {
 @media (max-width: 520px) {
   .manager-cards {
     grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  /* On a phone six cards with a help line each run past two screens: only the picked one explains its style */
+  .manager-card:not(.active) .manager-help {
+    display: none;
   }
 }

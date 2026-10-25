@@ -143,14 +143,15 @@ export const LEGACY_QUICK_RESPINS = 2
 
 /**
  * The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`).
- * The difficulty is always written, even at the default, so a link made before difficulties existed
- * (no `difficulty` key) can be told apart and opened with the re-spins its challenger had.
+ * The difficulty and the manager rule are always written, even at the default, so a link made before
+ * either existed (no `difficulty` or `managers` key) can be told apart and opened as its challenger played.
  */
 export function rulesDiff(rules: DraftRules, base: DraftRules = QUICK_RULES): Partial<DraftRules> {
-  const out: Partial<DraftRules> = { difficulty: difficultyOf(rules) }
+  // The manager rule is always written too: a link made before managers existed (no `managers` key) replays without one
+  const out: Partial<DraftRules> = { difficulty: difficultyOf(rules), managers: rules.managers === true }
   const b = base as unknown as Record<string, unknown>
   for (const [key, value] of Object.entries(rules) as Array<[keyof DraftRules, unknown]>) {
-    if (key === 'leagues' || key === 'difficulty' || value === undefined) continue
+    if (key === 'leagues' || key === 'difficulty' || key === 'managers' || value === undefined) continue
     if (b[key] !== value) (out as Record<string, unknown>)[key] = value
   }
   return out
@@ -159,12 +160,14 @@ export function rulesDiff(rules: DraftRules, base: DraftRules = QUICK_RULES): Pa
 /**
  * The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. A diff without a
  * difficulty comes from a link made before difficulties: its draft had `LEGACY_QUICK_RESPINS`
- * re-spins unless it says otherwise, and its hard mode reads as hard.
+ * re-spins unless it says otherwise, and its hard mode reads as hard. A diff without `managers`
+ * comes from a link made before managers, and reads as managers off.
  */
 export function rulesFromPayload(c: ChallengePayload): DraftRules {
   const r = c.s.r
   const legacy: Partial<DraftRules> = r.difficulty === undefined ? { respins: LEGACY_QUICK_RESPINS, difficulty: r.hardMode ? 'hard' : 'normal', ...(r.hardMode ? { showRatings: false } : {}) } : {}
-  return { ...QUICK_RULES, ...legacy, ...r, leagues: c.s.wl }
+  // No `managers` key: the link predates managers, so its challenger played without one
+  return { ...QUICK_RULES, ...legacy, managers: false, ...r, leagues: c.s.wl }
 }
 
 /** A draft's history as payload rows: the real player id of each pick (or null) and its slot. */

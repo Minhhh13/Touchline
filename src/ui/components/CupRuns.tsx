@@ -83,7 +83,7 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
         <h3 style={{ margin: 0 }}>
           {ICON[comp]} {TITLE[comp]}
         </h3>
-        {run && !revealing && <span className={`chip ${run.reached === 'W' ? 'gold' : ''}`} data-testid={`cup-${comp}-reached`}>{run.reached === 'W' ? 'Winners' : `Out in the ${cupReachLabel(run.reached)}`}</span>}
+        {run && !revealing && <span className={`chip ${run.reached === 'W' ? 'gold' : ''}`} data-testid={`cup-${comp}-reached`}>{run.reached === 'W' ? 'Winners' : `Out in the ${cupReachLabel(run.reached, comp)}`}</span>}
         {revealing && (
           <button className="btn sm ghost" onClick={skipReveal} data-testid={`cup-${comp}-skip-reveal`}>
             Skip to the end
