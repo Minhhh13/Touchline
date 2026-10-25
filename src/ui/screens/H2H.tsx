@@ -13,6 +13,7 @@ import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { leagueSegments } from '../components/leagueSegments'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
+import { GameByGame } from '../components/GameByGame'
 
 export function H2HSetup() {
   const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
@@ -417,6 +418,9 @@ function H2HSummary() {
                 </div>
               )}
             </div>
+          ))}
+          {r.results?.map((games, i) => (
+            <GameByGame key={i} results={games} title={`${m[i].name}, game by game`} compact opponent={(id) => (id === H2H_IDS[0] ? { clubId: m[0].hostClubId, name: m[0].name } : id === H2H_IDS[1] ? { clubId: m[1].hostClubId, name: m[1].name } : { clubId: id, name: clubName(u, id) })} />
           ))}
         </div>
         <div className="col">

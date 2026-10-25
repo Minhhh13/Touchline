@@ -1524,3 +1524,125 @@ table.tbl tr.clickable:hover {
   font-weight: 700;
   font-size: 15px;
 }
+
+/* ------------------------------------------------- season, game by game */
+.gbg-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.gbg-strip b {
+  color: var(--text-3);
+  font-weight: 600;
+  margin-right: 2px;
+}
+.gbg-strip .w {
+  color: var(--accent);
+}
+.gbg-strip .l {
+  color: var(--danger);
+}
+.gbg-strip .pos {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+.gbg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gbg.compact .gbg-list {
+  max-height: 360px;
+  overflow: auto;
+}
+.gbg-game {
+  display: grid;
+  grid-template-columns: 44px 22px minmax(0, 1fr) auto auto 42px;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  animation: gbg-in 0.18s ease-out;
+}
+.gbg-game.W {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+.gbg-game.L {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+}
+.gbg-mw {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.gbg-fix {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gbg-score {
+  font-family: var(--font-display);
+  font-size: 18px;
+  min-width: 36px;
+  text-align: center;
+}
+.gbg-pos {
+  text-align: right;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.gbg-scorers {
+  grid-column: 2 / -1;
+  white-space: normal;
+}
+@keyframes gbg-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.tier-banner .tier.pop {
+  animation: tier-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes tier-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 520px) {
+  .gbg-game {
+    grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 38px;
+    gap: 4px 6px;
+  }
+  .gbg-fix {
+    white-space: normal;
+    line-height: 1.2;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gbg-game,
+  .tier-banner .tier.pop {
+    animation: none;
+  }
+}

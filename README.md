@@ -11,6 +11,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 **Modes**
 
 - **Quick Draft**: eleven spins, eleven picks, one click to simulate 38 matches. Five minutes and a shareable result.
+- **Every game, game by game**: the summary of a quick draft or the Daily lists all 38 games like 38-0 does, with the opponent, the score, your scorers and their minutes ("Haaland 12', 67'", an opponent's own goal as "OG") and your league position after each matchweek. "Play the season" replays it one game every 220 ms with a running P W D L GF GA strip, and the tier banner only lands after the last game; the share text names your best win. The head-to-head result shows the same list for both managers.
 - **Daily Challenge**: everyone gets the same wheel today (seed `daily-YYYY-MM-DD`). Streaks are tracked.
 - **Season**: draft 16 to 22 players, then manage 38 matchweeks with three pre-season friendlies, a 16-team cup, a transfer window and a board.
 - **Dynasty**: Season mode that never ends. Players age, contracts run down, some retire, you get summer bonus spins and the league moves on to the next real season.
