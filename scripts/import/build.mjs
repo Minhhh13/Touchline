@@ -958,6 +958,13 @@ async function main() {
     for (const [k, v] of Object.entries(vals)) r[k] = r[k] ? [Math.min(r[k][0], v), Math.max(r[k][1], v)] : [v, v]
   }
   const historicHelpers = { deriveAttributes, traitsFor, modelValue, modelWage, unit, shortName }
+  // Each player's positions in his first standard season (earliest season, first record on a tie): a classic
+  // season whose position was only guessed takes them when that season is close
+  const laterPositions = new Map()
+  for (const p of finalized) {
+    const cur = laterPositions.get(p.id)
+    if (!cur || p.season < cur.season) laterPositions.set(p.id, { season: p.season, positions: p.positions })
+  }
 
   const leaguesIndex = []
   let grandTotal = 0
@@ -1041,13 +1048,13 @@ async function main() {
     const classic = { records: [], seasons: [] }
     if (classicSeasons(leagueId).length) {
       const db = new DatabaseSync(path.join(CACHE, SOURCES.eurosoccer.dir, 'database.sqlite'), { readOnly: true })
-      const h = loadHistoric(leagueId, { tables, db, sofifaIndex, ranges, helpers: historicHelpers, templates: TEMPLATES })
+      const h = loadHistoric(leagueId, { tables, db, sofifaIndex, ranges, helpers: historicHelpers, templates: TEMPLATES, laterPositions })
       db.close()
       classic.records = h.records
       classic.seasons = h.seasons
       for (const line of h.report) warnings.push(`classic ${leagueId} ${line}`)
       for (const p of h.records) if (!nations[p.nation]) nations[p.nation] = { name: NATION_NAMES[p.nation] ?? 'Unknown', flag: nationFlag(p.nation) }
-      console.log(`  classic ${leagueId}: ${h.records.length} player-seasons over ${h.seasons.length} seasons; ids ${h.stats.idS} s / ${h.stats.idE} e / ${h.stats.idW} w, ${h.stats.later} with a later EA rating, ${h.stats.footEsd} ESD feet, ${h.stats.esdAmbiguous} ambiguous ESD matches left unlinked`)
+      console.log(`  classic ${leagueId}: ${h.records.length} player-seasons over ${h.seasons.length} seasons; ids ${h.stats.idS} s / ${h.stats.idE} e / ${h.stats.idW} w, ${h.stats.later} with a later EA rating, ${h.stats.footEsd} ESD feet, ${h.stats.laterPos} guessed positions from the first standard season, ${h.stats.esdAmbiguous} ambiguous ESD matches left unlinked`)
     }
     const classicSet = new Set(classic.seasons.map((c) => c.season))
     const classicInfo = classic.seasons.map((c) => {

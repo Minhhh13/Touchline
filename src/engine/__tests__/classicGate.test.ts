@@ -79,6 +79,21 @@ describe('classic gate', () => {
     expect(base.classicFirstSeason).toBeUndefined()
   })
 
+  it('loads classic rows only for seasons the meta marks classic (a stale meta.json, or a stray standard-season row)', () => {
+    const p = withSyntheticClassic('england')
+    const sample = p.players.rows.find((r) => r[p.players.columns.indexOf('season')] === 2008)!
+    // a row in the classic file for a standard season must not replace the standard player-season
+    const stray = sample.map((v, i) => (p.players.columns[i] === 'ovr' ? 99 : v))
+    const classic: PlayersFile = { ...p.classic, rows: [...p.classic.rows, stray] }
+    const loaded = buildLeague(p.players, p.meta, undefined, classic)
+    const strayId = `${sample[p.players.columns.indexOf('id')]}@2008@${sample[p.players.columns.indexOf('club')]}`
+    expect(loaded.index[strayId].overall).toBe(base.index[strayId].overall)
+    // the classic file with a meta.json from before the classic seasons: nothing classic loads at all
+    const stale = buildLeague(p.players, standardPack('england').meta, undefined, classic)
+    expect(Object.keys(stale.index)).toEqual(Object.keys(base.index))
+    expect(stale.clubSeasons.some((cs) => cs.classic)).toBe(false)
+  })
+
   it('keeps standard club-seasons first across merged leagues', () => {
     const merged = universe(['england', 'spain'], true)
     const firstClassic = merged.clubSeasons.findIndex((cs) => cs.classic)

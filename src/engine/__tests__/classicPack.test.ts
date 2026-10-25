@@ -24,7 +24,7 @@ const ATTRS = ['pac', 'sho', 'pas', 'dri', 'def', 'phy', 'men', 'gk', 'sta', 'st
 describe('classic pack', () => {
   const u = loadTestUniverse()
 
-  it('ships 16 seasons in the standard format, every club of every table with 20 to 32 men and two keepers', () => {
+  it('ships 16 seasons in the standard format, every club of every table with 20 to 32 men and two keepers (plan item 7)', () => {
     expect(pack.columns).toEqual(standard.columns)
     expect(pack.version).toBe(standard.version)
     expect(pack.generatedAt).toBe(standard.generatedAt)
@@ -36,7 +36,7 @@ describe('classic pack', () => {
       expect(s.clubs.length).toBe(s.table.length)
       for (const club of s.clubs) {
         const squad = rows.filter((r) => r.season === s.season && r.club === club)
-        expect(squad.length, `${s.season} ${club}`).toBeGreaterThanOrEqual(18)
+        expect(squad.length, `${s.season} ${club}`).toBeGreaterThanOrEqual(20)
         expect(squad.length, `${s.season} ${club}`).toBeLessThanOrEqual(32)
         expect(squad.filter((r) => String(r.pos).startsWith('GK')).length, `${s.season} ${club}`).toBeGreaterThanOrEqual(2)
       }
@@ -86,6 +86,15 @@ describe('classic pack', () => {
       expect(lastBest, `${ms.season} bottom club's best`).toBeLessThanOrEqual(80)
       for (const r of R) if ((r.ovr as number) < 85) for (const a of ATTRS.slice(0, 13)) expect(r[a] as number, `${r.name} ${a}`).toBeLessThanOrEqual(94)
     }
+  })
+
+  it('takes a guessed position from the same man\'s first standard season when it is close', () => {
+    // the facts list these men only as a midfielder or a defender; their 2008-09 rows say where they played
+    const pos = (season: number, club: string, name: string) => String(rows.find((r) => r.season === season && r.club === club && r.name === name)?.pos)
+    expect(pos(2007, 'manchester-united', 'C. Ronaldo').split('|')[0]).toBe('RW')
+    expect(pos(2006, 'manchester-united', 'C. Ronaldo').split('|')[0]).toBe('RW')
+    expect(pos(2007, 'tottenham-hotspur', 'G. Bale').split('|')[0]).toBe('LB')
+    expect(pos(2007, 'bolton-wanderers', 'G. Cahill').split('|')[0]).toBe('CB')
   })
 
   it('stronger clubs carry stronger squads (club strength against final position)', () => {

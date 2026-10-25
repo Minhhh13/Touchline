@@ -88,10 +88,14 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
   const squads: Record<string, PlayerSeason[]> = {}
 
   const files = classic ? [players, classic] : [players]
+  // A classic row only loads for a season the meta marks classic: a stale meta.json (one service-worker
+  // visit) or a classic row in a standard season must never add unflagged players or replace standard ones
+  const classicSeasonSet = new Set(meta.seasons.filter((s) => s.classic).map((s) => s.season))
   for (const file of files) {
   col = Object.fromEntries(file.columns.map((c, i) => [c, i])) as Record<string, number>
   for (const row of file.rows) {
     const season = Number(get(row, 'season'))
+    if (file !== players && !classicSeasonSet.has(season)) continue
     const clubId = String(get(row, 'club'))
     const positions = String(get(row, 'pos')).split('|') as Position[]
     const age = Number(get(row, 'age'))

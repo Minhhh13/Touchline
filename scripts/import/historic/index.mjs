@@ -9,6 +9,8 @@
  *   db           the European Soccer Database (node:sqlite), for ids, feet, heights and later EA ratings
  *   sofifaIndex  the build's sofifa id index (a Wikidata FIFA id found there keeps that id)
  *   ranges       { [pos]: { [attr]: [lo, hi] } } of the 2008-13 England rows (attribute clamps)
+ *   laterPositions  Map of player id -> { season, positions } of the player's first standard
+ *                (2008+) season in the packs, optional: a guessed position gives way to it
  *   helpers      build.mjs's own functions, so values follow the shipped packs exactly:
  *                { deriveAttributes, traitsFor, modelValue, modelWage, unit, shortName }
  *
@@ -25,6 +27,9 @@ const r1 = (v) => Math.round(v * 10) / 10
 const tokens = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z ]/g, ' ').split(/\s+/).filter((t) => t.length >= 3)
 
 /** Left-foot share of each primary position in the 2014+ EA rows (the 2008-13 ones had left and right swapped). */
+/** A guessed position yields to the player's first standard season when that is at most this many seasons on. */
+export const LATER_POSITION_GAP = 2
+
 const LEFT_SHARE = { LB: 0.866, RB: 0.004, LW: 0.275, RW: 0.343, CB: 0.238, CM: 0.177, AM: 0.268, DM: 0.118, ST: 0.155, GK: 0.121 }
 
 /** ESD links and later EA ratings: birth date plus a shared name token, never a guess between two candidates. */
@@ -141,7 +146,7 @@ function names(list, shortName) {
   for (const group of by.values()) if (group.length > 1) for (const r of group) r.name = r.f.name
 }
 
-export function loadHistoric(leagueId, { tables, db, sofifaIndex, ranges, helpers, templates, facts: givenFacts }) {
+export function loadHistoric(leagueId, { tables, db, sofifaIndex, ranges, helpers, templates, laterPositions, facts: givenFacts }) {
   const seasons = classicSeasons(leagueId)
   if (!seasons.length) return { records: [], seasons: [], report: [] }
   const facts = givenFacts ?? JSON.parse(fs.readFileSync(FACTS_FILE(leagueId), 'utf8'))
@@ -150,7 +155,7 @@ export function loadHistoric(leagueId, { tables, db, sofifaIndex, ranges, helper
   const records = []
   const seasonInfo = []
   const report = []
-  const stats = { rows: 0, idS: 0, idE: 0, idW: 0, esdAmbiguous: 0, later: 0, footEsd: 0 }
+  const stats = { rows: 0, idS: 0, idE: 0, idW: 0, esdAmbiguous: 0, later: 0, footEsd: 0, laterPos: 0 }
   for (const fs_ of facts.seasons) {
     const S = fs_.season
     if (!seasons.includes(S)) continue
@@ -183,6 +188,17 @@ export function loadHistoric(leagueId, { tables, db, sofifaIndex, ranges, helper
       const kept = [...seen.values()]
       adjustClub(kept)
       assignPositions(kept, templates)
+      // A position the facts only guessed (no infobox or Wikidata one: C. Ronaldo 2006-07 came out CM|DM)
+      // gives way to the same man's positions in his first standard season, when that is close enough
+      for (const r of kept) {
+        if (r.f.posSrc !== 'heuristic' || r.f.coarse === 'GK') continue
+        const l = laterPositions?.get(r.id)
+        if (!l || l.season - S > LATER_POSITION_GAP || l.positions[0] === 'GK') continue
+        // a man listed as a defender stays one (the later database line-ups put some in midfield)
+        if (r.f.coarse === 'DF' && !['CB', 'LB', 'RB'].includes(l.positions[0])) continue
+        r.positions = l.positions.filter((x) => x !== 'GK')
+        stats.laterPos++
+      }
       names(kept, helpers.shortName)
       rows.push(...kept)
     }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
-import { closeLiveMatch, eventContext, finishLiveMatch, playMatchweek, startSeasonProper } from '../logic/week'
+import { closeLiveMatch, eventContext, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from '../logic/week'
+import { buildYouthIntake } from '../logic/youth'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
@@ -151,6 +152,34 @@ describe('audit fixes: season and squad', () => {
     expect(classicIds(n.window?.listings.map((l) => l.playerSeasonId) ?? [])).toEqual([])
     expect(classicIds(Object.keys(n.squad))).toEqual([])
   }, 120_000)
+
+  it('friendlies and the youth intake never reach a classic season without the opt-in, and do with it', () => {
+    const opponents = (classic: boolean) => {
+      const g = createGame(settings({ seed: `classic-friendly-${classic}`, leagueSeason: 2010, hostClubId: 'everton', mode: 'dynasty', rules: { ...SEASON_RULES, leagues: ['england'], ...(classic ? { classic: true } : {}) } }))
+      const rng = Rng.fromState(g.rngState)
+      autoDraft(u, g.draft!, rng)
+      g.rngState = rng.getState()
+      beginSeason(g, u)
+      const seasons: number[] = []
+      const youth: string[] = []
+      for (let i = 0; i < 80; i++) {
+        g.rngState = new Rng(`classic-friendly-${i}`).getState()
+        g.live = null
+        g.friendliesPlayed = 0
+        playFriendly(g, u)
+        seasons.push(Number(g.live!.opponentId.split('@')[1]))
+        youth.push(...buildYouthIntake(g, u, new Rng(`classic-youth-${i}`)))
+      }
+      return { seasons, youth: youth.map((id) => u.index[id].season) }
+    }
+    const off = opponents(false)
+    expect(off.seasons.every((s) => s >= 2008)).toBe(true)
+    expect(off.youth.length).toBeGreaterThan(0)
+    expect(off.youth.every((s) => s >= 2008)).toBe(true)
+    const on = opponents(true)
+    expect(on.seasons.some((s) => s < 2008)).toBe(true)
+    expect(on.youth.some((s) => s < 2008)).toBe(true)
+  }, 180_000)
 })
 
 describe('audit fixes: transfer market', () => {
