@@ -156,7 +156,14 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
     }
     fit()
     window.addEventListener('resize', fit)
-    return () => window.removeEventListener('resize', fit)
+    // The app's top bar folds away and comes back (a class on .app): the board's top moves with it
+    const app = el.closest('.app')
+    const watch = app ? new MutationObserver(() => requestAnimationFrame(fit)) : null
+    if (app && watch) watch.observe(app, { attributes: true, attributeFilter: ['class'] })
+    return () => {
+      window.removeEventListener('resize', fit)
+      watch?.disconnect()
+    }
   }, [compact])
   const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : ctx.competition === 'league' ? `Matchweek ${ctx.matchweek}` : 'Continental Cup')}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
   const crumb = (

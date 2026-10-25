@@ -1254,3 +1254,14 @@
     gap: 6px;
   }
 }
+/* The app's top bar folded away: the restore pill sits in the top-right corner, in the competition line's row, clear of the board's controls */
+@media (min-width: 1200px) {
+  .app.bar-hidden > .page.matchday-page {
+    padding-top: 8px;
+  }
+}
+.app.bar-hidden .matchday .md-crumb {
+  min-height: 40px;
+  align-items: center;
+  padding-right: 180px;
+}

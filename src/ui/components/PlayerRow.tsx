@@ -1,16 +1,21 @@
 import type { ReactNode } from 'react'
+import { Bandage, Trophy } from 'lucide-react'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { Flag, Pos, Rating, Bar } from './bits'
 import { conditionColour, seasonLabel, clubShort } from '../format'
 import { useStore } from '@game/store'
+import { RedCard } from './icons'
 
-/** `showLabels` prints Cond, Mor and Shp under the three state bars (the Key toggle), for screens that cannot hover; `highlight` marks a row that fits the slot being filled (Position First). */
-export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, hideRatings, showClub, extra, showLabels }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; highlight?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode; showLabels?: boolean }) {
+/**
+ * `showLabels` prints Cond, Mor and Shp under the three state bars (the Key toggle), for screens that cannot hover; `highlight` marks a row that fits the slot being filled (Position First).
+ * `hideChampion` drops the title-winner flag where the whole list shares it (a champion squad on the draft).
+ */
+export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, hideRatings, showClub, extra, showLabels, hideChampion }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; highlight?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode; showLabels?: boolean; hideChampion?: boolean }) {
   const u = useStore((s) => s.universe)
   const flags: ReactNode[] = []
-  if (state?.injury) flags.push(<span key="inj" className="chip bad" title={state.injury.description}>🩹 {state.injury.weeksOut}w</span>)
-  if (state && state.suspension > 0) flags.push(<span key="sus" className="chip bad">🟥 {state.suspension}</span>)
-  if (p.accolades.includes('Champion')) flags.push(<span key="ch" className="chip gold" title="Won the league that season">🏆</span>)
+  if (state?.injury) flags.push(<span key="inj" className="chip bad icon-chip" title={state.injury.description}><Bandage size={12} aria-hidden="true" /> {state.injury.weeksOut}w</span>)
+  if (state && state.suspension > 0) flags.push(<span key="sus" className="chip bad icon-chip" title={`Suspended for ${state.suspension}`}><RedCard size={12} /> {state.suspension}</span>)
+  if (!hideChampion && p.accolades.includes('Champion')) flags.push(<span key="ch" className="chip gold icon-chip" title="Won the league that season" aria-label="Champion"><Trophy size={12} aria-hidden="true" /></span>)
   return (
     <button type="button" className={`prow ${dim ? 'dim' : ''} ${selected ? 'selected' : ''} ${highlight ? 'fit' : ''}`} onClick={dim ? undefined : onClick} disabled={dim && !onClick}>
       <Rating value={p.overall} hidden={hideRatings} />
