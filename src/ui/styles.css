@@ -267,6 +267,20 @@ p {
   .scoreboard .team {
     font-size: 16px;
   }
+  .page.has-bottom-bar {
+    padding-bottom: 150px;
+  }
+  .bottom-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: 1px solid var(--line-2);
+    box-shadow: var(--shadow);
+  }
 }
 
 /* ------------------------------------------------------------------ panels */
@@ -950,6 +964,34 @@ table.tbl tr.clickable:hover {
   font-size: 12px;
   color: var(--text-3);
 }
+/* The Daily card starts the puzzle itself; its body is the way to the full setup for a team name */
+.mode-card.daily {
+  padding: 0;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+}
+.mode-card.daily:hover {
+  transform: none;
+}
+.mode-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  text-align: left;
+  padding: 16px 16px 10px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  cursor: pointer;
+}
+.mode-card-body:hover {
+  background: var(--panel-2);
+}
+.mode-card.daily > .btn {
+  margin: 0 16px 16px;
+}
 
 /* ------------------------------------------------------------------ misc */
 .tier-banner {
@@ -1224,6 +1266,35 @@ table.tbl tr.clickable:hover {
   position: sticky;
   bottom: 12px;
   z-index: 15;
+}
+/* The start bar: the choice summary and the one button that matters. Fixed to the bottom on phones. */
+.bottom-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fold-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.fold-head h3 {
+  margin: 0;
+}
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
 }
 .spin-btn {
   width: 100%;

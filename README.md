@@ -12,6 +12,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 
 - **Quick Draft**: eleven spins, eleven picks, one click to simulate 38 matches. Five minutes and a shareable result.
 - **Daily Challenge**: everyone gets the same wheel today (seed `daily-YYYY-MM-DD`). Streaks are tracked.
+- **Two-tap start**: Setup shows team name, league and formation (plus squad size and job security for a season); everything else sits under More options, folded by default and remembered per browser. One line above Start states every choice, with a change link, and on a phone that line and the Start button sit in a fixed bottom bar. The default host club is the one nearest tenth in that season's real table, and the Home card starts today's Daily directly.
 - **Season**: draft 16 to 22 players, then manage 38 matchweeks with three pre-season friendlies, a 16-team cup, a transfer window and a board.
 - **Dynasty**: Season mode that never ends. Players age, contracts run down, some retire, you get summer bonus spins and the league moves on to the next real season.
 
