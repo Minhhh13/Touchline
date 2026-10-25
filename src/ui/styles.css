@@ -387,6 +387,16 @@ p {
   --tl-glint-edge: #c7d2fe;
   --tl-glint-core: #ffffff;
 }
+/* The Home hero is always the night-navy banner, so its lockup keeps the Floodlit colours in both themes */
+:root[data-theme='light'] .hero .tl-lockup {
+  --tl-ink: #ffffff;
+  --tl-ball-ring: transparent;
+  --tl-touch-top: #ffffff;
+  --tl-touch-bottom: #c9d5e8;
+  --tl-line-top: #9ccaff;
+  --tl-line-bottom: #4b8df8;
+  --tl-glint-edge: rgba(165, 243, 252, 0.95);
+}
 /* The short touchline under the flag and the ball; its top edge is the name's baseline */
 .tl-rule {
   position: absolute;
