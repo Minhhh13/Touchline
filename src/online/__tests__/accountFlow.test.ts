@@ -17,7 +17,7 @@ describe('the profile setup step: the name rules mirror the database', () => {
     expect(nameVerdictFrom('Hal 9000', { name: 'Hal 9000', available: true })).toEqual({ state: 'free', name: 'Hal 9000' })
     expect(nameVerdictFrom('gina tactics', { available: false, reason: 'taken' })).toEqual({ state: 'taken', name: 'gina tactics' })
     expect(nameVerdictFrom('Gina Tactics', { available: false, reason: 'shape' })).toMatchObject({ state: 'invalid' })
-    // offline, or the migration not applied yet: saving still checks, the step never blocks on it
+    // offline, a dropped request or the hourly limit: saving still checks, the step never blocks on it
     for (const reply of [null, undefined, {}, 'x', { available: 'yes' }]) expect(nameVerdictFrom('Hal 9000', reply)).toEqual({ state: 'unknown', name: 'Hal 9000' })
     // the local rules win before any server answer
     expect(nameVerdictFrom('Ga', { available: true })).toMatchObject({ state: 'invalid' })

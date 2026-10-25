@@ -146,8 +146,8 @@ export function authRedirectAt(href: string): AuthRedirect | null {
 
 export type NameCheck = { ok: true; name: string } | { ok: false; message: string }
 
-/** The live name check's answer as the profile setup step shows it. `unknown`: the server could not say (offline, or
- * the `display_name_check` migration is not applied); saving still checks, so the step never blocks on it. */
+/** The live name check's answer as the profile setup step shows it. `unknown`: the server could not say (offline, a
+ * dropped request or the hourly limit); saving still checks, so the step never blocks on it. */
 export type NameVerdict = { state: 'invalid'; message: string } | { state: 'taken'; name: string } | { state: 'free'; name: string } | { state: 'unknown'; name: string }
 
 /** Combine the local rules with `display_name_check`'s reply (`{ name, available, reason }`), or null for no reply. Pure. */

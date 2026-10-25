@@ -308,7 +308,7 @@ function ProfileForm({ setup }: { setup: boolean }) {
         <input className="input" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} placeholder="3 to 24 characters" aria-describedby="account-name-check" data-testid="account-name" />
       </label>
       <span id="account-name-check" className={`small name-check ${verdict?.state ?? ''}`} aria-live="polite" data-testid="account-name-check">
-        {verdict?.state === 'free' ? '✓ Available' : verdict?.state === 'taken' ? 'That name is taken: try another.' : verdict?.state === 'invalid' ? verdict.message : verdict?.state === 'unknown' ? 'Checked when you save.' : ' '}
+        {verdict?.state === 'free' ? '✓ Available' : verdict?.state === 'taken' ? 'That name is taken: try another.' : verdict?.state === 'invalid' ? verdict.message : verdict?.state === 'unknown' ? 'Could not check just now: it is checked again when you save.' : ' '}
       </span>
       <FlagPicker value={country} onChange={setCountry} />
       <ClubPicker />
