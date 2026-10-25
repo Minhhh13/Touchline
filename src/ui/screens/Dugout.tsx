@@ -1130,7 +1130,7 @@ function EventCard() {
       </div>
       <div className="row wrap" style={{ marginTop: 8 }}>
         {ev.choices.map((c) => (
-          <button key={c.id} className="btn" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
+          <button key={c.id} className="btn event-choice" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
               <span>{c.label}</span>
               <span className="small muted" style={{ fontWeight: 400 }}>

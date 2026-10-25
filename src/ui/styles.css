@@ -333,6 +333,12 @@ p {
   text-decoration: none;
   white-space: nowrap;
 }
+/* A decision's choice carries its hint under the label, so it wraps rather than running past a phone's edge */
+.btn.event-choice {
+  white-space: normal;
+  max-width: 100%;
+  text-align: left;
+}
 .btn:hover {
   border-color: var(--accent);
 }

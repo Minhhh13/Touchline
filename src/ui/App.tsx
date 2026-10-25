@@ -12,6 +12,7 @@ import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
 import { Bar, ClubBadge, Modal, Toast } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
+import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 
@@ -174,6 +175,8 @@ const CONFIDENCE_COLOUR = (c: number) => (c > 60 ? 'var(--accent)' : c > 30 ? 'v
 /** "While you were away": results, the table move, the board, and what the assistant did in your name. */
 function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => void }) {
   const u = useStore((s) => s.universe)
+  // Read live, as the Inbox tab's badge is: a run simulated with the Inbox open has already been marked read
+  const unread = useStore((s) => (s.game ? unseenNews(s.game) : 0))
   const league = d.results.filter((r) => r.comp === 'league')
   const tally = { W: 0, D: 0, L: 0 }
   for (const r of league) tally[r.outcome]++
@@ -238,7 +241,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
       {d.truncated && <p className="muted small">The inbox keeps the latest 120 items, so the earliest of these weeks have already dropped off it.</p>}
       <div className="row between wrap">
         <span className="small muted" data-testid="digest-unread">
-          {d.unread ? `${d.unread} unread in the Inbox` : 'Nothing unread in the Inbox'}
+          {unread ? `${unread} unread in the Inbox` : 'Nothing unread in the Inbox'}
         </span>
         <button className="btn primary" onClick={onClose} data-testid="digest-close">
           To the dugout

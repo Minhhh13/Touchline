@@ -125,7 +125,6 @@ describe('while you were away', () => {
     // Every item posted during the run, newest first, and nothing older
     expect(d.news.length).toBe(newsTotal(g) - before.newsTotal)
     expect(d.news.length).toBe(unseenNews(g))
-    expect(d.unread).toBe(unseenNews(g))
     expect(d.news).toEqual(season.news.slice(0, d.news.length))
     expect(d.news.filter((n) => n.kind === 'result').length).toBe(5)
     expect(d.truncated).toBe(false)
@@ -145,8 +144,8 @@ describe('while you were away', () => {
     const d = digest!
     expect(digestTitle(d)).toBe('Matchweek 6')
     // The inbox was never opened, so the unread count also holds the opening news and the first five weeks
-    expect(d.unread).toBe(newsTotal(g))
-    expect(d.unread).toBeGreaterThan(d.news.length)
+    expect(unseenNews(g)).toBe(newsTotal(g))
+    expect(unseenNews(g)).toBeGreaterThan(d.news.length)
     expect(d.results.map((r) => r.comp)).toEqual(['league', 'cup'])
     const tie = d.results[1]
     expect(tie.matchweek).toBe(6)

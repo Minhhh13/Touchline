@@ -306,7 +306,7 @@ export const useStore = create<Store>()(
           // Park a game of a different kind rather than losing it; a finished one is dropped.
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
-          set({ game, parked: next, screen: 'game', pendingChallenge: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          set({ game, parked: next, screen: 'game', pendingChallenge: null, digest: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
         abandonGame: () => set({ game: null, screen: 'home', offseason: null, digest: null }),
         resumeGame: (slot) => {
@@ -321,7 +321,7 @@ export const useStore = create<Store>()(
           void get()
             .ensureLeagues(ids)
             .then((ok) => {
-              if (ok) set({ game: target, parked: next, screen: 'game' })
+              if (ok) set({ game: target, parked: next, screen: 'game', digest: null })
             })
         },
         discardParked: (slot) => {

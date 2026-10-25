@@ -6,7 +6,7 @@
 import type { Game } from '../types'
 import type { NewsItem, Competition } from '@engine/season'
 import { computeTable, positionOf, roundsFor, USER_TEAM } from '@engine/season'
-import { newsTotal, unseenNews } from './news'
+import { newsTotal } from './news'
 
 /** Title prefix of the inbox item recording a decision the assistant took during a simulation. */
 export const ASSISTANT_DECIDED = 'Assistant decided: '
@@ -63,8 +63,6 @@ export interface SimDigest {
   news: NewsItem[]
   /** More items were posted than the feed keeps, so the oldest of them are gone. */
   truncated: boolean
-  /** Unread inbox items once the run is over (these weeks' plus any left unread before), as the Inbox tab counts them. */
-  unread: number
 }
 
 /** Read the plain values the digest compares against, or null without a season. */
@@ -154,7 +152,6 @@ export function buildDigest(before: DigestSnapshot, game: Game): SimDigest | nul
     development: news.filter((n) => n.kind === 'training'),
     news,
     truncated: added > news.length,
-    unread: unseenNews(game),
   }
 }
 
