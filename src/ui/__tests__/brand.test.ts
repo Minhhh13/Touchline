@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { Lockup } from '../components/Logo'
-import { LOCKUP, MARK, ballPanels, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, tinyPanels, type MarkTier } from '../brand'
+import { LOCKUP, MARK, ballPanels, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, pennantWave, tinyPanels, type MarkTier } from '../brand'
 
 const TIERS: MarkTier[] = ['full', 'mid', 'tiny']
 
@@ -25,14 +25,33 @@ describe('the mark', () => {
     expect(markTier(16)).toBe('tiny')
   })
 
-  it('rests the ball on the touchline, right of the pole, in every tier', () => {
+  it('rests the ball on the touchline, right of the pole, with the line running past both, in every tier', () => {
     for (const t of TIERS) {
       const { ball, line, pole } = MARK.tiers[t]
       expect(ball.cy + ball.r).toBeCloseTo(line.y - line.w / 2, 6)
-      expect(ball.cx - ball.r).toBeGreaterThan(pole.x + pole.w / 2 + 8)
-      // the pole crosses just below the line
-      expect(pole.y2).toBeGreaterThan(line.y + line.w / 2)
+      expect(ball.cx - ball.r - (pole.x + pole.w / 2)).toBeGreaterThanOrEqual(6)
+      expect(pole.x - pole.w / 2 - line.x1).toBeGreaterThanOrEqual(5)
+      expect(line.x2 - (ball.cx + ball.r)).toBeGreaterThanOrEqual(4)
     }
+  })
+
+  it('stands the pole on the line: its foot, cap and all, ends at the line\'s top edge and nothing pokes below', () => {
+    for (const t of TIERS) {
+      const { line, pole, caps } = MARK.tiers[t]
+      const foot = pole.y2 + (caps === 'round' ? pole.w / 2 : 0)
+      expect(foot).toBeCloseTo(line.y - line.w / 2, 6)
+    }
+  })
+
+  it('draws a thin line: under half of the first logo\'s on the full and mid tiers, one device pixel at 16 px', () => {
+    expect(MARK.tiers.full.line.w).toBeLessThanOrEqual(3.6 * 0.5)
+    expect(MARK.tiers.mid.line.w).toBeLessThanOrEqual(4.8 * 0.5)
+    expect(MARK.tiers.tiny.line.w).toBe(4)
+    expect(MARK.tiers.full.caps).toBe('round')
+    expect(MARK.tiers.mid.caps).toBe('round')
+    // still at least a CSS pixel where each tier starts
+    expect((MARK.tiers.mid.line.w * MARK.tierFrom.mid) / MARK.grid).toBeGreaterThan(0.8)
+    expect((MARK.tiers.full.line.w * MARK.tierFrom.full) / MARK.grid).toBeGreaterThanOrEqual(1.6)
   })
 
   it('keeps the pennant clear of the ball in every tier', () => {
@@ -81,27 +100,58 @@ describe('the mark', () => {
         for (const ref of svg.matchAll(/url\(#([^)]+)\)/g)) expect(ids).toContain(ref[1])
       }
     }
-    for (const svg of [lockupFlagSvg('bb2'), lockupBallSvg('bb2', 'full'), lockupBallSvg('bb2', 'mid')]) {
+    for (const svg of [lockupFlagSvg('bb2'), lockupFlagSvg('bb2', true), lockupBallSvg('bb2', 'full'), lockupBallSvg('bb2', 'mid')]) {
       for (const m of svg.matchAll(/id="([^"]+)"/g)) expect(m[1].startsWith('bb2-')).toBe(true)
     }
   })
 })
 
 describe('the lockup', () => {
-  it('rests the ball clear of the pole and clear of the pennant, left of the name', () => {
-    const { ball, pole, pennant, name, rollFrom } = LOCKUP
-    expect(ball.cx - ball.r - (pole.x + pole.w / 2)).toBeGreaterThanOrEqual(2)
-    expect(name.left - (ball.cx + ball.r)).toBeGreaterThanOrEqual(6)
-    const cy = LOCKUP.rule.y - ball.r
+  it('stands the flag and the ball on a short line, the ball clear of the pole and the pennant, left of the name', () => {
+    const { ball, pole, pennant, name, rule, roll } = LOCKUP
+    // the pole's round foot ends at the line's top edge
+    expect(pole.y2 + pole.w / 2).toBeCloseTo(rule.y, 6)
+    expect(ball.cx - ball.r - (pole.x + pole.w / 2)).toBeGreaterThanOrEqual(5)
+    const cy = rule.y - ball.r
     for (const [x, y] of points(pennantPath(pennant))) expect(Math.hypot(x - ball.cx, y - cy)).toBeGreaterThan(ball.r + 2.5)
-    // the roll starts with the ball wholly behind the pole's centre, where its track begins
-    expect(rollFrom + ball.r).toBeLessThan(pole.x)
+    // the line runs a little past the ball and stops well short of the name
+    const end = rule.left + rule.length
+    expect(end - (ball.cx + ball.r)).toBeGreaterThanOrEqual(2)
+    expect(end - (ball.cx + ball.r)).toBeLessThanOrEqual(6)
+    expect(name.left - end).toBeGreaterThanOrEqual(3)
+    // the name stands on the same ground as the ball
+    expect(name.baseline).toBe(rule.y)
+    // the roll starts with the ball clear of the pole
+    expect(ball.cx - roll - ball.r).toBeGreaterThan(pole.x + pole.w / 2)
+  })
+
+  it('flutters the pennant along the cloth in a loop, its edge at the pole fixed, staying clear of the ball', () => {
+    const P = LOCKUP.pennant
+    const svg = lockupFlagSvg('w', true)
+    const values = /values="([^"]+)"/.exec(svg)![1].split(';')
+    expect(values.length).toBe(LOCKUP.wave.frames + 1)
+    expect(values[0]).toBe(values[values.length - 1])
+    expect(new Set(values).size).toBe(LOCKUP.wave.frames)
+    const cy = LOCKUP.rule.y - LOCKUP.ball.r
+    for (const d of values) {
+      const pts = points(d)
+      expect(pts.length).toBe(points(pennantPath(P)).length)
+      expect(pts[0]).toEqual([P.x, P.top])
+      expect(pts[pts.length - 1]).toEqual([P.x, P.bottom])
+      for (const [x, y] of pts) expect(Math.hypot(x - LOCKUP.ball.cx, y - cy)).toBeGreaterThan(LOCKUP.ball.r + 2.5)
+    }
+    // the pole and the resting shape are untouched; without the wave nothing animates
+    expect(svg.replace(pennantWave(P), '')).toBe(lockupFlagSvg('w'))
+    expect(lockupFlagSvg('w')).not.toContain('<animate')
+    expect(svg.match(/<animate/g)?.length).toBe(1)
   })
 
   it('carries the name once as text; the glint copy is generated content', () => {
     const html = renderToStaticMarkup(createElement(Lockup, { animate: 'load' }))
     expect(html.replace(/<[^>]*>/g, '')).toBe('TouchLine')
     expect(html).toContain('data-text="TouchLine"')
+    // rendered without a window (as under reduced motion) the pennant is still
+    expect(html).not.toContain('<animate')
     const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
     expect(css).toContain('.tl-shine::before {\n  content: attr(data-text);')
   })
@@ -110,19 +160,19 @@ describe('the lockup', () => {
     const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
     const block = (sel: string) => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)))
     const u = (n: number) => `calc(${n} * var(--u))`
-    expect(block('.tl-lockup')).toContain(`${u(LOCKUP.name.endPad)} 0 ${u(LOCKUP.name.left)}`)
+    expect(block('.tl-lockup')).toContain(`padding: 0 0 0 ${u(LOCKUP.name.left)}`)
     expect(block('.tl-rule')).toContain(`top: ${u(LOCKUP.rule.y)}`)
     expect(block('.tl-rule')).toContain(`height: ${u(LOCKUP.rule.w)}`)
     expect(block('.tl-rule')).toContain(`left: ${u(LOCKUP.rule.left)}`)
-    expect(block('.tl-track')).toContain(`left: ${u(LOCKUP.pole.x)}`)
-    // track left + ball left = the ball's resting left edge; track top + ball top = its top on the line
-    const trackTop = Number(/top: calc\(([\d.]+)/.exec(block('.tl-track'))![1])
-    const ballLeft = Number(/left: calc\(([\d.]+)/.exec(block('.tl-ball'))![1])
-    const ballTop = Number(/top: calc\(([\d.]+)/.exec(block('.tl-ball'))![1])
-    expect(LOCKUP.pole.x + ballLeft).toBeCloseTo(LOCKUP.ball.cx - LOCKUP.ball.r, 6)
-    expect(trackTop + ballTop).toBeCloseTo(LOCKUP.rule.y - 2 * LOCKUP.ball.r, 6)
+    expect(block('.tl-rule')).toContain(`width: ${u(LOCKUP.rule.length)}`)
+    expect(block('.tl-rule')).not.toContain('right:')
+    expect(block('.tl-ball')).toContain(`left: ${u(LOCKUP.ball.cx - LOCKUP.ball.r)}`)
+    expect(block('.tl-ball')).toContain(`top: ${u(LOCKUP.rule.y - 2 * LOCKUP.ball.r)}`)
     expect(block('.tl-name')).toContain(`margin-top: ${u(LOCKUP.name.top)}`)
     expect(block('.tl-name')).toContain(`font-size: ${u(LOCKUP.name.size)}`)
-    expect(css).toContain(`translateX(${u(LOCKUP.rollFrom - LOCKUP.ball.cx)})`)
+    // the line box's baseline sits 0.903 of the font size below its top (Barlow Condensed)
+    expect(LOCKUP.name.top + 0.903 * LOCKUP.name.size).toBeCloseTo(LOCKUP.name.baseline, 0)
+    expect(css).toContain(`translateX(${u(-LOCKUP.roll)}) rotate(-${((LOCKUP.roll / LOCKUP.ball.r) * 180 / Math.PI).toFixed(1)}deg)`)
+    expect(css).not.toContain('.tl-track')
   })
 })

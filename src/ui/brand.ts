@@ -47,16 +47,21 @@ function onLine(cx: number, r: number, line: { y: number; w: number }) {
   return { cx, r, cy: line.y - line.w / 2 - r }
 }
 
-const FULL_LINE = { x1: 9, x2: 57, y: 47, w: 3.6 }
-const MID_LINE = { x1: 9, x2: 56, y: 47, w: 4.8 }
-// 4 units are 1 px at 16 px: the line covers rows 11 and 12, the pole column 4
-const TINY_LINE = { x1: 8, x2: 56, y: 48, w: 8 }
+/** The pole stands on the line: its foot (with its cap) ends at the line's top edge, nothing below it. */
+function standing(x: number, top: number, w: number, line: { y: number; w: number }, caps: 'round' | 'butt') {
+  return { x, w, y1: caps === 'round' ? top + w / 2 : top, y2: line.y - line.w / 2 - (caps === 'round' ? w / 2 : 0) }
+}
+
+const FULL_LINE = { x1: 9, x2: 57, y: 51, w: 1.6 }
+const MID_LINE = { x1: 9, x2: 57, y: 51, w: 2.4 }
+// 4 units are 1 px at 16 px: the line is row 12, the pole column 4 standing on it
+const TINY_LINE = { x1: 8, x2: 60, y: 50, w: 4 }
 
 /**
- * The mark, on a 64-unit grid (y down): a corner flag (a white pole crossing
- * just below the touchline, a red pennant flying right from its top), a classic
+ * The mark, on a 64-unit grid (y down): a corner flag (a white pole standing on
+ * the touchline, a red pennant flying right from its top), a classic
  * black-and-white football resting on the line to the right of the pole, and
- * the white touchline running on past it, on the blue tile. Three tiers of the
+ * the thin white touchline running on past both, on the blue tile. Three tiers of the
  * same drawing; detail drops as the icon shrinks.
  */
 export const MARK = {
@@ -80,26 +85,27 @@ export const MARK = {
   panel: '#0d1117',
   tiers: {
     full: {
-      pole: { x: 16, y1: 8.6, y2: 50.6, w: 2.8 },
+      pole: standing(16, 9.8, 2.8, FULL_LINE, 'round'),
       line: FULL_LINE,
-      pennant: { x: 16, top: 9.4, bottom: 24.6, tipX: 38.5, tipY: 16.6, amp: 1.7 },
-      ball: onLine(43, 11.5, FULL_LINE),
+      pennant: { x: 16, top: 12, bottom: 27.2, tipX: 38.5, tipY: 19.2, amp: 1.7 },
+      ball: onLine(41.5, 11.5, FULL_LINE),
       caps: 'round',
     },
     mid: {
-      pole: { x: 16, y1: 8.5, y2: 51, w: 4 },
+      pole: standing(16, 9.4, 4, MID_LINE, 'round'),
       line: MID_LINE,
-      pennant: { x: 16, top: 8.6, bottom: 26, tipX: 39, tipY: 17, amp: 1.1 },
-      ball: onLine(42.5, 12, MID_LINE),
+      pennant: { x: 16, top: 11.5, bottom: 28.9, tipX: 39, tipY: 19.9, amp: 1.1 },
+      ball: onLine(41, 12, MID_LINE),
       caps: 'round',
     },
     tiny: {
-      // pole x 16 to 20, the line y 44 to 52, the pole's foot one pixel below it
-      pole: { x: 18, y1: 8, y2: 56, w: 4 },
+      // pole x 16 to 20, y 8 to 48, standing on the line (y 48 to 52)
+      pole: standing(18, 8, 4, TINY_LINE, 'butt'),
       line: TINY_LINE,
       // 20 by 20 units (5 px), ending clear of the ball's top edge
       pennant: { x: 18, top: 8, bottom: 28, tipX: 40, tipY: 17, amp: 0 },
-      ball: onLine(44, 12, TINY_LINE),
+      // x 28 to 52, y 24 to 48
+      ball: onLine(40, 12, TINY_LINE),
       caps: 'butt',
     },
   } satisfies Record<MarkTier, TierGeometry>,
@@ -111,23 +117,25 @@ export function markTier(px: number): MarkTier {
 }
 
 /**
- * The open lockup, in units of its height / 64: the corner flag and the ball at
- * the left, "TouchLine" standing on the touchline, which runs from the foot of
- * the pole under the whole name. No tile. The pennant's top is level with the
- * cap height; the ball rests a clear gap right of the pole; the line is the
- * mark's touchline carried on under the name.
+ * The open lockup, in units of its height / 64: the mark's drawing without the
+ * tile at the left (the corner flag standing on a short touchline, the ball
+ * resting on it right of the pole, the line ending a little past the ball),
+ * then "TouchLine" standing on the same ground: its baseline is the line's top
+ * edge. No line under the name. The whole sits about centred in the 64u box.
  */
 export const LOCKUP = {
   grid: 64,
-  pole: { x: 9, y1: 6, y2: 54, w: 3 },
-  pennant: { x: 9, top: 7, bottom: 23.5, tipX: 41, tipY: 14.5, amp: 1.8 },
-  /** The line's left end (the pole's left edge), its top edge and thickness. */
-  rule: { left: 7.5, y: 46, w: 4 },
+  pole: { x: 9, y1: 9, y2: 50.5, w: 3 },
+  pennant: { x: 9, top: 10, bottom: 26.5, tipX: 41, tipY: 17.5, amp: 1.8 },
+  /** The short line: its left end (the pole's left edge), length, top edge and thickness. */
+  rule: { left: 7.5, length: 36, y: 52, w: 2 },
   ball: { cx: 28, r: 11.5 },
-  /** The ball starts out of sight behind the pole and rolls out to its spot. */
-  rollFrom: -3,
-  /** The name: left edge, top of its line box, font size (cap height 0.7 of it), space after it, and where its baseline lands. */
-  name: { left: 47.5, top: -1.6, size: 44.3, endPad: 3, baseline: 38.4 },
+  /** The ball rolls in this far (u) along the line to its spot, fading in as it starts. */
+  roll: 5,
+  /** The name: left edge, top of its line box, font size (cap height 0.7 of it), and where its baseline lands (the line's top). */
+  name: { left: 47.5, top: 12, size: 44.3, baseline: 52 },
+  /** The pennant's flutter: one loop in seconds, and the frames it steps through. */
+  wave: { dur: 2.6, frames: 8, amp: 2.2 },
   /** Below this ball diameter in px the lockup uses the flat ball. */
   fullBallFrom: 40,
 } as const
@@ -137,10 +145,14 @@ export const LOCKUP_FLAG_WIDTH = 46
 
 const r2 = (n: number) => +n.toFixed(2)
 
-/** A pennant from the pole: a triangle whose two edges carry the same gentle wave. */
-export function pennantPath(p: Pennant, steps = 28): string {
+/**
+ * A pennant from the pole: a triangle whose two edges carry the same gentle
+ * wave. `phase` (radians) moves the wave along the cloth, away from the pole;
+ * the edge at the pole never moves, and phase 0 is the resting shape.
+ */
+export function pennantPath(p: Pennant, steps = 28, phase = 0): string {
   if (p.amp === 0) return `M${p.x} ${p.top}L${p.tipX} ${p.tipY}L${p.x} ${p.bottom}Z`
-  const wave = (t: number) => -p.amp * Math.sin(Math.PI * t * 1.15) * (0.35 + 0.65 * t)
+  const wave = (t: number) => -p.amp * (Math.sin(Math.PI * t * 1.15 - phase) + Math.sin(phase) * (1 - t)) * (0.35 + 0.65 * t)
   const pts: string[] = []
   for (let i = 0; i <= steps; i++) {
     const t = i / steps
@@ -469,14 +481,28 @@ export function markSvg(id: string, px: number, o: MarkSvgOptions): string {
 }
 
 /**
+ * The pennant's flutter: SMIL keyframes stepping the wave along the cloth, one
+ * full loop (the last frame is the first), so it plays in every browser and
+ * the pole never moves. Without it (reduced motion, the icons) the pennant
+ * keeps its resting shape.
+ */
+export function pennantWave(p: Pennant): string {
+  const W = LOCKUP.wave
+  const flying = { ...p, amp: W.amp }
+  const values = Array.from({ length: W.frames + 1 }, (_, i) => pennantPath(flying, 28, ((i % W.frames) / W.frames) * 2 * Math.PI))
+  return `<animate attributeName="d" dur="${W.dur}s" repeatCount="indefinite" values="${values.join(';')}"/>`
+}
+
+/**
  * The lockup's flag (pennant and pole) in a 0 0 LOCKUP_FLAG_WIDTH 64 box. The
  * pole takes its colour from the CSS variable --tl-ink (white on dark, the text
- * navy on light).
+ * navy on light). `wave` adds the pennant's flutter (the pole stays still).
  */
-export function lockupFlagSvg(id: string): string {
+export function lockupFlagSvg(id: string, wave = false): string {
   const P = LOCKUP.pennant
   const pole = LOCKUP.pole
-  return `<defs>${foldGradient(`${id}-pen`, P)}</defs><path d="${pennantPath(P)}" fill="url(#${id}-pen)"/><line x1="${pole.x}" y1="${pole.y1}" x2="${pole.x}" y2="${pole.y2}" stroke="#ffffff" style="stroke:var(--tl-ink,#ffffff)" stroke-width="${pole.w}" stroke-linecap="round"/>`
+  const anim = wave ? pennantWave(P) : ''
+  return `<defs>${foldGradient(`${id}-pen`, P)}</defs><path d="${pennantPath(P)}" fill="url(#${id}-pen)">${anim}</path><line x1="${pole.x}" y1="${pole.y1}" x2="${pole.x}" y2="${pole.y2}" stroke="#ffffff" style="stroke:var(--tl-ink,#ffffff)" stroke-width="${pole.w}" stroke-linecap="round"/>`
 }
 
 /** The lockup's ball in a 0 0 2r 2r box, with a ring that only shows on light (--tl-ball-ring). */

@@ -169,8 +169,8 @@ export function renderShareCard(input: ShareCardInput): string {
 
 /**
  * The open lockup of brand.ts (LOCKUP), `h` px tall and centred on (cx, cy):
- * the corner flag, the flat ball resting on the touchline, and the two-tone
- * name standing on the line, which runs from the foot of the pole under it.
+ * the corner flag standing on a short touchline, the flat ball resting on it,
+ * and the two-tone name standing on the same ground (no line under the name).
  */
 function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
   const u = h / LOCKUP.grid
@@ -178,13 +178,13 @@ function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: nu
   const [touch, line] = WORDMARK
   const wTouch = ctx.measureText(touch).width
   const wLine = ctx.measureText(line).width
-  const width = (LOCKUP.name.left + LOCKUP.name.endPad) * u + wTouch + wLine
+  const width = LOCKUP.name.left * u + wTouch + wLine
   ctx.save()
   ctx.translate(cx - width / 2, cy - h / 2)
-  // The touchline, from the pole's left edge to the end of the name
+  // The short touchline, from the pole's left edge to a little past the ball
   const rule = LOCKUP.rule
   ctx.fillStyle = '#ffffff'
-  roundRect(ctx, rule.left * u, rule.y * u, width - rule.left * u, rule.w * u, (rule.w / 2) * u)
+  roundRect(ctx, rule.left * u, rule.y * u, rule.length * u, rule.w * u, (rule.w / 2) * u)
   ctx.fill()
   // The ball (the flat tier: a white disc with a soft grey edge and the black panels)
   const b = LOCKUP.ball
@@ -203,7 +203,7 @@ function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: nu
   ctx.fillStyle = MARK.panel
   for (const p of ballPanels(bx, by, br)) if (p.type === 'pent') ctx.fill(new Path2D(p.d))
   ctx.restore()
-  // The flag in front: the pennant with its fold, then the pole
+  // The flag: the pennant with its fold (at rest), then the pole standing on the line
   ctx.save()
   ctx.scale(u, u)
   const P = LOCKUP.pennant

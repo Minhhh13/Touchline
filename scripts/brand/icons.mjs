@@ -27,7 +27,9 @@ const targets = [
 ]
 
 const entry = process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright'
-const { chromium } = await import(entry)
+const pw = await import(entry)
+// A CommonJS entry file comes in as the default export
+const { chromium } = pw.chromium ? pw : pw.default
 const browser = await chromium.launch()
 const page = await browser.newPage({ deviceScaleFactor: 1 })
 for (const t of targets) {

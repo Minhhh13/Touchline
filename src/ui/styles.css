@@ -291,8 +291,8 @@ p {
   color: var(--accent);
 }
 /*
- * The open lockup (components/Lockup in Logo.tsx): flag and ball at the left,
- * the name standing on the touchline. Lengths are in u = height / 64 and match
+ * The open lockup (components/Lockup in Logo.tsx): the flag and the ball on a
+ * short touchline at the left, the name standing on the same ground. Lengths are in u = height / 64 and match
  * LOCKUP in brand.ts; keep the two in step. A context resizes it with --h.
  */
 .tl-lockup {
@@ -314,7 +314,7 @@ p {
   vertical-align: middle;
   box-sizing: border-box;
   height: var(--h);
-  padding: 0 calc(3 * var(--u)) 0 calc(47.5 * var(--u));
+  padding: 0 0 0 calc(47.5 * var(--u));
   line-height: 0;
   text-align: left;
 }
@@ -324,29 +324,21 @@ p {
   --tl-glint-edge: #bfdbfe;
   --tl-glint-core: #ffffff;
 }
+/* The short touchline under the flag and the ball; its top edge is the name's baseline */
 .tl-rule {
   position: absolute;
   left: calc(7.5 * var(--u));
-  right: 0;
-  top: calc(46 * var(--u));
-  height: calc(4 * var(--u));
-  border-radius: calc(2 * var(--u));
+  width: calc(36 * var(--u));
+  top: calc(52 * var(--u));
+  height: calc(2 * var(--u));
+  border-radius: calc(1 * var(--u));
   background: var(--tl-ink);
   transform-origin: left center;
 }
-/* The ball rolls inside a track that starts at the pole, so it comes out from behind the pole rather than fading in over it */
-.tl-track {
-  position: absolute;
-  left: calc(9 * var(--u));
-  top: calc(21 * var(--u));
-  width: calc(34 * var(--u));
-  height: calc(26 * var(--u));
-  overflow: hidden;
-}
 .tl-ball {
   position: absolute;
-  left: calc(7.5 * var(--u));
-  top: calc(2 * var(--u));
+  left: calc(16.5 * var(--u));
+  top: calc(29 * var(--u));
   width: calc(23 * var(--u));
   height: calc(23 * var(--u));
   overflow: visible;
@@ -362,7 +354,7 @@ p {
 .tl-name {
   position: relative;
   display: block;
-  margin-top: calc(-1.6 * var(--u));
+  margin-top: calc(12 * var(--u));
   font-family: var(--font-display);
   font-weight: 700;
   font-size: calc(44.3 * var(--u));
@@ -479,10 +471,14 @@ p {
     transform: scaleX(1);
   }
 }
-/* The ball starts out of sight behind the pole and rolls 31u out to its spot: rotation = distance / radius (31 / 11.5 rad) */
+/* The ball fades in clear of the pole and rolls 5u along the line to its spot: rotation = distance / radius (5 / 11.5 rad) */
 @keyframes tl-roll {
   from {
-    transform: translateX(calc(-31 * var(--u))) rotate(-154.4deg);
+    transform: translateX(calc(-5 * var(--u))) rotate(-24.9deg);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
   }
   to {
     transform: none;
