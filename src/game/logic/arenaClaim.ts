@@ -63,7 +63,7 @@ export function arenaVerdictLine(name: string, theirs: ArenaClaim, mine: ArenaCl
     if (format === 'gauntlet') return m.s > t.s ? `⚔️ Climbed ${rungs(m.s)}; ${name} ${runEnd(theirs, format, size)}` : `⚔️ ${name} climbed ${rungs(t.s)}; you ${runEnd(mine, format, size)}`
     return m.s > t.s ? `⚔️ You ${runEnd(mine, format, size)}; ${name} ${runEnd(theirs, format, size)}` : `⚔️ ${name} ${runEnd(theirs, format, size)}; you ${runEnd(mine, format, size)}`
   }
-  const both = format === 'gauntlet' ? (mine.w ? `Both climbed all ${GAUNTLET_RUNGS} rungs` : `Both climbed ${rungs(m.s)}`) : mine.w ? 'Both lifted it' : `Both ${runEnd(mine, format, size)}`
+  const both = format === 'gauntlet' ? (mine.w ? `Both climbed all ${GAUNTLET_RUNGS} rungs` : m.s ? `Both climbed ${rungs(m.s)}` : 'Both fell at rung 1') : mine.w ? 'Both lifted it' : `Both ${runEnd(mine, format, size)}`
   if (m.gd !== t.gd) return m.gd > t.gd ? `⚔️ ${both}; your goal difference was better` : `⚔️ ${both}; ${name}'s goal difference was better`
   if (m.ga !== t.ga) return m.ga < t.ga ? `⚔️ ${both}; you conceded fewer` : `⚔️ ${both}; ${name} conceded fewer`
   return `⚔️ ${both}; dead level with ${name}`
@@ -102,6 +102,7 @@ export function claimLine(name: string, claim: ArenaClaim, format: 'cup' | 'gaun
   const score = last ? ` (${stepText(last)})` : ''
   if (format === 'gauntlet') {
     if (claim.w) return `${name} climbed all ${GAUNTLET_RUNGS} rungs`
+    if (!claim.s) return `${name} fell at rung 1${score}`
     return `${name} climbed ${claim.s} rung${claim.s === 1 ? '' : 's'}, then fell at rung ${claim.g.length}${score}`
   }
   return claim.w ? `${name} lifted it` : `${name} ${runEnd(claim, format, size)}${score}`

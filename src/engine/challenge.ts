@@ -23,6 +23,8 @@ import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
 import type { TrainingFocus } from './training'
 import type { ArenaField } from './knockout'
+import { GAUNTLET_RUNGS } from './gauntlet'
+import { cupRoundCount } from './cup'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
@@ -255,17 +257,32 @@ const ARENA_KEYS: readonly string[] = ['f', 'n', 'fd', 'dc', 'dl']
 
 const isScore = (x: unknown): x is number => isInt(x) && x >= 0 && x <= ARENA_LINK_SCORE_MAX
 
-/** One claimed step: `[gf, ga]`, or `[gf, ga, pensUs, pensThem]` for a level match decided on penalties. */
+/** One claimed step: `[gf, ga]` for a match decided at 90 (never level: a level arena match always goes to penalties), or `[gf, ga, pensUs, pensThem]` for a level match decided on penalties. */
 function isClaimStep(x: unknown): x is ArenaClaimStep {
   if (!Array.isArray(x) || !x.every(isScore)) return false
-  if (x.length === 2) return true
+  if (x.length === 2) return x[0] !== x[1]
   return x.length === 4 && x[0] === x[1] && x[2] !== x[3]
+}
+
+/**
+ * Whether a claim is one a finished run could make: every step but the last
+ * won (a defeat ends the run), `s` the steps won, and the trophy exactly when
+ * the last step was won, which only the last round (the fifteenth rung, the
+ * final) can be.
+ */
+function isRunClaim(ac: ArenaClaim, f: 'gauntlet' | 'cup', size: number): boolean {
+  const won = ac.g.map((g) => g[0] > g[1] || (g.length === 4 && g[2] > g[3]))
+  const last = won[won.length - 1]
+  const rounds = f === 'gauntlet' ? GAUNTLET_RUNGS : cupRoundCount(size)
+  if (won.slice(0, -1).some((w) => !w) || ac.s !== won.filter(Boolean).length || ac.g.length > rounds) return false
+  return last ? ac.w && ac.g.length === rounds : !ac.w
 }
 
 /**
  * Whether a decoded object carries what an arena link needs beside the v1
  * settings and rows: a whitelisted format, size and field; a claim of at most
- * `ARENA_LINK_STEPS_MAX` steps with scores in range; one known training letter
+ * `ARENA_LINK_STEPS_MAX` steps with scores in range that a finished run could
+ * make (`isRunClaim`); one known training letter
  * per step; a Gauntlet's lifeline rung; and the assistant flag.
  */
 export function isArenaLink(o: unknown): o is Pick<ArenaChallengePayload, 'arena' | 't' | 'lf' | 'auto' | 'ac'> {
@@ -283,6 +300,7 @@ export function isArenaLink(o: unknown): o is Pick<ArenaChallengePayload, 'arena
   if (!ac || typeof ac !== 'object' || Array.isArray(ac) || Object.keys(ac).some((key) => !['s', 'w', 'g'].includes(key))) return false
   if (!Array.isArray(ac.g) || !ac.g.length || ac.g.length > ARENA_LINK_STEPS_MAX || !ac.g.every(isClaimStep)) return false
   if (!isInt(ac.s) || ac.s < 0 || ac.s > ac.g.length || !isBool(ac.w)) return false
+  if (!isRunClaim({ s: ac.s, w: ac.w, g: ac.g as ArenaClaimStep[] }, a.f, (a.n as number | undefined) ?? 2)) return false
   if (!isString(x.t) || x.t.length !== ac.g.length || !x.t.split('').every((ch) => trainingOfCode(ch) !== null)) return false
   if (x.lf !== undefined && (a.f !== 'gauntlet' || !isInt(x.lf) || x.lf < 1 || x.lf > ac.g.length)) return false
   return isBool(x.auto)

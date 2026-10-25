@@ -4,7 +4,7 @@ import { createGame } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
 import { arenaRunEntry, arenaShareInput, beginArena, changeTheDraw, closeArenaMatch, cupGameSettings, finalGameSettings, gauntletGameSettings, playArenaStep, simArenaToEnd, sortArenaRuns, groupRunsByLadder, stepWon, type ArenaChoices } from '../logic/arena'
 import { arenaChallengeFromGame, arenaVerifiedLine, challengeLink, challengeSettings, replayArenaChallenge, replayChallenge, runItBackArena, settingsFromArenaChallenge, settingsFromChallenge } from '../logic/challenge'
-import { arenaClaimOf, arenaVerdictLine, arenaVerdictOf, challengeHeadline, ghostStepLine } from '../logic/arenaClaim'
+import { arenaClaimOf, arenaVerdictLine, arenaVerdictOf, challengeHeadline, claimLine, ghostStepLine } from '../logic/arenaClaim'
 import { dailyArenaGameSettings } from '../logic/arenaDaily'
 import { arenaShareText } from '@engine/awards'
 import { ARENA_LINK_STEPS_MAX, decodeChallenge, encodeChallenge, isArenaLink, isArenaPayload, NEWER_LINK, TRAINING_CODE, type ArenaChallengePayload, type ArenaClaim } from '@engine/challenge'
@@ -115,6 +115,14 @@ describe('arena challenge links: encoding', { timeout: 30_000 }, () => {
       ['a score out of range', { ...c, ac: { ...c.ac, g: [[31, 0], ...c.ac.g.slice(1)] } }],
       ['a text score', { ...c, ac: { ...c.ac, g: [['2', 0], ...c.ac.g.slice(1)] } }],
       ['more won than played', { ...c, ac: { ...c.ac, s: c.ac.g.length + 1 } }],
+      // A claim no finished run could make
+      ['a level score with no shoot-out', { ...c, t: 'bb', ac: { s: 1, w: false, g: [[1, 0], [1, 1]] } }],
+      ['a defeat before the last step', { ...c, t: 'bbb', ac: { s: 2, w: false, g: [[1, 0], [0, 1], [2, 0]] } }],
+      ['steps won short of the wins', { ...c, t: 'bb', ac: { s: 0, w: false, g: [[1, 0], [0, 1]] } }],
+      ['a run that won its last step short of the top', { ...c, t: 'bb', ac: { s: 2, w: false, g: [[1, 0], [2, 0]] } }],
+      ['the trophy claimed after a defeat', { ...c, t: 'bb', ac: { s: 1, w: true, g: [[1, 0], [0, 1]] } }],
+      ['the trophy claimed short of the top', { ...c, t: 'bb', ac: { s: 2, w: true, g: [[1, 0], [2, 0]] } }],
+      ['a Cup of 16 with five rounds', { ...c, arena: { f: 'cup', n: 16 }, t: 'bbbbb', lf: undefined, ac: { s: 5, w: true, g: [[1, 0], [1, 0], [1, 0], [1, 0], [1, 0]] } }],
       ['a training letter this build does not know', { ...c, t: 'z'.repeat(c.ac.g.length) }],
       ['training letters short of the steps', { ...c, t: c.t.slice(1) }],
       ['a lifeline in a Cup', { ...c, arena: { f: 'cup', n: 16 }, lf: 1 }],
@@ -126,6 +134,10 @@ describe('arena challenge links: encoding', { timeout: 30_000 }, () => {
     expect(() => decodeChallenge(b64({ ...c, ghosts: [] }))).toThrow(NEWER_LINK)
     expect(isArenaLink(c)).toBe(true)
     expect(isArenaLink({ f: 'gauntlet' })).toBe(false)
+    // The claims a run can make do pass: a Cup of 16 lifted in four rounds, a final lost on penalties
+    const noLifeline = { ...c, lf: undefined }
+    expect(isArenaLink({ ...noLifeline, arena: { f: 'cup', n: 16 }, t: 'bbbb', ac: { s: 4, w: true, g: [[1, 0], [2, 1], [1, 1, 4, 3], [3, 0]] } })).toBe(true)
+    expect(isArenaLink({ ...noLifeline, arena: { f: 'cup', n: 2 }, t: 'b', ac: { s: 0, w: false, g: [[2, 2, 3, 4]] } })).toBe(true)
     expect(Object.values(TRAINING_CODE).every((l) => l.length === 1)).toBe(true)
     expect(new Set(Object.values(TRAINING_CODE)).size).toBe(Object.keys(TRAINING_CODE).length)
   })
@@ -153,7 +165,8 @@ describe('arena challenge links: verification', { timeout: 30_000 }, () => {
       const g = run(i % 2 ? 'cup' : 'gauntlet', `verify-sweep-${i}`)
       const c = linkOf(g)
       expect(challengeLink(c, 'https://touchline.quest', '/').length).toBeLessThan(1100)
-      const out = replayChallenge(u, c)
+      // Through the decoder too: every claim a real run makes passes its checks
+      const out = replayChallenge(u, decodeChallenge(encodeChallenge(c)))
       expect(out.verified, `${g.settings.seed}: ${out.reason}`).toBe('yes')
     }
   }, 60_000)
@@ -242,6 +255,10 @@ describe('arena challenge links: the head-to-head', { timeout: 30_000 }, () => {
     expect(arenaVerdictLine('Minh', six, nine, 'gauntlet')).toBe('⚔️ Climbed 9 rungs; Minh fell at rung 7')
     expect(arenaVerdictLine('Minh', nine, six, 'gauntlet')).toBe('⚔️ Minh climbed 9 rungs; you fell at rung 7')
     expect(arenaVerdictLine('Minh', six, six, 'gauntlet')).toBe('⚔️ Both climbed 6 rungs; dead level with Minh')
+    // A run that fell at the first rung reads as that, never as zero rungs climbed
+    expect(claimLine('Minh', six, 'gauntlet')).toBe('Minh climbed 6 rungs, then fell at rung 7 (0-1)')
+    expect(claimLine('Minh', claim([[1, 3]]), 'gauntlet')).toBe('Minh fell at rung 1 (1-3)')
+    expect(arenaVerdictLine('Minh', claim([[0, 1]]), claim([[1, 2]]), 'gauntlet')).toBe('⚔️ Both fell at rung 1; Minh conceded fewer')
     const sixBetter = claim([[1, 0], [2, 1], [1, 0], [1, 1, 4, 3], [2, 0], [5, 1], [0, 1]])
     expect(arenaVerdictLine('Minh', six, sixBetter, 'gauntlet')).toBe('⚔️ Both climbed 6 rungs; your goal difference was better')
     // The same goal difference, fewer conceded
