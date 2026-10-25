@@ -35,6 +35,7 @@ export function HowTo() {
             <li>Five yellow cards is a one-match ban; red cards bring longer ones. Injuries range from a week to a season.</li>
             <li>Morale moves with results, playing time and your handling of dressing-room events. Stars sulk on the bench.</li>
             <li>Pick a weekly training focus and a pre-match team talk. Both have small, legible effects.</li>
+            <li>During a live match change your instructions, mentality, set-piece takers or shout (from the 70th minute) and make substitutions at any minute from the top bar or the squad strip: five changes in three stoppages, with changes at half time free. A chip in the bar says when a change lands.</li>
             <li>The January window opens after matchweek 19: a market of players from every era, with asking prices that rise under competition and fall on deadline day. Take fringe players on loan, offer one of yours in part-exchange, or approach any player in the database and let his club name a price. Rival clubs bid for your players too, and really sign the ones they buy.</li>
             <li>Have a word with a player once a week: praise, demand more, promise a start or reassure him. His form and his professionalism decide how it lands.</li>
             <li>Name your captain and your set-piece takers. A leader with a strong mentality lifts the side; a good corner or free-kick specialist adds chances.</li>

@@ -7,14 +7,14 @@ import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
 import { canSpin, isComplete, picksMade, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
-import type { LiveChanges, TeamTalk } from '@engine/match'
+import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { runQuickSeason } from './logic/quick'
-import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
+import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
@@ -111,8 +111,12 @@ interface Store {
   playFriendly: () => void
   startSeason: () => void
   playWeek: () => void
-  /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop. */
-  advanceLive: (opts: LiveChanges) => void
+  /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
+  advanceLive: (opts: LiveChanges, hold?: boolean) => void
+  /** A change with the ball in play at a minute (instructions, set pieces, substitutions, a shout from 70); null without a live match. */
+  interveneLive: (change: Omit<InPlayChange, 'side'>) => InPlayOutcome | null
+  /** Close a match held to the whistle: the report and the rest of the week. */
+  completeLive: () => void
   simToEnd: () => void
   simWeeks: (n: number) => void
   closeMatch: () => void
@@ -431,8 +435,22 @@ export const useStore = create<Store>()(
           mutate((g, u) => playFriendly(g, u))
           set({ matchView: 'ticker' })
         },
-        advanceLive: (opts) => {
-          mutate((g, u) => advanceLiveMatch(g, u, opts))
+        advanceLive: (opts, hold = false) => {
+          mutate((g, u) => advanceLiveMatch(g, u, opts, false, hold))
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        interveneLive: (change) => {
+          let out: InPlayOutcome | null = null
+          mutate((g, u) => {
+            out = changeLiveMatch(g, u, change)
+          })
+          return out
+        },
+        completeLive: () => {
+          mutate((g, u) => completeLiveMatch(g, u))
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()

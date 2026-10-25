@@ -10,8 +10,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Appearance } from '@engine/match'
 import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
 import { fractionalClock, useLiveClock } from '../match/clockStore'
-import { initials, metres, onPitchAt, placeSide, separateSides, type PlacedPlayer } from '../match/pitchGeometry'
+import { initials, onPitchAt, placeSide, separateSides, type PlacedPlayer } from '../match/pitchGeometry'
+import { dotPosition, swayPhase } from '../match/movement'
 import { ballAt, buildBallPath, type BallKeyframe } from '../match/possession'
+import { epochAt, type MatchPath } from '../match/epochs'
 import { textColourFor } from '../format'
 
 export interface PitchSide {
@@ -32,6 +34,12 @@ export interface LivePitchProps {
   to: number
   seed: string
   getPlayer: (id: string) => PlayerSeason | undefined
+  /** What each dot shows (shirt numbers); initials when absent. */
+  labels?: Record<string, number | string>
+  /** The whole match's placements and ball path (epochs.ts): the shape moves from the minute a change was made and the ball carries on. Without it the pitch lays out its own path for `from`..`to`. */
+  track?: MatchPath
+  /** Goalkeepers' shirts, by side. */
+  keepers?: { home: string; away: string }
 }
 
 export function useMediaQuery(query: string): boolean {
@@ -83,13 +91,17 @@ export function PitchSvg({ portrait = false, children, label }: { portrait?: boo
 
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
 
-export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer }: LivePitchProps) {
+export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers }: LivePitchProps) {
   const portrait = useMediaQuery('(max-width: 720px)')
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   const clock = useLiveClock((s) => s.clock)
   const minute = Math.min(clock, to)
-  const { home: homePlaced, away: awayPlaced } = useMemo(() => separateSides(placeSide(home.appearances, home.tactics, 'home'), placeSide(away.appearances, away.tactics, 'away')), [home.appearances, home.tactics, away.appearances, away.tactics])
-  const path = useMemo(() => buildBallPath({ from, to, momentum, events, home: homePlaced, away: awayPlaced, seed }), [from, to, momentum, events, homePlaced, awayPlaced, seed])
+  const own = useMemo(() => (track ? null : separateSides(placeSide(home.appearances, home.tactics, 'home'), placeSide(away.appearances, away.tactics, 'away'))), [track, home.appearances, home.tactics, away.appearances, away.tactics])
+  // With a track, the placements of the spell the clock stands in
+  const epoch = track && track.epochs.length ? epochAt(track, Math.max(minute, 0) + 0.5) : null
+  const homePlaced = epoch?.home ?? own?.home ?? []
+  const awayPlaced = epoch?.away ?? own?.away ?? []
+  const path = useMemo(() => track?.path ?? buildBallPath({ from, to, momentum, events, home: homePlaced, away: awayPlaced, seed }), [track, from, to, momentum, events, homePlaced, awayPlaced, seed])
   const map = useMemo(() => pitchMapper(portrait), [portrait])
 
   const ballRef = useRef<SVGGElement>(null)
@@ -99,7 +111,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const dots = useRef(new Map<string, SVGGElement>())
   const placed = useMemo(() => new Map<string, PlacedPlayer>([...homePlaced, ...awayPlaced].map((p) => [p.psId, p])), [homePlaced, awayPlaced])
   // A fixed sway phase per man, from his id, so the picture is the same on every replay
-  const phases = useMemo(() => new Map([...placed.keys()].map((id) => [id, [...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 6283, 7) / 1000])), [placed])
+  const phases = useMemo(() => new Map([...placed.keys()].map((id) => [id, swayPhase(id)])), [placed])
 
   const shownRef = useRef(new Map<string, { x: number; y: number }>())
   // The animation: one frame reads the shared clock, interpolates the ball and sets transforms.
@@ -130,47 +142,18 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
         ballRef.current.setAttribute('transform', b ? at(b.x, b.y) : at(50, 50))
         ballRef.current.setAttribute('opacity', b ? '1' : '0')
       }
-      // Both blocks shift up and down the pitch with the ball
-      const lean = b ? (b.x - 50) * 0.08 : 0
       const i = b?.index ?? -1
-      const cur = i >= 0 ? path[i] : undefined
-      const next = b?.next ?? null
-      const f = b?.progress ?? 1
-      let saveKf: BallKeyframe | null = null
       let shotKf: BallKeyframe | null = null
       for (let k = i; k >= 0 && k >= i - 2; k--) {
         const kf = path[k]
-        if (kf.kind === 'save' && Math.abs(T - kf.t) < 0.5) saveKf = kf
         if (kf.kind === 'shot' && k < path.length - 1 && T - kf.t < 0.6) shotKf = kf
       }
       shown.clear()
+      // Everyone by the one movement formula the heat maps sample (movement.ts)
       for (const [psId, el] of dots.current) {
         const p = placed.get(psId)
         if (!p) continue
-        // The man on the ball (or about to receive it) stands where the ball is; everyone
-        // else moves with his block, the nearest drift towards the ball and all of them sway.
-        let hold = 0
-        if (cur?.holder === psId) hold += next ? 1 - f : 1
-        if (next?.holder === psId) hold += f
-        hold = Math.min(1, hold)
-        let x = p.x + lean * (1 - hold) * (p.position === 'GK' ? 0.35 : 1)
-        let y = p.y
-        if (b && hold < 1 && p.position !== 'GK') {
-          const pull = 0.24 * Math.max(0, 1 - metres(b, { x, y }) / 26) * (1 - hold)
-          x += (b.x - x) * pull
-          y += (b.y - y) * pull
-          const phase = phases.get(psId) ?? 0
-          x += Math.sin(T * 1.7 + phase) * 0.5 * (1 - hold)
-          y += Math.cos(T * 1.3 + phase) * 0.7 * (1 - hold)
-        }
-        if (saveKf && saveKf.holder === psId) {
-          const prev = path[path.indexOf(saveKf) - 1]
-          const dive = 1 - Math.abs(T - saveKf.t) / 0.5
-          if (prev) {
-            x += (prev.x - p.x) * 0.35 * dive
-            y += (prev.y - p.y) * 0.5 * dive
-          }
-        }
+        const { x, y } = dotPosition(p, path, b, T, phases.get(psId) ?? 0)
         el.setAttribute('transform', at(x, y))
         shown.set(psId, { x, y })
       }
@@ -226,15 +209,17 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const stillBall = reduced ? ballAt(path, Math.min(to, minute) + 0.99, true) : null
   const scoreNow = events.filter((e) => GOAL_TYPES.has(e.type) && e.minute <= minute)
 
-  const dot = (p: PlacedPlayer, colour: string) => {
+  const dot = (p: PlacedPlayer, kit: string) => {
     const name = getPlayer(p.psId)?.name
+    const colour = keepers && p.position === 'GK' ? keepers[p.side] : kit
+    const label = labels?.[p.psId]
     const [sx, sy] = map(p.x, p.y)
     return (
       <g key={p.psId} ref={(el) => { if (el) dots.current.set(p.psId, el); else dots.current.delete(p.psId) }} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className="live-dot" data-testid="live-dot">
         <title>{name ?? p.psId}</title>
         <circle r="2.7" fill={colour} stroke="rgba(0,0,0,0.55)" strokeWidth="0.4" />
-        <text y="0.85" textAnchor="middle" fontSize="2.3" fontWeight="700" fill={textColourFor(colour)}>
-          {initials(name)}
+        <text y="0.85" textAnchor="middle" fontSize={label !== undefined ? 2.5 : 2.3} fontWeight="700" fill={textColourFor(colour)}>
+          {label !== undefined ? String(label) : initials(name)}
         </text>
         {booked.has(p.psId) && <rect x="1.7" y="-3.9" width="1.5" height="2.1" rx="0.2" fill="var(--gold)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.2" />}
       </g>
