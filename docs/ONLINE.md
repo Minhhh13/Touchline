@@ -16,6 +16,12 @@ The game stays offline-first and unchanged. `src/online` loads only when the bui
 | `src/online/buildInfo.ts` | the pure part of the `buildInfo()` Vite plugin that writes `dist/build.json` (`{ engine, data, builtAt }`) |
 | `src/online/core/` | pure helpers shared by the client and the verifier: `canonical.ts`, `bytes.ts`, `codes.ts`, `authUrl.ts`, `slots.ts`, `merge.ts` (profile merge), `syncPlan.ts` (cloud-save decision table), `country.ts` |
 | `src/online/server/dailyVerify.ts` | the verifier core: `puzzleOf`, `settingsHash`, `strictReplayDraft`, `verifyDaily`, `verifyWeekly` |
+| `src/online/server/service.ts` | the Edge Function's request flow, `createServer(deps)` (section 5a), tested with fakes in `service.test.ts` / `serverHarness.ts` |
+| `src/online/server/validate.ts`, `packs.ts`, `entry.ts` | request, `build.json` and `leagues.json` validators; `universeFromPacks`; the verifier bundle's entry |
+| `supabase/functions/touchline/` | `index.ts` (the Deno adapter: Supabase clients, Storage, Auth admin, the live site), `deno.json`, `deno.lock` |
+| `scripts/online/build-verifier.mjs`, `check-verifier.mjs` | `npm run build:verifier` (the bundle, `supabase/functions/_shared/verifier.js`, gitignored), `npm run check:verifier` (the bundle through a whole day, in Node or Deno) |
+| `scripts/online/deploy-function.mjs`, `smoke-function.mjs` | `npm run deploy:function` (stage `touchline-e{V}/`, deploy with the CLI or hand `deploy-files.json` to the connector); the live smoke with two test accounts |
+| `.github/workflows/supabase-deploy.yml` | manual only: `supabase db push` and the function deploy, environment `production` |
 | `src/online/daily.ts`, `src/online/weekly.ts` | pure client parts: `dailyStartSettings`, `buildDailySubmission`; the weekly mapping `weeklyGameSettings`, `weekKeyOf` |
 | `src/online/__tests__/packHashes.json` | the stamp guard's record of every pack file's SHA-256 per `generatedAt` |
 | `supabase/migrations/` | the Phase 1 migrations (section 4) |
@@ -23,18 +29,18 @@ The game stays offline-first and unchanged. `src/online` loads only when the bui
 | `scripts/online/sql/stub.sql`, `run-local.sh` | a local stand-in for Supabase and the runner (`npm run sql:test`) |
 | `scripts/online/check-dist-keys.mjs` | `npm run check:dist-keys`: fails when `dist/` holds an `sb_secret_` key or a non-anon JWT (CI runs it after the build) |
 | `.github/workflows/db-tests.yml` | runs the SQL suite on a Postgres 17 service container, only for commits that touch SQL |
-| `.github/workflows/keepalive.yml` | the Free project's daily keep-alive (scheduled; never fails) |
+| `.github/workflows/keepalive.yml` | a second, independent daily keep-alive from GitHub (scheduled; never fails) |
 
 ## 3. The project
 
 - Supabase project `yvqpmyqomkwtudxmkeou` ("TouchLine", org Team TouchLine), Sydney `ap-southeast-2`, Postgres 17, **Free plan** (the owner's decision of 2026-10-25: keep it, add a daily keep-alive, upgrade the same project to a paid plan before a public launch). Never touch any other project.
-- Free projects pause after about a week without activity. `keepalive.yml` reads one row of `daily_puzzles` through the Data API every day at 04:41 UTC with the publishable key; it needs the repository **variables** `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (Settings > Secrets and variables > Actions > Variables; both values are public). Without them it does nothing, and it never fails, so it can never block Render.
+- Free projects pause after about a week without activity. The migration `keepalive` schedules the pg_cron job `touchline-keepalive` (05:23 UTC): `private.keepalive_ping()` queries `daily_puzzles` and, once two Vault secrets exist, GETs one row through the project's own Data API with pg_net (it refuses any URL but `https://yvqpmyqomkwtudxmkeou.supabase.co`). Add the secrets once in the SQL editor: `select vault.create_secret('https://yvqpmyqomkwtudxmkeou.supabase.co', 'touchline_project_url');` and `select vault.create_secret('<the sb_publishable_ key>', 'touchline_publishable_key');` (both public values). As a second ping, `keepalive.yml` reads one row of `daily_puzzles` through the Data API every day at 04:41 UTC with the publishable key; it needs the repository **variables** `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (Settings > Secrets and variables > Actions > Variables; both values are public). Without them it does nothing, and it never fails, so it can never block Render.
 - Domain `touchline.quest` (Render custom domain; `www` redirects to the bare domain). Supabase Auth: Site URL `https://touchline.quest`; redirect URLs `https://touchline.quest/**`, `https://touchline-16xv.onrender.com/**`, `https://touchline-preview-hfvi.onrender.com/**`, `http://localhost:5173/**`. Custom SMTP through Resend (region Tokyo); Confirm email on; anonymous sign-ins off (accounts only).
 - The Data API exposes `public` (and `graphql_public`) only, never `private`.
 
 ## 4. Database (Phase 1)
 
-Applied in this order (file names carry the version the project recorded once applied). State on 2026-10-25: `online_core` applied (version `20261025092919`); the others pending, because the Supabase connector asked the owner to confirm the second migration and the question went unanswered. Apply them in file order with the connector's `apply_migration` (or `supabase link --project-ref yvqpmyqomkwtudxmkeou && supabase db push`), rename each local file to the version the project records (`list_migrations`), then run both advisors.
+Applied in this order (file names carry the version the project recorded once applied). State on 2026-10-25: `online_core` applied (version `20261025092919`); the others (including `keepalive`) pending, because the Supabase connector asked the owner to confirm the second migration and the question went unanswered. Apply them in file order with the connector's `apply_migration` (or `supabase link --project-ref yvqpmyqomkwtudxmkeou && supabase db push`), rename each local file to the version the project records (`list_migrations`), then run both advisors.
 
 1. `online_core`: the `private` schema, helpers, rate limits, the data-pack registry and its private `packs` bucket, `profiles` (one display name per account, unique ignoring case, and an optional `country`, both readable only by the owner).
 2. `cloud_saves`: the private `saves` bucket with owner-folder policies and a 16-object cap, `cloud_saves` (compare-and-set rows with one previous copy), `cloud_profile`, and the client writers `save_claim`, `save_delete`, `save_orphans`, `cloud_delete_all`, `profile_put`.
@@ -44,6 +50,7 @@ Applied in this order (file names carry the version the project recorded once ap
 6. `online_housekeeping`: pg_cron, daily clean-up of spent rate-limit windows and expired codes.
 7. `service_only_policies`: an explicit deny-all policy for the client roles on the five service-only tables in `private` (answers the Security Advisor's INFO lint 0008; no behaviour change).
 8. `review_hardening` (the adversarial review of 2026-10-25, a forward migration so it applies the same on any earlier state): `save_claim`, `save_delete` and `profile_put` compare the base revision with `is distinct from` (a null base used to skip the compare-and-set and overwrite the newer copy); a claim never lists an object a row still points at as `obsolete`, and filing the current object as its own previous copy is refused; `private.save_object_count()` counts the caller's objects only (it took any user id); display names and board team names refuse invisible, bidi and exotic space characters (`private.is_clean_name`, mirrored by `HIDDEN_CHARS` in the verifier and pinned equal by a test), which let a name pose as someone else's while passing the uniqueness check.
+9. `keepalive` (2026-10-25): pg_cron and pg_net, `private.keepalive_ping()` (owner-only, SECURITY DEFINER in `private`, reads Vault), the daily job `touchline-keepalive`. Tested in `supabase/tests/sql/phase1_keepalive.sql` with stand-ins for Vault and pg_net. Pending, like 2 to 8.
 
 This project's default privileges grant every new table, sequence and function in `public` to `anon` and `authenticated` (read from `pg_default_acl` on 2026-10-25). Every migration therefore revokes table privileges and EXECUTE before granting, the stand-in mirrors those defaults, and the suite asserts that `anon` can read only `daily_puzzles` and `weekly_puzzles` and execute only the eight readers.
 
@@ -59,6 +66,27 @@ Run the SQL suite locally with `npm run sql:test` (needs PostgreSQL 16 or 17 bin
 - Verified exactly like the Daily (`verifyWeekly`): the strict draft replay, then the quick season, figures from the replay only.
 - First post stands (like the Daily): one entry per account per week; posts accepted until 00:00 UTC on the Tuesday after the week (a one-day grace for a run started late on Sunday), picks revealed after that. 2026-W43 is a 4-4-2 diamond as Southampton in 2018-19.
 
+## 5a. The Edge Function (`touchline-e{ENGINE_VERSION}`)
+
+One function per engine version (`touchline-e4` on this branch), deployed with `verify_jwt` on and `withSupabase({ auth: 'user' })`: every call carries a signed-in user's JWT; the user id comes only from the verified claims. The flow lives in `src/online/server/service.ts`; `supabase/functions/touchline/index.ts` only wires it to Supabase. POST a JSON body `{ op, ... }` (at most 16 KB):
+
+| Op | Body | Answer |
+| --- | --- | --- |
+| `status` | | `{ status: 'ok', engine, live, today, week }` |
+| `daily.pin` | `date?` (today or yesterday, UTC) | `{ status: 'ok', pin }`; the first call of the day pins it |
+| `weekly.pin` | `week?` (`YYYY-Www`, while open) | `{ status: 'ok', pin }` |
+| `daily.submit`, `weekly.submit` | `encoded` (the `ChallengePayload`), `teamName`, `shortName` | 200 `ranked` / `duplicate` / `already_submitted` with `position`, `total`, the country figures and `official` (the replay's figures, `claimMatched`) |
+| `account.delete` | `confirm: 'delete my account'` | removes every object under `saves/<uid>/`, revokes every session, deletes the user (foreign keys remove the rest) |
+
+Errors are `{ status, code, reason, ...context }` with these HTTP statuses: 400 `bad_request`; 403 `guest`; 409 `closed`, `no_puzzle`, `engine_mismatch` (with `pinnedEngine` or `liveEngine`), `data_mismatch` (with `pinnedData`), `puzzle_mismatch`; 422 `invalid_payload`, `invalid_team`, `invalid_picks` (the replay's reason, "Spin 4: ..."); 429 `rate_limited` (per account per hour: 20 posts per board, 30 pins, 5 deletions); 503 `live_build_unavailable`, `packs_unavailable`, `unavailable` (safe to retry). Challenge codes have no op: `create_challenge` and `get_challenge` are database functions.
+
+- **Pins.** A pin is made at most once per day or week, only by the live engine: the function reads `<TOUCHLINE_SITE_URL>/build.json` (cached 5 minutes per isolate) and refuses with `engine_mismatch` when the live site runs another engine. The settings come from `dailyGameSettings` / `weeklyGameSettings` on the England universe of the live data stamp.
+- **Packs.** The first time a stamp is seen live, the function fetches `data/leagues.json` and every league's `players.json` and `meta.json` from the live site, checks the stamps, hashes each file (SHA-256), uploads them to the private bucket `packs` at `v/<stamp>/...` (never overwriting) and registers the hashes (`svc_register_data_pack`). Universes are built only from the archive, each file checked against its hash, two kept per isolate.
+- **Data versions.** A run on the pin's data ranks; a run on a stamp the live site served after the pin was made (a mid-day rebuild) ranks on its own data; anything else is `data_mismatch`.
+- **Secrets.** `TOUCHLINE_SITE_URL` (default `https://touchline.quest`). The platform injects `SUPABASE_URL`, the publishable and secret keys and the JWKS; nothing else, and no key is in the repository.
+- **Deploy.** `npm run deploy:function -- --stage-only` stages `supabase/functions/touchline-e{V}/` and `deploy-files.json` (the connector's `deploy_edge_function`: entrypoint `index.ts`, `verify_jwt` true); `SUPABASE_ACCESS_TOKEN=<scoped token> npm run deploy:function` deploys with the CLI; or run the manual workflow `supabase-deploy.yml`. Then `node scripts/online/smoke-function.mjs` with two test accounts.
+- **Needs before it can answer pins:** the migrations `daily_board` and `weekly_board` applied, and the live site serving `build.json` (written by the `buildInfo()` Vite plugin of this branch) with this engine.
+
 ## 6. Checks only the real project can confirm
 
 Recorded with their dates as they are done.
@@ -68,7 +96,9 @@ Recorded with their dates as they are done.
 | PostgREST answers `PT401`/`PT403`/`PT429`/`PT503` with those HTTP statuses | pending (needs the Edge Function and a signed-in client) |
 | SECURITY DEFINER functions can read `storage.objects` | pending (`cloud_saves` not applied yet) |
 | Storage refuses a 17th upload under the uploader's JWT | pending (needs a signed-in client) |
-| pg_cron lists `touchline-housekeeping` | pending (`online_housekeeping` not applied yet; pg_cron is available, not installed) |
+| pg_cron lists `touchline-housekeeping` and `touchline-keepalive` | pending (`online_housekeeping` and `keepalive` not applied yet; pg_cron 1.6.4 and pg_net 0.20.4 available, not installed; Vault 0.3.1 installed; read 2026-10-25) |
+| The Edge Function answers `status`, pins, ranks an honest run, refuses a tampered one (`smoke-function.mjs`) | pending (the function is not deployed; it needs the board migrations and a live `build.json`) |
+| Warm submissions under 1 s of CPU | pending (locally a whole verified Daily takes about 0.3 to 0.5 s in Node and Deno) |
 | Security and performance advisors clean | after `online_core` (2026-10-25): performance clean; security one INFO (lint 0008 on `private.rate_limits` and `private.data_packs`), fixed by `service_only_policies` once applied |
 | The project's default privileges | read 2026-10-25: new public tables and functions are granted to anon and authenticated; handled in every migration |
 | `private` not in the Data API's exposed schemas | the default; confirm in Settings > API |
@@ -79,7 +109,7 @@ Recorded with their dates as they are done.
 1. Migrations (connector `apply_migration` or `supabase db push`), then both advisors. 2. The Edge Function. 3. Merge the client PR to `main`; Render deploys after CI. 4. Smoke on the live site. 5. A `docs/HANDOVER.md` change-log line.
 
 ### Engine bump
-To be written with the Edge Function (item 8).
+1. On the release branch, `npm run deploy:function` deploys `touchline-e{new}` before the merge (nothing calls it until clients on the new engine do). 2. Merge right after 00:00 UTC; Render deploys `main` and its `build.json` names the new engine, so the next pin is made by the new function (the old one refuses with `engine_mismatch`). 3. Redeploy `touchline-e{new}` from `main`. 4. Keep `touchline-e{old}` deployed at least 7 days (yesterday's board and the weekly finish on it), then delete it in the dashboard.
 
 ### Data rebuild
 A rebuild needs a new `generatedAt` (the stamp guard fails CI otherwise): rebuild, run `UPDATE_PACK_HASHES=1 npx vitest run src/online/__tests__/stamps.test.ts`, commit `public/data/**` with `packHashes.json`. Deploy right after 00:00 UTC.
