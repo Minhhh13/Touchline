@@ -12,7 +12,7 @@ import { placeSide, toShared, type Side } from '../match/pitchGeometry'
 import { territory as territoryOf, xgSeries } from '../match/charts'
 import { shotXg } from '@engine/matchStats'
 import { PitchSvg, pitchMapper, useMediaQuery, type PitchSide } from './LivePitch'
-import { minuteLabel, textColourFor } from '../format'
+import { formationName, minuteLabel, textColourFor } from '../format'
 
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
 const SHOT_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', 'chance', 'save'])
@@ -219,7 +219,7 @@ export function TacticsOverlay({ side, attack, getPlayer }: { side: PitchSide & 
       <div className="row between small" style={{ marginBottom: 4 }}>
         <span className="row" style={{ gap: 6 }}>
           <span className="swatch" style={{ background: side.colour }} />
-          <b>{side.shortName}</b> {t.formationId}
+          <b>{side.shortName}</b> {formationName(t.formationId)}
         </span>
         <span className="muted">{portrait ? (attack === 'home' ? 'attacking up' : 'attacking down') : attack === 'home' ? 'attacking right' : 'attacking left'}</span>
       </div>

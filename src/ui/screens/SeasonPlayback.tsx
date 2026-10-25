@@ -25,7 +25,8 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ManagerChip } from '../components/ManagerPick'
 import { Pos, Segmented } from '../components/bits'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
-import { clubName, money, ordinal } from '../format'
+import { money, ordinal } from '../format'
+import { sideNamer } from '@game/logic/superLeague'
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -57,7 +58,9 @@ export function SeasonPlayback() {
       }
     : undefined
   const s = game.settings
-  const opponent = (id: string) => ({ clubId: id, name: clubName(u, id) })
+  // A Super League side carries its season: "Barcelona 2010-11"
+  const sideName = sideNamer(game, u)
+  const opponent = (id: string) => ({ clubId: id, name: sideName(id) })
   const total = game.quickResult?.results?.length ?? quickSeasonGames(u, s)
   const chase = chaseAt(results, pb.revealed)
   const line = chaseLine(chase, total)
@@ -67,7 +70,7 @@ export function SeasonPlayback() {
   const moment = momentAt(tables, results, pb.revealed, USER_TEAM)
   const teams = table.length || total / 2 + 1
   const series = tables.length ? positionSeries(tables, results, USER_TEAM, pb.revealed) : results.slice(0, pb.revealed).map((r) => r.position)
-  const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(clubName(u, id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
+  const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(sideName(id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
   const janOpen = !!j && pb.done
   const at = janOpen ? 'jan' : 'play'
   const tab = tabState.at === at ? tabState.tab : janOpen ? 'chart' : tabState.tab
@@ -143,7 +146,7 @@ export function SeasonPlayback() {
             <h3>Live table</h3>
             <span className="small muted">{pb.revealed ? `After game ${pb.revealed}` : 'Before kick-off'}</span>
           </div>
-          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={(id) => clubName(u, id)} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} /> : <p className="small muted">This season was saved before the live table: the game list has every result.</p>}
+          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={sideName} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} /> : <p className="small muted">This season was saved before the live table: the game list has every result.</p>}
         </div>
         <div className="fit-cell fit-col" data-pane="chart">
           {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}

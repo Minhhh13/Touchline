@@ -5,6 +5,7 @@ import { getFormation } from '@engine/formations'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { retargetRoles } from '@engine/tactics'
 import { isAvailable, playerLookup, squadPlayers } from './players'
+import { logMorale } from './happiness'
 import type { Lineup } from '@engine/types'
 import { STATUS_RANK, WAGE_MULT, type SquadStatus } from '@engine/status'
 
@@ -118,6 +119,8 @@ export function setSquadStatus(game: Game, u: LoadedUniverse, playerSeasonId: st
   if (from === status) return
   c.status = status
   const up = STATUS_RANK[status] > STATUS_RANK[from]
+  const before = s.morale
   s.morale = Math.max(10, Math.min(100, s.morale + (up ? 6 : -6)))
+  logMorale(s, game.season?.matchweek ?? 0, before, 'status', status)
   if (up && !c.loan) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * (WAGE_MULT[status] / WAGE_MULT[from])) }
 }

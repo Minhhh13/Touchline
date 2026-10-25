@@ -3,7 +3,7 @@ import { USER_TEAM } from '@engine/season'
 import { ClubBadge, FormDots } from './bits'
 import { useStore } from '@game/store'
 
-export function TableView({ rows, teamName, compact, highlightTop }: { rows: TableRow[]; teamName: string; compact?: boolean; highlightTop?: boolean }) {
+export function TableView({ rows, teamName, compact, highlightTop, nameOf }: { rows: TableRow[]; teamName: string; compact?: boolean; highlightTop?: boolean; nameOf?: (clubId: string) => string }) {
   const u = useStore((s) => s.universe)
   return (
     <table className="tbl">
@@ -23,7 +23,7 @@ export function TableView({ rows, teamName, compact, highlightTop }: { rows: Tab
       <tbody>
         {rows.map((r, i) => {
           const me = r.teamId === USER_TEAM
-          const name = me ? teamName : u?.clubById[r.teamId]?.name ?? r.teamId
+          const name = me ? teamName : nameOf ? nameOf(r.teamId) : u?.clubById[r.teamId]?.name ?? r.teamId
           return (
             <tr key={r.teamId} className={me ? 'me' : ''} style={highlightTop && i === 0 ? { fontWeight: 700 } : undefined}>
               <td>{i + 1}</td>

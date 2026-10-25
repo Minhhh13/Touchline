@@ -14,9 +14,12 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Info, Segmented, Stat, TeamBadge } from '../components/bits'
 import { FormationPicker } from '../components/FormationPicker'
 import { LeagueFlag } from '../components/Flag'
-import { clubName, ordinal, seasonLabel, tierName } from '../format'
+import { clubName, ordinal, seasonLabel, tierName, formationName } from '../format'
+import { TeamNameField } from '../components/SetupBits'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
+import { h2hTierOdds } from '@game/logic/tierOdds'
+import { SpinOdds } from '../components/SpinOdds'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
 import { GameByGame } from '../components/GameByGame'
 
@@ -40,6 +43,7 @@ export function H2HSetup() {
   const host0 = clubs.includes(hosts[0]) ? hosts[0] : clubs[Math.floor(clubs.length / 3)]
   const host1 = clubs.includes(hosts[1]) && hosts[1] !== host0 ? hosts[1] : clubs.find((c) => c !== host0) ?? clubs[0]
   const short = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase() || 'MGR'
+  const nameOf = (i: number) => names[i].trim() || `Manager ${i + 1}`
   return (
     <div className="page">
       <div className="screen-head">
@@ -76,10 +80,7 @@ export function H2HSetup() {
                 <ClubBadge clubId={host} size={36} />
                 <h3 style={{ margin: 0 }}>Manager {i + 1}</h3>
               </div>
-              <label className="field">
-                Name
-                <input className="input" value={names[i]} maxLength={24} onChange={(e) => setNames(names.map((n, j) => (j === i ? e.target.value : n)))} />
-              </label>
+              <TeamNameField label="Name" value={names[i]} onChange={(v) => setNames(names.map((n, j) => (j === i ? v : n)))} fallback={`Manager ${i + 1}`} maxLength={24} testId={`h2h-name-${i}`} taken={[names[1 - i]]} />
               <div className="field formation-field">
                 Formation
                 <FormationPicker value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} label={`Manager ${i + 1} formation`} testId={`h2h-formation-${i}`} />
@@ -147,7 +148,7 @@ export function H2HSetup() {
           </div>
         </div>
         <div className="h2h-start">
-          <button className="btn primary big block" disabled={!ready || loadingLeagues} onClick={() => startH2H([{ name: names[0] || 'Manager 1', shortName: short(names[0] || 'Manager 1'), formationId: formations[0], hostClubId: host0 }, { name: names[1] || 'Manager 2', shortName: short(names[1] || 'Manager 2'), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
+          <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
             {ready ? 'Start the head-to-head' : 'Loading league data…'}
           </button>
         </div>
@@ -175,6 +176,8 @@ export function H2HScreen() {
   // The leagues the wheel draws from are the draft rules' (an older save may lack `wheelLeagues`)
   const rules = h2h?.draft.drafts[0].rules
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
+  // The exact tier odds of the next spin, shown between spins
+  const odds = useMemo(() => (u && h2h && !h2h.draft.current && !h2hComplete(h2h.draft) ? h2hTierOdds(u, h2h.draft, leagues) : []), [u, h2h, leagues])
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
@@ -236,6 +239,7 @@ export function H2HScreen() {
         <div className="col">
           <div className="panel col">
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
+            {!d.current && !complete && <SpinOdds odds={odds} label="Next spin" />}
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
@@ -328,7 +332,7 @@ export function H2HScreen() {
                 <span className="club-head">
                   <ClubBadge clubId={h2h.managers[i].hostClubId} size={24} />
                   <h3>
-                    {h2h.managers[i].name} · {h2h.managers[i].formationId}
+                    {h2h.managers[i].name} · {formationName(h2h.managers[i].formationId)}
                   </h3>
                 </span>
                 <span className={`chip icon-chip ${isComplete(d.drafts[i]) ? 'good' : ''}`}>

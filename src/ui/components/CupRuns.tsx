@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import type { Game, QuickCupRun } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { cupReachLabel, cupRoundLabel, cupScoreLabel, QUICK_CONTINENTAL_PLACES, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
+import { cupReachLabel, cupRoundLabel, cupScoreLabel, QUICK_CONTINENTAL_PLACES, QUICK_CUP_ENTRANTS, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
 import { scorersLabel } from '@game/logic/gameByGame'
 import { ClubBadge } from './bits'
-import { clubName, ordinal } from '../format'
+import { ordinal } from '../format'
+import { isSuperLeague, sideNamer } from '@game/logic/superLeague'
 
 /** Milliseconds between two ties of a cup run as it is revealed. */
 export const TIE_STEP_MS = 1100
@@ -28,7 +29,7 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
   const euro = quickCupStatus(game, u, 'continental')
   // An older season's in-league Continental Cup run has its own panel; a finish outside the places says what it needed
   const showEuro = euro.state !== 'none' || euro.reason.startsWith('A top-')
-  if (cup.state === 'none' && !showEuro) return null
+  if ((cup.state === 'none' || isSuperLeague(game.settings)) && !showEuro) return null
   return (
     <div className="panel col cup-nights" data-testid="cup-nights">
       <div className="sc-head">
@@ -36,7 +37,8 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
         <h2>Cup nights</h2>
       </div>
       <div className="cup-cards">
-        <CupCard comp="cup" game={game} u={u} onReveal={onReveal} />
+        {/* The Super League has no domestic cup: only its Continental Cup follows the league */}
+        {!isSuperLeague(game.settings) && <CupCard comp="cup" game={game} u={u} onReveal={onReveal} />}
         {showEuro && <CupCard comp="continental" game={game} u={u} onReveal={onReveal} />}
       </div>
     </div>
@@ -93,7 +95,7 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
       {status.state === 'open' && (
         <>
           <p className="small muted" style={{ margin: 0 }}>
-            {comp === 'cup' ? 'Sixteen of the league’s clubs, one-off ties, extra time and penalties if level, a final at a neutral ground.' : `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place among the best sides of the other leagues that season: four knockout rounds to a final.`}
+            {comp === 'cup' ? 'Sixteen of the league’s clubs, one-off ties, extra time and penalties if level, a final at a neutral ground.' : isSuperLeague(game.settings) ? `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place against the next ${QUICK_CUP_ENTRANTS - 1} greatest sides in the data: four knockout rounds to a final.` : `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place among the best sides of the other leagues that season: four knockout rounds to a final.`}
           </p>
           <div className="cup-choice">
             <button className="btn primary" onClick={() => void play()} disabled={busy || loadingLeagues} data-testid={`cup-${comp}-play`}>
@@ -111,7 +113,7 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
           {comp === 'continental' ? `Finish in the top ${QUICK_CONTINENTAL_PLACES} to play it.` : status.reason + '.'}
         </p>
       )}
-      {run && <TieList comp={comp} run={run} shown={n} u={u} />}
+      {run && <TieList comp={comp} run={run} shown={n} nameOf={sideNamer(game, u)} />}
       {run && !revealing && run.reached === 'W' && (
         <div className="cup-trophy" data-testid={`cup-${comp}-trophy`}>
           {ICON[comp]} {comp === 'cup' ? 'Cup winners' : 'Champions of the continent'}
@@ -121,7 +123,7 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
   )
 }
 
-function TieList({ comp, run, shown, u }: { comp: QuickCupComp; run: QuickCupRun; shown: number; u: LoadedUniverse }) {
+function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickCupRun; shown: number; nameOf: (clubId: string) => string }) {
   const ties = run.ties.slice(0, shown).reverse()
   return (
     <ol className="gbg-list cup-ties" data-testid={`cup-${comp}-ties`}>
@@ -135,7 +137,7 @@ function TieList({ comp, run, shown, u }: { comp: QuickCupComp; run: QuickCupRun
             </span>
             <ClubBadge clubId={t.opponentId} size={22} />
             <span className="gbg-fix">
-              {clubName(u, t.opponentId)} <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
+              {nameOf(t.opponentId)} <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
             </span>
             <span className="gbg-score">
               {t.gf}-{t.ga}
