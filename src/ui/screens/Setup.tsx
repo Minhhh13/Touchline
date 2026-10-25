@@ -46,6 +46,11 @@ const DRAFT_MODE_OPTIONS: Array<{ value: DraftMode; title: string; line: string 
 ]
 /** Quick Draft bench places: off, or up to five extra picks the season can bring on (three changes, plus injury cover). */
 const BENCH_OPTIONS: Array<{ value: string; label: string }> = [{ value: '0', label: 'Off' }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))]
+/** Quick Draft managers: pick one of the real managers of the club-seasons drafted, or play without. */
+const MANAGER_OPTIONS: Array<{ value: 'on' | 'off'; title: string; line: string }> = [
+  { value: 'on', title: 'On', line: 'Pick a real manager from the clubs you drafted' },
+  { value: 'off', title: 'Off', line: 'No manager: the XI on its own' },
+]
 const RATINGS_MODE_OPTIONS: Array<{ value: RatingsMode; title: string; line: string }> = [
   { value: 'season', title: 'Season', line: 'Rated as he was in that very season' },
   { value: 'prime', title: 'Prime', line: 'Every player at his career best' },
@@ -92,6 +97,8 @@ export function Setup() {
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
   const [benchPicks, setBenchPicks] = useState(5)
+  // Quick Draft: a manager picked after the draft, on unless switched off
+  const [managers, setManagers] = useState(true)
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
   const [leagueSeason, setLeagueSeason] = useState(() => {
@@ -136,7 +143,7 @@ export function Setup() {
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, classic })
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, classic, ...(isManage ? {} : { managers }) })
   const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason, classic: chosen.classic }
   const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
@@ -151,7 +158,7 @@ export function Setup() {
   // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
   const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, formationId])
   const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
-  const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
+  const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!(isManage && continental) || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   // The club handed over by default sits nearest tenth in that season's real table, so the board's ask is reachable
   const defaultHost = useMemo(() => (u ? defaultHostClub(u, leagueId, effectiveSeason, clubsInLeague) : ''), [u, leagueId, effectiveSeason, clubsInLeague])
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : defaultHost
@@ -212,8 +219,8 @@ export function Setup() {
       rules,
       jobSecurity: isManage ? jobSecurity : false,
       difficulty: fixed ? fixed.difficulty : opposition,
-      // A Continental Cup in a managed season, a Continental Cup run after a top-four finish in a quick one; never on a challenge
-      continental: !challenge && continental && u.available.length >= 2,
+      // A Continental Cup in a managed season; a Quick Draft offers its cups after the league instead, so it never sets one
+      continental: isManage && !challenge && continental && u.available.length >= 2,
       // A challenge keeps the window: the friend may trade in January as the challenger could
       ...(isManage ? {} : { january: challenge ? true : january }),
       ...(challenge ? { challenge } : {}),
@@ -334,6 +341,13 @@ export function Setup() {
               </div>
             )}
             {!isManage && (
+              <div className="setup-opt" data-testid="manager-option">
+                <h3>Manager</h3>
+                <ChoiceCards label="Manager" testId="managers" options={MANAGER_OPTIONS} value={managers ? 'on' : 'off'} onChange={(v) => setManagers(v === 'on')} />
+                <span className="help setup-line">{managers ? 'After the draft, choose who picks the team: each style gives a small edge.' : 'No manager: the season plays on the XI and the tactics alone.'}</span>
+              </div>
+            )}
+            {!isManage && (
               <div className="setup-opt">
                 <h3>Player ratings</h3>
                 <ChoiceCards label="Player ratings" testId="ratings-mode" options={RATINGS_MODE_OPTIONS} value={ratingsMode} onChange={setRatingsMode} />
@@ -412,8 +426,8 @@ export function Setup() {
                     January window: one deal at the halfway mark
                   </label>
                 )}
-                {u.available.length >= 2 && (
-                  <label className="toggle" data-testid="continental-toggle" title={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'}>
+                {isManage && u.available.length >= 2 && (
+                  <label className="toggle" data-testid="continental-toggle" title="A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.">
                     <input
                       type="checkbox"
                       checked={continental}
@@ -422,7 +436,7 @@ export function Setup() {
                         if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                       }}
                     />
-                    {isManage ? 'Continental Cup: European nights against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
+                    Continental Cup: a midweek knockout against the best of the other leagues
                   </label>
                 )}
                 {!isManage && teamField}
@@ -525,6 +539,7 @@ export function Setup() {
         )}
 
         <div className="bottom-bar" ref={barRef}>
+          {!isManage && <div className="setup-goal" data-testid="setup-goal"><b>Win every game.</b> The goal of a Quick Draft is the perfect season: every league game won, 38-0.</div>}
           <div className="small muted" data-testid="setup-summary">
             {summary}
             {!fixed && (

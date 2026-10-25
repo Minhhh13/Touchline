@@ -1,4 +1,4 @@
-import type { Game, GameSettings } from '../types'
+import type { Game, GameSettings, Profile, QuickBests } from '../types'
 import type { PlayerSeason } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
@@ -71,4 +71,15 @@ function withDepthAttributes(players: Record<string, PlayerSeason>): Record<stri
     changed = true
   }
   return changed ? out : players
+}
+
+/**
+ * A profile from any build: the defaults under whatever was saved, and the Quick Draft bests (added with the 38-0
+ * chase) filled in, so a profile written before them reads as no perfect seasons and no run yet.
+ */
+export function normaliseProfile(p: Partial<Profile> | null | undefined, defaults: Profile): Profile {
+  const saved = p && typeof p === 'object' ? p : {}
+  const b: QuickBests = saved.quickBests && typeof saved.quickBests === 'object' ? saved.quickBests : {}
+  const quickBests: QuickBests = { perfectSeasons: b.perfectSeasons ?? 0, longestPerfectRun: b.longestPerfectRun ?? 0, ...(b.bestRecord ? { bestRecord: b.bestRecord } : {}) }
+  return { ...defaults, ...saved, quickBests }
 }

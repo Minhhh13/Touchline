@@ -320,6 +320,22 @@
 .matchday .sub-note {
   margin: 0;
 }
+/* The same board inside the stop's pop-up: the sheet widens to the board's width, and the pitch takes
+   what the sheet's cap (86% of the window, 720 px at most) leaves under its head and action row */
+.matchday .decision-sheet:has(.md-stop-board) {
+  width: min(940px, 100%);
+}
+.matchday .md-stop-board .sub-board {
+  --sb-pitch-h: clamp(220px, calc(min(86dvh, 720px) - 170px), 470px);
+}
+.matchday .md-stop-subs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.matchday .md-stop-subs > .btn {
+  align-self: flex-start;
+}
 .matchday .sub-board {
   /* The pitch takes what the window leaves under the sheet's head and foot (the one-screen rule) */
   --sb-pitch-h: clamp(250px, calc(100dvh - 336px), 470px);

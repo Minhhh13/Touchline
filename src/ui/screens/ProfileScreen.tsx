@@ -10,6 +10,7 @@ import { clubName, ordinal, seasonLabel, tierName } from '../format'
 import { modeLabel } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
+import { emptyBests, recordLabel } from '@game/logic/perfect'
 
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
@@ -25,6 +26,7 @@ function exportSave(): void {
 export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
   const tipsSeen = tipsSeenCount(profile)
+  const bests = profile.quickBests ?? emptyBests()
   const unlocked = Object.keys(profile.achievements).length
   // Quick and Daily runs on the same wheel (seed) sit together: the table is already best-first, so a seed's first row
   // is its best. Season and Dynasty entries share one seed across their years, which is not the same wheel twice.
@@ -124,6 +126,18 @@ export function ProfileScreen() {
                 </div>
               ))}
             </div>
+          </div>
+          <div className="panel" data-testid="quick-bests">
+            <h3>The 38-0 chase</h3>
+            <div className="kv">
+              <dt>Best record</dt>
+              <dd data-testid="best-record">{bests.bestRecord ? `${recordLabel(bests.bestRecord.won, bests.bestRecord.drawn, bests.bestRecord.lost)} · ${bests.bestRecord.points} pts` : '—'}</dd>
+              <dt>Longest perfect run</dt>
+              <dd data-testid="best-run">{bests.longestPerfectRun ? `${bests.longestPerfectRun}-0` : '—'}</dd>
+              <dt>Perfect seasons</dt>
+              <dd data-testid="perfect-seasons">{bests.perfectSeasons ?? 0}</dd>
+            </div>
+            <p className="help" style={{ margin: '8px 0 0' }}>Quick Draft and Daily seasons in this browser. The goal: win every game.</p>
           </div>
           <div className="panel">
             <div className="panel-head">
@@ -234,7 +248,7 @@ export function ProfileScreen() {
                             {e.won}-{e.drawn}-{e.lost}
                           </td>
                           <td>
-                            {tierName(e.tier)}
+                            {tierName(e.tier, e.position)}
                             <div className="small muted">{ordinal(e.position)}</div>
                           </td>
                         </tr>
