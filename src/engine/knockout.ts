@@ -68,6 +68,8 @@ export interface FieldScope {
   fromSeason?: number
   toSeason?: number
   field: ArenaField
+  /** The decade field's first year (2010 for 2010-11 to 2019-20); it replaces the era. */
+  decade?: number
 }
 
 /** Every club-season in the scope, sorted by key so the order the packs loaded in never changes a seed. */
@@ -95,7 +97,7 @@ export function giantsOf(u: LoadedUniverse, pool: ClubSeason[]): ClubSeason[] {
  * - wheel: a season uniformly, then a club by the wheel's weighting;
  * - champions: the champions of the data only (leagues without tables never appear);
  * - giants: the strongest 5% of the pool.
- * The decade and European fields arrive with the Cup; until then they draw as the wheel does.
+ * The decade and European fields are drawn by `cupField` (`cup.ts`), a final's opponent as a field of one; here they draw as the wheel does.
  * An empty champions pool (no table in scope) falls back to the giants.
  */
 export function finalOpponent(u: LoadedUniverse, rng: Rng, scope: FieldScope): ClubSeason {
@@ -117,11 +119,11 @@ export function finalOpponent(u: LoadedUniverse, rng: Rng, scope: FieldScope): C
 /** The team strength each field is calibrated to: the mean opponent plays at this, never above its real self. */
 export const KO_FIELD_TARGET: Record<ArenaField, number> = { wheel: 72, decade: 74, europe: 75, champions: 76, giants: 78 }
 
-/** Rating points taken off every opponent in a knockout: 0 on Realistic, otherwise the field's mean over its target. */
-export function knockoutOffset(strengths: number[], field: ArenaField, difficulty: 'calibrated' | 'realistic'): number {
+/** Rating points taken off every opponent in a knockout: 0 on Realistic, otherwise the field's mean over its target (the final's targets unless others are given). */
+export function knockoutOffset(strengths: number[], field: ArenaField, difficulty: 'calibrated' | 'realistic', targets: Record<ArenaField, number> = KO_FIELD_TARGET): number {
   if (difficulty === 'realistic' || !strengths.length) return 0
   const mean = strengths.reduce((a, b) => a + b, 0) / strengths.length
-  return Math.max(0, Math.round((mean - KO_FIELD_TARGET[field]) * 10) / 10)
+  return Math.max(0, Math.round((mean - targets[field]) * 10) / 10)
 }
 
 // ---------------------------------------------------------------------------
@@ -213,10 +215,24 @@ export function takerOf(id: string, getPlayer: (id: string) => PlayerSeason | un
   return { id, shooting: p?.attributes.shooting ?? 50, mentality: p?.attributes.mentality ?? 50 }
 }
 
-/** How an arena run ended: a final's result, or how far up the Gauntlet (`RUNGS`, with the count beside it, or all fifteen). */
-export type ArenaTier = 'WINNERS' | 'RUNNERS-UP' | 'RUNGS' | 'GAUNTLET COMPLETE'
+/**
+ * How an arena run ended: a final's result, how far up the Gauntlet (`RUNGS`,
+ * with the count beside it, or all fifteen), or the round a Cup ended in.
+ */
+export type ArenaTier = 'WINNERS' | 'RUNNERS-UP' | 'RUNGS' | 'GAUNTLET COMPLETE' | 'CUP WINNERS' | 'FINALISTS' | 'SEMI-FINALISTS' | 'QUARTER-FINALISTS' | 'OUT IN THE ROUND OF 16' | 'OUT IN THE FIRST ROUND'
 
-export const ARENA_TIER_LABEL: Record<ArenaTier, string> = { WINNERS: 'WINNERS', 'RUNNERS-UP': 'RUNNERS-UP', RUNGS: 'RUNGS', 'GAUNTLET COMPLETE': 'GAUNTLET COMPLETE' }
+export const ARENA_TIER_LABEL: Record<ArenaTier, string> = {
+  WINNERS: 'WINNERS',
+  'RUNNERS-UP': 'RUNNERS-UP',
+  RUNGS: 'RUNGS',
+  'GAUNTLET COMPLETE': 'GAUNTLET COMPLETE',
+  'CUP WINNERS': 'CUP WINNERS',
+  FINALISTS: 'FINALISTS',
+  'SEMI-FINALISTS': 'SEMI-FINALISTS',
+  'QUARTER-FINALISTS': 'QUARTER-FINALISTS',
+  'OUT IN THE ROUND OF 16': 'OUT IN THE ROUND OF 16',
+  'OUT IN THE FIRST ROUND': 'OUT IN THE FIRST ROUND',
+}
 
 /** The banner of a run: `WINNERS`, `7 RUNGS`, `1 RUNG`, `GAUNTLET COMPLETE`. `score` is the rounds won. */
 export function arenaTierLabel(tier: ArenaTier, score: number): string {

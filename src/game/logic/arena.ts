@@ -1,8 +1,10 @@
 /**
  * The arena: one-sitting knockouts against real club-seasons, played beside a
- * season rather than inside one. Two formats: a one-off cup final (draft 16,
- * manage one final to the last kick) and the Gauntlet (draft 14, climb a
- * ladder of fifteen ever stronger club-seasons until the first defeat).
+ * season rather than inside one. Three formats: a one-off cup final (draft 16,
+ * manage one final to the last kick), the Cup (draft 16, a knockout of 8, 16
+ * or 32 clubs with seeded draws and the ties between AI sides played around
+ * yours) and the Gauntlet (draft 14, climb a ladder of fifteen ever stronger
+ * club-seasons until the first defeat).
  *
  * Seed streams (`ArenaState.streams`, seeded in `createGame`) draw the field,
  * so everyone on a seed meets the same opponents whatever they drafted; the
@@ -14,10 +16,11 @@ import { Rng } from '@engine/rng'
 import { autoDraft, picksMade, QUICK_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { advanceMatch, beginMatch, finishMatch, onPitch, type FullMatchResult, type LiveChanges, type MatchInProgress, type MatchOptions, type MatchTeamInput, type SecondHalfOptions, type TeamLookups } from '@engine/match'
-import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, userTeamInput, type AiClub } from '@engine/season'
+import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, USER_TEAM, userTeamInput, type AiClub } from '@engine/season'
 import { TRAINING } from '@engine/training'
-import { arenaClub, arenaPool, arenaTierLabel, clubIdOfKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
+import { arenaClub, arenaPool, arenaTierLabel, clubIdOfKey, clubSeasonKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
 import { buildLadder, gauntletHome, gauntletImportance, gauntletOffset, GAUNTLET_RUNGS, GIANT_KILLING, rungLabels } from '@engine/gauntlet'
+import { applyArenaResult, changedStates, cupClub, CUP_FIELD_TARGET, cupField, cupImportance, cupRoundCount, cupRoundName, cupSeeds, drawFirstRound, drawNextRound, playAiTie, recoverCupStates, roundTies, userTie, type CupBracket, type CupSize } from '@engine/cup'
 import { lastName, type ArenaShareInput } from '@engine/awards'
 import type { ClubSeason } from '@engine/types'
 import { playerLookup } from './players'
@@ -36,13 +39,35 @@ export const GAUNTLET_SQUAD_CAP = 18
 export const GAUNTLET_BONUS_AFTER: readonly number[] = [2, 4, 6, 8]
 /** The share of a week's recovery the squad gets between two rungs. */
 export const GAUNTLET_RECOVERY = 0.8
+/** Players drafted for the Cup, whatever its size. */
+export const CUP_SQUAD = 16
+/** The share of a week's recovery every side gets in the four days between two Cup ties. */
+export const CUP_RECOVERY = 0.6
+/** The Cup's default size and field. */
+export const DEFAULT_CUP_SIZE: CupSize = 16
+/** The decade the decade field opens on. */
+export const DEFAULT_DECADE = 2010
 
-/** The fields this build offers for a final, the default first. */
-export const FINAL_FIELDS: ReadonlyArray<{ value: ArenaField; label: string; hint: string }> = [
-  { value: 'giants', label: 'Giants', hint: 'The strongest 5% of every club-season in the data' },
-  { value: 'champions', label: 'Champions', hint: 'A real champion of a league with a table' },
-  { value: 'wheel', label: 'The wheel', hint: 'Any club-season the wheel could land on, weighted the wheel’s way' },
+/** The fields an arena cup can be played against, in the setup's order. */
+export const ARENA_FIELDS: ReadonlyArray<{ value: ArenaField; label: string; hint: string }> = [
+  { value: 'wheel', label: 'The wheel', hint: 'Club-seasons the wheel could land on, weighted the wheel’s way (a cup takes one season per club)' },
+  { value: 'champions', label: 'Champions', hint: 'Real champions of the leagues with a table' },
+  { value: 'giants', label: 'Giants', hint: 'The strongest 5% of every club-season in the data. Giants: brutal on Realistic' },
+  { value: 'decade', label: 'A decade', hint: 'Club-seasons of one decade with a real team strength of 78 or more' },
+  { value: 'europe', label: 'Europe this season', hint: 'The top four of every league in its latest complete season. Loads all seven leagues' },
 ]
+
+/** The field in a word or two, for the share text and the summary: `Champions`, `The 2010s`. */
+export function fieldLabel(a: Pick<ArenaSettings, 'field' | 'decade'> | undefined): string {
+  const f = a?.field ?? 'giants'
+  if (f === 'decade') return `The ${a?.decade ?? DEFAULT_DECADE}s`
+  return f === 'europe' ? 'Europe' : (ARENA_FIELDS.find((x) => x.value === f)?.label ?? f)
+}
+
+/** True for a Cup of 8, 16 or 32 clubs (a bracket), false for a one-off final and the Gauntlet. */
+export function isBigCup(a: Pick<ArenaState, 'format' | 'size'> | Pick<ArenaSettings, 'format' | 'size'> | undefined | null): boolean {
+  return a?.format === 'cup' && (a.size ?? 2) > 2
+}
 
 /** Fields that draw from every league, whatever the wheel: their games need every pack loaded. */
 export function arenaNeedsAllLeagues(settings: Pick<GameSettings, 'arena'>): boolean {
@@ -73,6 +98,10 @@ export interface ArenaChoices {
   twists: boolean
   /** Whose colours the side wears; the league's default host when absent or not in that season. */
   hostClubId?: string
+  /** Clubs in the cup, the user included: 2 (the default) is the one-off final. */
+  size?: CupSize
+  /** The decade field's first year. */
+  decade?: number
 }
 
 /** The latest complete season of a league (its latest season when none is complete). */
@@ -114,8 +143,13 @@ export function finalGameSettings(u: LoadedUniverse, c: ArenaChoices, shortName:
     jobSecurity: false,
     difficulty: c.difficulty,
     continental: false,
-    arena: { format: 'cup', size: 2, field: c.field },
+    arena: { format: 'cup', size: c.size ?? 2, field: c.field, ...(c.field === 'decade' ? { decade: c.decade ?? DEFAULT_DECADE } : {}) },
   }
+}
+
+/** The settings of a Cup: a final's, with 16 picks whatever the size (16 clubs unless another size is chosen). */
+export function cupGameSettings(u: LoadedUniverse, c: ArenaChoices, shortName: string): GameSettings {
+  return finalGameSettings(u, { ...c, size: c.size ?? DEFAULT_CUP_SIZE }, shortName)
 }
 
 /** The settings of a Gauntlet: a final's, with fourteen picks and no field (the ladder comes from the wheel's own leagues and era). */
@@ -135,7 +169,7 @@ const FIELD_WORDS: Record<ArenaField, string> = { giants: 'against the giants', 
 export function summariseArena(u: LoadedUniverse, s: GameSettings): string {
   const field = s.arena?.field ?? 'giants'
   const wheel = s.wheelLeagues.length > 1 ? `European Nights wheel of ${s.wheelLeagues.length} leagues` : wheelName(u, s)
-  const format = s.arena?.format === 'gauntlet' ? 'The Gauntlet up the wheel' : `${arenaFormatLabel(s.arena)} ${FIELD_WORDS[field]}`
+  const format = s.arena?.format === 'gauntlet' ? 'The Gauntlet up the wheel' : `${arenaFormatLabel(s.arena)} ${field === 'decade' ? `against the ${s.arena?.decade ?? DEFAULT_DECADE}s` : FIELD_WORDS[field]}`
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${format}, ${wheel}, ${s.difficulty}, seed ${s.seed}`]
   const r = s.rules
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
@@ -146,10 +180,17 @@ export function summariseArena(u: LoadedUniverse, s: GameSettings): string {
 }
 
 /** What the next match of a run is: label, the share code, importance, venue. */
-export function arenaStepInfo(a: Pick<ArenaState, 'format' | 'size' | 'step'>): { label: string; code: string; importance: number; neutral: boolean; home: boolean } {
+export function arenaStepInfo(a: Pick<ArenaState, 'format' | 'size' | 'step' | 'bracket'>): { label: string; code: string; importance: number; neutral: boolean; home: boolean } {
   if (a.format === 'gauntlet') {
     const rung = a.step + 1
     return { label: `Rung ${rung}`, code: `R${rung}`, importance: gauntletImportance(rung), neutral: false, home: gauntletHome(rung) }
+  }
+  const size = a.size ?? 2
+  if (size > 2) {
+    // A Cup round: its name and weight; the venue is the draw's coin, the final neutral
+    const r = cupRoundName(size, a.step)
+    const tie = userTie(a.bracket?.rounds[a.step])
+    return { label: r.name, code: r.code, importance: cupImportance(size, a.step), neutral: roundTies(size, a.step) === 1, home: tie ? tie.home === USER_TEAM : true }
   }
   return { label: 'Cup final', code: 'F', importance: 1.4, neutral: true, home: true }
 }
@@ -157,7 +198,7 @@ export function arenaStepInfo(a: Pick<ArenaState, 'format' | 'size' | 'step'>): 
 /** True when the run has no match after this one. */
 function lastStep(a: ArenaState): boolean {
   if (a.format === 'gauntlet') return a.step >= GAUNTLET_RUNGS
-  return a.format === 'cup' && (a.size ?? 2) === 2 ? a.step >= 1 : true
+  return a.format === 'cup' ? a.step >= cupRoundCount(a.size ?? 2) : true
 }
 
 /** The club-season key a Gauntlet rung (1-based) is played against: its main, or its alternate once the lifeline swapped it. */
@@ -168,13 +209,25 @@ export function rungOpponent(a: Pick<ArenaState, 'ladder' | 'lifelineUsed'>, run
 
 /** Rating points taken off the opponent of step `step` (0-based) whose real strength is `real`. */
 function stepOffset(game: Game, real: number, step: number): number {
+  if (game.arena?.bracket) return game.arena.bracket.offset
   return game.arena?.format === 'gauntlet' ? gauntletOffset(real, step + 1, game.settings.difficulty) : knockoutOffset([real], game.settings.arena?.field ?? 'giants', game.settings.difficulty)
 }
 
-/** Draw the next opponent: a final draws its one opponent from the field's stream; the Gauntlet reads its ladder (no draw). */
+/**
+ * Draw the next opponent: a final draws its one opponent from the field's
+ * stream; the Gauntlet reads its ladder and the Cup its bracket (no draw).
+ */
 function drawNextOpponent(game: Game, u: LoadedUniverse): void {
   const a = game.arena
   if (!a) return
+  if (a.bracket) {
+    const tie = userTie(a.bracket.rounds[a.step])
+    if (!tie) return
+    const club = cupClub(u, tie.home === USER_TEAM ? tie.away : tie.home, a.bracket.states)
+    a.clubs[club.id] = club
+    a.next = club.id
+    return
+  }
   let cs: ClubSeason | undefined
   if (a.format === 'gauntlet') {
     const key = rungOpponent(a, a.step + 1)
@@ -183,7 +236,9 @@ function drawNextOpponent(game: Game, u: LoadedUniverse): void {
   } else {
     const rng = Rng.fromState(a.streams.field)
     const r = game.settings.rules
-    cs = finalOpponent(u, rng, { leagues: fieldLeagues(game, u), fromSeason: r.fromSeason, toSeason: r.toSeason, field: game.settings.arena?.field ?? 'giants' })
+    const scope = { leagues: fieldLeagues(game, u), fromSeason: r.fromSeason, toSeason: r.toSeason, field: game.settings.arena?.field ?? 'giants', decade: game.settings.arena?.decade }
+    // The decade and Europe fields are a Cup's field of one; the others keep the final's own draw
+    cs = scope.field === 'decade' || scope.field === 'europe' ? cupField(u, rng, scope, 1)[0] : finalOpponent(u, rng, scope)
     a.streams.field = rng.getState()
   }
   const club = arenaClub(u, cs)
@@ -214,6 +269,7 @@ export function beginArena(game: Game, u: LoadedUniverse): void {
     a.ladder = buildLadder(u, rng, arenaPool(u, { leagues: fieldLeagues(game, u), fromSeason: r.fromSeason, toSeason: r.toSeason }))
     a.streams.field = rng.getState()
   }
+  if (isBigCup(a) && !a.bracket) a.bracket = buildBracket(game, u)
   if (d) {
     for (const id of [...Object.values(d.lineup), ...d.bench]) game.squad[id] ??= newSquadPlayer(id)
     game.lineup = { ...d.lineup }
@@ -224,6 +280,106 @@ export function beginArena(game: Game, u: LoadedUniverse): void {
   autoPick(game, u, false)
   if (!a.next && !a.over && a.step === 0) drawNextOpponent(game, u)
   game.phase = 'week'
+}
+
+/** A child of one of the arena's streams; the stream moves on by one draw, so the next fork is a different one. */
+function forkStream(game: Game, stream: 'draw' | 'ties', label: string): Rng {
+  const a = game.arena!
+  const parent = Rng.fromState(a.streams[stream])
+  const child = parent.fork(label)
+  a.streams[stream] = parent.getState()
+  return child
+}
+
+/**
+ * The Cup's field, seeds and round one, from the streams alone (the draft
+ * never enters it): `size − 1` entrants from the field's stream, calibrated
+ * as one field, the strongest quarter seeded, and the first draw from a fork
+ * of the draw stream.
+ */
+function buildBracket(game: Game, u: LoadedUniverse): CupBracket {
+  const a = game.arena!
+  const size = a.size ?? 2
+  const r = game.settings.rules
+  const field = game.settings.arena?.field ?? 'wheel'
+  const rng = Rng.fromState(a.streams.field)
+  const entrants = cupField(u, rng, { leagues: fieldLeagues(game, u), fromSeason: r.fromSeason, toSeason: r.toSeason, field, decade: game.settings.arena?.decade }, size - 1)
+  a.streams.field = rng.getState()
+  const seeds = cupSeeds(u, entrants, size)
+  const seeded = new Set(seeds)
+  const unseeded = [USER_TEAM, ...entrants.map(clubSeasonKey).filter((k) => !seeded.has(k))]
+  const offset = knockoutOffset(
+    entrants.map((cs) => teamStrengthOf(u, cs)),
+    field,
+    game.settings.difficulty,
+    CUP_FIELD_TARGET,
+  )
+  return { seeds, offset, rounds: [drawFirstRound(forkStream(game, 'draw', 'draw:0'), seeds, unseeded)], states: {} }
+}
+
+/** Every AI tie of a round, in bracket order, each on its own fork of the ties stream (the user's position is forked too, so where he sits never moves the others). */
+function playCupRound(game: Game, u: LoadedUniverse, round: number): void {
+  const a = game.arena!
+  const b = a.bracket!
+  const size = a.size ?? 2
+  const ties = b.rounds[round]
+  ties.forEach((t, i) => {
+    const rng = forkStream(game, 'ties', `${round}:${i}`)
+    if (t.winner === undefined) playAiTie(u, rng, t, b, cupImportance(size, round), roundTies(size, round) === 1)
+  })
+  if (ties.length === 1 && ties[0].winner) b.winner = ties[0].winner
+}
+
+/** The next round's draw: the round's winners in bracket order, on a fork of the draw stream. */
+function drawCupRound(game: Game, round: number): void {
+  const b = game.arena!.bracket!
+  const alive = b.rounds[round - 1].map((t) => t.winner).filter((w): w is string => !!w)
+  b.rounds.push(drawNextRound(forkStream(game, 'draw', `draw:${round}`), alive))
+}
+
+/**
+ * The user's tie is decided: it goes into the bracket, the round's other ties
+ * are played, and either the four days to the next round pass (recovery for
+ * everyone, then the draw) or the user is out (or has won it) and the rest of
+ * the bracket is played to its winner.
+ */
+function settleCupTie(game: Game, u: LoadedUniverse, won: boolean): void {
+  const a = game.arena!
+  const b = a.bracket!
+  const key = a.next!
+  const round = a.step
+  const tie = userTie(b.rounds[round])
+  const row = a.log[a.log.length - 1]
+  if (tie && row) {
+    const home = tie.home === USER_TEAM
+    tie.hg = home ? row.gf : row.ga
+    tie.ag = home ? row.ga : row.gf
+    if (row.pens) tie.pens = home ? { home: row.pens.us, away: row.pens.them } : { home: row.pens.them, away: row.pens.us }
+    tie.winner = won ? USER_TEAM : key
+  }
+  // The side that beat the user carries its legs and bans on; a beaten side is gone
+  const club = a.clubs[key]
+  if (!won && club) b.states[key] = changedStates(club)
+  else delete b.states[key]
+  delete a.clubs[key]
+  a.next = null
+  a.step += 1
+  playCupRound(game, u, round)
+  const rounds = cupRoundCount(a.size ?? 2)
+  if (won && a.step < rounds) {
+    arenaRecovery(game, u, CUP_RECOVERY)
+    recoverCupStates(u, b, CUP_RECOVERY)
+    drawCupRound(game, a.step)
+    drawNextOpponent(game, u)
+    return
+  }
+  a.over = true
+  a.won = won
+  for (let r = b.rounds.length; !b.winner && r < rounds; r++) {
+    recoverCupStates(u, b, CUP_RECOVERY)
+    drawCupRound(game, r)
+    playCupRound(game, u, r)
+  }
 }
 
 export interface ArenaOpponent {
@@ -399,13 +555,8 @@ export function resolveArenaStep(game: Game, u: LoadedUniverse, res: FullMatchRe
   }
   for (const [id, s] of Object.entries(game.squad)) if (s.suspension > 0 && !played.has(id)) s.suspension -= 1
   game.weekPlayed = [...played]
-  if (club) {
-    const theirs = userIsHome ? res.awayStats : res.homeStats
-    for (const st of theirs) {
-      const s = club.state[st.playerSeasonId]
-      if (s) applyMatchToState(s, st, true, res.conditionLoss[st.playerSeasonId] ?? 0, gf === 0, res.motmId === st.playerSeasonId, gf > ga ? 'L' : gf === ga ? 'D' : 'W')
-    }
-  }
+  // The opponent under the arena's card rules too: a Cup side that beats you plays on with them
+  if (club) applyArenaResult(club, res, userIsHome ? 'away' : 'home')
   game.lastMatch = res
   game.lastMatchContext = ctx
   game.lastCupMatch = null
@@ -435,6 +586,7 @@ export function resolveArenaStep(game: Game, u: LoadedUniverse, res: FullMatchRe
  */
 function settleStep(game: Game, u: LoadedUniverse, won: boolean): void {
   const a = game.arena!
+  if (a.bracket) return settleCupTie(game, u, won)
   const key = a.next!
   a.step += 1
   if (won) delete a.clubs[key]
@@ -601,14 +753,20 @@ export function simArenaToEnd(game: Game, u: LoadedUniverse): void {
   }
 }
 
-/** How the run ended. */
-export function arenaTier(a: Pick<ArenaState, 'won' | 'format'>): ArenaTier {
+/** How the run ended: a Cup by the round it ended in (the round's name, its first round however big the cup). */
+export function arenaTier(a: Pick<ArenaState, 'won' | 'format' | 'size' | 'log'>): ArenaTier {
   if (a.format === 'gauntlet') return a.won ? 'GAUNTLET COMPLETE' : 'RUNGS'
+  const size = a.size ?? 2
+  if (size > 2) {
+    if (a.won) return 'CUP WINNERS'
+    const ties = roundTies(size, Math.max(0, a.log.length - 1))
+    return ties === 1 ? 'FINALISTS' : ties === 2 ? 'SEMI-FINALISTS' : ties === 4 ? 'QUARTER-FINALISTS' : ties === 8 ? 'OUT IN THE ROUND OF 16' : 'OUT IN THE FIRST ROUND'
+  }
   return a.won ? 'WINNERS' : 'RUNNERS-UP'
 }
 
-/** The banner of a run: `WINNERS`, `7 RUNGS`, `GAUNTLET COMPLETE`. */
-export function arenaBanner(a: Pick<ArenaState, 'won' | 'format' | 'log'>): string {
+/** The banner of a run: `WINNERS`, `7 RUNGS`, `GAUNTLET COMPLETE`, `SEMI-FINALISTS`. */
+export function arenaBanner(a: Pick<ArenaState, 'won' | 'format' | 'size' | 'log'>): string {
   return arenaTierLabel(arenaTier(a), a.log.filter(stepWon).length)
 }
 
@@ -625,6 +783,12 @@ export function finishArena(game: Game): void {
     if (!game.unlocked.includes(id)) game.unlocked.push(id)
   }
   if (a.won && a.format === 'cup' && (a.size ?? 2) === 2) unlock('final-whistle')
+  if (a.won && isBigCup(a)) {
+    unlock('cup-night')
+    if (a.size === 32) unlock('cup-32')
+    if (game.settings.arena?.field === 'giants') unlock('giant-slayers')
+    if (a.log.every((s) => s.ga === 0)) unlock('clean-run')
+  }
   if (a.log.some((s) => s.pens && s.pens.us > s.pens.them)) unlock('spot-kick-kings')
   if (a.format === 'gauntlet') {
     const rungs = a.log.filter(stepWon).length
@@ -675,15 +839,36 @@ export function arenaClubName(u: LoadedUniverse, key: string): string {
   return at > 0 && Number.isFinite(season) ? clubSeasonName(u, { clubId: clubIdOfKey(key), season }) : key
 }
 
+/** A club-season key in fewer letters, for the bracket: the club's short name and the season (`Wolves 2022-23`). */
+export function arenaClubShortName(u: LoadedUniverse, key: string): string {
+  const at = key.indexOf('@')
+  const season = Number(key.slice(at + 1))
+  const club = u.clubById[clubIdOfKey(key)]
+  return at > 0 && Number.isFinite(season) && club ? `${club.shortName ?? club.name} ${seasonLabel(season)}` : arenaClubName(u, key)
+}
+
 /** Home's line for an arena game in progress. */
 export function arenaStatus(game: Game): string {
   const a = game.arena
   if (!a) return ''
   if (game.phase === 'draft') return a.step > 0 ? 'Bonus spin' : 'Drafting'
   if (a.format === 'gauntlet' && a.over) return a.won ? 'Gauntlet complete' : `Climbed ${arenaBanner(a).toLowerCase()}`
+  if (isBigCup(a) && a.over) return a.won ? 'Lifted the Cup' : sentence(arenaBanner(a))
   if (a.over) return a.won ? 'Won the final' : 'Lost the final'
   if (a.pending) return 'Penalties to take'
   return `${arenaStepInfo(a).label} next`
+}
+
+function sentence(caps: string): string {
+  const lower = caps.toLowerCase()
+  return lower.charAt(0).toUpperCase() + lower.slice(1)
+}
+
+/** The side that won a Cup, in words: the user's team or `Real Madrid 2017-18`; null until decided. */
+export function cupWinnerName(game: Game, u: LoadedUniverse): string | null {
+  const w = game.arena?.bracket?.winner
+  if (!w) return null
+  return w === USER_TEAM ? game.settings.teamName : arenaClubName(u, w)
 }
 
 /** Everything the arena's share text prints, for a finished run (`arenaShareText`). */
@@ -693,6 +878,23 @@ export function arenaShareInput(game: Game, u: LoadedUniverse): ArenaShareInput 
   const get = playerLookup(game, u)
   const motmId = a.log[a.log.length - 1]?.motmId
   const s = game.settings
+  if (isBigCup(a)) {
+    // The Cup: a line per tie, the winner when you went out before the final (a lost final names him already), and the final's man of the match when you reached it
+    const inFinal = a.log.length === cupRoundCount(a.size ?? 2)
+    const winner = cupWinnerName(game, u)
+    return {
+      mode: `${arenaFormatLabel(s.arena)} · ${fieldLabel(s.arena)}`,
+      teamName: s.teamName,
+      formationName: getFormation(game.tactics.formationId).name,
+      wheel: wheelName(u, s),
+      banner: arenaBanner(a),
+      icon: a.won ? '🏆' : inFinal ? '🥈' : '🏟️',
+      steps: a.log.map((x, i) => ({ code: arenaStepInfo({ ...a, step: i }).code, gf: x.gf, ga: x.ga, opponent: arenaClubName(u, x.opponent), ...(x.pens ? { pens: { us: x.pens.us, them: x.pens.them } } : {}) })),
+      ...(!a.won && !inFinal && winner ? { lines: [`🏆 Won by ${winner}`] } : {}),
+      ...(inFinal && motmId ? { motm: get(motmId)?.name ?? motmId, motmLabel: 'Final MOTM' } : {}),
+      seed: s.seed,
+    }
+  }
   return {
     mode: arenaFormatLabel(s.arena),
     teamName: s.teamName,

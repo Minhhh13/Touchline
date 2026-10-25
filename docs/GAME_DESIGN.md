@@ -35,7 +35,7 @@ Alternatives considered and set aside:
 | Season | 16 to 22 picks (default 18), 3 re-spins, club-seasons may repeat | 3 friendlies, 38 matchweeks played one at a time, cup, January window, board | Full save in `localStorage` |
 | Dynasty | As Season, then a summer draft each year with bonus spins and 1 re-spin | Season mode repeated; players age, contracts run down, league moves on a year | History table per year |
 | Arena: The Gauntlet | 14 picks, the quick re-spins and twists, a bonus pick after rungs 2, 4, 6 and 8 (up to 18) | A ladder of fifteen real club-seasons, each from a stronger band of the wheel, one match each until the first defeat; managed live, by the assistant, or Sim to the end (section 17) | Best runs table and the cabinet's Gauntlet shelf, the arena's save slot |
-| Arena: Cup Final | 16 picks, the quick re-spins and twists | One cup final against a real club-season, managed live through the two stops and a shoot-out, or played by the assistant (section 17) | Best runs table and the arena shelf of the cabinet, its own save slot |
+| Arena: The Cup | 16 picks, the quick re-spins and twists, whatever the size | A knockout of 8, 16 or 32 real club-seasons (seeded draws, four days between ties, bans that carry), or a one-off final; each tie managed live through the two stops and a shoot-out, played by the assistant, or Sim to the end (section 17) | Best runs table and the cabinet's arena cups by size, the arena's save slot |
 
 Setup options (`src/ui/screens/Setup.tsx`):
 
@@ -772,7 +772,7 @@ Every `LoadedUniverse` carries `generatedAt`, the `YYYY-MM-DD` stamp of the data
 
 - **Pins** (`src/engine/__tests__/pins.test.ts`, `src/game/__tests__/pins.test.ts`) freeze literal outcomes of fixed seeds, so a change that moves an existing draw fails even when every statistical test passes: the quick wheel's eleven history rows (`clubId@season`, with the twist) for seed `K7Q2-MX9A`, 4-3-3, `autoDraft`, on an England wheel and on an England, Spain and Italy wheel; the first eight log lines of a head-to-head draft (seed `pin-h2h`, the store's rules, `h2hSpin` then `h2hAutoPick` until complete, 33 lines in all); and the `flow-test` season played by the assistant (`playMatchweek(g, u, true)` 38 times): the top three `teamId:points` (`arsenal:95`, `user:91`, `manchester-city:91`), the cup winner (`manchester-city`) and the final `rngState`. They were computed on `ENGINE_VERSION` `'4'` with the `2026-10-25` packs. A new mode draws from its own place in the stream and gates every new draft rule on its flag, so it leaves them green unchanged; they are re-baselined only in the commit that bumps `ENGINE_VERSION` or rebuilds the data, with the literals recomputed there.
 - **Link versions** (`src/engine/challenge.ts`). `ChallengePayload` is `ChallengePayloadV1 | ChallengePayloadV2`. Version 2 is the version 1 shape plus `kind` (`'quick'`, the default when missing, or `'arena'`) and an optional `arena` object. `decodeChallenge` reads version 1 as before, except that its rules diff may use only `V1_RULE_KEYS` (the `RULE_CHECKS` keys when the gate landed: `squadSize`, `respins`, `fromSeason`, `toSeason`, `onlyClub`, `onlyNation`, `minFit`, `hardMode`, `uniqueClubSeasons`, `twists`); it accepts version 2, refuses a version 2 `kind` or top-level key it does not know with "This challenge link comes from a newer version of TouchLine" (version 1 still ignores extra keys; a `kind` that is not a string is not a link), refuses an arena link with "This challenge needs the arena, which this build does not have yet" until `isArenaLink` accepts one, and refuses anything above version 2 as newer. `challengeFromGame` writes the version from `payloadVersionFor(rulesDiff, kind)`: 1 for a quick link whose rule keys are all v1 keys, 2 otherwise, so a link using a rule added later (a salary cap, a teammate chain) reaches an older build as "newer version" rather than "not a link". Every quick link written today is still version 1. When replica-setup's four rules (`difficulty`, `showRatings`, `draftMode`, `ratings`) merge, they join `V1_RULE_KEYS` in that merge, because builds that write them as version 1 exist.
-- **The arena's streams.** An arena game carries three streams of its seed, `${seed}#field`, `#ties` and `#draw`, made by `createGame` beside `rngState` (`Game.arena.streams`). They draw the field and the Gauntlet's ladder, and later the AI-against-AI ties and the draws, so two players on one seed meet the same opponents whatever they drafted; the user's own matches and shoot-outs draw from `rngState`. No existing draw moves, so `ENGINE_VERSION` stays `'4'` and the pins hold.
+- **The arena's streams.** An arena game carries three streams of its seed, `${seed}#field`, `#ties` and `#draw`, made by `createGame` beside `rngState` (`Game.arena.streams`). They draw the field, the Gauntlet's ladder, the Cup's draws and its AI-against-AI ties, so two players on one seed meet the same opponents whatever they drafted; the user's own matches and shoot-outs draw from `rngState`. No existing draw moves, so `ENGINE_VERSION` stays `'4'` and the pins hold.
 - **Labels and streaks.** Every place a screen names the mode reads `src/game/logic/modes.ts` (`MODE_TITLE`, `modeLabel(game, 'short' | 'heading' | 'share')`, `shareCardFooter`, `yearLabel`, `finishDraftLabel`, `isQuickLike`), each an exhaustive table, so a new `Mode` fails to compile there once. The Daily streak goes through `advanceStreak` and `streakDay` (`src/game/logic/streaks.ts`): the result files under the seed's own day, the streak grows only when the last counted day is the one before, and a second result on a counted day changes nothing.
 
 ### Offline
@@ -785,13 +785,14 @@ Not in the code today:
 
 - 1992-93 to 2007-08 seasons; tables exist for 2000-01 to 2007-08 but no player data.
 - Online leaderboards, shared daily results and online multiplayer; the leaderboard is per browser and head-to-head is hot-seat only.
-- 38-0 modes not reproduced: Teammate Chain, Tournaments, Multiplayer leagues. (Last One Standing is built, managed, as the Gauntlet: section 17.)
+- 38-0 modes not reproduced: Teammate Chain, Multiplayer leagues. (Last One Standing is built, managed, as the Gauntlet, and Tournaments as the Cup: section 17.)
+- Extra time in the arena's knockouts: a level tie goes straight to penalties at 90.
 - FM systems not reproduced: separate in-possession and out-of-possession shapes, scouting with attribute ranges, individual training, youth intake and regens, mentoring, press conferences beyond the events deck, finances beyond budget, wages, staff and prize money.
 - A group stage and two-legged ties for the Continental Cup.
 
 ## 17. The arena
 
-One-sitting knockouts against real club-seasons. The arena lives beside `SeasonState`, never inside it: a game of mode `arena` has `settings.arena` (`{ format: 'cup' | 'gauntlet', size?, field?, decade?, daily? }`) and `Game.arena` (`ArenaState`, `src/game/types.ts`; logic in `src/game/logic/arena.ts`, engine in `src/engine/knockout.ts`). This build ships two formats, the **Cup Final** (`format: 'cup'`, `size: 2`) and **the Gauntlet** (`format: 'gauntlet'`, below); the full Cup is built on the same container.
+One-sitting knockouts against real club-seasons. The arena lives beside `SeasonState`, never inside it: a game of mode `arena` has `settings.arena` (`{ format: 'cup' | 'gauntlet', size?, field?, decade?, daily? }`) and `Game.arena` (`ArenaState`, `src/game/types.ts`; logic in `src/game/logic/arena.ts`, engine in `src/engine/knockout.ts`). This build ships three formats: the **Cup Final** (`format: 'cup'`, `size: 2`), **the Gauntlet** (`format: 'gauntlet'`) and **the Cup** of 8, 16 or 32 clubs (`format: 'cup'`, `size: 8 | 16 | 32`; engine in `src/engine/cup.ts`), each below.
 
 - **Container.** `ArenaState` holds the three streams (section 15), the clubs about to play or still alive keyed `clubId@season` (`arenaClub`: the `buildAiClubs` recipe, familiarity 70, sharpness 85, the club's style; the name reads `Real Madrid 2017-18`), `next` (the key of the next opponent), `step` (the user's next match, 0-based), `log` (one `ArenaStep` per user match: label, opponent, venue, score, the shoot-out with every kick, man of the match, training focus, live or assistant, real strength and offset), `pending` (a live match level at 90 waiting on its penalties), `yellows` (bookings across the run), `over`, `won` and `handManaged`. An opponent keeps its real squad even when you drafted one of its players, as in Season mode.
 - **Settings.** `finalGameSettings`: `{ ...QUICK_RULES, squadSize: 16 }` with the wheel leagues, era, hard mode and twists chosen; the league, season and host are colours and labels only (the wheel's first league, its latest complete season and that season's default host unless another club is chosen); no job security, no Continental Cup.
@@ -857,3 +858,54 @@ One-sitting knockouts against real club-seasons. The arena lives beside `SeasonS
   ```
 
   🟩 a rung won in 90 minutes, 🟨 won on penalties, 🟥 the defeat (a lost shoot-out included). The scorer is the run's top scorer in the squad and the star the man with the most man-of-the-match awards.
+
+### The Cup
+
+A knockout of 8, 16 or 32 clubs, the user's side among them, in one sitting against real club-seasons; the one-off final is the Cup's two-club size. Draft sixteen whatever the size (`cupGameSettings`: a final's settings with `arena: { format: 'cup', size, field, decade? }`, 16 clubs unless another size is chosen).
+
+- **Fields** (`cupField`, `src/engine/cup.ts`, `size − 1` entrants from `streams.field`, one draw each, from pools sorted by key; the user's draft never enters it):
+  - **The wheel**: one club-season per club, each a season uniformly and then a club by the wheel's weighting (the final's draw, repeated without a club already in).
+  - **Champions**: the data's champions, uniformly without replacement (every league with a table).
+  - **Giants**: the strongest 5% of the pool, uniformly without replacement (every league).
+  - **A decade** (`settings.arena.decade`, 2000 for 2008-09 and 2009-10, 2010, 2020): club-seasons of the wheel's leagues in that decade with a real team strength of 78 or more (`DECADE_STRENGTH`). The decade replaces the era for the field; the wheel keeps the era.
+  - **Europe this season**: the top four (`EUROPE_PER_LEAGUE`) of every league's latest complete season by final position (by real strength for a league without a table), uniformly without replacement; a field larger than the candidates (a 32-club cup against seven leagues' 28) takes them all and the strongest of each league's fifth places. No era. It needs every pack, as the champions and the giants do (`arenaNeedsAllLeagues`, `leaguesFor`).
+
+  The champions and giants fields allow a club in several seasons (Real Madrid 2016-17 can meet Real Madrid 2017-18). When a field runs dry (a narrow era, England's 18 champions for a 32-club cup), the strongest unused club-seasons of its pool fill the rest. A one-off final against a decade or Europe is that field with one entrant.
+- **Seeds and the draw.** The seeds are the strongest quarter of the field by real strength (`cupSeeds`: 2 of 8, 4 of 16, 8 of 32); the user is never seeded. Round one (`drawFirstRound`, a fork of `streams.draw`) shuffles both lists and draws every seed against an unseeded side first, then pairs the unseeded sides left, so you meet a seed in round one one time in three at 16 and 32 clubs (4 of 12 and 8 of 24). Each later round is redrawn from the round's winners in bracket order (`drawNextRound`, one fork of `streams.draw` a round). A coin from the draw picks every home side; the final is on neutral ground.
+- **Rounds** (`cupRoundName`, `cupImportance`): Round of 32 (`R32`), Round of 16 (`R16`), Quarter-final (`QF`), Semi-final (`SF`), Cup final (`F`); importance 1.1 for the first round whatever it is and for the round of 16, 1.15 a quarter-final, 1.25 a semi-final, 1.4 the final. Level at 90 goes to penalties (no extra time): the user's with the kick-by-kick shoot-out, the AI sides' with the Season cups' team-overall `shootout()`.
+- **Calibration.** One offset for the whole field (`bracket.offset`, `knockoutOffset` over every entrant's real strength against `CUP_FIELD_TARGET`), taken off every AI side in every tie: the final's targets except the wheel, which the Cup's balance guard moved from 72 to 73.5. 0 on Realistic.
+- **AI ties.** Played at summary detail when the user's tie of the round is decided, in bracket order, each on its own fork of `streams.ties` labelled `${round}:${position}` (the user's position is forked too, so where he sits never moves the others). AI state carries between rounds: the result goes onto both sides under the arena's card rules (`applyArenaResult`: a red card and every second booking of the run are one-match bans, served by sitting the next tie out), and `bracket.states` keeps, for the clubs still alive only, the player states that differ from a fresh arena side's, so a giant can reach the final without its suspended striker and a 32-club cup's save stays small. A side that beats the user plays on with its legs and bans.
+- **Between ties ("four days").** `arenaRecovery(game, u, 0.6)` for the user's squad (60% of a week's recovery plus the training focus, one tie off every injury) and `recoverCupStates` for every stored AI state; one training focus a tie (chosen on the hub).
+- **After you go out** the rest of the bracket is recovered, drawn and played round by round to its winner (`bracket.winner`), so the summary names it. Everyone on a seed who reaches round k has met the same opponents and meets the same one there.
+- **Tiers** (`arenaTier`, by the round the run ended in): `CUP WINNERS`, `FINALISTS`, `SEMI-FINALISTS`, `QUARTER-FINALISTS`, `OUT IN THE ROUND OF 16`, `OUT IN THE FIRST ROUND` (a 32-club cup's round of 32). The score is ties won. **Achievements:** `cup-night` (Lift the Cup), `cup-32` (The Long Road: win a 32-club Cup), `giant-slayers` (win the Cup against the giants field) and `clean-run` (win the Cup without conceding a goal in play). **Cabinet:** `cups.runs`, `cups.won` and `cups.bySize` on the arena's shelf (`creditArena`), never a season cup.
+- **Calibration, measured** (England packs of 2026-10-25, engine `'4'`, an auto-drafted 4-3-3 sixteen, assistant management, an England wheel unless stated, the giants and champions from the England pool, 1,000 seeds `cup-review-0` to `-999`, each share good to about ±2.5 points):
+
+  | Field and size | Target | Lifted | Out in round one | Level at 90 |
+  | --- | --- | --- | --- | --- |
+  | The wheel, 8 | 73.5 | 33.7% | 31.8% | 20% |
+  | The wheel, 16 | 73.5 | 19.9% | 35.4% | 21% |
+  | The wheel, 32 | 73.5 | 12.1% | 33.5% | 21% |
+  | The wheel, 16, Realistic | none | 2.3% | 56.9% | 22% |
+  | Champions, 16 | 76 | 14.0% | 43.6% | 23% |
+  | Giants, 16 | 78 | 11.8% | 47.6% | 24% |
+  | Giants, 16, Realistic | none | 0.0% | 86.2% | 14% |
+  | The 2010s, 16 | 74 | 20.6% | 34.8% | 22% |
+  | The 2020s, 16 | 74 | 21.5% | 32.8% | 21% |
+  | Europe this season, 16 (all seven packs) | 75 | 12.4% | 39.5% | 23% |
+
+  The giants of all seven leagues on Realistic: 0.0%. At the final's wheel target of 72 the 16-club wheel Cup was lifted 31.7% of the time over 300 seeds (the guard's ceiling is 32%), at 73 23.7%, at 73.5 21.7% and at 74 19.3%, so 73.5 brings it back to the plan's probe (21.0%). The decade (74) and Europe (75) targets were not probed by the plan and land inside their guard as set. The balance guard (`src/game/__tests__/cup.test.ts`, 300 assistant runs `cup-guard-0` to `-299`): the 16-club wheel lifted in [12%, 32%] (21.7%), the giants on Realistic under 3% (0.3%), the 2010s and Europe in [6%, 30%] (21.7% and 11.7%).
+- **Screens.** Home's Arena row has The Cup card (`10 minutes · lift a trophy tonight`) in place of the Cup Final card. `ArenaSetup` on the Cup: the size (Final · 8 clubs · 16 clubs · 32 clubs, 16 by default), the field (The wheel, Champions, Giants, A decade with its select, Europe this season, with hints: giants are brutal on Realistic, Europe loads all seven leagues; a bigger Cup opens on the wheel, the final on the giants), the summary line ("The Cup · 16 clubs against the wheel") and "Draft for the Cup"; the Draft's finish button reads "On to the draw". The hub: the tie card ("Round of 16 · round 1 of 4 · a seed · home"), the training focus beside the team talk, a "The draw" tab with the bracket (`src/ui/components/Bracket.tsx`, taking `rounds`, `ties`, `nameOf`, `badgeOf`, `userId` and the seeds: every round side by side, stacked on a phone, your tie outlined, the side through in bold, a round not yet drawn says so), and Manage this one, "Sim this tie" and Sim to the end. The match screen's continue reads "Next: Quarter-final →". The summary: the banner with "🏆 Won by …" when it was not you, every tie, the run's scorers, the final's man of the match, the bracket, the share text and card. Dugout's `CupTab` is untouched. Share text:
+
+  ```
+  TouchLine · The Cup · 16 clubs · Champions
+  Touchline XI · 4-3-3 · Premier League wheel
+  🏆 CUP WINNERS
+  R16 🟩 2-1 Bayern Munich 2012-13
+  QF 🟨 1-1 Juventus 2015-16 (4-3 pens)
+  SF 🟩 3-0 Chelsea 2016-17
+  F 🟩 2-1 Real Madrid 2017-18
+  ⭐ Final MOTM: K. De Bruyne
+  Seed K7Q2-MX9A
+  ```
+
+  The icon is 🏆 for the winners, 🥈 for the finalists and 🏟️ otherwise; a run that went out before the final adds `🏆 Won by …` after its ties (a lost final already names the winner, and the card keeps to six lines), and the man of the match line appears only when you reached the final.

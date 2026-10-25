@@ -270,7 +270,7 @@ export function ProfileScreen() {
         </div>
         <div className="panel" data-testid="best-runs">
           <h3>Best runs</h3>
-          {!profile.arenaRuns?.length && <div className="muted small">No arena runs yet. Try the Cup Final or the Gauntlet from Home.</div>}
+          {!profile.arenaRuns?.length && <div className="muted small">No arena runs yet. Try the Cup or the Gauntlet from Home.</div>}
           {!!profile.arenaRuns?.length && (
             <table className="tbl">
               <thead>

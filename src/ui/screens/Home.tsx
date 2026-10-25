@@ -126,11 +126,11 @@ export function Home() {
         <span className="small muted">One sitting, real club-seasons, no season attached.</span>
       </div>
       <div className="modes" data-testid="arena-row">
-        <button className="mode-card" onClick={() => openArenaSetup('cup')} data-testid="arena-final-card">
-          <span className="icon">🏟️</span>
-          <h3>Cup Final</h3>
-          <p>Draft sixteen, then one final against a real giant: pick the side, make the changes at half time and the 70th minute, and choose the penalty takers if it goes to a shoot-out.</p>
-          <span className="foot">8 minutes · one match, one trophy</span>
+        <button className="mode-card" onClick={() => openArenaSetup('cup')} data-testid="arena-cup-card">
+          <span className="icon">🏆</span>
+          <h3>The Cup</h3>
+          <p>Draft sixteen, then a knockout of real club-seasons in one sitting: seeded draws, four days between ties, bans that carry and penalties when it is level. Eight, sixteen or thirty-two clubs, or one final.</p>
+          <span className="foot">10 minutes · lift a trophy tonight</span>
         </button>
         <button className="mode-card" onClick={() => openArenaSetup('gauntlet')} data-testid="arena-gauntlet-card">
           <span className="icon">🪜</span>

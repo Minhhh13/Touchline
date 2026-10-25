@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, slotOf } from '@game/store'
 import type { GameSettings } from '@game/types'
 import { shortNameFor } from '@game/logic/setup'
-import { arenaNeedsAllLeagues, colourClubs, FINAL_FIELDS, FINAL_SQUAD, finalGameSettings, GAUNTLET_SQUAD, GAUNTLET_SQUAD_CAP, gauntletGameSettings, latestCompleteSeason, summariseArena } from '@game/logic/arena'
+import { ARENA_FIELDS, arenaNeedsAllLeagues, colourClubs, CUP_SQUAD, cupGameSettings, DEFAULT_CUP_SIZE, DEFAULT_DECADE, GAUNTLET_SQUAD, GAUNTLET_SQUAD_CAP, gauntletGameSettings, latestCompleteSeason, summariseArena } from '@game/logic/arena'
 import { arenaFormatLabel } from '@game/logic/modes'
 import { FORMATIONS } from '@engine/formations'
 import type { ArenaField } from '@engine/knockout'
+import { CUP_FIELD_TARGET, cupDecades, type CupSize } from '@engine/cup'
 import { GAUNTLET_CEILING } from '@engine/gauntlet'
 import { randomSeed } from '@engine/rng'
 import { ClubBadge, Segmented } from '../components/bits'
@@ -37,14 +38,19 @@ function eraRange(era: Era, first: number): { fromSeason?: number; toSeason?: nu
   return {}
 }
 
-/** Setup for an arena format (the Cup Final or the Gauntlet). Its own screen, so the quick and season Setup stays untouched. */
+/** Setup for an arena format (the Cup, its one-off final, or the Gauntlet). Its own screen, so the quick and season Setup stays untouched. */
 export function ArenaSetup() {
   const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, arenaSetupFormat } = useStore()
   const [format, setFormat] = useState<'cup' | 'gauntlet'>(arenaSetupFormat)
   const gauntlet = format === 'gauntlet'
   const [teamName, setTeamName] = useState('Touchline XI')
   const [formationId, setFormationId] = useState('4-3-3')
-  const [field, setField] = useState<ArenaField>('giants')
+  const [size, setSize] = useState<CupSize>(DEFAULT_CUP_SIZE)
+  const final = !gauntlet && size === 2
+  // A one-off final opens against the giants, a bigger Cup against the wheel, until a field is chosen
+  const [chosenField, setField] = useState<ArenaField | null>(null)
+  const field: ArenaField = chosenField ?? (size === 2 ? 'giants' : 'wheel')
+  const [decade, setDecade] = useState(DEFAULT_DECADE)
   const [wheelScope, setWheelScope] = useState<'league' | 'europe'>('league')
   const [leagueId, setLeagueId] = useState('england')
   const [era, setEra] = useState<Era>('all')
@@ -82,8 +88,8 @@ export function ArenaSetup() {
   const buildSettings = (preview: boolean): GameSettings | null => {
     if (!ready || !season) return null
     const name = teamName.trim() || 'Touchline XI'
-    const c = { teamName: name, formationId, field, wheelLeagues, ...eraRange(era, u.firstSeason), difficulty, seed: seed.trim() || (preview ? 'drawn when you start' : randomSeed()), hardMode, twists, hostClubId: hostClubId || undefined }
-    return gauntlet ? gauntletGameSettings(u, c, shortNameFor(name)) : finalGameSettings(u, c, shortNameFor(name))
+    const c = { teamName: name, formationId, field, wheelLeagues, ...eraRange(era, u.firstSeason), difficulty, seed: seed.trim() || (preview ? 'drawn when you start' : randomSeed()), hardMode, twists, hostClubId: hostClubId || undefined, size, decade }
+    return gauntlet ? gauntletGameSettings(u, c, shortNameFor(name)) : cupGameSettings(u, c, shortNameFor(name))
   }
   const preview = buildSettings(true)
   // Starting over an unfinished run asks first, as the Daily does over a Quick Draft
@@ -98,7 +104,7 @@ export function ArenaSetup() {
   return (
     <div className="page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="row between wrap" style={{ marginBottom: 12 }}>
-        <h1>{gauntlet ? 'The Gauntlet' : 'Cup Final'}</h1>
+        <h1>{gauntlet ? 'The Gauntlet' : final ? 'Cup Final' : 'The Cup'}</h1>
         <button className="btn ghost" onClick={() => go('home')}>
           ← Back
         </button>
@@ -117,21 +123,49 @@ export function ArenaSetup() {
                 value={format}
                 onChange={setFormat}
                 options={[
-                  { value: 'cup', label: 'Cup Final', hint: `Draft ${FINAL_SQUAD}, then one final from the team sheet to the last penalty` },
+                  { value: 'cup', label: 'The Cup', hint: `Draft ${CUP_SQUAD}, then a knockout in one sitting, or one final` },
                   { value: 'gauntlet', label: 'The Gauntlet', hint: `Draft ${GAUNTLET_SQUAD}, then climb fifteen rungs until the first defeat` },
                 ]}
               />
               <span className="help" data-testid="arena-format-help">
                 {gauntlet
                   ? `Draft ${GAUNTLET_SQUAD}, then climb a ladder of fifteen real club-seasons from the wheel, each from a stronger slice than the last, home and away in turn. Lose once and the run is over; a level match goes to penalties. One lifeline changes a rung's draw, and surviving rungs 2, 4, 6 and 8 earns a bonus spin (up to ${GAUNTLET_SQUAD_CAP}).`
-                  : `Draft ${FINAL_SQUAD}, then one final against a real club-season, managed through half time, the 70th minute and a shoot-out if it is level.`}
+                  : final
+                    ? `Draft ${CUP_SQUAD}, then one final against a real club-season, managed through half time, the 70th minute and a shoot-out if it is level.`
+                    : `Draft ${CUP_SQUAD}, then a knockout of ${size} real club-seasons in one sitting: seeded draws, four days between ties, bans that carry and a training focus each round. Level at 90 goes to penalties; the final is on neutral ground.`}
               </span>
             </div>
             {!gauntlet && (
+              <div className="field" data-testid="arena-size">
+                Size
+                <Segmented
+                  value={String(size)}
+                  onChange={(v) => setSize(Number(v) as CupSize)}
+                  options={[
+                    { value: '2', label: 'Final', hint: 'One match, one trophy' },
+                    { value: '8', label: '8 clubs', hint: 'Three rounds' },
+                    { value: '16', label: '16 clubs', hint: 'Four rounds, about ten minutes' },
+                    { value: '32', label: '32 clubs', hint: 'Five rounds: the long road' },
+                  ]}
+                />
+              </div>
+            )}
+            {!gauntlet && (
               <div className="field" data-testid="arena-field">
-                Opponent
-                <Segmented value={field} onChange={setField} options={FINAL_FIELDS.map((f) => ({ value: f.value, label: f.label, hint: f.hint }))} />
-                <span className="help">{FINAL_FIELDS.find((f) => f.value === field)?.hint}. Everyone on the same seed meets the same opponent, whatever they draft.</span>
+                {final ? 'Opponent' : 'Field'}
+                <Segmented value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: f.label, hint: f.hint }))} />
+                {field === 'decade' && (
+                  <select className="input" value={decade} onChange={(e) => setDecade(Number(e.target.value))} data-testid="arena-decade">
+                    {cupDecades(u.firstSeason, u.lastSeason).map((d) => (
+                      <option key={d} value={d}>
+                        The {d}s ({seasonLabel(Math.max(d, u.firstSeason))} to {seasonLabel(Math.min(d + 9, u.lastSeason))})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <span className="help">
+                  {ARENA_FIELDS.find((f) => f.value === field)?.hint}. Everyone on the same seed {final ? 'meets the same opponent' : 'gets the same field and the same first-round draw'}, whatever they draft.
+                </span>
               </div>
             )}
           </div>
@@ -173,7 +207,7 @@ export function ArenaSetup() {
                       { value: 'modern', label: '2020-21 onwards' },
                     ]}
                   />
-                  <span className="help">{gauntlet ? 'The wheel and the ladder both come from the era.' : 'The wheel and the opponent both come from the era.'}</span>
+                  <span className="help">{gauntlet ? 'The wheel and the ladder both come from the era.' : field === 'decade' ? 'The wheel comes from the era; the field from its decade.' : field === 'europe' ? 'The wheel comes from the era; Europe from each league’s latest complete season.' : `The wheel and the ${final ? 'opponent' : 'field'} both come from the era.`}</span>
                 </div>
                 <div className="field">
                   Difficulty
@@ -181,11 +215,11 @@ export function ArenaSetup() {
                     value={difficulty}
                     onChange={setDifficulty}
                     options={[
-                      { value: 'calibrated', label: 'Calibrated', hint: gauntlet ? 'Each rung is capped a little higher than the last' : 'The opponent is pulled towards what a good draft can beat' },
+                      { value: 'calibrated', label: 'Calibrated', hint: gauntlet ? 'Each rung is capped a little higher than the last' : final ? 'The opponent is pulled towards what a good draft can beat' : 'The field is pulled towards what a good draft can beat' },
                       { value: 'realistic', label: 'Realistic', hint: 'The real side at full strength' },
                     ]}
                   />
-                  <span className="help">{difficulty === 'calibrated' ? (gauntlet ? `Rung 1 plays at no more than ${GAUNTLET_CEILING.start}, each rung ${GAUNTLET_CEILING.step} higher, never above its real self.` : 'A giant plays at about 78, a champion 76, a wheel side 72, never above its real self.') : 'The real squad at full strength. A giant killing counts for the Giant Killer badge.'}</span>
+                  <span className="help">{difficulty === 'calibrated' ? (gauntlet ? `Rung 1 plays at no more than ${GAUNTLET_CEILING.start}, each rung ${GAUNTLET_CEILING.step} higher, never above its real self.` : final ? 'A giant plays at about 78, a champion 76, a wheel side 72, never above its real self.' : `The field's average is brought to ${CUP_FIELD_TARGET[field]} (every side loses the same points), never above anyone's real self.`) : 'The real squad at full strength. A giant killing counts for the Giant Killer badge.'}</span>
                 </div>
                 <label className="field">
                   Seed
@@ -195,7 +229,7 @@ export function ArenaSetup() {
                       New
                     </button>
                   </div>
-                  <span className="help">{gauntlet ? 'Share a seed and a friend gets the same wheel and climbs the same ladder.' : 'Share a seed and a friend gets the same wheel and the same opponent.'}</span>
+                  <span className="help">{gauntlet ? 'Share a seed and a friend gets the same wheel and climbs the same ladder.' : final ? 'Share a seed and a friend gets the same wheel and the same opponent.' : 'Share a seed and a friend gets the same wheel, the same field and the same first-round draw.'}</span>
                 </label>
                 <label className="toggle">
                   <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
@@ -236,7 +270,7 @@ export function ArenaSetup() {
                 </button>
               ))}
             </div>
-            <p className="help">The wheel only offers players who can fill a slot you still need; {gauntlet ? GAUNTLET_SQUAD - 11 : FINAL_SQUAD - 11} more go on the bench.</p>
+            <p className="help">The wheel only offers players who can fill a slot you still need; {gauntlet ? GAUNTLET_SQUAD - 11 : CUP_SQUAD - 11} more go on the bench.</p>
           </div>
           <div className="bottom-bar" ref={barRef}>
             <div className="small muted" data-testid="arena-summary">
@@ -254,7 +288,7 @@ export function ArenaSetup() {
               </button>
             </div>
             <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !preview} data-testid="arena-start">
-              {!ready ? 'Loading league data…' : gauntlet ? 'Draft for the Gauntlet' : 'Draft for the final'}
+              {!ready ? 'Loading league data…' : gauntlet ? 'Draft for the Gauntlet' : final ? 'Draft for the final' : 'Draft for the Cup'}
             </button>
           </div>
         </div>

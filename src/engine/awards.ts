@@ -83,6 +83,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'gauntlet-10', title: 'Last One Standing', description: 'Climb ten rungs of the Gauntlet.', icon: '🧗' },
   { id: 'gauntlet-15', title: 'Gauntlet Complete', description: 'Climb all fifteen rungs of the Gauntlet.', icon: '🏔️' },
   { id: 'giant-killer', title: 'Giant Killer', description: 'Beat a side with a real team strength of 85+ in the arena on Realistic.', icon: '🪓' },
+  { id: 'cup-night', title: 'Cup Night', description: 'Lift the Cup.', icon: '🏆' },
+  { id: 'cup-32', title: 'The Long Road', description: 'Win a 32-club Cup.', icon: '🛣️' },
+  { id: 'giant-slayers', title: 'Giant Slayers', description: 'Win the Cup against the giants field.', icon: '⚔️' },
+  { id: 'clean-run', title: 'Clean Run', description: 'Win the Cup without conceding a goal.', icon: '🧤' },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))
@@ -144,9 +148,12 @@ export interface ArenaShareInput {
   icon: string
   steps: ArenaShareStep[]
   motm?: string
+  /** What the man of the match line calls him: `MOTM` unless set (`Final MOTM` in the Cup). */
+  motmLabel?: string
   seed?: string
   /** The Gauntlet: one mark per rung printed in place of the per-match lines, then `lines` (the fall, the scorer). */
   strip?: string
+  /** Lines after the strip, or after the per-match lines when there is no strip (the Cup's winner). */
   lines?: string[]
 }
 
@@ -170,7 +177,8 @@ export function lastName(name: string): string {
 /**
  * The arena's share text:
  * TouchLine · Cup Final / the side and its wheel / the banner / one line per match / MOTM / the seed.
- * The Gauntlet prints its strip and lines in place of the per-match lines.
+ * The Gauntlet prints its strip and lines in place of the per-match lines; the
+ * Cup prints its lines after them.
  */
 export function arenaShareText(s: ArenaShareInput, appName = 'TouchLine'): string {
   const lines = [`${appName} · ${s.mode}`, `${s.teamName} · ${s.formationName} · ${s.wheel}`, `${s.icon} ${s.banner}`]
@@ -179,8 +187,9 @@ export function arenaShareText(s: ArenaShareInput, appName = 'TouchLine'): strin
     for (const l of s.lines ?? []) if (l.trim()) lines.push(l)
   } else {
     for (const st of s.steps) lines.push(`${st.code} ${arenaStepMark(st)} ${st.gf}-${st.ga} ${st.opponent}${st.pens ? ` (${st.pens.us}-${st.pens.them} pens)` : ''}`)
+    for (const l of s.lines ?? []) if (l.trim()) lines.push(l)
   }
-  if (s.motm) lines.push(`⭐ MOTM: ${initialName(s.motm)}`)
+  if (s.motm) lines.push(`⭐ ${s.motmLabel ?? 'MOTM'}: ${initialName(s.motm)}`)
   if (s.seed) lines.push(`Seed ${s.seed}`)
   return lines.join('\n')
 }

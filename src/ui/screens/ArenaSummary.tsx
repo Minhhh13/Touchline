@@ -5,7 +5,9 @@ import { getFormation } from '@engine/formations'
 import { clubIdOfKey } from '@engine/knockout'
 import { randomSeed } from '@engine/rng'
 import { USER_TEAM } from '@engine/season'
-import { arenaBanner, arenaClubName, arenaShareInput, gauntletLines, rungMark } from '@game/logic/arena'
+import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark } from '@game/logic/arena'
+import { cupRoundCount, cupRoundName } from '@engine/cup'
+import { Bracket } from '../components/Bracket'
 import { arenaFormatLabel, shareCardFooter } from '@game/logic/modes'
 import { playerLookup } from '@game/logic/players'
 import { Pitch } from '../components/Pitch'
@@ -28,6 +30,12 @@ export function ArenaSummary() {
   const a = game.arena
   const get = playerLookup(game, u)
   const gauntlet = a.format === 'gauntlet'
+  const cup = isBigCup(a)
+  const size = a.size ?? 2
+  const inFinal = !cup || a.log.length === cupRoundCount(size)
+  const winner = cup && !a.won ? cupWinnerName(game, u) : null
+  // The Gauntlet and the Cup list the run's scorers; a final its own
+  const runLong = gauntlet || cup
   const banner = arenaBanner(a)
   const input = arenaShareInput(game, u)
   const text = input ? arenaShareText(input) : ''
@@ -39,7 +47,7 @@ export function ArenaSummary() {
     .filter(([, s]) => s.seasonStats.goals > 0)
     .sort(([x, sx], [y, sy]) => sy.seasonStats.goals - sx.seasonStats.goals || (x < y ? -1 : 1))
   const goals = (res?.events ?? []).filter((e) => (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal') && (e.side === 'home') === userHome)
-  const motm = gauntlet ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
+  const motm = gauntlet || !inFinal ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
   const formation = getFormation(game.tactics.formationId)
   const stepLine = (i: number) => {
     const s = a.log[i]
@@ -67,9 +75,9 @@ export function ArenaSummary() {
         footer: shareCardFooter(game),
         hideRatings: game.settings.rules.hardMode,
         banner: { text: banner },
-        lines: gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(motm ? [`⭐ ${motm}`] : [])],
+        lines: gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])],
       })
-      downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+      downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
       showToast('Could not render the share card.')
     }
@@ -85,6 +93,11 @@ export function ArenaSummary() {
           {a.won ? (gauntlet ? '🏔️ ' : '🏆 ') : gauntlet ? '🪜 ' : ''}
           {banner}
         </div>
+        {winner && (
+          <div className="muted" style={{ marginTop: 6 }} data-testid="cup-winner">
+            🏆 Won by {winner}
+          </div>
+        )}
         {gauntlet && (
           <div className="row" style={{ justifyContent: 'center', marginTop: 10 }}>
             <GauntletLadder u={u} a={a} />
@@ -144,10 +157,10 @@ export function ArenaSummary() {
             )}
           </div>
           <div className="panel">
-            <h3>{gauntlet ? 'The run’s scorers' : 'Man of the match and scorers'}</h3>
-            {motm && <div style={{ fontWeight: 600 }}>⭐ {motm}</div>}
-            {gauntlet && runScorers.length === 0 && <div className="muted small">No goals for us.</div>}
-            {gauntlet &&
+            <h3>{runLong ? 'The run’s scorers' : 'Man of the match and scorers'}</h3>
+            {motm && <div style={{ fontWeight: 600 }}>⭐ {cup ? 'Final man of the match: ' : ''}{motm}</div>}
+            {runLong && runScorers.length === 0 && <div className="muted small">No goals for us.</div>}
+            {runLong &&
               runScorers.map(([id, s]) => (
                 <div key={id} className="row between small">
                   <span>
@@ -157,8 +170,8 @@ export function ArenaSummary() {
                   <span className="mono muted">{s.seasonStats.goals}</span>
                 </div>
               ))}
-            {!gauntlet && goals.length === 0 && <div className="muted small">No goals for us.</div>}
-            {!gauntlet && goals.map((g, i) => (
+            {!runLong && goals.length === 0 && <div className="muted small">No goals for us.</div>}
+            {!runLong && goals.map((g, i) => (
               <div key={i} className="row between small">
                 <span>
                   ⚽ {g.playerName}
@@ -180,6 +193,19 @@ export function ArenaSummary() {
           <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={game.settings.rules.hardMode} />
         </div>
       </div>
+      {cup && a.bracket && (
+        <div className="panel" style={{ marginTop: 12 }} data-testid="arena-bracket">
+          <h3>The draw · {size} clubs</h3>
+          <Bracket
+            rounds={Array.from({ length: cupRoundCount(size) }, (_, r) => cupRoundName(size, r).name)}
+            ties={a.bracket.rounds}
+            nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
+            badgeOf={(k) => (k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k))}
+            userId={USER_TEAM}
+            seeds={a.bracket.seeds}
+          />
+        </div>
+      )}
     </div>
   )
 }

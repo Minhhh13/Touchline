@@ -14,6 +14,7 @@ import type { SquadStatus } from '@engine/status'
 import type { AiClub } from '@engine/season'
 import type { ArenaField, ArenaTier } from '@engine/knockout'
 import type { GauntletLadder } from '@engine/gauntlet'
+import type { CupBracket } from '@engine/cup'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena'
 export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
@@ -111,6 +112,8 @@ export interface ArenaState {
   lifelineUsed?: number
   /** The Gauntlet's ladder, built once from the field stream; absent for the other formats. */
   ladder?: GauntletLadder
+  /** The Cup of 8, 16 or 32 clubs: the field's seeds, the rounds drawn and the AI sides' carried state; absent for a one-off final and the Gauntlet. */
+  bracket?: CupBracket
 }
 
 /** One finished arena run on the Record page's Best runs. */

@@ -87,7 +87,7 @@ export function isQuickLike(mode: Mode): boolean {
  */
 export function finishDraftLabel(game: LabelledGame, made?: number): string {
   if (isQuickLike(game.settings.mode)) return 'Simulate the season'
-  if (game.settings.mode === 'arena') return game.arena && game.arena.step > 0 ? 'Back to the ladder' : arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : game.settings.arena?.format === 'gauntlet' ? 'Onto the ladder' : 'Into the arena'
+  if (game.settings.mode === 'arena') return game.arena && game.arena.step > 0 ? 'Back to the ladder' : arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : game.settings.arena?.format === 'gauntlet' ? 'Onto the ladder' : 'On to the draw'
   if (game.settings.mode === 'dynasty' && game.year > 1) return 'Into the new season'
   return made === undefined ? 'Go to pre-season' : `Go to pre-season with ${made}`
 }

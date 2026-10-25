@@ -5,7 +5,11 @@ import { DEFAULT_ROLE, getRole } from '@engine/roles'
 import { clubIdOfKey } from '@engine/knockout'
 import type { TeamTalk } from '@engine/match'
 import type { Position } from '@engine/types'
-import { arenaStepInfo, nextArenaOpponent } from '@game/logic/arena'
+import { arenaClubShortName, arenaStepInfo, isBigCup, nextArenaOpponent } from '@game/logic/arena'
+import { cupRoundCount, cupRoundName } from '@engine/cup'
+import { USER_TEAM } from '@engine/season'
+import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
+import { Bracket } from '../components/Bracket'
 import { GAUNTLET_RUNGS, rungBandLabel, rungLabels } from '@engine/gauntlet'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { arenaFormatLabel } from '@game/logic/modes'
@@ -18,14 +22,15 @@ import { clubName } from '../format'
 import { OppositionReport } from './OppositionReport'
 import { TacticsTab } from './Dugout'
 
-type ArenaTab = 'team' | 'tactics'
+type ArenaTab = 'team' | 'tactics' | 'draw'
 
 const ORDER: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']
 
 /**
  * The arena hub (phase `week` with `game.arena`): the next opponent, the
- * opposition report, the team sheet and tactics, then "Manage this one"
- * (live, the two stops) or "Assistant plays it".
+ * opposition report, the team sheet and tactics (and the Cup's draw), then
+ * "Manage this one" (live, the two stops) or "Assistant plays it" ("Sim this
+ * tie" in the Cup).
  */
 export function Arena() {
   const store = useStore()
@@ -47,6 +52,9 @@ export function Arena() {
   const info = arenaStepInfo(a)
   const opp = nextArenaOpponent(game, u)
   const gauntlet = a.format === 'gauntlet'
+  const cup = isBigCup(a)
+  const size = a.size ?? 2
+  const seeded = cup && opp && a.bracket?.seeds.includes(opp.key)
   const rung = a.step + 1
   const billing = gauntlet && opp ? rungLabels(rung, opp.real).billing : undefined
   const changeDraw = () => {
@@ -112,7 +120,7 @@ export function Arena() {
             <ClubBadge clubId={clubIdOfKey(opp.key)} size={44} />
             <div>
               <div className="small muted">
-                {gauntlet ? `Rung ${rung} · ${rungBandLabel(rung)}` : info.label}
+                {gauntlet ? `Rung ${rung} · ${rungBandLabel(rung)}` : cup ? `${info.label} · round ${a.step + 1} of ${cupRoundCount(size)}${seeded ? ' · a seed' : ''}` : info.label}
                 {info.neutral ? ' · neutral ground' : info.home ? ' · home' : ' · away'}
                 {billing ? ` · ${billing}` : ''}
               </div>
@@ -137,8 +145,25 @@ export function Arena() {
         tabs={[
           { id: 'team', label: 'Team sheet' },
           { id: 'tactics', label: 'Tactics' },
+          ...(cup ? [{ id: 'draw' as const, label: 'The draw' }] : []),
         ]}
       />
+      {tab === 'draw' && cup && a.bracket && (
+        <div className="panel col" style={{ gap: 8 }} data-testid="arena-draw">
+          <div className="row between wrap">
+            <h3>The draw · {size} clubs</h3>
+            <span className="small muted">Seeds kept apart in round one · four days between ties · the final on neutral ground</span>
+          </div>
+          <Bracket
+            rounds={Array.from({ length: cupRoundCount(size) }, (_, r) => cupRoundName(size, r).name)}
+            ties={a.bracket.rounds}
+            nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
+            badgeOf={(k) => (k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k))}
+            userId={USER_TEAM}
+            seeds={a.bracket.seeds}
+          />
+        </div>
+      )}
 
       {tab === 'team' && (
         <div className="grid dugout">
@@ -191,6 +216,13 @@ export function Arena() {
                   { value: 'fire-up', label: 'Fire up', hint: 'High variance' },
                 ]}
               />
+              {(gauntlet || cup) && (
+                <div className="field" data-testid="arena-training">
+                  Training focus
+                  <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: TRAINING_LABEL[k] }))} />
+                  <span className="help">{TRAINING[game.training].blurb} It shapes this match and the recovery before the next.</span>
+                </div>
+              )}
               <label className="field">
                 Captain
                 <select className="input" value={game.captainId ?? ''} onChange={(e) => store.setCaptain(e.target.value)} data-testid="arena-captain">
@@ -220,10 +252,10 @@ export function Arena() {
             Manage this one
           </button>
           <button className="btn" onClick={() => store.playArenaStep(false)} disabled={!opp} data-testid="arena-sim" title="The assistant picks the side and plays the match, penalties included">
-            Assistant plays it
+            {cup ? 'Sim this tie' : 'Assistant plays it'}
           </button>
-          {gauntlet && (
-            <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp} data-testid="arena-sim-end" title="The assistant plays every rung left and drafts the bonus spins">
+          {(gauntlet || cup) && (
+            <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp} data-testid="arena-sim-end" title={cup ? 'The assistant plays every tie left' : 'The assistant plays every rung left and drafts the bonus spins'}>
               Sim to the end
             </button>
           )}
