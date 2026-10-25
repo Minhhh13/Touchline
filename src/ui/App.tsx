@@ -23,7 +23,7 @@ import { withViewTransition } from './motion'
 import { Bandage, Banknote, BookOpen, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
@@ -63,6 +63,13 @@ export function App() {
   useEffect(() => {
     rememberThemePreference(profile.theme)
   }, [profile.theme])
+
+  // A new screen opens at its top, not where the last one was left (the summary is long; Explore used to open half-way down)
+  const phase = game?.phase
+  const h2hStage = !h2h ? 'setup' : h2h.result ? 'result' : 'draft'
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [screen, phase, h2hStage])
 
   if (loadError) {
     return (

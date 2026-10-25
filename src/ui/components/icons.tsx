@@ -1,4 +1,4 @@
-import { Bandage, Banknote, CircleCheck, Circle, CircleDot, Dumbbell, EyeOff, History, Info as InfoGlyph, Landmark, Mail, Medal, MessageSquare, RectangleVertical, Sparkles, ArrowDownToLine, TriangleAlert, Trophy, type LucideIcon } from 'lucide-react'
+import { Armchair, Bandage, Banknote, BrickWall, CalendarCheck, CircleCheck, Circle, CircleDot, Crown, Dumbbell, EyeOff, Footprints, Gem, Globe, Hand, Handshake, Heart, History, Info as InfoGlyph, Landmark, Mail, Medal, MessageSquare, RectangleVertical, ScrollText, Shield, Sparkles, Sprout, Star, Target, ArrowDownToLine, TriangleAlert, Trophy, Zap, type LucideIcon } from 'lucide-react'
 import type { NewsItem } from '@engine/season'
 import type { Twist } from '@engine/draft'
 import type { BriefingItem } from '@game/logic/briefing'
@@ -29,6 +29,51 @@ export const TWIST_ICON: Record<Twist, LucideIcon> = {
 export function RedCard({ size = 14 }: { size?: number }) {
   return <RectangleVertical size={size} className="ic-red-card" aria-hidden="true" />
 }
+
+/** A yellow card: the same shape filled in gold. */
+export function YellowCard({ size = 14 }: { size?: number }) {
+  return <RectangleVertical size={size} className="ic-yellow-card" aria-hidden="true" />
+}
+
+/**
+ * One picture per achievement (ACHIEVEMENTS in engine/awards.ts keeps its
+ * emoji for share text). An id missing here falls back to the trophy.
+ */
+export const ACHIEVEMENT_ICON: Record<string, LucideIcon> = {
+  perfect: Gem,
+  invincible: Shield,
+  champions: Trophy,
+  centurions: Target,
+  double: Medal,
+  cup: Medal,
+  continental: Globe,
+  treble: Crown,
+  boot30: Footprints,
+  glove20: BrickWall,
+  'hard-champions': EyeOff,
+  'one-club-champions': Heart,
+  'one-nation-champions': Globe,
+  'quick-perfect': Zap,
+  'daily-streak-7': CalendarCheck,
+  'dynasty-3': Crown,
+  survivor: Armchair,
+  dealmaker: Handshake,
+  'record-points': ScrollText,
+}
+
+export function AchievementIcon({ id, size = 22 }: { id: string; size?: number }) {
+  const Icon = ACHIEVEMENT_ICON[id] ?? Trophy
+  return <Icon size={size} aria-hidden="true" />
+}
+
+/** The season awards: player of the season, golden boot (and the quick season's top scorer), playmaker, golden glove, young player. */
+export const AWARD_ICON = {
+  pots: Star,
+  boot: Footprints,
+  playmaker: Target,
+  glove: Hand,
+  young: Sprout,
+} as const satisfies Record<string, LucideIcon>
 
 /** The news icon, with the suspension drawn as a filled red card. */
 export function NewsIcon({ kind, size = 16 }: { kind: NewsItem['kind']; size?: number }) {
