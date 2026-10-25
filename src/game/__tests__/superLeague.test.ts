@@ -9,7 +9,7 @@ import { decodeChallenge, encodeChallenge, isRulesDiff } from '@engine/challenge
 import { ENGINE_VERSION } from '@engine/version'
 import { buildSuperClubs, buildSuperRestClubs, rankedClubs, SUPER_LEAGUE_RIVALS, superLeagueField, superSeasons } from '@engine/superLeague'
 import type { ClubSeason } from '@engine/types'
-import { createGame, dailyGameSettings, describeRules, setupRules, summariseSetup } from '../logic/setup'
+import { createGame, dailyGameSettings, describeRules, quickSetupLine, setupChips, setupRules, summariseSetup } from '../logic/setup'
 import { closeJanuary, kickOff, quickSeasonGames, runQuickSeason, toKickoff } from '../logic/quick'
 import { playQuickCup, quickCupField, quickCupStatus, SUPER_NO_CUP } from '../logic/quickCups'
 import { oddsLeague, preSeasonOdds } from '../logic/odds'
@@ -236,6 +236,12 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
     expect(summariseSetup(u, s)).toContain('in the Super League, full strength')
     expect(summariseSetup(u, settings({}, false))).toContain('in the Premier League 2025-26, calibrated')
     expect(describeRules(u, s.rules)).toContain('Super League')
+    // The line above Spin and the chips name the Super League, not the all-league wheel's count or the opposition
+    expect(quickSetupLine(u, s)).toBe('Super XI · 4-3-3 · Normal · Super League')
+    expect(quickSetupLine(u, settings({ difficulty: 'realistic' }))).not.toContain('Realistic')
+    expect(quickSetupLine(u, settings({}, false))).toBe('Super XI · 4-3-3 · Normal · 7 leagues')
+    expect(setupChips(u, s).find((c) => c.key === 'host')?.text).toBe('Super League')
+    expect(setupChips(u, settings({}, false)).find((c) => c.key === 'host')?.text).toBe('Premier League 2025-26')
     expect(quickLeagueName(u, s)).toBe('Super League')
     expect(superTierLabel('CHAMPIONS')).toBe('Super League champions')
     expect(superTierLabel('PERFECT')).toBe('Perfect Super League season')
