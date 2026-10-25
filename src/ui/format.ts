@@ -2,11 +2,20 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { Fit } from '@engine/positions'
 import type { SeasonTier } from '@engine/types'
 import { tierLabel } from '@engine/season'
-import { FORMATION_BY_ID } from '@engine/formations'
+import { getFormation } from '@engine/formations'
 
 /** A season tier for display ("Champions", "Top 4"); with the position, 3rd or 4th reads as Top 4. */
 export function tierName(tier: SeasonTier, position?: number): string {
   return tierLabel(tier, position)
+}
+
+/** A formation's display name from its id ("4-4-2-diamond" reads "4-4-2 Diamond"); an unknown id shows as it is. */
+export function formationName(id: string): string {
+  try {
+    return getFormation(id).name
+  } catch {
+    return id
+  }
 }
 
 export function seasonLabel(season: number): string {
@@ -122,10 +131,6 @@ export function textColourFor(bg: string): string {
 /** A 0-100 meter value (condition, morale, sharpness, familiarity) as a whole number: the engine keeps floats (79.99999999999999). */
 export function meterValue(v: number): string {
   return String(Math.round(v))
-}
-/** A formation's display name from its id ('4-4-2-diamond' -> '4-4-2 Diamond'); an unknown id is shown as it is. */
-export function formationName(id: string): string {
-  return FORMATION_BY_ID[id]?.name ?? id
 }
 export type Outcome = 'W' | 'D' | 'L'
 /** One colour rule for results everywhere: a win is --good, a draw --meter-mid, a loss --bad (`.res-w`, `.res-d`, `.res-l` in styles.css). */

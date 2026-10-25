@@ -86,7 +86,7 @@ describe('the Daily', () => {
     const b = dailySettings(u, 'daily-2026-10-25')
     expect(a).toEqual(b)
     expect(a.rules).toEqual({ ...DAILY_RULES, leagues: ['england'] })
-    expect(a.rules).toMatchObject({ squadSize: 11, respins: 1, difficulty: 'normal', hardMode: false, showRatings: true, draftMode: 'squad', ratings: 'season', twists: true, uniqueClubSeasons: true, minFit: 'accomplished', leagues: ['england'] })
+    expect(a.rules).toMatchObject({ squadSize: 11, respins: 2, difficulty: 'normal', hardMode: false, showRatings: true, draftMode: 'squad', ratings: 'season', twists: true, uniqueClubSeasons: true, minFit: 'accomplished', leagues: ['england'] })
     expect(a.rules.fromSeason).toBeUndefined()
     expect(a.rules.toSeason).toBeUndefined()
     expect(a.rules.onlyClub).toBeUndefined()

@@ -28,9 +28,18 @@ export const TIER_INFO: Record<Tier, { colour: string; label: string }> = {
   blue: { colour: 'Blue', label: 'Underdog' },
 }
 
+/**
+ * What the reel and the odds panel show: a club-season's tier, or `icons`, Gamble mode's rare special (the Icons
+ * collection), which sits above gold. Icons is never a club-season's tier.
+ */
+export type DisplayTier = 'icons' | Tier
+/** Rarest first. */
+export const DISPLAY_TIERS: readonly DisplayTier[] = ['icons', ...TIERS]
+export const DISPLAY_TIER_INFO: Record<DisplayTier, { colour: string; label: string }> = { icons: { colour: 'Icons', label: 'All-time great' }, ...TIER_INFO }
+
 /** "Gold · Elite" */
-export function tierName(t: Tier): string {
-  return `${TIER_INFO[t].colour} · ${TIER_INFO[t].label}`
+export function tierName(t: DisplayTier): string {
+  return `${DISPLAY_TIER_INFO[t].colour} · ${DISPLAY_TIER_INFO[t].label}`
 }
 
 /** How a player is rated for strength; season ratings by default (a Prime-ratings mode can pass its own). */
