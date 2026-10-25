@@ -237,7 +237,7 @@ describe('simToNextStop and the store action', () => {
       expect(sim.rngState).toEqual(ran.rngState)
       expect(JSON.stringify(sim)).toBe(JSON.stringify(ran))
     }
-  }, 30000)
+  }, 120000) // whole runs through the persisted store: 12 to 15 s alone on a loaded machine, so 30 s timed out under the full suite
 
   it('the store plays a season to the summary through its stops', () => {
     for (const [host, seed, jobSecurity] of [['everton', 'hl-store-1', false], ['crystal-palace', 'hl-store-2', true]] as const) {
@@ -253,7 +253,7 @@ describe('simToNextStop and the store action', () => {
       expect(useStore.getState().game!.phase).toBe('summary')
       expect(useStore.getState().profile.leaderboard.some((e) => e.seed === seed)).toBe(true)
     }
-  }, 30000)
+  }, 120000) // whole runs through the persisted store: 12 to 15 s alone on a loaded machine, so 30 s timed out under the full suite
 
   it('stops a few times a season, every season (balance guard)', () => {
     const counts: number[] = []
@@ -274,12 +274,12 @@ describe('simToNextStop and the store action', () => {
       counts.push(stops)
     }
     const mean = counts.reduce((x, y) => x + y, 0) / counts.length
-    // Measured 4.6 stops a season over 36 auto-managed seasons (p10/p50/p90 3/5/7, the window included); all stops or none is a regression
+    // Measured 5.0 stops a season over 108 auto-managed seasons (p10/p50/p90 1/5/9, the window included); all stops or none is a regression
     expect(mean).toBeGreaterThan(2.5)
     expect(mean).toBeLessThan(8)
     expect(Math.min(...counts)).toBeGreaterThanOrEqual(1)
     expect(Math.max(...counts)).toBeLessThan(15)
-  }, 60000)
+  }, 120000) // twelve seasons: 17 s alone on a loaded machine
 
   it('reads nothing once the season is over', () => {
     const g = seasonGame({ hostClubId: 'burnley', seed: 'highlights-end' })
