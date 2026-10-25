@@ -207,6 +207,40 @@ describe('daily.submit: the replay is the official result', () => {
   }, T)
 })
 
+describe('the live build.json cache', () => {
+  it('rechecks a warm build.json before refusing data a deploy minutes old serves', async () => {
+    const h = makeHarness(undefined, LIVE)
+    await call(h, { op: 'daily.pin' })
+    // One minute after the pin (the 5-minute copy is still warm) the live site serves a rebuild
+    const NEW = `${STAMP}c`
+    h.clock.now = new Date('2026-10-25T12:01:00Z')
+    h.site.build = { ...LIVE, data: NEW }
+    h.site.stamp = NEW
+    const index = JSON.parse(new TextDecoder().decode(siteFile('leagues.json', NEW)!)) as LeaguesFile
+    const uNew = universeFromPacks(index, { england: { players: JSON.parse(new TextDecoder().decode(siteFile('england/players.json', NEW)!)) as PlayersFile, meta: JSON.parse(new TextDecoder().decode(siteFile('england/meta.json', NEW)!)) as MetaFile } }, ['england'])
+    const gNew = autoPlayed(uNew, dailyGameSettings(uNew, SEED, 'Verified FC'))
+    const r = await call(h, submitBody('daily.submit', gNew, uNew), BOB)
+    expect(r.body).toMatchObject({ status: 'ranked' })
+    expect(h.entries.get(`daily|${DATE}|${BOB.userId}`)?.entry.data_version).toBe(NEW)
+  }, T)
+
+  it('fetches build.json at most once per 30 seconds, failures included', async () => {
+    const h = makeHarness(undefined, null)
+    for (let i = 0; i < 5; i++) await call(h, { op: 'status' })
+    expect(h.site.served.filter((p) => p === 'build.json')).toHaveLength(1)
+    h.site.build = LIVE
+    h.clock.now = new Date(h.clock.now.getTime() + 31000)
+    expect((await call(h, { op: 'status' })).body.live).toEqual(LIVE)
+    // A post naming unknown data cannot make the function fetch build.json again within the window
+    const g = honestDaily()
+    const unknown = reencode(encodedOf(g), (c) => {
+      c.data = '2031-01-01'
+    })
+    for (let i = 0; i < 3; i++) expect((await call(h, submitBody('daily.submit', g, u, unknown))).body.code).toBe('data_mismatch')
+    expect(h.site.served.filter((p) => p === 'build.json')).toHaveLength(2)
+  }, T)
+})
+
 describe('weekly.submit', () => {
   it('ranks an honest weekly challenge on its pinned week', async () => {
     const h = makeHarness(undefined, LIVE)

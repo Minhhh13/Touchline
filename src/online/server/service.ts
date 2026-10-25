@@ -128,6 +128,9 @@ export const LIMITS = {
 /** How long the live site's `build.json` is trusted per isolate. */
 export const LIVE_BUILD_TTL_MS = 5 * 60 * 1000
 
+/** The shortest gap between two fetches of `build.json` per isolate (a forced recheck, or a retry after a failure). */
+export const LIVE_BUILD_RECHECK_MS = 30 * 1000
+
 /** The leagues every pinned puzzle is computed on (both mappings are England-only by design). */
 export const PUZZLE_LEAGUES = ['england']
 
@@ -169,9 +172,19 @@ export function createServer(deps: ServerDeps): Server {
   const ensuring = new Map<string, Promise<DataPackRow | null>>()
   const universes = new Map<string, Promise<LoadedUniverse>>()
 
-  async function liveBuild(): Promise<BuildInfo | null> {
+  let lastFetchAt = Number.NEGATIVE_INFINITY
+
+  /**
+   * The live site's build.json, trusted for LIVE_BUILD_TTL_MS. `fresh` asks again once the copy is older than
+   * LIVE_BUILD_RECHECK_MS: a run on data the cached copy does not name may come from a deploy minutes old, and its
+   * refusal (`data_mismatch`) is final for the client. Fetches, failed ones included, are at most one per
+   * LIVE_BUILD_RECHECK_MS per isolate, so posts cannot turn the function into a request loop against the site.
+   */
+  async function liveBuild(fresh = false): Promise<BuildInfo | null> {
     const at = deps.now().getTime()
-    if (liveCache && at - liveCache.at < LIVE_BUILD_TTL_MS) return liveCache.value
+    if (liveCache && at - liveCache.at < (fresh ? LIVE_BUILD_RECHECK_MS : LIVE_BUILD_TTL_MS)) return liveCache.value
+    if (at - lastFetchAt < LIVE_BUILD_RECHECK_MS) return liveCache && at - liveCache.at < LIVE_BUILD_TTL_MS ? liveCache.value : null
+    lastFetchAt = at
     const bytes = await deps.fetchSite('build.json')
     let value: BuildInfo | null = null
     try {
@@ -179,8 +192,9 @@ export function createServer(deps: ServerDeps): Server {
     } catch {
       value = null
     }
-    // A failure is not cached: the next request asks again
     if (value) liveCache = { at, value }
+    // A failed recheck keeps a copy that is still within its TTL
+    else if (liveCache && at - liveCache.at < LIVE_BUILD_TTL_MS) return liveCache.value
     return value
   }
 
@@ -191,7 +205,9 @@ export function createServer(deps: ServerDeps): Server {
     const job = (async () => {
       const known = await deps.db.dataPack(version)
       if (known) return known
-      const live = await liveBuild()
+      let live = await liveBuild()
+      // The cached build.json may predate a deploy of this data: ask the site again before refusing it
+      if (!live || live.data !== version) live = await liveBuild(true)
       if (!live || live.data !== version) return null
       const indexBytes = await deps.fetchSite('data/leagues.json')
       if (!indexBytes) throw refuse(503, 'packs_unavailable', 'The live site did not serve leagues.json')

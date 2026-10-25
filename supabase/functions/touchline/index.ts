@@ -130,6 +130,32 @@ function makeDeps(admin: SupabaseClient) {
   }
 }
 
+/** The body as text, or null once it passes `max` bytes: read in chunks so a body without a content-length (or with a
+ * false one) is never buffered whole before the size check. */
+async function readBody(req: Request, max: number): Promise<string | null> {
+  if (!req.body) return ''
+  const reader = req.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > max) {
+      await reader.cancel()
+      return null
+    }
+    chunks.push(value)
+  }
+  const all = new Uint8Array(size)
+  let at = 0
+  for (const c of chunks) {
+    all.set(c, at)
+    at += c.byteLength
+  }
+  return new TextDecoder().decode(all)
+}
+
 // One server per isolate: it keeps the live build (5 minutes), the pins and the last two universes warm
 let server: ReturnType<typeof createServer> | null = null
 
@@ -142,7 +168,8 @@ export default {
     if (!userId) return Response.json({ status: 401, code: 'unauthorised', reason: 'Sign in first' }, { status: 401 })
     const live = (server ??= createServer(makeDeps(ctx.supabaseAdmin)))
     const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-    const text = (await req.text()).slice(0, MAX_BODY)
+    const text = await readBody(req, MAX_BODY)
+    if (text === null) return Response.json({ status: 413, code: 'bad_request', reason: 'The request is too large' }, { status: 413 })
     const reply = await live.handle({ userId, isAnonymous: ctx.jwtClaims?.is_anonymous === true, jwt }, text)
     if (!reply) return Response.json({ status: 503, code: 'unavailable', reason: 'No answer' }, { status: 503 })
     return Response.json(reply.body, { status: reply.status })

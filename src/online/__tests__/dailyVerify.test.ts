@@ -296,6 +296,57 @@ describe('strictReplayDraft: the tamper suite over 200 Daily dates', () => {
   }, 600000)
 })
 
+describe('strictReplayDraft: guards the tamper suite does not reach on its own (security review)', () => {
+  type Row = [string | null, string | null]
+  const payloadOf = (settings: GameSettings, g: Game, k?: string) =>
+    ({ v: 1, data: u.generatedAt, engine: ENGINE_VERSION, name: 'T', s: { seed: settings.seed, f: settings.formationId, l: 'england', wl: ['england'], h: settings.hostClubId, ls: settings.leagueSeason, d: 'calibrated', r: {} }, p: picksFromHistory(g.draft!.history, (id) => u.index[id]?.playerId) as Row[], c: { pts: 0, w: 0, d: 0, l: 0, t: 'RELEGATED' }, k: k ?? historyKey(g.draft!.history) }) as ChallengePayload
+  /** The player's own pick, never the assistant's: the weakest usable player in his first eligible slot. */
+  function pickWorst(g: Game) {
+    const d = g.draft!
+    const cs = u.clubSeasonByKey[`${d.current!.clubId}@${d.current!.season}`]
+    const worst = cs.squad.filter((p) => canUse(d, p) && (eligibleSlots(d, p).length > 0 || !isComplete(d))).sort((a, b) => a.overall - b.overall)[0]
+    pick(u, d, worst.id, eligibleSlots(d, worst)[0]?.id ?? 'bench')
+  }
+  function drafted(settings: GameSettings, respins: number): Game {
+    const g = createGame(settings)
+    g.draft!.respinsLeft = respins
+    doSpin(g)
+    for (let i = 0; i < respins; i++) doRespin(g)
+    pickWorst(g)
+    while (!isComplete(g.draft!)) {
+      doSpin(g)
+      pickWorst(g)
+    }
+    return g
+  }
+
+  it('refuses a third re-spin followed by the player\'s own picks, and passes two', () => {
+    for (let i = 0; i < 20; i++) {
+      const settings = dailyGameSettings(u, `daily-2026-07-${String(i + 1).padStart(2, '0')}`)
+      expect(settings.rules.respins).toBe(2)
+      const honest = drafted(settings, 2)
+      expect(() => strictReplayDraft(u, createGame(settings), payloadOf(settings, honest))).not.toThrow()
+      const extra = drafted(settings, 3)
+      expect(() => strictReplayDraft(u, createGame(settings), payloadOf(settings, extra))).toThrow(/after an auto-complete the assistant drafts the rest/)
+    }
+  }, 600000)
+
+  it('refuses a history key the wheel did not produce (it is stored with the entry)', () => {
+    const settings = dailyGameSettings(u, SEED)
+    const g = drafted(settings, 0)
+    expect(() => strictReplayDraft(u, createGame(settings), payloadOf(settings, g))).not.toThrow()
+    expect(() => strictReplayDraft(u, createGame(settings), payloadOf(settings, g, 'forged'))).toThrow(/did not land on the same club-seasons/)
+  })
+
+  it('refuses a seed that only names the day by date overflow (daily-2026-09-55 is 25 October)', () => {
+    const settings = dailyGameSettings(u, SEED, 'Verified FC')
+    const g = finished(settings, doAutoRest)
+    const c = challengeFromGame(g, u, 'Tester')!
+    const v = verifyDaily(u, pinFor(settings), body(g, { ...c, s: { ...c.s, seed: 'daily-2026-09-55' } }), NOW, never)
+    expect(v).toMatchObject({ ok: false, status: 409, code: 'puzzle_mismatch' })
+  })
+})
+
 describe('dailyStartSettings', () => {
   const local = dailyGameSettings(u, SEED, 'My Side')
 
