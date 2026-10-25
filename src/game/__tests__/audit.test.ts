@@ -10,7 +10,8 @@ import { normaliseGame } from '../logic/save'
 import { capOfGame } from '../logic/cap'
 import { chainOfGame } from '../logic/chain'
 import { rollEvent } from '@engine/events'
-import { newSquadPlayer, USER_TEAM } from '@engine/season'
+import { computeTable, newSquadPlayer, seasonTable, USER_TEAM } from '@engine/season'
+import { briefStanding, runInVerdict, takeoverTable } from '../logic/runin'
 import { playerLookup } from '../logic/players'
 import { runQuickSeason } from '../logic/quick'
 import { storyForGame } from '../logic/story'
@@ -132,7 +133,12 @@ describe('audit fixes: season and squad', () => {
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
     delete oldSettings.weekly
+    delete oldSettings.runIn
     old.settings = oldSettings
+    const oldSeason: Record<string, unknown> = { ...g.season! }
+    delete oldSeason.carryIn
+    delete oldSeason.takeoverAt
+    old.season = oldSeason
     const n = normaliseGame(old as unknown as Game)!
     expect(n.weekPlayed).toEqual([])
     expect(n.live).toBeNull()
@@ -150,6 +156,13 @@ describe('audit fixes: season and squad', () => {
     // No weekly theme before the Weekly Challenge: the mode's label stands alone
     expect(n.settings.weekly).toBeUndefined()
     expect(modeLabel(n, 'short')).toBe('Season')
+    // A season from before the Run-in carries no table in: it reads from its fixtures alone, with no brief
+    expect(n.settings.runIn).toBeUndefined()
+    expect(n.season!.carryIn).toBeUndefined()
+    expect(seasonTable(n.season!)).toEqual(computeTable(n.season!.fixtures, [USER_TEAM, ...Object.keys(n.season!.ai)]))
+    expect(takeoverTable(n.season!)).toBeNull()
+    expect(briefStanding(n)).toBeNull()
+    expect(runInVerdict(n, u)).toBeNull()
     // A ghost from before arena links carries no arena claim: it still reads as a quick challenge
     const ghost = normaliseGame({ ...old, settings: { ...oldSettings, challenge: { name: 'Minh', picks: [], claim: { pts: 70, w: 21, d: 7, l: 10, t: 'TITLE_RACE' }, verified: 'yes', data: '2026-01-01', engine: '4' } } } as unknown as Game)!
     expect(ghost.settings.challenge?.arena).toBeUndefined()

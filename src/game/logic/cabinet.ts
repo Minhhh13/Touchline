@@ -63,6 +63,7 @@ export function countsAsLeagueSeason(mode: Mode): boolean {
     case 'weekly':
       return true
     case 'arena':
+    case 'runin':
       return false
     default: {
       const never: never = mode
@@ -163,6 +164,16 @@ export function creditArena(cabinet: Cabinet, game: Game, opts: { newArenaDaily?
     if (a.won) c.gauntlet.complete += 1
   }
   if (game.settings.difficulty === 'realistic') c.giantKills += a.log.filter((s) => s.realStrength >= GIANT_STRENGTH && (s.gf > s.ga || (s.gf === s.ga && !!s.pens && s.pens.us > s.pens.them))).length
+  return c
+}
+
+/** One finished run-in, on its own shelf: played, and the brief met. Never a league title. */
+export function creditRunIn(cabinet: Cabinet, game: Game, met: boolean): Cabinet {
+  const c = normaliseCabinet(cabinet)
+  c.recent = [...(c.recent ?? []).filter((id) => id !== resultId(game)), resultId(game)].slice(-RECENT_RESULTS)
+  c.byMode.runin = (c.byMode.runin ?? 0) + 1
+  c.runIns.played += 1
+  if (met) c.runIns.met += 1
   return c
 }
 
@@ -269,6 +280,7 @@ export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all' | 'budget'> |
     case 'dynasty':
       return 'dynasty'
     case 'arena':
+    case 'runin':
       return null
     default: {
       const never: never = mode

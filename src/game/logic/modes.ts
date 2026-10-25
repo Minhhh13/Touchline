@@ -9,7 +9,7 @@ import { capFooter } from './cap'
 import { weeklyThemeName } from './weeklyThemes'
 
 /** The mode's title: Setup's heading, the Record page's mode column. */
-export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly Challenge' }
+export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly Challenge', runin: 'Run-in' }
 
 /**
  * How a label is worded:
@@ -59,6 +59,8 @@ export function modeLabel(game: LabelledGame, style: ModeLabelStyle): string {
       const theme = weeklyThemeName(game.settings.weekly?.theme)
       return `${style === 'short' ? 'Weekly' : `Weekly ${weekDay(game.settings.seed)}`}${theme ? ` · ${theme}` : ''}`
     }
+    case 'runin':
+      return 'Run-in'
     default: {
       const never: never = mode
       return never
@@ -88,6 +90,7 @@ export function isQuickLike(mode: Mode): boolean {
     case 'season':
     case 'dynasty':
     case 'arena':
+    case 'runin':
       return false
     default: {
       const never: never = mode
@@ -110,5 +113,6 @@ export function finishDraftLabel(game: LabelledGame, made?: number): string {
   if (isQuickLike(game.settings.mode)) return 'Simulate the season'
   if (game.settings.mode === 'arena') return game.arena && game.arena.step > 0 ? 'Back to the ladder' : arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : game.settings.arena?.format === 'gauntlet' ? 'Onto the ladder' : 'On to the draw'
   if (game.settings.mode === 'dynasty' && game.year > 1) return 'Into the new season'
+  if (game.settings.mode === 'runin') return 'Take the job'
   return made === undefined ? 'Go to pre-season' : `Go to pre-season with ${made}`
 }

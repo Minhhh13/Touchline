@@ -16,9 +16,10 @@ import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { SquadPlayer } from '@engine/types'
-import { earnsPointsRecord } from './records'
+import { earnsPointsRecord, inRecordBooks } from './records'
 import { earnsMoneyball } from './cap'
 import { earnsChainChampions } from './chain'
+import { runInUnlocks } from './runin'
 import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
@@ -817,6 +818,8 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
     bootGoals: game.awards.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
   })
   const unlock = (id: string) => {
+    // A run-in's ten games are no league season: only the job's own achievements count
+    if (season.carryIn && id !== 'survivor' && !runInUnlocks(game, u, pos).includes(id)) return
     if (!game.unlocked.includes(id)) game.unlocked.push(id)
   }
   if (tier === 'PERFECT') unlock('perfect')
@@ -834,8 +837,9 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1 && game.settings.rules.onlyNation) unlock('one-nation-champions')
   if (pos === 1 && !season.sacked && earnsMoneyball(game)) unlock('moneyball')
   if (pos === 1 && !season.sacked && earnsChainChampions(game)) unlock('chain-champions')
-  if (earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')
+  if (inRecordBooks(game) && earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')
   if (game.unlocked.includes('survivor-pending') && !season.sacked) unlock('survivor')
+  for (const id of runInUnlocks(game, u, pos)) unlock(id)
   const titles = game.history.slice(-3).filter((h) => h.position === 1).length
   if (titles >= 3) unlock('dynasty-3')
   game.unlocked = game.unlocked.filter((x) => x !== 'survivor-pending')

@@ -91,6 +91,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'moneyball', title: 'Bargain Hunters', description: 'Win the league on a £150M cap or less (a bigger squad\'s cap counted back to its XI).', icon: '💰' },
   { id: 'arena-regular', title: 'Arena Regular', description: 'Play the Daily Arena seven days running.', icon: '🏟️' },
   { id: 'weekly-streak-4', title: 'Month of Sundays', description: 'Play the Weekly Challenge four weeks running.', icon: '🗓️' },
+  { id: 'great-escape', title: 'The Great Escape', description: 'Keep a relegated side up in a run-in.', icon: '🪂' },
+  { id: 'run-in-title', title: 'Late Show', description: 'Win the title from matchweek 28 in a run-in.', icon: '⏱️' },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))
@@ -194,6 +196,35 @@ export function arenaShareText(s: ArenaShareInput, appName = 'TouchLine'): strin
     for (const l of s.lines ?? []) if (l.trim()) lines.push(l)
   }
   if (s.motm) lines.push(`⭐ ${s.motmLabel ?? 'MOTM'}: ${initialName(s.motm)}`)
+  if (s.seed) lines.push(`Seed ${s.seed}`)
+  return lines.join('\n')
+}
+
+export interface RunInShareInput {
+  /** The club and the season: `West Ham 2025-26`. */
+  title: string
+  /** The table at the takeover (projected). */
+  from: { matchweek: number; position: number; points: number }
+  icon: string
+  /** `SURVIVED`, `TITLE WON`, `TOP FOUR`, `MISSED`. */
+  chip: string
+  position: number
+  points: number
+  /** One mark per run-in game. */
+  strip: string
+  /** `📊 The real West Ham went down on 39`. */
+  real?: string
+  seed?: string
+}
+
+/**
+ * The run-in's share text:
+ * TouchLine · Run-in · West Ham 2025-26 / Took over at MW28: 18th, 28 pts (projected) / ✅ SURVIVED · 16th on 41 / the strip / the real club / the seed.
+ */
+export function runInShareText(s: RunInShareInput, appName = 'TouchLine'): string {
+  const lines = [`${appName} · Run-in · ${s.title}`, `Took over at MW${s.from.matchweek}: ${ordinal(s.from.position)}, ${s.from.points} pts (projected)`, `${s.icon} ${s.chip} · ${ordinal(s.position)} on ${s.points}`]
+  if (s.strip) lines.push(s.strip)
+  if (s.real) lines.push(s.real)
   if (s.seed) lines.push(`Seed ${s.seed}`)
   return lines.join('\n')
 }

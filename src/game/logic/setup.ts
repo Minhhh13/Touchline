@@ -166,9 +166,12 @@ export function createGame(settings: GameSettings): Game {
   }
 }
 
-/** Move the drafted players into the squad and prepare the season. */
-export function beginSeason(game: Game, u: LoadedUniverse): void {
-  const rng = Rng.fromState(game.rngState)
+/**
+ * The draft's picks into the squad (a new man gets a one-to-three-year contract
+ * drawn from `rng`), its lineup and bench onto the game, then the draft closed
+ * and its bonus spins spent. Shared by `beginSeason` and the run-in's `beginRunIn`.
+ */
+export function moveDraftToSquad(game: Game, rng: Rng): void {
   const d = game.draft
   if (d) {
     for (const id of [...Object.values(d.lineup), ...d.bench]) {
@@ -190,6 +193,12 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   game.draft = null
   // The draft's squad size already included every bonus spin, so they are spent now
   game.bonusSpins = 0
+}
+
+/** Move the drafted players into the squad and prepare the season. */
+export function beginSeason(game: Game, u: LoadedUniverse): void {
+  const rng = Rng.fromState(game.rngState)
+  moveDraftToSquad(game, rng)
   // The host club must exist in that league season; otherwise take a random one's place.
   const inLeague = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === game.settings.leagueSeason).map((cs) => cs.clubId)
   if (inLeague.length && !inLeague.includes(game.settings.hostClubId)) game.settings = { ...game.settings, hostClubId: rng.pick(inLeague) }

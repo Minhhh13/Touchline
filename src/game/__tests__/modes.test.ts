@@ -13,7 +13,7 @@ function game(mode: Mode, year = 1, seed = 'K7Q2-MX9A'): LabelledGame {
 
 describe('mode labels', () => {
   it('gives every mode a title, a label in every style and a finish button', () => {
-    expect(MODES).toEqual(['quick', 'daily', 'season', 'dynasty', 'arena', 'weekly'])
+    expect(MODES).toEqual(['quick', 'daily', 'season', 'dynasty', 'arena', 'weekly', 'runin'])
     for (const mode of MODES) {
       expect(MODE_TITLE[mode].length, mode).toBeGreaterThan(0)
       for (const style of STYLES) expect(modeLabel(game(mode, 2), style).length, `${mode} ${style}`).toBeGreaterThan(0)
@@ -23,7 +23,7 @@ describe('mode labels', () => {
   })
 
   it('keeps the four existing modes worded byte for byte as the screens had them', () => {
-    expect(MODE_TITLE).toEqual({ quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly Challenge' })
+    expect(MODE_TITLE).toEqual({ quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly Challenge', runin: 'Run-in' })
     const daily = game('daily', 1, 'daily-2026-10-25')
     const dynasty = game('dynasty', 2)
     // Home's active and parked rows

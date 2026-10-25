@@ -113,6 +113,11 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
       const pace = Math.round((best / mw) * season.matchweeks)
       return pace < target ? `Best under-21 on pace for ${pace} of the ${target} starts asked (${best} so far)` : null
     }
+    case 'title':
+    case 'top-four':
+    case 'survive':
+      // A run-in's brief: the takeover banner shows where it stands every week
+      return null
   }
 }
 

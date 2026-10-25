@@ -24,6 +24,7 @@ import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByG
 import { realityLine, realSeasonRow, storyForGame } from '@game/logic/story'
 import { SeasonStoryPanel } from '../components/SeasonStory'
 import { capLine } from '@game/logic/cap'
+import { inRecordBooks } from '@game/logic/records'
 import { chainCodes, chainLine } from '@game/logic/chain'
 
 export function Summary() {
@@ -50,7 +51,7 @@ export function Summary() {
   const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
   // Where this season sits against every complete real season of the league with the same number of matches
   const leagueName = u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? game.settings.leagueId
-  const bench = useMemo(() => (season?.sacked ? null : benchmarkSeason(u, game.settings.leagueId, record)), [u, game.settings.leagueId, record.won, record.drawn, record.lost, record.points, record.goalsFor, record.goalsAgainst, season?.sacked])
+  const bench = useMemo(() => (!inRecordBooks(game) ? null : benchmarkSeason(u, game.settings.leagueId, record)), [u, game.settings.leagueId, record.won, record.drawn, record.lost, record.points, record.goalsFor, record.goalsAgainst, season?.sacked, season?.carryIn])
   const inBooks = bench !== null && hasRecordBook(bench)
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []

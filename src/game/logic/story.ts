@@ -200,9 +200,10 @@ export function storyForGame(game: Game, u: LoadedUniverse): SeasonStory | null 
   if (!season) return null
   const ids = [USER_TEAM, ...Object.keys(season.ai)]
   const get = playerLookup(game, u)
-  const results = recordUserGames(season.fixtures, ids, USER_TEAM, (id) => get(id)?.name)
+  const results = recordUserGames(season.fixtures, ids, USER_TEAM, (id) => get(id)?.name, season.carryIn)
   if (!results.length) return null
-  const clinch = clinchMatchweeks(season.fixtures, ids, USER_TEAM)
+  // A run-in is told from the week it took over, on the table it carried in
+  const clinch = clinchMatchweeks(season.takeoverAt ? season.fixtures.filter((f) => f.matchweek > season.takeoverAt!) : season.fixtures, ids, USER_TEAM, 3, season.carryIn)
   return seasonStory(results, { ...clinch, tier, matchweeks: season.matchweeks, clubs: ids.length, nameOf, sacked: season.sacked })
 }
 

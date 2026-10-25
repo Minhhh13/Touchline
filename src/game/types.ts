@@ -16,8 +16,9 @@ import type { ArenaField, ArenaTier } from '@engine/knockout'
 import type { GauntletLadder } from '@engine/gauntlet'
 import type { CupBracket } from '@engine/cup'
 import type { WeeklyThemeId } from './logic/weeklyThemes'
+import type { RunInTemplate } from '@engine/scenario'
 
-export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena' | 'weekly'
+export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena' | 'weekly' | 'runin'
 export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
 
 export interface GameSettings {
@@ -47,6 +48,8 @@ export interface GameSettings {
   arena?: ArenaSettings
   /** The Weekly Challenge's theme, on a mode `weekly` game (absent for every other mode). */
   weekly?: { theme: WeeklyThemeId }
+  /** The Run-in's brief, on a mode `runin` game (absent for every other mode); the job is `leagueId`, `leagueSeason` and `hostClubId`. */
+  runIn?: { template: RunInTemplate }
 }
 
 /** Which arena format a game plays, and the field its opponents come from. */
@@ -143,6 +146,27 @@ export interface ArenaRunEntry {
   /** The club-season key of the last opponent (the final's). */
   last?: string
   challenge?: { name: string; score: number }
+}
+
+/** One finished run-in on the Record page's Run-ins table. */
+export interface RunInEntry {
+  id: string
+  date: string
+  template: RunInTemplate
+  teamName: string
+  leagueId: string
+  leagueSeason: number
+  hostClubId: string
+  seed: string
+  /** The brief met (a sacking misses it). */
+  met: boolean
+  sacked: boolean
+  position: number
+  points: number
+  /** The projected table at the takeover. */
+  from: { matchweek: number; position: number; points: number }
+  /** How the real club finished. */
+  real?: { position: number; points: number }
 }
 
 /** The challenger's draft and result, carried on a game played from a challenge link. */
@@ -415,6 +439,8 @@ export interface Profile {
   arenaDaily?: StreakResults<{ format: 'cup' | 'gauntlet'; score: number; label: string }>
   /** The Weekly Challenge's streak and one result per week (keyed by `weekly-YYYY-Www`); absent until the first one. */
   weekly?: StreakResults<{ points: number; tier: SeasonTier }>
+  /** Finished run-ins, newest first (at most 50); absent before the first. */
+  runIns?: RunInEntry[]
 }
 
 /** A streak (`advanceStreak`) with the first result filed for each day or week it counted. */

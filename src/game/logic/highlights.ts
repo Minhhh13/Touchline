@@ -6,13 +6,14 @@
  * brink. Reading a stop is pure and draws no random number, so the weeks the
  * run plays are the same weeks `simWeeks(k)` would play.
  */
-import type { LoadedUniverse } from '@engine/universe'
+import { ordinal, type LoadedUniverse } from '@engine/universe'
 import { describeImportance, positionOf, seasonTable, USER_TEAM, type Competition } from '@engine/season'
 import type { Game } from '../types'
 import { nextOpponent, playMatchweek, startSeasonProper, upcomingCupTie } from './week'
+import { briefOpen, briefStanding, gapLine, RUN_IN_LAST_STOPS } from './runin'
 
 /** Why the sim stopped, most important first among the before-the-week reasons. */
-export type StopKind = 'final' | 'semi-final' | 'title-decider' | 'derby' | 'title-run-in' | 'survival-run-in' | 'window' | 'board'
+export type StopKind = 'final' | 'semi-final' | 'title-decider' | 'derby' | 'brief' | 'title-run-in' | 'survival-run-in' | 'window' | 'board'
 
 export interface StopReason {
   kind: StopKind
@@ -31,6 +32,8 @@ export interface StopReason {
   inDrop?: boolean
   /** Board stop: the confidence it fell to. */
   confidence?: number
+  /** Run-in brief stop: where the brief stands (`18th, 1 point behind safety`). */
+  detail?: string
 }
 
 /** Matchweeks at the end of the season that count as the run-in. */
@@ -65,6 +68,12 @@ export function nextStop(game: Game, u: LoadedUniverse): StopReason | null {
   if (opp) {
     const imp = describeImportance(u, season.hostClubId, opp.clubId, table, mw)
     if (imp.importance >= BIG_MATCH) return { kind: imp.label === 'Title decider' ? 'title-decider' : 'derby', matchweek: mw, label: imp.label ?? 'Big match', opponentClubId: opp.clubId, home: opp.home }
+  }
+
+  // A run-in: each of the last three matchweeks while the brief can still go either way
+  if (season.carryIn && mw > season.matchweeks - RUN_IN_LAST_STOPS && briefOpen(game)) {
+    const b = briefStanding(game)!
+    return { kind: 'brief', matchweek: mw, label: 'Run-in decider', gap: b.gap, detail: `${ordinal(b.position)}, ${gapLine(b.template, b.target, b.position, b.gap)}`, opponentClubId: opp?.clubId, home: opp?.home }
   }
 
   if (mw > season.matchweeks - RUN_IN_WEEKS) {
@@ -187,6 +196,8 @@ export function stopLine(stop: StopReason, u: LoadedUniverse): string {
     case 'title-decider':
     case 'derby':
       return `Stopped for ${stop.label}${versus}, MW ${stop.matchweek}`
+    case 'brief':
+      return `Stopped for the run-in decider${versus}, MW ${stop.matchweek}${stop.detail ? `: ${stop.detail}` : ''}`
     case 'title-run-in':
       return `Stopped for the title run-in, MW ${stop.matchweek}: ${raceLine(stop)}`
     case 'survival-run-in':

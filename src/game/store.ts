@@ -17,7 +17,7 @@ import { capOfGame } from './logic/cap'
 import { advanceStreak, fileStreakResult, streakDay } from './logic/streaks'
 import { dailyArenaResult } from './logic/arenaDaily'
 import { weeklyGameSettings, weeklyPlan } from './logic/weekly'
-import { alreadyCredited, creditArena, creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
+import { alreadyCredited, creditArena, creditGame, creditH2H, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
@@ -35,6 +35,7 @@ import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
 import { simToNextStop, type StopReason } from './logic/highlights'
+import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeTheDraw, closeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 
 /** localStorage key the whole game is persisted under. */
@@ -326,6 +327,9 @@ export const useStore = create<Store>()(
 
         startGame: (settings) => {
           const game = createGame(settings)
+          // The Run-in inherits a real squad: the draft opens seeded with it and four spins to make
+          const u = get().universe
+          if (settings.mode === 'runin' && u) seedRunInDraft(game, u)
           const { game: current, parked } = get()
           const next = { ...parked }
           // Park a game of a different kind rather than losing it; a finished one is dropped.
@@ -411,6 +415,7 @@ export const useStore = create<Store>()(
             // A one-nation wheel that has run dry may close with a full XI short of the squad size
             if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
             if (g.settings.mode === 'arena') beginArena(g, u)
+            else if (g.settings.mode === 'runin') beginRunIn(g, u)
             else if (isQuickLike(g.settings.mode)) runQuickSeason(g, u)
             else beginSeason(g, u)
           })
@@ -646,6 +651,13 @@ export const useStore = create<Store>()(
               if (arenaDaily.streak >= 7 && !arenaAchievements['arena-regular']) arenaAchievements['arena-regular'] = new Date().toISOString().slice(0, 10)
             }
             set({ profile: { ...profile, arenaRuns: sortArenaRuns([...(profile.arenaRuns ?? []), run]), cabinet: creditArena(profile.cabinet ?? rebuildCabinet(profile), game, { newArenaDaily }), achievements: arenaAchievements, ...(arenaDaily ? { arenaDaily } : {}) } })
+            return
+          }
+          // A run-in files on its own table and shelf, against the real club: no leaderboard row, no season counted
+          if (game.settings.mode === 'runin') {
+            const row = runInEntry(game, universe, new Date().toISOString().slice(0, 10))
+            if (!row || alreadyCredited(profile, row.id) || profile.runIns?.some((e) => e.id === row.id)) return
+            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, RUN_IN_LOG_CAP), cabinet: creditRunIn(profile.cabinet ?? rebuildCabinet(profile), game, row.met) } })
             return
           }
           const rec = finishedRecord(game)

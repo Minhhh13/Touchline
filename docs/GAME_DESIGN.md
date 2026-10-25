@@ -37,6 +37,7 @@ Alternatives considered and set aside:
 | Dynasty | As Season, then a summer draft each year with bonus spins and 1 re-spin | Season mode repeated; players age, contracts run down, league moves on a year | History table per year |
 | Arena: The Gauntlet | 14 picks, the quick re-spins and twists, a bonus pick after rungs 2, 4, 6 and 8 (up to 18) | A ladder of fifteen real club-seasons, each from a stronger band of the wheel, one match each until the first defeat; managed live, by the assistant, or Sim to the end (section 17) | Best runs table and the cabinet's Gauntlet shelf, the arena's save slot |
 | Daily Arena | The Gauntlet's or the Cup's, seed `arena-YYYY-MM-DD` (UTC), England wheel, twists on, no filters | The Gauntlet on even dates, the Cup of 16 against the wheel on odd ones; everyone meets the same opponents (section 17) | Best runs, its own streak and one result per day (`profile.arenaDaily`), achievement at seven days running; never the leaderboard or the Daily's streak |
+| Run-in | The host's real squad of 18, then 4 spins on its league's wheel, 1 re-spin, no twists | Take over at matchweek 28 of 38 (25 of 34) in the table projected from the real final one, with a brief (the title, the top four, survival); the last ten matchweeks of the Season loop, Realistic, job security on, no cup, window, Europe or friendlies (section 10, "The Run-in") | Run-ins table and the cabinet's run-in shelf, its own save slot; never the leaderboard |
 | Arena: The Cup | 16 picks, the quick re-spins and twists, whatever the size | A knockout of 8, 16 or 32 real club-seasons (seeded draws, four days between ties, bans that carry), or a one-off final; each tie managed live through the two stops and a shoot-out, played by the assistant, or Sim to the end (section 17) | Best runs table and the cabinet's arena cups by size, the arena's save slot |
 
 Setup options (`src/ui/screens/Setup.tsx`):
@@ -441,6 +442,7 @@ The Dugout's first sim button plays routine weeks with the assistant and hands t
 Before each week, `nextStop` (pure) stops the run, leaving that week unplayed, for, in this order:
 - a **final** or **semi-final**: `upcomingCupTie` is round F or SF, in the cup or the Continental Cup;
 - a **title decider** or **Derby day**: `describeImportance` gives 1.2 or more for the league match (Title decider 1.3, Derby day 1.25);
+- a **run-in decider** (the Run-in mode only): one of the last 3 matchweeks while the brief can still be met or missed (`briefOpen`, `src/game/logic/runin.ts`), labelled "Stopped for the run-in decider at Spurs, MW 36: 18th, 1 point behind safety";
 - the **title run-in**: one of the last 5 matchweeks, top by 3 points or fewer, or within 3 of the top;
 - the **survival run-in**: one of the last 5 matchweeks, in the bottom three with safety still within reach (points plus three per fixture left at least the last safe club's points), or no more than 3 points above the first relegation place.
 
@@ -449,6 +451,36 @@ After each simmed week, `stopAfterWeek` stops the run when the January window op
 The button names what it can see coming (`foreseeStop`: the next derby, a drawn semi-final or final, the week the January window opens): "Sim to Derby day (MW 12)", otherwise "Sim to the next big match". Title deciders, the run-in and the board depend on results still to come, so the run can stop sooner. When the next week is itself a stop the button reads "Derby day next" and is disabled: play it. The stop is printed above the fixture ("⏸ Stopped for Derby day v Liverpool, MW 12"); it is transient store state (`simStop`), never saved, and shows only while the game stands at the matchweek it stopped at.
 
 Measured over 108 auto-managed England 2025-26 seasons (seeds `rv3-0` to `rv3-107`, six mid-table hosts with 18 seasons each, Calibrated, ENGINE_VERSION `'4'`, the stop weeks played by the assistant, job security off): 5.0 stops a season (p10/p50/p90 1/5/9; the three blocks of 36 seasons gave 5.5, 5.0 and 4.6, so a 36-season figure moves by about half a stop). It depends on the host's rivals: 3.1 a season for Burnley and 3.6 for Nottingham Forest, whose rivals (Blackburn, Leicester) are not in that league, against 6.9 for Fulham and 6.6 for Brentford (three and two London rivals). Per season: 1.6 derby days, 1.0 January windows, 1.0 title run-in weeks, 0.6 title deciders, 0.5 cup semi-finals, 0.4 cup finals and no survival run-in weeks (an auto-drafted side rarely fights the drop). With job security on (36 seasons) board alarms add 0.2 a season. The button's label never named a week the run went past (445 labelled runs). A test keeps the mean between 2.5 and 8.
+
+### The Run-in
+
+Issue #10's scenario: take over a real club late in a real season and save it, in about ten minutes. Engine `src/engine/scenario.ts` (pure), logic `src/game/logic/runin.ts`; mode `runin` with its own save slot (`slotOf`), so a Season under way is parked, never overwritten.
+
+- **The catalogue** (`runInCatalogue(u, template)`): league seasons whose real final table is complete (every club played the full programme) and whose every club has a complete club-season of 16 or more players, so England, Spain, Italy and Germany; France, the Netherlands and Portugal have no tables and offer none. A club-season is a job when its real finish fits the brief:
+  - **Title race**: 2nd or 3rd, within 6 points of the champions;
+  - **Chase for Europe**: 5th to 8th, within 5 points of 4th;
+  - **Survival**: in the bottom three, within 6 points of the last safe place.
+
+  On the 2026-10-25 packs that is 28 title jobs (England 9, Spain 9, Italy 7, Germany 3), 72 Europe (23, 9, 16, 24) and 104 survival (28, 24, 19, 33), pinned to the data stamp in `scenario.test.ts`. The setup suggests three drawn from the setup seed's own stream (`suggestRunIns`, `${seed}#runin`).
+- **The takeover** is after matchweek `N = round(matchweeks × 28/38)`: 28 of 38 (ten to play), 25 of 34 (nine). The data keeps no matchday standings, so the table at `N` is a **projection from the final table**, and every screen says so: `scaleRow(row, played, N)` scales won, drawn and lost by `N / played`, floors them and gives the matches still missing to the largest remainders (ties to won, then drawn, then lost) so they add up to `N`; goals are rounded and points are `3w + d`. Example: West Ham 2025-26 finished 18th on 39 (10-9-19), a point behind Tottenham's 41; at MW28 the projection has them 18th on 28 (7-7-14) against Tottenham's 29.
+- **The season** (`beginRunIn`, called by `finishDraft`): the draft into the squad as `beginSeason` does it (`moveDraftToSquad`), the real other clubs (`buildAiClubs`), the full fixture list from `generateFixtures` (matchweeks up to `N` carry no result: "before you arrived"), `season.matchweek = N`, the projection as `SeasonState.carryIn` (the host's row under `USER_TEAM`) with `takeoverAt = N`. Every table is read through `seasonTable(season)`, which starts each row from its carried one. No cup (`cup = []`, `cupEliminated`), no Continental Cup, no January window (it opens at the halfway week, long gone), no friendlies (`friendliesPlayed = 3`, phase `week`). Finances come from `startingFinances` (unused, but every season carries them). Then `playMatchweek`, `afterMatchweek` and `finishSeason` run unchanged.
+- **The squad** (`seedRunInDraft`, run by the store right after `createGame`): the host's real club-season, the XI by `autoPickLineup` in the chosen shape (default `formationForStyle(host.style)`, with the style's tactics), the rest by overall up to 18. Each at familiarity 70, sharpness 85, condition 88 to 97 (`rng.int` on the game's stream) and the brief's morale: 72 for the title, 62 for Europe, 45 for survival. Statuses from `defaultStatuses` when the job is taken.
+- **Reinforcements**: four spins of the league's wheel through a draft seeded with the inherited squad, the Dynasty summer's pattern (lineup the inherited XI, bench the rest, `takenPlayers` marked, `squadSize = 18 + 4`, one re-spin, no twists). The finish button reads "Take the job".
+- **Difficulty**: Realistic. The squad is real, so the rivals are too; Calibrated would hand a real squad handicapped opponents.
+- **The board**: target 1, 4 or `clubs − 3` (17th of 20); confidence 70, 60 or 50; job security on, and the sack's matchweek-10 floor is long past, so a bad run ends the job from the first week. `season.objectives` is the brief alone (`ObjectiveId` `title`, `top-four` or `survive`, with the place in `target`), judged met or missed on the final position by `evaluateObjective`.
+- **Highlights** is the way to play it: besides the usual stops, each of the last three matchweeks is a stop while the brief is still open (`briefStanding`: met is certain when fewer than `target` other clubs can still reach the user's points; missed when `target` clubs are already past the user's ceiling).
+- **The end**: `finishSeason` runs unchanged, but a run-in never goes in the record books (`inRecordBooks`: no benchmark, no `record-points`) and earns none of the season achievements (Champions, Centurions, 38-0 and the rest): its first 28 weeks are a projection. It earns its own: **The Great Escape** (keep up a side that really went down) and **Late Show** (win the title from matchweek 28); Survivor still counts. `recordResult` files a `RunInEntry` in `profile.runIns` (newest first, at most 50) and credits the cabinet's run-in shelf (`creditRunIn`: played, briefs met, which the Survival Artist badge counts), never the leaderboard, the league titles or the seasons simulated.
+- **The verdict** (`runInVerdict`) is against the real club: "You kept West Ham up on 41; the real West Ham went down on 39", with a chip of SURVIVED, TITLE WON, TOP FOUR or MISSED. The share text (`runInShareText`, the product name through its `appName` parameter):
+
+  ```
+  TouchLine · Run-in · West Ham 2025-26
+  Took over at MW28: 18th, 28 pts (projected)
+  ✅ SURVIVED · 16th on 41
+  🟩🟨🟥🟩🟩🟨🟩🟥🟩🟨
+  📊 The real West Ham went down on 39
+  Seed …
+  ```
+- **Balance** (England catalogue, the assistant drafting and managing, ENGINE_VERSION `'4'`): over 400 run-ins per template (seeds `wide-0` to `wide-399`, the jobs in turn) the brief was met in 21.8% of title races, 21.3% of chases for Europe and 40.5% of survival fights (3 spins: 35.8%, 5 spins: 40.3%); points per game matched the real clubs' over the same weeks (2.31 against 2.32, 1.74 and 1.74, 0.91 and 0.90). The balance guard in `runin.test.ts` (100 survival run-ins, seeds `runin-guard-*`, 36 met) holds it between 20 and 60%; tune `RUN_IN_SPINS` (3 to 5) before anything else.
 
 ### The assistant's briefing
 
@@ -571,7 +603,7 @@ Negative swings are scaled by `1.2 − 0.5 × professionalism`.
 
 ### Board objectives
 
-`src/engine/objectives.ts`. Two per season, drawn at kick-off from a pool shaped by the board target: a cup quarter-final (semi-final for a top-four target), a league goals tally (1.5 × matchweeks, 1.9 for the ambitious), at most four home defeats (two), ten league starts for a player aged 21 or under, a Continental Cup quarter-final when entered, and no derby defeats when the host has rivals in the league. Progress shows live in the Club tab; at the end of the season each one met adds £5M to the budget and +8 confidence, each one missed costs 6 confidence, and the inbox gets the verdict.
+`src/engine/objectives.ts`. A run-in's only objective is its brief (`title`, `top-four`, `survive`; see "The Run-in"), never drawn from the pool. Two per season, drawn at kick-off from a pool shaped by the board target: a cup quarter-final (semi-final for a top-four target), a league goals tally (1.5 × matchweeks, 1.9 for the ambitious), at most four home defeats (two), ten league starts for a player aged 21 or under, a Continental Cup quarter-final when entered, and no derby defeats when the host has rivals in the league. Progress shows live in the Club tab; at the end of the season each one met adds £5M to the budget and +8 confidence, each one missed costs 6 confidence, and the inbox gets the verdict.
 
 ### Board, confidence and the sack
 
