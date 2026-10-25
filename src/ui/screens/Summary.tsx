@@ -20,7 +20,7 @@ import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
-import { bestWinLine } from '@game/logic/gameByGame'
+import { bestWinLine, europeLine, europeRoundLabel, januaryLine } from '@game/logic/gameByGame'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -63,6 +63,11 @@ export function Summary() {
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
   if (bestLine) extraLines.push(bestLine)
+  // January business and the European run of a quick season, when there were any
+  const janLine = januaryLine(q?.january)
+  if (janLine) extraLines.push(janLine)
+  const euroLine = europeLine(q?.europe)
+  if (euroLine) extraLines.push(euroLine)
   // Head-to-head against the ghost this game was played against
   const challenge = game.settings.challenge
   const mine = claimOf(game)
@@ -73,7 +78,7 @@ export function Summary() {
     row,
     position: record.position,
     cupWon: season?.cupWon ?? false,
-    continentalWon: season?.continental?.won ?? false,
+    continentalWon: season?.continental?.won ?? q?.europe?.reached === 'W',
     leagueSeason: game.settings.leagueSeason,
     hostClubName: clubName(u, game.settings.hostClubId),
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
@@ -174,7 +179,7 @@ export function Summary() {
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!replay.playing && season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
-        {season?.continental?.won && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
+        {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: {flag(u, game.settings.rules.onlyNation)} {nationName(u, game.settings.rules.onlyNation)}</div>}
@@ -254,6 +259,41 @@ export function Summary() {
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
           <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} />
+        </div>
+      )}
+
+      {q?.january && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="january-summary">
+          <div className="panel-head">
+            <h3>January business</h3>
+            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+          </div>
+          <div className="small">
+            {q.january.kind === 'sign' ? `Signed ${q.january.inName} for ${money(q.january.fee)}; ${q.january.outName} left.` : `Swapped ${q.january.outName} for ${q.january.inName}.`}
+          </div>
+        </div>
+      )}
+
+      {q?.europe && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="europe-run">
+          <div className="panel-head">
+            <h3>Continental Cup run</h3>
+            <span className={`chip ${q.europe.reached === 'W' ? 'gold' : ''}`}>{q.europe.reached === 'W' ? 'Winners' : `Out in the ${europeRoundLabel(q.europe.reached)}`}</span>
+          </div>
+          <ol className="gbg-list">
+            {q.europe.ties.map((t) => (
+              <li key={t.round} className={`gbg-game ${t.won ? 'W' : 'L'}`}>
+                <span className="gbg-mw">{t.round}</span>
+                <ClubBadge clubId={t.opponentId} size={22} />
+                <span className="gbg-fix">{t.round === 'F' ? `v ${clubName(u, t.opponentId)} (final)` : t.home ? `v ${clubName(u, t.opponentId)} (H)` : `at ${clubName(u, t.opponentId)}`}</span>
+                <span className="gbg-score">
+                  {t.gf}-{t.ga}
+                </span>
+                <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
+                <span className="gbg-pos small muted">{t.pens ? `${t.pens.for}-${t.pens.against}p` : ''}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
 

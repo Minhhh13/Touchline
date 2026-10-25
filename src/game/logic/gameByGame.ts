@@ -114,3 +114,55 @@ export function shortName(name: string): string {
   const rest = parts.filter((p, i) => !(i < parts.length - 1 && /^[A-Z]\.?$/.test(p)))
   return rest.join(' ')
 }
+
+/** Milliseconds between two games of the season playback at 1x: 38 games in about 27 seconds. */
+export const PLAYBACK_STEP_MS = 700
+/** The playback speeds offered: 1x (700 ms a game), 2x (350 ms) and 4x (175 ms). */
+export const PLAYBACK_SPEEDS = [1, 2, 4] as const
+export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number]
+
+/** Milliseconds between two games at a speed. */
+export function playbackDelay(speed: PlaybackSpeed): number {
+  return PLAYBACK_STEP_MS / speed
+}
+
+/** One tick of the playback: one more game revealed, never past `stopAt` (the January pause) or the last game. */
+export function nextReveal(revealed: number, total: number, stopAt = total): number {
+  const cap = Math.min(total, Math.max(0, stopAt))
+  return revealed >= cap ? revealed : Math.min(cap, revealed + 1)
+}
+
+export interface PlaybackFrame {
+  /** Games shown, from the first. */
+  revealed: number
+  /** The game just revealed, null before the first. */
+  latest: QuickGameResult | null
+  /** The running record over the games shown. */
+  totals: RunningTotals
+  /** Nothing more to reveal before `stopAt`. */
+  done: boolean
+}
+
+/** What the playback shows after `revealed` games: the latest game and the running totals over every game so far. */
+export function playbackFrame(results: QuickGameResult[], revealed: number, stopAt = results.length): PlaybackFrame {
+  const n = Math.max(0, Math.min(revealed, results.length))
+  return { revealed: n, latest: n ? results[n - 1] : null, totals: foldResults(results, n), done: n >= Math.min(results.length, stopAt) }
+}
+
+/** "January: signed Rice (£45M), Fernandes out" or "January: swapped Fernandes for Rice", for the share text. */
+export function januaryLine(j: { kind: 'sign' | 'swap'; inName: string; outName: string; fee: number } | undefined): string | null {
+  if (!j) return null
+  return j.kind === 'sign' ? `January: signed ${shortName(j.inName)} (£${j.fee}M), ${shortName(j.outName)} out` : `January: swapped ${shortName(j.outName)} for ${shortName(j.inName)}`
+}
+
+const EURO_ROUND: Record<'R16' | 'QF' | 'SF' | 'F' | 'W', string> = { R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }
+
+/** "🌍 Continental Cup winners" or "🌍 Continental Cup: semi-finals", for the share text. */
+export function europeLine(e: { reached: 'R16' | 'QF' | 'SF' | 'F' | 'W' } | undefined): string | null {
+  if (!e) return null
+  return e.reached === 'W' ? '🌍 Continental Cup winners' : `🌍 Continental Cup: ${EURO_ROUND[e.reached]}`
+}
+
+export function europeRoundLabel(r: 'R16' | 'QF' | 'SF' | 'F' | 'W'): string {
+  return EURO_ROUND[r]
+}

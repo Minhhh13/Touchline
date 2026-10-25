@@ -17,7 +17,7 @@ import type { DraftRules, DraftState } from './draft'
 import { DIFFICULTIES, DRAFT_MODES, QUICK_RULES, RATINGS_MODES, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
-import type { SeasonTier } from './types'
+import type { DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Tempo, Width } from './types'
 import type { LoadedUniverse } from './universe'
 import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
@@ -38,6 +38,42 @@ export interface ChallengeClaim {
  * spin that drafted no one. Under Position First a spin that drafted no one carries the slot it was filling.
  */
 export type ChallengePick = [playerId: string | null, slotId: string | null]
+
+/**
+ * Team instructions a quick season was played with, only those off the defaults (`defaultTactics`), plus the captain
+ * and the penalty taker as player-season ids.
+ */
+export interface ChallengeTactics {
+  mentality?: Mentality
+  pressing?: Pressing
+  tempo?: Tempo
+  width?: Width
+  defensiveLine?: DefensiveLine
+  passing?: PassingStyle
+  captain?: string
+  penalties?: string
+}
+
+/**
+ * The quick season's own choices, carried only when something differs from a default season: `t` the tactics of the
+ * first half (the whole season without a window), `t2` those of the second half when they were changed at the January
+ * pause, `j` the January deal as `[incoming player-season id, slot id]`.
+ */
+export interface ChallengeSeason {
+  t?: ChallengeTactics
+  t2?: ChallengeTactics
+  j?: [playerSeasonId: string, slotId: string]
+}
+
+/** The values each instruction may take in a link. */
+export const CHALLENGE_TACTIC_VALUES = {
+  mentality: ['defensive', 'balanced', 'attacking'],
+  pressing: ['low', 'mid', 'high'],
+  tempo: ['slow', 'standard', 'fast'],
+  width: ['narrow', 'standard', 'wide'],
+  defensiveLine: ['deep', 'standard', 'high'],
+  passing: ['short', 'mixed', 'direct'],
+} as const satisfies Record<Exclude<keyof ChallengeTactics, 'captain' | 'penalties'>, readonly string[]>
 
 export interface ChallengePayload {
   v: 1
@@ -62,6 +98,8 @@ export interface ChallengePayload {
   c: ChallengeClaim
   /** `historyKey` of the challenger's draft history. */
   k: string
+  /** The season's tactics and January deal, when they differ from a default season; absent on older links. */
+  x?: ChallengeSeason
 }
 
 const TIERS: readonly SeasonTier[] = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED']
@@ -175,6 +213,27 @@ export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
   return Object.entries(r).every(([key, value]) => Object.prototype.hasOwnProperty.call(RULE_CHECKS, key) && RULE_CHECKS[key as keyof DraftRules](value))
 }
 
+/** Whether an object is a set of instructions made only of known keys holding allowed values. */
+export function isChallengeTactics(t: unknown): t is ChallengeTactics {
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return false
+  return Object.entries(t).every(([key, value]) => {
+    if (key === 'captain' || key === 'penalties') return isString(value)
+    const allowed = (CHALLENGE_TACTIC_VALUES as Record<string, readonly string[]>)[key]
+    return !!allowed && allowed.includes(value as string)
+  })
+}
+
+/** Whether an object is a well-formed `x` block: optional tactics for each half and an optional January deal. */
+export function isChallengeSeason(x: unknown): x is ChallengeSeason {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return false
+  const o = x as Record<string, unknown>
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j')) return false
+  if (o.t !== undefined && !isChallengeTactics(o.t)) return false
+  if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
+  if (o.j !== undefined && !(Array.isArray(o.j) && o.j.length === 2 && o.j.every(isString))) return false
+  return true
+}
+
 /** Decode a `#c=` fragment; throws with a readable reason when it is not a challenge. */
 export function decodeChallenge(text: string): ChallengePayload {
   let raw: unknown
@@ -200,6 +259,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!isRulesDiff(s.r)) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
+  if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
   return {
     v: 1,
     data: o.data,
@@ -209,6 +269,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     p: o.p as ChallengePick[],
     c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
     k: o.k,
+    ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
   }
 }
 

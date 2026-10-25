@@ -19,7 +19,7 @@ describe('the Daily puzzle', () => {
     // Pinned: 25 October 2026 reads as 20261025, which indexes the complete English seasons, their clubs sorted by
     // id (times seven) and the five shapes (times three). Changing any of these changes everyone's puzzle.
     const d = dailySettings(u, 'daily-2026-10-25')
-    expect(d).toEqual({ seed: 'daily-2026-10-25', leagueId: 'england', wheelLeagues: ['england'], season: 2017, host: 'swansea-city', formationId: '4-3-3', difficulty: 'calibrated', rules: { ...DAILY_RULES, leagues: ['england'] } })
+    expect(d).toEqual({ seed: 'daily-2026-10-25', leagueId: 'england', wheelLeagues: ['england'], season: 2017, host: 'swansea-city', formationId: '4-3-3', difficulty: 'calibrated', rules: { ...DAILY_RULES, leagues: ['england'] }, january: true, continental: false })
     const other = dailySettings(u, 'daily-2026-01-01')
     expect(other.season).toBe(2011)
     expect(other.host).toBe('liverpool')

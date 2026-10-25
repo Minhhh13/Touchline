@@ -18,7 +18,7 @@ import { defaultStatuses } from '@engine/status'
 export const DEFAULT_HOST_POSITION = 10
 
 // The Daily's fixed settings and rules live in ./daily; re-exported here beside the rest of the setup logic
-export { DAILY_FORMATIONS, DAILY_RULES, dailySettings, type DailySettings } from './daily'
+export { DAILY_FORMATIONS, DAILY_RULES, DAILY_SEASON, dailySettings, type DailySettings } from './daily'
 
 /**
  * The club whose place a new side takes when the player has not chosen: the one whose real finish that season is
@@ -128,7 +128,9 @@ export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'T
     rules: d.rules,
     jobSecurity: false,
     difficulty: d.difficulty,
-    continental: false,
+    // The season options are pinned too: the same January window for everyone, no Continental Cup run
+    continental: d.continental,
+    january: d.january,
   }
 }
 
@@ -139,7 +141,8 @@ const TAG_WORDS: Record<string, string> = { Easy: 'easy mode', Normal: 'normal m
  * One line stating every choice a game will start with, so the ones folded away under More options are still read:
  * "Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
  * the defaults (European Nights, era, one club or nation, the difficulty, blind, Position First or prime ratings when
- * they differ from the mode's defaults, twists changed from the mode's default, squad size, job security, Europe).
+ * they differ from the mode's defaults, twists changed from the mode's default, squad size, job security, Europe; for a
+ * quick draft no January window, or a Continental Cup run).
  */
 export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
@@ -159,6 +162,10 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
     parts.push(`squad of ${r.squadSize}`)
     if (!s.jobSecurity) parts.push('no sack')
     if (s.continental) parts.push('Continental Cup')
+  } else {
+    // The quick season's options: the January window is on by default, the Continental Cup run off
+    if (s.january === false) parts.push('no January window')
+    if (s.continental) parts.push('Continental Cup run')
   }
   return parts.join(', ')
 }

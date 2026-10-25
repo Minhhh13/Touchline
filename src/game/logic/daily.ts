@@ -38,12 +38,19 @@ export interface DailySettings {
   difficulty: 'calibrated' | 'realistic'
   rules: DraftRules
   seed: string
+  /** The January window at the halfway pause: on for everyone, whatever the quick default becomes. */
+  january: boolean
+  /** The Continental Cup run after a top-four finish: off for everyone (it needs every league loaded). */
+  continental: boolean
 }
+
+/** The Daily's season options, pinned beside `DAILY_RULES`: the January window on, no Continental Cup run. */
+export const DAILY_SEASON = { january: true, continental: false } as const
 
 /**
  * Everything the Daily fixes for a daily seed (`daily-YYYY-MM-DD`): the Premier League season and the
  * host club (rotating through complete seasons and their clubs by the date), the formation, calibrated
- * difficulty and `DAILY_RULES`. Pure: the same seed and data give the same settings on every device.
+ * difficulty, `DAILY_RULES` and `DAILY_SEASON` (January window on, no Continental Cup run). Pure: the same seed and data give the same settings on every device.
  */
 export function dailySettings(u: LoadedUniverse, seed: string): DailySettings {
   const n = Number(seed.split('-').slice(1).join('')) || 0
@@ -52,5 +59,5 @@ export function dailySettings(u: LoadedUniverse, seed: string): DailySettings {
   const season = seasons[n % seasons.length]
   const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()
   const host = clubs[(n * 7) % clubs.length]
-  return { season, host, formationId: DAILY_FORMATIONS[(n * 3) % DAILY_FORMATIONS.length], leagueId: 'england', wheelLeagues: ['england'], difficulty: 'calibrated', rules: { ...DAILY_RULES, leagues: ['england'] }, seed }
+  return { season, host, formationId: DAILY_FORMATIONS[(n * 3) % DAILY_FORMATIONS.length], leagueId: 'england', wheelLeagues: ['england'], difficulty: 'calibrated', rules: { ...DAILY_RULES, leagues: ['england'] }, seed, january: DAILY_SEASON.january, continental: DAILY_SEASON.continental }
 }

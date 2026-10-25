@@ -2022,6 +2022,50 @@ table.tbl tr.clickable:hover {
     transform: none;
   }
 }
+/* The season playback: the latest game, large, and the January window's deals */
+.gbg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  animation: gbg-in 0.18s ease-out;
+}
+.gbg-card.W {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.gbg-card.L {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+}
+.gbg-card-main {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.gbg-card-opp {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.gbg-card-score {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+}
+.jw-deal {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jw-out {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+}
 @media (max-width: 520px) {
   .gbg-game {
     grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 38px;
@@ -2033,6 +2077,7 @@ table.tbl tr.clickable:hover {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .gbg-card,
   .gbg-game,
   .tier-banner .tier.pop {
     animation: none;

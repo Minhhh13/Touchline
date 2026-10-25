@@ -212,7 +212,7 @@ describe('challenge links', () => {
   it('keeps a spin the assistant discards in the history, so the game still replays', () => {
     const g = createGame(settings({ seed: 'GHOST-SKIP' }))
     useStore.setState({ universe: u, game: g, loadedLeagues: ['england'] })
-    const { spin: storeSpin, autoDraftRest, finishDraft } = useStore.getState()
+    const { spin: storeSpin, autoDraftRest, finishDraft, kickOff } = useStore.getState()
     storeSpin()
     storeSpin() // ignored: a spin is pending
     expect(useStore.getState().game!.draft!.current).not.toBeNull()
@@ -221,6 +221,9 @@ describe('challenge links', () => {
     expect(after.draft!.history[0]).toMatchObject({ pickedId: null, slotId: null, skipped: true })
     expect(after.draft!.history.length).toBe(after.draft!.spins)
     finishDraft()
+    // The draft hands over to the tactics step; kicking off plays the season (no January window on this game)
+    expect(useStore.getState().game!.phase).toBe('kickoff')
+    kickOff()
     const done = useStore.getState().game!
     expect(done.phase).toBe('summary')
     const c = challengeFromGame(done, u, 'Skipper')!

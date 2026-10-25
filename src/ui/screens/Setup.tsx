@@ -87,6 +87,8 @@ export function Setup() {
   const [hostClubId, setHostClubId] = useState('')
   const [jobSecurity, setJobSecurity] = useState(true)
   const [continental, setContinental] = useState(false)
+  // Quick Draft: the season stops at the halfway mark for a January window unless switched off
+  const [january, setJanuary] = useState(true)
   const [opposition, setOpposition] = useState<'calibrated' | 'realistic'>('calibrated')
   const [seed, setSeed] = useState(() => randomSeed())
   const [squadSize, setSquadSize] = useState(18)
@@ -191,7 +193,10 @@ export function Setup() {
       rules,
       jobSecurity: isManage ? jobSecurity : false,
       difficulty: fixed ? fixed.difficulty : opposition,
-      continental: isManage && continental && u.available.length >= 2,
+      // A Continental Cup in a managed season, a Continental Cup run after a top-four finish in a quick one; never on a challenge
+      continental: !challenge && continental && u.available.length >= 2,
+      // A challenge keeps the window: the friend may trade in January as the challenger could
+      ...(isManage ? {} : { january: challenge ? true : january }),
       ...(challenge ? { challenge } : {}),
     }
   }
@@ -347,7 +352,7 @@ export function Setup() {
             </button>
             {!advanced && (
               <span className="help">
-                {isManage ? '' : 'Team name, '}European Nights, twists, the January window, seed, league and season, your club, the opposition, one-club and one-nation{isManage && u.available.length >= 2 ? ', the Continental Cup' : ''}. The line above Start states them.
+                {isManage ? '' : 'Team name, '}European Nights, twists, {isManage ? '' : 'the January window, '}seed, league and season, your club, the opposition, one-club and one-nation{u.available.length >= 2 ? ', the Continental Cup' : ''}. The line above Start states them.
               </span>
             )}
             {advanced && (
@@ -363,13 +368,13 @@ export function Setup() {
                   Twists: every third spin is golden, basement, blind or decade
                 </label>
                 {!isManage && (
-                  <label className="toggle is-off" data-testid="january-toggle" title="The quick season does not stop for a window yet">
-                    <input type="checkbox" checked={false} disabled readOnly />
-                    January window: trade at the halfway mark <span className="chip">Soon</span>
+                  <label className="toggle" data-testid="january-toggle" title="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change.">
+                    <input type="checkbox" checked={january} onChange={(e) => setJanuary(e.target.checked)} />
+                    January window: one deal at the halfway mark
                   </label>
                 )}
-                {isManage && u.available.length >= 2 && (
-                  <label className="toggle" title="A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.">
+                {u.available.length >= 2 && (
+                  <label className="toggle" data-testid="continental-toggle" title={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'}>
                     <input
                       type="checkbox"
                       checked={continental}
@@ -378,7 +383,7 @@ export function Setup() {
                         if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                       }}
                     />
-                    Continental Cup: European nights against the best of the other leagues
+                    {isManage ? 'Continental Cup: European nights against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
                   </label>
                 )}
                 {!isManage && teamField}

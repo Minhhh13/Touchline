@@ -168,7 +168,7 @@ export function Draft() {
             )}
             {!complete && dry && !fillingStarters && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'Simulate the season' : isDynastySummer ? 'Into the new season' : `Go to pre-season with ${made}`}
+                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'On to kick-off' : isDynastySummer ? 'Into the new season' : `Go to pre-season with ${made}`}
               </button>
             )}
             {!complete && !dry && (
@@ -193,7 +193,7 @@ export function Draft() {
             )}
             {complete && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'Simulate the season' : isDynastySummer ? 'Into the new season' : 'Go to pre-season'}
+                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'On to kick-off' : isDynastySummer ? 'Into the new season' : 'Go to pre-season'}
               </button>
             )}
           </div>
