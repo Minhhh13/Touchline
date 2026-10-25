@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
-import { getFormation, FORMATIONS } from '@engine/formations'
+import { getFormation } from '@engine/formations'
 import { rolesFor, getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
 import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
@@ -20,9 +20,10 @@ import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingIte
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { Pitch, PitchLegend } from '../components/Pitch'
+import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
-import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos, Tip, useViewerFlag } from '../components/bits'
+import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, Tip, useViewerFlag } from '../components/bits'
 import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
@@ -119,8 +120,8 @@ export function Dugout() {
         </div>
         <div className="row wrap" style={{ gap: 20 }}>
           <Stat label="Position" value={season.matchweek ? ordinal(pos) : '–'} sub={`${row.points} pts · ${row.won}-${row.drawn}-${row.lost}`} />
-          <Stat label="Team rating" value={strength.overall.toFixed(1)} sub={`balance ${Math.round(strength.balance * 100)}%`} />
-          <Stat label="Budget" value={money(game.finances.budget)} sub={`wages ${wage(squad.reduce((s, x) => s + x.p.wage, 0))}`} />
+          <Stat label="Team rating" value={strength.overall.toFixed(1)} sub={<span title="How evenly the keeper, defence, midfield and attack are rated: an uneven side loses up to 4% of its rating">{Math.round(strength.balance * 100)}% balanced</span>} />
+          <Stat label="Budget" value={money(game.finances.budget)} sub={<span title="The weekly wage bill, players and staff, against the wage cap">wages {wage(squad.reduce((s, x) => s + x.p.wage, 0) + staffWages(game.staff))} of {wage(game.finances.wageCap)}</span>} />
           <div className="stat" style={{ minWidth: 150 }}>
             <span className="label">Board confidence</span>
             <div className="conf">
@@ -138,8 +139,9 @@ export function Dugout() {
           <div className="cta-main">
             {preseason ? (
               <div>
-                <div style={{ fontWeight: 700 }}>Pre-season · {game.friendliesPlayed}/3 friendlies played</div>
-                <div className="small muted">Friendlies build sharpness and tactical familiarity, with a small injury risk. Then kick off the league.</div>
+                <div style={{ fontWeight: 700 }}>
+                  Pre-season <Info label="About pre-season">Tick off the checklist, then kick off the league. Friendlies build sharpness and tactical familiarity, with a small injury risk.</Info>
+                </div>
               </div>
             ) : next ? (
               <div className="row">
@@ -162,7 +164,7 @@ export function Dugout() {
                 </div>
               </div>
             )}
-            <BriefingList items={briefing} onAction={act} />
+            <BriefingList items={briefing} onAction={act} checklist={preseason} />
           </div>
           <div className="cta-bar" ref={barRef} data-testid="cta-bar">
             {headline && (
@@ -520,17 +522,21 @@ function briefingIcon(item: BriefingItem): string {
 }
 
 /** The assistant's briefing: one line per thing to do, with the button that does it. */
-function BriefingList({ items, onAction }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void }) {
+function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
   if (items.length === 0) return null
   return (
-    <ul className="briefing" data-testid="briefing">
+    <ul className={`briefing ${checklist ? 'checklist' : ''}`} data-testid="briefing">
       {items.map((item) => (
         <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
           <span className="icon" aria-hidden="true">
             {briefingIcon(item)}
           </span>
-          <span className="text">{item.text}</span>
-          {item.action && (
+          <span className="text">
+            {item.text}
+            {item.hint && <Info label={`About: ${item.text}`}>{item.hint}</Info>}
+          </span>
+          {/* Play friendly is the panel's own button, so the checklist line does not repeat it */}
+          {item.action && item.action.op !== 'friendly' && (
             <button className="btn sm" onClick={() => onAction(item.action!)}>
               {item.action.label}
             </button>
@@ -556,14 +562,7 @@ function TacticsTab() {
         <div className="col">
           <div className="panel">
             <h3>Formation</h3>
-            <div className="formations">
-              {FORMATIONS.map((f) => (
-                <button key={f.id} className={f.id === t.formationId ? 'active' : ''} onClick={() => store.setFormation(f.id)}>
-                  <div className="fname">{f.name}</div>
-                  <div className="fblurb">{f.blurb}</div>
-                </button>
-              ))}
-            </div>
+            <FormationPicker value={t.formationId} onChange={(id) => store.setFormation(id)} blurbs />
             <p className="help">Changing shape mid-season knocks tactical familiarity back a little.</p>
           </div>
           <div className="panel col">
@@ -1012,10 +1011,10 @@ function ClubTab({ table }: { table: TableRow[] }) {
   const wages = playerWages + staffWages(game.staff)
   const host = u.clubById[season.hostClubId]
   return (
-    <div className="grid two">
+    <div className="grid two club-grid">
       <div className="panel">
         <h3>Board</h3>
-        <div className="kv">
+        <div className="kv tight">
           <dt>Expectation</dt>
           <dd>Finish {ordinal(season.boardTarget)} or better</dd>
           <dt>Current</dt>
@@ -1029,12 +1028,14 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dt>Rivals</dt>
           <dd>{host?.rivals.map((r) => clubName(u, r)).join(', ') || 'None'}</dd>
           <dt>Difficulty</dt>
-          <dd>{season.aiOffset > 0 ? `Calibrated: rivals play ${season.aiOffset} rating points below their real strength` : 'Realistic: real squads at full strength'}</dd>
+          <dd title={season.aiOffset > 0 ? `Rivals play ${season.aiOffset} rating points below their real strength` : 'Real squads at full strength'}>{season.aiOffset > 0 ? `Calibrated (−${season.aiOffset})` : 'Realistic'}</dd>
         </div>
         {season.objectives && season.objectives.length > 0 && (
           <>
-            <h3 style={{ marginTop: 12 }}>Board objectives</h3>
-            <div className="col" style={{ gap: 6 }}>
+            <h4 className="head-title" style={{ marginTop: 'var(--space-4)' }}>
+              Board objectives <Info label="About objectives">Each objective met adds £{OBJECTIVE_REWARD.budget}M to the budget and lifts board confidence; each one missed costs confidence.</Info>
+            </h4>
+            <div className="col" style={{ gap: 'var(--space-2)' }}>
               {season.objectives.map((o) => {
                 const ev = evaluateObjective(o, { season, squad, rivals: host?.rivals ?? [] })
                 const decided = o.met !== undefined
@@ -1048,14 +1049,18 @@ function ClubTab({ table }: { table: TableRow[] }) {
                   </div>
                 )
               })}
-              <p className="help">Each objective met adds £{OBJECTIVE_REWARD.budget}M to the budget and lifts board confidence; each one missed costs confidence.</p>
             </div>
           </>
         )}
       </div>
       <div className="panel">
-        <h3>Finances</h3>
-        <div className="kv">
+        <div className="panel-head">
+          <span className="head-title">
+            <h3>Finances</h3>
+            <Info label="About finances">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</Info>
+          </span>
+        </div>
+        <div className="kv tight">
           <dt>Transfer budget</dt>
           <dd>{money(game.finances.budget)}</dd>
           <dt>Wage bill</dt>
@@ -1069,37 +1074,46 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dt>Wages paid</dt>
           <dd>{money(game.finances.wagesPaid)}</dd>
         </div>
-        <p className="help">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</p>
       </div>
       <div className="panel">
-        <h3>Backroom staff</h3>
-        <p className="help">Staff wages count against the wage cap. Hire and release at any time.</p>
-        <div className="col" style={{ gap: 10 }}>
+        <div className="panel-head">
+          <span className="head-title">
+            <h3>Backroom staff</h3>
+            <Info label="About staff">Staff wages count against the wage cap. Hire and release at any time; hover a level for what it does.</Info>
+          </span>
+          <span className="small muted">{wage(staffWages(game.staff))}</span>
+        </div>
+        <div className="staff-list">
           {STAFF_ROLES.map((role) => {
             const info = STAFF[role]
             const tier = staffTier(game.staff, role)
             return (
-              <div key={role} className="card">
-                <div className="row between wrap">
+              <div key={role} className="staff-row">
+                <div className="row between wrap" style={{ gap: 'var(--space-2)' }}>
                   <b>{info.label}</b>
-                  <span className="small muted">{info.tiers[tier].title}{info.tiers[tier].wage ? ` · ${wage(info.tiers[tier].wage)}` : ''}</span>
+                  <span className="small muted">{info.tiers[tier].title}</span>
                 </div>
-                <div className="segmented" style={{ marginTop: 6 }}>
+                <div className="segmented" style={{ marginTop: 'var(--space-2)' }}>
                   {info.tiers.map((t) => (
                     <button key={t.tier} className={t.tier === tier ? 'active' : ''} onClick={() => store.hireStaff(role, t.tier)} title={t.blurb}>
                       {t.tier === 0 ? 'None' : t.tier === 1 ? `Good · ${wage(t.wage)}` : `Elite · ${wage(t.wage)}`}
                     </button>
                   ))}
                 </div>
-                <div className="small muted" style={{ marginTop: 4 }}>{info.tiers[tier].blurb}</div>
+                <div className="small muted one-line" style={{ marginTop: 'var(--space-1)' }} title={info.tiers[tier].blurb}>{info.tiers[tier].blurb}</div>
               </div>
             )
           })}
         </div>
       </div>
       <div className="panel">
-        <h3>Contracts</h3>
-        <table className="tbl">
+        <div className="panel-head">
+          <span className="head-title">
+            <h3>Contracts</h3>
+            <Info label="About playing time">Key players expect 85% of the minutes, first team 65%, rotation 35%, backup 15%, prospects 10%. Fall more than 15 points short over the last six matchweeks and morale drifts down each week, up to 5; play someone more than he expects and it drifts up a little.</Info>
+          </span>
+        </div>
+        <div className="tbl-wrap"><table className="tbl contracts">
           <thead>
             <tr>
               <th>Player</th>
@@ -1107,7 +1121,7 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <th className="num">Years</th>
               <th>Status</th>
               <th className="num">Minutes</th>
-              <th className="num">Morale</th>
+              <th>Morale</th>
               <th></th>
             </tr>
           </thead>
@@ -1119,13 +1133,13 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <tr key={x.p.id}>
                 <td>
                   <span className="row" style={{ gap: 6 }}>
-                    <Rating value={x.p.overall} /> {x.p.name}
+                    <Rating value={x.p.overall} /> <span className="name" title={x.p.name}>{x.p.name}</span>
                   </span>
                 </td>
                 <td className="num">{x.p.age}</td>
                 <td className="num">{game.contracts[x.p.id]?.years ?? 1}</td>
                 <td>
-                  <select className="input" data-testid="status-select" style={{ minWidth: 118 }} value={status} onChange={(e) => store.setStatus(x.p.id, e.target.value as SquadStatus)} title="Squad status: a promotion lifts morale 6 and his wage with it; a demotion costs 6 morale">
+                  <select className="input sm" data-testid="status-select" value={status} onChange={(e) => store.setStatus(x.p.id, e.target.value as SquadStatus)} title="Squad status: a promotion lifts morale 6 and his wage with it; a demotion costs 6 morale">
                     {STATUSES.map((st) => (
                       <option key={st} value={st}>
                         {STATUS_LABEL[st]}
@@ -1136,8 +1150,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
                 <td className="num" title={`Share of the available minutes over the last six matchweeks; ${STATUS_LABEL[status].toLowerCase()} expects ${Math.round(EXPECTED_SHARE[status] * 100)}%`}>
                   {share === null ? '–' : <span style={share < EXPECTED_SHARE[status] - 0.15 ? { color: 'var(--danger)' } : undefined}>{Math.round(share * 100)}%</span>}
                 </td>
-                <td className="num">{moraleWord(x.s.morale)}</td>
-                <td>
+                <td>{moraleWord(x.s.morale)}</td>
+                <td className="end">
                   <button className="btn sm ghost danger" onClick={() => confirm(`Release ${x.p.name}? No fee is received.`) && store.release(x.p.id)}>
                     Release
                   </button>
@@ -1146,14 +1160,15 @@ function ClubTab({ table }: { table: TableRow[] }) {
               )
             })}
           </tbody>
-        </table>
-        <p className="help">Key players expect 85% of the minutes, first team 65%, rotation 35%, backup 15%, prospects 10%. Fall more than 15 points short over the last six matchweeks and morale drifts down each week, up to 5; play someone more than he expects and it drifts up a little.</p>
+        </table></div>
       </div>
       {game.careerStats && Object.keys(game.careerStats).length > 0 && (
         <div className="panel">
-          <h3>Club legends</h3>
-          <p className="help">All-time records for {game.settings.teamName}, across every season of this game.</p>
-          <table className="tbl">
+          <div className="panel-head">
+            <h3>Club legends</h3>
+            <span className="small muted">All seasons of this game</span>
+          </div>
+          <div className="tbl-wrap"><table className="tbl">
             <thead>
               <tr>
                 <th>Player</th>
@@ -1181,7 +1196,7 @@ function ClubTab({ table }: { table: TableRow[] }) {
                   </tr>
                 ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
       <div className="panel">

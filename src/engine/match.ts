@@ -1513,7 +1513,8 @@ const GOAL_TEXTS = [
   'chips the keeper with real class',
 ]
 
-const CHANCE_TEXTS = [
+/** The near-miss lines of a full-detail match, `{p}` the shooter and `{gk}` the keeper (the quick-season highlights reuse them). */
+export const CHANCE_TEXTS = [
   '{p} is denied by a brilliant save from {gk}!',
   '{p} drags a shot wide with the goal gaping.',
   '{p} hits the post!',

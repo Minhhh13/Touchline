@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GOAL_FLIGHT_MS, hiddenGoal, readout, reanchor, timeline, type GoalHold, type LiveClockState } from '../match/clockStore'
+import { GOAL_FLIGHT_MS, hiddenGoal, publishClock, readout, reanchor, timeline, useLiveClock, type GoalHold, type LiveClockState } from '../match/clockStore'
 
 const hold = (t: number, ms: number, key = String(t)): GoalHold => ({ t, ms, side: 'home', key, tone: 'ours' })
 
@@ -63,5 +63,16 @@ describe('live clock timeline', () => {
     expect(hiddenGoal({ holds: s.holds, revealed: 1 }, 'zzz')).toBe(false)
     // Skipping to the stop passes every goal: all revealed, nothing held
     expect(readout({ ...s, at: 46, spent: Infinity, running: false }, 0)).toMatchObject({ revealed: 2, celebrating: -1, done: true, clock: 45 })
+  })
+
+  it('publishes a whole minute for the highlights reel: it runs to the end of the minute, and a pause keeps the picture', () => {
+    publishClock({ clock: 30, speed: 1, running: true, period: 400 }, 1000)
+    const s = useLiveClock.getState()
+    expect(timeline(s, 1200).t).toBeCloseTo(30.5)
+    expect(timeline(s, 9999).t).toBe(31)
+    publishClock({ clock: 30, speed: 1, running: false, period: 400 }, 1100)
+    expect(timeline(useLiveClock.getState(), 5000).t).toBeCloseTo(30.25)
+    publishClock({ clock: 31, speed: 1, running: true, period: 400 }, 2000)
+    expect(timeline(useLiveClock.getState(), 2000).t).toBe(31)
   })
 })

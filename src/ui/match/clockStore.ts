@@ -116,3 +116,15 @@ export function hiddenGoal(s: Pick<LiveClockState, 'holds' | 'revealed'>, key: s
   const i = s.holds.findIndex((h) => h.key === key)
   return i >= 0 && i >= s.revealed
 }
+
+/**
+ * Drive the clock one whole minute at a time (the quick-season highlights reel): the minute runs
+ * on continuously to its end and waits there for the next. Publishing the same minute again (a
+ * pause or a resume) keeps the picture where it stands; no goal holds.
+ */
+export function publishClock(state: Pick<LiveClockState, 'clock' | 'speed' | 'running' | 'period'>, now: number = typeof performance !== 'undefined' ? performance.now() : 0): void {
+  const prev = useLiveClock.getState()
+  const same = state.clock === prev.clock && prev.end === state.clock + 1 && prev.holds.length === 0
+  const base = same ? reanchor(prev, now) : { at: state.clock, since: now, spent: Infinity }
+  useLiveClock.setState({ ...base, speed: state.speed, period: state.period, running: state.running, clock: state.clock, stopAt: state.clock, end: state.clock + 1, holds: [], revealed: 0, celebrating: -1, done: false })
+}

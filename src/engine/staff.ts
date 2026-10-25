@@ -34,7 +34,7 @@ export const STAFF: Record<StaffRole, StaffRoleInfo> = {
     help: 'Sharper sessions: players keep their edge and the weekly training focus bites harder.',
     tiers: [
       { tier: 0, title: 'No specialist coach', wage: 0, blurb: 'Training is what it is.' },
-      { tier: 1, title: 'UEFA Pro coach', wage: 20, blurb: '+1 sharpness a week. Training focus effects 1% stronger.' },
+      { tier: 1, title: 'Pro Licence coach', wage: 20, blurb: '+1 sharpness a week. Training focus effects 1% stronger.' },
       { tier: 2, title: 'Elite coaching team', wage: 50, blurb: '+2 sharpness a week. Training focus effects 2% stronger.' },
     ],
   },

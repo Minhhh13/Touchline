@@ -174,9 +174,9 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
   const story = useMemo(() => xgStory(feed), [feed])
   const fig = reportFigures(series, feed.lastMinute)
   const codes = u && game ? { home: teamCode(u, res.homeTeamId, names.homeShort, game.settings.shortName), away: teamCode(u, res.awayTeamId, names.awayShort, game.settings.shortName) } : { home: names.homeShort, away: names.awayShort }
-  const shareCard = () => {
+  const shareCard = async () => {
     try {
-      const url = renderMatchCard({
+      const url = await renderMatchCard({
         title: ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`),
         subtitle: `${homeName} v ${awayName}`,
         home: { name: names.homeShort, colour: colours.home, goals: res.homeGoals, xg: fig.home.xg },

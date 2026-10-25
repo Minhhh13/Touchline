@@ -37,6 +37,8 @@ export interface BriefingItem {
   action?: BriefingAction
   /** Pre-season checklist: the box is ticked. */
   done?: boolean
+  /** The why behind a short checklist label, shown behind an Info button. */
+  hint?: string
 }
 
 /** At most this many lines, so the briefing stays a briefing. */
@@ -137,30 +139,30 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
   const squad = squadPlayers(game, u)
-  const check = (id: string, done: boolean, text: string, action?: BriefingAction) => items.push({ id, level: done ? 'ok' : 'info', text, done, action })
+  const check = (id: string, done: boolean, text: string, hint: string, action?: BriefingAction) => items.push({ id, level: done ? 'ok' : 'info', text, hint, done, action })
 
   const played = Math.min(FRIENDLIES, game.friendliesPlayed)
-  check('friendlies', played >= FRIENDLIES, played >= FRIENDLIES ? `Three friendlies played: sharpness and familiarity are up` : `Play three friendlies (${played} of ${FRIENDLIES}): sharpness and familiarity rise, with a small injury risk`, played < FRIENDLIES ? { label: 'Play friendly', op: 'friendly' } : undefined)
+  check('friendlies', played >= FRIENDLIES, `Friendlies ${played}/${FRIENDLIES}`, 'Each friendly builds sharpness and tactical familiarity, with a small injury risk.', played < FRIENDLIES ? { label: 'Play friendly', op: 'friendly' } : undefined)
 
   const captain = game.captainId && game.squad[game.captainId] ? get(game.captainId) : undefined
   const suggestion = suggestedCaptain(game, u)
-  check('captain', !!captain, captain ? `${captain.name} is captain` : 'Name a captain: a leader with a strong mentality lifts the side in big matches', captain ? undefined : { label: 'Choose', op: 'player', playerId: suggestion })
+  check('captain', !!captain, captain ? `Captain: ${captain.name}` : 'Captain', 'A leader with a strong mentality lifts the side in big matches.', captain ? undefined : { label: 'Choose', op: 'player', playerId: suggestion })
 
   const rolesTouched = formation.slots.some((s) => (game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]) !== DEFAULT_ROLE[s.position])
-  check('roles', rolesTouched, rolesTouched ? 'Roles reviewed' : 'Review the roles: each player has a rating in his role, and the team rating follows', rolesTouched ? undefined : { label: 'Tactics', tab: 'tactics' })
+  check('roles', rolesTouched, 'Roles', 'Each player has a rating in his role, and the team rating follows.', rolesTouched ? undefined : { label: 'Tactics', tab: 'tactics' })
 
   const hired = STAFF_ROLES.some((r) => staffTier(game.staff, r) > 0)
   const room = game.finances.wageCap - squad.reduce((s, x) => s + x.p.wage, 0) - staffWages(game.staff)
   const cheapest = Math.min(...STAFF_ROLES.map((r) => STAFF[r].tiers[1].wage))
-  check('staff', hired, hired ? `Backroom staff hired (${STAFF_ROLES.filter((r) => staffTier(game.staff, r) > 0).length} of ${STAFF_ROLES.length} roles)` : room >= cheapest ? `Hire staff: £${Math.round(room)}k a week of wage room, a senior physio costs £${cheapest}k` : `No wage room for staff (£${Math.round(room)}k a week); they are paid from the cap`, hired ? undefined : { label: 'Club', tab: 'club' })
+  check('staff', hired, `Staff ${STAFF_ROLES.filter((r) => staffTier(game.staff, r) > 0).length}/${STAFF_ROLES.length}`, hired ? 'Backroom staff are paid from the wage cap.' : room >= cheapest ? `£${Math.round(room)}k a week of wage room; a senior physio costs £${cheapest}k.` : `No wage room for staff (£${Math.round(room)}k a week); they are paid from the cap.`, hired ? undefined : { label: 'Club', tab: 'club' })
 
   const sp = game.tactics.setPieces
   const takers = !!(sp?.penalties || sp?.freeKicks || sp?.corners)
-  check('set-pieces', takers, takers ? 'Set-piece takers named' : 'Name set-piece takers: penalties, free kicks and corners go to the men you choose', takers ? undefined : { label: 'Tactics', tab: 'tactics' })
+  check('set-pieces', takers, 'Set pieces', 'Penalties, free kicks and corners go to the men you choose.', takers ? undefined : { label: 'Tactics', tab: 'tactics' })
 
   if (game.youthIntake) {
     const decided = game.youthIntake.chosen !== undefined
-    check('youth', decided, decided ? (game.youthIntake.chosen ? `${get(game.youthIntake.chosen)?.name ?? 'A prospect'} promoted from the academy` : 'Youth intake passed this year') : 'Answer the youth intake: three academy prospects, sign one for nothing or pass', decided ? undefined : { label: 'Squad', tab: 'squad' })
+    check('youth', decided, decided ? (game.youthIntake.chosen ? `Youth: ${get(game.youthIntake.chosen)?.name ?? 'a prospect'} promoted` : 'Youth intake passed') : 'Youth intake', 'Three academy prospects: sign one for nothing or pass.', decided ? undefined : { label: 'Squad', tab: 'squad' })
   }
   return items
 }
