@@ -15,6 +15,11 @@ import { rollEvent } from '@engine/events'
 import { newSquadPlayer, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
 import type { Game, GameSettings, Profile } from '../types'
+import { maskedView, setAssignment, setRecruitFocus } from '../logic/scouting'
+import { contractDemand } from '../logic/contracts'
+import { requestOptions } from '../logic/board'
+import { readSaveFile } from '../store'
+import { decodeSave } from '../saveStorage'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
   return {
@@ -174,6 +179,52 @@ describe('audit fixes: season and squad', () => {
     expect(Object.values(n.squad).every((s) => s.moraleLog === undefined)).toBe(true)
     while (n.season!.matchweek < 6) playMatchweek(n, u, true)
     expect(Object.values(n.squad).some((s) => (s.moraleLog?.length ?? 0) > 0)).toBe(true)
+  }, 60_000)
+
+  it('a save from before recruitment (no knowledge, focus, reports, clauses, requests, slider or data hub) loads and plays', () => {
+    const g = started(u, { seed: 'pre-recruitment-save' })
+    playMatchweek(g, u, true)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    for (const k of ['knowledge', 'assignments', 'scouted', 'scoutSlot', 'recruitFocus', 'scoutReports', 'negotiations', 'bonusDue', 'youthFacilities', 'dataHub'] as const) delete old[k]
+    for (const c of Object.values(old.contracts)) {
+      delete c.clauses
+      delete c.sellOn
+      delete c.shopped
+    }
+    delete old.season!.requests
+    delete old.finances.wageShift
+    delete old.finances.bonusesPaid
+    const n = normaliseGame(old)!
+    expect(n.recruitFocus).toBeUndefined()
+    expect(n.scouted).toBeUndefined()
+    expect(n.contracts).toBe(old.contracts)
+    expect(maskedView(n, u, u.index[Object.keys(n.squad)[0]]).exact).toBe(true)
+    expect(contractDemand(n, u, Object.keys(n.squad)[0], 'rotation')).not.toBeNull()
+    expect(requestOptions(n, u).length).toBeGreaterThan(0)
+    while (n.season!.matchweek < 6) playMatchweek(n, u, true)
+    expect(Object.keys(n.dataHub ?? {}).length).toBeGreaterThan(0)
+    // A save written with every recruitment field round-trips an export and an import
+    setRecruitFocus(n, u, { position: 'CM', age: 'u24' })
+    setAssignment(n, 'england', true)
+    const id = Object.keys(n.squad)[0]
+    n.contracts[id].clauses = { release: 40, appearance: 5, goal: 10 }
+    n.contracts[id].shopped = true
+    n.scouted = [n.scoutReports![0].playerSeasonId]
+    n.season!.requests = [{ kind: 'budget', mw: 6, accepted: true }]
+    n.finances.wageShift = 2
+    const back = normaliseGame(JSON.parse(decodeSave(readSaveFile(JSON.stringify({ state: { game: n }, version: 1 })))!).state.game as Game)!
+    expect(back.recruitFocus).toEqual(n.recruitFocus)
+    expect(back.assignments).toEqual(['england'])
+    expect(back.contracts[id].clauses).toEqual({ release: 40, appearance: 5, goal: 10 })
+    expect(back.scoutReports).toEqual(n.scoutReports)
+    expect(back.season!.requests).toEqual(n.season!.requests)
+    expect(back.finances.wageShift).toBe(2)
+    // Lists past their cap are trimmed, and a malformed list is dropped
+    const long = normaliseGame({ ...back, scouted: Array.from({ length: 200 }, (_, i) => `x${i}`), assignments: 'england' as unknown as string[] })!
+    expect(long.scouted!.length).toBe(80)
+    expect(long.scouted!.at(-1)).toBe('x199')
+    expect(long.assignments).toEqual([])
+    playMatchweek(back, u, true)
   }, 60_000)
 
   it('a quick draft saved before Gamble mode reads with no Icons, no upgrader and the same lookup', () => {

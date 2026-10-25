@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { produce } from 'immer'
-import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
+import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
@@ -24,6 +24,9 @@ import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/sq
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
+import { fullScout, setAssignment, setRecruitFocus } from './logic/scouting'
+import { proposeContract, setShopped, type ContractOffer } from './logic/contracts'
+import { makeRequest, shiftWages, type RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
@@ -207,6 +210,18 @@ interface Store {
   rejectOffer: (index: number) => void
   release: (playerSeasonId: string) => void
   advanceDay: () => void
+  /** Recruitment: a full scout of one player (one a market day, or a week), a league assignment on or off, the focus. */
+  scoutPlayer: (playerSeasonId: string) => { ok: boolean; message: string }
+  setAssignment: (leagueId: string, on: boolean) => { ok: boolean; message: string }
+  setRecruitFocus: (focus: RecruitFocus | null) => { ok: boolean; message: string }
+  dismissReport: (playerSeasonId: string) => void
+  /** Contract talks: put an offer to a squad player. */
+  proposeContract: (playerSeasonId: string, offer: ContractOffer) => { accepted: boolean; message: string }
+  /** Have his agent find a buyer, or stop. */
+  setShopped: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
+  boardRequest: (kind: RequestKind) => { ok: boolean; accepted: boolean; message: string }
+  /** The wage-to-transfer slider: +1 turns £10k a week of wages into £2M of budget, −1 the other way. */
+  shiftWages: (dir: 1 | -1) => { ok: boolean; message: string }
 
   nextSeason: () => void
   acceptJob: (index: number | null) => void
@@ -820,6 +835,59 @@ export const useStore = create<Store>()(
         rejectOffer: (i) => mutate((g) => rejectOffer(g, i)),
         release: (id) => mutate((g, u) => releasePlayer(g, u, id)),
         advanceDay: () => mutate((g, u) => advanceDay(g, u)),
+        scoutPlayer: (id) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = fullScout(g, u, id)
+          })
+          return out
+        },
+        setAssignment: (leagueId, on) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g) => {
+            out = setAssignment(g, leagueId, on)
+          })
+          return out
+        },
+        setRecruitFocus: (focus) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = setRecruitFocus(g, u, focus)
+          })
+          return out
+        },
+        dismissReport: (id) =>
+          mutate((g) => {
+            if (g.scoutReports) g.scoutReports = g.scoutReports.filter((r) => r.playerSeasonId !== id)
+          }),
+        proposeContract: (id, offer) => {
+          let out = { accepted: false, message: 'No game' }
+          mutate((g, u) => {
+            out = proposeContract(g, u, id, offer)
+          })
+          return out
+        },
+        setShopped: (id, on) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = setShopped(g, u, id, on)
+          })
+          return out
+        },
+        boardRequest: (kind) => {
+          let out = { ok: false, accepted: false, message: 'No game' }
+          mutate((g, u) => {
+            out = makeRequest(g, u, kind)
+          })
+          return out
+        },
+        shiftWages: (dir) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = shiftWages(g, u, dir)
+          })
+          return out
+        },
 
         nextSeason: () => {
           const { game } = get()
