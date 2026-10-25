@@ -87,13 +87,13 @@ Both sites are static sites in their own Render workspace **TouchLine** (workspa
 
 | Service | URL | Tracks | Deploys | Use |
 | --- | --- | --- | --- | --- |
-| `Touchline` (`srv-dbeoi38m7kps73ei85dg`) | https://touchline-16xv.onrender.com | `main` | after CI passes on the commit | The live game |
-| `touchline-preview` (`srv-dbeoj9tg1s2s7388iei0`) | https://touchline-preview-hfvi.onrender.com | `claude/touchline-preview` | on every push | Previews of in-progress branches merged together (the `integration` branch) |
+| `Touchline` (`srv-dbeoi38m7kps73ei85dg`) | **https://touchline.quest** (also https://touchline-16xv.onrender.com) | `main` | after CI passes on the commit | The live game |
+| `touchline-newfeature-preview` (`srv-dbesgvrrjlhs738om2og`) | https://touchline-newfeature-preview.onrender.com | `claude/touchline-preview` | on every push | The testing site: finished features land here first, then go live |
 
 - Build command `npm ci && npm run build`, publish directory `dist`, no `BASE_PATH`, `NODE_VERSION=22`.
 - Render's GitHub app is installed on the repo, so both sites deploy on their own. A merge into `main` goes live a few minutes after CI turns green; a red CI run never deploys.
 - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. These are the public publishable keys; Vite bakes them into the build, so changing them needs a redeploy.
-- Optional: add a custom domain (also needed before Supabase can send sign-up emails through Resend, see below). The `-16xv` and `-hfvi` suffixes are Render's and stay unless a custom domain is added.
+- Custom domain: `touchline.quest`, registered at Porkbun (DNS: an A record `216.24.57.1` for the bare domain, a CNAME `www` to `touchline-16xv.onrender.com`, plus Resend's four email records). Render issues the HTTPS certificates. The owner holds the Porkbun login; edit only the touchline.quest DNS, never the owner's other domains.
 - The old GitHub Pages workflow is removed. It failed on every push to `main` (Pages is unavailable on a private repo), and because Render waits for every check to pass, it blocked the live deploy.
 
 ### Supabase (backend for the online layer)
@@ -102,7 +102,7 @@ Both sites are static sites in their own Render workspace **TouchLine** (workspa
 - Status: provisioned and healthy, **no schema yet**. Nothing in the code uses it yet.
 - Still to configure:
   - Auth providers: email magic link, Google (optional; needs a Google OAuth client id and secret).
-  - Sign-up email through Resend (the owner has an account): Supabase's built-in mailer only reaches the project's team and is rate-limited, so real users need custom SMTP. Needs a domain verified in Resend first, then Auth > SMTP: host `smtp.resend.com`, port 465, user `resend`, password a Resend API key typed straight into the dashboard (never into the repo or a chat), sender `no-reply@<domain>`, name TouchLine; then turn on Confirm email.
+  - Sign-up email through Resend: `touchline.quest` is verified in Resend (Tokyo region; DKIM, SPF and DMARC records at Porkbun). Auth > SMTP uses host `smtp.resend.com`, port 465, user `resend`, a Resend API key typed straight into the dashboard by the owner (never in the repo or a chat), sender `no-reply@touchline.quest`, name TouchLine. Confirm email is on. Site URL `https://touchline.quest`; redirect URLs touchline.quest, touchline-16xv.onrender.com, touchline-newfeature-preview.onrender.com and localhost:5173.
   - Auth URL configuration: Site URL set to the Render URL (or the custom domain), plus redirect URLs for `http://localhost:5173` and the preview site.
   - Schema via migrations in `supabase/migrations/` (profiles, cloud saves, daily scores, challenge codes, head-to-head rooms), with row-level security on every table.
   - A keep-alive: free projects **pause after about a week without activity**.
@@ -162,3 +162,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · New logo on `logo-v2` (local, not pushed): the owner's sketch as the mark (a corner flag with a red pennant, a black-and-white ball on the white touchline, the blue tile kept) in three size tiers, an open `Lockup` with the touchline under the name that shines, draws its line and rolls the ball out from the flag once per load on the Home hero and on hover in the top bar (CSS only, off under reduced motion); favicon, app icons and the share card redrawn; geometry in `src/ui/brand.ts`, rules in docs/DESIGN_SYSTEM.md section 2.
 - 2026-10-25 · owner's agent · Logo review on `logo-v2`: the 16 px tier's ball (the favicon) draws real pentagon panels (the front one and the lower rim, so the top stays white at 16 px), since one centred patch read as an eye at 32 device px; the lockup's glint copy of the name is generated content, so the Home h1 and the top bar read "TouchLine" once instead of twice. `logo-v2` is based on the redesign foundation commit and is one commit behind `redesign` (2077340, no logo files; merges cleanly).
 - 2026-10-25 · owner's agent · Logo v3 on `logo-v2`, from the owner's review: the touchline is much thinner (full tier 3.6 to 1.6, mid 4.8 to 2.4, the 16 px tier one device pixel, the lockup 4u to 2u); the pole stands on the line instead of crossing it; the lockup's line is short (under the flag and the ball, 4u past the ball) and no longer runs under the name, which now stands on the same baseline; the ball fades in and rolls 5u along it; the lockup's pennant flutters in a light wind (SMIL path keyframes, off under reduced motion; the mark, icons and share card stay still); favicon and app icons regenerated (`scripts/brand/icons.mjs` now also loads a CommonJS Playwright entry through `PLAYWRIGHT_MODULE`).
+- 2026-10-25 · owner's agent · The live game is at https://touchline.quest (Porkbun domain, Render custom domain, www redirects); email sending verified in Resend; Supabase Auth Site URL and redirects set. The testing site moved to https://touchline-newfeature-preview.onrender.com; the old -hfvi preview was deleted.
