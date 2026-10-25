@@ -48,7 +48,7 @@ describe('the Modes row', () => {
     on = toggleModeCard(on, 'legends')
     expect(on).toEqual(['crazy', 'hard', 'legends', 'speedrun'])
     expect(toggleModeCard(on, 'crazy')).toEqual(['hard', 'legends', 'speedrun'])
-    expect(MODE_CARDS).toEqual(['crazy', 'hard', 'underdog', 'legends', 'speedrun'])
+    expect(MODE_CARDS).toEqual(['crazy', 'hard', 'underdog', 'legends', 'speedrun', 'gamble', 'upgrader'])
   })
 
   it('links the Hard card to the difficulty both ways', () => {

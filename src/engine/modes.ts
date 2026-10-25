@@ -1,19 +1,21 @@
 /**
  * The Quick Draft's mix-and-match modes: cards that toggle on the setup screen, several at once.
  *
- * Four are rule flags (`DraftRules.modes`): Crazy, Underdog, Legends and Speedrun. Hard is the existing difficulty,
- * shown as a card too, so toggling either the card or the Difficulty option changes the other. Underdog and Legends
+ * Five are rule flags (`DraftRules.modes`): Crazy, Underdog, Legends, Speedrun and Gamble. Hard is the existing difficulty,
+ * shown as a card too, so toggling either the card or the Difficulty option changes the other. The Upgrader card is the
+ * Player Upgrader power-up on its own (`DraftRules.upgrader`); Gamble includes it. Underdog and Legends
  * exclude each other (a bottom-half side with an 85+ player is too rare to fill a draft). Pure: no RNG here except
  * `crazyFormation`, which seeds its own stream from the game seed and never touches the game's stream.
  */
 import { CRAZY_SURPRISE_CHANCE, DIFFICULTY_RESPINS, LEGENDS_RATING, QUICK_MODES, difficultyOf, modesOf, withDifficulty, type DraftRules, type QuickMode } from './draft'
 import { FORMATIONS } from './formations'
+import { ICONS_CHANCE } from './icons'
 import { Rng } from './rng'
 
 /** A card in the Modes row: a rule flag or Hard (the difficulty). */
-export type ModeCard = QuickMode | 'hard'
+export type ModeCard = QuickMode | 'hard' | 'upgrader'
 /** The cards in the order the row shows them. */
-export const MODE_CARDS: readonly ModeCard[] = ['crazy', 'hard', 'underdog', 'legends', 'speedrun']
+export const MODE_CARDS: readonly ModeCard[] = ['crazy', 'hard', 'underdog', 'legends', 'speedrun', 'gamble', 'upgrader']
 
 /** Seconds on the Speedrun clock for each pick (the UI's timer; the auto-pick itself is the assistant's deterministic choice). */
 export const SPEEDRUN_SECONDS = 20
@@ -24,6 +26,8 @@ export const MODE_INFO: Record<ModeCard, { icon: string; title: string; line: st
   underdog: { icon: '🐶', title: 'Underdog', line: 'Only bottom-half sides' },
   legends: { icon: '👑', title: 'Legends', line: `Only sides with an ${LEGENDS_RATING}+ player` },
   speedrun: { icon: '⏱️', title: 'Speedrun', line: `${SPEEDRUN_SECONDS}s a pick or the assistant picks` },
+  gamble: { icon: '🎲', title: 'Gamble', line: `A ${Math.round(ICONS_CHANCE * 100)}% Icons spin, plus the Player Upgrader` },
+  upgrader: { icon: '⬆️', title: 'Upgrader', line: 'One +2, +5 or +10 gamble on a drafted player' },
 }
 
 /** Pairs of cards that cannot be on together: switching one on switches the other off. */
@@ -32,7 +36,7 @@ const EXCLUSIVE: ReadonlyArray<[ModeCard, ModeCard]> = [['underdog', 'legends']]
 /** The cards a set of rules has on: Hard when the difficulty is hard, then each mode flag, in `MODE_CARDS` order. */
 export function activeModeCards(rules: DraftRules): ModeCard[] {
   const flags = modesOf(rules)
-  return MODE_CARDS.filter((c) => (c === 'hard' ? difficultyOf(rules) === 'hard' : flags.includes(c)))
+  return MODE_CARDS.filter((c) => (c === 'hard' ? difficultyOf(rules) === 'hard' : c === 'upgrader' ? !!rules.upgrader : flags.includes(c)))
 }
 
 /** The cards after tapping one: on becomes off, off becomes on and switches off anything it excludes. */
@@ -54,7 +58,8 @@ export function withModes(rules: DraftRules, cards: readonly ModeCard[]): DraftR
   const flags = QUICK_MODES.filter((m) => cards.includes(m))
   const rest: DraftRules = { ...base }
   delete rest.modes
-  return { ...rest, ...(flags.length ? { modes: flags } : {}), ...(flags.includes('crazy') ? { twists: true } : {}) }
+  delete rest.upgrader
+  return { ...rest, ...(flags.length ? { modes: flags } : {}), ...(flags.includes('crazy') ? { twists: true } : {}), ...(cards.includes('upgrader') ? { upgrader: true } : {}) }
 }
 
 /** "🌀 Crazy · 💀 Hard" for the draft header, the summary and the share text; empty with no mode on. */

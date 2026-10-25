@@ -7,13 +7,15 @@
  *  - a difficulty (easy, normal, hard: 3, 1 or 0 re-spins, hard hiding ratings) and a ratings toggle;
  *  - two draft modes: Squad First (spin, then pick anyone and choose his slot) and
  *    Position First (choose a slot, then spin for a club that can fill it);
- *  - optional twists: every third spin is a golden, basement, blind or decade spin.
+ *  - optional twists: every third spin is a golden, basement, blind or decade spin;
+ *  - Gamble mode: a rare Icons spin (`./icons`) and the Player Upgrader (`./upgrader`), both on their own streams.
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
 import { Rng, type RngState } from './rng'
 import { canCover, describeFit, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
 import { primeOf } from './prime'
+import { ICONS_CHANCE, ICONS_CLUB, ICONS_SEASON, iconsCollection, isIcons } from './icons'
 
 export interface DraftRules {
   /** Players to draft in total: 11 for a quick XI, 16-18 for a season squad. */
@@ -62,11 +64,16 @@ export interface DraftRules {
    * None when absent, so older saves and links read unchanged. Read through `modesOf`.
    */
   modes?: QuickMode[]
+  /**
+   * The Player Upgrader power-up: once per draft, gamble a drafted player's rating up by 2, 5 or 10 at an odds shown
+   * first (`src/engine/upgrader.ts`). Also on with the `gamble` mode. Off when absent.
+   */
+  upgrader?: boolean
 }
 
 /** The mode flags a set of draft rules may carry (Hard is the difficulty). */
-export type QuickMode = 'crazy' | 'underdog' | 'legends' | 'speedrun'
-export const QUICK_MODES: readonly QuickMode[] = ['crazy', 'underdog', 'legends', 'speedrun']
+export type QuickMode = 'crazy' | 'underdog' | 'legends' | 'speedrun' | 'gamble'
+export const QUICK_MODES: readonly QuickMode[] = ['crazy', 'underdog', 'legends', 'speedrun', 'gamble']
 /** A Legends wheel lands only on club-seasons holding at least one player rated this or more that season. */
 export const LEGENDS_RATING = 85
 /** Chance after each pick of a Crazy draft that a surprise lands on the next spin. */
@@ -80,6 +87,11 @@ export function modesOf(rules: DraftRules): QuickMode[] {
 
 export function hasMode(rules: DraftRules, mode: QuickMode): boolean {
   return !!rules.modes?.includes(mode)
+}
+
+/** Whether a draft has the Player Upgrader: the power-up on its own or with Gamble mode. */
+export function upgraderOn(rules: DraftRules): boolean {
+  return !!rules.upgrader || hasMode(rules, 'gamble')
 }
 
 /**
@@ -197,6 +209,25 @@ export interface DraftState {
   forcedTwist?: Twist | null
   /** Crazy: the latest surprise and the spin count when it landed, for the draft screen. */
   surprise?: (Surprise & { atSpin: number }) | null
+  /** Gamble: the Icons stream, seeded from the game seed by `newDraft`, drawn once per spin until the Icons spin has come. Absent otherwise. */
+  gambleRng?: RngState
+  /** The Player Upgrader's stream, seeded from the game seed by `newDraft` (its one draw is the same whenever it is made). Absent without the upgrader. */
+  upgradeRng?: RngState
+  /** The Player Upgrader's one gamble, once made: who, the boost, the chance shown, the roll and the change to his rating. */
+  upgrade?: DraftUpgrade | null
+}
+
+/** One Player Upgrader gamble (`src/engine/upgrader.ts`): `delta` is `+boost` on a win, minus half the boost (rounded up) on a loss. */
+export interface DraftUpgrade {
+  /** The drafted player-season id. */
+  id: string
+  boost: number
+  /** Whole per cent shown before confirming; the gamble wins when `roll < chance`. */
+  chance: number
+  /** 0 to 99, from the upgrader's stream. */
+  roll: number
+  won: boolean
+  delta: number
 }
 
 /**
@@ -206,6 +237,8 @@ export interface DraftState {
 export function newDraft(formation: Formation, rules: DraftRules, seed?: string): DraftState {
   const d: DraftState = { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [], twist: null, target: null }
   if (hasMode(rules, 'crazy') && seed !== undefined) d.crazyRng = new Rng(`${seed}:crazy-surprises`).getState()
+  if (hasMode(rules, 'gamble') && seed !== undefined) d.gambleRng = new Rng(`${seed}:gamble-icons`).getState()
+  if (upgraderOn(rules) && seed !== undefined) d.upgradeRng = new Rng(`${seed}:upgrader`).getState()
   return d
 }
 
@@ -480,6 +513,81 @@ export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): vo
 }
 
 /**
+ * How much a club-season weighs within its season on a spin: stronger club-seasons a little more (a title winner is
+ * about twice as likely as a relegated side), and clubs with more useful players, so late picks are not hopeless.
+ */
+export function spinWeight(d: DraftState, cs: ClubSeason): number {
+  const quality = cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6
+  return quality * (1 + Math.min(10, cs.squad.filter((p) => canUse(d, p)).length) / 10)
+}
+
+/** Gamble: whether the Icons spin has come in this draft (landed on, re-spun or picked from). */
+export function iconsUsed(d: DraftState): boolean {
+  return isIcons(d.current) || d.history.some((h) => isIcons(h))
+}
+
+/** Whether some icon fits this spin (an open slot, the chosen slot, the nation rule; anyone undrafted for the bench). */
+function iconsFit(u: LoadedUniverse, d: DraftState): boolean {
+  const slots = candidateSlots(d)
+  return iconsCollection(u, d.rules.leagues).squad.some((p) => usableFor(d, p, slots))
+}
+
+/** The squad a spin is showing: the club-season, or the Icons collection on an Icons spin; null between spins. */
+export function spinClubSeason(u: LoadedUniverse, d: DraftState): ClubSeason | null {
+  if (!d.current) return null
+  if (isIcons(d.current)) return iconsCollection(u, d.rules.leagues)
+  return u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] ?? null
+}
+
+/** The exact chances of the next spin (or of a re-spin, while a spin is showing): the Icons chance and each club-season's. */
+export interface SpinOdds {
+  icons: number
+  outcomes: Array<{ cs: ClubSeason; p: number }>
+}
+
+/**
+ * The exact distribution `spin` draws from in this state, the same steps in the same order: the Icons roll (Gamble,
+ * while unused and an icon fits), the twist (a Crazy golden surprise, or one of the twists whose wheel is not empty on
+ * a twist spin, each equally likely), a season uniformly among the twisted pool's, then a club-season by `spinWeight`.
+ * The chances sum to 1 whenever the wheel can spin (to 0 when it cannot). No RNG.
+ */
+export function spinOdds(u: LoadedUniverse, d: DraftState): SpinOdds {
+  const view: DraftState = { ...d, twist: null }
+  const icons = d.gambleRng && !iconsUsed(d) && iconsFit(u, view) ? ICONS_CHANCE : 0
+  const base = rulesPool(u, view)
+  const forced = view.forcedTwist && narrowPool(u, view, view.forcedTwist, base).length > 0 ? view.forcedTwist : null
+  let twists: Array<Twist | null> = [null]
+  if (forced) twists = [forced]
+  else if (nextSpinTwisted(view)) {
+    const candidates = TWISTS.filter((t) => narrowPool(u, view, t, base).length > 0)
+    if (candidates.length) twists = candidates
+  }
+  const byKey = new Map<string, { cs: ClubSeason; p: number }>()
+  let reachable = false
+  for (const t of twists) {
+    const pool = narrowPool(u, view, t, base)
+    if (!pool.length) continue
+    reachable = true
+    const seasons = [...new Set(pool.map((cs) => cs.season))]
+    for (const season of seasons) {
+      const inSeason = pool.filter((cs) => cs.season === season)
+      const weights = inSeason.map((cs) => Math.max(0, spinWeight(view, cs)))
+      const total = weights.reduce((a, b) => a + b, 0)
+      inSeason.forEach((cs, i) => {
+        const share = total > 0 ? weights[i] / total : 1 / inSeason.length
+        const p = (1 - icons) * (1 / twists.length) * (1 / seasons.length) * share
+        const key = `${cs.clubId}@${cs.season}`
+        const e = byKey.get(key)
+        if (e) e.p += p
+        else byKey.set(key, { cs, p })
+      })
+    }
+  }
+  if (!reachable) return { icons: 0, outcomes: [] }
+  return { icons, outcomes: [...byKey.values()] }
+}
+
+/**
  * Spin: pick a club-season uniformly across seasons first, then clubs, so no
  * era dominates just because it has more rows.
  *
@@ -491,6 +599,19 @@ export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): vo
  */
 export function spin(u: LoadedUniverse, d: DraftState, main: Rng): ClubSeason {
   if (positionFirst(d) && !targetSlot(d)) throw new Error('Choose a slot first')
+  // Gamble: one draw from the Icons stream per spin until the Icons spin has come; it lands only when an icon fits.
+  // The game's stream is untouched by the roll, and skipped entirely on an Icons spin
+  if (d.gambleRng && !iconsUsed(d)) {
+    const g = Rng.fromState(d.gambleRng)
+    const hit = g.chance(ICONS_CHANCE)
+    d.gambleRng = g.getState()
+    if (hit && iconsFit(u, d)) {
+      d.twist = null
+      d.current = { clubId: ICONS_CLUB, season: ICONS_SEASON }
+      d.spins++
+      return iconsCollection(u, d.rules.leagues)
+    }
+  }
   // Quick bench spins after the XI draw from the draft's own bench stream and leave the game's stream where the XI left it
   const benchSpin = hasQuickBench(d) && !fillingXI(d)
   const rng = benchSpin ? (d.benchRng ? Rng.fromState(d.benchRng) : Rng.fromState(main.getState()).fork('bench')) : main
@@ -510,13 +631,7 @@ export function spin(u: LoadedUniverse, d: DraftState, main: Rng): ClubSeason {
   const seasons = [...new Set(pool.map((cs) => cs.season))]
   const season = rng.pick(seasons)
   const inSeason = pool.filter((cs) => cs.season === season)
-  // Favour stronger club-seasons a little (a title winner is about twice as
-  // likely as a relegated side) and clubs with more useful players, so late
-  // picks are not hopeless.
-  const chosen = rng.pickWeighted(inSeason, (cs) => {
-    const quality = cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6
-    return quality * (1 + Math.min(10, cs.squad.filter((p) => canUse(d, p)).length) / 10)
-  })
+  const chosen = rng.pickWeighted(inSeason, (cs) => spinWeight(d, cs))
   d.current = { clubId: chosen.clubId, season: chosen.season }
   d.spins++
   if (benchSpin) d.benchRng = rng.getState()
@@ -538,7 +653,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (!d.current) throw new Error('Spin first')
   const p = u.index[playerSeasonId]
   if (!p) throw new Error('Unknown player')
-  if (p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
+  if (isIcons(d.current) ? !iconsCollection(u, d.rules.leagues).squad.some((x) => x.id === p.id) : p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
   if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
   if (!nationAllows(d, p)) throw new Error(`${p.name} is not ${u.nations[d.rules.onlyNation ?? '']?.name ?? d.rules.onlyNation}`)
   if (slotId === 'bench') {
@@ -672,7 +787,7 @@ export function assistantTurn(u: LoadedUniverse, d: DraftState, rng: Rng): void 
     if (positionFirst(d) && !targetSlot(d)) d.target = spinnableSlots(u, d)[0].id
     spin(u, d, rng)
   }
-  const cs = u.clubSeasonByKey[`${d.current!.clubId}@${d.current!.season}`]
+  const cs = spinClubSeason(u, d)
   const best = cs ? assistantChoice(u, d, cs) : null
   if (best) pick(u, d, best.id, best.slot)
 }

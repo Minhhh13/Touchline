@@ -55,8 +55,8 @@ export interface SetupChoices {
   onlyNation?: string
   /** Quick Draft bench places (0 to 5); none when absent or 0. */
   benchPicks?: number
-  /** Quick Draft mode flags (Crazy, Underdog, Legends, Speedrun); Hard is `difficulty`. None when absent. */
-  modes?: QuickMode[]
+  /** Quick Draft mode cards other than Hard (Crazy, Underdog, Legends, Speedrun, Gamble, the Upgrader); Hard is `difficulty`. None when absent. */
+  modes?: Array<QuickMode | 'upgrader'>
 }
 
 /**
@@ -116,6 +116,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     r.twists ? 'Twists on' : 'No twists',
     ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
     ...modesOf(r).map((m) => `${MODE_INFO[m].icon} ${MODE_INFO[m].title}`),
+    ...(r.upgrader ? [`${MODE_INFO.upgrader.icon} ${MODE_INFO.upgrader.title}`] : []),
   ]
 }
 
@@ -180,6 +181,7 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   // Crazy turns twists on by itself, so only a change that Crazy does not explain is worth a word
   if (!!r.twists !== twistsDefault && !modesOf(r).includes('crazy')) parts.push(r.twists ? 'twists' : 'no twists')
   for (const m of modesOf(r)) parts.push(`${MODE_INFO[m].title.toLowerCase()} mode`)
+  if (r.upgrader) parts.push('the Player Upgrader')
   if (manage) {
     parts.push(`squad of ${r.squadSize}`)
     if (!s.jobSecurity) parts.push('no sack')

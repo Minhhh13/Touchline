@@ -83,7 +83,7 @@ export function Setup() {
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
   const [benchPicks, setBenchPicks] = useState(5)
   // Quick Draft modes (Crazy, Underdog, Legends, Speedrun); the Hard card is the difficulty above
-  const [modes, setModes] = useState<QuickMode[]>([])
+  const [modes, setModes] = useState<Array<QuickMode | 'upgrader'>>([])
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
   const [leagueSeason, setLeagueSeason] = useState(() => {
@@ -224,7 +224,7 @@ export function Setup() {
     const next = toggleModeCard(cardsOn, card)
     // The Hard card and the Difficulty cards are one setting: leaving Hard goes back to Normal
     setDraftDifficulty(next.includes('hard') ? 'hard' : hard ? 'normal' : draftDifficulty)
-    setModes(next.filter((c): c is QuickMode => c !== 'hard'))
+    setModes(next.filter((c): c is QuickMode | 'upgrader' => c !== 'hard'))
   }
   const teamField = (
     <label className="field">

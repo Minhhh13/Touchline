@@ -8,6 +8,7 @@ import { defaultTactics } from '@engine/tactics'
 import { createGame } from './setup'
 import { closeJanuary, openJanuary, runQuickSeason } from './quick'
 import { playerLookup } from './players'
+import { upgradePlayer } from '@engine/upgrader'
 
 /** The settings a challenge link fixes; the team name is the only free choice at setup. */
 export function settingsFromChallenge(c: ChallengePayload, teamName: string, shortName: string, challenge: ChallengeSettings): GameSettings {
@@ -84,6 +85,7 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
   const get = playerLookup(game, u)
   const s = game.settings
   const x = seasonOf(game)
+  const upgraded = d.upgrade ? d.history.findIndex((h) => h.pickedId === d.upgrade!.id) : -1
   return {
     v: 1,
     data: u.generatedAt,
@@ -94,6 +96,7 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
     c: claim,
     k: historyKey(d.history),
     ...(x ? { x } : {}),
+    ...(upgraded >= 0 && d.upgrade ? { g: [upgraded, d.upgrade.boost] as [number, number] } : {}),
   }
 }
 
@@ -124,6 +127,12 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
     const rng = Rng.fromState(game.rngState)
     picks = replayDraft(u, game.draft!, rng, c)
     game.rngState = rng.getState()
+    // The Player Upgrader: the same player and boost; its roll comes from the draft's own stream, so it lands the same
+    if (c.g) {
+      const id = picks[c.g[0]]?.id
+      if (!id) throw new Error(`Spin ${c.g[0] + 1} drafted no one to upgrade`)
+      upgradePlayer(u, game.draft!, id, c.g[1])
+    }
   } catch (e) {
     return { verified: 'no', reason: e instanceof Error ? e.message : String(e), picks: [] }
   }

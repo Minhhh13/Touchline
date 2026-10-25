@@ -13,6 +13,8 @@ import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
+import { h2hTierOdds } from '@game/logic/odds'
+import { SpinOdds } from '../components/SpinOdds'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
 import { GameByGame } from '../components/GameByGame'
 
@@ -152,6 +154,8 @@ export function H2HScreen() {
   // The leagues the wheel draws from are the draft rules' (an older save may lack `wheelLeagues`)
   const rules = h2h?.draft.drafts[0].rules
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
+  // The exact tier odds of the next spin, shown between spins
+  const odds = useMemo(() => (u && h2h && !h2h.draft.current && !h2hComplete(h2h.draft) ? h2hTierOdds(u, h2h.draft, leagues) : []), [u, h2h, leagues])
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
@@ -203,6 +207,7 @@ export function H2HScreen() {
         <div className="col">
           <div className="panel col">
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
+            {!d.current && !complete && <SpinOdds odds={odds} label="Next spin" />}
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}

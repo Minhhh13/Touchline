@@ -21,6 +21,8 @@ import type { DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Temp
 import type { LoadedUniverse } from './universe'
 import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
+import { isIcons } from './icons'
+import { isUpgradeBoost } from './upgrader'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
@@ -105,6 +107,11 @@ export interface ChallengePayload {
   k: string
   /** The season's tactics and January deal, when they differ from a default season; absent on older links. */
   x?: ChallengeSeason
+  /**
+   * The Player Upgrader's gamble, when one was made: the index of the row in `p` whose pick was upgraded, and the boost.
+   * The roll is the draft's own stream's, so a replay reproduces the outcome. Absent otherwise (and on older links).
+   */
+  g?: [row: number, boost: number]
 }
 
 const TIERS: readonly SeasonTier[] = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED']
@@ -213,6 +220,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
   // A list of known mode flags, each once (Hard travels as the difficulty)
   modes: (v) => Array.isArray(v) && v.length <= QUICK_MODES.length && v.every((m) => QUICK_MODES.includes(m as QuickMode)) && new Set(v).size === v.length,
+  upgrader: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
@@ -269,6 +277,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
   if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
+  if (o.g !== undefined && !(Array.isArray(o.g) && o.g.length === 2 && isInt(o.g[0]) && o.g[0] >= 0 && o.g[0] < o.p.length && isUpgradeBoost(o.g[1]))) throw new Error('Not a Touchline challenge link')
   return {
     v: 1,
     data: o.data,
@@ -279,6 +288,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
     k: o.k,
     ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
+    ...(o.g !== undefined ? { g: o.g as [number, number] } : {}),
   }
 }
 
@@ -319,8 +329,9 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
       out.push({ clubId: cs.clubId, season: cs.season, id: null, slotId: null })
       continue
     }
-    const id = `${playerId}@${cs.season}@${cs.clubId}`
-    if (!u.index[id]) throw new Error(`Spin ${n}: no player ${playerId} in the ${cs.clubId} ${cs.season} squad`)
+    // An Icons spin's squad holds each icon at his own club and season, so the id is looked up there
+    const id = isIcons(cs) ? cs.squad.find((p) => p.playerId === playerId)?.id ?? '' : `${playerId}@${cs.season}@${cs.clubId}`
+    if (!u.index[id]) throw new Error(`Spin ${n}: no player ${playerId} in the ${isIcons(cs) ? 'Icons collection' : `${cs.clubId} ${cs.season} squad`}`)
     try {
       pick(u, d, id, slotId ?? 'bench')
     } catch (e) {

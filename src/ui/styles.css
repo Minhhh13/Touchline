@@ -770,6 +770,14 @@ label.field {
   --tier-pink-ink: #000;
   --tier-purple-ink: #fff;
   --tier-blue-ink: #000;
+  /* Gamble mode's Icons spin, above gold: an aqua-white card with a gold star (ink 11:1) */
+  --tier-icons: #3ff0dc;
+  --tier-icons-ink: #000;
+  --tier-icons-deep: #0a2c3a;
+}
+[data-tier='icons'] {
+  --tier: var(--tier-icons);
+  --tier-ink: var(--tier-icons-ink);
 }
 [data-tier='gold'] {
   --tier: var(--tier-gold);
@@ -1088,6 +1096,259 @@ label.field {
   border-radius: 50%;
   background: var(--tier);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 6px color-mix(in srgb, var(--tier) 60%, transparent);
+}
+
+/* The Icons card: a gold star on the Icons colour, with a shimmer and a star burst when it lands */
+.reel-card[data-tier='icons'] {
+  background: radial-gradient(circle at 50% 40%, var(--tier-icons) 0%, var(--tier-icons-deep) 78%);
+  color: var(--tier-gold);
+  overflow: hidden;
+}
+.reel-card[data-tier='icons'] .code {
+  font-size: 1.9em;
+  text-shadow: 0 0 10px var(--tier-gold), 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.reel-card.landed[data-tier='icons'] {
+  box-shadow: inset 0 0 0 3px var(--tier-gold), 0 0 0 3px var(--tier-icons), 0 0 36px var(--tier-icons);
+}
+.reel-card.landed[data-tier='icons']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.75) 50%, transparent 75%);
+  transform: translateX(-130%);
+  animation: reel-shimmer 0.9s ease-in-out 0.15s infinite both;
+  pointer-events: none;
+}
+.icons-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.icons-burst span {
+  position: absolute;
+  left: -8px;
+  top: -10px;
+  font-size: 16px;
+  color: var(--tier-gold);
+  text-shadow: 0 0 8px var(--tier-gold);
+  animation: icons-burst 1.1s cubic-bezier(0.15, 0.8, 0.3, 1) both;
+  --a: calc(var(--i) * 30deg);
+}
+@keyframes icons-burst {
+  0% {
+    transform: rotate(var(--a)) translateY(0) scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--a)) translateY(-90px) scale(1.1);
+    opacity: 0;
+  }
+}
+.icons-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--tier-icons) 0%, var(--tier-icons-deep) 80%);
+  color: var(--tier-gold);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--tier-gold);
+}
+
+/* The odds panel by the reel: the next spin's chance of each tier, as a bar and tier-coloured percentages */
+.spin-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-2);
+}
+.spin-odds-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.spin-odds-head .lbl {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.spin-odds-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-3);
+}
+.spin-odds-bar span {
+  flex-basis: 0;
+  min-width: 3px;
+  background: var(--tier);
+}
+.spin-odds-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12.5px;
+}
+.spin-odds-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-2);
+}
+.spin-odds-item i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--tier);
+}
+.spin-odds-item b {
+  color: var(--tier);
+  font-variant-numeric: tabular-nums;
+}
+.spin-odds-item.zero {
+  opacity: 0.45;
+}
+:root[data-theme='light'] .spin-odds-item b {
+  color: var(--text);
+}
+
+/* The Player Upgrader: a sheet with the drafted players, the boost, and a dial in the rarity colours */
+.upg-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+.upg-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.upg-player .nm {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upg-player.on {
+  border-color: var(--primary, var(--accent));
+  box-shadow: 0 0 0 2px var(--primary, var(--accent));
+}
+.upg-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.upg-dial {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  flex: none;
+}
+.upg-dial svg {
+  width: 100%;
+  height: 100%;
+}
+.upg-track {
+  fill: none;
+  stroke: var(--bg-3);
+  stroke-width: 12;
+}
+.upg-win {
+  fill: none;
+  stroke: var(--tier);
+  stroke-width: 12;
+  filter: drop-shadow(0 0 4px var(--tier));
+}
+.upg-needle {
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 4px;
+  width: 4px;
+  height: 62px;
+  border-radius: 2px;
+  background: var(--text);
+  transform-origin: 2px 62px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.15, 0.75, 0.2, 1);
+}
+.upg-centre {
+  position: absolute;
+  inset: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--panel);
+  font-size: 11px;
+  color: var(--text-2);
+}
+.upg-centre b {
+  font-size: 22px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.upg-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: var(--radius-s);
+  font-size: 14px;
+}
+.upg-result b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-transform: uppercase;
+}
+.upg-result.won {
+  background: color-mix(in srgb, var(--good, var(--accent)) 18%, transparent);
+  color: var(--good, var(--accent));
+}
+.upg-result.lost {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel-card.landed[data-tier='icons']::before,
+  .icons-burst span {
+    animation: none;
+  }
+  .icons-burst {
+    display: none;
+  }
+  .upg-needle {
+    transition-duration: 0ms !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

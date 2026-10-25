@@ -21,6 +21,7 @@ import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
+import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
 import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
@@ -102,6 +103,8 @@ interface Store {
   autoDraftRest: () => void
   /** Speedrun: the pick clock ran out, so the assistant spins if need be and makes this one pick (`assistantTurn`). */
   speedrunPick: () => void
+  /** The Player Upgrader: gamble a drafted player's rating up by `boost` (2, 5 or 10) at the odds shown; once per draft. */
+  upgradePlayer: (playerSeasonId: string, boost: number) => void
   finishDraft: () => void
   /** Quick Draft and the Daily: leave the tactics step and play the season (to the January window when it is on); `skip` restores the default tactics first. */
   kickOff: (skip?: boolean) => void
@@ -417,6 +420,15 @@ export const useStore = create<Store>()(
             g.draft.twist = null
             autoDraft(u, g.draft, rng)
             g.rngState = rng.getState()
+          }),
+        upgradePlayer: (id, boost) =>
+          mutate((g, u) => {
+            if (!g.draft || g.phase !== 'draft') return
+            try {
+              draftUpgrade(u, g.draft, id, boost)
+            } catch (e) {
+              set({ toast: e instanceof Error ? e.message : String(e) })
+            }
           }),
         speedrunPick: () =>
           mutate((g, u) => {

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
 import { closeLiveMatch, eventContext, finishLiveMatch, playMatchweek, startSeasonProper } from '../logic/week'
-import { autoDraft, SEASON_RULES } from '@engine/draft'
+import { autoDraft, QUICK_RULES, SEASON_RULES, spinOdds } from '@engine/draft'
+import { canUpgrade } from '@engine/upgrader'
 import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
@@ -133,6 +134,20 @@ describe('audit fixes: season and squad', () => {
     expect(n.squad).toBe(g.squad)
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
+  })
+
+  it('a quick draft saved before Gamble mode reads with no Icons, no upgrader and the same lookup', () => {
+    const g = createGame({ mode: 'quick', seed: 'OLD-GAMBLE', formationId: '4-3-3', teamName: 'Old XI', shortName: 'OLD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const old = JSON.parse(JSON.stringify(g)) as Record<string, unknown>
+    const d = old.draft as Record<string, unknown>
+    delete d.gambleRng
+    delete d.upgradeRng
+    delete d.upgrade
+    const n = normaliseGame(old as unknown as Game)!
+    expect(canUpgrade(n.draft!)).toBe(false)
+    expect(spinOdds(u, n.draft!).icons).toBe(0)
+    const id = u.clubSeasons[0].squad[0].id
+    expect(playerLookup(n, u)(id)).toBe(u.index[id])
   })
 })
 

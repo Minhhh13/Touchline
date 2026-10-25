@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinnableSlots, suggestSlot, targetSlot, twistDecade, type DraftState } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
+import { isIcons } from '@engine/icons'
+import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
+import { tierOdds } from '@game/logic/odds'
+import { SpinOdds } from '../components/SpinOdds'
+import { Upgrader } from '../components/Upgrader'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
@@ -22,7 +27,7 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 ]
 
 export function Draft() {
-  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, go, showToast } = useStore()
+  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, go, showToast, upgradePlayer } = useStore()
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -45,6 +50,9 @@ export function Draft() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [u, d?.spins, d?.rules, d?.history.length],
   )
+
+  // The exact odds of each rarity tier on the next spin (a re-spin while one is showing), from the engine's own draw
+  const odds = useMemo(() => (u && d && !isComplete(d) ? tierOdds(u, d, leagues) : []), [u, d, leagues])
 
   // A one-nation wheel can run out of eligible players; checked after every pick, not only on a spin
   const dry = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && !canSpin(u, d), [u, d])
@@ -70,7 +78,10 @@ export function Draft() {
   }, [clock, speedrun, spinning, speedrunPick])
 
   if (!u || !game || !d) return null
-  const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
+  const current = spinClubSeason(u, d)
+  const iconsSpin = isIcons(d.current)
+  // Odds before each spin, and before a re-spin while one is showing and re-spins are left
+  const oddsLabel = !d.current ? (positionFirst(d) && !targetSlot(d) ? 'Next spin, any open slot' : 'Next spin') : d.respinsLeft > 0 ? 'If you re-spin' : null
   // A blind spin hides ratings like hard mode does, until the pick is made
   const twist = d.twist ?? null
   const hide = ratingsHidden(d.rules) || twist === 'blind'
@@ -182,6 +193,7 @@ export function Draft() {
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} every={hasMode(d.rules, 'crazy')} coming={d.current ? null : d.forcedTwist ?? null} />}
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} onSettled={() => setSettled(d.current)} />
+            {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
             {ghost && challenge && revealed && (
               <div className="chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`} style={{ alignSelf: 'center', whiteSpace: 'normal', textAlign: 'center' }}>
                 👻{' '}
@@ -247,6 +259,16 @@ export function Draft() {
               </button>
             )}
           </div>
+          {upgraderOn(d.rules) && d.upgradeRng && (
+            <Upgrader
+              players={upgradeCandidates(d).flatMap((id) => get(id) ?? [])}
+              ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0}
+              available={canUpgrade(d) && game.phase === 'draft'}
+              result={d.upgrade}
+              hideRatings={hiddenAll}
+              onConfirm={(id, boost) => upgradePlayer(id, boost)}
+            />
+          )}
           <div className="panel tight">
             <div className="small muted" style={{ marginBottom: 6 }}>
               {fillingStarters ? 'Still need' : complete ? 'Squad complete' : `Bench: ${total - made} more pick${total - made === 1 ? '' : 's'}${places ? ', optional' : ''}`}
@@ -267,9 +289,9 @@ export function Draft() {
                   const p = h.pickedId ? get(h.pickedId) : undefined
                   return (
                     <div key={i} className="row small" style={{ gap: 8 }}>
-                      <ClubBadge clubId={h.clubId} size={20} />
-                      {tiers[`${h.clubId}@${h.season}`] && <TierDot tier={tiers[`${h.clubId}@${h.season}`]} />}
-                      <span className="muted">{seasonLabel(h.season)}</span>
+                      {isIcons(h) ? <span className="icons-badge" style={{ width: 20, height: 20 }} aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={20} />}
+                      {isIcons(h) ? <TierDot tier="icons" /> : tiers[`${h.clubId}@${h.season}`] && <TierDot tier={tiers[`${h.clubId}@${h.season}`]} />}
+                      <span className="muted">{isIcons(h) ? 'Icons' : seasonLabel(h.season)}</span>
                       {h.twist && (
                         <span title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
                           {TWIST_INFO[h.twist].icon}
@@ -309,7 +331,15 @@ export function Draft() {
             <>
               <div className="row between wrap">
                 <div className="row">
-                  <ClubBadge clubId={current.clubId} size={44} />
+                  {iconsSpin ? <span className="icons-badge" style={{ width: 44, height: 44 }} aria-hidden="true">★</span> : <ClubBadge clubId={current.clubId} size={44} />}
+                  {iconsSpin ? (
+                    <div data-testid="icons-header">
+                      <h2 style={{ fontSize: 26 }}>Icons collection</h2>
+                      <div className="muted small">
+                        The {current.squad.length} best players of all time on this wheel, each at his peak · <TierChip tier="icons" />
+                      </div>
+                    </div>
+                  ) : (
                   <div>
                     <h2 style={{ fontSize: 26 }}>{clubName(u, current.clubId)}</h2>
                     <div className="muted small">
@@ -317,6 +347,7 @@ export function Draft() {
                       {tiers[`${current.clubId}@${current.season}`] && <> <TierChip tier={tiers[`${current.clubId}@${current.season}`]} /></>}
                     </div>
                   </div>
+                  )}
                 </div>
                 <div className="segmented">
                   <button className={sort === 'rating' ? 'active' : ''} onClick={() => setSort('rating')}>
@@ -361,6 +392,7 @@ export function Draft() {
                         selected={selectedPlayer === p.id}
                         highlight={!!target && ok}
                         hideRatings={hide}
+                        showClub={iconsSpin}
                         onClick={() => onPick(p)}
                         extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
                         right={ok ? <span className="btn sm primary">{fillingStarters && slots.length ? 'Draft' : 'Bench'}</span> : null}
