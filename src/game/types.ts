@@ -12,6 +12,8 @@ import type { Lineup, PlayerSeason, SeasonTier, SquadPlayer, Tactics } from '@en
 import type { DraftRules } from '@engine/draft'
 import type { ChallengeClaim } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
+import type { CaseDrop } from '@engine/endCase'
+import type { PowerUp } from '@engine/powerups'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty'
 /**
@@ -212,6 +214,18 @@ export interface Game {
    * as picked. Absent when the rules have no managers, and on older saves: the season then plays as it always has.
    */
   manager?: Manager
+  /**
+   * The manager spin of a Quick Draft with `managerSpin` on (`src/game/logic/managerSpin.ts`): the three managers the
+   * reels land on, rolled at the step from the draft to the season, and whether the user has picked one of them yet.
+   * Absent without the rule, and on older saves.
+   */
+  managerSpin?: { options: Manager[]; picked?: boolean }
+  /**
+   * The end-of-draft case of a Quick Draft with `endCase` on (`src/game/logic/endCase.ts`), rolled at the step from the
+   * draft to the season: what it holds, whether it has been opened (a power-up then went to the locker), whether the user
+   * is done with it, and the starter an Icon replaced. Absent without the rule, and on older saves.
+   */
+  endCase?: { drop: CaseDrop; opened?: boolean; done?: boolean; sub?: { slotId: string; outId: string } }
 }
 
 /**
@@ -419,6 +433,8 @@ export interface LeaderboardEntry {
   challenge?: { name: string; points: number }
   /** A Quick Draft played in the Super League; absent for every other season. */
   superLeague?: true
+  /** The XI had an Icon from the end-of-draft case: a non-standard season, marked on the board and kept out of the records. */
+  caseIcon?: true
 }
 
 export interface Profile {
@@ -437,6 +453,11 @@ export interface Profile {
   seenTips?: Record<string, string>
   /** The 38-0 chase across every Quick Draft and Daily season in this browser; missing on older saves (filled by `normaliseProfile`). */
   quickBests?: QuickBests
+  /**
+   * The locker: power-ups dropped by end-of-draft cases, by kind, waiting to be unpacked into a later Quick Draft
+   * (`src/game/logic/endCase.ts`). Missing on older saves (an empty locker); `normaliseProfile` drops anything malformed.
+   */
+  inventory?: Partial<Record<PowerUp, number>>
 }
 
 /** Quick Draft bests: the best record (more wins, then fewer defeats, then points), the longest perfect run from the first game, and perfect seasons. */

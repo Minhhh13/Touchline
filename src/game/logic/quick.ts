@@ -14,7 +14,8 @@ import { recordUserGames } from './gameByGame'
 import { packRounds } from './liveTable'
 import { januaryBudget, januaryListings, sameListing } from './january'
 import { difficultyOf } from '@engine/draft'
-import { quickManagerBoost, settleManager } from './managers'
+import { quickManagerBoost, rollManagerSpin, settleManager } from './managers'
+import { caseIconIn, rollEndCase } from './endCase'
 import { applyChange, canPlayFor, fieldXI, injuredThrough, QUICK_CHANGES, quickBenchRule } from './quickBench'
 import { isSuperLeague, quickLeague, SUPER_LEAGUE_GAMES } from './superLeague'
 
@@ -270,9 +271,15 @@ export function reopenJanuary(game: Game, u: LoadedUniverse): void {
   openJanuary(game, u)
 }
 
-/** The quick season's first step after the draft (Quick Draft and the Daily): the tactics screen, with the XI in place and the manager settled. */
+/**
+ * The quick season's first step after the draft (Quick Draft and the Daily): the tactics screen, with the XI in place and
+ * the manager settled. A game with the manager spin rolls its three managers first, and one with the end-of-draft case
+ * rolls the case; both from forks of copies of the game's stream, so neither moves the season.
+ */
 export function toKickoff(game: Game, u: LoadedUniverse): void {
+  rollManagerSpin(game, u)
   settleManager(game)
+  rollEndCase(game, u)
   const { lineup, bench } = quickXI(game, u)
   game.lineup = lineup
   game.bench = bench
@@ -364,7 +371,8 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1 && game.settings.rules.onlyClub) game.unlocked.push('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) game.unlocked.push('one-nation-champions')
   // The points record is a real league's; the Super League has no such book
-  if (!isSuperLeague(game.settings) && earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')
+  // Nor does a season with the end-of-draft case's Icon in the XI: it is not a drafted side
+  if (!isSuperLeague(game.settings) && !caseIconIn(game) && earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')
   game.phase = 'summary'
   if (run.benchOn) {
     // Open to bench changes while the playback runs; the store records the result when it closes

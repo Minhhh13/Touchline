@@ -7787,6 +7787,260 @@ table.tbl.match-stats th {
   }
 }
 
+/* ------------------------------------------------------------------ Item reels: the manager spin and the end-of-draft case */
+/* The case reel's strip without the season drum; a card's face is an emoji, a star or a manager's initials on its tier */
+.item-reel {
+  --card: 80px;
+}
+.item-reel .reel-window {
+  height: 112px;
+}
+@media (min-width: 1100px) and (min-height: 900px) {
+  .mspin .item-reel {
+    --card: 96px;
+  }
+  .mspin .item-reel .reel-window {
+    height: 132px;
+  }
+  .mspin .item-card {
+    height: 104px;
+  }
+  .mspin .item-card .code {
+    font-size: 32px;
+  }
+}
+.item-card {
+  --secondary: color-mix(in srgb, var(--tier-ink) 18%, transparent);
+  background: linear-gradient(165deg, var(--tier) 0%, color-mix(in srgb, var(--tier) 78%, var(--navy)) 100%);
+  color: var(--tier-ink);
+  grid-template-rows: 1fr auto;
+  padding: 8px 4px 10px;
+  height: 84px;
+}
+.item-card .code {
+  font-size: 26px;
+  line-height: 1;
+  align-self: center;
+}
+.item-card .item-lbl {
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+.item-card[data-tier='icons'] .code {
+  color: var(--tier-gold);
+  text-shadow: 0 0 10px var(--tier-gold);
+}
+.mspin-idle {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display, system-ui, sans-serif);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--text-3);
+  z-index: 1;
+}
+.mspin-sound {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+.mspin {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  min-height: 0;
+}
+.mspin.running {
+  cursor: pointer;
+}
+.mspin-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.mspin-card {
+  gap: 6px;
+  min-height: 210px;
+  cursor: default;
+  border-color: color-mix(in srgb, var(--tier) 55%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tier) 25%, transparent), 0 0 18px color-mix(in srgb, var(--tier) 18%, transparent);
+  animation: mspin-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes mspin-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mspin-card {
+    animation: none;
+  }
+}
+.mspin-card.hidden {
+  visibility: hidden;
+  animation: none;
+}
+.mspin-card .manager-name {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.mspin-card .manager-style {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.mspin-card .btn {
+  margin-top: auto;
+  align-self: flex-start;
+}
+.mspin-foot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 12px;
+  min-height: 48px;
+}
+.case-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+.case-main {
+  gap: 12px;
+}
+.case-main > .btn,
+.case-main > .reel-skip {
+  align-self: center;
+}
+.case-main .item-reel {
+  --card: 88px;
+}
+.case-main .item-reel .reel-window {
+  height: 118px;
+}
+.case-main .item-card {
+  height: 96px;
+}
+.case-main .item-card .code {
+  font-size: 34px;
+}
+.case-result {
+  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  border: 1px solid color-mix(in srgb, var(--tier) 55%, var(--line));
+  background: color-mix(in srgb, var(--tier) 8%, var(--bg-2));
+}
+.case-face {
+  font-size: 26px;
+  line-height: 1;
+}
+.case-face.icon {
+  color: var(--tier-gold);
+  text-shadow: 0 0 10px var(--tier-gold);
+}
+.case-name {
+  font-family: var(--font-display, system-ui, sans-serif);
+  font-size: 19px;
+  text-transform: uppercase;
+}
+.case-odds {
+  gap: 10px;
+}
+.case-odds h3 {
+  margin: 0;
+}
+.case-odds-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  gap: 2px;
+}
+.case-odds-bar span {
+  background: var(--tier);
+  min-width: 4px;
+}
+.case-odds-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.case-odds-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.case-odds-table td:first-child {
+  width: 18px;
+}
+.case-odds-table td.mono {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.case-icon-chip {
+  background: var(--tier);
+  color: var(--tier-ink);
+  border-color: transparent;
+}
+.locker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.locker-btn {
+  gap: 4px;
+}
+.locker-btn .n {
+  font-weight: 700;
+  color: var(--accent);
+}
+@media (min-width: 1100px) and (min-height: 600px) {
+  .case-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+  .case-grid > .panel {
+    max-height: 100%;
+    overflow: auto;
+  }
+}
+@media (max-width: 720px) {
+  .mspin {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .mspin-card {
+    min-height: 0;
+  }
+  .mspin-card.hidden {
+    display: none;
+  }
+  .mspin-card .manager-help {
+    display: none;
+  }
+}
+
 /* ------------------------------------------------------------------ Quick Draft manager pick */
 .manager-cards {
   display: grid;
@@ -8693,7 +8947,7 @@ table.tbl.match-stats th {
   }
   .setup-modes-row {
     display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(9, minmax(0, 1fr));
     gap: 6px;
   }
   .setup-modes-row .qmode-row,
@@ -8817,13 +9071,13 @@ table.tbl.match-stats th {
     white-space: nowrap;
   }
   .setup-modes-row {
-    grid-template-columns: repeat(8, minmax(0, auto));
+    grid-template-columns: repeat(9, minmax(0, auto));
     justify-content: space-between;
   }
 }
 @media (min-width: 1000px) and (max-width: 1199px) {
   .setup-modes-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     justify-content: stretch;
   }
 }

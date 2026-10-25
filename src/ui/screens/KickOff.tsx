@@ -17,6 +17,9 @@ import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { quickManagerOptions } from '@game/logic/managers'
 import { ManagerChip, ManagerPick } from '../components/ManagerPick'
 import { MANAGER_STYLE_HELP } from '@engine/managers'
+import { caseIconIn, kickoffStep } from '@game/logic/endCase'
+import { ManagerSpin } from '../components/ManagerSpin'
+import { EndCase } from '../components/EndCase'
 
 /**
  * The step between a quick draft (or the Daily) and its season, the way 38-0 shows a finished squad: the goal (win
@@ -29,6 +32,10 @@ export function KickOff() {
   const [showTactics, setShowTactics] = useState(false)
   const [showManagers, setShowManagers] = useState(false)
   if (!u || !game) return null
+  // A Quick Draft with the manager spin or the end-of-draft case shows those first, in that order
+  const step = kickoffStep(game)
+  if (step === 'managers') return <ManagerSpin u={u} game={game} />
+  if (step === 'case') return <EndCase u={u} game={game} />
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
   const xi = Object.values(game.lineup)
@@ -44,6 +51,11 @@ export function KickOff() {
           <h1>Squad complete</h1>
           <QuickTeamLine game={game} u={u}>
             <span className="small muted">{formation.name}</span>
+            {caseIconIn(game) && (
+              <span className="chip case-icon-chip" data-tier="icons" data-testid="kickoff-case-icon" title="An Icon from the end-of-draft case is in the XI: a non-standard season">
+                ★ Case Icon
+              </span>
+            )}
           </QuickTeamLine>
         </div>
         <div className="chase perfect goal" data-testid="kickoff-goal">

@@ -15,7 +15,7 @@
 import { Rng } from './rng'
 import type { PlayerSeason } from './types'
 import type { LoadedUniverse } from './universe'
-import { draftRating, upgraderOn, type DraftState, type DraftUpgrade } from './draft'
+import { draftRating, upgraderAvailable, type DraftState, type DraftUpgrade } from './draft'
 
 export const UPGRADE_BOOSTS = [2, 5, 10] as const
 export type UpgradeBoost = (typeof UPGRADE_BOOSTS)[number]
@@ -53,7 +53,7 @@ export function upgradeCandidates(d: DraftState): string[] {
 
 /** Whether the draft can still use its upgrader: it has one, it is unused, and someone has been drafted. */
 export function canUpgrade(d: DraftState): boolean {
-  return upgraderOn(d.rules) && !!d.upgradeRng && !d.upgrade && upgradeCandidates(d).length > 0
+  return upgraderAvailable(d) && !!d.upgradeRng && !d.upgrade && upgradeCandidates(d).length > 0
 }
 
 /** The rating the upgrader works from: the draft's (Prime when the rules say so). */
@@ -64,7 +64,7 @@ export function upgradeBaseRating(u: LoadedUniverse, d: DraftState, id: string):
 
 /** Make the one gamble: throws when the draft has no upgrader left, the player is not drafted, or the boost is unknown. */
 export function upgradePlayer(u: LoadedUniverse, d: DraftState, id: string, boost: number): DraftUpgrade {
-  if (!upgraderOn(d.rules) || !d.upgradeRng) throw new Error('This draft has no Player Upgrader')
+  if (!upgraderAvailable(d) || !d.upgradeRng) throw new Error('This draft has no Player Upgrader')
   if (d.upgrade) throw new Error('The Player Upgrader has been used')
   if (!isUpgradeBoost(boost)) throw new Error('Choose a boost of +2, +5 or +10')
   if (!upgradeCandidates(d).includes(id)) throw new Error('Choose one of your drafted players')

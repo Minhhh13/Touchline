@@ -23,7 +23,7 @@ import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
 import { isIcons } from './icons'
 import { isUpgradeBoost } from './upgrader'
-import { rerollSeason, swapSlots, usePeek } from './powerups'
+import { POWER_UPS, rerollSeason, swapSlots, unpackPowerUp, usePeek, type PowerUp } from './powerups'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
@@ -78,6 +78,11 @@ export interface ChallengeSeason {
   s?: Array<[from: number, slotId: string, playerSeasonId: string]>
   /** The manager picked for the season (a Wikidata id or an `arch-` archetype id), when the draft had one. */
   m?: string
+  /**
+   * The end-of-draft case's Icon (`src/engine/endCase.ts`) and the XI slot he took, when the challenger brought him in.
+   * The case itself is not carried: a replay opens the same case (the same fork of the same stream after the same draft).
+   */
+  ic?: string
 }
 
 /** Most bench changes a link may carry: the three a quick season allows. */
@@ -130,6 +135,16 @@ export interface ChallengePayload {
    * row's pick. Absent otherwise (and on older links).
    */
   w?: ChallengePowerUp[]
+  /**
+   * Power-ups the challenger unpacked from the locker into a draft without the tray (`unpackPowerUp`), in order. A replay
+   * unpacks them before the first spin (their streams come from the seed alone), so `g` and `w` replay as they did.
+   */
+  i?: PowerUp[]
+}
+
+/** Whether an `i` block is well formed: known power-ups, each once. */
+export function isChallengeLocker(i: unknown): i is PowerUp[] {
+  return Array.isArray(i) && i.length <= POWER_UPS.length && i.every((k) => POWER_UPS.includes(k as PowerUp)) && new Set(i).size === i.length
 }
 
 export type ChallengePowerUp = ['r', number] | ['p', number] | ['s', number, string, string] | ['a', number] | ['l', number]
@@ -262,6 +277,8 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   upgrader: isBool,
   powerUps: isBool,
   managers: isBool,
+  managerSpin: isBool,
+  endCase: isBool,
   classic: isBool,
   superLeague: isBool,
 }
@@ -286,7 +303,8 @@ export function isChallengeTactics(t: unknown): t is ChallengeTactics {
 export function isChallengeSeason(x: unknown): x is ChallengeSeason {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return false
   const o = x as Record<string, unknown>
-  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm')) return false
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm' || k === 'ic')) return false
+  if (o.ic !== undefined && !(isString(o.ic) && /^[A-Za-z0-9_-]{1,12}$/.test(o.ic))) return false
   if (o.m !== undefined && !(isString(o.m) && /^(Q\d{1,12}|arch-[a-z-]{1,20})$/.test(o.m))) return false
   if (o.t !== undefined && !isChallengeTactics(o.t)) return false
   if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
@@ -322,6 +340,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
   if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
   if (o.w !== undefined && !isChallengePowerUps(o.w, o.p.length)) throw new Error('Not a Touchline challenge link')
+  if (o.i !== undefined && !isChallengeLocker(o.i)) throw new Error('Not a Touchline challenge link')
   if (o.g !== undefined && !(Array.isArray(o.g) && o.g.length === 2 && isInt(o.g[0]) && o.g[0] >= 0 && o.g[0] < o.p.length && isUpgradeBoost(o.g[1]))) throw new Error('Not a Touchline challenge link')
   if ((c.cu !== undefined && !CUP_REACHES.includes(c.cu as CupReach)) || (c.eu !== undefined && !CUP_REACHES.includes(c.eu as CupReach))) throw new Error('Not a Touchline challenge link')
   return {
@@ -336,6 +355,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
     ...(o.g !== undefined ? { g: o.g as [number, number] } : {}),
     ...(o.w !== undefined ? { w: o.w as ChallengePowerUp[] } : {}),
+    ...(o.i !== undefined ? { i: o.i as PowerUp[] } : {}),
   }
 }
 
@@ -358,6 +378,12 @@ export interface ReplayedPick {
 export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: ChallengePayload): ReplayedPick[] {
   const out: ReplayedPick[] = []
   const w = c.w ?? []
+  // Power-ups from the challenger's locker, unpacked up front: their streams come from the seed, not from when they were unpacked
+  try {
+    for (const k of c.i ?? []) unpackPowerUp(d, k, c.s.seed)
+  } catch (e) {
+    throw new Error(`The locker: ${e instanceof Error ? e.message : String(e)}`)
+  }
   // A swap made before this row's spin (or after the last one), as the challenger made it
   const swapAt = (row: number) => {
     for (const x of w) if (x[0] === 's' && x[1] === row) swapSlots(u, d, x[2], x[3])

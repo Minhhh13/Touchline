@@ -4,6 +4,7 @@ import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
 import { DIFFICULTY_RESPINS, type DraftRules } from '@engine/draft'
 import { MORALE_LOG_CAP } from './happiness'
+import { cleanLocker } from './endCase'
 
 /**
  * Draft rules written before the 38-0 options: the difficulty is read from hard mode (hard) or the
@@ -104,5 +105,7 @@ export function normaliseProfile(p: Partial<Profile> | null | undefined, default
   const saved = p && typeof p === 'object' ? p : {}
   const b: QuickBests = saved.quickBests && typeof saved.quickBests === 'object' ? saved.quickBests : {}
   const quickBests: QuickBests = { perfectSeasons: b.perfectSeasons ?? 0, longestPerfectRun: b.longestPerfectRun ?? 0, ...(b.bestRecord ? { bestRecord: b.bestRecord } : {}) }
-  return { ...defaults, ...saved, quickBests }
+  // The locker (end-of-draft case drops): known power-ups with whole counts only; empty on a profile from before it
+  const inventory = cleanLocker(saved.inventory)
+  return { ...defaults, ...saved, quickBests, inventory }
 }
