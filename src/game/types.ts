@@ -36,6 +36,8 @@ export interface GameSettings {
   difficulty: 'calibrated' | 'realistic'
   /** Enter the Continental Cup in the first season (later seasons qualify by finishing top four). */
   continental?: boolean
+  /** How the main play button plays a match (Season and Dynasty): stops for your calls, auto-play with the assistant at the stops, or straight to the result. Unset reads as 'watch'. */
+  matchPlay?: 'watch' | 'auto' | 'sim'
   /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
   challenge?: ChallengeSettings
 }

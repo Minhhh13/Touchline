@@ -27,6 +27,7 @@ import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
+import { advanceWithAssistant, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -70,6 +71,8 @@ interface Store {
   offseason: OffseasonReport | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
   matchView: 'ticker' | 'report'
+  /** Transient: the live match plays on through its stops with the assistant making the calls (Auto-play, "Finish the match", "Auto from here"). Never saved. */
+  liveAuto: boolean
   /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
   pendingChallenge: { payload: ChallengePayload; challenge: ChallengeSettings } | null
 
@@ -99,6 +102,14 @@ interface Store {
   playWeek: () => void
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop. */
   advanceLive: (opts: LiveChanges) => void
+  /** Play on from the stop with the assistant's calls (`assistantCall`). */
+  assistantAdvance: () => void
+  /** Play the live match to the whistle now (with `changes` at this stop when given), the assistant taking every remaining call; the report is shown. */
+  finishLiveNow: (changes?: LiveChanges) => void
+  /** Turn the assistant on or off for the stops still to come in this match. */
+  setLiveAuto: (on: boolean) => void
+  /** The remembered way to play a match (Season and Dynasty). */
+  setMatchPlay: (mode: MatchPlayMode) => void
   simToEnd: () => void
   simWeeks: (n: number) => void
   closeMatch: () => void
@@ -204,6 +215,7 @@ export const useStore = create<Store>()(
         toast: null,
         offseason: null,
         matchView: 'ticker',
+        liveAuto: false,
         pendingChallenge: null,
 
         loadData: async () => {
@@ -378,7 +390,7 @@ export const useStore = create<Store>()(
 
         playFriendly: () => {
           mutate((g, u) => playFriendly(g, u))
-          set({ matchView: 'ticker' })
+          set({ matchView: 'ticker', liveAuto: false })
         },
         advanceLive: (opts) => {
           mutate((g, u) => advanceLiveMatch(g, u, opts))
@@ -388,12 +400,31 @@ export const useStore = create<Store>()(
           }
         },
         startSeason: () => mutate((g) => startSeasonProper(g)),
+        assistantAdvance: () => {
+          mutate((g, u) => advanceWithAssistant(g, u))
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        finishLiveNow: (changes) => {
+          mutate((g, u) => finishWithAssistant(g, u, changes))
+          set({ matchView: 'report' })
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        setLiveAuto: (on) => set({ liveAuto: on }),
+        setMatchPlay: (mode) => mutate((g) => void (g.settings.matchPlay = mode)),
         playWeek: () => {
+          const g0 = get().game
+          const mode = g0 ? matchPlayOf(g0) : 'watch'
           mutate((g, u) => {
             if (g.phase === 'preseason') startSeasonProper(g)
-            playMatchweek(g, u, false)
+            playMatchweekAs(g, u, mode)
           })
-          set({ matchView: 'ticker' })
+          set({ matchView: mode === 'sim' ? 'report' : 'ticker', liveAuto: mode === 'auto' })
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
