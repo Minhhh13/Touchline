@@ -13,7 +13,7 @@ import { getFormation } from '@engine/formations'
 import { formationForStyle, tacticsForStyle } from '@engine/tactics'
 import { autoPickLineup } from '@engine/ratings'
 import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, newSquadPlayer, positionOf, seasonTable, USER_TEAM, type SeasonState } from '@engine/season'
-import { briefTarget, projectedCarryIn, takeoverWeek, type RunInJob, type RunInTemplate } from '@engine/scenario'
+import { briefTarget, projectedCarryIn, relegatedDirectly, takeoverWeek, type RunInJob, type RunInTemplate } from '@engine/scenario'
 import type { Objective, ObjectiveId } from '@engine/objectives'
 import { startingFinances } from '@engine/market'
 import { defaultStatuses } from '@engine/status'
@@ -233,9 +233,15 @@ export function gapLine(template: RunInTemplate, target: number, position: numbe
   return gap === 0 ? 'out of the drop on goal difference' : `${pts(gap)} clear of the drop`
 }
 
-/** How the real club finished, in words: `went down on 39`, `won the title on 89`, `finished 6th on 66`. */
-export function realFinish(real: { position: number; points: number }, clubs: number): string {
-  if (real.position > clubs - 3) return `went down on ${real.points}`
+/**
+ * How the real club finished, in words: `went down on 39`, `won the title on 89`,
+ * `finished 6th on 66`. A Bundesliga 16th played a relegation play-off the data
+ * does not keep (most of them stayed up), so it reads `finished 16th on 30, in
+ * the relegation play-off place`, never `went down`.
+ */
+export function realFinish(real: { position: number; points: number }, clubs: number, leagueId: string): string {
+  if (real.position > clubs - relegatedDirectly(leagueId)) return `went down on ${real.points}`
+  if (real.position > clubs - 3) return `finished ${ordinal(real.position)} on ${real.points}, in the relegation play-off place`
   if (real.position === 1) return `won the title on ${real.points}`
   return `finished ${ordinal(real.position)} on ${real.points}`
 }
@@ -283,13 +289,15 @@ export function runInVerdict(game: Game, u: LoadedUniverse): RunInVerdict | null
     : template === 'survival'
       ? met
         ? `You kept ${club} up on ${points}`
-        : `${club} went down on ${points} under you`
+        : position <= clubs - relegatedDirectly(season.leagueId)
+          ? `${club} finished ${ordinal(position)} on ${points} under you, in the relegation play-off place`
+          : `${club} went down on ${points} under you`
       : met
         ? template === 'title'
           ? `You won the title with ${club} on ${points}`
           : `You took ${club} into the top four on ${points}`
         : `You finished ${ordinal(position)} with ${club} on ${points}`
-  const realText = real ? `the real ${club} ${realFinish(real, clubs)}` : null
+  const realText = real ? `the real ${club} ${realFinish(real, clubs, season.leagueId)}` : null
   return {
     template,
     met,
@@ -302,7 +310,7 @@ export function runInVerdict(game: Game, u: LoadedUniverse): RunInVerdict | null
     from: { matchweek: season.takeoverAt ?? 0, position: fromPos, points: start[fromPos - 1].points },
     real,
     line: realText ? `${mine}; ${realText}` : mine,
-    realLine: realText ? `📊 The real ${club} ${realFinish(real!, clubs)}` : null,
+    realLine: realText ? `📊 The real ${club} ${realFinish(real!, clubs, season.leagueId)}` : null,
   }
 }
 
@@ -346,7 +354,8 @@ export function runInUnlocks(game: Game, u: LoadedUniverse, position: number): s
   const out: string[] = []
   const clubs = Object.keys(season.ai).length + 1
   const real = u.tables[season.leagueId]?.[season.leagueSeason]?.find((r) => r.clubId === season.hostClubId)
-  if (game.settings.runIn?.template === 'survival' && real && real.position > clubs - 3 && position <= clubs - 3) out.push('great-escape')
+  // A side that really went down: the Bundesliga's 16th went to a play-off, so only its two below count
+  if (game.settings.runIn?.template === 'survival' && real && real.position > clubs - relegatedDirectly(season.leagueId) && position <= clubs - 3) out.push('great-escape')
   if (position === 1) out.push('run-in-title')
   return out
 }

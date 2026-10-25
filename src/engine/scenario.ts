@@ -18,6 +18,19 @@ export const RUN_IN_TEMPLATES: RunInTemplate[] = ['title', 'europe', 'survival']
 /** The leagues whose packs carry complete real tables, so the only ones with run-in jobs (the setup offers these; a test keeps the list true to the data). */
 export const RUN_IN_LEAGUES = ['england', 'spain', 'italy', 'germany'] as const
 
+/**
+ * Leagues whose third-from-bottom club plays a relegation play-off (the
+ * Bundesliga's 16th, in every season the packs hold) whose result the data
+ * does not keep: only the two below it went down for certain. The game itself
+ * still relegates the bottom three.
+ */
+export const PLAYOFF_LEAGUES: readonly string[] = ['germany']
+
+/** How many clubs at the foot of a real final table went straight down: two in a play-off league, three elsewhere. */
+export function relegatedDirectly(leagueId: string): number {
+  return PLAYOFF_LEAGUES.includes(leagueId) ? 2 : 3
+}
+
 /** A club-season this many players short of a matchday squad cannot be a league side in a run-in. */
 export const RUN_IN_MIN_SQUAD = 16
 

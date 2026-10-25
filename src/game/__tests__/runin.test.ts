@@ -10,7 +10,8 @@ import { playMatchweek } from '../logic/week'
 import { inRecordBooks } from '../logic/records'
 import { finishDraftLabel, MODE_TITLE, modeLabel } from '../logic/modes'
 import { nextStop, stopLine } from '../logic/highlights'
-import { beginRunIn, briefOpen, briefStanding, gapLine, RUN_IN_CONFIDENCE, RUN_IN_MORALE, RUN_IN_SPINS, RUN_IN_SQUAD, runInEntry, runInGameSettings, runInShare, runInUnlocks, runInVerdict, seedRunInDraft, takeoverTable } from '../logic/runin'
+import { beginRunIn, briefOpen, briefStanding, gapLine, realFinish, RUN_IN_CONFIDENCE, RUN_IN_MORALE, RUN_IN_SPINS, RUN_IN_SQUAD, runInEntry, runInGameSettings, runInShare, runInUnlocks, runInVerdict, seedRunInDraft, takeoverTable } from '../logic/runin'
+import type { LoadedUniverse } from '@engine/universe'
 import type { Game } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
 vi.hoisted(() => {
@@ -26,21 +27,21 @@ const u = loadTestUniverse()
 const WEST_HAM = runInJob(u, 'survival', 'england', 2025, 'west-ham-united')!
 
 /** A run-in drafted by the assistant, at the takeover. */
-function takenOver(job: RunInJob, seed: string): Game {
-  const g = createGame(runInGameSettings(u, job, { seed }))
-  seedRunInDraft(g, u)
+function takenOver(job: RunInJob, seed: string, uv: LoadedUniverse = u): Game {
+  const g = createGame(runInGameSettings(uv, job, { seed }))
+  seedRunInDraft(g, uv)
   const rng = Rng.fromState(g.rngState)
-  autoDraft(u, g.draft!, rng)
+  autoDraft(uv, g.draft!, rng)
   g.rngState = rng.getState()
-  beginRunIn(g, u)
+  beginRunIn(g, uv)
   return g
 }
 
 /** The assistant's week, as Sim 5 plays it; returns the weeks played. */
-function playOut(g: Game): number {
+function playOut(g: Game, uv: LoadedUniverse = u): number {
   let weeks = 0
   while (g.phase !== 'summary' && weeks < 40) {
-    playMatchweek(g, u, true)
+    playMatchweek(g, uv, true)
     if (g.phase === 'match') g.phase = 'week'
     weeks++
   }
@@ -155,7 +156,7 @@ describe('Run-in: every template', () => {
       expect(v.met).toBe(!v.sacked && v.position <= job.target)
       expect(v.chip).toBe(v.met ? { title: 'TITLE WON', europe: 'TOP FOUR', survival: 'SURVIVED' }[template] : 'MISSED')
       expect(v.line).toContain(`; the real ${club} `)
-      expect(v.realLine).toMatch(new RegExp(`^📊 The real ${club} (went down|won the title|finished \\d+(st|nd|rd|th)) on ${job.real.points}$`))
+      expect(v.realLine).toMatch(new RegExp(`^📊 The real ${club} (went down|won the title|finished \\d+(st|nd|rd|th)) on ${job.real.points}(, in the relegation play-off place)?$`))
       const text = runInShare(g, u)!.split('\n')
       expect(text[0]).toBe(`TouchLine · Run-in · ${club} ${job.season}-${String((job.season + 1) % 100).padStart(2, '0')}`)
       expect(text[1]).toMatch(new RegExp(`^Took over at MW28: \\d+(st|nd|rd|th), ${job.projected.points} pts \\(projected\\)$`))
@@ -174,6 +175,46 @@ describe('Run-in: every template', () => {
     if (v.met) expect(v.line).toBe(`You kept West Ham up on ${v.points}; the real West Ham went down on 39`)
     else if (!v.sacked) expect(v.line).toBe(`West Ham went down on ${v.points} under you; the real West Ham went down on 39`)
   })
+})
+
+describe('Run-in: the Bundesliga play-off', () => {
+  const de = loadTestUniverse(['germany'])
+
+  it('never says a 16th went down: it played a play-off the data does not keep', () => {
+    expect(realFinish({ position: 16, points: 27 }, 18, 'germany')).toBe('finished 16th on 27, in the relegation play-off place')
+    expect(realFinish({ position: 17, points: 25 }, 18, 'germany')).toBe('went down on 25')
+    expect(realFinish({ position: 18, points: 39 }, 20, 'england')).toBe('went down on 39')
+    expect(realFinish({ position: 18, points: 40 }, 20, 'spain')).toBe('went down on 40')
+  })
+
+  it('words the verdict and the Great Escape on the real outcome: only a 17th or 18th really went down', () => {
+    const jobs = runInCatalogue(de, 'survival')
+    const sixteenth = jobs.find((j) => j.real.position === 16)!
+    const below = jobs.find((j) => j.real.position === 17)!
+    expect(sixteenth.target).toBe(15)
+    const a = takenOver(sixteenth, 'runin-playoff-16', de)
+    playOut(a, de)
+    const club = de.clubById[sixteenth.clubId].shortName
+    expect(runInVerdict(a, de)!.realLine).toBe(`📊 The real ${club} finished 16th on ${sixteenth.real.points}, in the relegation play-off place`)
+    // The game relegates the bottom three, so a 16th misses the brief, but its line says where it stood
+    let sawSixteenth = false
+    for (let i = 0; i < 40 && !sawSixteenth; i++) {
+      const g = takenOver(sixteenth, `runin-playoff-16-${i}`, de)
+      playOut(g, de)
+      const v = runInVerdict(g, de)!
+      if (v.sacked) continue
+      if (v.position === 16) {
+        sawSixteenth = true
+        expect(v.met).toBe(false)
+        expect(v.line).toBe(`${club} finished 16th on ${v.points} under you, in the relegation play-off place; the real ${club} finished 16th on ${sixteenth.real.points}, in the relegation play-off place`)
+      } else if (v.position > 16) expect(v.line.startsWith(`${club} went down on ${v.points} under you;`)).toBe(true)
+    }
+    expect(sawSixteenth).toBe(true)
+    const b = takenOver(below, 'runin-playoff-17', de)
+    playOut(b, de)
+    expect(runInVerdict(b, de)!.realLine).toBe(`📊 The real ${de.clubById[below.clubId].shortName} went down on ${below.real.points}`)
+    if (!b.season!.sacked) expect(runInUnlocks(b, de, 15)).toContain('great-escape')
+  }, 60000)
 })
 
 describe('Run-in: Highlights', () => {

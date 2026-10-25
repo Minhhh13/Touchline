@@ -32,7 +32,9 @@ export function RunInSetup() {
   }, [ensureLeagues, leagueId])
   const ready = loadedLeagues.includes(leagueId)
   const jobs = useMemo(() => (u && ready ? runInCatalogue(u, template).filter((j) => j.leagueId === leagueId) : []), [u, ready, template, leagueId])
-  const suggested = useMemo(() => suggestRunIns(jobs, seed.trim() || 'run-in'), [jobs, seed])
+  // One seed for the suggestions, the line above Start and the game: a blank box plays as `run-in`
+  const seedValue = seed.trim() || 'run-in'
+  const suggested = useMemo(() => suggestRunIns(jobs, seedValue), [jobs, seedValue])
   const bySeason = useMemo(() => {
     const out: Array<{ season: number; jobs: RunInJob[] }> = []
     for (const j of jobs) {
@@ -46,13 +48,13 @@ export function RunInSetup() {
   const job = jobs.find((j) => keyOf(j) === picked) ?? suggested[0] ?? null
   const clubStyle = job ? (u.clubById[job.clubId]?.style ?? 'balanced') : 'balanced'
   const formationId = formation === 'club' ? formationForStyle(clubStyle) : formation
-  const settings = job ? runInGameSettings(u, job, { seed: seed.trim() || 'run-in', formationId }) : null
+  const settings = job ? runInGameSettings(u, job, { seed: seedValue, formationId }) : null
   const leagues = u.available.filter((l) => (RUN_IN_LEAGUES as readonly string[]).includes(l.id))
   const unfinished = [game, parked.runin].find((g) => g && slotOf(g) === 'runin' && g.phase !== 'summary')
   const start = () => {
     if (!job) return
     if (unfinished && !confirm(`Take a new job? Your unfinished run-in (${unfinished.settings.teamName}) will be abandoned.`)) return
-    startGame(runInGameSettings(u, job, { seed: seed.trim() || randomSeed(), formationId }))
+    startGame(runInGameSettings(u, job, { seed: seedValue, formationId }))
   }
   const row = (j: RunInJob, testid?: string) => (
     <button key={keyOf(j)} type="button" className={`prow ${job && keyOf(j) === keyOf(job) ? 'selected' : ''}`} onClick={() => setPicked(keyOf(j))} data-testid={testid}>

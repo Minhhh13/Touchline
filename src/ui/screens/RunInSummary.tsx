@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { seasonTable } from '@engine/season'
 import { RUN_IN_TEMPLATE_LABEL, runInShare, runInVerdict } from '@game/logic/runin'
@@ -13,6 +13,12 @@ export function RunInSummary() {
   const [copied, setCopied] = useState(false)
   const table = useMemo(() => (game?.season ? seasonTable(game.season) : []), [game?.season])
   const story = useMemo(() => (game && u ? storyForGame(game, u) : null), [game, u])
+  // "Copied" reverts after a moment; the timer goes with the screen
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(t)
+  }, [copied])
   if (!u || !game || !game.season) return null
   const v = runInVerdict(game, u)
   const text = runInShare(game, u)
@@ -22,7 +28,6 @@ export function RunInSummary() {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
     } catch {
       showToast('Could not copy. Select the text manually.')
     }
