@@ -29,6 +29,7 @@ import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
+import { storyForGame } from './logic/story'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -532,6 +533,8 @@ export const useStore = create<Store>()(
             nation: game.settings.rules.onlyNation,
             ...(game.settings.challenge ? { challenge: { name: game.settings.challenge.name, points: game.settings.challenge.claim.pts } } : {}),
           }
+          const moment = storyForGame(game, universe)?.moment
+          if (moment) entry.moment = moment
           if (profile.leaderboard.some((e) => e.id === entry.id)) return
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)
           let { dailyStreak, lastDailyDate } = profile

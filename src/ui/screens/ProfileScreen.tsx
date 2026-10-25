@@ -160,6 +160,7 @@ export function ProfileScreen() {
                       {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
                     </span>
                     <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>
+                    {e.moment && <div className="small muted" data-testid="entry-moment">{e.moment}</div>}
                   </td>
                   <td>{MODE_TITLE[e.mode] ?? e.mode}</td>
                   <td>{seasonLabel(e.leagueSeason)}</td>

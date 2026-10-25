@@ -17,7 +17,17 @@ export interface ShareCardInput {
   getPlayer: (id: string) => PlayerSeason | undefined
   footer: string
   hideRatings?: boolean
+  /** Season Story: one cell per game under the record, up to 46. */
+  strip?: Array<'W' | 'D' | 'L'>
+  /** Season Story: one line under the strip. */
+  moment?: string
+  /** Replaces the tier label (an arena result names its own round). */
+  banner?: { text: string; colour?: string }
+  /** Up to six lines drawn in place of the W/D/L row and the points line (knockout ties, a ladder). */
+  lines?: string[]
 }
+
+const STRIP_COLOUR: Record<'W' | 'D' | 'L', string> = { W: '#3ddc84', D: '#cfd8d2', L: '#ef5350' }
 
 const TIER_COLOUR: Partial<Record<SeasonTier, string>> = {
   PERFECT: '#f5c542',
@@ -65,11 +75,19 @@ export function renderShareCard(input: ShareCardInput): string {
   ctx.font = font(26, 400, "'Inter', system-ui, sans-serif")
   ctx.fillText(input.subtitle, W / 2, 130)
 
-  ctx.fillStyle = TIER_COLOUR[input.tier] ?? '#eef5f0'
+  ctx.fillStyle = input.banner?.colour ?? TIER_COLOUR[input.tier] ?? '#eef5f0'
   ctx.font = font(84)
-  ctx.fillText(TIER_LABEL[input.tier], W / 2, 225)
+  ctx.fillText(fit(ctx, input.banner?.text ?? TIER_LABEL[input.tier], W - 120), W / 2, 225)
 
-  // record
+  // The record, or the caller's own lines in its place; `y` is the baseline of the last thing drawn
+  let y = 350
+  const lines = (input.lines ?? []).slice(0, 6)
+  if (lines.length) {
+    ctx.fillStyle = '#eef5f0'
+    ctx.font = font(34)
+    lines.forEach((l, i) => ctx.fillText(fit(ctx, l, W - 160), W / 2, 295 + i * 44))
+    y = 295 + (lines.length - 1) * 44
+  } else {
   const rec = [
     { t: `${input.row.won}W`, c: '#3ddc84' },
     { t: `${input.row.drawn}D`, c: '#cfd8d2' },
@@ -90,12 +108,34 @@ export function renderShareCard(input: ShareCardInput): string {
   ctx.font = font(34)
   const ord = (n: number) => n + (['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 > 3 ? 0 : n % 10] ?? 'th')
   ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 350)
+  }
 
-  // pitch
+  // Season Story: the game-by-game strip and the moment line
+  const strip = (input.strip ?? []).slice(0, 46)
+  if (strip.length) {
+    const sw = W - 180
+    const gapX = 4
+    const cell = Math.min(22, (sw - gapX * (strip.length - 1)) / strip.length)
+    let sx = W / 2 - (cell * strip.length + gapX * (strip.length - 1)) / 2
+    for (const o of strip) {
+      ctx.fillStyle = STRIP_COLOUR[o]
+      ctx.fillRect(sx, y + 22, cell, 22)
+      sx += cell + gapX
+    }
+    y += 44
+  }
+  if (input.moment) {
+    ctx.fillStyle = '#eef5f0'
+    ctx.font = font(30, 600, "'Inter', system-ui, sans-serif")
+    ctx.fillText(fit(ctx, input.moment, W - 160), W / 2, y + 46)
+    y += 46
+  }
+
+  // pitch, pushed down (and shortened) by whatever sits above it
   const px = 90
-  const py = 400
+  const py = Math.max(400, y + 34)
   const pw = W - 180
-  const ph = 760
+  const ph = 1160 - py
   ctx.fillStyle = '#1d7a3f'
   roundRect(ctx, px, py, pw, ph, 18)
   ctx.fill()
