@@ -210,4 +210,15 @@ describe('the Randomise button for the team name', () => {
     expect(FUN_TEAM_NAMES).toContain(randomTeamName(0.9999999))
     expect(FUN_TEAM_NAMES).toContain(randomTeamName(1))
   })
+
+  it("never gives a head-to-head manager the other manager's name, whatever the case or spacing", () => {
+    for (let i = 0; i < 400; i++) {
+      const roll = i / 400
+      const other = FUN_TEAM_NAMES[Math.floor(roll * FUN_TEAM_NAMES.length)]
+      const mine = FUN_TEAM_NAMES[(i * 7) % FUN_TEAM_NAMES.length]
+      const next = randomTeamName(roll, mine, [`  ${other.toUpperCase()} `])
+      expect(next).not.toBe(other)
+      expect(next).not.toBe(mine)
+    }
+  })
 })

@@ -1,10 +1,22 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 
 /** A small "i" that opens a one-line description on tap or focus (and on hover through `title`). */
 export function InfoTip({ text, label, testId }: { text: string; label: string; testId?: string }) {
   const [open, setOpen] = useState(false)
   const id = useId()
   const ref = useRef<HTMLSpanElement>(null)
+  const bubble = useRef<HTMLSpanElement>(null)
+  // The bubble hangs left from the button; near either edge of a phone screen, slide it back inside (8 px margin)
+  const [shift, setShift] = useState(0)
+  useLayoutEffect(() => {
+    if (!open || !bubble.current) {
+      setShift(0)
+      return
+    }
+    const r = bubble.current.getBoundingClientRect()
+    const edge = document.documentElement.clientWidth
+    setShift(r.left < 8 ? 8 - r.left : r.right > edge - 8 ? edge - 8 - r.right : 0)
+  }, [open])
   useEffect(() => {
     if (!open) return
     const close = (e: PointerEvent) => {
@@ -32,7 +44,7 @@ export function InfoTip({ text, label, testId }: { text: string; label: string; 
         i
       </button>
       {open && (
-        <span className="info-tip-bubble" role="tooltip" id={id}>
+        <span className="info-tip-bubble" role="tooltip" id={id} ref={bubble} style={shift ? { transform: `translateX(${shift}px)` } : undefined}>
           {text}
         </span>
       )}

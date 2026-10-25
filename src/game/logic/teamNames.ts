@@ -46,11 +46,15 @@ export const FUN_TEAM_NAMES: readonly string[] = [
 
 /**
  * The name `roll` (a number in [0, 1), from the UI's own randomness) lands on, never the one already in the field, so
- * every press changes it.
+ * every press changes it, and never one in `taken` (the other head-to-head manager's name), so two sides never share one.
  */
-export function randomTeamName(roll: number, current = ''): string {
+export function randomTeamName(roll: number, current = '', taken: readonly string[] = []): string {
   const n = FUN_TEAM_NAMES.length
-  const i = Math.min(n - 1, Math.max(0, Math.floor(roll * n)))
-  const name = FUN_TEAM_NAMES[i]
-  return name === current.trim() ? FUN_TEAM_NAMES[(i + 1) % n] : name
+  const start = Math.min(n - 1, Math.max(0, Math.floor(roll * n)))
+  const used = new Set([current, ...taken].map((x) => x.trim().toLowerCase()))
+  for (let k = 0; k < n; k++) {
+    const name = FUN_TEAM_NAMES[(start + k) % n]
+    if (!used.has(name.toLowerCase())) return name
+  }
+  return FUN_TEAM_NAMES[start]
 }

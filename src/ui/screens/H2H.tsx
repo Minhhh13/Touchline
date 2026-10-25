@@ -60,7 +60,7 @@ export function H2HSetup() {
           {[0, 1].map((i) => (
             <div key={i} className="panel col" data-testid={`h2h-manager-${i}`}>
               <SectionHead title={`Manager ${i + 1}`} />
-              <TeamNameField label="Name" value={names[i]} onChange={(v) => setNames(names.map((n, j) => (j === i ? v : n)))} fallback={`Manager ${i + 1}`} maxLength={24} testId={`h2h-name-${i}`} />
+              <TeamNameField label="Name" value={names[i]} onChange={(v) => setNames(names.map((n, j) => (j === i ? v : n)))} fallback={`Manager ${i + 1}`} maxLength={24} testId={`h2h-name-${i}`} taken={[names[1 - i]]} />
               <FormationTiles formations={FORMATIONS} value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} testId={`h2h-formation-${i}`} compact />
               <label className="field">
                 Your club

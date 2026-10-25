@@ -106,9 +106,10 @@ export function LeagueChips({ leagues, value, onChange, flagOf, testId }: { leag
 
 /**
  * A team name field with Clear (empties it and puts the cursor in it) and Randomise (an invented name from our own list).
- * The dice is UI randomness only: a name never touches the seed. An empty field starts as `fallback`.
+ * The dice is UI randomness only: a name never touches the seed. An empty field starts as `fallback`; the dice never
+ * lands on a name in `taken`.
  */
-export function TeamNameField({ label = 'Team name', value, onChange, fallback, maxLength = 28, testId = 'team-name' }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string }) {
+export function TeamNameField({ label = 'Team name', value, onChange, fallback, maxLength = 28, testId = 'team-name', taken }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string; taken?: readonly string[] }) {
   const ref = useRef<HTMLInputElement>(null)
   return (
     <div className="field team-field">
@@ -128,7 +129,7 @@ export function TeamNameField({ label = 'Team name', value, onChange, fallback, 
         >
           ✕<span className="name-btn-label">Clear</span>
         </button>
-        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value).slice(0, maxLength))} aria-label={`Random ${label.toLowerCase()}`} title="Randomise" data-testid={`${testId}-random`}>
+        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={`Random ${label.toLowerCase()}`} title="Randomise" data-testid={`${testId}-random`}>
           🎲<span className="name-btn-label">Randomise</span>
         </button>
       </div>
