@@ -19,7 +19,11 @@ import type { ManagerHand } from './useManagerHand'
 
 const GOALS = new Set(['goal', 'penalty', 'own_goal'])
 
-/** The running clock, written straight into the text node every frame (no React render per frame). */
+/**
+ * The running clock, written straight into the text node every frame (no React render per frame).
+ * Like the pitch, the loop runs only while the shared clock does: paused, under a drawer or at a
+ * stop it paints once and sleeps until the clock store changes again.
+ */
 function ClockFace({ minute, state }: { minute: number; state: { atStop: boolean; stopAt: number; finished: boolean; final: boolean; addedTime: number } }) {
   const ref = useRef<HTMLSpanElement>(null)
   const { atStop, stopAt, finished, final, addedTime } = state
@@ -28,15 +32,23 @@ function ClockFace({ minute, state }: { minute: number; state: { atStop: boolean
     if (!el) return
     let raf = 0
     const paint = () => {
+      raf = 0
       const s = useLiveClock.getState()
       // The clock store is shared: read it only while it carries this match's minute
       const f = Math.abs(s.clock - minute) <= 1 ? Math.min(fractionalClock(s, performance.now()), minute + 1) : minute
       const text = barClock(Math.max(minute, f), { atStop, stopAt, finished, final, addedTime })
       if (el.textContent !== text) el.textContent = text
-      if (!atStop && !finished) raf = requestAnimationFrame(paint)
+      if (s.running && !atStop && !finished) raf = requestAnimationFrame(paint)
+    }
+    const wake = () => {
+      if (!raf) raf = requestAnimationFrame(paint)
     }
     paint()
-    return () => cancelAnimationFrame(raf)
+    const unsubscribe = useLiveClock.subscribe(wake)
+    return () => {
+      unsubscribe()
+      cancelAnimationFrame(raf)
+    }
   }, [minute, atStop, stopAt, finished, final, addedTime])
   return <span ref={ref} className="clock mono" />
 }

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { getFormation } from '@engine/formations'
+import { FORMATIONS, getFormation } from '@engine/formations'
+import { tacticsForStyle } from '@engine/tactics'
 import { appearancesAt } from '@engine/matchFeed'
 import { statsAt, statsSeries, xgStory } from '@engine/matchStats'
 import type { LatestScore } from '@game/logic/matchday'
-import { cardSeries, clockText, elsewhereLines, flankRows, freshGoal, keyItems, momentumSpells, reportFigures, resumeMinute, segmentStart, skipLabel, slotViews, statRows, stopTarget, xgStepPoints } from '../matchday/model'
+import { cardSeries, clockText, elsewhereLines, flankRows, freshGoal, keyItems, labelRoom, momentumSpells, panelPoints, reportFigures, resumeMinute, segmentStart, skipLabel, slotViews, statRows, stopTarget, xgStepPoints } from '../matchday/model'
 import { stepClock } from '../matchday/useMatchClock'
 import { defaultSlots, parseChoices, readChoices, resolveSlots, SLOT_IDS, SLOT_WIDGETS, STORAGE_KEY, WIDGET_IDS, WIDGETS, writeChoice, type ChoiceStorage } from '../matchday/widgetIds'
 import { changedLive, resultFeed, u } from './feeds'
@@ -226,5 +227,37 @@ describe('panel models', () => {
     expect(freshGoal(s, 24)).toBe(true)
     expect(freshGoal(s, 25)).toBe(false)
     expect(freshGoal({ ...s, status: 'FT' }, 88)).toBe(false)
+  })
+})
+
+describe('formation panel labels', () => {
+  it('keep every outfield man clear of the keeper, and give each name no more room than the gap to a team-mate level with him, in every shape', () => {
+    for (const f of FORMATIONS) {
+      for (const style of ['balanced', 'press', 'counter', 'defensive'] as const) {
+        const t = tacticsForStyle(style, f.id)
+        const points = panelPoints(f, t)
+        expect(points.map((p) => p.id)).toEqual(f.slots.map((s) => s.id))
+        const gk = points.find((p) => f.slots.find((s) => s.id === p.id)!.position === 'GK')!
+        for (const p of points) {
+          // On the pitch, and where the live pitch puts him unless he would stand on the keeper
+          expect(p.left).toBeGreaterThanOrEqual(0)
+          expect(p.left).toBeLessThanOrEqual(100)
+          if (p !== gk) expect(gk.top - p.top).toBeGreaterThanOrEqual(12)
+        }
+        const room = labelRoom(points)
+        expect(room[gk.id]).toBeNull()
+        for (const a of points) {
+          for (const b of points) {
+            if (a === b || Math.abs(a.top - b.top) >= 6) continue
+            // Two centred names of these widths end before they meet, and none is squeezed to nothing
+            expect((room[a.id] ?? Infinity) / 2 + (room[b.id] ?? Infinity) / 2).toBeLessThanOrEqual(Math.abs(a.left - b.left) + 1e-9)
+            expect(room[a.id]).toBeGreaterThanOrEqual(10)
+          }
+        }
+        const cbs = f.slots.filter((s) => s.position === 'CB')
+        if (cbs.length >= 2) expect(Math.min(...cbs.map((s) => room[s.id] ?? Infinity))).toBeLessThan(40)
+      }
+    }
+    expect(labelRoom([{ id: 'a', left: 40, top: 50 }, { id: 'b', left: 60, top: 52 }, { id: 'c', left: 50, top: 80 }])).toEqual({ a: 20, b: 20, c: null })
   })
 })

@@ -8,9 +8,11 @@ import type { MatchClock, MatchInProgress, TimelineEntry } from '@engine/match'
 import { appearancesAt, type FeedAppearance, type MatchFeed } from '@engine/matchFeed'
 import { MOMENTUM_BINS } from '@engine/matchDetail'
 import { statsAt, type StatsSeries, type TeamStatLine, type XgStep } from '@engine/matchStats'
-import type { Formation, MatchEvent, Position } from '@engine/types'
+import type { Formation, MatchEvent, Position, Tactics } from '@engine/types'
 import type { LatestScore } from '@game/logic/matchday'
 import { minuteLabel } from '../format'
+import { slotPoint } from '../match/pitchGeometry'
+import { upright } from './VerticalPitch'
 
 /** The first minute the clock shows for the segment a paused match has decided: 0, 46 or 71. */
 export function segmentStart(clock: MatchClock | undefined): number {
@@ -205,6 +207,39 @@ export function slotViews(formation: Formation, appearances: FeedAppearance[], e
     if (!current) return { slotId: slot.id, position: slot.position, psId: null, onAt: 0, subbedOn: false, out: false, yellow: false, red: false }
     return { slotId: slot.id, position: slot.position, psId: current.psId, onAt: current.onAt, subbedOn: current.onAt > 0, out: !on.has(current.psId), yellow: yellows.has(current.psId), red: reds.has(current.psId) }
   })
+}
+
+/** The deepest an outfield man stands in a formation panel, in per cent of its height: clear of the keeper's shirt (a back three on a deep line stands at 90 otherwise, on top of him). */
+export const PANEL_DEEPEST = 80
+
+/** Where each man of a shape stands in a formation panel (per cent of its box, attacking up): his slot as the live pitch places it, outfield men no deeper than `PANEL_DEEPEST`. */
+export function panelPoints(formation: Formation, tactics: Tactics): Array<{ id: string; left: number; top: number }> {
+  return formation.slots.map((slot) => {
+    const pt = slotPoint(slot, tactics, 'home')
+    const { left, top } = upright(pt.x, pt.y)
+    return { id: slot.id, left, top: slot.position === 'GK' ? top : Math.min(top, PANEL_DEEPEST) }
+  })
+}
+
+/**
+ * How wide each man's name may be in a formation panel, in per cent of the
+ * pitch's width: the gap to the nearest team-mate standing level with him
+ * (within `band` per cent of the height, about a name line), so two centred
+ * names never run into each other (a back four's centre-halves at 1280 px);
+ * null for a man with nobody level with him, whose name keeps the panel's cap.
+ */
+export function labelRoom(points: Array<{ id: string; left: number; top: number }>, band = 6): Record<string, number | null> {
+  const out: Record<string, number | null> = {}
+  for (const p of points) {
+    let gap: number | null = null
+    for (const q of points) {
+      if (q === p || Math.abs(q.top - p.top) >= band) continue
+      const d = Math.abs(q.left - p.left)
+      if (gap === null || d < gap) gap = d
+    }
+    out[p.id] = gap
+  }
+  return out
 }
 
 const KEY_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', 'yellow', 'red', 'injury', 'substitution', 'half_time', 'full_time'])

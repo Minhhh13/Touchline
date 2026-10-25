@@ -108,7 +108,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance }: { source: Dashb
         userSide: userSide ?? 'home',
         tactics: (live.userIsHome ? live.mp.home : live.mp.away).tactics,
         shout: (live.userIsHome ? live.mp.home : live.mp.away).shout,
-        subsLeft: MAX_SUBS - subsMade(live.mp, userSide ?? 'home'),
+        // Changes the engine has decided later in the segment (a routine change at 62 seen at 50) are not made yet: the strip and the drawer count the same ones
+        subsLeft: MAX_SUBS - subsMade(live.mp, userSide ?? 'home', Math.max(0, minute)),
         windowsLeft: MAX_WINDOWS - managerWindowsUsed(live.mp, userSide ?? 'home'),
         apply: (change) => store.interveneLive({ minute, ...change }),
       }

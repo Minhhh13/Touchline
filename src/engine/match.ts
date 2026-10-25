@@ -1177,8 +1177,12 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
       events.push({ minute, type: 'red', side, playerId: p.psId, playerName: ps.name, text: `Straight red for ${ps.name}!` })
     }
   }
+  // Injuries fall in 3..88. A canonical segment always has room; a replay after a change at 88 or 89
+  // has none, and drawing a minute from an empty range would land one at or before the change
+  const injuryFrom = Math.max(from, 3)
+  const injuryTo = Math.min(to, 88)
   for (const p of [...live]) {
-    if (p.red || p.offAt < 90 || p.injury) continue
+    if (p.red || p.offAt < 90 || p.injury || injuryFrom > injuryTo) continue
     const ps = team.getPlayer(p.psId)
     if (!ps) continue
     const st = team.getState(p.psId)
@@ -1186,7 +1190,7 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
     const condF = cond < 55 ? 2 : cond < 70 ? 1.45 : cond < 80 ? 1.1 : 1
     const pInj = 0.021 * (0.5 + ps.traits.injuryProneness) * condF * halfF
     if (rng.chance(pInj)) {
-      const minute = rng.int(Math.max(from, 3), Math.min(to, 88))
+      const minute = rng.int(injuryFrom, injuryTo)
       const injury = rollInjury(rng)
       p.injury = injury
       p.offAt = minute

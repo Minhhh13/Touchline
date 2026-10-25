@@ -251,6 +251,7 @@
   background: none;
   color: #fff;
   cursor: pointer;
+  max-width: 76px;
   transition: left 0.6s ease, top 0.6s ease;
 }
 .matchday .md-man:focus-visible {
@@ -290,7 +291,8 @@
   height: 10px;
 }
 .matchday .md-man-name {
-  max-width: 76px;
+  /* The man's own width caps it: 76px, or the gap to a team-mate level with him (labelRoom) */
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

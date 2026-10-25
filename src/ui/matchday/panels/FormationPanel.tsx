@@ -7,11 +7,10 @@
 import { getFormation } from '@engine/formations'
 import { tacticsAt } from '@engine/matchFeed'
 import { roleCode, surname } from '../../match/shirts'
-import { slotPoint } from '../../match/pitchGeometry'
 import { Shirt } from '../Shirt'
-import { VerticalPitch, upright } from '../VerticalPitch'
+import { VerticalPitch } from '../VerticalPitch'
 import { CardIcon, OnArrow } from '../icons'
-import { slotViews } from '../model'
+import { labelRoom, panelPoints, slotViews } from '../model'
 import type { PanelProps } from '../types'
 import { RatingPill, TeamCode } from './bits'
 
@@ -22,6 +21,9 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
   const tactics = tacticsAt(d.feed, side, minute + 1)
   const formation = getFormation(tactics.formationId)
   const slots = slotViews(formation, fs.appearances, d.feed.events, minute)
+  // In slot order, as slotViews lists them
+  const points = panelPoints(formation, tactics)
+  const room = labelRoom(points)
   return (
     <section className="md-panel md-formation" aria-label={`${view.name} formation`}>
       <header className="md-panel-head">
@@ -30,11 +32,9 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
         <span className="muted">in possession</span>
       </header>
       <VerticalPitch label={`${view.name} in a ${formation.name}`}>
-        {slots.map((s) => {
-          const slot = formation.slots.find((x) => x.id === s.slotId)!
-          // Both sides drawn attacking up, from the side's own point of view
-          const pt = slotPoint(slot, tactics, 'home')
-          const { left, top } = upright(pt.x, pt.y)
+        {slots.map((s, i) => {
+          const { left, top } = points[i]
+          const gap = room[s.slotId]
           const name = s.psId ? d.getName(s.psId) : undefined
           const rating = s.psId ? d.ratings[s.psId] : undefined
           const selected = !!s.psId && d.selected === s.psId
@@ -43,7 +43,7 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
               key={s.slotId}
               type="button"
               className={`md-man ${s.out ? 'out' : ''} ${selected ? 'selected' : ''}`}
-              style={{ left: `${left}%`, top: `${top}%` }}
+              style={{ left: `${left}%`, top: `${top}%`, maxWidth: gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}% - 4px))` }}
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}
               aria-pressed={selected}

@@ -372,6 +372,39 @@ describe('changes with the ball in play', { timeout: 30_000 }, () => {
     for (const id of benchAt(mp, 'home', 70, s.home.getState)) expect(on70).not.toContain(id)
   })
 
+  it('the changes made by minute k are the ones a cut at k keeps: changes decided later in the segment are not spent yet', () => {
+    let ahead = 0
+    for (let i = 0; i < 80; i++) {
+      for (const k of [12, 50, 63, 75]) {
+        const mp = standingAt(`inplay-count-${i}`, sides(i), k)
+        for (const side of ['home', 'away'] as const) {
+          const cut = roundTrip(mp)
+          rollBackSegment(cut, k)
+          expect(subsMade(mp, side, k)).toBe(subsMade(cut, side))
+          if (subsMade(mp, side) > subsMade(mp, side, k)) ahead++
+        }
+      }
+    }
+    // Routine and injury changes are decided ahead of the clock often enough for the difference to matter
+    expect(ahead).toBeGreaterThan(20)
+  })
+
+  it('a cut in the last minutes never writes an event at or before its minute (injuries stop at 88)', () => {
+    const s = sides(0)
+    let replayed = 0
+    for (let i = 0; i < 400; i++) {
+      for (const k of [87, 88, 89]) {
+        const mp = standingAt(`inplay-late-${i}`, s, k)
+        const before = new Set(mp.events.filter((e) => e.minute <= k).map((e) => JSON.stringify(e)))
+        const t = mp.home.tactics
+        expect(changeInPlay(mp, s, { side: 'home', minute: k, tactics: { ...t, mentality: t.mentality === 'attacking' ? 'defensive' : 'attacking' } }).applied).toBe(true)
+        for (const e of mp.events) if (e.minute <= k) expect(before.has(JSON.stringify(e))).toBe(true)
+        replayed++
+      }
+    }
+    expect(replayed).toBe(1200)
+  })
+
   it('keeps the new match fields small and only on full-detail matches', () => {
     const s = sides(2)
     const r = simulateMatch({ rng: new Rng('inplay-size'), ...s, detail: 'full' })
