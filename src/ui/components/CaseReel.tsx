@@ -145,11 +145,27 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
     if (!win || !strip || !drum) return
     let alive = true
     const landCard = strip.children[deal.land] as HTMLElement | undefined
-    const w = landCard?.offsetWidth ?? 0
-    const offset = landCard ? landCard.offsetLeft + w / 2 - win.clientWidth / 2 + deal.jitter * w : 0
+    // Where the strip stops, from the current layout: the landing card's centre (plus the jitter) under the marker
+    const stripEnd = () => {
+      const w = landCard?.offsetWidth ?? 0
+      const offset = landCard ? landCard.offsetLeft + w / 2 - win.clientWidth / 2 + deal.jitter * w : 0
+      return `translate3d(${(-offset).toFixed(1)}px, 0, 0)`
+    }
     const label = drum.children[DRUM_LAND] as HTMLElement | undefined
     const drumTo = `translate3d(0, ${-(label?.offsetTop ?? 0)}px, 0)`
-    const stripTo = `translate3d(${(-offset).toFixed(1)}px, 0, 0)`
+    let stripTo = stripEnd()
+    let slide: Animation | null = null
+    // A resize (a phone turned, a window dragged, the card size changing at the container breakpoint) moves the
+    // landing card and the marker, so the stop is measured again: mid-slide the slide retargets, after it the strip moves
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+      const next = stripEnd()
+      if (next === stripTo) return
+      stripTo = next
+      if (slide?.effect instanceof KeyframeEffect) slide.effect.setKeyframes([{ transform: 'translate3d(0, 0, 0)' }, { transform: stripTo }])
+      strip.style.transform = stripTo
+    }) : null
+    observer?.observe(win)
+    if (landCard) observer?.observe(landCard)
     const land = () => {
       if (!alive) return
       drum.style.transform = drumTo
@@ -170,21 +186,24 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
       return () => {
         alive = false
         window.clearTimeout(t)
+        observer?.disconnect()
         skipRef.current = () => undefined
       }
     }
     const roll = drum.animate([{ transform: 'translate3d(0, 0, 0)' }, { transform: drumTo }], { duration: DRUM_MS, easing: DRUM_EASE, fill: 'both' })
-    const slide = strip.animate([{ transform: 'translate3d(0, 0, 0)' }, { transform: stripTo }], { duration: STRIP_MS, delay: SEASON_MS, easing: STRIP_EASE, fill: 'both' })
+    const run = strip.animate([{ transform: 'translate3d(0, 0, 0)' }, { transform: stripTo }], { duration: STRIP_MS, delay: SEASON_MS, easing: STRIP_EASE, fill: 'both' })
+    slide = run
     roll.finished.then(() => alive && setStage((s) => (s === 'season' ? 'strip' : s)), () => undefined)
-    slide.finished.then(land, () => undefined)
+    run.finished.then(land, () => undefined)
     skipRef.current = () => {
       roll.finish()
-      slide.finish()
+      run.finish()
     }
     return () => {
       alive = false
+      observer?.disconnect()
       roll.cancel()
-      slide.cancel()
+      run.cancel()
       skipRef.current = () => undefined
     }
     // One run per mount: a new spin mounts a new run, so nothing here needs to re-run
