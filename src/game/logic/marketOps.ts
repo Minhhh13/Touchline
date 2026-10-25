@@ -1,7 +1,7 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
+import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, logLine, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
 import { staffTier } from '@engine/staff'
 import { newSquadPlayer, type AiClub } from '@engine/season'
 import { playerLookup, squadPlayers } from './players'
@@ -12,7 +12,7 @@ import { postNews } from './news'
 export const SQUAD_CAP = 23
 
 function log(game: Game, text: string): void {
-  if (game.window) game.window.log.unshift(text)
+  if (game.window) logLine(game.window, text)
 }
 
 /** Humans we hold: the squad, plus anyone picked in a draft still in progress (the summer wheel runs alongside the summer window). */
@@ -218,7 +218,7 @@ export function tickWindow(game: Game, u: LoadedUniverse, rng: Rng): void {
       l.tags.push('Scouted')
     }
     game.window.listings.push(...extra)
-    if (extra.length) game.window.log.unshift(`Your scouts flag ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(' and ')}.`)
+    if (extra.length) logLine(game.window, `Your scouts flag ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(' and ')}.`)
   }
 }
 

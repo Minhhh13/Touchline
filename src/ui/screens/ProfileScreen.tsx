@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { useStore, SAVE_KEY } from '@game/store'
+import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
 import type { LeaderboardEntry } from '@game/types'
@@ -8,9 +8,8 @@ import { clubName, ordinal, seasonLabel } from '../format'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 
 function exportSave(): void {
-  const raw = localStorage.getItem(SAVE_KEY)
-  if (!raw) return
-  const blob = new Blob([raw], { type: 'application/json' })
+  // The game in memory, as plain JSON: it exports even when the browser's storage is full
+  const blob = new Blob([exportSaveJson()], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -30,11 +29,10 @@ export function ProfileScreen() {
   const fileRef = useRef<HTMLInputElement>(null)
   const importSave = async (file: File) => {
     try {
-      const text = await file.text()
-      const parsed = JSON.parse(text) as { state?: { profile?: unknown } }
-      if (!parsed || typeof parsed !== 'object' || !parsed.state || typeof parsed.state !== 'object') throw new Error('not a Touchline save')
+      // Plain JSON from any build, or a compressed save; a file that is neither, or does not fit, leaves this save alone
+      const save = readSaveFile(await file.text())
       if (!confirm('Replace everything in this browser with the imported save? This cannot be undone.')) return
-      localStorage.setItem(SAVE_KEY, text)
+      storeImportedSave(save)
       location.reload()
     } catch (e) {
       showToast(`Could not import: ${e instanceof Error ? e.message : String(e)}`)
@@ -42,7 +40,7 @@ export function ProfileScreen() {
   }
   const wipe = () => {
     if (!confirm('Delete every saved game, your record and achievements from this browser?')) return
-    localStorage.removeItem(SAVE_KEY)
+    wipeSave()
     location.reload()
   }
   return (

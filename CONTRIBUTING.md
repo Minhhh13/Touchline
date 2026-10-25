@@ -32,7 +32,7 @@ These files conflict constantly. Before touching one, check open PRs and say so 
 
 | File | Why it conflicts | How to stay out of trouble |
 | --- | --- | --- |
-| `src/ui/styles.css` | One global stylesheet; the redesign rewrites its tokens | Add new rules in a new section at the end; do not reformat |
+| `src/ui/styles.css` | One global stylesheet; tokens and components follow `docs/DESIGN_SYSTEM.md` | Use the tokens; add new rules in a new section at the end; do not reformat |
 | `src/game/store.ts` | Every feature adds an action | Add actions at the end of their group; keep logic in `src/game/logic` |
 | `src/game/types.ts` | Every feature adds a save field | Append optional fields with a doc comment; never reorder |
 | `src/ui/screens/Dugout.tsx` | The season hub; 1,200+ lines of long JSX lines | Put new tabs and panels in their own file under `screens/` |
@@ -89,7 +89,7 @@ Also check:
 3. Rebuild on the merged pipeline: `node scripts/import/build.mjs` (set `DATA_CACHE=/path/to/datasets` to reuse a download cache; otherwise it uses `.cache/datasets`).
 4. Update the pinned `generatedAt` in `src/engine/__tests__/universe.test.ts`, run `npm test`, and commit the rebuilt packs in one commit ("Rebuild data packs after merging X").
 
-For `tsconfig.app.tsbuildinfo` / `tsconfig.node.tsbuildinfo`: take either side and run `npm run build`.
+For `tsconfig.node.tsbuildinfo`: take either side and run `npm run build`. `tsconfig.app.tsbuildinfo` is untracked (gitignored); if a branch still carries it, resolve with `git rm --cached tsconfig.app.tsbuildinfo`.
 
 Only one data rebuild should be in flight at a time; say so in the issue.
 

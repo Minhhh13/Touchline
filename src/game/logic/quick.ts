@@ -7,6 +7,7 @@ import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { playerLookup } from './players'
 import { earnsPointsRecord } from './records'
+import { recordUserGames } from './gameByGame'
 
 /**
  * 38-0 mode: the drafted XI plays the whole season instantly against the real
@@ -73,6 +74,8 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     topScorer: topScorer ? { playerSeasonId: topScorer[0], goals: topScorer[1] } : undefined,
     pots: pots ? { playerSeasonId: pots.id, rating: Math.round(pots.avg * 100) / 100 } : undefined,
     strength: { overall: strength.overall, goalkeeping: strength.goalkeeping, defence: strength.defence, midfield: strength.midfield, attack: strength.attack, balance: strength.balance, chemistry: strength.chemistry },
+    // Game by game, from the fixtures already played: no random numbers are drawn here
+    results: recordUserGames(fixtures, ids, USER_TEAM, (id) => get(id)?.name),
   }
   game.quickResult = quick
   game.lineup = lineup

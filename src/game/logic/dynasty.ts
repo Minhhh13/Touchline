@@ -39,6 +39,13 @@ export function ageOneYear(p: PlayerSeason, rng: Rng, year: number): PlayerSeaso
   bump('defending')
   bump('mentality', age >= 30 ? 1 : 0.3)
   if (p.positions[0] === 'GK') bump('goalkeeping', age >= 33 ? -0.5 : 0.5)
+  // The depth attributes: stamina and jumping go with the legs from 30, strength holds to 33
+  // (the yearly delta is cancelled, only noise moves it), aggression and work rate are character
+  bump('stamina', physicalBias * 1.2)
+  bump('jumping', physicalBias)
+  bump('strength', age >= 33 ? physicalBias * 0.8 : age >= 30 ? -delta : 0)
+  bump('aggression', -delta)
+  bump('workRate', -delta)
   const next: PlayerSeason = { ...p, id: `${p.playerId}@dyn${year}`, age, attributes: attrs, accolades: [], overall: 0 }
   next.overall = overallOf(next)
   // Value follows the new rating and age

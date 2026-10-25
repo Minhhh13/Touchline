@@ -7,6 +7,8 @@ import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
 import type { DraftState } from '@engine/draft'
 import type { Fixture, SeasonTier, TableRow } from '@engine/types'
+import type { QuickGameResult } from '../types'
+import { recordUserGames } from './gameByGame'
 
 export interface H2HManager {
   name: string
@@ -25,6 +27,8 @@ export interface H2HResult {
   derbies: Array<{ homeIdx: 0 | 1; homeGoals: number; awayGoals: number; matchweek: number }>
   winner: 0 | 1 | null
   topScorers: [{ playerSeasonId: string; goals: number } | null, { playerSeasonId: string; goals: number } | null]
+  /** Each manager's season game by game (absent on results stored before it was recorded). */
+  results?: [QuickGameResult[], QuickGameResult[]]
 }
 
 export const H2H_IDS = ['h2h-1', 'h2h-2'] as const
@@ -69,5 +73,7 @@ export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager,
     const e = Object.entries(g).sort((a, b) => b[1] - a[1])[0]
     return e && e[1] > 0 ? { playerSeasonId: e[0], goals: e[1] } : null
   }
-  return { table, rows, tiers, positions, strengths: [inputs[0].strength, inputs[1].strength], derbies, winner, topScorers: [top(goals[0]), top(goals[1])] }
+  const nameOf = (id: string) => u.index[id]?.name
+  const results: [QuickGameResult[], QuickGameResult[]] = [recordUserGames(fixtures, ids, H2H_IDS[0], nameOf), recordUserGames(fixtures, ids, H2H_IDS[1], nameOf)]
+  return { table, rows, tiers, positions, strengths: [inputs[0].strength, inputs[1].strength], derbies, winner, topScorers: [top(goals[0]), top(goals[1])], results }
 }

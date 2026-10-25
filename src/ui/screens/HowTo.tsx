@@ -18,7 +18,7 @@ export function HowTo() {
         </div>
         <div className="panel">
           <h3>Ratings</h3>
-          <p>Ratings come from public datasets of EA Sports FC and FIFA editions and the European Soccer Database, reworked into eight attributes: pace, shooting, passing, dribbling, defending, physical, mentality and goalkeeping. A player's rating for a season is taken from the edition published after it, so it reflects how he actually played that year. Values and wages are our own estimates in today's money. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
+          <p>Ratings come from public datasets of EA Sports FC and FIFA editions and the European Soccer Database, reworked into thirteen attributes: pace, shooting, passing, dribbling, defending, physical, mentality and goalkeeping, plus stamina, strength, aggression, jumping and work rate, which decide how legs last, who wins the duels, who gets booked and how well a press runs. A player's rating for a season is taken from the edition published after it, so it reflects how he actually played that year. Values and wages are our own estimates in today's money. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
         </div>
         <div className="panel">
           <h3>The match engine</h3>
@@ -50,7 +50,7 @@ export function HowTo() {
         </div>
         <div className="panel">
           <h3>Data and credits</h3>
-          <p className="small muted">Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club names and player names are used descriptively. No official crests, logos or likenesses are used.</p>
+          <p className="small muted">TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club names and player names are used descriptively. No official crests, logos or likenesses are used.</p>
           <ul className="small muted">
             {u?.sources.map((s, i) => (
               <li key={i}>

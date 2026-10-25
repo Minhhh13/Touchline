@@ -11,14 +11,17 @@ import type { Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, flag, money, nationName, ordinal, seasonLabel } from '../format'
+import { clubName, flag, money, nationName, ordinal, seasonLabel, tierName } from '../format'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
+import { APP_NAME } from '../brand'
 import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
+import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
+import { bestWinLine } from '@game/logic/gameByGame'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -37,6 +40,9 @@ export function Summary() {
     if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
     return []
   }, [q, season])
+  // Every game of a quick season, game by game; the replay is UI state only
+  const results = q?.results ?? []
+  const replay = useSeasonReplay(results.length)
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
   // Where this season sits against every complete real season of the league with the same number of matches
@@ -53,6 +59,8 @@ export function Summary() {
   }
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
+  const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
+  if (bestLine) extraLines.push(bestLine)
   // Head-to-head against the ghost this game was played against
   const challenge = game.settings.challenge
   const mine = claimOf(game)
@@ -72,7 +80,7 @@ export function Summary() {
     bootName: q ? get(q.topScorer?.playerSeasonId ?? '')?.name : game.awards?.goldenBoot?.name,
     bootGoals: q ? q.topScorer?.goals : game.awards?.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
     extraLines: extraLines.length ? extraLines : undefined,
-  })
+  }, APP_NAME)
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text)
@@ -152,41 +160,56 @@ export function Summary() {
         <div className="muted small">
           {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
         </div>
-        <div className={`tier ${tier}`}>{TIER_LABEL[tier]}</div>
-        {season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
+        {replay.playing ? (
+          <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">
+            Season in play…
+          </div>
+        ) : (
+          <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
+            {tierName(tier)}
+          </div>
+        )}
+        {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
+        {!replay.playing && season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
         {season?.continental?.won && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: {flag(u, game.settings.rules.onlyNation)} {nationName(u, game.settings.rules.onlyNation)}</div>}
         {season?.objectives?.length ? <div className="chip" style={{ marginTop: 6 }}>Board objectives: {season.objectives.filter((o) => o.met).length} of {season.objectives.length} met</div> : null}
-        <div className="record">
-          <span className="w">{record.won}W</span>
-          <span className="d">{record.drawn}D</span>
-          <span className="l">{record.lost}L</span>
-        </div>
-        {realRow && (
+        {!replay.playing && (
+          <div className="record">
+            <span className="w">{record.won}W</span>
+            <span className="d">{record.drawn}D</span>
+            <span className="l">{record.lost}L</span>
+          </div>
+        )}
+        {!replay.playing && realRow && (
           <div className="small muted" style={{ marginTop: 8 }}>
             The real {clubName(u, game.settings.hostClubId)} finished {ordinal(realRow.position)} with {realRow.points} points that season.{' '}
             {record.position < realRow.position ? `You beat them by ${realRow.position - record.position} place${realRow.position - record.position === 1 ? '' : 's'}.` : record.position === realRow.position ? 'Same place, different squad.' : `They did better, by ${record.position - realRow.position} place${record.position - realRow.position === 1 ? '' : 's'}.`}
           </div>
         )}
+        {!replay.playing && (
         <div className="row" style={{ justifyContent: 'center', gap: 24, marginTop: 10 }}>
           <Stat label="Points" value={record.points} />
           <Stat label="Finished" value={ordinal(record.position)} />
           <Stat label="Goals" value={`${record.goalsFor}-${record.goalsAgainst}`} />
           {q && <Stat label="Team rating" value={q.strength.overall.toFixed(1)} />}
         </div>
+        )}
+        {!replay.playing && (
         <div className="blocks" aria-hidden="true">
           {Array.from({ length: record.won }, (_, i) => (
-            <span key={`w${i}`} style={{ background: 'var(--accent)' }} />
+            <span key={`w${i}`} style={{ background: 'var(--good)' }} />
           ))}
           {Array.from({ length: record.drawn }, (_, i) => (
-            <span key={`d${i}`} style={{ background: '#cfd8d2' }} />
+            <span key={`d${i}`} style={{ background: 'var(--draw)' }} />
           ))}
           {Array.from({ length: record.lost }, (_, i) => (
             <span key={`l${i}`} style={{ background: 'var(--danger)' }} />
           ))}
         </div>
+        )}
         <div className="row" style={{ justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
           <button className="btn primary" onClick={copy}>
             {copied ? 'Copied!' : 'Copy result to share'}
@@ -224,6 +247,12 @@ export function Summary() {
           </button>
         </div>
       </div>
+
+      {q && results.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} />
+        </div>
+      )}
 
       {link && (
         <div className="panel" style={{ marginTop: 14 }} data-testid="challenge-link">
@@ -322,14 +351,14 @@ export function Summary() {
       {game.jobOffers.length > 0 && (
         <div className="panel" style={{ marginTop: 14, borderColor: 'var(--gold)' }}>
           <div className="panel-head">
-            <h3 style={{ color: 'var(--gold)' }}>Job offers</h3>
+            <h3 style={{ color: 'var(--gold-text)' }}>Job offers</h3>
             <span className="small muted">Your work has been noticed. Stay, or take your squad somewhere new next season.</span>
           </div>
           <div className="grid three">
             {game.jobOffers.map((o, i) => {
               const chosen = game.pendingMove?.clubId === o.clubId
               return (
-                <div key={o.clubId} className="card" style={chosen ? { borderColor: 'var(--accent)' } : undefined}>
+                <div key={o.clubId} className="card" style={chosen ? { borderColor: 'var(--primary)' } : undefined}>
                   <div className="row" style={{ gap: 10 }}>
                     <ClubBadge clubId={o.clubId} size={40} />
                     <div>

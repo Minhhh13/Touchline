@@ -94,7 +94,7 @@ describe('universe data', () => {
   })
   it('carries the data stamp from leagues.json and the engine version', () => {
     expect(u.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    expect(u.generatedAt).toBe('2026-10-24')
+    expect(u.generatedAt).toBe('2026-10-25')
     const e = loadTestUniverse(['england', 'spain'])
     expect(e.generatedAt).toBe(u.generatedAt)
     expect(ENGINE_VERSION).toMatch(/^\d+$/)

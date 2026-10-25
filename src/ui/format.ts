@@ -1,5 +1,14 @@
 import type { LoadedUniverse } from '@engine/universe'
 import type { Fit } from '@engine/positions'
+import type { SeasonTier } from '@engine/types'
+import { TIER_LABEL } from '@engine/season'
+
+/** A tier for display in sentence case ("Title race", "38-0: The perfect season"); the engine's labels are capitals. */
+export function tierName(tier: SeasonTier): string {
+  const lower = TIER_LABEL[tier].toLowerCase()
+  const i = lower.search(/[a-z]/)
+  return i < 0 ? lower : lower.slice(0, i) + lower[i].toUpperCase() + lower.slice(i + 1)
+}
 
 export function seasonLabel(season: number): string {
   return `${season}-${String((season + 1) % 100).padStart(2, '0')}`
@@ -45,14 +54,14 @@ export function ratingBand(v: number): string {
   return ''
 }
 export function conditionColour(v: number): string {
-  if (v >= 85) return 'var(--accent)'
-  if (v >= 70) return 'var(--gold)'
+  if (v >= 85) return 'var(--good)'
+  if (v >= 70) return 'var(--meter-mid)'
   if (v >= 55) return 'var(--warn)'
   return 'var(--danger)'
 }
 /** Pitch disc ring for an out-of-position player: amber for accomplished (acc.), red for awkward or worse (awk.). */
-export const FIT_AMBER = 'rgba(245,197,66,0.9)'
-export const FIT_RED = 'rgba(239,83,80,0.9)'
+export const FIT_AMBER = 'var(--gold)'
+export const FIT_RED = 'var(--pitch-bad)'
 
 /**
  * The inline ring colour a pitch disc takes from the player's fit, or undefined to leave the disc's own class border.

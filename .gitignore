@@ -7,3 +7,6 @@ coverage
 .vite
 *.log
 .cache
+
+# TypeScript incremental build cache
+*.tsbuildinfo

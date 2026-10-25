@@ -1,14 +1,16 @@
-# Touchline: data
+# TouchLine: data
 
-Touchline ships with a static database of English top-flight player-seasons built from public datasets by `scripts/import/build.mjs`. The browser loads two JSON files from `public/data/england/` and never calls a server. This document describes what is in those files, where it came from, how it was derived and how to rebuild it.
+TouchLine ships with a static database of English top-flight player-seasons built from public datasets by `scripts/import/build.mjs`. The browser loads two JSON files from `public/data/england/` and never calls a server. This document describes what is in those files, where it came from, how it was derived and how to rebuild it.
 
 ## 1. Outputs
 
-### `public/data/<league>/players.json` (about 1.3 MB)
+### `public/data/<league>/players.json` (1.1 to 1.5 MB)
 
 ```json
-{ "version": 1, "generatedAt": "2026-10-24", "columns": [...], "rows": [[...], ...] }
+{ "version": 3, "generatedAt": "2026-10-25", "columns": [...], "rows": [[...], ...] }
 ```
+
+Format 3 added the five depth columns at the end of every row; the engine derives them when it meets a format 2 pack (section 4, "Depth attributes").
 
 Compact array rows in the order given by `COLUMNS` in `build.mjs`:
 
@@ -28,6 +30,7 @@ Compact array rows in the order given by `COLUMNS` in `build.mjs`:
 | `cons` `inj` `big` `prof` | Hidden traits as percentages: consistency, injury proneness, big-match temperament, professionalism. |
 | `foot` | `L` or `R`. |
 | `height` | cm, 0 if unknown. |
+| `sta` `str` `agg` `jmp` `wr` | The five depth attributes, 1 to 99 integers: stamina, strength, aggression, jumping, work rate (format 3). |
 
 The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with id `${id}@${season}@${club}`, so a player who moved mid-season appears once per club.
 
@@ -89,6 +92,19 @@ Eight attributes are derived from the detailed EA stats with fixed weights, then
 
 Missing inputs fall back to position-neutral defaults (goalkeeping 10 for outfielders, 60 for keepers). Everything is rounded and clamped to 1 to 99.
 
+### Depth attributes
+
+Five more attributes carry the Football Manager depth: stamina, strength, aggression, jumping and work rate. They are taken from the detailed stats directly, never from a face stat, and borrowed from the following edition with the rest of the attributes:
+
+| Column | Source | Fallback when the source lacks it |
+| --- | --- | --- |
+| `sta` stamina | `power_stamina` (FC 24 editions, FC 27), `Stamina` (FC 25), `stamina` (FC 26, European Soccer Database) | `physical + 3 − 2 × max(0, age − 29)` |
+| `str` strength | `power_strength`, `Strength`, `strength` | `physical + 0.35 × (height − 180)` (unknown height reads as 180) |
+| `agg` aggression | `mentality_aggression`, `Aggression`, `aggression` | `0.5 × defending + 0.5 × mentality + 1` |
+| `jmp` jumping | `power_jumping`, `Jumping`, `jumping` | `0.6 × physical + 26 + 0.9 × (height − 180)` |
+| `wr` work rate | `work_rate` text in the FC 24 editions ("High/Medium"), `attacking_work_rate` and `defensive_work_rate` in the European Soccer Database: High 80, Medium 55, Low 35, averaged over the two sides | `25 + 0.5 × mentality`, clamped to 35..80 (so 55 at mentality 60, 75 at 99) |
+
+Goalkeepers keep their own (low) stamina and aggression from the source. The FC 25, FC 26 and FC 27 files carry no work-rate text and the European Soccer Database's text is sometimes garbage (`None`, `norm`, `_0`), so those rows take the mentality fallback. At the current build 69,120 finalised rows read stamina, strength and aggression from the source every time; jumping is derived for 381 database rows that lack it and work rate for 14,776 rows (the three latest editions plus the unusable database text), the other 54,344 from the text. `src/engine/depth.ts` holds the same five formulas, so a format 2 pack loaded by the engine gets the same derived values the builder would have written. Means in the Premier League pack: stamina 67, strength 69, aggression 65, jumping 69, work rate 61; keepers average 36 stamina.
 ### Positions
 
 EA position strings map to the game's ten: LWB to LB, RWB to RB, CDM to DM, CAM to AM, LM and LF to LW, RM and RF to RW, CF to ST; up to three kept in order. For 2008-14, positions are inferred from each line-up's X and Y pitch coordinates (`inferPosition`): the keeper line, then full-backs and centre-backs, defensive midfield, wide and central midfield, attacking midfield and the forward line by column. A player's observed positions (any used in at least 25 per cent of appearances) are merged with his EA position list where a sofifa id links them; a goalkeeper on either side is a goalkeeper only.
@@ -132,7 +148,7 @@ node scripts/import/enrich-nations.mjs   # optional: query Wikidata and refresh 
 
 Downloads are cached in `.cache/datasets` under the repository root, or wherever the `DATA_CACHE` environment variable points. The cache is not committed; add `.cache` to `.gitignore` if you build locally (it is not listed there today). The build prints per-season counts, totals, file size, unknown nations and any unmatched club names.
 
-The Vitest suite (`npm test`) loads the generated files and checks: every season from 2008-09 has 20 clubs; every player-season has a valid overall, positions, age, value and club; J. Vardy 2015-16 is a Leicester City champion rated 80 or more; the 2015-16 table is complete with Leicester first.
+The Vitest suite (`npm test`) loads the generated files and checks: every season from 2008-09 has 20 clubs; every player-season has a valid overall, positions, age, value and club; J. Vardy 2015-16 is a Leicester City champion rated 80 or more (with stamina above 80 and work rate 80); the 2015-16 table is complete with Leicester first; every pack carries the five depth columns as integers in 1 to 99, keepers read far lower than outfielders on stamina and aggression, and a format 2 pack with the columns stripped still loads with the fallbacks (`src/engine/__tests__/fmdepth.test.ts`).
 
 ## 6. Known limits
 
@@ -146,7 +162,7 @@ The Vitest suite (`npm test`) loads the generated files and checks: every season
 
 ## 7. Legal
 
-Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively to identify real teams and seasons. No official crests, logos, kits or likenesses are used; badges are generated from approximate colours and letter codes. Player ratings are an independent interpretation derived from publicly available datasets and may differ from any official source. The datasets above are credited to their authors and used under the licences they were published with; the openfootball results are public domain; Wikidata content is CC0. Please respect the terms of each source if you redistribute the generated files.
+TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively to identify real teams and seasons. No official crests, logos, kits or likenesses are used; badges are generated from approximate colours and letter codes. Player ratings are an independent interpretation derived from publicly available datasets and may differ from any official source. The datasets above are credited to their authors and used under the licences they were published with; the openfootball results are public domain; Wikidata content is CC0. Please respect the terms of each source if you redistribute the generated files.
 
 
 ## Leagues (added later)
@@ -157,10 +173,10 @@ The builder now produces one data pack per league under `public/data/<league>/` 
 | --- | ---: | ---: | ---: | --- |
 | Premier League (england) | 11,166 | 3,647 | 46 | 2008-09 to 2026-27 |
 | La Liga (spain) | 10,632 | 3,503 | 39 | 2008-09 to 2026-27 |
-| Serie A (italy) | 10,578 | 3,258 | 42 | 2008-09 to 2026-27 |
+| Serie A (italy) | 10,610 | 3,258 | 42 | 2008-09 to 2026-27 |
 | Bundesliga (germany) | 9,497 | 3,006 | 35 | 2008-09 to 2026-27 |
 | Ligue 1 (france) | 10,084 | 3,516 | 40 | 2008-09 to 2026-27 |
-| Eredivisie (netherlands) | 8,566 | 3,101 | 29 | 2008-09 to 2026-27 |
+| Eredivisie (netherlands) | 8,571 | 3,101 | 29 | 2008-09 to 2026-27 |
 | Primeira Liga (portugal) | 8,595 | 3,387 | 39 | 2008-09 to 2026-27 |
 
-69,118 player-seasons in all. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results files exist for Ligue 1, the Eredivisie or the Primeira Liga, so those club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. A club with only 8 to 11 rows in an edition (Telstar in FC 26, for instance), or any club in that season's results table with fewer than 12 rows, is topped up with its own players from the adjacent season rather than dropped, so every shipped league season keeps its real entrants; the engine still handles odd counts with bye weeks. Only seasons the player data covers are built: a historic table on its own never becomes a playable season. Leagues without result tables mark their newest season as in progress and every earlier one as complete. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.
+69,155 player-seasons in all (the format 3 rebuild of 2026-10-25; Serie A and the Eredivisie gained a few rows from the cached dataset snapshots). The packs run from 1.09 MB (Eredivisie) to 1.46 MB (Premier League), about 13 per cent more than format 2 for the five integer columns. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results files exist for Ligue 1, the Eredivisie or the Primeira Liga, so those club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. A club with only 8 to 11 rows in an edition (Telstar in FC 26, for instance), or any club in that season's results table with fewer than 12 rows, is topped up with its own players from the adjacent season rather than dropped, so every shipped league season keeps its real entrants; the engine still handles odd counts with bye weeks. Only seasons the player data covers are built: a historic table on its own never becomes a playable season. Leagues without result tables mark their newest season as in progress and every earlier one as complete. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.

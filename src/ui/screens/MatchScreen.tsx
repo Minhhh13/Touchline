@@ -1,15 +1,53 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { MatchTicker } from '../components/MatchTicker'
-import { ClubBadge, Pos, Rating, Segmented, Tabs, Tip } from '../components/bits'
-import { clubName, minuteLabel } from '../format'
+import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs, Tip } from '../components/bits'
+import type { PitchSide } from '../components/LivePitch'
+import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay, XgRace } from '../components/MatchCharts'
+import { kitColour } from '../match/pitchGeometry'
+import { xgSeries } from '../match/charts'
+import { downloadDataUrl, renderMatchCard } from '../shareCard'
+import { BRAND_COLOURS } from '../brand'
+import { clubName, clubShort, minuteLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
-import { currentScore, onPitch, SHOUTS, type FullMatchResult, type Shout, type TeamTalk } from '@engine/match'
+import { currentScore, onPitch, SHOUTS, type Appearance, type FullMatchResult, type LivePlayer, type Shout, type TeamSnapshot, type TeamTalk } from '@engine/match'
 import type { MatchContext } from '@game/types'
+import type { LoadedUniverse } from '@engine/universe'
 import { USER_TEAM } from '@engine/season'
-import type { Tactics } from '@engine/types'
+import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import { isAvailable } from '@game/logic/players'
+
+/** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
+function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, awayTeamId: string): { home: string; away: string } {
+  const clubOf = (teamId: string) => u.clubById[teamId === USER_TEAM ? hostClubId : teamId.replace(/^friendly-/, '')]
+  const h = clubOf(homeTeamId)
+  const a = clubOf(awayTeamId)
+  // A club without colours wears the accent blue at home and near-white away (hex, as kitColour compares them)
+  const home = kitColour(h?.colours, a?.colours.primary ?? BRAND_COLOURS.draw, BRAND_COLOURS.accent)
+  const away = kitColour(a?.colours, home, BRAND_COLOURS.text)
+  return { home, away }
+}
+
+function appearancesOf(live: LivePlayer[]): Appearance[] {
+  return live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury }))
+}
+
+function sideFromSnapshot(snap: TeamSnapshot, live: LivePlayer[], colour: string): PitchSide {
+  return { name: snap.teamName, shortName: snap.shortName, colour, tactics: snap.tactics, appearances: appearancesOf(live) }
+}
+
+function sidesFromResult(res: FullMatchResult, names: { home: string; away: string; homeShort: string; awayShort: string }, colours: { home: string; away: string }): { home: PitchSide; away: PitchSide } {
+  return {
+    home: { name: names.home, shortName: names.homeShort, colour: colours.home, tactics: res.homeReport.tactics, appearances: res.homeReport.appearances },
+    away: { name: names.away, shortName: names.awayShort, colour: colours.away, tactics: res.awayReport.tactics, appearances: res.awayReport.appearances },
+  }
+}
+
+/** A side's short name: the manager's own, or the club's. */
+function shortNameOf(u: LoadedUniverse, userShort: string, teamId: string): string {
+  return teamId === USER_TEAM ? userShort : clubShort(u, teamId.replace(/^friendly-/, ''))
+}
 
 export function MatchScreen() {
   const store = useStore()
@@ -64,6 +102,7 @@ export function MatchScreen() {
   const homeName = res.homeTeamId === USER_TEAM ? game.settings.teamName : res.homeName ?? clubName(u, res.homeTeamId)
   const awayName = res.awayTeamId === USER_TEAM ? game.settings.teamName : res.awayName ?? clubName(u, res.awayTeamId)
   const userIsHome = res.homeTeamId === USER_TEAM
+  const names = { home: homeName, away: awayName, homeShort: shortNameOf(u, game.settings.shortName, res.homeTeamId), awayShort: shortNameOf(u, game.settings.shortName, res.awayTeamId) }
   const gf = userIsHome ? res.homeGoals : res.awayGoals
   const ga = userIsHome ? res.awayGoals : res.homeGoals
   const outcome = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat'
@@ -118,8 +157,18 @@ export function MatchScreen() {
 
       <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
 
-      {matchView === 'ticker' && <MatchTicker key={res.homeTeamId + res.awayTeamId + ctx.matchweek + which + resumeFrom} events={res.events} homeName={homeName} awayName={awayName} startClock={resumeFrom} onDone={() => setMatchView('report')} />}
-      {matchView === 'report' && <Report res={res} ctx={ctx} homeName={homeName} awayName={awayName} outcome={outcome} get={get} />}
+      {matchView === 'ticker' && (
+        <MatchTicker
+          key={res.homeTeamId + res.awayTeamId + ctx.matchweek + which + resumeFrom}
+          events={res.events}
+          homeName={homeName}
+          awayName={awayName}
+          startClock={resumeFrom}
+          onDone={() => setMatchView('report')}
+          visuals={<MatchVisuals {...sidesFromResult(res, names, kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId))} events={res.events} momentum={res.momentum ?? []} xg={res.xg} from={resumeFrom} to={95} seed={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}`} getPlayer={get} />}
+        />
+      )}
+      {matchView === 'report' && <Report res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
     </div>
   )
 }
@@ -165,11 +214,20 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
   }
   const play = () => advance(atBreak ? { talk, tactics: tactics ?? undefined, substitutions: subs } : { shout, tactics: tactics ?? undefined, substitutions: subs })
   const stateLabel = us > them ? `ahead ${us}-${them}` : us < them ? `behind ${us}-${them}` : `level ${us}-${them}`
+  const kit = kitColours(u, game.settings.hostClubId, mp.home.teamId, mp.away.teamId)
   return (
     <div className="col">
-      <MatchTicker events={mp.events} homeName={homeName} awayName={awayName} startClock={atBreak ? 0 : 46} stopAt={clock} onStop={() => setAtStop(true)} />
+      <MatchTicker
+        events={mp.events}
+        homeName={homeName}
+        awayName={awayName}
+        startClock={atBreak ? 0 : 46}
+        stopAt={clock}
+        onStop={() => setAtStop(true)}
+        visuals={<MatchVisuals home={sideFromSnapshot(mp.home, mp.hLive, kit.home)} away={sideFromSnapshot(mp.away, mp.aLive, kit.away)} events={mp.events} momentum={mp.momentum ?? []} xg={{ home: mp.lamH, away: mp.lamA }} from={atBreak ? 0 : 46} to={clock} seed={`${live.opponentId}-${live.ctx.matchweek}-${live.kind}`} getPlayer={get} />}
+      />
       {atStop && (
-        <div className="panel" style={{ borderColor: 'var(--accent)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
+        <div className="panel" style={{ borderColor: 'var(--primary)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
           <div className="panel-head">
             <h2>{atBreak ? 'Half time' : '70 minutes'}: {stateLabel}</h2>
             <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
@@ -297,13 +355,37 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
   )
 }
 
-function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatchResult; ctx: MatchContext; homeName: string; awayName: string; outcome: string; get: (id: string) => ReturnType<ReturnType<typeof playerLookup>> }) {
+function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResult; ctx: MatchContext; names: { home: string; away: string; homeShort: string; awayShort: string }; outcome: string; get: (id: string) => ReturnType<ReturnType<typeof playerLookup>>; colours: { home: string; away: string } }) {
   const u = useStore((s) => s.universe)
   const game = useStore((s) => s.game)
+  const { home: homeName, away: awayName } = names
   const userIsHome = res.homeTeamId === USER_TEAM
   const ours = userIsHome ? res.homeReport : res.awayReport
   const theirs = userIsHome ? res.awayReport : res.homeReport
   const goals = useMemo(() => res.events.filter((e) => e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal'), [res.events])
+  const sides = sidesFromResult(res, names, colours)
+  const hasShots = res.events.some((e) => e.position)
+  const withShape = (s: PitchSide): s is PitchSide & { tactics: Tactics; appearances: Appearance[] } => !!s.tactics && !!s.appearances
+  const showToast = useStore((s) => s.showToast)
+  const shareCard = () => {
+    try {
+      const momentum = res.momentum ?? []
+      const url = renderMatchCard({
+        title: ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`),
+        subtitle: `${homeName} v ${awayName}`,
+        home: { name: names.homeShort, colour: colours.home, goals: res.homeGoals, xg: res.xg.home },
+        away: { name: names.awayShort, colour: colours.away, goals: res.awayGoals, xg: res.xg.away },
+        events: res.events,
+        xgHome: xgSeries(momentum, res.xg.home, 'home'),
+        xgAway: xgSeries(momentum, res.xg.away, 'away'),
+        footer: `HT ${res.halfTimeScore.home}-${res.halfTimeScore.away} · ${res.homeReport.shots}-${res.awayReport.shots} shots`,
+      })
+      downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
+    } catch {
+      showToast('Could not render the match card.')
+    }
+  }
+  const ratingBar = (s: PlayerMatchStats) => <Bar value={s.rating - 4.5} max={5.5} colour={s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : 'var(--text-3)'} />
   return (
     <div className="grid two">
       <div className="col">
@@ -342,6 +424,33 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
               </div>
             ))}
           </div>
+        </div>
+        {(res.momentum?.length ?? 0) > 0 && (
+          <div className="panel" data-testid="report-charts">
+            <h3>Momentum and expected goals</h3>
+            <div className="col" style={{ gap: 10 }}>
+              <MomentumBar momentum={res.momentum!} clock={95} events={res.events} home={sides.home} away={sides.away} />
+              <XgRace momentum={res.momentum!} xg={res.xg} clock={95} events={res.events} home={sides.home} away={sides.away} />
+            </div>
+          </div>
+        )}
+        {hasShots && (
+          <div className="panel">
+            <div className="row between">
+              <h3>Shot map</h3>
+              <button className="btn sm" onClick={shareCard} data-testid="match-card">
+                Match card
+              </button>
+            </div>
+            <ShotMap events={res.events} home={sides.home} away={sides.away} />
+            <div className="small muted" style={{ marginTop: 6 }}>
+              {sides.home.shortName} {res.homeReport.shots} shots ({res.homeReport.shotsOnTarget} on target) · {sides.away.shortName} {res.awayReport.shots} ({res.awayReport.shotsOnTarget})
+            </div>
+          </div>
+        )}
+        <div className="panel">
+          <h3>Possession and territory</h3>
+          <PossessionTerritory res={res} home={sides.home} away={sides.away} />
         </div>
         <div className="panel">
           <h3>Match stats</h3>
@@ -424,8 +533,9 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
                       <td className="num">{s.minutes}</td>
                       <td className="num">{s.goals}</td>
                       <td className="num">{s.assists}</td>
-                      <td className="num" style={{ fontWeight: 700, color: s.rating >= 7.5 ? 'var(--accent)' : s.rating < 6 ? 'var(--danger)' : undefined }}>
+                      <td className="num rating-cell" style={{ fontWeight: 700, color: s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : undefined }}>
                         {s.rating.toFixed(1)}
+                        {ratingBar(s)}
                       </td>
                     </tr>
                   )
@@ -438,6 +548,33 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
             </div>
           )}
         </div>
+        <div className="panel" data-testid="opponent-ratings">
+          <h3>Their ratings</h3>
+          <div className="col" style={{ gap: 4 }}>
+            {(userIsHome ? res.awayStats : res.homeStats)
+              .slice()
+              .sort((a, b) => b.rating - a.rating)
+              .map((s) => (
+                <div key={s.playerSeasonId} className="rating-row small">
+                  <span className="name">
+                    {get(s.playerSeasonId)?.name ?? s.playerSeasonId}
+                    {res.motmId === s.playerSeasonId && <span className="chip gold">MOTM</span>}
+                  </span>
+                  {ratingBar(s)}
+                  <span className="mono num">{s.rating.toFixed(1)}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+        {withShape(sides.home) && withShape(sides.away) && (
+          <div className="panel">
+            <h3>Tactics</h3>
+            <div className="col" style={{ gap: 12 }}>
+              <TacticsOverlay side={userIsHome ? sides.home : sides.away} attack={userIsHome ? 'home' : 'away'} getPlayer={get} />
+              <TacticsOverlay side={userIsHome ? sides.away : sides.home} attack={userIsHome ? 'away' : 'home'} getPlayer={get} />
+            </div>
+          </div>
+        )}
         {game && u && ctx.competition === 'league' && ctx.roundLabel !== 'Friendly' && (
           <div className="panel">
             <h3>Opponent</h3>

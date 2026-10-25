@@ -19,7 +19,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
   return (
     <div className="pitch-wrap" role="group" aria-label="Formation">
       <svg viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true">
-        <g fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2">
+        <g fill="none" style={{ stroke: 'var(--pitch-line)' }} strokeWidth="2">
           <rect x="8" y="8" width="284" height="384" />
           <line x1="8" y1="200" x2="292" y2="200" />
           <circle cx="150" cy="200" r="36" />

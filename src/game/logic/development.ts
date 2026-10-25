@@ -64,11 +64,12 @@ function sameAttributes(a: PlayerSeason, b: PlayerSeason): boolean {
 function applyDelta(p: PlayerSeason, delta: number, rng: Rng): PlayerSeason {
   const attrs = { ...p.attributes }
   const isGk = p.positions[0] === 'GK'
-  const keys: Array<keyof typeof attrs> = isGk ? ['goalkeeping', 'mentality', 'passing', 'physical'] : ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical', 'mentality']
+  const keys: Array<keyof typeof attrs> = isGk ? ['goalkeeping', 'mentality', 'passing', 'physical', 'stamina', 'strength', 'jumping'] : ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical', 'mentality', 'stamina', 'strength', 'jumping', 'aggression', 'workRate']
   for (const k of keys) {
     // Probabilistic rounding keeps fractional growth honest over the season
     const step = Math.floor(delta + rng.next() * 0.999)
-    const extra = delta < 0 && (k === 'pace' || k === 'physical') ? -Math.floor(0.3 + rng.next()) : 0
+    // The legs go first when a veteran fades: pace, physical and stamina lose a little extra
+    const extra = delta < 0 && (k === 'pace' || k === 'physical' || k === 'stamina') ? -Math.floor(0.3 + rng.next()) : 0
     attrs[k] = Math.max(1, Math.min(99, attrs[k] + step + extra))
   }
   const next: PlayerSeason = { ...p, attributes: attrs, overall: 0 }

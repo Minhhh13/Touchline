@@ -22,7 +22,8 @@ import { Pitch, PitchLegend } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos, Tip, useViewerFlag } from '../components/bits'
-import { clubName, clubShort, conditionColour, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
+import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
+import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
 import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { StatsTab } from './StatsTab'
@@ -51,6 +52,7 @@ export function Dugout() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [game?.phase, game?.season?.matchweek, game?.season?.sacked])
+  const [showStamina, setShowStamina] = useState<boolean>(() => readSquadColumn())
   // Opening the Inbox marks everything read, but the divider keeps the unread count as it stood when the tab
   // opened (or when items arrived while it was open), so the reader can see where the new items end
   const unseen = game ? unseenNews(game) : 0
@@ -119,7 +121,7 @@ export function Dugout() {
           <div className="stat" style={{ minWidth: 150 }}>
             <span className="label">Board confidence</span>
             <div className="conf">
-              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--accent)' : season.confidence > 30 ? 'var(--gold)' : 'var(--danger)'} thick />
+              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--good)' : season.confidence > 30 ? 'var(--meter-mid)' : 'var(--danger)'} thick />
               <span className="small">{Math.round(season.confidence)}</span>
             </div>
             <span className="small muted">target {ordinal(season.boardTarget)}</span>
@@ -212,7 +214,7 @@ export function Dugout() {
 
       {tab === 'squad' && <Tip id="dugout-first">The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
-        <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--accent)' }}>
+        <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--primary)' }}>
           <div className="panel-head">
             <h3>🎓 Youth intake</h3>
             <span className="small muted">Real academy prospects. Sign one for nothing on a three-year deal, or pass.</span>
@@ -238,8 +240,11 @@ export function Dugout() {
               <h3>Squad · {squad.length}/{SQUAD_CAP}</h3>
               <div className="row">
                 <span className="small muted">Tap a slot to choose who plays there. Tap a player for details.</span>
-                <button type="button" className={`chip key-chip ${showKey ? 'good' : ''}`} aria-pressed={showKey} onClick={toggleKey} data-testid="key-toggle" title="Label the bars and the pitch markers">
+                <button type="button" className={`chip key-chip ${showKey ? 'info' : ''}`} aria-pressed={showKey} onClick={toggleKey} data-testid="key-toggle" title="Label the bars and the pitch markers">
                   Key
+                </button>
+                <button type="button" className={`btn sm ${showStamina ? '' : 'ghost'}`} aria-pressed={showStamina} data-testid="toggle-stamina" title="Show each player's stamina in the list" onClick={() => setShowStamina((v) => writeSquadColumn(!v))}>
+                  {SQUAD_COLUMNS[0].label}
                 </button>
                 <button className="btn sm" onClick={() => store.autoPick()}>
                   Auto-pick
@@ -262,12 +267,17 @@ export function Dugout() {
                     extra={
                       <>
                         {game.captainId === p.id && <span className="chip gold">©</span>}
+                        {showStamina && (
+                          <span className={`chip ${p.positions[0] === 'GK' ? '' : p.attributes.stamina >= 75 ? 'good' : p.attributes.stamina < 55 ? 'warn' : ''}`} data-testid="stamina-col" title={p.positions[0] === 'GK' ? `Stamina ${p.attributes.stamina}: a keeper's reads low and costs him nothing` : `Stamina ${p.attributes.stamina}: how long his legs last`}>
+                            {SQUAD_COLUMNS[0].short} {p.attributes.stamina}
+                          </span>
+                        )}
                         <span className="muted">
                           {s.seasonStats.apps} apps · {s.seasonStats.goals}g {s.seasonStats.assists}a · {avg}
                         </span>
                       </>
                     }
-                    right={starting ? <span className="chip good">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Unused</span>}
+                    right={starting ? <span className="chip info">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Unused</span>}
                   />
                 )
               })}
@@ -303,7 +313,7 @@ export function Dugout() {
                       <span className="depth-names">
                         {cover.length === 0 && <span className="chip bad">Nobody</span>}
                         {cover.map((x) => (
-                          <button key={x.p.id} type="button" className={`chip ${inXI.has(x.p.id) ? 'good' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
+                          <button key={x.p.id} type="button" className={`chip ${inXI.has(x.p.id) ? 'info' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
                             {x.p.name.split(' ').slice(-1)[0]} {x.r}
                           </button>
                         ))}
@@ -429,7 +439,7 @@ function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
       extra={
         <>
           {fitChip}
-          <span className={`chip ${o.where.kind === 'starting' ? 'good' : 'muted'}`}>{whereaboutsLabel(o.where)}</span>
+          <span className={`chip ${o.where.kind === 'starting' ? 'info' : 'muted'}`}>{whereaboutsLabel(o.where)}</span>
           {o.unavailable && <span className="chip bad">{o.unavailable === 'injured' ? 'Injured' : 'Suspended'}</span>}
         </>
       }
@@ -1225,7 +1235,6 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
   const s = game.squad[id]
   if (!p) return null
   const formation = getFormation(game.tactics.formationId)
-  const attrs = p.attributes
   return (
     <Modal open onClose={onClose} title={p.name}>
       <div className="row wrap" style={{ marginBottom: 10 }}>
@@ -1248,29 +1257,10 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
           </span>
         )}
       </div>
-      <div className="grid two">
-        <div className="col" style={{ gap: 6 }}>
-          {(['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical', 'mentality', 'goalkeeping'] as const).map((k) => (
-            <div key={k} className="row" style={{ gap: 8 }}>
-              <span style={{ width: 90, textTransform: 'capitalize' }} className="small">
-                {k}
-              </span>
-              <Bar value={attrs[k]} colour={attrs[k] >= 80 ? 'var(--accent)' : attrs[k] >= 65 ? 'var(--gold)' : 'var(--text-3)'} />
-              <span className="mono small" style={{ width: 24, textAlign: 'right' }}>
-                {attrs[k]}
-              </span>
-            </div>
-          ))}
-        </div>
+      <AttributePanel p={p} state={s} />
+      <div className="grid two" style={{ marginTop: 12 }}>
         {s && (
           <div className="col" style={{ gap: 6 }}>
-            <div className="row" style={{ gap: 8 }}>
-              <span style={{ width: 90 }} className="small">
-                Condition
-              </span>
-              <Bar value={s.condition} colour={conditionColour(s.condition)} />
-              <span className="mono small">{s.condition}</span>
-            </div>
             <div className="row" style={{ gap: 8 }}>
               <span style={{ width: 90 }} className="small">
                 Morale
@@ -1282,14 +1272,14 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
               <span style={{ width: 90 }} className="small">
                 Sharpness
               </span>
-              <Bar value={s.sharpness} colour="#c9a0ff" />
+              <Bar value={s.sharpness} colour="var(--meter-sharpness)" />
               <span className="mono small">{s.sharpness}</span>
             </div>
             <div className="row" style={{ gap: 8 }}>
               <span style={{ width: 90 }} className="small">
                 Familiarity
               </span>
-              <Bar value={s.familiarity} colour="var(--gold)" />
+              <Bar value={s.familiarity} colour="var(--meter-mid)" />
               <span className="mono small">{s.familiarity}</span>
             </div>
             <div className="kv" style={{ marginTop: 6 }}>
@@ -1367,4 +1357,22 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
       )}
     </Modal>
   )
+}
+
+/** Per-browser convenience: whether the squad list shows the stamina column. */
+const SQUAD_COLUMN_KEY = 'touchline.squad.stamina'
+function readSquadColumn(): boolean {
+  try {
+    return localStorage.getItem(SQUAD_COLUMN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+function writeSquadColumn(on: boolean): boolean {
+  try {
+    localStorage.setItem(SQUAD_COLUMN_KEY, on ? '1' : '0')
+  } catch {
+    // Private windows and blocked storage: the toggle still works for this visit
+  }
+  return on
 }

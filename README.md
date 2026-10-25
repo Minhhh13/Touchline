@@ -1,4 +1,4 @@
-# Touchline
+# TouchLine
 
 **Spin the wheel. Draft the XI. Manage the season.**
 
@@ -11,6 +11,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 **Modes**
 
 - **Quick Draft**: eleven spins, eleven picks, one click to simulate 38 matches. Five minutes and a shareable result.
+- **Every game, game by game**: the summary of a quick draft or the Daily lists all 38 games like 38-0 does, with the opponent, the score, your scorers and their minutes ("Haaland 12', 67'", an opponent's own goal as "OG") and your league position after each matchweek. "Play the season" replays it one game every 220 ms with a running P W D L GF GA strip, and the tier banner only lands after the last game; the share text names your best win. The head-to-head result shows the same list for both managers.
 - **Daily Challenge**: everyone gets the same wheel today (seed `daily-YYYY-MM-DD`). Streaks are tracked.
 - **Two-tap start**: Setup shows team name, league and formation (plus squad size and job security for a season); everything else sits under More options, folded by default and remembered per browser. One line above Start states every choice, with a change link, and on a phone that line and the Start button sit in a fixed bottom bar. The default host club is the one nearest tenth in that season's real table, and the Home card starts today's Daily directly.
 - **Coach marks and the Key**: seven short callouts appear inline the first time you meet the draft reveal, the bench picks, the Squad and Tactics tabs, half time, the match report and the market, each gone for good after Got it (Show tips again on the Record page brings them back). A Key chip on the Squad panel labels the condition, morale and sharpness bars and adds a legend under the pitch for the disc rating and its natural, acc. and awk. rings, remembered per browser.
@@ -29,17 +30,19 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Seeds are honest across leagues: a European Nights seed lands on the same clubs whichever order the league packs were opened, and every loaded universe carries the data stamp of its packs beside an engine version, so a result can be checked against the data and engine that produced it.
 - **Head-to-head**: two managers on one device draft from the same spins in snake order, then both sides play the same season, derbies included.
 - Matches are played live with two stops: at half time you give a team talk, change instructions and make up to three substitutions; at the 70th minute you get the rest of your five changes, the instructions again and a touchline shout, and the AI reacts to the score at both stops.
+- **Match visuals**: a live 2D pitch above the ticker (lying down on a desktop, standing up on a phone) with both XIs placed by formation slot and shifted by the instructions (a high line lifts the back four, width spreads the wide men, mentality moves the block), in the clubs' colours. A ball passes between team-mates of the side on top, builds towards the box before every chance and goal, shoots from where the engine says the shot was taken, ripples the net and flashes the scoreboard on a goal and sends the keeper diving on a save; cards, injuries and substitutions are marked on the dot. It follows the ticker's pause (freezing mid-pass, and costing nothing while paused) and 1x, 2x and 4x (a minute lasts 330 ms at 1x while the pitch is on show) and stands still with prefers-reduced-motion. Beside it a momentum bar and an xG race fill with the clock; the report adds both, a shot map, possession and territory, each side's shape with its role labels and instruction arrows, rating bars for both sides and a downloadable match card with the score, the shot map and the xG race.
 - **The 70th-minute window with touchline shouts**: the match runs 1-45, 46-70 and 71-90, each segment taking its share of the expected goals by length (second half weighted 1.06 to 0.94, so 0.47, 0.294 and 0.236 of the match) and of the cards and injuries. All-out attack multiplies your chances by 1.3 and theirs by 1.35 and adds fatigue; shut up shop is ×0.55 and ×0.72; keep shape costs nothing. A side trailing at 70 goes attacking and fast, a side one up goes defensive and deep. Routine substitutions due after 70 wait for the window, and your own changes there override them. A simmed week and a hand-played one run the same three segments, so a seed gives the same match either way.
 
 **Management**
 
 - Thirty-four player roles and six team instructions whose effects are printed in every match report.
 - An xG-based match engine with a live ticker, scorers, assists, cards, injuries, substitutions and player ratings.
+- **Football Manager depth in the player model**: beside the eight classic attributes every player carries stamina, strength, aggression, jumping and work rate, taken from the EA and European Soccer Database stats (derived from the eight for an older pack). Stamina sets how much condition a match costs (×0.8 at 90, ×1.1 at 30), how hard a starter fades after the 70th minute (up to 10 per cent of his effective rating, and the last twenty minutes' chances with it), who the assistant takes off and how much tired legs add to the injury roll (up to 30 per cent), keepers exempt since their data stamina is not a running number; strength and jumping decide set pieces and an aerial mismatch worth up to 4 per cent of expected goals each way; aggression scales every card (×0.7 to ×1.3) and gives a press some bite; work rate makes pressing and counters run (about ±2 points each) and slows a lazy player's familiarity. The player modal and Explore show an FM-style panel (Technical, Physical, Mental, Defending, Goalkeeping, Fitness with a 1-5 Injury risk) and the squad list can show stamina. Every effect is bounded and written up with its numbers in docs/GAME_DESIGN.md.
 - Condition, sharpness, familiarity, morale and form; suspensions at five yellow cards; injuries from a knock to a ruptured ACL.
 - Weekly training focus, pre-match team talks, dressing-room events with choices, promises you can break.
 - **The assistant's briefing**: the dugout opens with a list of what needs doing before kick-off, each line with the button that does it: a pending decision, lineup problems, tired or rusty starters, a man one yellow from a ban, a promised start left out, the window and deadline day, the midweek tie, a board objective at risk, and when nothing is wrong one line naming your training focus and team talk. Six lines at most, in that order. In pre-season it is a checklist (three friendlies, a captain, roles, staff, set-piece takers, the youth intake) that ticks as you go. On a phone the Play, Sim 5 and Sim to end buttons sit in a fixed bottom bar with the top line of the briefing beside them.
 - **While you were away**: Sim 5 and Sim to end finish on a digest of the weeks just played: a strip of results with scores and opponent badges (cup and Europe ties included), the league record and the table move (`9th to 6th, 11 points`), board confidence before and after, the decisions the assistant took in your name, and the injuries, bans, transfers and development reports, eight to a group. A run that ends the season goes straight to the summary instead. Every decision the assistant takes is also kept in the Inbox, and the Inbox tab counts what you have not read yet, with a divider under the new items when you open it.
-- **Tap a slot, get a picker**: in the Dugout, tapping a pitch slot opens a picker (a bottom sheet on a phone) with the man in the slot and a To bench button on top, then everyone who can play there sorted by his rating in the position, each with his fit, the number his disc would show and where he is now (Starting at CM, Bench, Unused); injured and suspended men are greyed out and everyone else (awkward or unsuited fits) waits in a folded Out of position group. Tapping a row puts him in, swapping with the occupant, and a toast says what moved (`Saka in at RW, Bowen to the bench`). In the Draft, a player with several open slots shows one chip per slot with his rating there and fits or can cover, and on a phone the landed squad scrolls into view when the wheel stops.
+- **Tap a slot, get a picker**: in the Dugout, tapping a pitch slot opens a picker (a bottom sheet on a phone) with the man in the slot and a To bench button on top, then everyone who can play there sorted by his rating in the position, each with his fit, the number his disc would show and where he is now (Starting at CM, Bench, Unused); injured and suspended men are greyed out and everyone else (awkward or unsuited fits) waits in a folded Out of position group. Tapping a row puts him in, swapping with the occupant, and a toast says what moved (`Saka in at RW, Bowen to the bench`). In the Draft, a player with several open slots shows one chip per slot with his rating there and fits or can cover, and on a phone the landed squad scrolls into view when the reel lands.
 - Have a word with any player once a week: praise, demand more, promise a start or reassure him. The reply depends on his form and his professionalism.
 - A captain who matters: a leader with a strong mentality lifts the side in big matches and keeps low morale from sinking.
 - Set-piece takers: name your penalty, free-kick and corner specialists and the engine uses them.
@@ -55,7 +58,8 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Post-match press conferences: single out your star, credit the squad, take the blame or blame the referee, and answer the job question when the table turns.
 - Man-mark the opponent's danger man from the opposition report: his influence drops, your attack loses a little, and the report tells you whether it worked.
 - A depth chart of who can cover every position in your shape, rated there.
-- Export and import your save file from the Record page, and a trophy cabinet across every game you have played.
+- Export and import your save file from the Record page (plain JSON; old exports still import), and a trophy cabinet across every game you have played.
+- Small saves: stored results keep only what the screens read and the save is compressed, so a full Season takes about 50 K characters of the browser's 5 MB, a Dynasty with a parked Season under 100 K; if the storage is ever full a toast says so and the game carries on.
 - Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.
@@ -102,7 +106,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,118 player-seasons across seven leagues, about 1.0 to 1.3 MB per league, loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
 
 ```bash
 node scripts/import/build.mjs
@@ -114,6 +118,7 @@ See `docs/DATA.md` for sources, method, cache location (`.cache/datasets` or `DA
 
 ```
 index.html                 Entry page (fonts, favicon, meta)
+public/favicon.svg         The mark; public/icons/ holds the app icons rendered from it
 src/
   main.tsx                 React root
   engine/                  Pure, deterministic game engine (no React, no DOM)
@@ -125,6 +130,7 @@ src/
     ratings.ts             Role ratings, live modifiers, team strength, chemistry, auto-pick
     tactics.ts             Team instructions, AI styles, tactical modifiers
     match.ts               The match engine (xG, Poisson goals, events, ratings)
+    matchDetail.ts         Shot positions and the momentum series for the pitch views
     season.ts              Fixtures, table, cup, recovery, morale, board, tiers
     draft.ts               The wheel and draft rules
     market.ts              Transfer windows, pricing, bids, offers, finances
@@ -132,6 +138,7 @@ src/
     training.ts            Weekly training focus
     awards.ts              Awards, achievements, share text
     universe.ts            Loads players.json and meta.json into typed structures
+    depth.ts               Stamina, strength, aggression, jumping, work rate: derivations and the bounded engine factors
     __tests__/             Vitest suites
   game/
     store.ts               Zustand store with Immer, persisted to localStorage
@@ -140,18 +147,21 @@ src/
   ui/
     App.tsx                Shell and routing between screens
     screens/               Home, Setup, Draft, Dugout, MatchScreen, Summary, Explore, Profile, HowTo
-    components/            Wheel, Pitch, PlayerRow, TableView, MatchTicker, bits
-    styles.css             Theme tokens (dark "Floodlit" and light "Daylight")
+    components/            CaseReel, GameByGame, Pitch, PlayerRow, TableView, MatchTicker, LivePitch, MatchCharts, AttributePanel, Logo, bits (with the Info tooltip)
+    match/                 Pure pitch geometry, the ball path generator, chart series and the shared live clock
+    brand.ts               The name, the mark's geometry and the canvas colours
+    styles.css             Design tokens (dark "Floodlit" and light "Daylight") and the shared components
 scripts/import/            Data pipeline (build.mjs, download.mjs, parsers, club and nation tables)
+scripts/brand/icons.mjs    Renders the favicon and the app icons from the mark
 public/data/england/       Generated players.json and meta.json
-docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md
+docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.md
 .github/workflows/ci.yml   Typecheck, test and build on Node 22
 ```
 
 ## Tech stack
 
 - Vite 6, React 19, TypeScript 5.8 (strict).
-- Zustand 5 with Immer for state, persisted to `localStorage` under `touchline-save-v1`.
+- Zustand 5 with Immer for state, persisted to `localStorage` under `touchline-save-v1`, compacted and compressed with lz-string.
 - Vitest 3 for tests.
 - No backend, no analytics, no external services at runtime; Google Fonts is the only third-party request.
 - Path aliases `@engine`, `@game`, `@ui`.
@@ -165,6 +175,7 @@ Design documents:
 - [docs/RESEARCH.md](docs/RESEARCH.md): 38-0 and Football Manager analysis and the fusion thesis.
 - [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): every system and formula as implemented.
 - [docs/DATA.md](docs/DATA.md): data pipeline, sources and licences.
+- [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md): the logo, the blue palette for both themes, type, spacing and the component rules every screen follows.
 
 ## Roadmap
 
@@ -176,4 +187,4 @@ Design documents:
 
 ## Disclaimer
 
-Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively; no official crests, logos, kits or likenesses are used. Player ratings are an independent interpretation derived from publicly available data and may differ from any official source. Datasets are credited to their authors and used under their published licences.
+TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively; no official crests, logos, kits or likenesses are used. Player ratings are an independent interpretation derived from publicly available data and may differ from any official source. Datasets are credited to their authors and used under their published licences.

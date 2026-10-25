@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 import { produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -11,6 +11,8 @@ import type { LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
+import { compactGame } from './logic/compact'
+import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { runQuickSeason } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
@@ -34,6 +36,12 @@ import { withTipSeen, type TipId } from './logic/tips'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
+/** Persist version of the saved state (a change needs a `migrate`). */
+export const SAVE_VERSION = 1
+/** Delay from a change to the write: a burst of changes inside it is written once, with the latest state. */
+const SAVE_DELAY_MS = 250
+/** Shown when the browser refuses to store the save. */
+export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
 
 export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h'
 
@@ -168,6 +176,33 @@ const defaultProfile: Profile = {
   seasonsSimulated: 0,
   theme: 'auto',
   managerName: '',
+}
+
+/** Consecutive refused writes; the toast shows on the first and then every twentieth. */
+let failedWrites = 0
+
+/** The save's storage: compressed, coalesced writes; a full storage shows a toast and the game carries on. */
+export const saveStorage = createSaveStorage<Store>({
+  storage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+  delayMs: SAVE_DELAY_MS,
+  onWrite: () => {
+    failedWrites = 0
+  },
+  onError: (e, quota) => {
+    if (!quota) {
+      console.warn('Could not save', e)
+      return
+    }
+    failedWrites++
+    if (failedWrites === 1 || failedWrites % 20 === 0) useStore.setState({ toast: SAVE_FULL_TOAST })
+  },
+})
+
+/** What is saved: the games (compacted), the head-to-head, the shortlist, the profile and the screen. */
+export function persistedState(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>) {
+  const parked: Record<string, Game> = {}
+  for (const [slot, g] of Object.entries(s.parked)) parked[slot] = compactGame(g)
+  return { game: s.game ? compactGame(s.game) : null, parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }
 }
 
 export const useStore = create<Store>()(
@@ -649,9 +684,9 @@ export const useStore = create<Store>()(
     },
     {
       name: SAVE_KEY,
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ game: s.game, parked: s.parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }) as unknown as Store,
-      version: 1,
+      storage: saveStorage,
+      partialize: (s) => persistedState(s) as unknown as Store,
+      version: SAVE_VERSION,
       merge: (persisted, current) => {
         // Saves from older builds (and imported files) get every later field filled in
         const p = (persisted ?? {}) as Partial<Store>
@@ -666,6 +701,56 @@ export const useStore = create<Store>()(
     },
   ),
 )
+
+if (typeof window !== 'undefined') {
+  // A write still waiting goes out before the page is hidden or closed
+  window.addEventListener('pagehide', () => saveStorage.flush())
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveStorage.flush()
+  })
+}
+
+/** The save as a plain JSON file: the persisted value, readable and importable by any build. */
+export function exportSaveJson(): string {
+  return JSON.stringify({ state: persistedState(useStore.getState()), version: SAVE_VERSION })
+}
+
+/**
+ * Read an imported file: plain JSON from any build, or the compressed text of a
+ * stored save. Returns the text to store (compacted and compressed); throws
+ * when the file is not a save.
+ */
+export function readSaveFile(text: string): string {
+  const value = parseSave<Record<string, unknown>>(text)
+  const state = { ...value.state }
+  const compact = (g: unknown) => {
+    const n = normaliseGame(g as Game)
+    return n ? compactGame(n) : g
+  }
+  if (state.game) state.game = compact(state.game)
+  if (state.parked && typeof state.parked === 'object') state.parked = Object.fromEntries(Object.entries(state.parked as Record<string, unknown>).map(([k, g]) => [k, compact(g)]))
+  return encodeSave(JSON.stringify({ ...value, state }))
+}
+
+/**
+ * Replace the stored save with one read by `readSaveFile`. Throws, leaving the
+ * current save untouched, when the browser cannot store it; on success no
+ * further write goes out, so the page can reload into the imported save.
+ */
+export function storeImportedSave(encoded: string): void {
+  try {
+    localStorage.setItem(SAVE_KEY, encoded)
+  } catch (e) {
+    throw isQuotaError(e) ? new Error("the save does not fit in this browser's storage") : e
+  }
+  saveStorage.freeze()
+}
+
+/** Delete the save from this browser; nothing is written again before the page reloads. */
+export function wipeSave(): void {
+  saveStorage.freeze()
+  localStorage.removeItem(SAVE_KEY)
+}
 
 /** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup. */
 function leaguesFor(game: Game, allLeagues: string[]): string[] {

@@ -19,10 +19,12 @@
  */
 import type { Injury, Lineup, MatchEvent, MatchResult, PlayerMatchStats, PlayerSeason, Position, SquadPlayer, Tactics, TeamStrength } from './types'
 import { Rng, type RngState } from './rng'
+import { momentumBins, placeEvents } from './matchDetail'
 import { autoPickLineup, computeTeamStrength, type SlotEvaluation } from './ratings'
 import { tacticalModifiers, type TacticalModifiers } from './tactics'
 import { getFormation } from './formations'
 import { positionFactor } from './positions'
+import { aerial, aggressionCardFactor, fatigueInjuryFactor, LATE_FADE, legs, mismatchFactor, staminaCostFactor } from './depth'
 
 export type TeamTalk = 'calm' | 'encourage' | 'demand' | 'fire-up' | 'none'
 
@@ -82,6 +84,21 @@ export interface TeamReport {
   halfTimeEffect?: string
   /** What the touchline shout at 70 minutes did (human side only). */
   lateEffect?: string
+  /** Everyone who took the pitch, with his slot and his minutes, for the pitch views. Absent on results written before them. */
+  appearances?: Appearance[]
+  /** The side's instructions at the final whistle, for the tactics overlay. Absent on older results. */
+  tactics?: Tactics
+}
+
+/** A man who took the pitch: his formation slot, when he came on and went off (90 if he saw it out) and how he left. */
+export interface Appearance {
+  psId: string
+  slotId: string
+  position: Position
+  onAt: number
+  offAt: number
+  red: boolean
+  injured: boolean
 }
 
 /** A touchline shout for the last twenty minutes. */
@@ -108,6 +125,8 @@ export interface FullMatchResult extends MatchResult {
   importance: number
   importanceLabel?: string
   halfTimeScore: { home: number; away: number }
+  /** The home side's share of the pressure in each five-minute bin (eighteen values, 0..1). Absent on results written before the pitch views. */
+  momentum?: number[]
 }
 
 /** Serialisable state of a player on the team sheet. */
@@ -178,6 +197,8 @@ export interface MatchInProgress {
   clock?: MatchClock
   /** Routine changes drawn at the restart but due after the 70th minute; applied when the last segment is played. */
   pendingSubs?: { home: Substitution[]; away: Substitution[] }
+  /** The home side's share of the pressure per five-minute bin, for the segments played so far. */
+  momentum?: number[]
 }
 
 export interface SecondHalfOptions {
@@ -388,9 +409,48 @@ export function advanceMatch(mp: MatchInProgress, lookups: { home: TeamLookups; 
     }
   }
 
+  if (to === 90) {
+    // Legs go after the 70th minute: the men who started lose up to a tenth of their effective
+    // rating by stamina, and the side whose legs go hands the last twenty minutes to the other
+    const fadeH = applyLateFade(mp.hLive, home.getPlayer)
+    const fadeA = applyLateFade(mp.aLive, away.getPlayer)
+    lamH *= (1 - fadeH) * (1 + fadeA)
+    lamA *= (1 - fadeA) * (1 + fadeH)
+  }
+
   playSegment(mp, rng, home, away, from, to, lamH, lamA)
   mp.clock = to
   mp.rngState = rng.getState()
+}
+
+/**
+ * The late-match fade for one side: every starter still on the pitch has his
+ * effective rating cut by `LATE_FADE × legs(stamina)` (nothing at stamina 75
+ * and above, 5 per cent at 50, 10 at 25) and the side's fade is the mean cut
+ * over the eleven on the pitch, substitutes and the goalkeeper counting as
+ * fresh (a keeper's stamina in the data reads low by convention, about 36
+ * against 67 for outfielders, because he does not run). Returns that mean,
+ * 0 to 0.1, which moves the last segment's expected goals both ways.
+ */
+export function applyLateFade(live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
+  const on = live.filter((p) => p.offAt >= 90 && !p.red)
+  if (!on.length) return 0
+  let total = 0
+  for (const p of on) {
+    if (p.onAt !== 0 || p.position === 'GK') continue
+    const stamina = get(p.psId)?.attributes.stamina ?? 65
+    const cut = LATE_FADE * legs(stamina)
+    p.effective *= 1 - cut
+    total += cut
+  }
+  return total / on.length
+}
+
+/** The side's fade without applying it, for a report or a test. */
+export function lateFade(live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
+  const on = live.filter((p) => p.offAt >= 90 && !p.red)
+  if (!on.length) return 0
+  return on.reduce((s, p) => s + (p.onAt === 0 && p.position !== 'GK' ? LATE_FADE * legs(get(p.psId)?.attributes.stamina ?? 65) : 0), 0) / on.length
 }
 
 /** Play whatever is left of the match (the human side's `second` applies at the stop it stands at) and write the report. */
@@ -428,7 +488,9 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
       const ps = get(p.psId)
       if (!ps) continue
       const base = 26 + side.modifiers.fatigue + (ps.age >= 33 ? 5 : ps.age >= 30 ? 2 : 0) + (100 - ps.attributes.physical) / 10 + (side.tactics.tempo === 'fast' ? 2 : 0)
-      conditionLoss[p.psId] = Math.round((base * minutes) / 90)
+      // Stamina decides how much of it he feels: ×1.0 at 50, ×0.8 at 90, ×1.1 at 30 (a keeper, whose
+      // stamina is not a running number, keeps the neutral ×1.0)
+      conditionLoss[p.psId] = Math.round((base * (p.position === 'GK' ? 1 : staminaCostFactor(ps.attributes.stamina)) * minutes) / 90)
     }
   }
   cost(mp.hLive, mp.home, home.getPlayer)
@@ -446,6 +508,11 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     teamTalkEffect: side.talkText,
     halfTimeEffect: side.halfTimeText,
     lateEffect: side.lateText,
+    // Only a full-detail match carries the pitch views' data: a summary match (the other
+    // fixtures of a week, a quick season, head-to-head) is stored in every fixture of the save
+    ...(mp.detail === 'full'
+      ? { appearances: live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury })), tactics: side.tactics }
+      : {}),
   })
 
   mp.rngState = rng.getState()
@@ -467,6 +534,7 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     importance: mp.importance,
     importanceLabel: mp.importanceLabel,
     halfTimeScore: mp.halfTimeScore,
+    momentum: mp.momentum,
   }
 }
 
@@ -502,6 +570,12 @@ function expectedGoals(mp: MatchInProgress, home: MatchTeamInput, away: MatchTea
   // Designated set-piece takers: a good corner or free-kick specialist on the pitch adds chances
   lamH *= 1 + setPieceBonus(mp.home, mp.hLive, home.getPlayer)
   lamA *= 1 + setPieceBonus(mp.away, mp.aLive, away.getPlayer)
+  // Strength and jumping: towering targets score from the delivery, and the side that wins the
+  // duels (attackers' power against the defenders' share of them) moves expected goals up to 4%
+  lamH *= 1 + aerialBonus(mp.hLive, home.getPlayer)
+  lamA *= 1 + aerialBonus(mp.aLive, away.getPlayer)
+  lamH *= mismatchFactor(aerialOf(mp.hLive, home.getPlayer, 'attack'), aerialOf(mp.aLive, away.getPlayer, 'defence'))
+  lamA *= mismatchFactor(aerialOf(mp.aLive, away.getPlayer, 'attack'), aerialOf(mp.hLive, home.getPlayer, 'defence'))
   // Man-marking the opponent's danger man takes the edge off their attack while he is on the pitch
   if (stillOn(mp.aLive, mp.home.markTarget)) lamA *= 0.93
   if (stillOn(mp.hLive, mp.away.markTarget)) lamH *= 0.93
@@ -556,6 +630,13 @@ function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: 
     tallySaves(rng, mp.aLive, Math.min(4, rng.poisson(lh * 2.2)), from, to)
     tallySaves(rng, mp.hLive, Math.min(4, rng.poisson(la * 2.2)), from, to)
   }
+  // The pitch views' detail comes from a stream forked off a copy of the generator, once the
+  // segment is decided: the match's own draws, and the week's after it, never move. Summary
+  // matches skip it: nothing shows their pitch, and every one is kept in the save's fixtures.
+  if (mp.detail !== 'full') return
+  const detail = Rng.fromState(rng.getState()).fork(`detail-${from}`)
+  placeEvents(detail, mp.events, from, to)
+  mp.momentum = momentumBins(detail, { lamH: lh, lamA: la, homeTactics: mp.home.tactics, awayTactics: mp.away.tactics, events: mp.events, from, to, previous: mp.momentum ?? [] })
 }
 
 function score(events: MatchEvent[]): { home: number; away: number } {
@@ -677,22 +758,24 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
     if (p.position === 'GK' || p.red || p.offAt < 90) continue
     const ps = team.getPlayer(p.psId)
     if (!ps) continue
+    // Aggression scales every card: ×0.7 for the meekest, ×1.3 for the most combative
+    const aggF = aggressionCardFactor(ps.attributes.aggression)
     if (!p.yellow) {
-      const pYellow = (0.07 + 0.09 * p.shares.defence + (ps.attributes.physical > 82 ? 0.02 : 0)) * pressF * derbyF * (1.15 - ps.traits.professionalism * 0.3) * halfF
+      const pYellow = (0.07 + 0.09 * p.shares.defence + (ps.attributes.physical > 82 ? 0.02 : 0)) * pressF * derbyF * (1.15 - ps.traits.professionalism * 0.3) * halfF * aggF
       if (rng.chance(pYellow)) {
         const minute = rng.int(from, to)
         p.yellow = true
         p.cardAt = minute
         events.push({ minute, type: 'yellow', side, playerId: p.psId, playerName: ps.name, text: `${ps.name} is booked.` })
       }
-    } else if (rng.chance(0.09 * halfF)) {
+    } else if (rng.chance(0.09 * halfF * aggF)) {
       const minute = rng.int(Math.max(from, p.cardAt ?? from), to)
       p.red = true
       p.offAt = minute
       events.push({ minute, type: 'red', side, playerId: p.psId, playerName: ps.name, text: `${ps.name} sees a second yellow and is sent off!` })
       continue
     }
-    const pRed = (0.004 + 0.004 * p.shares.defence) * derbyF * halfF
+    const pRed = (0.004 + 0.004 * p.shares.defence) * derbyF * halfF * aggF
     if (!p.red && rng.chance(pRed)) {
       const minute = rng.int(Math.max(from, p.cardAt ?? from), to)
       p.red = true
@@ -707,7 +790,8 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
     const st = team.getState(p.psId)
     const cond = st?.condition ?? 90
     const condF = cond < 55 ? 2 : cond < 70 ? 1.45 : cond < 80 ? 1.1 : 1
-    const pInj = 0.021 * (0.5 + ps.traits.injuryProneness) * condF * halfF
+    // Tired legs on an outfielder with little stamina: up to 30 per cent more risk (never a keeper)
+    const pInj = 0.021 * (0.5 + ps.traits.injuryProneness) * condF * (p.position === 'GK' ? 1 : fatigueInjuryFactor(ps.attributes.stamina, cond)) * halfF
     if (rng.chance(pInj)) {
       const minute = rng.int(Math.max(from, 3), Math.min(to, 88))
       const injury = rollInjury(rng)
@@ -741,7 +825,8 @@ function routineSubstitutions(rng: Rng, live: LivePlayer[], team: MatchTeamInput
     .filter((p) => p.offAt >= 90 && !p.red && p.position !== 'GK' && p.onAt === 0)
     .map((p) => {
       const ps = team.getPlayer(p.psId)
-      return { p, tired: (team.getState(p.psId)?.condition ?? 90) - (fatigue > 4 ? 8 : 0) + ((ps?.age ?? 28) >= 33 ? -8 : 0) + rng.gaussian(0, 6) }
+      // A man with little stamina reads as more tired than his condition says, so he is the one taken off
+      return { p, tired: (team.getState(p.psId)?.condition ?? 90) - (fatigue > 4 ? 8 : 0) + ((ps?.age ?? 28) >= 33 ? -8 : 0) + ((ps?.attributes.stamina ?? 65) - 65) * 0.3 + rng.gaussian(0, 6) }
     })
     .sort((a, b) => a.tired - b.tired)
   let n = 0
@@ -832,6 +917,40 @@ export function setPieceBonus(side: TeamSnapshot, live: LivePlayer[], get: Match
   const fks = stillOn(live, sp.freeKicks)
   if (fks) bonus += (((get(fks.psId)?.attributes.shooting ?? 70) - 72) / 100) * 0.05
   return clamp(bonus, -0.04, 0.07)
+}
+
+/**
+ * Extra expected goals from the side's aerial targets: the mean strength-and-jumping of
+ * its three most powerful outfielders on the pitch, against 72, at 0.04 per 100 points
+ * (−0.02 to +0.03 in practice, clamped to −0.03..+0.04). Every side has one.
+ */
+export function aerialBonus(live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
+  const powers = live
+    .filter((p) => p.offAt >= 90 && !p.red && p.position !== 'GK')
+    .map((p) => {
+      const ps = get(p.psId)
+      return ps ? aerial(ps.attributes) : 65
+    })
+    .sort((a, b) => b - a)
+    .slice(0, 3)
+  if (!powers.length) return 0
+  const top = powers.reduce((a, b) => a + b, 0) / powers.length
+  return clamp(((top - 72) / 100) * 0.04, -0.03, 0.04)
+}
+
+/** The side's aerial power in attack or in defence: strength and jumping weighted by each man's share of that unit (plus 0.3 so everyone counts). */
+export function aerialOf(live: LivePlayer[], get: MatchTeamInput['getPlayer'], unit: 'attack' | 'defence'): number {
+  let sum = 0
+  let weight = 0
+  for (const p of live) {
+    if (p.offAt < 90 || p.red || p.position === 'GK') continue
+    const ps = get(p.psId)
+    if (!ps) continue
+    const w = 0.3 + p.shares[unit]
+    sum += w * aerial(ps.attributes)
+    weight += w
+  }
+  return weight > 0 ? sum / weight : 70
 }
 
 /** -0.25..0.25: how much the captain on the pitch lifts (or fails to lift) the side. */

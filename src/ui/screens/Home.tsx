@@ -2,6 +2,7 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
+import { Lockup } from '../components/Logo'
 
 export function Home() {
   const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
@@ -27,7 +28,9 @@ export function Home() {
   return (
     <div className="page">
       <section className="hero">
-        <h1>Touchline</h1>
+        <h1>
+          <Lockup height={104} animate="load" />
+        </h1>
         <div className="tag">Spin the wheel. Draft the XI. Manage the season.</div>
         <p className="muted small" style={{ marginTop: 10 }}>
           {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
@@ -119,7 +122,7 @@ export function Home() {
         </button>
       </div>
 
-      <div className="grid three" style={{ marginTop: 16 }}>
+      <div className="grid four" style={{ marginTop: 16 }}>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer', borderColor: 'var(--line-2)' }} onClick={() => go('h2h')}>
           <h3>🤝 Head-to-head</h3>
           <p className="muted small">Two managers on one device draft from the same spins, then both sides play the same season. Settle it properly.</p>

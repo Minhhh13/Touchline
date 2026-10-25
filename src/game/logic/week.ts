@@ -79,7 +79,7 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
       if (st.injured) s.injury = { ...st.injured }
       continue
     }
-    applyMatchToState(s, st, starters.has(st.playerSeasonId), res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result)
+    applyMatchToState(s, st, starters.has(st.playerSeasonId), res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result, get(st.playerSeasonId)?.attributes.workRate)
     recordMinutes(game, s, st.playerSeasonId, st.minutes)
     if (st.injured && s.injury) {
       // A good physio gets him back sooner
