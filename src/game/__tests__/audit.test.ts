@@ -134,6 +134,23 @@ describe('audit fixes: season and squad', () => {
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
   })
+
+  it('a save from before classic seasons (no `classic` rule) loads and plays without ever meeting one', () => {
+    const g = started(u, { seed: 'pre-classic-save', leagueSeason: 2008, hostClubId: 'chelsea' })
+    const rules: Record<string, unknown> = { ...g.settings.rules }
+    delete rules.classic
+    const n = normaliseGame({ ...g, settings: { ...g.settings, rules } } as unknown as Game)!
+    expect(n.settings.rules.classic).toBeUndefined()
+    const classicIds = (ids: string[]) => ids.filter((id) => u.clubSeasonByKey[`${u.index[id]?.clubId}@${u.index[id]?.season}`]?.classic)
+    toWindow(n, u)
+    expect(classicIds(n.window!.listings.map((l) => l.playerSeasonId))).toEqual([])
+    while (n.phase !== 'summary') playMatchweek(n, u, true)
+    n.settings.mode = 'dynasty'
+    advanceToNextSeason(n, u)
+    expect(n.settings.leagueSeason).toBe(2009)
+    expect(classicIds(n.window?.listings.map((l) => l.playerSeasonId) ?? [])).toEqual([])
+    expect(classicIds(Object.keys(n.squad))).toEqual([])
+  }, 120_000)
 })
 
 describe('audit fixes: transfer market', () => {

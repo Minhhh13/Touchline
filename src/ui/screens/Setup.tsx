@@ -8,6 +8,7 @@ import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel, type EraRange } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
+import { poolClubSeasons } from '@engine/universe'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
@@ -93,7 +94,8 @@ export function Setup() {
     return () => ro.disconnect()
   }, [u])
 
-  const seasons = useMemo(() => (u ? [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
+  // Classic seasons are not offered here yet (they need the classic era control)
+  const seasons = useMemo(() => (u ? [...new Set(poolClubSeasons(u, false).filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, effectiveSeason])
   const wheelLeagues = useMemo(() => (wheelScope === 'europe' && u ? u.available.map((l) => l.id) : [leagueId]), [wheelScope, leagueId, u])
@@ -102,7 +104,7 @@ export function Setup() {
     if (!u) return []
     const lo = Math.min(from, to)
     const hi = Math.max(from, to)
-    const inEra = new Set(u.clubSeasons.filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
+    const inEra = new Set(poolClubSeasons(u, false).filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
     return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
   }, [u, wheelLeagues, from, to])
   const isDaily = mode === 'daily'

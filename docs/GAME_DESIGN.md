@@ -105,6 +105,10 @@ Rules (`src/engine/draft.ts`):
 - **Auto-complete** lets the assistant finish: on each spin it takes the best `overall × (1 or 0.92 if not a natural fit)` into the scarcest open slot, or the highest-rated player for the bench.
 - In Dynasty, agent events (section 10) and the summer grant **bonus spins**, shown as a gold chip and redeemed at the summer draft.
 
+### Classic seasons (1992-93 to 2007-08)
+
+The Premier League's sixteen seasons before the EA data starts ship as classic club-seasons (`cs.classic`, `cs.estimated`): real squads and real tables, with TouchLine's estimated ratings (data in `docs/DATA.md` section 8). They are **opt-in**: `rulesPool` skips them unless `DraftRules.classic` is true, so a draft, a challenge link or a save made without the rule spins exactly as before. They sit after every standard club-season in `u.clubSeasons` (`buildLeague` appends them, `mergeUniverses` puts every league's standard club-seasons first), so the weighted index of a standard club-season never moves. Every other pool follows the same rule: the market (`MarketContext.classic`), friendlies and the youth intake take classic players only for a game with `rules.classic`; the One-Nation scan only with `EraRange.classic`; the Continental Cup field, job offers and the dynasty's next season only in a classic league season (`isClassicSeason`); the Daily never (`dailySettings` filters them, which changes none of its output: `classicGate.test.ts` pins the first 60 Daily seeds and 200 seeded drafts to hashes captured before the gate). `RULE_CHECKS.classic` is a boolean, so a challenge link carries the rule. Until the Setup era control offers them (plan item 9), the Setup and head-to-head season pickers, Explore and the Dugout search leave classic seasons out.
+
 ### One-Nation Draft
 
 `DraftRules.onlyNation` holds an ISO3 code as stored in `PlayerSeason.nationality` (`'BRA'`); `'UNK'`, the code for the 1,876 player-seasons whose nationality is not known, is never offered. The rule is one predicate, `nationAllows`, applied in `canUse`, `eligibleSlots` and `pick` (which throws "`{name} is not Brazil`"), so the wheel pool, the spin weighting, the assistant's auto-draft and the head-to-head usable list all inherit it: the wheel still never lands on a club-season without an eligible player, and in the squad list players of another nationality are dimmed with a "not Brazil" chip.
@@ -762,7 +766,7 @@ The site is hosted as a Render static site (build `npm ci && npm run build`, pub
 
 Not in the code today:
 
-- 1992-93 to 2007-08 seasons; Premier League tables exist for all of them (1992-93 onwards) but no player data yet (`classic-seasons`).
+- Choosing classic seasons in Setup (the era control and the "include classic seasons" toggle), and the "estimated" chips in Explore, the Draft and the share card (`classic-seasons` plan items 9 and 10); the data and the engine gate are in.
 - Online leaderboards, shared daily results and online multiplayer; the leaderboard is per browser and head-to-head is hot-seat only.
 - 38-0 modes not reproduced: Last One Standing, Teammate Chain, Tournaments, Multiplayer leagues.
 - FM systems not reproduced: separate in-possession and out-of-possession shapes, scouting with attribute ranges, individual training, youth intake and regens, mentoring, press conferences beyond the events deck, finances beyond budget, wages, staff and prize money.

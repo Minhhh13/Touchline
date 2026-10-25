@@ -147,6 +147,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   hardMode: isBool,
   uniqueClubSeasons: isBool,
   twists: isBool,
+  classic: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */

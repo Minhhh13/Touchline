@@ -5,6 +5,7 @@ import { AttributePanel } from '../components/AttributePanel'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
+import { isClassic } from '@engine/universe'
 
 function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
@@ -25,7 +26,7 @@ function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
 /** Every season of one real player across all loaded leagues, with the ratings the engine uses. */
 function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: () => void }) {
   const { universe: u, shortlist, toggleShortlist } = useStore()
-  const seasons = useMemo(() => (u && playerId ? Object.values(u.index).filter((p) => p.playerId === playerId).sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId)) : []), [u, playerId])
+  const seasons = useMemo(() => (u && playerId ? Object.values(u.index).filter((p) => p.playerId === playerId && !isClassic(u, p)).sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId)) : []), [u, playerId])
   if (!u || !playerId || !seasons.length) return null
   const best = [...seasons].sort((a, b) => b.overall - a.overall)[0]
   const latest = seasons[seasons.length - 1]
@@ -121,14 +122,14 @@ export function Explore() {
   const clubsInSeason = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
   const selected = clubId ? u.clubSeasonByKey[`${clubId}@${season}`] : undefined
   const legends = useMemo(() => {
-    const all = Object.values(u.index).filter((p) => (posFilter === 'all' || p.positions[0] === posFilter) && u.clubById[p.clubId]?.leagueId === leagueId)
+    const all = Object.values(u.index).filter((p) => (posFilter === 'all' || p.positions[0] === posFilter) && u.clubById[p.clubId]?.leagueId === leagueId && !isClassic(u, p))
     return all.sort((a, b) => b.overall - a.overall).slice(0, 60)
   }, [u, posFilter, leagueId])
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (q.length < 2) return []
     return Object.values(u.index)
-      .filter((p) => p.name.toLowerCase().includes(q))
+      .filter((p) => p.name.toLowerCase().includes(q) && !isClassic(u, p))
       .sort((a, b) => a.playerId.localeCompare(b.playerId) || a.season - b.season)
       .slice(0, 120)
   }, [u, query])

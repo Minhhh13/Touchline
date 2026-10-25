@@ -26,6 +26,12 @@ export interface MetaFile {
     hasTable?: boolean
     /** The title was stripped or never awarded: the club on top of the table is not champion. */
     titleVoid?: boolean
+    /** A classic season: its rows are in `players-classic.json` and the wheel only lands on it when the rules opt in. */
+    classic?: boolean
+    /** Where the ratings come from: EA's (the default when missing) or TouchLine's estimate. */
+    ratingsSource?: 'ea' | 'estimated'
+    /** Share of the season's club-seasons whose appearances come from a validated table (the rest are estimated). */
+    appsSource?: number
     /** `pts` is net of `deduction`, the points the league took off the club that season. */
     table: Array<{ clubId: string; position: number; played: number; won: number; drawn: number; lost: number; gf: number; ga: number; pts: number; deduction?: number }>
   }>
@@ -55,16 +61,23 @@ export interface LoadedUniverse extends Universe {
   generatedAt: string
   /** By league id, the seasons whose title was stripped or never awarded (no champion). */
   voidTitles: Record<string, number[]>
+  /** First classic season loaded (opt-in, estimated ratings), when any is. */
+  classicFirstSeason?: number
 }
 
 export function seasonLabel(season: number): string {
   return `${season}-${String((season + 1) % 100).padStart(2, '0')}`
 }
 
-/** Build the structures for one league's data pack. */
-export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueInfo): LoadedUniverse {
+/**
+ * Build the structures for one league's data pack. `classic` is the optional
+ * `players-classic.json` of the league's classic seasons: its club-seasons are
+ * appended after every standard one and flagged `classic`, so the order and
+ * indices of the standard club-seasons are the same with or without it.
+ */
+export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueInfo, classic?: PlayersFile): LoadedUniverse {
   const leagueId = meta.league.id
-  const col = Object.fromEntries(players.columns.map((c, i) => [c, i])) as Record<string, number>
+  let col = Object.fromEntries(players.columns.map((c, i) => [c, i])) as Record<string, number>
   const get = (row: Array<string | number>, key: string) => row[col[key]]
 
   const clubById: Record<string, Club> = {}
@@ -74,7 +87,10 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
   const index: Record<string, PlayerSeason> = {}
   const squads: Record<string, PlayerSeason[]> = {}
 
-  for (const row of players.rows) {
+  const files = classic ? [players, classic] : [players]
+  for (const file of files) {
+  col = Object.fromEntries(file.columns.map((c, i) => [c, i])) as Record<string, number>
+  for (const row of file.rows) {
     const season = Number(get(row, 'season'))
     const clubId = String(get(row, 'club'))
     const positions = String(get(row, 'pos')).split('|') as Position[]
@@ -142,16 +158,21 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     if (!squads[key]) squads[key] = []
     squads[key].push(ps)
   }
+  }
+  col = Object.fromEntries(players.columns.map((c, i) => [c, i])) as Record<string, number>
 
   const tables: Record<number, LeagueSeasonRow[]> = {}
   const clubSeasons: ClubSeason[] = []
   const clubSeasonByKey: Record<string, ClubSeason> = {}
   let currentSeason: number | null = null
-  const newestSeason = Math.max(...meta.seasons.map((s) => s.season))
+  // Classic seasons only count when their rows were loaded; they come after every standard season
+  const standard = meta.seasons.filter((s) => !s.classic)
+  const classicSeasons = classic ? meta.seasons.filter((s) => s.classic) : []
+  const newestSeason = Math.max(...standard.map((s) => s.season))
   const toRows = (table: MetaFile['seasons'][number]['table']): LeagueSeasonRow[] =>
     table.map((r) => ({ clubId: r.clubId, position: r.position, points: r.pts, won: r.won, drawn: r.drawn, lost: r.lost, goalsFor: r.gf, goalsAgainst: r.ga, ...(r.deduction ? { deduction: r.deduction } : {}) }))
   const voidTitles = new Set<number>(meta.historicTitleVoid ?? [])
-  for (const s of meta.seasons) {
+  for (const s of [...standard, ...classicSeasons]) {
     const rows = toRows(s.table)
     if (rows.length) tables[s.season] = rows
     const hasTable = s.hasTable ?? rows.length > 0
@@ -179,6 +200,8 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
         champions,
         complete,
         squad,
+        ...(s.classic ? { classic: true } : {}),
+        ...(s.ratingsSource === 'estimated' ? { estimated: true } : {}),
       }
       if (champions) for (const p of squad) p.accolades.push('Champion')
       clubSeasons.push(cs)
@@ -186,7 +209,9 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     }
   }
   for (const [season, table] of Object.entries(meta.historicTables)) tables[Number(season)] = toRows(table)
-  const seasons = meta.seasons.map((s) => s.season)
+  // A classic season's table stays readable (records, Explore) even when its rows were not loaded
+  for (const s of meta.seasons) if (s.classic && !tables[s.season] && s.table.length) tables[s.season] = toRows(s.table)
+  const seasons = standard.map((s) => s.season)
   const leagueInfo: LeagueInfo = info ?? { id: leagueId, name: meta.league.name, shortName: meta.league.shortName, country: meta.league.country ?? '', firstSeason: Math.min(...seasons), lastSeason: Math.max(...seasons), playerSeasons: players.rows.length, players: new Set(players.rows.map((r) => String(get(r, 'id')))).size, clubs: clubs.length }
   return {
     seed: `${leagueId}-v${players.version}-${players.generatedAt}`,
@@ -205,6 +230,7 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     available: [leagueInfo],
     generatedAt: players.generatedAt,
     voidTitles: { [leagueId]: [...voidTitles].sort((a, b) => a - b) },
+    ...(classicSeasons.length ? { classicFirstSeason: Math.min(...classicSeasons.map((s) => s.season)) } : {}),
   }
 }
 
@@ -224,11 +250,14 @@ export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[],
   }
   const ordered = parts.map((u, i) => ({ u, i })).sort((a, b) => rank(a.u) - rank(b.u) || a.i - b.i).map((x) => x.u)
   const [first, ...rest] = ordered
+  // Every standard club-season first, in league order, then every classic one: a seed's wheel indices never move
+  const clubSeasons = [...ordered.flatMap((u) => u.clubSeasons.filter((cs) => !cs.classic)), ...ordered.flatMap((u) => u.clubSeasons.filter((cs) => cs.classic))]
+  const classicFrom = ordered.map((u) => u.classicFirstSeason).filter((s): s is number => s !== undefined)
   const out: LoadedUniverse = {
     ...first,
     leagues: [...first.leagues],
     clubs: [...first.clubs],
-    clubSeasons: [...first.clubSeasons],
+    clubSeasons,
     tables: { ...first.tables },
     index: { ...first.index },
     nations: { ...first.nations },
@@ -242,7 +271,6 @@ export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[],
   for (const u of rest) {
     out.leagues.push(...u.leagues)
     out.clubs.push(...u.clubs)
-    out.clubSeasons.push(...u.clubSeasons)
     Object.assign(out.tables, u.tables)
     Object.assign(out.index, u.index)
     Object.assign(out.nations, u.nations)
@@ -254,6 +282,8 @@ export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[],
     if (u.currentSeason && !out.currentSeason) out.currentSeason = u.currentSeason
   }
   out.seed = out.leagues.map((l) => l.id).sort().join('+')
+  if (classicFrom.length) out.classicFirstSeason = Math.min(...classicFrom)
+  else delete out.classicFirstSeason
   return out
 }
 
@@ -304,9 +334,14 @@ export function fetchLeague(leagueId: string, baseUrl?: string): Promise<LoadedU
           if (!r.ok) throw new Error(`${leagueId}/meta.json ${r.status}`)
           return r.json() as Promise<MetaFile>
         }),
-        fetchAvailableLeagues(baseUrl),
+        fetchAvailableLeagues(baseUrl).then(async (avail) => {
+          const info = avail.find((l) => l.id === leagueId)
+          // The classic pack is optional: a league without one, or a failed fetch, loads its standard seasons only
+          const classic = info?.classicFrom === undefined ? undefined : await fetch(`${b}data/${leagueId}/players-classic.json`).then((r) => (r.ok ? (r.json() as Promise<PlayersFile>) : undefined)).catch(() => undefined)
+          return { avail, classic }
+        }),
       ])
-        .then(([p, m, avail]) => buildLeague(p, m, avail.find((l) => l.id === leagueId)))
+        .then(([p, m, { avail, classic }]) => buildLeague(p, m, avail.find((l) => l.id === leagueId), classic))
         .catch((e: unknown) => {
           leagueCache.delete(leagueId)
           throw e
@@ -329,6 +364,21 @@ export function clubName(u: LoadedUniverse, clubId: string): string {
 
 export function flagOf(u: LoadedUniverse, nation: string): string {
   return u.nations[nation]?.flag ?? '🏳️'
+}
+
+/** Whether a player-season (or any `{ clubId, season }`) belongs to a classic club-season. */
+export function isClassic(u: LoadedUniverse, p: { clubId: string; season: number }): boolean {
+  return !!u.clubSeasonByKey[`${p.clubId}@${p.season}`]?.classic
+}
+
+/** Whether a league season is a classic one (then season-scoped pools may use classic club-seasons). */
+export function isClassicSeason(u: LoadedUniverse, leagueId: string, season: number): boolean {
+  return u.clubSeasons.some((cs) => cs.classic && cs.leagueId === leagueId && cs.season === season)
+}
+
+/** The club-seasons an all-season pool may use: classic ones only when the game opted in. */
+export function poolClubSeasons(u: LoadedUniverse, classic: boolean | undefined): ClubSeason[] {
+  return classic ? u.clubSeasons : u.clubSeasons.filter((cs) => !cs.classic)
 }
 
 /** Club-seasons of one league in one season (the 18 or 20 clubs of that campaign). */

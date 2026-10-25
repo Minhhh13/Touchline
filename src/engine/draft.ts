@@ -34,6 +34,8 @@ export interface DraftRules {
   uniqueClubSeasons: boolean
   /** Every third spin carries a twist (section 5 of the design doc). Off when omitted, so older saves are unchanged. */
   twists?: boolean
+  /** The wheel may land on classic club-seasons (1992-93 to 2007-08, estimated ratings). Off when omitted, so older saves and links are unchanged. */
+  classic?: boolean
 }
 
 /**
@@ -151,6 +153,7 @@ export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'
 function rulesPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
   const r = d.rules
   return u.clubSeasons.filter((cs) => {
+    if (cs.classic && !r.classic) return false
     if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
     if (r.toSeason !== undefined && cs.season > r.toSeason) return false
     if (r.onlyClub && cs.clubId !== r.onlyClub) return false

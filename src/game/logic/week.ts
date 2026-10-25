@@ -1,5 +1,5 @@
 import type { Game, LiveMatch } from '../types'
-import type { LoadedUniverse } from '@engine/universe'
+import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { advanceMatch, beginMatch, finishMatch, simulateMatch, type FullMatchResult, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
 import { aiTeamInput, applyMatchToState, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
@@ -581,7 +581,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
 
   // Transfer window: opens at the halfway point; three market days pass per matchweek, so it shuts three matchweeks later
   if (mw === Math.floor(season.matchweeks / 2) && !game.window) {
-    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation }, 'january')
+    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
@@ -726,7 +726,7 @@ export function playFriendly(game: Game, u: LoadedUniverse): void {
   const rng = Rng.fromState(game.rngState)
   if (lineupProblems(game, u).length) autoPick(game, u, true)
   const user = userInput(game, u)
-  const pool = u.clubSeasons.filter((cs) => (cs.position >= 8 || cs.position === 0) && (!game.settings.wheelLeagues.length || game.settings.wheelLeagues.includes(cs.leagueId)))
+  const pool = poolClubSeasons(u, game.settings.rules.classic).filter((cs) => (cs.position >= 8 || cs.position === 0) && (!game.settings.wheelLeagues.length || game.settings.wheelLeagues.includes(cs.leagueId)))
   const cs = rng.pick(pool)
   const club = u.clubById[cs.clubId]
   const oppTactics = { ...game.season.ai[Object.keys(game.season.ai)[0]].tactics }
@@ -858,8 +858,9 @@ function jobOffersFor(game: Game, u: LoadedUniverse, pos: number, teams: number)
   const hostNow = u.clubSeasonByKey[`${season.hostClubId}@${season.leagueSeason}`]
   const hostValue = hostNow ? squadValue(hostNow) : 0
   const candidates: Array<{ leagueId: string; clubId: string; value: number }> = []
+  const offerPool = poolClubSeasons(u, !!game.settings.rules.classic || isClassicSeason(u, season.leagueId, season.leagueSeason))
   for (const league of u.leagues) {
-    const seasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))].sort()
+    const seasons = [...new Set(offerPool.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))].sort()
     const current = league.id === season.leagueId ? season.leagueSeason : seasons[seasons.indexOf(season.leagueSeason) >= 0 ? seasons.indexOf(season.leagueSeason) : seasons.length - 2] ?? seasons[0]
     const next = seasons[(seasons.indexOf(current) + 1) % seasons.length]
     for (const cs of u.clubSeasons.filter((c) => c.leagueId === league.id && c.season === next)) {
