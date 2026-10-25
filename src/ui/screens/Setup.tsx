@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupRules, shortNameFor, summariseSetup } from '@game/logic/setup'
-import { FORMATIONS, getFormation } from '@engine/formations'
+import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
@@ -12,6 +12,7 @@ import { randomSeed } from '@engine/rng'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { Pitch } from '../components/Pitch'
+import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, SeasonRange } from '../components/SetupBits'
 import { clubName } from '../format'
 
@@ -283,13 +284,7 @@ export function Setup() {
         <div className="panel col">
           <h3>Formation</h3>
           {!fixed && (
-            <div className="formations">
-              {FORMATIONS.map((f) => (
-                <button key={f.id} type="button" className={f.id === formationId ? 'active' : ''} aria-pressed={f.id === formationId} onClick={() => setFormationId(f.id)}>
-                  <div className="fname">{f.name}</div>
-                </button>
-              ))}
-            </div>
+            <FormationPicker value={formationId} onChange={setFormationId} />
           )}
           {/* A picture of the shape, not a control: inert keeps its slot discs out of the tab order and the accessibility tree */}
           <div className="pitch-mini" data-testid="formation-preview" inert>

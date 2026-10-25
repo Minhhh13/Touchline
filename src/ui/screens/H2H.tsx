@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { FORMATIONS, getFormation } from '@engine/formations'
+import { getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
 import { h2hComplete, h2hEligibleSlots, h2hUsable } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
@@ -8,6 +8,7 @@ import { TIER_LABEL } from '@engine/season'
 import { H2H_IDS } from '@game/logic/h2h'
 import { CaseReel } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
+import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
@@ -54,16 +55,11 @@ export function H2HSetup() {
               Name
               <input className="input" value={names[i]} maxLength={24} onChange={(e) => setNames(names.map((n, j) => (j === i ? e.target.value : n)))} />
             </label>
-            <label className="field">
+            <div className="field formation-field">
               Formation
-              <select className="input" value={formations[i]} onChange={(e) => setFormations(formations.map((f, j) => (j === i ? e.target.value : f)))}>
-                {FORMATIONS.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}: {f.blurb}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <FormationPicker value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} label={`Manager ${i + 1} formation`} testId={`h2h-formation-${i}`} />
+              <span className="help">{getFormation(formations[i]).blurb}</span>
+            </div>
             <label className="field">
               Club whose place you take
               <select className="input" value={i === 0 ? host0 : host1} onChange={(e) => setHosts(hosts.map((h, j) => (j === i ? e.target.value : h)))}>
