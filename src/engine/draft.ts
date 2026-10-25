@@ -63,6 +63,12 @@ export interface DraftRules {
   managers?: boolean
   /** The wheel may land on classic club-seasons (1992-93 to 2007-08, estimated ratings). Off when omitted, so older saves and links are unchanged. */
   classic?: boolean
+  /**
+   * Quick Draft: the season is the Super League (`src/engine/superLeague.ts`), a double round-robin against the
+   * nineteen greatest club-seasons in the data at full strength, instead of a real league season. The wheel is not
+   * changed by it. Off when omitted, so older saves, links and every other mode are unchanged.
+   */
+  superLeague?: boolean
 }
 
 export type DraftDifficulty = 'easy' | 'normal' | 'hard'

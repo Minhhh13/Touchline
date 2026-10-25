@@ -2,10 +2,12 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { Fit } from '@engine/positions'
 import type { SeasonTier } from '@engine/types'
 import { tierLabel } from '@engine/season'
+import { superTierLabel } from '@game/logic/superLeague'
 
 /** A season tier for display ("Champions", "Top 4"); with the position, 3rd or 4th reads as Top 4. */
-export function tierName(tier: SeasonTier, position?: number): string {
-  return tierLabel(tier, position)
+export function tierName(tier: SeasonTier, position?: number, superLeague?: boolean): string {
+  // The Super League's titles say whose: "Super League champions"
+  return superLeague ? superTierLabel(tier, position) : tierLabel(tier, position)
 }
 
 export function seasonLabel(season: number): string {

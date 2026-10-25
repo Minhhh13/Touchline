@@ -4,6 +4,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { Rng } from '@engine/rng'
 import { barFill, chanceLabel, emptyTally, ODDS_SEASONS, ODDS_STEP, oddsFrom, oddsKey, oddsLeague, oddsRng, sampleSeasons, squadBreakdown, type OddsLeague, type OddsTally, type PreSeasonOdds } from '@game/logic/odds'
 import { ordinal, seasonLabel } from '../format'
+import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 
 /** Odds already worked out this visit, by what they depend on: going back to a squad shows its odds at once. */
 const cache = new Map<string, PreSeasonOdds>()
@@ -76,6 +77,7 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
 export function SquadComplete({ game, u, hideRatings, children }: { game: Game; u: LoadedUniverse; hideRatings: boolean; children?: ReactNode }) {
   const { odds, progress } = usePreSeasonOdds(game, u)
   const b = squadBreakdown(game, u)
+  const superLeague = isSuperLeague(game.settings)
   const units: Array<{ key: string; label: string; value: number }> = [
     { key: 'overall', label: 'Overall', value: b.overall },
     { key: 'attack', label: 'Attack', value: b.attack },
@@ -87,11 +89,11 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
     ? [
         { key: 'perfect', label: 'Win every game', value: odds.perfect },
         { key: 'unbeaten', label: 'Go unbeaten', value: odds.unbeaten },
-        { key: 'title', label: 'Win the league', value: odds.title },
+        { key: 'title', label: superLeague ? 'Win the Super League' : 'Win the league', value: odds.title },
         { key: 'top4', label: 'Finish top 4', value: odds.top4 },
         { key: 'top6', label: 'Finish top 6', value: odds.top6 },
         { key: 'top10', label: 'Finish top 10', value: odds.top10 },
-        { key: 'releg', label: 'Go down', value: odds.relegation, bad: true },
+        { key: 'releg', label: superLeague ? 'Finish bottom three' : 'Go down', value: odds.relegation, bad: true },
       ]
     : []
   return (
@@ -143,7 +145,7 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
         </div>
       </div>
       <p className="help" style={{ margin: 0 }}>
-        The pundits' call, from {ODDS_SEASONS.toLocaleString('en-GB')} trial runs of this XI against {game.settings.mode === 'quick' ? 'this' : `the ${seasonLabel(game.settings.leagueSeason)}`} league. The real season is played once.
+        The pundits' call, from {ODDS_SEASONS.toLocaleString('en-GB')} trial runs of this XI against {superLeague ? `the Super League: ${SUPER_LEAGUE_LINE.toLowerCase()}` : game.settings.mode === 'quick' ? 'this league' : `the ${seasonLabel(game.settings.leagueSeason)} league`}. The real season is played once.
       </p>
       {children}
     </div>

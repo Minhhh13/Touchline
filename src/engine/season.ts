@@ -141,15 +141,24 @@ export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
 export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason && cs.clubId !== hostClubId)
-  for (const cs of clubs) {
-    const club = u.clubById[cs.clubId]
-    const style = club?.style ?? 'balanced'
-    const tactics = tacticsForStyle(style, formationForStyle(style))
-    const state: Record<string, SquadPlayer> = {}
-    for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
-    ai[cs.clubId] = { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
-  }
+  for (const cs of clubs) ai[cs.clubId] = aiClubOf(u, cs)
   return ai
+}
+
+/** One real club-season as an AI side: its style's tactics and shape, its squad, every player fresh. Draws nothing. */
+export function aiClubOf(u: LoadedUniverse, cs: ClubSeason): AiClub {
+  const club = u.clubById[cs.clubId]
+  const style = club?.style ?? 'balanced'
+  const tactics = tacticsForStyle(style, formationForStyle(style))
+  const state: Record<string, SquadPlayer> = {}
+  for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
+  return { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
+}
+
+/** An AI side's overall team strength as the season fields it: its auto-picked best XI rated by `computeTeamStrength`. Pure. */
+export function aiStrength(u: LoadedUniverse, club: AiClub): number {
+  const inp = aiTeamInput(u, club)
+  return computeTeamStrength(club.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
 }
 
 export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0): MatchTeamInput {
@@ -173,10 +182,7 @@ export const CALIBRATED_LEAGUE_AVERAGE = 75
 
 export function aiRatingOffset(u: LoadedUniverse, ai: Record<string, AiClub>, difficulty: 'calibrated' | 'realistic'): number {
   if (difficulty === 'realistic') return 0
-  const strengths = Object.values(ai).map((c) => {
-    const inp = aiTeamInput(u, c)
-    return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
-  })
+  const strengths = Object.values(ai).map((c) => aiStrength(u, c))
   const avg = strengths.reduce((a, b) => a + b, 0) / Math.max(1, strengths.length)
   return Math.max(0, Math.round((avg - CALIBRATED_LEAGUE_AVERAGE) * 10) / 10)
 }

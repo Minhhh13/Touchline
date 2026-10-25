@@ -13,7 +13,9 @@ import { poolClubSeasons } from '@engine/universe'
 import { classicFromFor, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
-import { LeagueFlag, NationFlag } from '../components/Flag'
+import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
+import { SUPER_LEAGUE_ID, SUPER_LEAGUE_NAME } from '@engine/superLeague'
+import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, SeasonRange } from '../components/SetupBits'
@@ -88,6 +90,8 @@ export function Setup() {
   const [customEra, setCustomEra] = useState<[number, number] | null>(null)
   // Classic seasons (1992-93 to 2007-08, estimated ratings): off unless asked for, never on the Daily
   const [classicOn, setClassicOn] = useState(false)
+  // Quick Draft: the Super League (the 19 greatest club-seasons) in place of a real league season; its wheel spans every league
+  const [superOn, setSuperOn] = useState(false)
   const [onlyClub, setOnlyClub] = useState('')
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
@@ -127,7 +131,8 @@ export function Setup() {
   const seasons = useMemo(() => seasonChoices.map((s) => s.season), [seasonChoices])
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, effectiveSeason])
-  const wheelLeagues = useMemo(() => (europe && u ? u.available.map((l) => l.id) : [leagueId]), [europe, leagueId, u])
+  const superLeague = superOn && mode === 'quick'
+  const wheelLeagues = useMemo(() => ((europe || superLeague) && u ? u.available.map((l) => l.id) : [leagueId]), [europe, superLeague, leagueId, u])
   const classicFrom = u ? classicFromFor(u, wheelLeagues) : undefined
   const classic = !isDaily && classicOn && classicFrom !== undefined
   // The era slider runs over the seasons the wheel leagues hold (classic ones only when the Classic toggle is on)
@@ -138,7 +143,7 @@ export function Setup() {
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, classic, ...(isManage ? {} : { managers }) })
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, classic, superLeague, ...(isManage ? {} : { managers }) })
   const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason, classic: chosen.classic }
   const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
@@ -161,6 +166,13 @@ export function Setup() {
 
   if (!u) return <div className="page">Loading…</div>
   const pickLeague = (id: string) => {
+    // The Super League keeps the league chosen before it as the save's league; its field needs every league loaded
+    if (id === SUPER_LEAGUE_ID) {
+      setSuperOn(true)
+      void ensureLeagues(u.available.map((l) => l.id))
+      return
+    }
+    setSuperOn(false)
     setLeagueId(id)
     setHostClubId('')
     void ensureLeagues(europe ? u.available.map((l) => l.id) : [id])
@@ -446,9 +458,10 @@ export function Setup() {
                 </label>
                 <div className="field">
                   League
-                  <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
-                  <span className="help">{loadingLeagues ? 'Loading league data…' : europe ? 'Where your side plays; the wheel draws from every league.' : 'Where your side plays, and where the wheel draws from.'}</span>
+                  <Segmented value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
+                  <span className="help" data-testid="league-help">{loadingLeagues ? 'Loading league data…' : superLeague ? `${SUPER_LEAGUE_LINE}, one season each at full strength; the wheel draws from every league.` : europe ? 'Where your side plays; the wheel draws from every league.' : 'Where your side plays, and where the wheel draws from.'}</span>
                 </div>
+                {!superLeague && (<>
                 <label className="field">
                   League season to play in
                   <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
@@ -486,6 +499,7 @@ export function Setup() {
                   />
                   <span className="help">{opposition === 'calibrated' ? 'Scaled so an average draft finishes mid-table.' : 'Real squads at full strength: only a great draft survives.'}</span>
                 </div>
+                </>)}
                 <label className="field">
                   One-club mode
                   <select

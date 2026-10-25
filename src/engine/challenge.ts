@@ -226,6 +226,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
   managers: isBool,
   classic: isBool,
+  superLeague: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */

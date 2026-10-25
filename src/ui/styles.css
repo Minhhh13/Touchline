@@ -1143,6 +1143,22 @@ label.field,
   background: var(--primary-soft);
   border-color: color-mix(in srgb, var(--primary) 40%, transparent);
 }
+/* The Super League: its mark where a league flag sits (SuperLeagueMark in components/Flag.tsx) and its chip in Setup */
+.super-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  vertical-align: middle;
+  color: var(--accent);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.chip.super {
+  color: var(--accent);
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
 /* The info button and its tooltip (Info in components/bits.tsx) */
 .info {
   display: inline-flex;

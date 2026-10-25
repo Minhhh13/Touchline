@@ -98,15 +98,19 @@ export interface SeasonSummaryForShare {
   bootGoals?: number
   /** Extra lines a mode or feature appends (one nation, a record, a twist, a challenge verdict), printed before the seed. */
   extraLines?: string[]
+  /** Printed in place of the season label ("Super League"); the season label when absent. */
+  where?: string
+  /** Printed in place of the tier's own headline ("Super League champions"); `tierLabel` when absent. */
+  tierText?: string
 }
 
 export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): string {
   const blocks = formBlocks(s.row)
-  const seasonLabel = `${s.leagueSeason}-${String((s.leagueSeason + 1) % 100).padStart(2, '0')}`
+  const seasonLabel = s.where ?? `${s.leagueSeason}-${String((s.leagueSeason + 1) % 100).padStart(2, '0')}`
   const lines = [
     `${appName} · ${s.mode}`,
     s.hostClubName ? `${s.teamName} as ${s.hostClubName}, ${seasonLabel}` : `${s.teamName}, ${seasonLabel}`,
-    `${tierLabel(s.tier, s.position)}${s.cupWon ? ' + Cup' : ''}${s.continentalWon ? ' + Europe' : ''}`,
+    `${s.tierText ?? tierLabel(s.tier, s.position)}${s.cupWon ? ' + Cup' : ''}${s.continentalWon ? ' + Europe' : ''}`,
     `${s.row.won}-${s.row.drawn}-${s.row.lost} · ${s.row.points} pts · ${ordinal(s.position)}`,
     blocks,
   ]
