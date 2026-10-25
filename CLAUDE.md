@@ -118,7 +118,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - New fields holding player-season ids must be remapped in `advanceToNextSeason` (dynasty) and cleared in `releasePlayer`.
 - Write the product name as TouchLine (`APP_NAME`); the default team name "Touchline XI" and lower-case slugs (`touchline-save-v1`, file names) stay as they are. Titles and buttons in sentence case; tiers through `tierName()`.
 - Colours: `--good` for good outcomes, `--primary` for actions and selection, `--accent` for highlights and info, `--meter-mid` (never `--gold`) for the middle band of a bar, `.chip.info` for a state such as "in the XI".
-- Results: a win is `--good`, a draw `--meter-mid` (amber; `--draw` is only an alias), a loss `--bad`, everywhere: use `outcomeClass()` and `.res-w`/`.res-d`/`.res-l`, never a grey or `.chip.warn` draw.
+- Results: a win is `--good`, a draw `--draw` (amber: `--gold` in Floodlit, `--gold-text` in Daylight; `BRAND_COLOURS.draw` on canvas), a loss `--bad`, everywhere: use `outcomeClass()` and `.res-w`/`.res-d`/`.res-l`, never a grey or `.chip.warn` draw.
 - Never print a raw meter float or a formation id: `meterValue(v)` and `formationName(id)` (`'4-4-2-diamond'` reads "4-4-2 Diamond").
 
 ## Adding a feature end to end

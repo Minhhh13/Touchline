@@ -40,6 +40,7 @@ import { ManagerChip } from '../components/ManagerPick'
 import { managerLine } from '@game/logic/managers'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
+import { ResultArt, resultArtKind } from '../components/Art'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -116,7 +117,8 @@ export function Summary() {
   const mgrLine = managerLine(game.manager)
   if (mgrLine) extraLines.push(mgrLine)
   // The 38-0 chase in the share text: how long the perfect run lasted, for a season short of perfect
-  if (q && results.length && chase.perfectRun < games) extraLines.push(runsLine(chase))
+  const runs = q && results.length ? runsLine(chase, games) : null
+  if (runs) extraLines.push(runs)
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, sideName)
@@ -247,7 +249,8 @@ export function Summary() {
 
   return (
     <div className="page summary" data-testid="summary">
-      <div className="tier-banner">
+      <div className="tier-banner result-banner">
+        {!replay.playing && <ResultArt kind={resultArtKind(tier)} />}
         <div className="banner-meta">
           <span className="bm-team">
             <TeamBadge code={game.settings.shortName} size={22} />
@@ -260,13 +263,24 @@ export function Summary() {
         </div>
         {q && !replay.playing && (
           <div className={`versus-perfect ${record.won >= games && games > 0 ? 'perfect' : record.lost === 0 ? 'unbeaten' : ''}`} data-testid="versus-perfect">
-            <span className="vp-record" data-testid="versus-perfect-record">{recordLabel(record.won, record.drawn, record.lost)}</span>
-            <span className="vp-against">against {perfectTarget(games)}</span>
-            <span className="vp-line small">{versusPerfectLine(record.won, record.lost, games)}</span>
-            <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-              {runsLine(chase)}
-              {bests.longestPerfectRun ? ` · your best run ${bests.longestPerfectRun}-0` : ''}
+            {/* The record in its three colours; the text still reads as recordLabel ("20-8-10") */}
+            <span className="vp-record" data-testid="versus-perfect-record">
+              <span className={`vp-w ${record.won ? '' : 'zero'}`}>{record.won}</span>
+              <span className="vp-dash">-</span>
+              <span className={`vp-d ${record.drawn ? '' : 'zero'}`}>{record.drawn}</span>
+              <span className="vp-dash">-</span>
+              <span className={`vp-l ${record.lost ? '' : 'zero'}`}>{record.lost}</span>
             </span>
+            <span className="vp-line">
+              <b className="vp-against">against {perfectTarget(games)}</b>
+              <span className="vp-sep" aria-hidden="true">·</span>
+              <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
+            </span>
+            {(runs || bests.longestPerfectRun) ? (
+              <span className="vp-runs small muted" data-testid="versus-perfect-runs">
+                {[runs, bests.longestPerfectRun ? `${runs ? 'your' : 'Your'} best run ${bests.longestPerfectRun}-0` : null].filter(Boolean).join(' · ')}
+              </span>
+            ) : null}
           </div>
         )}
         {replay.playing ? (
@@ -314,10 +328,10 @@ export function Summary() {
               <span key={`w${i}`} style={{ background: 'var(--good)' }} />
             ))}
             {Array.from({ length: record.drawn }, (_, i) => (
-              <span key={`d${i}`} style={{ background: 'var(--draw)' }} />
+              <span key={`d${i}`} style={{ background: 'var(--meter-mid)' }} />
             ))}
             {Array.from({ length: record.lost }, (_, i) => (
-              <span key={`l${i}`} style={{ background: 'var(--danger)' }} />
+              <span key={`l${i}`} style={{ background: 'var(--bad)' }} />
             ))}
           </div>
         )}

@@ -135,7 +135,7 @@ export function meterValue(v: number): string {
   return String(Math.round(v))
 }
 export type Outcome = 'W' | 'D' | 'L'
-/** One colour rule for results everywhere: a win is --good, a draw --meter-mid, a loss --bad (`.res-w`, `.res-d`, `.res-l` in styles.css). */
+/** One colour rule for results everywhere: a win is --good, a draw --draw (amber), a loss --bad (`.res-w`, `.res-d`, `.res-l` in styles.css). */
 export function outcomeClass(o: Outcome | null | undefined): string {
   return o === 'W' ? 'res-w' : o === 'D' ? 'res-d' : o === 'L' ? 'res-l' : ''
 }

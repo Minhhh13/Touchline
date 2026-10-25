@@ -96,10 +96,19 @@ export function versusPerfectLine(won: number, lost: number, games: number): str
   return `${short} win${short === 1 ? '' : 's'} short`
 }
 
-/** The runs under the summary's lead: "Perfect run 12-0 · unbeaten from the start 15", or what ended them in game 1. */
-export function runsLine(c: Pick<ChaseState, 'perfectRun' | 'unbeatenRun'>): string {
-  const perfect = c.perfectRun ? `Perfect run ${c.perfectRun}-0` : 'Game 1 not won'
-  return c.unbeatenRun > c.perfectRun ? `${perfect} · unbeaten from the start ${c.unbeatenRun}` : perfect
+/**
+ * The runs under the summary's lead, in plain words: "Perfect run 12-0 · unbeaten for the first 15",
+ * "Perfect run ended in game 2", "Unbeaten for the first 9 games". Null when it would say nothing more than the
+ * line above it: a perfect season, unbeaten all season, or the first game not won and the unbeaten run no longer.
+ */
+export function runsLine(c: Pick<ChaseState, 'perfectRun' | 'unbeatenRun'>, games = 0): string | null {
+  const p = c.perfectRun
+  if (games > 0 && p >= games) return null
+  // An unbeaten run worth naming: longer than the perfect one, two games or more, and not the whole season
+  const u = c.unbeatenRun > p && c.unbeatenRun >= 2 && !(games > 0 && c.unbeatenRun >= games) ? c.unbeatenRun : 0
+  if (p >= 2) return u ? `Perfect run ${p}-0 · unbeaten for the first ${u}` : `Perfect run ${p}-0`
+  if (u) return `Unbeaten for the first ${u} games`
+  return p === 1 ? 'Perfect run ended in game 2' : null
 }
 
 /** The Profile's Quick Draft bests as they start: nothing yet. */
