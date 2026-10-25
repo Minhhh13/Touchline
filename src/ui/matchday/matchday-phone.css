@@ -1,0 +1,190 @@
+/* ------------------------------------------------------------------ match day on tablets and phones
+ * Under 1200 px: the pitch first, the stop panel, the commentary, the pulse
+ * row (momentum and xG), the tab strip, our XI as a sideways scroller. Every
+ * sideways scroller sits in a min-width: 0 box, so the page itself never
+ * scrolls sideways. Tokens only, every rule under .matchday.
+ */
+.matchday.compact {
+  max-width: 860px;
+}
+.matchday.compact > * {
+  min-width: 0;
+}
+
+/* Top bar: the scoreboard on its own row, the tools and playback in one row under it */
+.matchday.compact .md-topbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'board board' 'tools play';
+  row-gap: 6px;
+}
+.matchday.compact .md-tools {
+  grid-area: tools;
+  min-width: 0;
+}
+.matchday.compact .md-tool-row {
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 1px;
+}
+.matchday.compact .md-tool-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tab strip */
+.matchday .md-tabbed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.matchday .md-tabs {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.matchday .md-tabs button {
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.matchday .md-tabs button:hover {
+  color: var(--text);
+}
+.matchday .md-tabs button.active {
+  background: var(--panel-2);
+  border-color: var(--primary);
+  color: var(--text);
+}
+.matchday .md-tabs button.also {
+  border-color: var(--line-2);
+  color: var(--text);
+}
+.matchday .md-tab-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--md-gap);
+}
+.matchday .md-tab-panels.two {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.matchday .md-tab-panel {
+  min-width: 0;
+}
+.matchday.compact .md-tab-panel .md-slot-body {
+  flex: none;
+  max-height: 460px;
+  min-height: 120px;
+}
+
+/* Squad strip: a scroll-snap scroller, the Squad control first */
+.matchday.compact .md-strip-scroll {
+  min-width: 0;
+}
+.matchday.compact .md-strip {
+  flex-wrap: nowrap;
+  scroll-snap-type: x mandatory;
+}
+.matchday.compact .md-card {
+  flex: 0 0 92px;
+}
+.matchday.compact .md-strip-squad {
+  scroll-snap-align: start;
+  min-width: 104px;
+}
+
+/* Tablet: the landscape pitch (no taller than the screen leaves room for), two panels side by side */
+.matchday.compact.tablet .md-pulse {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.matchday.compact.tablet .md-pitch {
+  width: 100%;
+  max-width: max(480px, calc((100vh - 250px) * 1.45));
+  margin: 0 auto;
+}
+
+/* Phone */
+@media (max-width: 720px) {
+  .matchday.compact .md-pulse {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .matchday.compact .md-crumb .muted {
+    display: none;
+  }
+  .matchday.compact .md-playback {
+    gap: 4px;
+  }
+  .matchday.compact .md-playback .segmented button {
+    padding: 4px 7px;
+  }
+  .matchday.compact .md-topbar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'board' 'tools' 'play';
+  }
+  .matchday.compact .md-playback {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+  }
+  /* The tools wrap rather than hide behind the edge */
+  .matchday.compact .md-tool-row {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .matchday .md-tool {
+    padding: 5px 9px;
+  }
+  .matchday.compact .md-stop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .matchday .md-subs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Drawers become bottom sheets */
+  .matchday .md-drawer-back {
+    align-items: flex-end;
+    padding: 0;
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
+  }
+  .matchday .md-drawer,
+  .matchday .md-drawer.wide {
+    width: 100%;
+    max-height: 80vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom: 0;
+    animation-name: md-sheet-in;
+  }
+  .matchday .md-drawer-foot {
+    flex-wrap: wrap;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .matchday .md-drawer-foot .md-chip {
+    flex: 1 0 100%;
+  }
+}
+@keyframes md-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}

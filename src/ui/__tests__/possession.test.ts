@@ -96,6 +96,19 @@ describe('ball path generator', () => {
     expect(buildBallPath({ from: 0, to: 90, momentum, events, home: [], away, seed: 'test' })).toEqual([])
   })
 
+  it('carries on from a given start: the centre spot by default, else from where the ball stood', () => {
+    // The default is the centre spot with the home side on the ball at kick-off, the away side at the restart
+    expect(buildBallPath({ from: 0, to: 45, momentum, events, home, away, seed: 'test', start: { x: 50, y: 50, side: 'home' } })).toEqual(buildBallPath({ from: 0, to: 45, momentum, events, home, away, seed: 'test' }))
+    expect(buildBallPath({ from: 46, to: 70, momentum, events, home, away, seed: 'test', start: { x: 50, y: 50, side: 'away' } })).toEqual(buildBallPath({ from: 46, to: 70, momentum, events, home, away, seed: 'test' }))
+    // From a spot deep in the away half, the first move leaves from there, never from the centre
+    const start = { x: 80, y: 20, side: 'home' as const, holder: 'h-lw' }
+    const from58 = buildBallPath({ from: 58, to: 70, momentum, events, home, away, seed: 'test', start })
+    expect(from58[0].t).toBeGreaterThanOrEqual(58)
+    expect(Math.hypot(from58[0].x - start.x, from58[0].y - start.y)).toBeLessThanOrEqual(MAX_HOP + 1)
+    expect(from58[0].holder).not.toBe('h-lw')
+    expect(from58).not.toEqual(buildBallPath({ from: 58, to: 70, momentum, events, home, away, seed: 'test' }))
+  })
+
   it('interpolates between keyframes and jumps when motion is reduced', () => {
     for (let t = 0; t <= 94; t += 0.37) {
       const b = ballAt(path, t)!
