@@ -417,6 +417,8 @@ export interface LeaderboardEntry {
   nation?: string
   /** Played against a ghost draft: who set it and what they scored. */
   challenge?: { name: string; points: number }
+  /** A Quick Draft played in the Super League; absent for every other season. */
+  superLeague?: true
 }
 
 export interface Profile {

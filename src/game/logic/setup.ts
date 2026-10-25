@@ -16,6 +16,8 @@ import { buildYouthIntake } from './youth'
 import { pickObjectives, OBJECTIVE_REWARD } from '@engine/objectives'
 import { playerLookup, squadPlayers } from './players'
 import { defaultStatuses } from '@engine/status'
+import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
+import { isSuperLeague } from './superLeague'
 
 /** The place in the table a new manager is handed by default: mid-table, so the board's target is reachable. */
 export const DEFAULT_HOST_POSITION = 10
@@ -61,6 +63,8 @@ export interface SetupChoices {
   managers?: boolean
   /** The Classic toggle: the wheel may land on 1992-93 to 2007-08 (estimated ratings), and `first` is then the first classic season. */
   classic?: boolean
+  /** Quick Draft: the season is the Super League instead of a real league season. */
+  superLeague?: boolean
   /** Quick Draft mode cards other than Hard (Crazy, Underdog, Legends, Speedrun, Gamble, the Upgrader); Hard is `difficulty`. None when absent. */
   modes?: Array<QuickMode | 'upgrader'>
   /** Quick Draft power-ups (the tray of six on the draft screen); off when absent. */
@@ -101,6 +105,7 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
     ...(c.managers !== undefined ? { managers: c.managers } : {}),
     ...(c.classic ? { classic: true } : {}),
+    ...(c.superLeague ? { superLeague: true } : {}),
   }
   // The mode flags (and Crazy's twists); Hard is already the difficulty, so it rides along unchanged
   const moded = c.modes?.length ? withModes(rules, [...(hard ? (['hard'] as const) : []), ...c.modes]) : rules
@@ -130,6 +135,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     ...(r.upgrader ? [`${MODE_INFO.upgrader.icon} ${MODE_INFO.upgrader.title}`] : []),
     ...(r.powerUps ? [`${POWER_UPS_ICON} Power-ups`] : []),
     ...(r.managers ? ['Manager pick'] : []),
+    ...(r.superLeague ? [SUPER_LEAGUE_NAME] : []),
   ]
 }
 
@@ -182,7 +188,9 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
   // A quick draft's XI is the user's own team: only a managed season takes a club's place, so only it says "as"
   const host = s.mode === 'season' || s.mode === 'dynasty' ? `as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ` : ''
-  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
+  // The Super League is no real league season, and its nineteen play at full strength whatever the opposition setting
+  const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, full strength` : `in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
+  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}${where}, seed ${s.seed}`]
   const r = s.rules
   if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
@@ -224,7 +232,9 @@ export function quickSetupLine(u: LoadedUniverse, s: GameSettings): string {
   for (const t of rulesTags(r, QUICK_RULES)) if (!['Easy', 'Normal', 'Hard'].includes(t)) words.push(t)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) words.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
   if (r.classic) words.push('Classic (est.)')
-  if (s.wheelLeagues.length > 1) words.push(`${s.wheelLeagues.length} leagues`)
+  // The Super League's wheel is every league by design, so it names the league instead of the count
+  if (isSuperLeague(s)) words.push(SUPER_LEAGUE_NAME)
+  else if (s.wheelLeagues.length > 1) words.push(`${s.wheelLeagues.length} leagues`)
   if (r.onlyClub) words.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) words.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
   if (!r.twists && !modesOf(r).includes('crazy')) words.push('no twists')
@@ -235,7 +245,7 @@ export function quickSetupLine(u: LoadedUniverse, s: GameSettings): string {
   if (!r.managers) words.push('no manager')
   if (s.january === false) words.push('no January')
   if (s.continental) words.push('Continental run')
-  if ((s.difficulty ?? 'calibrated') === 'realistic') words.push('Realistic')
+  if ((s.difficulty ?? 'calibrated') === 'realistic' && !isSuperLeague(s)) words.push('Realistic')
   return words.join(' · ')
 }
 
@@ -253,7 +263,7 @@ export function setupChips(u: LoadedUniverse, s: GameSettings): SetupChip[] {
   const out: SetupChip[] = [
     { key: 'formation', text: getFormation(s.formationId).name },
     // The league and season played in, never the club replaced (a quick draft never names it)
-    { key: 'host', text: `${u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId} ${seasonLabel(s.leagueSeason)}` },
+    { key: 'host', text: isSuperLeague(s) ? SUPER_LEAGUE_NAME : `${u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId} ${seasonLabel(s.leagueSeason)}` },
     { key: 'opposition', text: (s.difficulty ?? 'calibrated') === 'realistic' ? 'Realistic' : 'Calibrated' },
     { key: 'seed', text: `Seed ${s.seed}` },
   ]

@@ -4,7 +4,8 @@ import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } f
 import { ACHIEVEMENTS } from '@engine/awards'
 import type { LeaderboardEntry } from '@game/types'
 import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
-import { LeagueFlag } from '../components/Flag'
+import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
+import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { AchievementIcon } from '../components/icons'
 import { clubName, ordinal, seasonLabel, tierName } from '../format'
 import { modeLabel } from '../screenText'
@@ -230,7 +231,7 @@ export function ProfileScreen() {
                               {e.nation && <Flag nation={e.nation} />}
                             </span>
                             <div className="small muted">
-                              {u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)} · {modeLabel(e.mode)}
+                              {e.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <>{u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</>} · {modeLabel(e.mode)}
                             </div>
                             {(runs.length > 1 || e.challenge) && (
                               <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
@@ -246,7 +247,7 @@ export function ProfileScreen() {
                             {e.won}-{e.drawn}-{e.lost}
                           </td>
                           <td>
-                            {tierName(e.tier, e.position)}
+                            {tierName(e.tier, e.position, e.superLeague)}
                             <div className="small muted">{ordinal(e.position)}</div>
                           </td>
                         </tr>

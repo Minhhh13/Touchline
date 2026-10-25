@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { LeagueFlag } from './Flag'
+import { QuickLeagueFlag } from './Flag'
+import { quickLeagueName } from '@game/logic/superLeague'
 import { seasonLabel } from '../format'
 
 /**
@@ -10,11 +11,11 @@ import { seasonLabel } from '../format'
  */
 export function QuickTeamLine({ game, u, children }: { game: Game; u: LoadedUniverse; children?: ReactNode }) {
   const s = game.settings
-  const league = u.leagues.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
+  const league = quickLeagueName(u, s)
   return (
     <div className="quick-team row wrap" data-testid="quick-team">
       <b className="quick-team-name">{s.teamName}</b>
-      <LeagueFlag leagueId={s.leagueId} label={league} />
+      <QuickLeagueFlag settings={s} label={league} />
       {/* Quick Draft's goal is just the season: the team and a flag; the Daily keeps its season */}
       {s.mode !== 'quick' && <span className="chip">{seasonLabel(s.leagueSeason)}</span>}
       {children}

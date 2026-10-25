@@ -263,6 +263,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   powerUps: isBool,
   managers: isBool,
   classic: isBool,
+  superLeague: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
