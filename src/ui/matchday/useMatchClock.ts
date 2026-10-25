@@ -1,16 +1,30 @@
 /**
- * The dashboard's match clock: one minute every `period / speed` ms from
- * `start` to `stopAt`, with pause, speeds and skip, published to the shared
- * clock store before paint so the pitch never shows another match's minute.
- * `stepClock` is the pure tick, for tests.
+ * The dashboard's match clock. It owns the shared live clock (clockStore):
+ * a continuous anchor (the match stood at minute `at` at real time `since`)
+ * that runs at `period / speed` ms a minute from `start` to the end of the
+ * `stopAt` minute, holding at every goal for its celebration. The pitch reads
+ * the fractional minute from the store every frame; React sees the whole
+ * minute, the goals revealed and the celebration on, refreshed on a light
+ * timer and only when one changes. Pause, speeds (remembered per browser),
+ * skip; a hidden tab pauses the match until it is back.
+ *
+ * `stepClock` is the old minute-by-minute tick, kept pure for tests.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { publishClock } from '../match/clockStore'
+import { GOAL_FLIGHT_MS, readout, reanchor, useLiveClock, type GoalHold } from '../match/clockStore'
 import type { MatchClockApi, Speed } from './types'
 
-/** Milliseconds per match minute at 1x: the bare ticker, and the ticker with the pitch to watch. */
+/**
+ * Milliseconds per match minute at 1x: the bare ticker, and the ticker with the pitch to watch.
+ * 1x is a broadcast pace you can follow: a match minute takes 3 s, so a 20-yard pass (about
+ * 0.4 of a minute on the ball path) takes a little over a second, a carry half a second to a
+ * second, and a half about two and a quarter minutes plus the goals' celebrations. 0.5x is
+ * slower still (6 s a minute); 2x, 3x and 4x are quicker (4x is 0.75 s a minute).
+ */
 export const TICKER_PERIOD = 110
-export const PITCH_PERIOD = 330
+export const PITCH_PERIOD = 3000
+/** The speeds on offer, slowest first. */
+export const SPEEDS: Speed[] = [0.5, 1, 2, 3, 4]
 
 export interface ClockState {
   clock: number
@@ -24,6 +38,28 @@ export function stepClock(s: ClockState, stopAt: number): ClockState {
   return next >= stopAt ? { clock: stopAt, running: false } : { clock: next, running: true }
 }
 
+/** The replay speed is a per-viewer convenience, remembered across matches and segments under its own key. */
+export const SPEED_KEY = 'touchline-match-speed'
+/** A stored speed, or 1x for anything else (nothing stored, an old value, blocked storage). */
+export function parseSpeed(raw: string | null): Speed {
+  const v = Number(raw)
+  return SPEEDS.find((s) => s === v) ?? 1
+}
+function readSpeed(): Speed {
+  try {
+    return parseSpeed(localStorage.getItem(SPEED_KEY))
+  } catch {
+    return 1
+  }
+}
+function saveSpeed(v: Speed): void {
+  try {
+    localStorage.setItem(SPEED_KEY, String(v))
+  } catch {
+    // Private window or blocked storage: the speed is simply not remembered
+  }
+}
+
 export interface ClockOptions {
   start: number
   stopAt: number
@@ -31,39 +67,108 @@ export interface ClockOptions {
   final: boolean
   period?: number
   autoStart?: boolean
-  /** Called once when the clock reaches `stopAt`. */
+  /** The goal holds of the match (the celebration); none without the pitch. */
+  holds?: GoalHold[]
+  /** Reduced motion: the ball reaches the net at once. */
+  reduced?: boolean
+  /** Called once when the clock reaches the end of the `stopAt` minute. */
   onFinish?: () => void
 }
 
-export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, autoStart = true, onFinish }: ClockOptions): MatchClockApi {
-  const [state, setState] = useState<ClockState>(() => ({ clock: Math.min(start, stopAt), running: autoStart && start < stopAt }))
-  const [speed, setSpeed] = useState<Speed>(1)
+const NO_HOLDS: GoalHold[] = []
+
+export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, autoStart = true, holds = NO_HOLDS, reduced = false, onFinish }: ClockOptions): MatchClockApi {
+  const end = stopAt + 1
+  const flight = reduced ? 0 : GOAL_FLIGHT_MS
+  // Until this match has taken the shared store, report the start (the store may still hold the last match)
+  const [armed, setArmed] = useState(false)
   const done = useRef(false)
   const finishRef = useRef(onFinish)
-  const { clock, running } = state
+  const mounted = useRef({ start, autoStart })
 
   useLayoutEffect(() => {
     finishRef.current = onFinish
   })
 
+  // Take the clock before paint, so a pitch mounting with a new match never shows the last one's minute
   useLayoutEffect(() => {
-    publishClock({ clock, speed, running: running && clock < stopAt, period })
-  }, [clock, speed, running, stopAt, period])
+    const now = performance.now()
+    const { start: from, autoStart: go } = mounted.current
+    const anchor = { at: Math.min(from, end), since: now, spent: Infinity, running: go && from < end, speed: readSpeed(), period, stopAt, end, holds }
+    useLiveClock.setState({ ...anchor, ...readout(anchor, now, flight) })
+    done.current = false
+    setArmed(true)
+    // Mount only: later changes of the stop, the holds or the period re-anchor below
+  }, [])
 
+  // A change in play re-decides the rest of the match: new holds, maybe a new whistle. The picture stays where it is.
+  useLayoutEffect(() => {
+    if (!armed) return
+    const s = useLiveClock.getState()
+    if (s.holds === holds && s.stopAt === stopAt && s.end === end && s.period === period) return
+    const now = performance.now()
+    const next = { ...s, ...reanchor(s, now), holds, stopAt, end, period }
+    useLiveClock.setState({ ...next, ...readout(next, now, flight), running: s.running && next.at < end })
+  }, [armed, holds, stopAt, end, period, flight])
+
+  const storeClock = useLiveClock((s) => s.clock)
+  const speed = useLiveClock((s) => s.speed) as Speed
+  const storeRunning = useLiveClock((s) => s.running)
+  const storeDone = useLiveClock((s) => s.done)
+  const clock = armed ? storeClock : Math.min(start, stopAt)
+  const running = armed && storeRunning
+  const finished = armed && storeDone
+
+  // A light timer refreshes what React shows; the pitch animates on its own every frame
   useEffect(() => {
     if (!running) return
-    const id = setInterval(() => setState((s) => stepClock(s, stopAt)), period / speed)
+    const id = setInterval(() => {
+      const s = useLiveClock.getState()
+      const now = performance.now()
+      const r = readout(s, now, flight)
+      if (r.clock === s.clock && r.revealed === s.revealed && r.celebrating === s.celebrating && r.done === s.done) return
+      useLiveClock.setState(r.done ? { ...r, running: false, at: s.end, since: now, spent: Infinity } : r)
+    }, 40)
     return () => clearInterval(id)
-  }, [running, speed, stopAt, period])
+  }, [running, flight])
+
+  // Hidden tab: the match waits for you (the clock runs on real time, so it would otherwise play on unseen)
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    let pausedByHide = false
+    const onVisibility = () => {
+      const s = useLiveClock.getState()
+      const now = performance.now()
+      if (document.visibilityState === 'hidden') {
+        if (s.running) {
+          pausedByHide = true
+          useLiveClock.setState({ ...reanchor(s, now), running: false })
+        }
+      } else if (pausedByHide) {
+        pausedByHide = false
+        if (!s.running && !s.done) useLiveClock.setState({ since: now, running: true })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
 
   useEffect(() => {
-    if (clock >= stopAt && !done.current) {
+    // Read the store, not the render: the first render of a new segment can still see the last one's finish
+    if (finished && useLiveClock.getState().done && !done.current) {
       done.current = true
       finishRef.current?.()
     }
-  }, [clock, stopAt])
+  }, [finished])
 
-  const finished = clock >= stopAt
+  const pause = () => {
+    const s = useLiveClock.getState()
+    if (s.running) useLiveClock.setState({ ...reanchor(s, performance.now()), running: false })
+  }
+  const resume = () => {
+    const s = useLiveClock.getState()
+    if (!s.running && !s.done) useLiveClock.setState({ since: performance.now(), running: true })
+  }
   return {
     clock,
     speed,
@@ -72,10 +177,19 @@ export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, aut
     atStop: finished && !final,
     stopAt,
     final,
-    toggle: () => setState((s) => ({ ...s, running: !s.running && s.clock < stopAt })),
-    pause: () => setState((s) => ({ ...s, running: false })),
-    resume: () => setState((s) => ({ ...s, running: s.clock < stopAt })),
-    setSpeed,
-    skip: () => setState({ clock: stopAt, running: false }),
+    toggle: () => (useLiveClock.getState().running ? pause() : resume()),
+    pause,
+    resume,
+    setSpeed: (v: Speed) => {
+      const s = useLiveClock.getState()
+      useLiveClock.setState({ ...reanchor(s, performance.now()), speed: v })
+      saveSpeed(v)
+    },
+    skip: () => {
+      const s = useLiveClock.getState()
+      const now = performance.now()
+      const at = { ...s, at: s.end, since: now, spent: Infinity, running: false }
+      useLiveClock.setState({ at: s.end, since: now, spent: Infinity, running: false, ...readout(at, now, flight) })
+    },
   }
 }

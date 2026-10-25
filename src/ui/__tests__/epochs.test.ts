@@ -40,7 +40,8 @@ describe('epochs and the match path', () => {
         const b = mpath.path[first]
         // A kick-off restarts from the centre spot; anywhere else the ball moves on from where it stood
         if (e.from === 46) expect(Math.hypot(b.x - 50, b.y - 50)).toBeLessThanOrEqual(MAX_HOP + 1)
-        else if (b.kind !== 'reset') expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeLessThanOrEqual(MAX_HOP + 1)
+        // (a keeper's long ball goes further, in the air, taking its time like any other hop)
+        else if (b.kind !== 'reset' && (b.loft ?? 0) < 0.5) expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeLessThanOrEqual(MAX_HOP + 1)
       }
       expect(epochAt(mpath, 30.9).from).toBe(0)
       expect(epochAt(mpath, 31).from).toBe(31)

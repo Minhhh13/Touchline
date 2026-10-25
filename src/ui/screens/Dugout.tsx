@@ -6,6 +6,7 @@ import { rolesFor, getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
 import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
 import { nextOpponent, upcomingCupTie } from '@game/logic/week'
+import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
 import { canCover, ratingAt } from '@engine/positions'
 import { teamStrength } from '@game/logic/squad'
@@ -77,6 +78,7 @@ export function Dugout() {
   const strength = teamStrength(game, u)
   const squad = squadPlayers(game, u)
   const preseason = game.phase === 'preseason'
+  const playMode = matchPlayOf(game)
   const done = season.matchweek >= season.matchweeks || season.sacked
   const openOffers = game.window?.offers.filter((o) => o.status === 'open').length ?? 0
   const briefing = weeklyBriefing(game, u)
@@ -174,14 +176,23 @@ export function Dugout() {
                 )}
               </div>
             )}
+            <div className="match-play" data-testid="match-play" role="radiogroup" aria-label="How to play the match">
+              <span className="small muted">Match:</span>
+              {MATCH_PLAY_MODES.map((m) => (
+                <button key={m.id} type="button" role="radio" aria-checked={playMode === m.id} className={`chip-btn ${playMode === m.id ? 'active' : ''}`} title={m.hint} onClick={() => store.setMatchPlay(m.id)} data-testid={`match-play-${m.id}`}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
             <div className="btns">
               {preseason && game.friendliesPlayed < 3 && (
                 <button className="btn" onClick={() => store.playFriendly()}>
                   Play friendly
                 </button>
               )}
-              <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent}>
+              <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent} data-testid="play-week">
                 {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
+                {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
                 Sim 5

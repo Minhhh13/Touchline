@@ -71,6 +71,12 @@ export function MatchScreen() {
           key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}-${live.mp.clock ?? 45}`}
           source={{ mode: 'live', live }}
           onAdvance={(changes) => store.advanceLive(changes, true)}
+          onSimToEnd={(changes) => {
+            // Straight to the whistle with the assistant; a cup tie that follows waits until this report has been seen
+            setWhich(live.kind === 'cup' ? 'cup' : 'league')
+            setHoldLive(true)
+            safely(() => store.finishLiveNow(changes))
+          }}
           onWhistle={() => {
             // Hold a cup tie that follows until this report has been seen; then write the report
             setWhich(live.kind === 'cup' ? 'cup' : 'league')
@@ -105,7 +111,8 @@ export function MatchScreen() {
     }
     if (cupNext) {
       setHoldLive(false)
-      setMatchView('ticker')
+      // The assistant is back to the saved way to play, whatever was asked for the last match
+      store.nextLiveMatch()
       return
     }
     closeMatch()
