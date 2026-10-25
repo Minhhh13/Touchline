@@ -312,7 +312,7 @@ export const useStore = create<Store>()(
           // Park a game of a different kind rather than losing it; a finished one is dropped.
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
-          set({ game, parked: next, screen: 'game', pendingChallenge: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          set({ game, parked: next, screen: 'game', liveAuto: false, pendingChallenge: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
         abandonGame: () => set({ game: null, screen: 'home', offseason: null }),
         resumeGame: (slot) => {
@@ -327,7 +327,8 @@ export const useStore = create<Store>()(
           void get()
             .ensureLeagues(ids)
             .then((ok) => {
-              if (ok) set({ game: target, parked: next, screen: 'game' })
+              // The assistant takes a resumed match's stops only under its own Auto-play, never because the last game had him on
+              if (ok) set({ game: target, parked: next, screen: 'game', liveAuto: assistantTakesStops(target) })
             })
         },
         discardParked: (slot) => {

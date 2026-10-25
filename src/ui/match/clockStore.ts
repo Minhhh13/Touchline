@@ -21,7 +21,7 @@ export interface GoalHold {
   t: number
   ms: number
   side: Side
-  /** `minute-side-player-type`, to match the goal to its event and hide it until it is revealed. */
+  /** The goal's index in the match's events (as a string), to match the hold to its event and hide it until it is revealed. */
   key: string
   /** The user's own goal (full celebration), conceded (short and subdued) or neither side is the user's (a full one). */
   tone: 'ours' | 'theirs' | 'neutral'

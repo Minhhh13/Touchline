@@ -73,6 +73,11 @@ describe('the assistant at the live stops', () => {
             }
           }
           subsMade += subs.length
+          // Everyone out on his feet: the assistant wants every change, and still makes no more than are left
+          const drained = clone(g)
+          for (const sp of Object.values(drained.squad)) sp.condition = 5
+          const most = assistantCall(drained, u).substitutions ?? []
+          expect(most.length).toBeLessThanOrEqual(atBreak ? Math.min(3, 5 - made) : 5 - made)
           expect(atBreak ? call.talk : call.shout).toBeDefined()
           advanceWithAssistant(g, u)
         }
@@ -131,6 +136,29 @@ describe('the assistant at the live stops', () => {
     const subs = assistantCall(tired, u).substitutions ?? []
     const made = (tired.live!.userIsHome ? tired.live!.mp.hSubs : tired.live!.mp.aSubs).length
     expect(subs.length).toBe(Math.min(5 - made, tired.bench.filter((id) => !Object.values(tired.lineup).includes(id)).length))
+  })
+
+  it('at 70 makes only what is left of the five after the changes at the break, however many fresh men sit on the bench', { timeout: 120_000 }, () => {
+    let bound = 0
+    for (let s = 0; s < 12 && bound < 3; s++) {
+      const g = started(`late-cap-${s}`)
+      playMatchweek(g, u, false)
+      // Everyone out on his feet: three changes at the break, and at 70 he wants more than are left
+      for (const sp of Object.values(g.squad)) sp.condition = 30
+      advanceWithAssistant(g, u)
+      if (g.live?.mp.clock !== 70) continue
+      const mp = g.live.mp
+      const made = (g.live.userIsHome ? mp.hSubs : mp.aSubs).length
+      const appeared = new Set((g.live.userIsHome ? mp.hLive : mp.aLive).map((p) => p.psId))
+      const get = playerLookup(g, u)
+      const outfieldLeft = g.bench.filter((id) => !appeared.has(id) && g.squad[id] && !g.squad[id].injury && g.squad[id].suspension <= 0 && !get(id)!.positions.every((x) => x === 'GK')).length
+      expect(made).toBeGreaterThanOrEqual(3)
+      const subs = assistantCall(g, u).substitutions ?? []
+      expect(subs.length).toBe(Math.min(5 - made, outfieldLeft))
+      if (outfieldLeft > 5 - made) bound++
+    }
+    // The cap, not the bench, was what stopped him
+    expect(bound).toBeGreaterThanOrEqual(3)
   })
 })
 

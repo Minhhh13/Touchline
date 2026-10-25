@@ -211,11 +211,14 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
     onPlayed(!now || liveMatchKey(now) !== key, view)
   }
   // The assistant answers the stop when he has been asked to
+  // (Keyed on the stop and the switch alone: a re-render of the screen must not restart the 0.7 s wait)
+  const afterRef = useRef(after)
+  afterRef.current = after
   useEffect(() => {
     if (!atStop || !liveAuto || answered.current) return
-    const id = setTimeout(() => after(() => useStore.getState().assistantAdvance()), 700)
+    const id = setTimeout(() => afterRef.current(() => useStore.getState().assistantAdvance()), 700)
     return () => clearTimeout(id)
-  })
+  }, [atStop, liveAuto])
   if (!u || !game?.live) return null
   const live = game.live
   const mp = live.mp
@@ -272,7 +275,7 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
             </button>
           </>
         }
-        visuals={<MatchVisuals home={sideFromSnapshot(mp.home, mp.hLive, kit.home)} away={sideFromSnapshot(mp.away, mp.aLive, kit.away)} events={mp.events} momentum={mp.momentum ?? []} xg={{ home: mp.lamH, away: mp.lamA }} from={atBreak ? 0 : 46} to={clock} seed={pitchSeed(live.opponentId, live.ctx.matchweek, live.kind)} getPlayer={get} />}
+        visuals={<MatchVisuals home={sideFromSnapshot(mp.home, mp.hLive, kit.home)} away={sideFromSnapshot(mp.away, mp.aLive, kit.away)} events={mp.events} momentum={mp.momentum ?? []} xg={{ home: mp.lamH, away: mp.lamA }} from={atBreak ? 0 : 46} to={clock} seed={pitchSeed(live.ctx.opponentClubId, live.ctx.matchweek, live.kind)} getPlayer={get} />}
       />
       {atStop && liveAuto && (
         <div className="panel assistant-note small" data-testid="assistant-note">
