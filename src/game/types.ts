@@ -256,4 +256,6 @@ export interface Profile {
   managerName: string
   /** Trophy cabinet across every game played in this browser. */
   trophies?: { league: number; cup: number; continental: number; doubles: number; trebles: number }
+  /** Coach marks dismissed, tip id to the ISO date it was dismissed; missing on older saves (every tip unseen). */
+  seenTips?: Record<string, string>
 }

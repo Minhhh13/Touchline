@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Position } from '@engine/types'
 import { POSITION_GROUP } from '@engine/positions'
 import { ratingBand, textColourFor } from '../format'
 import { useStore } from '@game/store'
+import { tipSeen, type TipId } from '@game/logic/tips'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -147,4 +148,44 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<
       ))}
     </div>
   )
+}
+
+/**
+ * A coach mark: a short callout inline in the page flow, shown until its 'Got it'
+ * is pressed (remembered on the profile). Never an overlay, never blocks a button.
+ */
+export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
+  const seen = useStore((s) => tipSeen(s.profile, id))
+  const dismiss = useStore((s) => s.dismissTip)
+  if (seen) return null
+  return (
+    <div className="tip" role="note" data-testid={`tip-${id}`}>
+      <span className="tip-text">{children}</span>
+      <button type="button" className="btn sm" onClick={() => dismiss(id)}>
+        Got it
+      </button>
+    </div>
+  )
+}
+
+/** An on/off preference kept per viewer in localStorage; blocked storage reads as off and still toggles for the visit. */
+export function useViewerFlag(key: string): [boolean, () => void] {
+  const [on, setOn] = useState(() => {
+    try {
+      return localStorage.getItem(key) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggle = useCallback(() => {
+    setOn((v) => {
+      try {
+        localStorage.setItem(key, v ? '0' : '1')
+      } catch {
+        // Storage blocked: the toggle still works for this visit
+      }
+      return !v
+    })
+  }, [key])
+  return [on, toggle]
 }

@@ -7,7 +7,7 @@ import { Wheel } from '../components/Wheel'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, Pos, Rating } from '../components/bits'
+import { ClubBadge, Pos, Rating, Tip } from '../components/bits'
 import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { leagueSegments } from '../components/leagueSegments'
@@ -187,6 +187,7 @@ export function Draft() {
                 <Pos key={p} p={p} />
               ))}
             </div>
+            {!fillingStarters && !complete && !dry && <Tip id="draft-bench">Bench picks can be anyone un-drafted; cover every position, injuries will come.</Tip>}
           </div>
           {d.history.length > 0 && (
             <div className="panel tight">
@@ -256,6 +257,9 @@ export function Draft() {
                     cancel
                   </button>
                 </div>
+              )}
+              {revealed && fillingStarters && (
+                <Tip id="draft-first-reveal">Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist" style={{ maxHeight: 560, overflow: 'auto' }}>
