@@ -1122,6 +1122,12 @@ table.tbl tr.clickable:hover {
 .tier-banner .tier.RELEGATION_BATTLE {
   color: var(--danger);
 }
+.tier-blurb {
+  margin: 8px auto 0;
+  max-width: 46ch;
+  color: var(--text-2);
+  font-size: 14px;
+}
 .record {
   font-family: var(--font-display);
   font-size: 34px;
@@ -1970,29 +1976,79 @@ table.tbl tr.clickable:hover {
 }
 .gbg-game {
   display: grid;
-  grid-template-columns: 44px 22px minmax(0, 1fr) auto auto 42px;
+  grid-template-columns: 28px 22px minmax(0, 1fr) auto auto;
   gap: 4px 8px;
   align-items: center;
-  padding: 6px 9px;
+  padding: 7px 10px;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--panel-2);
-  animation: gbg-in 0.18s ease-out;
+  animation: gbg-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15);
 }
 .gbg-game.W {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: color-mix(in srgb, var(--accent) 13%, var(--panel-2));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+.gbg-game.D {
+  background: color-mix(in srgb, var(--gold) 11%, var(--panel-2));
+  border-color: color-mix(in srgb, var(--gold) 38%, var(--line));
 }
 .gbg-game.L {
-  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+  background: color-mix(in srgb, var(--danger) 12%, var(--panel-2));
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
+}
+/* The game just played, at the top of a newest-first list: a touch larger, with a flash as it lands */
+.gbg-game.newest {
+  padding: 10px 12px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent);
+  animation: gbg-drop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.gbg-game.newest .gbg-score {
+  font-size: 22px;
+}
+.gbg-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: #0b1410;
+}
+.gbg-badge.W {
+  background: var(--accent);
+}
+.gbg-badge.D {
+  background: var(--gold);
+}
+.gbg-badge.L {
+  background: var(--danger);
+  color: #fff;
+}
+.gbg-ha {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 1px;
 }
 .gbg-mw {
   color: var(--text-3);
   font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
 }
 .gbg-fix {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
 }
 .gbg-score {
   font-family: var(--font-display);
@@ -2000,14 +2056,89 @@ table.tbl tr.clickable:hover {
   min-width: 36px;
   text-align: center;
 }
-.gbg-pos {
-  text-align: right;
-  color: var(--text-2);
-  font-size: 13px;
+.gbg-badge.round {
+  font-size: 10px;
 }
 .gbg-scorers {
-  grid-column: 2 / -1;
+  grid-column: 3 / -1;
   white-space: normal;
+  color: var(--text-2);
+}
+.seg-mini {
+  padding: 2px;
+}
+.seg-mini button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+/* The running tally of the season playback: four boxes that count up, the goals under them */
+.tally {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tally-boxes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.tally-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px 8px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.tally-num {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.tally-label {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.tally-box.w .tally-num {
+  color: var(--accent);
+}
+.tally-box.d .tally-num {
+  color: var(--gold);
+}
+.tally-box.l .tally-num {
+  color: var(--danger);
+}
+.tally-box.pts {
+  border-color: var(--line-2);
+  background: var(--panel);
+}
+.tally-goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  justify-content: center;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.tally-pos {
+  color: var(--text);
+  font-weight: 600;
+}
+.playback-mw {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.playback-mw b {
+  color: var(--text);
+  font-size: 22px;
 }
 @keyframes gbg-in {
   from {
@@ -2017,6 +2148,21 @@ table.tbl tr.clickable:hover {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+@keyframes gbg-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.97);
+    filter: brightness(1.6);
+  }
+  60% {
+    opacity: 1;
+    filter: brightness(1.25);
+  }
+  100% {
+    transform: none;
+    filter: none;
   }
 }
 .tier-banner .tier.pop {
@@ -2032,38 +2178,7 @@ table.tbl tr.clickable:hover {
     transform: none;
   }
 }
-/* The season playback: the latest game, large, and the January window's deals */
-.gbg-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--panel);
-  animation: gbg-in 0.18s ease-out;
-}
-.gbg-card.W {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-}
-.gbg-card.L {
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
-}
-.gbg-card-main {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-}
-.gbg-card-opp {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.gbg-card-score {
-  font-family: var(--font-display);
-  font-size: 34px;
-  line-height: 1;
-}
+/* The January window's deals */
 .jw-deal {
   display: flex;
   flex-direction: column;
@@ -2078,8 +2193,15 @@ table.tbl tr.clickable:hover {
 }
 @media (max-width: 520px) {
   .gbg-game {
-    grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 38px;
+    grid-template-columns: 26px 20px minmax(0, 1fr) auto auto;
     gap: 4px 6px;
+    padding: 6px 8px;
+  }
+  .gbg-mw {
+    font-size: 11px;
+  }
+  .tally-num {
+    font-size: 24px;
   }
   .gbg-fix {
     white-space: normal;
@@ -2087,8 +2209,8 @@ table.tbl tr.clickable:hover {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .gbg-card,
   .gbg-game,
+  .gbg-game.newest,
   .tier-banner .tier.pop {
     animation: none;
   }
@@ -2298,15 +2420,12 @@ table.tbl tr.clickable:hover {
 
 /* Quick-season highlights: a Highlights button on each game, the reel in a modal (a bottom sheet on a phone) */
 .gbg.with-hl .gbg-game {
-  grid-template-columns: 44px 22px minmax(0, 1fr) auto auto 42px 30px;
+  grid-template-columns: 28px 22px minmax(0, 1fr) auto auto 30px;
 }
 .gbg-hl {
   min-width: 30px;
   padding: 2px 6px;
   font-size: 12px;
-}
-.gbg-card [data-testid='card-highlights'] {
-  margin-top: 8px;
 }
 .hl-score {
   display: grid;
@@ -2384,6 +2503,6 @@ table.tbl tr.clickable:hover {
 }
 @media (max-width: 520px) {
   .gbg.with-hl .gbg-game {
-    grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 34px 28px;
+    grid-template-columns: 26px 20px minmax(0, 1fr) auto auto 28px;
   }
 }

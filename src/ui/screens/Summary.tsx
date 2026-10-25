@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
-import { TIER_LABEL, USER_TEAM, computeTable } from '@engine/season'
+import { TIER_LABEL, USER_TEAM, computeTable, tierBlurb, tierLabel } from '@engine/season'
 import { shareText } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
@@ -19,7 +19,7 @@ import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/lo
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
-import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
+import { GameByGame, SeasonTally, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
@@ -181,10 +181,15 @@ export function Summary() {
           </div>
         ) : (
           <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-            {TIER_LABEL[tier]}
+            {tierLabel(tier, record.position)}
           </div>
         )}
-        {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
+        {!replay.playing && (
+          <p className="tier-blurb" data-testid="tier-blurb">
+            {tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+          </p>
+        )}
+        {replay.playing && <SeasonTally results={results} upTo={replay.revealed} />}
         {!replay.playing && season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
         {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
@@ -265,7 +270,7 @@ export function Summary() {
 
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} onHighlights={canShowHighlights(game) ? (r) => setHlWeek(r.matchweek) : undefined} />
+          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} strip={false} orderToggle onHighlights={canShowHighlights(game) ? (r) => setHlWeek(r.matchweek) : undefined} />
           {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
         </div>
       )}
@@ -310,14 +315,16 @@ export function Summary() {
           <ol className="gbg-list">
             {q.europe.ties.map((t) => (
               <li key={t.round} className={`gbg-game ${t.won ? 'W' : 'L'}`}>
-                <span className="gbg-mw">{t.round}</span>
+                <span className={`gbg-badge ${t.won ? 'W' : 'L'} round`}>{t.round}</span>
                 <ClubBadge clubId={t.opponentId} size={22} />
                 <span className="gbg-fix">{t.round === 'F' ? `v ${clubName(u, t.opponentId)} (final)` : t.home ? `v ${clubName(u, t.opponentId)} (H)` : `at ${clubName(u, t.opponentId)}`}</span>
                 <span className="gbg-score">
                   {t.gf}-{t.ga}
                 </span>
-                <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
-                <span className="gbg-pos small muted">{t.pens ? `${t.pens.for}-${t.pens.against}p` : ''}</span>
+                <span className="gbg-mw">
+                  <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
+                  {t.pens ? ` ${t.pens.for}-${t.pens.against}p` : ''}
+                </span>
               </li>
             ))}
           </ol>
@@ -572,7 +579,7 @@ export function Summary() {
                       <td className="num">{ordinal(h.position)}</td>
                       <td className="num">{h.points}</td>
                       <td>
-                        {TIER_LABEL[h.tier]}
+                        {tierLabel(h.tier, h.position)}
                         {h.cupWon ? ' + Cup' : ''}
                         {h.continentalWon ? ' + Europe' : ''}
                       </td>

@@ -3,7 +3,7 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame } from '../logic/setup'
 import { runQuickSeason } from '../logic/quick'
 import { runH2HSeason, H2H_IDS } from '../logic/h2h'
-import { bestWin, bestWinLine, foldResults, outcomeOf, recordUserGames, scorersLabel, shortName } from '../logic/gameByGame'
+import { bestWin, bestWinLine, countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, outcomeOf, recordUserGames, scorersLabel, shortName } from '../logic/gameByGame'
 import { autoDraft, isComplete, newDraft, QUICK_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { ENGINE_VERSION } from '@engine/version'
@@ -224,5 +224,43 @@ describe('the replay helpers', () => {
     expect(shortName('Neymar')).toBe('Neymar')
     expect(shortName('K. De Bruyne')).toBe('De Bruyne')
     expect(shortName('Virgil van Dijk')).toBe('Virgil van Dijk')
+  })
+})
+
+describe('the season list, newest first', () => {
+  it('shows the games revealed so far with the newest at the top, without touching the season', () => {
+    for (const seed of ['newest-first-a', 'newest-first-b', 'newest-first-c']) {
+      const g = quickGame(seed)
+      const results = g.quickResult!.results!
+      const before = JSON.stringify(results)
+      for (const revealed of [0, 1, 2, 19, results.length]) {
+        const newest = gamesInOrder(results, revealed, 'newest')
+        const oldest = gamesInOrder(results, revealed, 'oldest')
+        expect(newest).toHaveLength(revealed)
+        expect(oldest.map((r) => r.matchweek)).toEqual(results.slice(0, revealed).map((r) => r.matchweek))
+        expect(newest.map((r) => r.matchweek)).toEqual([...oldest].reverse().map((r) => r.matchweek))
+        if (revealed) expect(newest[0]).toBe(results[revealed - 1])
+        for (let i = 1; i < newest.length; i++) expect(newest[i - 1].matchweek).toBeGreaterThan(newest[i].matchweek)
+      }
+      expect(gamesInOrder(results, 99, 'newest')).toHaveLength(results.length)
+      expect(gamesInOrder(results, -3, 'newest')).toHaveLength(0)
+      expect(JSON.stringify(results)).toBe(before)
+    }
+  })
+
+  it('prints the goal difference with its sign and counts up to the new value', () => {
+    expect(goalDifferenceLabel(4, 5)).toBe('-1')
+    expect(goalDifferenceLabel(5, 2)).toBe('+3')
+    expect(goalDifferenceLabel(1, 1)).toBe('0')
+    expect(countUpValue(3, 6, 0)).toBe(3)
+    expect(countUpValue(3, 6, 1)).toBe(6)
+    expect(countUpValue(3, 6, 2)).toBe(6)
+    let last = 3
+    for (let t = 0; t <= 1; t += 0.05) {
+      const v = countUpValue(3, 6, t)
+      expect(v).toBeGreaterThanOrEqual(last)
+      expect(v).toBeLessThanOrEqual(6)
+      last = v
+    }
   })
 })

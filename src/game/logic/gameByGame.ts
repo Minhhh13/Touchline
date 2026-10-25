@@ -69,6 +69,31 @@ export function foldResults(results: QuickGameResult[], upTo = results.length): 
   return t
 }
 
+/** The order a game list is read in: the newest game at the top (the season as it happens) or matchweek 1 first. */
+export type GameOrder = 'newest' | 'oldest'
+
+/** The first `revealed` games, newest at the top or in matchweek order. Never changes the results themselves. */
+export function gamesInOrder(results: QuickGameResult[], revealed = results.length, order: GameOrder = 'oldest'): QuickGameResult[] {
+  const shown = results.slice(0, Math.max(0, Math.min(revealed, results.length)))
+  return order === 'newest' ? shown.reverse() : shown
+}
+
+/** Goal difference as it is printed: "+3", "-1" or "0". */
+export function goalDifferenceLabel(goalsFor: number, goalsAgainst: number): string {
+  const gd = goalsFor - goalsAgainst
+  return gd > 0 ? `+${gd}` : String(gd)
+}
+
+/**
+ * One frame of a number counting up from `from` to `to`: `t` runs from 0 to 1 and the value eases out, rounded to a
+ * whole number and never past `to`. The running tally uses it so a new result ticks the boxes up; display only.
+ */
+export function countUpValue(from: number, to: number, t: number): number {
+  const k = Math.max(0, Math.min(1, t))
+  const eased = 1 - (1 - k) ** 3
+  return Math.round(from + (to - from) * eased)
+}
+
 /** The biggest win of the season: widest margin, then most goals scored, then the earliest matchweek. Null without a win. */
 export function bestWin(results: QuickGameResult[]): QuickGameResult | null {
   let best: QuickGameResult | null = null

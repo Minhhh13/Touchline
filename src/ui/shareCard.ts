@@ -3,7 +3,7 @@
  * on a pitch and a footer. Returns a data URL.
  */
 import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/types'
-import { TIER_LABEL } from '@engine/season'
+import { tierLabel } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 
 export interface ShareCardInput {
@@ -67,7 +67,7 @@ export function renderShareCard(input: ShareCardInput): string {
 
   ctx.fillStyle = TIER_COLOUR[input.tier] ?? '#eef5f0'
   ctx.font = font(84)
-  ctx.fillText(TIER_LABEL[input.tier], W / 2, 225)
+  ctx.fillText(tierLabel(input.tier, input.position), W / 2, 225)
 
   // record
   const rec = [

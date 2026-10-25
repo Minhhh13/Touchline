@@ -4,7 +4,7 @@ import { FORMATIONS, getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
 import { h2hComplete, h2hEligibleSlots, h2hUsable } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
-import { TIER_LABEL } from '@engine/season'
+import { tierLabel } from '@engine/season'
 import { H2H_IDS } from '@game/logic/h2h'
 import { CaseReel } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
@@ -315,7 +315,7 @@ function H2HSummary() {
   const m = h2h.managers
   const text = [
     `Touchline · Head-to-head · ${seasonLabel(h2h.leagueSeason)}`,
-    ...([0, 1] as const).map((i) => `${m[i].name}: ${TIER_LABEL[r.tiers[i]]} · ${r.rows[i].won}W ${r.rows[i].drawn}D ${r.rows[i].lost}L · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
+    ...([0, 1] as const).map((i) => `${m[i].name}: ${tierLabel(r.tiers[i], r.positions[i])} · ${r.rows[i].won}W ${r.rows[i].drawn}D ${r.rows[i].lost}L · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
     `Derbies: ${r.derbies.map((dby) => `${m[dby.homeIdx].shortName} ${dby.homeGoals}-${dby.awayGoals} ${m[dby.homeIdx === 0 ? 1 : 0].shortName}`).join(', ')}`,
     r.winner === null ? 'Dead heat.' : `${m[r.winner].name} wins.`,
     `Seed ${h2h.seed}`,
@@ -339,7 +339,7 @@ function H2HSummary() {
             <div key={i} className="col" style={{ alignItems: 'center' }}>
               <h3 style={{ color: 'var(--text)' }}>{m[i].name}</h3>
               <div className="small muted">
-                as {clubName(u, m[i].hostClubId)} · {TIER_LABEL[r.tiers[i]]}
+                as {clubName(u, m[i].hostClubId)} · {tierLabel(r.tiers[i], r.positions[i])}
               </div>
               <div className="record" style={{ fontSize: 26 }}>
                 <span className="w">{r.rows[i].won}W</span>

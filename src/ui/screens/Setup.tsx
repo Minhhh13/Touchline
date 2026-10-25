@@ -394,7 +394,7 @@ export function Setup() {
                         if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                       }}
                     />
-                    {isManage ? 'Continental Cup: European nights against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
+                    {isManage ? 'Continental Cup: a midweek knockout against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
                   </label>
                 )}
                 {!isManage && teamField}

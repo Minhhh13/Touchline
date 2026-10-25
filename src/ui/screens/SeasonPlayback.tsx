@@ -12,7 +12,7 @@ import { canPlayFor, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBenc
 import type { QuickGameResult } from '@game/types'
 import { Pitch } from '../components/Pitch'
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from '@game/logic/gameByGame'
-import { GameByGame, GameCard, RunningStrip, useSeasonPlayback } from '../components/GameByGame'
+import { GameByGame, SeasonTally, useSeasonPlayback } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { PlayerRow } from '../components/PlayerRow'
@@ -43,7 +43,6 @@ export function SeasonPlayback() {
     : undefined
   const s = game.settings
   const opponent = (id: string) => ({ clubId: id, name: clubName(u, id) })
-  const latest = pb.revealed ? results[pb.revealed - 1] : null
   const total = game.quickResult?.results?.length ?? quickSeasonGames(u, s)
   return (
     <div className="page">
@@ -52,8 +51,11 @@ export function SeasonPlayback() {
           <div>
             <h1>{j && pb.done ? 'January' : 'The season'}</h1>
             <p className="muted setup-sub">
-              {s.teamName} as {clubName(u, s.hostClubId)} · {seasonLabel(s.leagueSeason)} · game {pb.revealed} of {total}
+              {s.teamName} as {clubName(u, s.hostClubId)} · {seasonLabel(s.leagueSeason)}
             </p>
+            <div className="playback-mw" data-testid="playback-matchweek">
+              Matchweek <b>{pb.revealed}</b> / {total}
+            </div>
           </div>
           {!pb.done && (
             <div className="row wrap" style={{ gap: 8 }}>
@@ -67,10 +69,8 @@ export function SeasonPlayback() {
             </div>
           )}
         </div>
-        <RunningStrip results={results} upTo={pb.revealed} />
-        {latest && !(j && pb.done) && <GameCard r={latest} opponent={opponent(latest.opponentId)} onHighlights={watch} />}
+        <SeasonTally results={results} upTo={pb.revealed} />
         {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}
-        {quickBenchRule(game) && game.draft && game.draft.bench.length > 0 && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
         {!j && pb.done && (
           <div className="panel col" data-testid="playback-end">
             <b>Full time on the season: {ordinal(game.quickResult?.position ?? 0)}, {game.quickResult?.points ?? 0} points.</b>
@@ -79,7 +79,8 @@ export function SeasonPlayback() {
             </button>
           </div>
         )}
-        <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} title="Game by game" onHighlights={watch} />
+        <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" title="Game by game" onHighlights={watch} />
+        {quickBenchRule(game) && game.draft && game.draft.bench.length > 0 && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
         {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
       </div>
     </div>

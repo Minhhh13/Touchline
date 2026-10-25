@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { useStore, SAVE_KEY } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
-import { TIER_LABEL } from '@engine/season'
+import { tierLabel } from '@engine/season'
 import type { LeaderboardEntry } from '@game/types'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
@@ -169,7 +169,7 @@ export function ProfileScreen() {
                     {e.won}-{e.drawn}-{e.lost}
                   </td>
                   <td>
-                    {TIER_LABEL[e.tier]} · {ordinal(e.position)}
+                    {tierLabel(e.tier, e.position)} · {ordinal(e.position)}
                   </td>
                 </tr>
                 )

@@ -6,7 +6,7 @@
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import { familiarityGainFactor } from './depth'
 import type { Rng } from './rng'
-import type { LoadedUniverse } from './universe'
+import { ordinal, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
@@ -394,15 +394,53 @@ export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, m
   return 'RELEGATED'
 }
 
+/**
+ * The season tiers as plain outcomes. The ids are saved (game, history, challenge links, daily results) and never
+ * change; only the words do. EUROPEAN covers 3rd to 6th: `tierLabel` splits it into a top-four and a top-six finish
+ * when the position is known, and this table carries the wider name for where it is not.
+ */
 export const TIER_LABEL: Record<SeasonTier, string> = {
-  PERFECT: '38-0: THE PERFECT SEASON',
+  PERFECT: 'PERFECT SEASON',
   INVINCIBLE: 'INVINCIBLES',
   CHAMPIONS: 'CHAMPIONS',
   TITLE_RACE: 'TITLE RACE',
-  EUROPEAN: 'EUROPEAN NIGHTS',
+  EUROPEAN: 'TOP-SIX FINISH',
   MID_TABLE: 'MID-TABLE',
   RELEGATION_BATTLE: 'RELEGATION BATTLE',
   RELEGATED: 'RELEGATED',
+}
+
+/** The tier's headline, with the position when it is known: a 3rd or 4th place reads as a top-four finish. */
+export function tierLabel(tier: SeasonTier, position?: number): string {
+  if (tier === 'EUROPEAN' && position !== undefined && position >= 1 && position <= 4) return 'TOP-FOUR FINISH'
+  return TIER_LABEL[tier]
+}
+
+/**
+ * One line under the headline saying what the tier means, in plain words: where the side finished and why that
+ * counts as this outcome. `teams` is the size of the league (20 by default), `sacked` a managed season cut short.
+ */
+export function tierBlurb(tier: SeasonTier, position: number, teams = 20, sacked = false): string {
+  const place = `${ordinal(position)} of ${teams}`
+  if (sacked) return `Sacked before the end: the board judged the season over at ${place}.`
+  switch (tier) {
+    case 'PERFECT':
+      return 'Every game won. Nothing better is possible.'
+    case 'INVINCIBLE':
+      return 'League winners without losing a game all season.'
+    case 'CHAMPIONS':
+      return 'Top of the table at the end: the league title is yours.'
+    case 'TITLE_RACE':
+      return 'Runners-up: in the hunt for the title, just short of it.'
+    case 'EUROPEAN':
+      return position <= 4 ? `${place}: one of the four best sides in the league, the places that usually earn continental football.` : `${place}: in the top six, the places that usually earn continental football.`
+    case 'MID_TABLE':
+      return `${place}: clear of the drop, short of the places that earn continental football.`
+    case 'RELEGATION_BATTLE':
+      return `${place}: just above the bottom three, survival was the job.`
+    case 'RELEGATED':
+      return `${place}: in the bottom three, down a division.`
+  }
 }
 
 /**

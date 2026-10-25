@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from './helpers'
 import { Rng } from '../rng'
-import { buildAiClubs, aiTeamInput, computeTable, generateFixtures, USER_TEAM, seasonTier } from '../season'
+import { buildAiClubs, aiTeamInput, computeTable, generateFixtures, USER_TEAM, seasonTier, TIER_LABEL, tierBlurb, tierLabel } from '../season'
 import { simulateMatch, type MatchTeamInput } from '../match'
 import { autoDraft, newDraft, SEASON_RULES } from '../draft'
 import { getFormation } from '../formations'
@@ -59,5 +59,35 @@ describe('season', () => {
     expect(userRow.played).toBe(38)
     expect(table.reduce((s, r) => s + r.points, 0)).toBeGreaterThan(900)
     for (const r of table) expect(r.played).toBe(38)
+  })
+})
+
+describe('season tier labels', () => {
+  const tiers = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED'] as const
+
+  it('reads as plain outcomes, never a competition name', () => {
+    for (const t of tiers) {
+      expect(TIER_LABEL[t]).not.toMatch(/european|nights|38-0/i)
+      expect(tierBlurb(t, 10).length).toBeGreaterThan(10)
+    }
+    expect(tierLabel('EUROPEAN', 4)).toBe('TOP-FOUR FINISH')
+    expect(tierLabel('EUROPEAN', 3)).toBe('TOP-FOUR FINISH')
+    expect(tierLabel('EUROPEAN', 5)).toBe('TOP-SIX FINISH')
+    expect(tierLabel('EUROPEAN')).toBe('TOP-SIX FINISH')
+    expect(tierLabel('CHAMPIONS', 1)).toBe('CHAMPIONS')
+  })
+
+  it('explains the place under the headline, and a sacking', () => {
+    expect(tierBlurb('EUROPEAN', 4)).toContain('4th of 20')
+    expect(tierBlurb('EUROPEAN', 4)).toContain('four best')
+    expect(tierBlurb('EUROPEAN', 6, 18)).toContain('6th of 18')
+    expect(tierBlurb('RELEGATED', 19)).toContain('bottom three')
+    expect(tierBlurb('RELEGATED', 12, 20, true)).toMatch(/^Sacked/)
+  })
+
+  it('keeps the tier ids a 4th-place finish is saved under', () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({ teamId: i === 3 ? USER_TEAM : `t${i}`, played: 38, won: 30 - i, drawn: 4, lost: 4 + i, goalsFor: 60 - i, goalsAgainst: 20 + i, points: (30 - i) * 3 + 4, form: [] }))
+    expect(seasonTier(rows, USER_TEAM, false)).toBe('EUROPEAN')
+    expect(tierLabel(seasonTier(rows, USER_TEAM, false), 4)).toBe('TOP-FOUR FINISH')
   })
 })
