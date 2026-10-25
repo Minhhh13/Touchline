@@ -16,7 +16,8 @@ import { upgradePlayer } from '@engine/upgrader'
 import { giveArmband, lockPlayer } from '@engine/powerups'
 import type { ChallengePowerUp } from '@engine/challenge'
 import type { DraftState } from '@engine/draft'
-import { managersOn, setManager } from './managers'
+import { managersOn, rollManagerSpin, setManager } from './managers'
+import { placeCaseIcon, rollEndCase } from './endCase'
 
 /** The settings a challenge link fixes; the team name is the only free choice at setup. */
 export function settingsFromChallenge(c: ChallengePayload, teamName: string, shortName: string, challenge: ChallengeSettings): GameSettings {
@@ -73,6 +74,7 @@ export function seasonOf(game: Game): ChallengeSeason | undefined {
     ...(j?.move ? { j: [j.move.playerSeasonId, j.move.slotId] as [string, string] } : {}),
     ...(game.quickChanges?.length ? { s: game.quickChanges.map((c) => [c.from, c.slotId, c.inId] as [number, string, string]) } : {}),
     ...(game.manager ? { m: game.manager.id } : {}),
+    ...(game.endCase?.sub ? { ic: game.endCase.sub.slotId } : {}),
   }
   return Object.keys(x).length ? x : undefined
 }
@@ -115,6 +117,7 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
     ...(x ? { x } : {}),
     ...(upgraded >= 0 && d.upgrade ? { g: [upgraded, d.upgrade.boost] as [number, number] } : {}),
     ...(w.length ? { w } : {}),
+    ...(d.locker?.length ? { i: [...d.locker] } : {}),
   }
   // A rule a v1 build does not know travels as v2, so that build says "newer version" rather than "not a link"
   return payloadVersionFor(r, 'quick') === 1 ? { v: 1, ...body } : { v: 2, kind: 'quick', ...body }
@@ -214,6 +217,11 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
  * not on offer throws), else the season in one go.
  */
 function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | undefined): void {
+  // The manager spin and the case, rolled as the step to the season rolls them: forks of the stream the draft left
+  rollManagerSpin(game, u)
+  rollEndCase(game, u, true)
+  // The case's Icon, in the slot the challenger gave him (a case that holds no Icon, or a slot he cannot take, throws)
+  if (x?.ic) placeCaseIcon(game, u, x.ic)
   // The challenger's manager, found among those the replayed draft offers (one it does not offer throws); none without `m`
   if (x?.m) {
     if (!managersOn(game)) throw new Error('the link names a manager but its rules have none')

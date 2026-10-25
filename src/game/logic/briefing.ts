@@ -168,7 +168,7 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
 
   if (game.youthIntake) {
     const decided = game.youthIntake.chosen !== undefined
-    check('youth', decided, decided ? (game.youthIntake.chosen ? `Youth: ${get(game.youthIntake.chosen)?.name ?? 'a prospect'} promoted` : 'Youth intake passed') : 'Youth intake', 'Three academy prospects: sign one for nothing or pass.', decided ? undefined : { label: 'Squad', tab: 'squad' })
+    check('youth', decided, decided ? (game.youthIntake.chosen ? `Youth: ${get(game.youthIntake.chosen)?.name ?? 'a prospect'} promoted` : 'Youth intake passed') : 'Youth intake', `${game.youthIntake.candidates.length} academy prospects: sign one for nothing or pass.`, decided ? undefined : { label: 'Squad', tab: 'squad' })
   }
   return items
 }

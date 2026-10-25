@@ -43,6 +43,7 @@ import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { CupRuns } from '../components/CupRuns'
 import { ManagerChip } from '../components/ManagerPick'
+import { caseIconIn, caseLine } from '@game/logic/endCase'
 import { managerLine } from '@game/logic/managers'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
@@ -125,6 +126,9 @@ export function Summary() {
   // The Quick Draft's manager, by name and style
   const mgrLine = managerLine(game.manager)
   if (mgrLine) extraLines.push(mgrLine)
+  // The end-of-draft case: what it dropped, and whether its Icon played
+  const boxLine = caseLine(game, (id) => get(id)?.name ?? id)
+  if (boxLine) extraLines.push(boxLine)
   // The 38-0 chase in the share text: how long the perfect run lasted, for a season short of perfect
   const runs = q && results.length ? runsLine(chase, games) : null
   if (runs) extraLines.push(runs)
@@ -366,6 +370,11 @@ export function Summary() {
           {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, 'Cup winners', 'gold')}</span>}
           {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, 'Continental champions', 'gold')}</span>}
           {game.manager && <ManagerChip manager={game.manager} />}
+          {caseIconIn(game) && (
+            <span className="chip case-icon-chip" data-tier="icons" data-testid="summary-case-icon" title="An Icon from the end-of-draft case played: a non-standard season, kept out of the record book">
+              ★ Case Icon
+            </span>
+          )}
           {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
           {season?.sacked && <span className="chip bad">Sacked</span>}
           {tags.map((t) => (

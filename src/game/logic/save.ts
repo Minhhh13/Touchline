@@ -4,6 +4,8 @@ import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
 import { DIFFICULTY_RESPINS, type DraftRules } from '@engine/draft'
 import { MORALE_LOG_CAP } from './happiness'
+import { cleanLocker } from './endCase'
+import { REPORTS_CAP, SCOUTED_CAP } from './scouting'
 
 /**
  * Draft rules written before the 38-0 options: the difficulty is read from hard mode (hard) or the
@@ -50,7 +52,22 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     arena: g.arena ?? null,
     // A season paused for a January window that is not there cannot go on: back to the tactics step, which replays it
     phase: g.phase === 'january' && !g.quickJanuary ? 'kickoff' : g.phase,
+    ...recruitmentFields(g),
   }
+}
+
+/**
+ * Recruitment (FM-depth Batch 2) is optional throughout: a save from before it has none of these fields and every
+ * reader uses `??`. A list longer than its cap keeps its newest entries; a value of the wrong shape is dropped. A save
+ * that needs neither gets nothing back, so its fields stay exactly as they were.
+ */
+function recruitmentFields(g: Game): Partial<Game> {
+  const out: Partial<Game> = {}
+  if (g.scouted !== undefined && !(Array.isArray(g.scouted) && g.scouted.length <= SCOUTED_CAP)) out.scouted = Array.isArray(g.scouted) ? g.scouted.slice(-SCOUTED_CAP) : []
+  if (g.scoutReports !== undefined && !(Array.isArray(g.scoutReports) && g.scoutReports.length <= REPORTS_CAP)) out.scoutReports = Array.isArray(g.scoutReports) ? g.scoutReports.slice(0, REPORTS_CAP) : []
+  if (g.assignments !== undefined && !Array.isArray(g.assignments)) out.assignments = []
+  if (g.knowledge !== undefined && (typeof g.knowledge !== 'object' || g.knowledge === null)) out.knowledge = {}
+  return out
 }
 
 /**
@@ -105,5 +122,7 @@ export function normaliseProfile(p: Partial<Profile> | null | undefined, default
   const saved = p && typeof p === 'object' ? p : {}
   const b: QuickBests = saved.quickBests && typeof saved.quickBests === 'object' ? saved.quickBests : {}
   const quickBests: QuickBests = { perfectSeasons: b.perfectSeasons ?? 0, longestPerfectRun: b.longestPerfectRun ?? 0, ...(b.bestRecord ? { bestRecord: b.bestRecord } : {}) }
-  return { ...defaults, ...saved, quickBests }
+  // The locker (end-of-draft case drops): known power-ups with whole counts only; empty on a profile from before it
+  const inventory = cleanLocker(saved.inventory)
+  return { ...defaults, ...saved, quickBests, inventory }
 }

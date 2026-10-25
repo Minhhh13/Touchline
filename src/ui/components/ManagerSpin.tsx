@@ -1,0 +1,136 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useStore } from '@game/store'
+import type { Game } from '@game/types'
+import type { LoadedUniverse } from '@engine/universe'
+import { MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL, type Manager } from '@engine/managers'
+import { gameManagerWheel, managerSpinOdds, managerTier } from '@game/logic/managers'
+import { dealItems, managerCard, type ItemDeal } from '@game/logic/itemReel'
+import { reelLeagues } from '@game/logic/reel'
+import { armAudio, unlockAudio } from '../sound/synth'
+import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
+import { quickSpinPref, usePref } from '../viewerPrefs'
+import { clubName, seasonLabel } from '../format'
+import { ItemReel } from './ItemReel'
+import { SoundToggle, TierChip } from './CaseReel'
+import { SpinOdds } from './SpinOdds'
+import { ClubBadge } from './bits'
+
+/** How much later each reel to the right lands, ms (full timing; half with Quick spin), so the three stop one by one. */
+const STAGGER_MS = 450
+
+/** Fillers for the strips: up to this many managers drawn from the wheel for show (cosmetic, Math.random). */
+const FILLERS = 48
+
+function origin(u: LoadedUniverse, m: Manager): string {
+  return m.archetype || !m.clubId || m.season === undefined ? 'Invented: no record on this wheel' : `${clubName(u, m.clubId)} · ${seasonLabel(m.season)}`
+}
+
+/**
+ * The manager spin (`DraftRules.managerSpin`): three case reels side by side, spun at once like a multi-case opening,
+ * each landing on one of the three managers the game already rolled (`game.managerSpin`, from a fork of its stream);
+ * then the three cards, one of which the user picks (`pickManager`). The reels are presentation only: a reload shows
+ * the same three again. Tap or Space skips to the landing; Quick spin (Profile) runs the short timing.
+ */
+export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
+  const pickManager = useStore((s) => s.pickManager)
+  const options = useMemo(() => game.managerSpin?.options ?? [], [game.managerSpin])
+  const leagues = useMemo(() => reelLeagues(u, game.settings.rules), [u, game.settings.rules])
+  const odds = useMemo(() => managerSpinOdds(u, game), [u, game])
+  const [quick] = usePref(quickSpinPref)
+  const [run, setRun] = useState(0)
+  const [landedAt, setLandedAt] = useState<boolean[]>([])
+  const landed = landedAt.filter(Boolean).length
+  const [skip, setSkip] = useState(0)
+  useEffect(armAudio, [])
+  // Dealt once per run: the fillers are cosmetic draws from the wheel, the landing cards are the rolled three
+  const deals = useMemo<ItemDeal[]>(() => {
+    if (!run) return []
+    const wheel = gameManagerWheel(game, u)
+    const pool = Array.from({ length: Math.min(FILLERS, wheel.length) }, () => managerCard(u, leagues, wheel[Math.floor(Math.random() * wheel.length)]))
+    return options.map((m) => dealItems(managerCard(u, leagues, m), pool, Math.random))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run])
+  const spinning = run > 0 && landed < options.length
+  const done = run > 0 && landed >= options.length
+  const timing = quick ? QUICK_TIMING : FULL_TIMING
+  const stagger = quick ? STAGGER_MS / 2 : STAGGER_MS
+  useEffect(() => {
+    if (!spinning) return
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== ' ' && e.key !== 'Enter') || e.repeat) return
+      e.preventDefault()
+      setSkip((n) => n + 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [spinning])
+
+  return (
+    <div className="page fit" data-testid="manager-spin">
+      <div className="fit-head screen-head">
+        <div className="col" style={{ gap: 4 }}>
+          <h1>Spin your manager</h1>
+          <span className="small muted">Three reels, three real managers from this wheel's clubs. Pick one for the season.</span>
+        </div>
+        <div className="row wrap" style={{ gap: 10 }}>
+          <SpinOdds odds={odds} label="Each reel" />
+          <span className="mspin-sound">
+            <SoundToggle />
+          </span>
+        </div>
+      </div>
+      <div className={`mspin${spinning ? ' running' : ''}`} onClick={() => spinning && setSkip((n) => n + 1)}>
+        {options.map((m, i) => {
+          const tier = managerTier(u, leagues, m)
+          const show = done || !!landedAt[i]
+          return (
+            <div key={m.id} className="mspin-col" data-testid={`mspin-col-${i}`}>
+              {run > 0 ? (
+                <ItemReel key={run} deal={deals[i]} timing={timing} stagger={i * stagger} sound={i === 0} skip={skip} onSettled={() => setLandedAt((a) => Object.assign([...a], { [i]: true }))} testId={`mspin-reel-${i}`} />
+              ) : (
+                <div className="reel-run item-reel idle">
+                  <div className="reel-window" aria-hidden="true">
+                    <div className="reel-marker" />
+                    <div className="mspin-idle">?</div>
+                  </div>
+                </div>
+              )}
+              <div className={`mspin-card choice-card${show ? '' : ' hidden'}`} data-tier={tier} aria-hidden={!show}>
+                {show && (
+                  <>
+                    <span className="row" style={{ gap: 8 }}>
+                      {m.clubId && !m.archetype ? <ClubBadge clubId={m.clubId} size={28} /> : <span className="manager-mono" aria-hidden="true">?</span>}
+                      <span className="ctitle manager-name">{m.name}</span>
+                    </span>
+                    <span className="cline">{origin(u, m)}</span>
+                    <span className="row wrap" style={{ gap: 6 }}>
+                      <TierChip tier={tier} />
+                      <span className="chip manager-style">{MANAGER_STYLE_LABEL[m.style]}</span>
+                    </span>
+                    <span className="cline manager-help">{MANAGER_STYLE_HELP[m.style]}</span>
+                    <button type="button" className="btn primary sm" disabled={!done} onClick={(e) => { e.stopPropagation(); pickManager(m.id) }} data-testid={`mspin-pick-${i}`}>
+                      Pick {m.name.split(/\s+/).slice(-1)[0]}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="mspin-foot">
+        {run === 0 ? (
+          <button type="button" className="btn primary big display" onClick={() => { unlockAudio(); setRun(1) }} data-testid="mspin-go">
+            Spin 3 managers
+          </button>
+        ) : spinning ? (
+          <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="mspin-skip">
+            Tap to skip
+          </button>
+        ) : (
+          <span className="small muted" data-testid="mspin-landed">All three landed: pick your manager.</span>
+        )}
+      </div>
+    </div>
+  )
+}

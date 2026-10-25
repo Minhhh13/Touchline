@@ -92,6 +92,17 @@ export interface DraftRules {
    * off when absent, so older saves and every other mode are unchanged.
    */
   managers?: boolean
+  /**
+   * Quick Draft with managers: the manager is spun, not chosen from a list. Three reels land on three real managers of
+   * the wheel's club-seasons at once (`spinManagers`, on a fork of the game's stream) and the user picks one of the three.
+   * Off when absent (older saves and links pick from the drafted clubs' managers, as before); the Setup screen turns it on.
+   */
+  managerSpin?: boolean
+  /**
+   * Quick Draft: one case opened at the end of the draft (`src/engine/endCase.ts`), dropping a power-up for the locker or,
+   * rarely, an Icon who may come into the XI. Off when absent and never in the Daily; the Setup screen turns it on.
+   */
+  endCase?: boolean
   /** The wheel may land on classic club-seasons (1992-93 to 2007-08, estimated ratings). Off when omitted, so older saves and links are unchanged. */
   classic?: boolean
   /**
@@ -123,6 +134,11 @@ export function hasMode(rules: DraftRules, mode: QuickMode): boolean {
 /** Whether a draft has the Player Upgrader: the power-up on its own or with Gamble mode. */
 export function upgraderOn(rules: DraftRules): boolean {
   return !!rules.upgrader || !!rules.powerUps || hasMode(rules, 'gamble')
+}
+
+/** Whether a draft has the Player Upgrader: from its rules, or unpacked from the locker (`DraftState.locker`). */
+export function upgraderAvailable(d: Pick<DraftState, 'rules' | 'locker'>): boolean {
+  return upgraderOn(d.rules) || !!d.locker?.includes('upgrader')
 }
 
 /**
@@ -259,7 +275,15 @@ export interface DraftState {
   powerRng?: RngState
   /** Power-ups: each one used, in the order used (the Upgrader's gamble is `upgrade`). Absent or empty when none. */
   powerUps?: PowerUpUse[]
+  /**
+   * Power-ups unpacked from the player's locker for this draft (`unpackPowerUp`), each kind once, in the order unpacked;
+   * only in a draft without the tray. Each works exactly as the tray's. Absent when none.
+   */
+  locker?: LockerKind[]
 }
+
+/** The power-ups a locker holds (the tray's six; `PowerUp` in `./powerups`). */
+export type LockerKind = 'upgrader' | 'reroll' | 'peek' | 'swap' | 'armband' | 'lock'
 
 /**
  * One power-up used (`src/engine/powerups.ts`). `at` is the draft history row it belongs to: the row of the spin a

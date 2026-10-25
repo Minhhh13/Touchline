@@ -8,7 +8,7 @@ import type { SeasonState, Competition } from '@engine/season'
 import type { GameEvent } from '@engine/events'
 import type { TrainingFocus } from '@engine/training'
 import type { SeasonAwards } from '@engine/awards'
-import type { Lineup, PlayerSeason, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
+import type { Lineup, PlayerSeason, Position, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
 import type { DraftRules } from '@engine/draft'
 import type { ArenaClaim, ChallengeClaim } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
@@ -18,6 +18,8 @@ import type { GauntletLadder } from '@engine/gauntlet'
 import type { CupBracket } from '@engine/cup'
 import type { WeeklyThemeId } from './logic/weeklyThemes'
 import type { RunInTemplate } from '@engine/scenario'
+import type { CaseDrop } from '@engine/endCase'
+import type { PowerUp } from '@engine/powerups'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena' | 'weekly' | 'runin'
 /**
@@ -211,6 +213,48 @@ export interface Contract {
   loan?: boolean
   /** Squad status: how much football he expects (section 10 of the design doc); rotation when absent. */
   status?: SquadStatus
+  /** Terms agreed in contract talks (`src/game/logic/contracts.ts`); absent on every contract nobody has negotiated. */
+  clauses?: ContractClauses
+  /** A sell-on clause agreed when he was signed: the selling club takes `pct` of the fee when he is sold on. */
+  sellOn?: { pct: number; clubId: string }
+  /** His agent is shopping him round the clubs: offers come as for a listed player, and the agent takes 5% of the fee. */
+  shopped?: boolean
+}
+
+/** Clauses written into a contract in contract talks. */
+export interface ContractClauses {
+  /** Release clause, GBP millions: an AI club paying it in a window takes him, no say. */
+  release?: number
+  /** Appearance bonus, GBP thousands a match he plays. */
+  appearance?: number
+  /** Goal bonus, GBP thousands a goal. */
+  goal?: number
+}
+
+/** What the recruitment team looks for: each part is optional, and an empty focus is no focus. */
+export interface RecruitFocus {
+  position?: Position
+  age?: 'u21' | 'u24' | 'prime' | 'veteran'
+  /** Highest asking price, GBP millions. */
+  maxFee?: number
+  deal?: 'loan' | 'permanent'
+}
+
+/** A scout's report on a player who fits the recruitment focus, graded on what the scout can see. */
+export interface ScoutReport {
+  playerSeasonId: string
+  /** Matchweek it was filed (0 in pre-season). */
+  mw: number
+  grade: 'A' | 'B' | 'C' | 'D'
+  /** One line: how he compares with the man he would replace. */
+  note: string
+}
+
+/** One request to the board this season. */
+export interface BoardRequest {
+  kind: 'budget' | 'staff' | 'youth'
+  mw: number
+  accepted: boolean
 }
 
 export interface SeasonRecord {
@@ -349,6 +393,38 @@ export interface Game {
    * as picked. Absent when the rules have no managers, and on older saves: the season then plays as it always has.
    */
   manager?: Manager
+  /**
+   * The manager spin of a Quick Draft with `managerSpin` on (`src/game/logic/managerSpin.ts`): the three managers the
+   * reels land on, rolled at the step from the draft to the season, and whether the user has picked one of them yet.
+   * Absent without the rule, and on older saves.
+   */
+  managerSpin?: { options: Manager[]; picked?: boolean }
+  /**
+   * The end-of-draft case of a Quick Draft with `endCase` on (`src/game/logic/endCase.ts`), rolled at the step from the
+   * draft to the season: what it holds, whether it has been opened (a power-up then went to the locker), whether the user
+   * is done with it, and the starter an Icon replaced. Absent without the rule, and on older saves.
+   */
+  endCase?: { drop: CaseDrop; opened?: boolean; done?: boolean; sub?: { slotId: string; outId: string } }
+  /**
+   * Recruitment (`src/game/logic/scouting.ts`), Season and Dynasty. Every field is absent until the manager uses it, and
+   * reads as the defaults: knowledge at its starting level, no assignments, nobody scouted, no focus, no reports.
+   * `knowledge` holds a league's level once assignments have moved it; `scouted` holds fully scouted player-season ids
+   * (capped); `scoutSlot` names the market day or matchweek of the last full scout (one each).
+   */
+  knowledge?: Record<string, number>
+  assignments?: string[]
+  scouted?: string[]
+  scoutSlot?: string
+  recruitFocus?: RecruitFocus
+  scoutReports?: ScoutReport[]
+  /** Contract talks by real player id: offers turned down this run, and the matchweek talks reopen after three. Cleared each summer. */
+  negotiations?: Record<string, { fails: number; closedUntil?: number }>
+  /** Appearance and goal bonuses earned since the last weekly wage run, GBP thousands. */
+  bonusDue?: number
+  /** Requests granted by the board for youth facilities (Dynasty): each adds one academy candidate a summer, at most 2. */
+  youthFacilities?: number
+  /** The data hub: expected goals, expected assists and attempts for the user's players this season, from full-detail matches. */
+  dataHub?: Record<string, { xg: number; xa: number; shots: number }>
 }
 
 /**
@@ -576,6 +652,8 @@ export interface LeaderboardEntry {
   spent?: number
   /** A Quick Draft played in the Super League; absent for every other season. */
   superLeague?: true
+  /** The XI had an Icon from the end-of-draft case: a non-standard season, marked on the board and kept out of the records. */
+  caseIcon?: true
 }
 
 export interface Profile {
@@ -604,6 +682,11 @@ export interface Profile {
   seenTips?: Record<string, string>
   /** The 38-0 chase across every Quick Draft and Daily season in this browser; missing on older saves (filled by `normaliseProfile`). */
   quickBests?: QuickBests
+  /**
+   * The locker: power-ups dropped by end-of-draft cases, by kind, waiting to be unpacked into a later Quick Draft
+   * (`src/game/logic/endCase.ts`). Missing on older saves (an empty locker); `normaliseProfile` drops anything malformed.
+   */
+  inventory?: Partial<Record<PowerUp, number>>
 }
 
 /** Quick Draft bests: the best record (more wins, then fewer defeats, then points), the longest perfect run from the first game, and perfect seasons. */

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { produce } from 'immer'
-import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
+import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
@@ -21,6 +21,8 @@ import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { pickManager } from './logic/managers'
+import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
+import type { PowerUp } from '@engine/powerups'
 import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
@@ -28,6 +30,9 @@ import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/sq
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
+import { fullScout, setAssignment, setRecruitFocus } from './logic/scouting'
+import { proposeContract, setShopped, type ContractOffer } from './logic/contracts'
+import { makeRequest, shiftWages, type RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
@@ -150,6 +155,14 @@ interface Store {
   finishDraft: () => void
   /** Quick Draft with managers: pick the manager by id once the draft is done, up to kick-off (`src/game/logic/managers.ts`). */
   pickManager: (id: string) => void
+  /** The locker: unpack one banked power-up into this Quick Draft (one without the tray); the profile loses it (`src/game/logic/endCase.ts`). */
+  unpackPowerUp: (kind: PowerUp) => void
+  /** The end-of-draft case: open it; a power-up drop goes into the locker on the profile, once. */
+  openCase: () => void
+  /** The case's Icon: bring him in at a drafted starter's slot, or keep the XI (null); then on to the tactics. */
+  subCaseIcon: (slotId: string | null) => void
+  /** Done with an opened case that dropped a power-up: on to the tactics. */
+  finishCase: () => void
   /** Quick Draft and the Daily: leave the tactics step and play the season (to the January window when it is on); `skip` restores the default tactics first. */
   kickOff: (skip?: boolean) => void
   /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
@@ -225,6 +238,18 @@ interface Store {
   rejectOffer: (index: number) => void
   release: (playerSeasonId: string) => void
   advanceDay: () => void
+  /** Recruitment: a full scout of one player (one a market day, or a week), a league assignment on or off, the focus. */
+  scoutPlayer: (playerSeasonId: string) => { ok: boolean; message: string }
+  setAssignment: (leagueId: string, on: boolean) => { ok: boolean; message: string }
+  setRecruitFocus: (focus: RecruitFocus | null) => { ok: boolean; message: string }
+  dismissReport: (playerSeasonId: string) => void
+  /** Contract talks: put an offer to a squad player. */
+  proposeContract: (playerSeasonId: string, offer: ContractOffer) => { accepted: boolean; message: string }
+  /** Have his agent find a buyer, or stop. */
+  setShopped: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
+  boardRequest: (kind: RequestKind) => { ok: boolean; accepted: boolean; message: string }
+  /** The wage-to-transfer slider: +1 turns £10k a week of wages into £2M of budget, −1 the other way. */
+  shiftWages: (dir: 1 | -1) => { ok: boolean; message: string }
 
   nextSeason: () => void
   acceptJob: (index: number | null) => void
@@ -602,8 +627,25 @@ export const useStore = create<Store>()(
           }
         },
         pickManager: (id) => mutate((g, u) => pickManager(g, u, id)),
+        unpackPowerUp: (kind) => {
+          const { game, profile } = get()
+          if (!game || !canUnpackFromLocker(game, profile, kind)) return
+          mutate((g) => unpackFromLocker(g, kind))
+          set({ profile: takeFromLocker(get().profile, kind) })
+        },
+        openCase: () => {
+          const out: { drop: PowerUp | null } = { drop: null }
+          mutate((g) => {
+            out.drop = openEndCase(g)
+          })
+          if (out.drop) set({ profile: addToLocker(get().profile, out.drop) })
+        },
+        subCaseIcon: (slotId) => mutate((g, u) => subCaseIcon(g, u, slotId)),
+        finishCase: () => mutate((g) => finishEndCase(g)),
         kickOff: (skip) => {
-          if (get().game?.phase !== 'kickoff') return
+          const before = get().game
+          // The manager spin and the case come first: the season waits for both
+          if (before?.phase !== 'kickoff' || kickoffStep(before) !== 'tactics') return
           mutate((g, u) => kickOff(g, u, skip))
           const { game } = get()
           if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
@@ -924,6 +966,59 @@ export const useStore = create<Store>()(
         rejectOffer: (i) => mutate((g) => rejectOffer(g, i)),
         release: (id) => mutate((g, u) => releasePlayer(g, u, id)),
         advanceDay: () => mutate((g, u) => advanceDay(g, u)),
+        scoutPlayer: (id) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = fullScout(g, u, id)
+          })
+          return out
+        },
+        setAssignment: (leagueId, on) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g) => {
+            out = setAssignment(g, leagueId, on)
+          })
+          return out
+        },
+        setRecruitFocus: (focus) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = setRecruitFocus(g, u, focus)
+          })
+          return out
+        },
+        dismissReport: (id) =>
+          mutate((g) => {
+            if (g.scoutReports) g.scoutReports = g.scoutReports.filter((r) => r.playerSeasonId !== id)
+          }),
+        proposeContract: (id, offer) => {
+          let out = { accepted: false, message: 'No game' }
+          mutate((g, u) => {
+            out = proposeContract(g, u, id, offer)
+          })
+          return out
+        },
+        setShopped: (id, on) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = setShopped(g, u, id, on)
+          })
+          return out
+        },
+        boardRequest: (kind) => {
+          let out = { ok: false, accepted: false, message: 'No game' }
+          mutate((g, u) => {
+            out = makeRequest(g, u, kind)
+          })
+          return out
+        },
+        shiftWages: (dir) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = shiftWages(g, u, dir)
+          })
+          return out
+        },
 
         nextSeason: () => {
           const { game } = get()
@@ -997,6 +1092,7 @@ export const useStore = create<Store>()(
             nation: game.settings.rules.onlyNation,
             ...(game.settings.challenge ? { challenge: { name: game.settings.challenge.name, points: game.settings.challenge.claim.pts } } : {}),
             ...(isSuperLeague(game.settings) ? { superLeague: true as const } : {}),
+            ...(caseIconIn(game) ? { caseIcon: true as const } : {}),
           }
           const cap = capOfGame(game)
           if (cap) Object.assign(entry, cap)

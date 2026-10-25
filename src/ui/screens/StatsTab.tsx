@@ -1,14 +1,24 @@
 import { useMemo, useState } from 'react'
+import { ChartBar } from 'lucide-react'
 import { useStore } from '@game/store'
 import { USER_TEAM } from '@engine/season'
 import { playerLookup } from '@game/logic/players'
-import { ClubBadge, Rating } from '../components/bits'
+import { analystPicks, ANALYST_INTERVAL, ANALYST_MIN_SHOTS, dataHubRows, dataHubTotals } from '@game/logic/dataHub'
+import { ClubBadge, Info, Rating } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import type { SquadPlayer } from '@engine/types'
 
+/** A signed figure to one decimal: "+1.4", "−0.8", "0.0". */
+function signedOne(v: number): string {
+  return `${v > 0.05 ? '+' : v < -0.05 ? '−' : ''}${Math.abs(v).toFixed(1)}`
+}
+
 type Stat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
 
-/** League-wide player statistics: your squad and every AI club's. */
+/**
+ * The Stats tab, three boxes side by side: the season's records, league-wide player statistics (your squad and every
+ * AI club's), and the data hub (your players' expected goals and assists, per 90, from `src/game/logic/dataHub.ts`).
+ */
 export function StatsTab() {
   const { universe: u, game } = useStore()
   const [stat, setStat] = useState<Stat>('goals')
@@ -72,11 +82,14 @@ export function StatsTab() {
     }
     return { played: mine.length, bigWin: describe(bigWin), bigLoss: describe(bigLoss), bestUnbeaten, bestWinning, cleanSheets, scoredIn, unbeatenNow: unbeaten, winningNow: winning }
   }, [u, game])
+  const hub = useMemo(() => (u && game?.season ? dataHubRows(game, u) : []), [u, game])
   if (!u || !game?.season) return null
+  const totals = dataHubTotals(hub)
+  const picks = analystPicks(hub)
   return (
-    <>
-      {records && (
-        <div className="panel" style={{ marginBottom: 12 }}>
+    <div className="grid three fill squad-views stats-grid" data-testid="stats-tab">
+      {records ? (
+        <div className="panel">
           <h3>Season records</h3>
           <div className="kv">
             <dt>Biggest win</dt>
@@ -103,6 +116,11 @@ export function StatsTab() {
             </dd>
           </div>
         </div>
+      ) : (
+        <div className="panel">
+          <h3>Season records</h3>
+          <div className="small muted">No matches played yet.</div>
+        </div>
       )}
     <div className="panel">
       <div className="panel-head">
@@ -123,7 +141,7 @@ export function StatsTab() {
           ))}
         </div>
       </div>
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr>
             <th>#</th>
@@ -161,8 +179,70 @@ export function StatsTab() {
             </tr>
           )}
         </tbody>
-      </table>
+      </table></div>
     </div>
-    </>
+    <div className="panel" data-testid="data-hub">
+      <div className="panel-head">
+        <span className="head-title">
+          <h3 className="icon-title">
+            <ChartBar size={18} aria-hidden="true" /> Data hub
+          </h3>
+          <Info label="About the data hub">Expected goals (xG) is what every attempt was worth from where it was taken; xA credits the assister with the xG of the goal he set up. ± is goals minus xG: above zero he finishes better than his chances. Per 90 figures over the minutes played. The analyst writes in every {ANALYST_INTERVAL} matchweeks about anyone with {ANALYST_MIN_SHOTS} attempts or more.</Info>
+        </span>
+        <span className="small muted" data-testid="hub-totals">
+          {totals.goals} G · {totals.xg.toFixed(1)} xG ({signedOne(totals.goals - totals.xg)})
+        </span>
+      </div>
+      {(picks.over || picks.under) && (
+        <div className="small" style={{ marginBottom: 'var(--space-2)' }}>
+          {picks.over && (
+            <div>
+              <span className="good-text">Beating his numbers:</span> {picks.over.name} {signedOne(picks.over.finishing)}
+            </div>
+          )}
+          {picks.under && (
+            <div>
+              <span className="bad-text">Behind his numbers:</span> {picks.under.name} {signedOne(picks.under.finishing)}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="tbl-wrap">
+        <table className="tbl hub">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th className="num" title="Minutes">Min</th>
+              <th className="num" title="Goals">G</th>
+              <th className="num" title="Expected goals">xG</th>
+              <th className="num" title="Goals minus expected goals">±</th>
+              <th className="num" title="Expected assists">xA</th>
+              <th className="num" title="Goals and assists per 90 minutes">G+A/90</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hub.map((r) => (
+              <tr key={r.id}>
+                <td className="name one-line" title={r.name}>{r.name}</td>
+                <td className="num">{r.minutes}</td>
+                <td className="num">{r.goals}</td>
+                <td className="num">{r.xg.toFixed(1)}</td>
+                <td className={`num ${r.finishing > 0.5 ? 'good-text' : r.finishing < -0.5 ? 'bad-text' : ''}`}>{signedOne(r.finishing)}</td>
+                <td className="num">{r.xa.toFixed(1)}</td>
+                <td className="num">{r.gaPer90.toFixed(2)}</td>
+              </tr>
+            ))}
+            {hub.length === 0 && (
+              <tr>
+                <td colSpan={7} className="muted">
+                  No minutes played yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </div>
   )
 }

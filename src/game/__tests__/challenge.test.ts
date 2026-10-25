@@ -256,6 +256,21 @@ describe('challenge payload v2 gate', () => {
     expect(replayChallenge(u, back).verified).toBe('yes')
   })
 
+  it("still decodes main's v1 links with the manager spin, the end case and a locker, and the same as v2", () => {
+    const g = autoGame({ seed: 'GHOST-V1-LOCKER' })
+    const c = challengeFromGame(g, u, 'Minh')!
+    expect(c.v).toBe(1)
+    const main = { ...c, s: { ...c.s, r: { ...c.s.r, managerSpin: true, endCase: true } }, i: ['peek'] }
+    const back = decodeChallenge(b64(main))
+    expect(back.v).toBe(1)
+    expect(back.s.r).toEqual(main.s.r)
+    expect(back.v === 1 && back.i).toEqual(['peek'])
+    const v2 = decodeChallenge(b64({ ...main, v: 2, kind: 'quick' }))
+    expect(v2.v === 2 && v2.kind === 'quick' && v2.i).toEqual(['peek'])
+    // A locker is a quick link's: an arena link carrying one reads as from a newer build
+    expect(() => decodeChallenge(b64({ ...main, v: 2, kind: 'arena' }))).toThrow()
+  }, 30000)
+
   it('decodes a v2 quick link with v1 rules, with or without its kind, and it replays and verifies', () => {
     const g = autoGame({ seed: 'GHOST-V2', rules: { ...QUICK_RULES, leagues: ['england'], fromSeason: 2012 } })
     const c = challengeFromGame(g, u, 'Minh')!
@@ -303,8 +318,10 @@ describe('challenge payload v2 gate', () => {
   })
 
   it('picks the payload version from the rule keys and the kind', () => {
-    expect(V1_RULE_KEYS).toEqual(['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists', 'difficulty', 'showRatings', 'draftMode', 'ratings', 'benchPicks', 'modes', 'upgrader', 'powerUps', 'managers', 'classic', 'superLeague'])
+    expect(V1_RULE_KEYS).toEqual(['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists', 'difficulty', 'showRatings', 'draftMode', 'ratings', 'benchPicks', 'modes', 'upgrader', 'powerUps', 'managers', 'managerSpin', 'endCase', 'classic', 'superLeague'])
     expect(payloadVersionFor({}, 'quick')).toBe(1)
+    // Main's manager spin and end-of-draft case are rules main's v1 links carry, so they stay v1 here too
+    expect(payloadVersionFor({ managers: true, managerSpin: true, endCase: true }, 'quick')).toBe(1)
     expect(payloadVersionFor(rulesDiff({ ...QUICK_RULES, squadSize: 18, respins: 3, fromSeason: 2000, toSeason: 2010, onlyClub: 'burnley', onlyNation: 'ENG', minFit: 'awkward', hardMode: true, uniqueClubSeasons: false, twists: false }), 'quick')).toBe(1)
     // Every rule a link can carry today is a v1 rule, so no quick link changes version
     const everyRule = Object.fromEntries(V1_RULE_KEYS.map((k) => [k, 1]))

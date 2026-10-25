@@ -27,7 +27,7 @@ import { GAUNTLET_RUNGS } from './gauntlet'
 import { cupRoundCount } from './cup'
 import { isIcons } from './icons'
 import { isUpgradeBoost } from './upgrader'
-import { rerollSeason, swapSlots, usePeek } from './powerups'
+import { POWER_UPS, rerollSeason, swapSlots, unpackPowerUp, usePeek, type PowerUp } from './powerups'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
@@ -82,6 +82,11 @@ export interface ChallengeSeason {
   s?: Array<[from: number, slotId: string, playerSeasonId: string]>
   /** The manager picked for the season (a Wikidata id or an `arch-` archetype id), when the draft had one. */
   m?: string
+  /**
+   * The end-of-draft case's Icon (`src/engine/endCase.ts`) and the XI slot he took, when the challenger brought him in.
+   * The case itself is not carried: a replay opens the same case (the same fork of the same stream after the same draft).
+   */
+  ic?: string
 }
 
 /** Most bench changes a link may carry: the three a quick season allows. */
@@ -136,6 +141,16 @@ export interface ChallengePayloadV1 {
    * row's pick. Absent otherwise (and on older links).
    */
   w?: ChallengePowerUp[]
+  /**
+   * Power-ups the challenger unpacked from the locker into a draft without the tray (`unpackPowerUp`), in order. A replay
+   * unpacks them before the first spin (their streams come from the seed alone), so `g` and `w` replay as they did.
+   */
+  i?: PowerUp[]
+}
+
+/** Whether an `i` block is well formed: known power-ups, each once. */
+export function isChallengeLocker(i: unknown): i is PowerUp[] {
+  return Array.isArray(i) && i.length <= POWER_UPS.length && i.every((k) => POWER_UPS.includes(k as PowerUp)) && new Set(i).size === i.length
 }
 
 export type ChallengePowerUp = ['r', number] | ['p', number] | ['s', number, string, string] | ['a', number] | ['l', number]
@@ -341,6 +356,8 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   upgrader: isBool,
   powerUps: isBool,
   managers: isBool,
+  managerSpin: isBool,
+  endCase: isBool,
   classic: isBool,
   superLeague: isBool,
   // A v2 rule: a capped link travels as version 2 (`payloadVersionFor`), so a v1 build reads it as newer
@@ -355,7 +372,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
  * builds made still opens. Never add to this list (a v1 build would refuse the key); a new rule goes in
  * `RULE_CHECKS` only, and a link that uses it travels as v2 (`budget` and `chain` do).
  */
-export const V1_RULE_KEYS: readonly (keyof DraftRules)[] = ['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists', 'difficulty', 'showRatings', 'draftMode', 'ratings', 'benchPicks', 'modes', 'upgrader', 'powerUps', 'managers', 'classic', 'superLeague']
+export const V1_RULE_KEYS: readonly (keyof DraftRules)[] = ['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists', 'difficulty', 'showRatings', 'draftMode', 'ratings', 'benchPicks', 'modes', 'upgrader', 'powerUps', 'managers', 'managerSpin', 'endCase', 'classic', 'superLeague']
 
 /** The payload version a link needs: 1 for a quick link whose rules a v1 build knows, 2 otherwise. */
 export function payloadVersionFor(diff: Partial<DraftRules>, kind: 'quick' | 'arena'): 1 | 2 {
@@ -424,7 +441,7 @@ export function isArenaLink(o: unknown): o is Pick<ArenaChallengePayload, 'arena
 }
 
 /** Top-level keys a v2 quick link may carry; anything else is from a newer build. */
-const V2_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 'c', 'k', 'x', 'g', 'w']
+const V2_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 'c', 'k', 'x', 'g', 'w', 'i']
 /** Top-level keys a v2 arena link may carry. */
 const V2_ARENA_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 't', 'lf', 'auto', 'ac', 'k']
 
@@ -448,7 +465,8 @@ export function isChallengeTactics(t: unknown): t is ChallengeTactics {
 export function isChallengeSeason(x: unknown): x is ChallengeSeason {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return false
   const o = x as Record<string, unknown>
-  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm')) return false
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm' || k === 'ic')) return false
+  if (o.ic !== undefined && !(isString(o.ic) && /^[A-Za-z0-9_-]{1,12}$/.test(o.ic))) return false
   if (o.m !== undefined && !(isString(o.m) && /^(Q\d{1,12}|arch-[a-z-]{1,20})$/.test(o.m))) return false
   if (o.t !== undefined && !isChallengeTactics(o.t)) return false
   if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
@@ -504,6 +522,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
   if (o.w !== undefined && !isChallengePowerUps(o.w, o.p.length)) throw new Error('Not a Touchline challenge link')
+  if (o.i !== undefined && !isChallengeLocker(o.i)) throw new Error('Not a Touchline challenge link')
   if (o.g !== undefined && !(Array.isArray(o.g) && o.g.length === 2 && isInt(o.g[0]) && o.g[0] >= 0 && o.g[0] < o.p.length && isUpgradeBoost(o.g[1]))) throw new Error('Not a Touchline challenge link')
   const settings: ChallengePayloadV1['s'] = { seed: s.seed, f: s.f, l: s.l, wl: s.wl as string[], h: s.h, ls: s.ls, d: s.d as 'calibrated' | 'realistic', r: s.r }
   if (arena && isArenaLink(raw)) {
@@ -538,6 +557,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
     ...(o.g !== undefined ? { g: o.g as [number, number] } : {}),
     ...(o.w !== undefined ? { w: o.w as ChallengePowerUp[] } : {}),
+    ...(o.i !== undefined ? { i: o.i as PowerUp[] } : {}),
   }
   return o.v === 1 ? { v: 1, ...body } : { v: 2, kind: 'quick', ...body }
 }
@@ -561,6 +581,12 @@ export interface ReplayedPick {
 export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: ChallengePayload): ReplayedPick[] {
   const out: ReplayedPick[] = []
   const w = isArenaPayload(c) ? [] : c.w ?? []
+  // Power-ups from the challenger's locker, unpacked up front: their streams come from the seed, not from when they were unpacked
+  try {
+    for (const k of (isArenaPayload(c) ? undefined : c.i) ?? []) unpackPowerUp(d, k, c.s.seed)
+  } catch (e) {
+    throw new Error(`The locker: ${e instanceof Error ? e.message : String(e)}`)
+  }
   for (let i = 0; i < c.p.length; i++) out.push(replayRow(u, d, rng, c.p[i], i + 1, w))
   swapAt(u, d, w, c.p.length)
   // A Quick Draft with a bench may stop once the XI is full, bench places to spare

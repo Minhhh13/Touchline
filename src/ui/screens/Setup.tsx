@@ -56,9 +56,10 @@ const DRAFT_MODE_OPTIONS: Array<ChoiceOption<DraftMode>> = [
 ]
 /** Quick Draft bench places: off, or up to five extra picks the season can bring on (three changes, plus injury cover). */
 const BENCH_OPTIONS: Array<{ value: string; label: string }> = [{ value: '0', label: 'Off' }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))]
-/** Quick Draft managers: pick one of the real managers of the club-seasons drafted, or play without. */
-const MANAGER_OPTIONS: Array<ChoiceOption<'on' | 'off'>> = [
-  { value: 'on', icon: '🧑‍💼', title: 'On', line: 'Pick a real manager from the clubs you drafted' },
+/** Quick Draft managers: spin three and pick one, pick one of the real managers of the club-seasons drafted, or play without. */
+const MANAGER_OPTIONS: Array<ChoiceOption<'spin' | 'pick' | 'off'>> = [
+  { value: 'spin', icon: '🎰', title: 'Spin', line: 'Three reels of real managers: pick one' },
+  { value: 'pick', icon: '🧑‍💼', title: 'Pick', line: 'Pick a real manager from the clubs you drafted' },
   { value: 'off', icon: '🚫', title: 'Off', line: 'No manager: the XI on its own' },
 ]
 const RATINGS_MODE_OPTIONS: Array<ChoiceOption<RatingsMode>> = [
@@ -111,8 +112,11 @@ export function Setup() {
   const [modes, setModes] = useState<Array<QuickMode | 'upgrader'>>([])
   // Quick Draft power-ups: the tray of six one-use power-ups on the draft screen
   const [powerUps, setPowerUps] = useState(false)
-  // Quick Draft: a manager picked after the draft, on unless switched off
-  const [managers, setManagers] = useState(true)
+  // Quick Draft: a manager after the draft, spun from three reels unless switched to a pick or off
+  const [managerChoice, setManagerChoice] = useState<'spin' | 'pick' | 'off'>('spin')
+  const managers = managerChoice !== 'off'
+  // Quick Draft: the end-of-draft case (a power-up for the locker, or a rare Icon), on unless switched off
+  const [endCase, setEndCase] = useState(true)
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
   // The casual rules: Moneyball's salary cap and the Teammate Chain (Quick Draft, Season and Dynasty)
@@ -170,7 +174,7 @@ export function Setup() {
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, modes: isManage ? [] : modes, powerUps: !isManage && powerUps, classic, superLeague, ...(isManage ? {} : { managers }) })
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, modes: isManage ? [] : modes, powerUps: !isManage && powerUps, classic, superLeague, ...(isManage ? {} : { managers, managerSpin: managerChoice === 'spin', endCase: !isDaily && endCase }) })
   const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason, classic: chosen.classic }
   const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
@@ -464,6 +468,17 @@ export function Setup() {
                         </label>
                         <InfoTip label="Power-ups" text="Six one-use power-ups in a tray on the draft: Upgrader, Re-roll season, Peek, Swap, Captain's armband and Lock. Odds are always shown first; in-game only." testId="power-ups-info" />
                       </div>
+                      <div className="pu-setup">
+                        <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" title="A power-up for your locker, or a rare Icon for this XI">
+                          <input type="checkbox" className="sr-only" checked={endCase} onChange={(e) => setEndCase(e.target.checked)} />
+                          <span className="micon" aria-hidden="true">
+                            🎁
+                          </span>
+                          <span className="ctitle">End case</span>
+                          <span className="cline">{endCase ? 'On: one case after the draft' : 'One case after the draft'}</span>
+                        </label>
+                        <InfoTip label="End case" text="One case when the draft is done: a power-up for your locker (unpack it in a later Quick Draft without the tray), or with a 5% chance an Icon, an all-time great who can take a drafted starter's place this season (a non-standard season). The odds are shown on the case." testId="end-case-info" />
+                      </div>
                       {/* The casual rules as two more cards: Moneyball's salary cap (its presets under Advanced) and the Teammate Chain */}
                       <div className="pu-setup">
                         <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" title="Moneyball: every player carries a price by rating and position, and the draft may not spend more than the cap">
@@ -511,7 +526,7 @@ export function Setup() {
                   {!isManage && (
                     <div className="setup-opt" data-testid="manager-option">
                       <h3>Manager</h3>
-                      <ChoiceCards label="Manager" testId="managers" options={MANAGER_OPTIONS} value={managers ? 'on' : 'off'} onChange={(v) => setManagers(v === 'on')} />
+                      <ChoiceCards label="Manager" testId="managers" options={MANAGER_OPTIONS} value={managerChoice} onChange={setManagerChoice} />
                     </div>
                   )}
                   {!isManage && (

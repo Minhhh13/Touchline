@@ -36,6 +36,8 @@ export function withMoraleLog<T>(s: SquadPlayer, week: number, r: MoraleReason, 
 }
 
 const RESULT_WORD: Record<string, string> = { W: 'Win', D: 'Draw', L: 'Defeat' }
+/** Contract talks and his agent, recorded as talks with a note (`src/game/logic/contracts.ts`). */
+const CONTRACT_TALK: Record<string, string> = { 'contract-no': 'Contract offer turned down', 'contract-yes': 'New contract agreed', shopped: 'Shopped to other clubs' }
 
 /** One entry as a short line for the Happiness views: "Win, rated 7.4", "Playing time 30% (expects 85%)". */
 export function describeMorale(e: MoraleEntry): string {
@@ -57,6 +59,7 @@ export function describeMorale(e: MoraleEntry): string {
     case 'event':
       return e.n ?? 'Club news'
     case 'talk':
+      if (e.n && e.n in CONTRACT_TALK) return CONTRACT_TALK[e.n]
       return e.n && e.n in TALK_LABEL ? TALK_LABEL[e.n as TalkKind].label : 'A word from you'
     case 'status':
       return e.n && e.n in STATUS_LABEL ? `New status: ${STATUS_LABEL[e.n as SquadStatus].toLowerCase()}` : 'Status change'

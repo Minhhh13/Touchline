@@ -26,6 +26,9 @@ import { postNews } from './news'
 import { ASSISTANT_DECIDED } from './digest'
 import { logMorale } from './happiness'
 import { eventPlayer } from './inboxActions'
+import { accrueBonuses, takeBonuses } from './contracts'
+import { recordMatchData, analystReport } from './dataHub'
+import { focusFilter, weeklyScouting } from './scouting'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
   postNews(game, { matchweek: game.season!.matchweek, ...item })
@@ -100,6 +103,9 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
     if (st.yellow && s.yellowCards % 5 === 0) news(game, { kind: 'suspension', title: `${get(st.playerSeasonId)?.name} suspended`, body: `Five yellow cards: a one-match ban.`, playerId: st.playerSeasonId })
   }
   if (!countStats) return
+  // Contract bonuses earned in the match, and the data hub's expected goals and assists
+  accrueBonuses(game, stats)
+  recordMatchData(game, res, userIsHome ? 'home' : 'away')
   for (const id of played) game.weekPlayed.push(id)
   for (const id of Object.keys(game.squad)) {
     if (played.has(id)) game.consecutiveMissed[id] = 0
@@ -636,7 +642,8 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
     const down = changes.filter((c) => c.to < c.from)
     if (changes.length) news(game, { kind: 'training', title: 'Development report', body: `${up.length ? `Improving: ${up.map((c) => `${c.name} ${c.from}→${c.to}`).join(', ')}.` : ''}${up.length && down.length ? ' ' : ''}${down.length ? `Fading: ${down.map((c) => `${c.name} ${c.from}→${c.to}`).join(', ')}.` : ''}` })
   }
-  const wages = squadWages(game, u)
+  // Appearance and goal bonuses are paid with the week's wages (none due: the same sums as before)
+  const wages = squadWages(game, u) + takeBonuses(game)
   game.finances.wagesPaid += wages / 1000
   const flow = weeklyCashFlow(game.finances, wages)
   game.finances.budget = Math.round((game.finances.budget + flow) * 10) / 10
@@ -656,7 +663,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
 
   // Transfer window: opens at the halfway point; three market days pass per matchweek, so it shuts three matchweeks later
   if (mw === Math.floor(season.matchweeks / 2) && !game.window) {
-    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic }, 'january')
+    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
@@ -676,6 +683,9 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
   }
   game.phase = 'match'
   game.rngState = rng.getState()
+  // Scouting and the analyst: fixed steps and forks of a copy of the stream, so the week's draws are untouched
+  weeklyScouting(game, u)
+  analystReport(game, u)
   if (mw >= season.matchweeks || season.sacked) {
     // Played live: let the manager see the final whistle first; the summary follows when they continue
     if (playedLive) game.seasonEnding = true

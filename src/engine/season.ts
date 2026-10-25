@@ -86,6 +86,8 @@ export interface SeasonState {
   carryIn?: Record<string, CarryRow>
   /** Run-in: the matchweek the manager took over after; fixtures up to it carry no result ("before you arrived"). */
   takeoverAt?: number
+  /** Requests made to the board this season (`src/game/logic/board.ts`); absent until the first. */
+  requests?: Array<{ kind: 'budget' | 'staff' | 'youth'; mw: number; accepted: boolean }>
 }
 
 /** A league row carried into a season that starts part-way through (the run-in): its points are `3 × won + drawn`. */
