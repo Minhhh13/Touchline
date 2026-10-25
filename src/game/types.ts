@@ -11,8 +11,10 @@ import type { Lineup, PlayerSeason, SeasonTier, SquadPlayer, Tactics } from '@en
 import type { DraftRules } from '@engine/draft'
 import type { ChallengeClaim } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
+import type { AiClub } from '@engine/season'
+import type { ArenaField, ArenaTier } from '@engine/knockout'
 
-export type Mode = 'quick' | 'daily' | 'season' | 'dynasty'
+export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena'
 export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
 
 export interface GameSettings {
@@ -38,6 +40,98 @@ export interface GameSettings {
   continental?: boolean
   /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
   challenge?: ChallengeSettings
+  /** The arena format of a mode `arena` game (absent for every other mode). */
+  arena?: ArenaSettings
+}
+
+/** Which arena format a game plays, and the field its opponents come from. */
+export interface ArenaSettings {
+  format: 'cup' | 'gauntlet'
+  /** Clubs in a cup, the user included: 2 is the one-off final. */
+  size?: 2 | 8 | 16 | 32
+  field?: ArenaField
+  decade?: number
+  daily?: boolean
+}
+
+/** One user match of an arena run. */
+export interface ArenaStep {
+  label: string
+  /** The opponent's club-season key (`clubId@season`). */
+  opponent: string
+  neutral: boolean
+  home: boolean
+  gf: number
+  ga: number
+  /** The shoot-out, when the match was level at 90: the user's kicks are `us: true`. */
+  pens?: { us: number; them: number; kicks: Array<{ us: boolean; takerId: string; scored: boolean }>; keeperSwap?: { off: string; on: string } }
+  motmId?: string
+  training: TrainingFocus
+  /** Managed live (the two stops) rather than played by the assistant. */
+  live: boolean
+  /** The opponent's real team strength and the rating points the calibration took off it. */
+  realStrength: number
+  offset: number
+}
+
+/** A live arena match that ended level, waiting on the manager's penalty order and keeper. */
+export interface PendingShootout {
+  /** The men on the pitch at 90 in the default order. */
+  defaultOrder: string[]
+  /** Who may go in goal: the man in goal first, the rest of the men on the pitch, then a bench keeper while a change is left. */
+  keepers: string[]
+  /** The opponent's order and keeper, fixed at the whistle. */
+  theirOrder: string[]
+  theirKeeper: string | null
+}
+
+/** A one-sitting knockout run: it lives beside `SeasonState`, never inside it. */
+export interface ArenaState {
+  format: 'cup' | 'gauntlet'
+  size?: number
+  /** Seeded in `createGame` from the game seed, so everyone on a seed meets the same opponents whatever they drafted. */
+  streams: { field: RngState; ties: RngState; draw: RngState }
+  /** Keyed `clubId@season`: only clubs about to play or still alive. */
+  clubs: Record<string, AiClub>
+  /** The key of the next opponent, null when none is drawn yet or the run is over. */
+  next: string | null
+  /** The user's next match, 0-based. */
+  step: number
+  /** One row per user match. */
+  log: ArenaStep[]
+  pending?: { shootout: PendingShootout }
+  /** Bookings across the run: every second one is a one-match ban. */
+  yellows: Record<string, number>
+  over: boolean
+  won: boolean
+  /** The manager touched the team, the tactics, a live match or the penalty order while the run was under way. */
+  handManaged: boolean
+}
+
+/** One finished arena run on the Record page's Best runs. */
+export interface ArenaRunEntry {
+  id: string
+  date: string
+  format: 'cup' | 'gauntlet'
+  size?: number
+  field?: ArenaField
+  teamName: string
+  hostClubId?: string
+  seed: string
+  daily?: boolean
+  /** Rounds won (a final: 1 for the trophy, 0 for the runners-up). */
+  score: number
+  tier: ArenaTier
+  goalsFor: number
+  goalsAgainst: number
+  xi: string[]
+  nation?: string
+  budget?: number
+  /** The club-season key of the side that knocked the run out. */
+  fellTo?: string
+  /** The club-season key of the last opponent (the final's). */
+  last?: string
+  challenge?: { name: string; score: number }
 }
 
 /** The challenger's draft and result, carried on a game played from a challenge link. */
@@ -95,7 +189,7 @@ export interface SeasonRecord {
 
 export interface MatchContext {
   matchweek: number
-  competition: 'league' | Competition
+  competition: 'league' | Competition | 'arena'
   roundLabel?: string
   opponentClubId: string
   home: boolean
@@ -103,7 +197,7 @@ export interface MatchContext {
 }
 
 export interface LiveMatch {
-  kind: 'league' | 'cup' | 'friendly'
+  kind: 'league' | 'cup' | 'friendly' | 'arena'
   mp: MatchInProgress
   ctx: MatchContext
   userIsHome: boolean
@@ -180,6 +274,8 @@ export interface Game {
   pendingMove: { leagueId: string; clubId: string } | null
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
+  /** The arena run of a mode `arena` game; null (or absent, in an older save) otherwise. */
+  arena?: ArenaState | null
 }
 
 export interface CareerRecord {
@@ -286,6 +382,8 @@ export interface Profile {
   trophies?: { league: number; cup: number; continental: number; doubles: number; trebles: number }
   /** The Trophy Room's cabinet: built from `trophies` and the leaderboard on first load (`rebuildCabinet`), credited by `recordResult` since. */
   cabinet?: Cabinet
+  /** Finished arena runs, best first within each format (at most 50); absent before the arena. */
+  arenaRuns?: ArenaRunEntry[]
 }
 
 /**

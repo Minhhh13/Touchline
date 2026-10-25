@@ -67,7 +67,7 @@ export function setFormation(game: Game, u: LoadedUniverse, formationId: string)
   if (formationId === game.tactics.formationId) return
   game.tactics = retargetRoles(game.tactics, formationId)
   // Tactical familiarity dips when the shape changes mid-season.
-  if (game.phase === 'week' && game.season && game.season.matchweek > 0) {
+  if ((game.phase === 'week' && game.season && game.season.matchweek > 0) || (game.arena && game.arena.step > 0)) {
     for (const s of Object.values(game.squad)) s.familiarity = Math.max(0, s.familiarity - 12)
   }
   autoPick(game, u, true)

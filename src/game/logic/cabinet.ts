@@ -61,6 +61,8 @@ export function countsAsLeagueSeason(mode: Mode): boolean {
     case 'season':
     case 'dynasty':
       return true
+    case 'arena':
+      return false
     default: {
       const never: never = mode
       return never
@@ -128,6 +130,32 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
   }
   return c
 }
+
+/**
+ * Credit one finished arena run, on the arena's own shelves: cups by size,
+ * and a giant killed for every win on Realistic over a side whose real team
+ * strength is 85 or more. Never a league title or a season cup.
+ */
+export function creditArena(cabinet: Cabinet, game: Game): Cabinet {
+  const a = game.arena
+  if (!a?.over) return cabinet
+  const c = normaliseCabinet(cabinet)
+  c.recent = [...(c.recent ?? []).filter((id) => id !== resultId(game)), resultId(game)].slice(-RECENT_RESULTS)
+  c.byMode.arena = (c.byMode.arena ?? 0) + 1
+  if (a.format === 'cup') {
+    c.cups.runs += 1
+    if (a.won) {
+      c.cups.won += 1
+      const size = String(a.size ?? 2)
+      c.cups.bySize[size] = (c.cups.bySize[size] ?? 0) + 1
+    }
+  }
+  if (game.settings.difficulty === 'realistic') c.giantKills += a.log.filter((s) => s.realStrength >= GIANT_STRENGTH && (s.gf > s.ga || (s.gf === s.ga && !!s.pens && s.pens.us > s.pens.them))).length
+  return c
+}
+
+/** The real team strength that makes an opponent a giant for the Giant Killer badge. */
+export const GIANT_STRENGTH = 85
 
 /** A head-to-head season played: the only mark a hot-seat game leaves. */
 export function creditH2H(cabinet: Cabinet): Cabinet {
@@ -216,8 +244,8 @@ export const BOARD_FILTERS: ReadonlyArray<{ value: BoardFilter; label: string }>
   { value: 'dynasty', label: 'Dynasty' },
 ]
 
-/** Which filter a mode's entries fall under. Exhaustive over `Mode`. */
-export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all'> {
+/** Which filter a mode's entries fall under, null for a mode that never files a season (the arena has Best runs). Exhaustive over `Mode`. */
+export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all'> | null {
   switch (mode) {
     case 'quick':
     case 'daily':
@@ -226,6 +254,8 @@ export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all'> {
       return 'season'
     case 'dynasty':
       return 'dynasty'
+    case 'arena':
+      return null
     default: {
       const never: never = mode
       return never

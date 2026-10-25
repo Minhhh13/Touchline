@@ -14,7 +14,7 @@ import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { isQuickLike } from './logic/modes'
 import { advanceStreak, streakDay } from './logic/streaks'
-import { alreadyCredited, creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
+import { alreadyCredited, creditArena, creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
@@ -32,6 +32,7 @@ import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
 import { simToNextStop, type StopReason } from './logic/highlights'
+import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, closeArenaMatch, playArenaStep, sortArenaRuns, takePenalties } from './logic/arena'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -111,6 +112,10 @@ interface Store {
   /** Sim 5's weeks until the next derby, title decider, cup semi-final or final, open run-in, January window or board alarm; that week is not played. */
   simToNextBigMatch: () => void
   closeMatch: () => void
+  /** Arena: kick off the next match, managed live (the two stops) or played by the assistant. */
+  playArenaStep: (live: boolean) => void
+  /** Arena: the shoot-out of a level live match, in the manager's order with his keeper. */
+  takePenalties: (order: string[], keeperId: string) => { ok: boolean; message: string }
   setMatchView: (v: 'ticker' | 'report') => void
 
   setTactics: (t: Partial<Tactics>) => void
@@ -377,7 +382,8 @@ export const useStore = create<Store>()(
             if (!g.draft) return
             // A one-nation wheel that has run dry may close with a full XI short of the squad size
             if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
-            if (isQuickLike(g.settings.mode)) runQuickSeason(g, u)
+            if (g.settings.mode === 'arena') beginArena(g, u)
+            else if (isQuickLike(g.settings.mode)) runQuickSeason(g, u)
             else beginSeason(g, u)
           })
           const { game } = get()
@@ -392,7 +398,7 @@ export const useStore = create<Store>()(
           set({ matchView: 'ticker' })
         },
         advanceLive: (opts) => {
-          mutate((g, u) => advanceLiveMatch(g, u, opts))
+          mutate((g, u) => (g.arena ? advanceArenaMatch(g, u, opts) : advanceLiveMatch(g, u, opts)))
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
@@ -440,23 +446,62 @@ export const useStore = create<Store>()(
           }
         },
         closeMatch: () => {
-          mutate((g, u) => closeLiveMatch(g, u))
+          mutate((g, u) => (g.arena ? closeArenaMatch(g) : closeLiveMatch(g, u)))
           // Leaving the final match of the season closes the season
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
           }
         },
+        playArenaStep: (live) => {
+          mutate((g, u) => {
+            playArenaStep(g, u, live)
+            if (live && g.live) byHand(g)
+          })
+          set({ matchView: live ? 'ticker' : 'report' })
+        },
+        takePenalties: (order, keeperId) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = takePenalties(g, u, order, keeperId)
+          })
+          if (!out.ok) set({ toast: out.message })
+          return out
+        },
         setMatchView: (v) => set({ matchView: v }),
 
-        setTactics: (t) => mutate((g) => void Object.assign(g.tactics, t)),
-        setRole: (slotId, roleId) => mutate((g) => void (g.tactics.roles[slotId] = roleId)),
-        setFormation: (id) => mutate((g, u) => setFormation(g, u, id)),
-        assign: (id, slot) => mutate((g, u) => assignPlayer(g, u, id, slot)),
+        setTactics: (t) =>
+          mutate((g) => {
+            Object.assign(g.tactics, t)
+            byHand(g)
+          }),
+        setRole: (slotId, roleId) =>
+          mutate((g) => {
+            g.tactics.roles[slotId] = roleId
+            byHand(g)
+          }),
+        setFormation: (id) =>
+          mutate((g, u) => {
+            setFormation(g, u, id)
+            byHand(g)
+          }),
+        assign: (id, slot) =>
+          mutate((g, u) => {
+            assignPlayer(g, u, id, slot)
+            byHand(g)
+          }),
         autoPick: () => mutate((g, u) => autoPick(g, u, false)),
-        setTeamTalk: (t) => mutate((g) => void (g.teamTalk = t)),
+        setTeamTalk: (t) =>
+          mutate((g) => {
+            g.teamTalk = t
+            byHand(g)
+          }),
         setTraining: (t) => mutate((g) => void (g.training = t)),
-        setCaptain: (id) => mutate((g) => void (g.captainId = id)),
+        setCaptain: (id) =>
+          mutate((g) => {
+            g.captainId = id
+            byHand(g)
+          }),
         setStatus: (id, status) => mutate((g, u) => setSquadStatus(g, u, id, status)),
 
         resolveEvent: (choiceId) => mutate((g, u) => applyEventChoice(g, u, choiceId)),
@@ -468,7 +513,11 @@ export const useStore = create<Store>()(
           unlockFromGame()
           return out
         },
-        setMarkTarget: (id) => mutate((g) => void (g.markTarget = id)),
+        setMarkTarget: (id) =>
+          mutate((g) => {
+            g.markTarget = id
+            byHand(g)
+          }),
         signYouth: (id) => {
           let out = { ok: false, message: 'No game' }
           mutate((g, u) => {
@@ -534,6 +583,13 @@ export const useStore = create<Store>()(
         recordResult: () => {
           const { game, profile, universe } = get()
           if (!game || !universe || game.phase !== 'summary') return
+          // The arena files a run on its own table and shelves: no leaderboard row, no daily streak, no season counted
+          if (game.arena) {
+            const run = arenaRunEntry(game, new Date().toISOString().slice(0, 10))
+            if (!run || alreadyCredited(profile, run.id) || profile.arenaRuns?.some((e) => e.id === run.id)) return
+            set({ profile: { ...profile, arenaRuns: sortArenaRuns([...(profile.arenaRuns ?? []), run]), cabinet: creditArena(profile.cabinet ?? rebuildCabinet(profile), game) } })
+            return
+          }
           const rec = finishedRecord(game)
           if (!rec) return
           const entry: LeaderboardEntry = {
@@ -651,9 +707,9 @@ export const useStore = create<Store>()(
   ),
 )
 
-/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup. */
+/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup or an arena field drawn from every league. */
 function leaguesFor(game: Game, allLeagues: string[]): string[] {
-  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental
+  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || arenaNeedsAllLeagues(game.settings)
   return [...new Set([game.settings.leagueId ?? DEFAULT_LEAGUE, ...(game.settings.wheelLeagues ?? []), ...(wantsAll ? allLeagues : [])])]
 }
 
@@ -662,7 +718,12 @@ export function todaysDailySeed(): string {
   return dailySeed()
 }
 
-/** Save slot of a game: quick drafts and dailies share one, season and dynasty have their own. */
+/** Save slot of a game: quick drafts and dailies share one, season, dynasty and the arena (every format) have their own. */
 export function slotOf(game: Game): string {
   return game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'quick' : game.settings.mode
+}
+
+/** A manager's own decision while an arena run is under way: the run no longer counts as the assistant's (challenge verification reads it). */
+function byHand(g: Game): void {
+  if (g.arena && !g.arena.over) g.arena.handManaged = true
 }

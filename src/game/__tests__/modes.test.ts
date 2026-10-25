@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { QUICK_RULES } from '@engine/draft'
-import { finishDraftLabel, isQuickLike, MODE_TITLE, modeLabel, shareCardFooter, yearLabel, type LabelledGame, type ModeLabelStyle } from '../logic/modes'
+import { arenaFormatLabel, finishDraftLabel, isQuickLike, MODE_TITLE, modeLabel, shareCardFooter, yearLabel, type LabelledGame, type ModeLabelStyle } from '../logic/modes'
 import { createGame } from '../logic/setup'
 import type { Mode } from '../types'
 
@@ -13,7 +13,7 @@ function game(mode: Mode, year = 1, seed = 'K7Q2-MX9A'): LabelledGame {
 
 describe('mode labels', () => {
   it('gives every mode a title, a label in every style and a finish button', () => {
-    expect(MODES).toEqual(['quick', 'daily', 'season', 'dynasty'])
+    expect(MODES).toEqual(['quick', 'daily', 'season', 'dynasty', 'arena'])
     for (const mode of MODES) {
       expect(MODE_TITLE[mode].length, mode).toBeGreaterThan(0)
       for (const style of STYLES) expect(modeLabel(game(mode, 2), style).length, `${mode} ${style}`).toBeGreaterThan(0)
@@ -23,7 +23,7 @@ describe('mode labels', () => {
   })
 
   it('keeps the four existing modes worded byte for byte as the screens had them', () => {
-    expect(MODE_TITLE).toEqual({ quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' })
+    expect(MODE_TITLE).toEqual({ quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena' })
     const daily = game('daily', 1, 'daily-2026-10-25')
     const dynasty = game('dynasty', 2)
     // Home's active and parked rows
@@ -46,6 +46,16 @@ describe('mode labels', () => {
     expect(finishDraftLabel(game('dynasty'))).toBe('Go to pre-season')
     expect(finishDraftLabel(game('dynasty', 2))).toBe('Into the new season')
     expect(finishDraftLabel(game('dynasty', 3), 12)).toBe('Into the new season')
+  })
+
+  it('names the arena by its format, in every style', () => {
+    const final: LabelledGame = { year: 1, settings: { mode: 'arena', seed: 'K7Q2-MX9A', arena: { format: 'cup', size: 2, field: 'giants' } } }
+    for (const style of STYLES) expect(modeLabel(final, style)).toBe('Cup Final')
+    expect(arenaFormatLabel({ format: 'gauntlet' })).toBe('The Gauntlet')
+    expect(arenaFormatLabel({ format: 'cup', size: 16 })).toBe('The Cup · 16 clubs')
+    expect(finishDraftLabel(final)).toBe('On to the final')
+    expect(shareCardFooter(final)).toBe('Seed K7Q2-MX9A')
+    expect(yearLabel(final)).toBeNull()
   })
 
   it('treats quick and daily as quick-like and the managed modes as not', () => {

@@ -12,6 +12,7 @@ import { buildYouthIntake } from './youth'
 import { pickObjectives, OBJECTIVE_REWARD } from '@engine/objectives'
 import { playerLookup, squadPlayers } from './players'
 import { defaultStatuses } from '@engine/status'
+import { newArenaState } from './arena'
 
 /** The place in the table a new manager is handed by default: mid-table, so the board's target is reachable. */
 export const DEFAULT_HOST_POSITION = 10
@@ -157,6 +158,8 @@ export function createGame(settings: GameSettings): Game {
     jobOffers: [],
     pendingMove: null,
     quickResult: null,
+    // The arena's own streams of the game seed (field, ties, draw), seeded here with the game so they never touch `rngState`
+    arena: settings.arena ? newArenaState(settings.arena, { field: new Rng(`${settings.seed}#field`).getState(), ties: new Rng(`${settings.seed}#ties`).getState(), draw: new Rng(`${settings.seed}#draw`).getState() }) : null,
   }
 }
 

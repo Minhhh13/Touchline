@@ -122,6 +122,7 @@ describe('audit fixes: season and squad', () => {
     delete old.jobOffers
     delete old.pendingMove
     delete old.customPlayers
+    delete old.arena
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
     old.settings = oldSettings
@@ -131,6 +132,7 @@ describe('audit fixes: season and squad', () => {
     expect(n.jobOffers).toEqual([])
     expect(n.pendingMove).toBeNull()
     expect(n.customPlayers).toEqual({})
+    expect(n.arena).toBeNull()
     expect(n.settings.wheelLeagues).toEqual(['england'])
     expect(n.squad).toBe(g.squad)
     expect(normaliseGame(null)).toBeNull()

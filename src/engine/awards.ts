@@ -77,6 +77,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'survivor', title: 'Survivor', description: 'Keep your job with board confidence under 20 at some point.', icon: '🪑' },
   { id: 'dealmaker', title: 'Dealmaker', description: 'Sign a player for less than 70% of his opening asking price.', icon: '🤝' },
   { id: 'record-points', title: 'Record Books', description: 'Set a new league points record on Realistic difficulty.', icon: '📜' },
+  { id: 'final-whistle', title: 'Final Whistle', description: 'Win a one-off final.', icon: '🏟️' },
+  { id: 'spot-kick-kings', title: 'Spot-Kick Kings', description: 'Win a shoot-out in the arena.', icon: '🥅' },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))
@@ -112,6 +114,54 @@ export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): stri
   if (s.bootName) lines.push(`⚽ ${s.bootName} ${s.bootGoals}`)
   if (s.potsName) lines.push(`⭐ ${s.potsName}`)
   for (const line of s.extraLines ?? []) if (line.trim()) lines.push(line)
+  if (s.seed) lines.push(`Seed ${s.seed}`)
+  return lines.join('\n')
+}
+
+/** One user match of an arena run, as the share text prints it. */
+export interface ArenaShareStep {
+  /** The round's code: `F` for a final, `R7` for a rung. */
+  code: string
+  gf: number
+  ga: number
+  opponent: string
+  pens?: { us: number; them: number }
+}
+
+export interface ArenaShareInput {
+  /** The format's name (`Cup Final`). */
+  mode: string
+  teamName: string
+  formationName: string
+  /** `Premier League wheel`, `European Nights wheel`. */
+  wheel: string
+  /** The result in capitals (`WINNERS`) and its icon. */
+  banner: string
+  icon: string
+  steps: ArenaShareStep[]
+  motm?: string
+  seed?: string
+}
+
+/** 🟩 won in 90 minutes, 🟨 level at 90 (penalties either way), 🟥 lost in 90. */
+export function arenaStepMark(s: Pick<ArenaShareStep, 'gf' | 'ga'>): string {
+  return s.gf > s.ga ? '🟩' : s.gf === s.ga ? '🟨' : '🟥'
+}
+
+/** `K. De Bruyne`: the first name to its initial, for the share text. */
+export function initialName(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  return parts.length > 1 ? `${parts[0][0]}. ${parts.slice(1).join(' ')}` : name
+}
+
+/**
+ * The arena's share text:
+ * TouchLine · Cup Final / the side and its wheel / the banner / one line per match / MOTM / the seed.
+ */
+export function arenaShareText(s: ArenaShareInput, appName = 'TouchLine'): string {
+  const lines = [`${appName} · ${s.mode}`, `${s.teamName} · ${s.formationName} · ${s.wheel}`, `${s.icon} ${s.banner}`]
+  for (const st of s.steps) lines.push(`${st.code} ${arenaStepMark(st)} ${st.gf}-${st.ga} ${st.opponent}${st.pens ? ` (${st.pens.us}-${st.pens.them} pens)` : ''}`)
+  if (s.motm) lines.push(`⭐ MOTM: ${initialName(s.motm)}`)
   if (s.seed) lines.push(`Seed ${s.seed}`)
   return lines.join('\n')
 }

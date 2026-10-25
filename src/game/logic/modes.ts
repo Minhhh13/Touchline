@@ -4,10 +4,10 @@
  * compile here, once, instead of falling through a hand-written chain on some
  * screen. Pure: no React, no store.
  */
-import type { Game, Mode } from '../types'
+import type { ArenaSettings, Game, Mode } from '../types'
 
 /** The mode's title: Setup's heading, the Record page's mode column. */
-export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
+export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena' }
 
 /**
  * How a label is worded:
@@ -18,7 +18,14 @@ export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: '
 export type ModeLabelStyle = 'short' | 'heading' | 'share'
 
 /** The parts of a game a label reads. */
-export type LabelledGame = Pick<Game, 'year'> & { settings: Pick<Game['settings'], 'mode' | 'seed'> }
+export type LabelledGame = Pick<Game, 'year'> & { settings: Pick<Game['settings'], 'mode' | 'seed'> & Partial<Pick<Game['settings'], 'arena'>> }
+
+/** An arena format's name: `Cup Final`, `The Gauntlet`, `The Cup · 16 clubs`. */
+export function arenaFormatLabel(a: ArenaSettings | undefined): string {
+  if (a?.format === 'gauntlet') return 'The Gauntlet'
+  const size = a?.size ?? 2
+  return size === 2 ? 'Cup Final' : `The Cup · ${size} clubs`
+}
 
 /** The day of a daily seed as written in labels: `daily-2026-10-25` reads `2026-10-25`. */
 function dailyDay(seed: string): string {
@@ -37,6 +44,8 @@ export function modeLabel(game: LabelledGame, style: ModeLabelStyle): string {
       return 'Season'
     case 'dynasty':
       return style === 'share' ? `Dynasty Y${game.year}` : style === 'heading' ? `Dynasty year ${game.year}` : `Dynasty · Year ${game.year}`
+    case 'arena':
+      return arenaFormatLabel(game.settings.arena)
     default: {
       const never: never = mode
       return never
@@ -62,6 +71,7 @@ export function isQuickLike(mode: Mode): boolean {
       return true
     case 'season':
     case 'dynasty':
+    case 'arena':
       return false
     default: {
       const never: never = mode
@@ -77,6 +87,7 @@ export function isQuickLike(mode: Mode): boolean {
  */
 export function finishDraftLabel(game: LabelledGame, made?: number): string {
   if (isQuickLike(game.settings.mode)) return 'Simulate the season'
+  if (game.settings.mode === 'arena') return arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : 'Into the arena'
   if (game.settings.mode === 'dynasty' && game.year > 1) return 'Into the new season'
   return made === undefined ? 'Go to pre-season' : `Go to pre-season with ${made}`
 }

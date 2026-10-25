@@ -31,6 +31,7 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     jobOffers: g.jobOffers ?? [],
     pendingMove: g.pendingMove ?? null,
     quickResult: g.quickResult ?? null,
+    arena: g.arena ?? null,
   }
 }
 
