@@ -217,6 +217,19 @@ export function Home() {
         </button>
       </div>
 
+      <div className="row between wrap" style={{ marginTop: 18, marginBottom: 8 }}>
+        <h2>Scenarios</h2>
+        <span className="small muted">A real club, a real season, the job half done.</span>
+      </div>
+      <div className="modes" data-testid="scenario-row">
+        <button className="mode-card" onClick={() => go('setup', 'runin')} data-testid="runin-card">
+          <span className="icon">⏱️</span>
+          <h3>Run-in</h3>
+          <p>Take over a real club at matchweek 28 with its real squad and a brief: win the title, reach the top four or stay up. Four spins to strengthen, then the last ten games, judged against what really happened.</p>
+          <span className="foot">10 minutes · ten games to save a season</span>
+        </button>
+      </div>
+
       <div className="grid four" style={{ marginTop: 16 }}>
         <button className="panel" style={{ textAlign: 'left', cursor: 'pointer', borderColor: 'var(--line-2)' }} onClick={() => go('h2h')}>
           <h3>🤝 Head-to-head</h3>

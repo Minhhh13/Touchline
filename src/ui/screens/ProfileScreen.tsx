@@ -13,6 +13,7 @@ import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFil
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
+import { RunInsTable } from '../components/RunInsTable'
 
 const FILTER_KEY = 'touchline-record-filter'
 const RUNS_VIEW_KEY = 'touchline-runs-view'
@@ -191,6 +192,8 @@ export function ProfileScreen() {
                   // The arena's own shelf: never in the league and cup totals
                   ['🏟️', 'Arena cups', cabinet.cups.won],
                   ['🪜', 'Best Gauntlet', cabinet.gauntlet.best],
+                  // So is the run-in's: a brief met is never a league title
+                  ['⏱️', 'Run-in briefs', cabinet.runIns.met],
                 ] as const
               ).map(([icon, label, n]) => (
                 <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
@@ -354,6 +357,7 @@ export function ProfileScreen() {
             </table>
           )}
         </div>
+        <RunInsTable />
       </div>
     </div>
   )

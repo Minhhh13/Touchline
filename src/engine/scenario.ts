@@ -15,6 +15,9 @@ export type RunInTemplate = 'title' | 'europe' | 'survival'
 
 export const RUN_IN_TEMPLATES: RunInTemplate[] = ['title', 'europe', 'survival']
 
+/** The leagues whose packs carry complete real tables, so the only ones with run-in jobs (the setup offers these; a test keeps the list true to the data). */
+export const RUN_IN_LEAGUES = ['england', 'spain', 'italy', 'germany'] as const
+
 /** A club-season this many players short of a matchday squad cannot be a league side in a run-in. */
 export const RUN_IN_MIN_SQUAD = 16
 

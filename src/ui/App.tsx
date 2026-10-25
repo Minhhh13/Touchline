@@ -15,6 +15,8 @@ import { ArenaSetup } from './screens/ArenaSetup'
 import { ArenaChallengeSetup } from './screens/ArenaChallengeSetup'
 import { isArenaPayload } from '@engine/challenge'
 import { ArenaSummary } from './screens/ArenaSummary'
+import { RunInSetup } from './screens/RunInSetup'
+import { RunInSummary } from './screens/RunInSummary'
 import { Modal, Toast } from './components/bits'
 
 export function App() {
@@ -88,9 +90,9 @@ export function App() {
   if (screen === 'game' && game) {
     if (game.phase === 'draft') body = <Draft />
     else if (game.phase === 'match') body = <MatchScreen />
-    else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : <Summary />
+    else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
     else body = game.arena ? <Arena /> : <Dugout />
-  } else if (screen === 'setup') body = setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
+  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />

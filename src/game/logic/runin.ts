@@ -41,6 +41,9 @@ export const RUN_IN_LOG_CAP = 50
 
 export const RUN_IN_TEMPLATE_LABEL: Record<RunInTemplate, string> = { title: 'Title race', europe: 'Chase for Europe', survival: 'Survival' }
 
+/** The brief on a chip: `Win the title`, `Top four`, `Stay up`. */
+export const RUN_IN_BRIEF_SHORT: Record<RunInTemplate, string> = { title: 'Win the title', europe: 'Top four', survival: 'Stay up' }
+
 const BRIEF_ID: Record<RunInTemplate, ObjectiveId> = { title: 'title', europe: 'top-four', survival: 'survive' }
 
 /** The brief as a board objective, judged on the final position (`evaluateObjective`). */
@@ -346,4 +349,16 @@ export function runInUnlocks(game: Game, u: LoadedUniverse, position: number): s
   if (game.settings.runIn?.template === 'survival' && real && real.position > clubs - 3 && position <= clubs - 3) out.push('great-escape')
   if (position === 1) out.push('run-in-title')
   return out
+}
+
+/** A job in one line for the setup: `18th, 28 pts at MW28 (projected), 1 point behind safety`. */
+export function jobLine(job: RunInJob): string {
+  return `${ordinal(job.projected.position)}, ${job.projected.points} pts at MW${job.takeover} (projected), ${gapLine(job.template, job.target, job.projected.position, job.gap)}`
+}
+
+/** Every choice a run-in starts with, in one line above Start: `West Ham United 2025-26 · Survival: stay up: finish 17th or better · 4-2-3-1 · Realistic · seed K7Q2-MX9A`. */
+export function summariseRunIn(u: LoadedUniverse, s: GameSettings): string {
+  const template = s.runIn?.template ?? 'survival'
+  const clubs = u.clubSeasons.filter((cs) => cs.leagueId === s.leagueId && cs.season === s.leagueSeason).length
+  return `${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ${seasonLabel(s.leagueSeason)} · ${RUN_IN_TEMPLATE_LABEL[template]}: ${runInBrief(template, briefTarget(template, clubs)).label.toLowerCase()} · ${s.formationId} · ${RUN_IN_SPINS} spins · Realistic · seed ${s.seed}`
 }

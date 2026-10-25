@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from './helpers'
-import { briefTarget, projectedCarryIn, RUN_IN_TEMPLATES, runInCatalogue, runInJob, scaleRow, suggestRunIns, takeoverWeek } from '../scenario'
+import { briefTarget, projectedCarryIn, RUN_IN_LEAGUES, RUN_IN_TEMPLATES, runInCatalogue, runInJob, scaleRow, suggestRunIns, takeoverWeek } from '../scenario'
 import { computeTable, positionOf, USER_TEAM } from '../season'
 
 const u = loadTestUniverse()
@@ -59,9 +59,13 @@ describe('the run-in catalogue', () => {
   it('offers jobs in the four leagues with real tables and none in the three without', () => {
     for (const t of RUN_IN_TEMPLATES) {
       const by = count(t)
-      for (const l of ['england', 'spain', 'italy', 'germany']) expect(by[l] ?? 0, `${t} ${l}`).toBeGreaterThan(0)
-      for (const l of ['france', 'netherlands', 'portugal']) expect(by[l] ?? 0, `${t} ${l}`).toBe(0)
+      for (const l of all.leagues.map((x) => x.id)) {
+        if ((RUN_IN_LEAGUES as readonly string[]).includes(l)) expect(by[l] ?? 0, `${t} ${l}`).toBeGreaterThan(0)
+        else expect(by[l] ?? 0, `${t} ${l}`).toBe(0)
+      }
+      expect(Object.keys(by).sort()).toEqual([...RUN_IN_LEAGUES].sort())
     }
+    for (const l of ['france', 'netherlands', 'portugal']) expect(RUN_IN_LEAGUES as readonly string[]).not.toContain(l)
   })
 
   it('pins the counts to the data stamp (title 28, Europe 72, survival 104 on the 2026-10-25 packs)', () => {

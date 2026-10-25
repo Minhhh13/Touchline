@@ -28,6 +28,7 @@ import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
+import { RunInBanner } from '../components/RunInBanner'
 
 type Tab = DugoutTab
 
@@ -136,6 +137,7 @@ export function Dugout() {
         </div>
       </div>
 
+      <RunInBanner />
       {/* Next match CTA: the fixture, the assistant's briefing and the buttons (a fixed bottom bar on phones) */}
       {!done && (
         <div className="panel cta" data-testid="cta" style={{ marginBottom: 12, background: 'linear-gradient(135deg, var(--panel), var(--bg-3))' }}>
@@ -218,7 +220,7 @@ export function Dugout() {
           { id: 'tactics', label: 'Tactics' },
           { id: 'fixtures', label: 'Fixtures' },
           { id: 'table', label: 'Table' },
-          { id: 'cup', label: 'Cup' },
+          ...(season.cup.length ? [{ id: 'cup' as const, label: 'Cup' }] : []),
           ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
@@ -356,8 +358,16 @@ export function Dugout() {
         <div className="panel">
           <h3>Fixtures and results</h3>
           <div className="col" style={{ gap: 4 }}>
+            {season.takeoverAt ? (
+              <div className="fixture me" data-testid="before-you-arrived">
+                <span className="mw">MW 1-{season.takeoverAt}</span>
+                <span className="muted small" style={{ gridColumn: '2 / -1' }}>
+                  Before you arrived: the table you took over is projected from the real final one.
+                </span>
+              </div>
+            ) : null}
             {season.fixtures
-              .filter((f) => f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)
+              .filter((f) => (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM) && f.matchweek > (season.takeoverAt ?? 0))
               .sort((a, b) => a.matchweek - b.matchweek)
               .map((f) => {
                 const home = f.homeTeamId === USER_TEAM
@@ -387,7 +397,7 @@ export function Dugout() {
 
       {tab === 'table' && (
         <div className="panel">
-          <h3>League table · {seasonLabel(season.leagueSeason)}</h3>
+          <h3>League table · {seasonLabel(season.leagueSeason)}{season.carryIn ? ` · from MW ${season.takeoverAt}, projected from the final table` : ''}</h3>
           <TableView rows={table} teamName={game.settings.teamName} />
           <p className="help">The other nineteen clubs field their real squads from that season, with their own injuries and form.</p>
         </div>
@@ -1126,7 +1136,7 @@ function EventCard() {
       </div>
       <div className="row wrap" style={{ marginTop: 8 }}>
         {ev.choices.map((c) => (
-          <button key={c.id} className="btn" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
+          <button key={c.id} className="btn" title={c.hint} onClick={() => store.resolveEvent(c.id)} style={{ whiteSpace: 'normal', textAlign: 'left', maxWidth: '100%' }}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
               <span>{c.label}</span>
               <span className="small muted" style={{ fontWeight: 400 }}>

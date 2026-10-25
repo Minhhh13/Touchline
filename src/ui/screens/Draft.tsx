@@ -113,7 +113,7 @@ export function Draft() {
     <div className="page">
       <div className="row between wrap" style={{ marginBottom: 10 }}>
         <div>
-          <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The Draft'}</h1>
+          <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : game.settings.mode === 'runin' ? 'Reinforcements' : 'The Draft'}</h1>
           <div className="muted small">
             {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challengeHeadline(challenge, game.settings.arena?.format)}) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
             {nation ? `${nationLabel} only · ` : ''}
