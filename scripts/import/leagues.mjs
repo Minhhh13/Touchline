@@ -14,7 +14,8 @@ export const LEAGUES = {
     fc24LeagueId: 13,
     eaNames: ['Premier League'],
     euroLeagueId: 1729,
-    openfootball: { repo: 'openfootball/england', file: '1-premierleague.txt' },
+    // The Premier League from its first season; 22 clubs (462 matches) until 1994-95, 20 (380) since
+    openfootball: { repo: 'openfootball/england', file: '1-premierleague.txt', from: 1992, clubs: (season) => (season <= 1994 ? 22 : 20) },
   },
   ...EUROPE,
 }

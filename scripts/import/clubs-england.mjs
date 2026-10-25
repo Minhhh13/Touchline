@@ -49,7 +49,7 @@ export const CLUBS = [
   // Clubs that appear in the openfootball tables before 2008 or in the current season.
   c('charlton-athletic', 'Charlton Athletic', 'Charlton', 'CHA', 'London', 'The Addicks', 1905, '#D4021D', '#FFFFFF', 'balanced', ['crystal-palace'], ['Charlton Athletic FC', 'Charlton']),
   c('derby-county', 'Derby County', 'Derby', 'DER', 'Derby', 'The Rams', 1884, '#FFFFFF', '#000000', 'defensive', ['nottingham-forest'], ['Derby County FC', 'Derby']),
-  c('sheffield-wednesday', 'Sheffield Wednesday', 'Sheff Wed', 'SHW', 'Sheffield', 'The Owls', 1867, '#0E3F8A', '#FFFFFF', 'defensive', ['sheffield-united'], ['Sheffield Wednesday FC', 'Sheff Wed']),
+  c('sheffield-wednesday', 'Sheffield Wednesday', 'Sheff Wed', 'SHW', 'Sheffield', 'The Owls', 1867, '#0E3F8A', '#FFFFFF', 'defensive', ['sheffield-united'], ['Sheffield Wednesday FC', 'Sheff Wed', 'Sheffield Wed']),
   c('bradford-city', 'Bradford City', 'Bradford', 'BRA', 'Bradford', 'The Bantams', 1903, '#8B1A1A', '#FFBF00', 'defensive', ['leeds-united'], ['Bradford City AFC', 'Bradford City FC', 'Bradford']),
   c('wimbledon', 'Wimbledon', 'Wimbledon', 'WIM', 'London', 'The Dons', 1889, '#1B3F94', '#FFD700', 'direct', [], ['Wimbledon FC']),
   c('oxford-united', 'Oxford United', 'Oxford', 'OXF', 'Oxford', 'The U\'s', 1893, '#FFD700', '#001E5A', 'balanced', [], ['Oxford United FC']),
@@ -59,6 +59,10 @@ export const CLUBS = [
   c('stockport-county', 'Stockport County', 'Stockport', 'STO', 'Stockport', 'The Hatters', 1883, '#0C2E6B', '#FFFFFF', 'direct', [], ['Stockport County FC']),
   c('wrexham', 'Wrexham', 'Wrexham', 'WRX', 'Wrexham', 'The Red Dragons', 1864, '#E30613', '#FFFFFF', 'direct', [], ['Wrexham AFC']),
   c('bristol-city', 'Bristol City', 'Bristol City', 'BRC', 'Bristol', 'The Robins', 1894, '#E21C38', '#FFFFFF', 'balanced', [], ['Bristol City FC']),
+  // Premier League clubs of 1992-93 to 1997-98 that are not in any later table (appended: club ids are permanent)
+  c('oldham-athletic', 'Oldham Athletic', 'Oldham', 'OLD', 'Oldham', 'The Latics', 1895, '#004A99', '#FFFFFF', 'direct', [], ['Oldham Athletic AFC', 'Oldham Athletic FC']),
+  c('swindon-town', 'Swindon Town', 'Swindon', 'SWI', 'Swindon', 'The Robins', 1879, '#DA291C', '#FFFFFF', 'possession', ['oxford-united'], ['Swindon Town FC']),
+  c('barnsley', 'Barnsley', 'Barnsley', 'BNS', 'Barnsley', 'The Tykes', 1887, '#D71920', '#FFFFFF', 'direct', ['sheffield-wednesday', 'sheffield-united'], ['Barnsley FC']),
 ]
 
 function c(id, name, shortName, code, city, nickname, founded, primary, secondary, style, rivals, aliases) {

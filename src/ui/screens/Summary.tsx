@@ -30,6 +30,7 @@ import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
+import { estimatedNote } from '@game/logic/era'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -69,7 +70,7 @@ export function Summary() {
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
   const formation = getFormation(game.tactics.formationId)
-  const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
+  const row: TableRow = { teamId: USER_TEAM, played: record.won + record.drawn + record.lost, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
   const leagueName = u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? game.settings.leagueId
   const inBooks = bench !== null && hasRecordBook(bench)
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
@@ -94,6 +95,10 @@ export function Summary() {
   if (benchLine) extraLines.push(benchLine)
   const euroLine = europeLine(q?.europe)
   if (euroLine) extraLines.push(euroLine)
+  // A classic pick or a classic league season: the numbers are TouchLine's estimate, and the share says so
+  // The player-seasons themselves, so a dynasty's aged copy still counts by the club-season it was drafted from
+  const estimated = estimatedNote(u, Object.values(game.lineup).map((id) => get(id) ?? id), game.settings.leagueId, game.settings.leagueSeason)
+  if (estimated) extraLines.push(estimated)
   // Head-to-head against the ghost this game was played against
   const mine = claimOf(game)
   if (challenge && mine) extraLines.push(verdictLine(challenge, mine))
@@ -169,7 +174,7 @@ export function Summary() {
         formation,
         lineup: game.lineup,
         getPlayer: get,
-        footer: game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`,
+        footer: `${game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`}${estimated ? ' · estimated ratings' : ''}`,
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)

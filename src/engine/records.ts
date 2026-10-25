@@ -153,10 +153,12 @@ export function isPointsRecord(b: SeasonBenchmark): boolean {
 
 /**
  * The club that actually won the league that season, or null when the table
- * is missing or the season is still being played.
+ * is missing, the season is still being played or the title was stripped and
+ * never awarded.
  */
 export function realChampion(u: LoadedUniverse, leagueId: string, season: number): string | null {
   if (season === u.currentSeason) return null
+  if (u.voidTitles?.[leagueId]?.includes(season)) return null
   const rows = u.tables[leagueId]?.[season]
   if (!rows || !isCompleteTable(rows)) return null
   return rows.find((r) => r.position === 1)?.clubId ?? null

@@ -231,11 +231,14 @@ describe('position first', () => {
 
 describe('prime ratings', () => {
   const u = loadTestUniverse(['england', 'spain'])
+  // Prime counts the standard seasons; classic ones (estimated, 1992-2008) only for a game that opts in
+  const standardOf = (w: LoadedUniverse) => w.clubSeasons.filter((cs) => !cs.classic).flatMap((cs) => cs.squad)
+  const standard = standardOf(u)
 
   it('rates every player-season at the maximum overall over his seasons, never below the season', () => {
     const best = new Map<string, number>()
-    for (const p of Object.values(u.index)) best.set(p.playerId, Math.max(best.get(p.playerId) ?? 0, p.overall))
-    for (const p of Object.values(u.index)) {
+    for (const p of standard) best.set(p.playerId, Math.max(best.get(p.playerId) ?? 0, p.overall))
+    for (const p of standard) {
       const q = primed(u, p)
       expect(q.overall).toBeGreaterThanOrEqual(p.overall)
       expect(q.overall).toBe(best.get(p.playerId))
@@ -247,7 +250,7 @@ describe('prime ratings', () => {
   })
 
   it('takes the attributes of the best season and caches one object per id', () => {
-    const mover = Object.values(u.index).find((p) => primeOf(u, p.playerId)!.overall > p.overall + 5)!
+    const mover = standard.find((p) => primeOf(u, p.playerId)!.overall > p.overall + 5)!
     const top = primeOf(u, mover.playerId)!
     const q = primed(u, mover)
     expect(q.attributes).toEqual(top.attributes)
@@ -264,7 +267,7 @@ describe('prime ratings', () => {
   it('looks across the leagues it is given: a player who moved has his best season from either', () => {
     const england = loadTestUniverse()
     let found = false
-    for (const p of Object.values(u.index)) {
+    for (const p of standard) {
       if (!england.index[p.id]) continue
       const e = primeOf(england, p.playerId)!.overall
       const all = primeOf(u, p.playerId)!.overall
@@ -279,7 +282,7 @@ describe('prime ratings', () => {
     // England alone, and England with La Liga loaded on the side: the England wheel rates every player the same
     const england = loadTestUniverse()
     let differs = 0
-    for (const p of Object.values(england.index)) {
+    for (const p of standardOf(england)) {
       const alone = primed(england, p, ['england'])
       const beside = primed(u, u.index[p.id], ['england'])
       expect(beside.overall).toBe(alone.overall)
@@ -293,11 +296,23 @@ describe('prime ratings', () => {
 
   it('keeps a player with a single season at that season', () => {
     const seasons = new Map<string, number>()
-    for (const p of Object.values(u.index)) seasons.set(p.playerId, (seasons.get(p.playerId) ?? 0) + 1)
-    const once = Object.values(u.index).find((p) => seasons.get(p.playerId) === 1)!
+    for (const p of standard) seasons.set(p.playerId, (seasons.get(p.playerId) ?? 0) + 1)
+    const once = standard.find((p) => seasons.get(p.playerId) === 1)!
     expect(primeOf(u, once.playerId)!.id).toBe(once.id)
     expect(primed(u, once)).toBe(once)
   })
+  it('counts a classic season only when the game opts in', () => {
+    const all = new Map<string, number>()
+    for (const p of Object.values(u.index)) all.set(p.playerId, Math.max(all.get(p.playerId) ?? 0, p.overall))
+    let lifted = 0
+    for (const p of standard) {
+      expect(primeOf(u, p.playerId, undefined, true)!.overall).toBe(all.get(p.playerId))
+      if (primed(u, p, undefined, true).overall > primed(u, p).overall) lifted++
+    }
+    // Some 2008+ player-seasons had a better estimated season before 2008
+    expect(lifted).toBeGreaterThan(0)
+  })
+
 })
 
 describe('era presets', () => {

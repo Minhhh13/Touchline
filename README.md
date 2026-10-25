@@ -29,6 +29,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Eight formations, each tile drawn as a mini pitch with the eleven positions in that shape (goalkeeper gold, defenders blue, midfielders white, forwards orange) wherever a shape is picked: Quick Draft, Season and Dynasty setup, Head-to-head and the Tactics tab. Position eligibility (a wing-back covers full-back, a wide midfielder covers the wing), era filters, one-club mode, re-spins and shareable seeds.
 - **38-0 rules** (Position First on the Draft screen: tap a slot, the button reads "Spin for CB", and the list lights up who fits): a difficulty (Easy 3 re-spins, Normal 1, Hard none with ratings hidden), a ratings toggle for blind drafting, Squad First (spin, then pick anyone and choose his slot) or Position First (choose a slot, then spin: the wheel only stops on a club with someone who can play there, and a re-spin keeps the slot), Season ratings or Prime (every player at his career-best rating across the wheel's leagues, the same on every device), and era presets All-time, 2000s+, 2010s+ and Modern (2016+) with a custom range and an "N of M seasons" count. Quick Draft defaults to Normal, Squad First, Season ratings; the Daily pins all of it so everyone plays the same wheel, and the share text names whatever differs.
 - **One-Nation Draft**: pick a nationality at setup and every pick, signing and academy prospect must share it. Only nations with twice the cover for every position in your shape are offered (71 of the 161 known nations in the data for a 4-3-3 across all seven leagues, 26 from England alone); the wheel never lands on a squad without an eligible player, approaches for anyone else are refused by the board, and a wheel that runs dry lets you start with the eleven you have. Win the league for the International achievement.
+- **Classic seasons (1992-93 to 2007-08)**: the Premier League's sixteen seasons before the EA data, with their real squads and real tables (8,903 player-seasons, from Wikipedia and Wikidata facts) and TouchLine's estimated ratings. Opt-in: tick "Classic 1992-93 to 2007-08" under the Era slider in Setup (the slider then reaches back to 1992-93 and can widen the range into the later seasons), or play a classic league season; Prime ratings and the January window count classic seasons only for a game that opted in; the Daily, old challenge links and saves are untouched. Every estimated season carries an "Estimated ratings" mark in Explore, the Draft and the share text and card.
 - **Wheel twists**: every third spin of a quick draft or the Daily is a twist spin. Golden: the wheel only stops on champions. Basement: only the bottom three of their league that season. Blind: ratings hidden until you have picked. Decade: the wheel stays in the decade of your last pick. The wheel decides which, never offers a twist its pool cannot serve (leagues without tables get only blind and decade spins), and a toggle at setup turns twists on for a Season or off for a quick draft.
 - **The case reel**: every spin opens like a Counter-Strike case, season first. A drum stops on the drawn season (2017-18), then a strip of every club in that season's league slides under the marker and lands on the drawn club; the clubs the wheel could actually stop on are lit and the rest greyed out, so a golden spin runs through the whole league with only the champion lit. Every club-season carries a rarity colour from its squad strength (gold for the top 5% of its league's history, then red, pink, purple and blue), shown on the card, in the squad header and in the draft log. Tap, Space or Enter skips to the landing; with reduced motion the result shows within a second.
 - **Ghost drafts**: after any quick draft, "Challenge a friend" copies a link (`#c=...`, about 600 characters for eleven picks) that carries the seed, the shape, the league, the host club, the rules, every spin's pick and your result. Whoever opens it drafts the same wheel with your pick shown on every spin ("Last time here: K. De Bruyne"), plays the same season and gets a head-to-head summary with both XIs and a verdict line in the share text. The link is replayed pick by pick on arrival, so a claim is marked verified, could not be verified, or unverified when it was built on other data or another engine version; "Run it back" sets your own result as the ghost, and the Profile page marks the best run on each wheel. Tactics changed at kick-off or in January and the January deal travel in the link too, so a tweaked season still verifies.
@@ -81,11 +82,11 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - **Motion**: short and light, CSS first, and all of it off with the device's reduced-motion setting. Screens fade and rise in (the old one fading out through a View Transition where the browser has one, with the nav pill sliding across); the Home cards enter one after another; cards lift on hover, buttons press down, tabs slide one underline, toasts and sheets slide up, bars grow from zero; the league packs load behind a shimmering skeleton; the season summary counts up the record and the points and throws a gold flare for a title and confetti for the perfect season.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.
-- **In the record books**: the summary ranks your points, wins, goals scored, goals conceded and defeats against every complete real season of your league in the data with the same number of matches (26 Premier League seasons back to 2000-01, 16 Bundesliga seasons of 34 games), names the three seasons ahead of you and the real champions that year, and marks an outright league record with a gold chip; the share text adds a line for a top-ten points total. A new points record on Realistic difficulty over a full season unlocks the Record Books achievement; leagues without tables (Ligue 1, the Eredivisie, the Primeira Liga) have no record book. Dynasty history shows the real champions beside each of your seasons.
+- **In the record books**: the summary ranks your points, wins, goals scored, goals conceded and defeats against every complete real season of your league in the data with the same number of matches (31 Premier League seasons of 38 games back to 1995-96, plus the three 42-game seasons from 1992-93; 16 Bundesliga seasons of 34 games), names the three seasons ahead of you and the real champions that year, and marks an outright league record with a gold chip; the share text adds a line for a top-ten points total. A new points record on Realistic difficulty over a full season unlocks the Record Books achievement; leagues without tables (Ligue 1, the Eredivisie, the Primeira Liga) have no record book. Dynasty history shows the real champions beside each of your seasons.
 - Calibrated or Realistic difficulty.
 - One saved game per mode: a quick draft never overwrites your dynasty.
 
-**Explore**: browse every club-season in all seven leagues with its real squad and ratings, the highest-rated player-seasons by position, a player search, and a career page for any player: every season across every league, his peak, and a star to shortlist a season for the market.
+**Explore**: browse every club-season in all seven leagues (and England's classic seasons from 1992-93, marked estimated) with its real squad and ratings, the highest-rated player-seasons by position, a player search, and a career page for any player: every season across every league, his peak, and a star to shortlist a season for the market.
 
 **Opposition reports** before every match, league-wide statistics (Golden Boot, assists, ratings, clean sheets) and an expanding deck of dressing-room events: contract renewals, wantaway stars, media pressure, rushed injury returns and derby bonuses.
 
@@ -111,7 +112,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 
 ## Getting started
 
-Requires Node 20 or later (Node 22.13 or later to rebuild the data).
+Requires Node 22.13 or later (`package.json` engines; CI uses Node 22).
 
 ```bash
 git clone https://github.com/Minhhh13/Touchline.git
@@ -124,7 +125,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand, plus 8,903 classic Premier League player-seasons of 1992-93 to 2007-08 in `public/data/england/players-classic.json` (1.2 MB). To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
 
 ```bash
 node scripts/import/build.mjs
@@ -193,7 +194,7 @@ docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.m
 
 ## Data and credits
 
-Ratings and squads are built from public datasets: Stefano Leone's EA Sports FC 24 complete player dataset (CC0), nyagami's FC 25 database (Apache 2.0), justdhia's FC 26 ratings (CC0), mikedpad's FC 27 ratings (unofficial non-commercial snapshot), Hugo Mathien's European Soccer Database (ODbL), openfootball/england results (public domain) and Wikidata (CC0). A player's rating for a season comes from the edition published after it, so it reflects how he actually played. Values and wages are our own model. Full detail, method and limits are in [docs/DATA.md](docs/DATA.md).
+Ratings and squads are built from public datasets: Stefano Leone's EA Sports FC 24 complete player dataset (CC0), nyagami's FC 25 database (Apache 2.0), justdhia's FC 26 ratings (CC0), mikedpad's FC 27 ratings (unofficial non-commercial snapshot), Hugo Mathien's European Soccer Database (ODbL), openfootball/england results from 1992-93 (public domain), Wikidata (CC0), and points deductions checked against Wikipedia season articles. The classic seasons' squads, appearances and goals are facts from English Wikipedia club-season and player articles (CC BY-SA 4.0, no text reproduced) and Wikidata. A player's rating for a season comes from the edition published after it, so it reflects how he actually played; classic-season ratings are TouchLine's estimates (docs/DATA.md section 8). Values and wages are our own model. Full detail, method and limits are in [docs/DATA.md](docs/DATA.md).
 
 The Home art is our own (inline SVG in `src/ui/components/Art.tsx`); icons are Lucide (ISC) and flags are flag-icons (MIT), credited in [docs/CREDITS.md](docs/CREDITS.md).
 
@@ -207,9 +208,9 @@ Design documents:
 
 ## Roadmap
 
-- Seasons before 2008-09 (needs a ratings source for the 1990s and 2000s)
+- Classic seasons for the other leagues and in head-to-head
 - Online leaderboards for the daily challenge
-- More leagues (Portugal, the Netherlands) and a group stage for the Continental Cup
+- A group stage for the Continental Cup
 - Youth intake and player development targets in Dynasty
 
 

@@ -1099,6 +1099,10 @@ label.field,
   background: var(--gold-soft);
   border-color: color-mix(in srgb, var(--gold) 45%, transparent);
 }
+.chip.estimated {
+  border-style: dashed;
+  color: var(--text-2);
+}
 .chip.info {
   color: var(--accent);
   background: var(--primary-soft);
@@ -3651,6 +3655,16 @@ table.tbl.contracts .btn.sm {
 .toggle.is-off {
   opacity: 0.6;
   cursor: not-allowed;
+}
+/* The Classic seasons toggle sits in the Era panel's head row, so it adds no height */
+.toggle.era-classic {
+  min-height: 0;
+  padding: 2px 10px;
+  font-size: 13px;
+}
+.toggle.era-classic input {
+  width: 15px;
+  height: 15px;
 }
 @media (max-width: 520px) {
   .choice-cards.n3 .choice-card {
