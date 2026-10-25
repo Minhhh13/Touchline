@@ -26,6 +26,18 @@ export function FormationThumb({ formation }: { formation: Formation }) {
   )
 }
 
+/** The shape's name with any word after the numbers ("Diamond") on a line of its own on a small tile, so a word never breaks. */
+function FormationName({ name }: { name: string }) {
+  const gap = name.indexOf(' ')
+  if (gap < 0) return <span className="fname">{name}</span>
+  return (
+    <span className="fname">
+      {name.slice(0, gap)}
+      <span className="fname-sub"> {name.slice(gap + 1)}</span>
+    </span>
+  )
+}
+
 export interface FormationPickerProps {
   value: string
   onChange: (id: string) => void
@@ -44,7 +56,7 @@ export function FormationPicker({ value, onChange, blurbs, label = 'Formation', 
         <button key={f.id} type="button" className={f.id === value ? 'active' : ''} aria-pressed={f.id === value} onClick={() => onChange(f.id)} data-testid={`formation-${f.id}`}>
           <FormationThumb formation={f} />
           <span className="ftext">
-            <span className="fname">{f.name}</span>
+            <FormationName name={f.name} />
             {blurbs && <span className="fblurb">{f.blurb}</span>}
           </span>
         </button>

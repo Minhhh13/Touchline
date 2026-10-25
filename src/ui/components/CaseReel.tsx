@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ClubSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DRUM_LAND, dealReel, idleCards, type ReelCard, type ReelDeal } from '@game/logic/reel'
-import { TIER_INFO, tierName, type Tier } from '@game/logic/rarity'
+import { DISPLAY_TIER_INFO, tierName, type DisplayTier } from '@game/logic/rarity'
+import { ICONS_SEASON } from '@engine/icons'
 import { clubName, seasonLabel, textColourFor } from '../format'
 import { NeonFlow } from './Art'
 import { EstimatedChip } from './bits'
@@ -51,7 +52,7 @@ function prefersReducedMotion(): boolean {
 }
 
 /** "Gold · Elite" as a chip in its tier colour. */
-export function TierChip({ tier }: { tier: Tier }) {
+export function TierChip({ tier }: { tier: DisplayTier }) {
   return (
     <span className="tier-chip" data-tier={tier} data-testid="tier-chip">
       {tierName(tier)}
@@ -60,13 +61,20 @@ export function TierChip({ tier }: { tier: Tier }) {
 }
 
 /** A dot in the tier colour, for the draft log. */
-export function TierDot({ tier }: { tier: Tier }) {
+export function TierDot({ tier }: { tier: DisplayTier }) {
   return <span className="tier-dot" data-tier={tier} role="img" aria-label={tierName(tier)} title={tierName(tier)} />
 }
 
+/** A season on the drum: "2017-18", or "Icons" for Gamble mode's Icons spin. */
+function drumLabel(season: number): string {
+  return season === ICONS_SEASON ? 'Icons' : seasonLabel(season)
+}
+
 function Card({ c, landed }: { c: ReelCard; landed?: boolean }) {
+  // The Icons card takes its look from the icons tier in styles.css, not from a club's colours
+  const style = c.tier === 'icons' ? undefined : ({ background: c.colour, color: textColourFor(c.colour), '--secondary': c.secondary } as React.CSSProperties)
   return (
-    <div className={`reel-card${c.lit ? '' : ' dim'}${landed ? ' landed' : ''}`} data-tier={c.tier} style={{ background: c.colour, color: textColourFor(c.colour), '--secondary': c.secondary } as React.CSSProperties}>
+    <div className={`reel-card${c.lit ? '' : ' dim'}${landed ? ' landed' : ''}`} data-tier={c.tier} data-testid={c.tier === 'icons' ? 'icons-card' : undefined} style={style}>
       <span className="code">{c.code}</span>
       {c.league && <span className="lg">{c.league}</span>}
     </div>
@@ -218,10 +226,11 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
   }, [])
 
   const seasonOut = reduced || stage !== 'season'
-  const club = clubName(u, deal.target.clubId)
   const tier = deal.target.tier
-  const seasonText = `Season ${seasonLabel(deal.season)}${twist ? `, ${twist}` : ''}`
-  const landedText = `${club} ${seasonLabel(deal.season)}: ${TIER_INFO[tier].colour}, ${TIER_INFO[tier].label}`
+  const iconsSpin = tier === 'icons'
+  const club = iconsSpin ? 'Icons collection' : clubName(u, deal.target.clubId)
+  const seasonText = iconsSpin ? 'Icons spin' : `Season ${seasonLabel(deal.season)}${twist ? `, ${twist}` : ''}`
+  const landedText = iconsSpin ? 'Icons collection: the rarest spin, an all-time great' : `${club} ${seasonLabel(deal.season)}: ${DISPLAY_TIER_INFO[tier].colour}, ${DISPLAY_TIER_INFO[tier].label}`
   useLayoutEffect(() => {
     announce(stage === 'landed' ? landedText : seasonOut ? seasonText : '')
   }, [announce, stage, seasonOut, seasonText, landedText])
@@ -244,12 +253,12 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
   return (
     <div ref={rootRef} className={`reel-run stage-${stage}${reduced ? ' reduced' : ''}`} data-stage={stage} data-tier={stage === 'landed' ? tier : undefined} onClick={() => running && skipRef.current()}>
       <div className={`reel-season${seasonOut ? ' out' : ''}`}>
-        <span className={`lbl${twist ? ' twist' : ''}`}>{twist ?? 'Season'}</span>
+        <span className={`lbl${twist ? ' twist' : ''}`}>{iconsSpin ? 'Rare spin' : twist ?? 'Season'}</span>
         <div className="reel-drum-window" aria-hidden="true">
           <div className="reel-drum" ref={drumRef}>
             {deal.drum.map((s, i) => (
               <div key={i} className="reel-drum-label">
-                {seasonLabel(s)}
+                {drumLabel(s)}
               </div>
             ))}
           </div>
@@ -264,12 +273,19 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
           ))}
         </div>
         <div className="reel-veil" />
+        {iconsSpin && stage === 'landed' && (
+          <div className="icons-burst" data-testid="icons-burst">
+            {Array.from({ length: 12 }, (_, i) => (
+              <span key={i} style={{ '--i': i } as React.CSSProperties}>★</span>
+            ))}
+          </div>
+        )}
       </div>
       <div className="reel-result" data-testid="reel-result">
         {stage === 'landed' ? (
           <>
             <span className="reel-club">{club}</span>
-            <span className="reel-club-season">{seasonLabel(deal.season)}</span>
+            {!iconsSpin && <span className="reel-club-season">{seasonLabel(deal.season)}</span>}
             <TierChip tier={tier} />
             {estimated && <EstimatedChip compact />}
           </>

@@ -16,8 +16,9 @@ import type { TeamTalk } from '@engine/match'
 import { playerLookup, squadPlayers } from './players'
 import { lineupProblems } from './squad'
 import { nextOpponent, upcomingCupTie } from './week'
+import { riskiestStarter } from './medical'
 
-export type DugoutTab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club'
+export type DugoutTab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club' | 'dressing' | 'planner'
 
 export type BriefingLevel = 'block' | 'warn' | 'info' | 'ok'
 
@@ -193,6 +194,9 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
     const s = game.squad[id]
     if (p && s && s.suspension <= 0 && s.yellowCards % YELLOWS_PER_BAN === YELLOWS_PER_BAN - 1) items.push({ id: `yellow-${id}`, level: 'warn', text: `${p.name} is one yellow card from a ban`, action: { label: 'View', op: 'player', playerId: id } })
   }
+  // The starter the medical view rates at high risk, when tired legs are part of it (proneness alone is no news)
+  const risk = riskiestStarter(game, u)
+  if (risk && (game.squad[risk.id]?.condition ?? 100) < 80 && !items.some((i) => i.id === `tired-${risk.id}`)) items.push({ id: `risk-${risk.id}`, level: 'warn', text: `${risk.name} is at high injury risk (${risk.matchPct}% a match)`, action: { label: 'Medical', tab: 'planner' } })
   if (game.promisedStart && !starters.includes(game.promisedStart)) {
     const p = get(game.promisedStart)
     if (p && game.squad[game.promisedStart]) items.push({ id: 'promise', level: 'warn', text: `You promised ${p.name} a start and he is not in the XI`, action: { label: 'View', op: 'player', playerId: game.promisedStart } })
