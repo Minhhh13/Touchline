@@ -7,6 +7,7 @@ import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame, normaliseProfile } from '../logic/save'
+import { matchPlayOf } from '../logic/assistant'
 import { rollEvent } from '@engine/events'
 import { newSquadPlayer, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
@@ -122,6 +123,7 @@ describe('audit fixes: season and squad', () => {
     delete old.customPlayers
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
+    delete oldSettings.matchPlay
     old.settings = oldSettings
     const n = normaliseGame(old as unknown as Game)!
     expect(n.weekPlayed).toEqual([])
@@ -130,6 +132,9 @@ describe('audit fixes: season and squad', () => {
     expect(n.pendingMove).toBeNull()
     expect(n.customPlayers).toEqual({})
     expect(n.settings.wheelLeagues).toEqual(['england'])
+    // The match-play preference stays unset and reads as Watch (today's stops at 45 and 70)
+    expect(n.settings.matchPlay).toBeUndefined()
+    expect(matchPlayOf(n)).toBe('watch')
     expect(n.squad).toBe(g.squad)
     // No Quick Draft manager on a save from before managers: optional, left absent, and no rule switches them on
     expect(n.manager).toBeUndefined()

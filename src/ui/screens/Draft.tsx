@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Dices, Ghost, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, benchRoom, canBench, canCloseBench, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinnableSlots, suggestSlot, targetSlot, twistDecade, type DraftState } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
@@ -7,7 +8,8 @@ import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, Pos, Rating, Tip } from '../components/bits'
+import { ClubBadge, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
+import { TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
@@ -132,38 +134,67 @@ export function Draft() {
 
   return (
     <div className="page">
-      <div className="row between wrap" style={{ marginBottom: 10 }}>
-        <div>
-          <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The Draft'}</h1>
-          <div className="muted small">
-            {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challenge.claim.pts} pts) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
-            {nation ? <>{nationLabel} only · </> : ''}
-            {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
-            {tags.map((t) => `${t} · `).join('')}
-            {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
+      <div className="screen-head">
+        <div className="screen-title">
+          <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The draft'}</h1>
+          <div className="screen-meta">
+            <span>
+              {game.settings.teamName} · {game.settings.formationId}
+            </span>
+            {challenge && <span className="chip info">vs {challenge.name} · {challenge.claim.pts} pts</span>}
+            {d.rules.onlyClub && <span className="chip">{clubName(u, d.rules.onlyClub)} only</span>}
+            {nation && <span className="chip">{nationLabel} only</span>}
+            {(d.rules.fromSeason || d.rules.toSeason) && (
+              <span className="chip">
+                {seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to {seasonLabel(d.rules.toSeason ?? u.lastSeason)}
+              </span>
+            )}
+            {tags.map((t) => (
+              <span key={t} className="chip">
+                {t}
+              </span>
+            ))}
+            {d.rules.twists && <span className="chip">Twists</span>}
+            <span className="mono">seed {game.settings.seed}</span>
           </div>
         </div>
-        <div className="row">
-          <span className="chip" data-testid="pick-count">
-            {places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}
-          </span>
-          <span className="chip">{d.respinsLeft} re-spin{d.respinsLeft === 1 ? '' : 's'} left</span>
-          {game.bonusSpins > 0 && <span className="chip gold">+{game.bonusSpins} bonus</span>}
-          <button className="btn ghost sm" onClick={() => go('home')}>
-            Home
-          </button>
+        <div className="draft-progress">
+          <div className="row between" style={{ gap: 'var(--space-2)' }}>
+            <span className="draft-count" data-testid="pick-count" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
+              {places && !fillingStarters ? (
+                <>
+                  <span className="eyebrow">Bench</span> <b>{d.bench.length}</b> / {places}
+                </>
+              ) : (
+                <>
+                  <span className="eyebrow">Pick</span> <b>{Math.min(made + 1, total)}</b> / {total}
+                </>
+              )}
+            </span>
+            <span className="row" style={{ gap: 'var(--space-2)' }}>
+              {game.bonusSpins > 0 && <span className="chip gold">+{game.bonusSpins} bonus</span>}
+              <button className="btn ghost sm" onClick={() => go('home')}>
+                Home
+              </button>
+            </span>
+          </div>
+          <div className="pick-track" aria-hidden="true">
+            {Array.from({ length: total }, (_, i) => (
+              <span key={i} className={i < made ? 'done' : i === made && !complete ? 'now' : ''} />
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className={`grid draft ${hiddenAll ? 'hidden-ratings' : ''}`}>
+      <div className={`grid draft fill ${hiddenAll ? 'hidden-ratings' : ''}`}>
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} />}
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} onSettled={() => setSettled(d.current)} />
             {ghost && challenge && revealed && (
-              <div className="chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`} style={{ alignSelf: 'center', whiteSpace: 'normal', textAlign: 'center' }}>
-                👻{' '}
+              <div className="chip info ghost-chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`}>
+                <Ghost size={14} aria-hidden="true" />
                 {ghost.id === null
                   ? `Last time here: ${challenge.name} re-spun`
                   : ghostPlayer
@@ -175,8 +206,8 @@ export function Draft() {
             )}
             {!complete && dry && (
               <div className="notice">
-                The wheel has run dry for {nationLabel ?? 'this draft'}: no one left to draft.{' '}
-                {fillingStarters ? `Slots are still open (${needs.join(', ')}), so this side cannot start a season. Go home and choose another nation or a wider wheel.` : `You can go on with the ${made} players drafted.`}
+                No one left to draft for {nationLabel ?? 'this draft'}.{' '}
+                {fillingStarters ? `Still open: ${needs.join(', ')}. Go home and widen the wheel.` : `Go on with the ${made} drafted.`}
               </div>
             )}
             {!complete && dry && !fillingStarters && (
@@ -216,8 +247,8 @@ export function Draft() {
             )}
           </div>
           <div className="panel tight">
-            <div className="small muted" style={{ marginBottom: 6 }}>
-              {fillingStarters ? 'Still need' : complete ? 'Squad complete' : `Bench: ${total - made} more pick${total - made === 1 ? '' : 's'}${places ? ', optional' : ''}`}
+            <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
+              {fillingStarters ? 'Still need' : complete ? 'Squad complete' : `Bench · ${total - made} more pick${total - made === 1 ? '' : 's'}${places ? ', optional' : ''}`}
             </div>
             <div className="pill-list">
               {needs.map((p) => (
@@ -228,29 +259,35 @@ export function Draft() {
           </div>
           {d.history.length > 0 && (
             <div className="panel tight">
-              <div className="small muted" style={{ marginBottom: 6 }}>
+              <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
                 Draft log
               </div>
-              <div className="col" style={{ gap: 4, maxHeight: 220, overflow: 'auto' }}>
+              <ol className="draft-log">
                 {[...d.history].reverse().map((h, i) => {
                   const p = h.pickedId ? get(h.pickedId) : undefined
+                  const TwistIcon = h.twist ? TWIST_ICON[h.twist] : null
+                  const tier = tiers[`${h.clubId}@${h.season}`]
                   return (
-                    <div key={i} className="row small" style={{ gap: 8 }}>
-                      <ClubBadge clubId={h.clubId} size={20} />
-                      {tiers[`${h.clubId}@${h.season}`] && <TierDot tier={tiers[`${h.clubId}@${h.season}`]} />}
-                      <span className="muted">{seasonLabel(h.season)}</span>
-                      {h.twist && (
-                        <span title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
-                          {TWIST_INFO[h.twist].icon}
+                    <li key={i}>
+                      <ClubBadge clubId={h.clubId} size={22} />
+                      <span className="who">
+                        <span className={p ? 'name' : 'muted'}>{p ? p.name : h.skipped ? 'Skipped' : 'Re-spun'}</span>
+                        <span className="when">
+                          {tier && <TierDot tier={tier} />}
+                          {seasonLabel(h.season)}
+                          {h.twist && TwistIcon && (
+                            <span className="log-twist" title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
+                              <TwistIcon size={12} aria-hidden="true" />
+                            </span>
+                          )}
                         </span>
-                      )}
-                      <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">{h.skipped ? 'skipped' : 're-spun'}</span>}</span>
+                      </span>
                       {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
                       {p && !hiddenAll && h.twist !== 'blind' && <Rating value={p.overall} />}
-                    </div>
+                    </li>
                   )
                 })}
-              </div>
+              </ol>
             </div>
           )}
         </div>
@@ -259,46 +296,65 @@ export function Draft() {
         <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
           {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
           {!current && !managerChoice.length && (
-            <div className="col" style={{ alignItems: 'center', padding: '40px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40 }}>🎡</div>
-              <h3>{complete ? 'All picks made' : isDynastySummer ? `Summer signings: ${total - made} spin${total - made === 1 ? '' : 's'} to add depth` : 'Spin to land on a club and season'}</h3>
-              {isDynastySummer && !complete && <p className="muted small">Your squad carries over (best eleven shown on the pitch). Each spin adds one player to the squad; the summer market is open in the Dugout too.</p>}
-              <p className="muted small">The wheel only stops on squads with a player who can fill a slot you still need, so there are no dead spins. A player can be drafted once, whichever season you catch him in.</p>
+            <div className="empty-state">
+              <span className="empty-icon" aria-hidden="true">
+                <Dices size={26} />
+              </span>
+              <h3>
+                {complete ? 'All picks made' : isDynastySummer ? `${total - made} summer spin${total - made === 1 ? '' : 's'} to add depth` : 'Spin for a club and a season'}{' '}
+                {!complete && (
+                  <Info label="How the wheel works">
+                    {isDynastySummer ? 'Your squad carries over, best eleven on the pitch; each spin adds one player, and the summer market is open in the Dugout. ' : ''}The wheel only stops on squads with someone who fits a slot you still need, so there are no dead spins. Each player can be drafted once, whichever season you catch him in.
+                  </Info>
+                )}
+              </h3>
+              {!complete && <p className="muted small">Then pick one player from that squad.</p>}
             </div>
           )}
           {current && spinning && !revealed && (
-            <div className="row">
+            <div className="club-head">
               <span className="badge" style={{ width: 44, height: 44, background: 'var(--raised)', color: 'var(--text)', fontSize: 18 }}>?</span>
               <div>
-                <h2 style={{ fontSize: 26 }}>Opening…</h2>
-                <div className="muted small">The reel is landing on a club and a season.</div>
+                <h2>Opening…</h2>
+                <div className="muted small">Landing on a club and a season</div>
               </div>
             </div>
           )}
           {current && (!spinning || revealed) && (
             <>
               <div className="row between wrap">
-                <div className="row">
+                <div className="club-head">
                   <ClubBadge clubId={current.clubId} size={44} />
                   <div>
-                    <h2 style={{ fontSize: 26 }}>{clubName(u, current.clubId)}</h2>
-                    <div className="muted small">
-                      {seasonLabel(current.season)} · {!current.complete ? 'season in progress' : current.champions ? '🏆 Champions' : current.position > 0 ? `${ordinal(current.position)} · ${current.points} pts` : 'final table not on record'}{current.position > 0 ? ` · ${current.won}-${current.drawn}-${current.lost}` : ''}
-                      {tiers[`${current.clubId}@${current.season}`] && <> <TierChip tier={tiers[`${current.clubId}@${current.season}`]} /></>}
+                    <h2>{clubName(u, current.clubId)}</h2>
+                    <div className="club-sub">
+                      <span>{seasonLabel(current.season)}</span>
+                      {!current.complete ? (
+                        <span>season in progress</span>
+                      ) : current.champions ? (
+                        <span className="chip gold icon-chip">
+                          <Trophy size={12} aria-hidden="true" /> Champions
+                        </span>
+                      ) : current.position > 0 ? (
+                        <span>
+                          {ordinal(current.position)} · {current.points} pts
+                        </span>
+                      ) : (
+                        <span>final table not on record</span>
+                      )}
+                      {current.position > 0 && (
+                        <span className="mono">
+                          {current.won}-{current.drawn}-{current.lost}
+                        </span>
+                      )}
+                      {tiers[`${current.clubId}@${current.season}`] && <TierChip tier={tiers[`${current.clubId}@${current.season}`]} />}
                     </div>
                   </div>
                 </div>
-                <div className="segmented">
-                  <button className={sort === 'rating' ? 'active' : ''} onClick={() => setSort('rating')}>
-                    By rating
-                  </button>
-                  <button className={sort === 'position' ? 'active' : ''} onClick={() => setSort('position')}>
-                    By position
-                  </button>
-                </div>
+                <Segmented<'rating' | 'position'> value={sort} onChange={setSort} options={[{ value: 'rating', label: 'By rating' }, { value: 'position', label: 'By position' }]} />
               </div>
               {!revealed && spinning && <div className="notice">The reel is running…</div>}
-              {revealed && twist === 'blind' && <div className="notice">Blind pick: ratings stay hidden until you have chosen. Positions and ages are still shown.</div>}
+              {revealed && twist === 'blind' && <div className="notice">Blind pick: ratings stay hidden until you choose.</div>}
               {revealed && selected && (
                 <div className="notice slot-choices" data-testid="slot-choices">
                   <div>
@@ -325,7 +381,7 @@ export function Draft() {
                 <Tip id="draft-first-reveal">Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft.</Tip>
               )}
               {revealed && (
-                <div className="plist" style={{ maxHeight: 560, overflow: 'auto' }}>
+                <div className="plist lined draft-list">
                   {sortedSquad.map((p) => {
                     const ok = usable(p)
                     const taken = d.takenPlayers.includes(p.playerId)
@@ -340,9 +396,10 @@ export function Draft() {
                         selected={selectedPlayer === p.id}
                         highlight={!!target && ok}
                         hideRatings={hide}
+                        hideChampion={current.champions}
                         onClick={() => onPick(p)}
                         extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
-                        right={ok ? <span className="btn sm primary">{fillingStarters && slots.length ? 'Draft' : 'Bench'}</span> : null}
+                        right={ok ? <span className={`btn sm ${selectedPlayer === p.id ? 'primary' : ''}`}>{fillingStarters && slots.length ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )
                   })}
@@ -357,7 +414,7 @@ export function Draft() {
           <div className="panel">
             <div className="panel-head">
               <h3>{game.settings.formationId}</h3>
-              <span className="small muted">{Object.keys(d.lineup).length}/11 starters</span>
+              <span className={`chip ${Object.keys(d.lineup).length === 11 ? 'good' : ''}`}>{Object.keys(d.lineup).length}/11 starters</span>
             </div>
             <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hide} />
             {selected && suggestSlot(d, selected) && suggestSlot(d, selected) !== 'bench' && (
@@ -370,14 +427,21 @@ export function Draft() {
             <div className="panel" data-testid="draft-bench">
               <div className="panel-head">
                 <h3>Bench</h3>
-                <span className="small muted">{places ? `${d.bench.length}/${places}` : d.bench.length}</span>
+                <span className="chip">{places ? `${d.bench.length}/${places}` : d.bench.length}</span>
               </div>
-              <div className="plist">
+              <div className="plist lined">
                 {d.bench.map((id) => {
                   const p = get(id)
                   return p ? <PlayerRow key={id} p={p} hideRatings={hide} showClub /> : null
                 })}
-                {d.bench.length === 0 && <div className="muted small">{places ? `Up to ${places}, optional: send any pick here instead of a slot, or spin for the bench once the XI is full. In the season: 3 changes, and injured starters are covered from here.` : 'Fill the XI first, then bench picks follow.'}</div>}
+                {d.bench.length === 0 && <div className="muted small">{places ? (
+                      <>
+                        Up to {places}, optional.{' '}
+                        <Info label="How the bench works">Send any pick here instead of a slot, or spin for the bench once the XI is full. In the season: 3 changes, and injured starters are covered from here.</Info>
+                      </>
+                    ) : (
+                      'Bench picks follow the XI.'
+                    )}</div>}
               </div>
             </div>
           )}

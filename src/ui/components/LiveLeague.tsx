@@ -9,10 +9,10 @@ const ROW_H = 26
 /**
  * The live league table beside the playback: every club after the game shown, the user's row highlighted. Rows keep
  * one DOM order (by club) and are placed by a transform, so a change of place slides smoothly instead of jumping;
- * reduced motion turns the slide off in CSS. Arrows show the move since the game before; zone tints and lines mark
+ * reduced motion and the 4x playback turn the slide off. Arrows show the move since the game before; zone tints and lines mark
  * the title, the top four, the top six and the bottom three.
  */
-export function LiveTable({ table, before, userId, teamName, nameOf }: { table: LiveRow[]; before: LiveRow[]; userId: string; teamName: string; nameOf: (teamId: string) => string }) {
+export function LiveTable({ table, before, userId, teamName, nameOf, slide = true }: { table: LiveRow[]; before: LiveRow[]; userId: string; teamName: string; nameOf: (teamId: string) => string; /** Off, rows jump to their new place (4x, where a slide would still be running when the next game lands). */ slide?: boolean }) {
   const teams = table.length
   const bodyRef = useRef<HTMLDivElement | null>(null)
   const mine = table.findIndex((r) => r.teamId === userId)
@@ -33,7 +33,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf }: { table: 
     { key: 'releg', from: teams - 3, to: teams },
   ]
   return (
-    <div className="live-table" data-testid="live-table">
+    <div className={`live-table ${slide ? '' : 'no-slide'}`} data-testid="live-table">
       <div className="lt-head small muted">
         <span>#</span>
         <span />

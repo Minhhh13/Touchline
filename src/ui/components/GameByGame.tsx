@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
 import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, scorersLabel, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { ChevronDown, Play, SkipForward } from 'lucide-react'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
+import { shownGames } from '../screenText'
 
 /** Milliseconds between two games revealed by the season replay. */
 export const REPLAY_STEP_MS = 220
@@ -244,7 +246,7 @@ function readOrder(fallback: GameOrder): GameOrder {
   }
 }
 
-export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights, order: fixedOrder, orderToggle = false, total = results.length }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void; /** Newest game at the top, or matchweek 1 first (the default). */ order?: GameOrder; /** Offer a Newest / Oldest switch, remembered per viewer; starts newest first. */ orderToggle?: boolean; /** Games in the whole season, when `results` holds only part of it (the playback before January). */ total?: number }) {
+export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights, order: fixedOrder, orderToggle = false, total = results.length, fold }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void; /** Newest game at the top, or matchweek 1 first (the default). */ order?: GameOrder; /** Offer a Newest / Oldest switch, remembered per viewer; starts newest first. */ orderToggle?: boolean; /** Games in the whole season, when `results` holds only part of it (the playback before January). */ total?: number; /** Show only this many games until "Show all" (the replay always shows every game it has revealed). */ fold?: number }) {
   const revealed = replay ? replay.revealed : results.length
   const playing = replay?.playing ?? false
   const [chosen, setChosen] = useState<GameOrder>(() => (orderToggle ? readOrder('newest') : 'oldest'))
@@ -268,7 +270,8 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
       if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
     } else if (playing && newestRef.current) newestRef.current.scrollIntoView({ block: 'nearest' })
   }, [playing, revealed, compact, order])
-  const shown = gamesInOrder(results, revealed, order)
+  const [expanded, setExpanded] = useState(false)
+  const shown = gamesInOrder(results, revealed, order).slice(0, shownGames(revealed, fold, expanded, playing))
   const newestWeek = revealed ? results[revealed - 1].matchweek : null
   return (
     <div className={`panel gbg ${compact ? 'compact' : ''} ${onHighlights ? 'with-hl' : ''}`} data-testid="game-by-game" data-order={order}>
@@ -285,23 +288,24 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               </button>
             </span>
           )}
-          <span className="small muted">{revealed < total ? `${revealed} of ${total}` : `${total} games`}</span>
+          {replay?.canReplay ? (
+            <span className="toolbar">
+              {playing && <span className="small muted mono">MW {revealed}/{results.length}</span>}
+              {playing ? (
+                <button className="btn sm" onClick={replay.skip} data-testid="replay-skip">
+                  <SkipForward size={14} aria-hidden="true" /> Skip
+                </button>
+              ) : (
+                <button className="btn sm primary" onClick={replay.start} data-testid="replay-play" title="One game every fifth of a second">
+                  <Play size={14} aria-hidden="true" /> {replay.used ? 'Play the season again' : 'Play the season'}
+                </button>
+              )}
+            </span>
+          ) : (
+            <span className="small muted">{revealed < total ? `${revealed} of ${total}` : `${total} games`}</span>
+          )}
         </span>
       </div>
-      {replay?.canReplay && (
-        <div className="row between wrap" style={{ marginBottom: 8 }}>
-          {playing ? (
-            <button className="btn sm" onClick={replay.skip} data-testid="replay-skip">
-              Skip
-            </button>
-          ) : (
-            <button className="btn sm primary" onClick={replay.start} data-testid="replay-play">
-              {replay.used ? 'Play the season again' : 'Play the season'}
-            </button>
-          )}
-          <span className="small muted">{playing ? `Matchweek ${revealed} of ${results.length}` : 'One game every fifth of a second.'}</span>
-        </div>
-      )}
       {strip && <RunningStrip results={results} upTo={revealed} />}
       <ol className="gbg-list" aria-label={title} ref={listRef}>
         {shown.map((r) => {
@@ -326,7 +330,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               </span>
               {onHighlights && (
                 <button className="btn sm ghost gbg-hl" onClick={() => onHighlights(r)} title="Highlights" aria-label={`Highlights of matchweek ${r.matchweek}`} data-testid="gbg-highlights">
-                  ▶
+                  <Play size={12} aria-hidden="true" />
                 </button>
               )}
               {scorers && <span className="gbg-scorers small">⚽ {scorers}</span>}
@@ -334,6 +338,11 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
           )
         })}
       </ol>
+      {fold !== undefined && !playing && revealed > fold && (
+        <button type="button" className="btn ghost sm block gbg-more" onClick={() => setExpanded((e) => !e)} aria-expanded={expanded}>
+          {expanded ? 'Show fewer' : `Show all ${revealed} games`} <ChevronDown size={14} className={expanded ? 'flip' : ''} aria-hidden="true" />
+        </button>
+      )}
     </div>
   )
 }

@@ -106,17 +106,26 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     ctx.fillText(rec[i].t, x, 306)
     x += widths[i] + gap
   }
+  // The season as blocks, one per match, as on the summary screen
+  const games = [...Array<string>(input.row.won).fill(C.good), ...Array<string>(input.row.drawn).fill(C.draw), ...Array<string>(input.row.lost).fill(C.bad)]
+  const block = Math.min(18, Math.floor((W - 180) / Math.max(1, games.length)) - 5)
+  const blocksW = games.length * (block + 5) - 5
+  games.forEach((c, i) => {
+    ctx.fillStyle = c
+    roundRect(ctx, W / 2 - blocksW / 2 + i * (block + 5), 330, block, block, 3)
+    ctx.fill()
+  })
   ctx.textAlign = 'center'
   ctx.fillStyle = C.text
   ctx.font = font(28, 600, BODY)
   const ord = (n: number) => n + (['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 > 3 ? 0 : n % 10] ?? 'th')
-  ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 354)
+  ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 392)
 
   // The pitch: grass stays green, the frame and lines are neutral
   const px = 90
-  const py = 396
+  const py = 420
   const pw = W - 180
-  const ph = 740
+  const ph = 716
   ctx.fillStyle = C.pitch
   roundRect(ctx, px, py, pw, ph, 22)
   ctx.fill()
@@ -147,7 +156,8 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     const id = input.lineup[slot.id]
     const p = id ? input.getPlayer(id) : undefined
     const cx = px + (slot.x / 100) * pw
-    const cy = py + ((100 - slot.y) / 100) * ph
+    // Inset so the keeper's name and the striker's disc stay on the grass
+    const cy = py + 56 + ((100 - slot.y) / 100) * (ph - 140)
     ctx.fillStyle = C.pitchDisc
     ctx.beginPath()
     ctx.arc(cx, cy - 10, 34, 0, Math.PI * 2)

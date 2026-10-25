@@ -12,7 +12,7 @@ import { playbackResults, quickChangeProblem, quickSeasonGames, quickSquadAt } f
 import { canPlayFor, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import type { QuickGameResult } from '@game/types'
 import { Pitch } from '../components/Pitch'
-import { foldResults, goalDifferenceLabel, paceLine, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { foldResults, goalDifferenceLabel, paceLine, playbackDelay, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { gapLine, momentAt, positionSeries, rivalsOf, tableAfterGame, weeklyTables } from '@game/logic/liveTable'
 import { chaseAt, chaseLine, perfectOverLabel } from '@game/logic/perfect'
 import { USER_TEAM } from '@engine/season'
@@ -33,6 +33,9 @@ import { clubName, money, ordinal } from '../format'
  * simulated before the first game is shown. On a desktop it fits one screen in boxed panels (the game list, the live
  * table, the position chart), each scrolling inside itself; on a phone the three are tabs under the tally.
  */
+/** How long a live-table row takes to slide to its new place; faster playback than this jumps instead, so rows never overlap. */
+const SLIDE_MS = 400
+
 export function SeasonPlayback() {
   const { universe: u, game, playback, endPlayback } = useStore()
   const j = game?.phase === 'january' ? game.quickJanuary ?? null : null
@@ -72,7 +75,7 @@ export function SeasonPlayback() {
   const benchOn = quickBenchRule(game) && !!game.draft && game.draft.bench.length > 0
   return (
     <div className="page fit" data-testid="season-playback">
-      <div className="fit-head">
+      <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{j && pb.done ? 'January' : 'The season'}</h1>
           <QuickTeamLine game={game} u={u} />
@@ -140,7 +143,7 @@ export function SeasonPlayback() {
             <h3>Live table</h3>
             <span className="small muted">{pb.revealed ? `After game ${pb.revealed}` : 'Before kick-off'}</span>
           </div>
-          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={(id) => clubName(u, id)} /> : <p className="small muted">This season was saved before the live table: the game list has every result.</p>}
+          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={(id) => clubName(u, id)} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} /> : <p className="small muted">This season was saved before the live table: the game list has every result.</p>}
         </div>
         <div className="fit-cell fit-col" data-pane="chart">
           {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}

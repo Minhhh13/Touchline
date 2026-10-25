@@ -139,7 +139,8 @@
   }
   .matchday.compact .md-playback {
     justify-content: flex-start;
-    flex-wrap: nowrap;
+    /* Pause, speed and skip on one line; Auto from here and Sim result wrap under them */
+    flex-wrap: wrap;
   }
   /* The tools wrap rather than hide behind the edge */
   .matchday.compact .md-tool-row {

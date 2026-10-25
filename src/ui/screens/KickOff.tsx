@@ -38,7 +38,7 @@ export function KickOff() {
   const s = game.settings
   return (
     <div className="page fit" data-testid="kickoff">
-      <div className="fit-head">
+      <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>Squad complete</h1>
           <QuickTeamLine game={game} u={u}>
