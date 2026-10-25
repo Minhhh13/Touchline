@@ -8,6 +8,7 @@ import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketO
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame } from '../logic/save'
 import { capOfGame } from '../logic/cap'
+import { chainOfGame } from '../logic/chain'
 import { rollEvent } from '@engine/events'
 import { newSquadPlayer, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
@@ -125,6 +126,7 @@ describe('audit fixes: season and squad', () => {
     delete old.customPlayers
     delete old.arena
     delete old.capSpent
+    delete old.teammateChain
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
     old.settings = oldSettings
@@ -138,6 +140,9 @@ describe('audit fixes: season and squad', () => {
     // No salary cap before the Moneyball wheel: nothing to say about money
     expect(n.settings.rules.budget).toBeUndefined()
     expect(capOfGame(n)).toBeNull()
+    // Nor a teammate chain before the chain
+    expect(n.settings.rules.chain).toBeUndefined()
+    expect(chainOfGame(n)).toBeNull()
     expect(n.settings.wheelLeagues).toEqual(['england'])
     expect(n.squad).toBe(g.squad)
     expect(normaliseGame(null)).toBeNull()

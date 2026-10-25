@@ -130,6 +130,20 @@ The twist draw is part of the seed, so `ENGINE_VERSION` moved from `'1'` to `'2'
 - **Links.** `RULE_CHECKS.budget` accepts a number from 50 to 1000. `budget` is not in `V1_RULE_KEYS`, so a capped link travels as version 2 and an older build reads it as "newer version"; it replays and verifies like any other, `pick` checking the cap on every row.
 - **Achievement** `moneyball`, Bargain Hunters: win the league on a cap of £150M or less for an XI (a bigger squad's budget is read back to its XI on the £10M grid, `xiCapOfBudget`), in the cap's own season (not a Dynasty's later years, not a sacked season).
 
+### Teammate Chain
+
+38-0's Teammate Chain. `DraftRules.chain` (optional boolean; off when absent, so every older save and every chain-less seed draws exactly as before): every club the wheel lands on must hold a former teammate of your last pick, and you must draft one of them, so the XI is one unbroken dressing room. It is a pure 38-0 puzzle and makes no chemistry claim: the quick draft's one-club-season-once rule forbids the same-season pairs that chemistry rewards.
+
+- **Teammates** (`src/engine/teammates.ts`): `teammateIndex(u, leagues)` maps every real player id to the club-seasons (`clubId@season`) he appeared in, memoised in a `WeakMap` by universe and leagues. Two men are former teammates when they share one of those club-seasons, in any season (the era rule narrows the wheel, not who counts as a teammate). The index covers the club-seasons of `rules.leagues` only, never every loaded pack: player ids are shared across packs (a man who moved from England to Spain is one id in both), so an index over whatever the browser had loaded would give an England-only seed a different wheel on a device that had opened Spain. `formerTeammates` lists them, `sharedClubSeasons` names the club-seasons two men shared, latest first.
+- **The rule** (`src/engine/draft.ts`). From the second pick, `DraftState.chainFrom` is the last pick and `DraftState.chainMates` the real ids of his former teammates (stored on the draft, sorted, so `canUse` needs no universe; about 43 ids for the median England player, 272 at most). `chainAllows(d, p)` joins `canUse` (through `usableBy`, which builds the teammate set once per pass over the wheel) and `eligibleSlots`, so the rules pool, the no-dead-spin rule, the spin weighting's usefulness count, `autoDraft` and the Draft screen all follow the chain; bench picks follow it too. `pick` refuses anyone else with "Modrić is not a former teammate of Kroos" and writes the link on the history row: `chainLink`, the latest club-season the two shared.
+- **The break.** When no club-season in the pool holds a usable teammate of the last pick, the chain breaks: `spin` sets `chainMates` to null, that spin is free (the plain pool), the pick on it carries `chainBroken: true`, and the chain restarts from that pick. `canSpin` is unaffected, so the chain never runs the wheel dry. `chainBreakDue(u, d)` tells the Draft screen before the spin.
+- **Measured** (England, 4-3-3, 100 auto-drafted quick XIs `chain-0` to `chain-99`): the chain-bound wheel holds 80 / 152 / 222 of the 380 club-seasons at p10 / p50 / p90, never fewer than 13; no draft broke. The chain breaks where the pool is thin: one nation (Brazilians in England: 76 breaks over 40 drafts, 38 of them broken at least once; French 67), or a £50M cap (5 breaks over 40). One season or one club never broke. It costs quality: the assistant's chained XI averaged 79.5 overall against 82.6 unchained, and 60 quick seasons (`chain-measure-0` to `-59`, Burnley 2025-26, calibrated) scored 50.6 points with 2 titles against 69.6 and 16 unchained.
+- **Gated:** every chain check runs only when `rules.chain` is set, so the pins hold and no `ENGINE_VERSION` bump is needed. Setup writes the rule only when it is on (`chain: true`), so a chain-less link's rules diff is unchanged.
+- **Where it applies.** Quick Draft, Season and the first year of a Dynasty (Setup, More options, Wheel rules, "Teammate chain"). The Daily never has one. A managed season keeps the record as `Game.teammateChain` (`{ clubs, broken }`, `chainRecord` in `src/game/logic/chain.ts`) when `beginSeason` drops the draft; the Dynasty summer draft drops the rule (`chain: undefined` in `advanceToNextSeason`). It stacks with twists, one club, one nation and the salary cap.
+- **Screens.** Setup: a toggle under Wheel rules (`ChainToggle`, `src/ui/components/ChainControl.tsx`); the setup line adds `teammate chain`. Draft: `Teammate chain` in the header line; a notice in the wheel column naming the man the next pick must have played beside, or "Chain broken: no teammate of Kroos left on the wheel" before a free spin; every teammate's row carries a `🔗 Real Madrid 2017-18` chip (the club-season they shared), everyone else is dimmed with "not a teammate"; the log shows each link ("🔗 Kroos → Modrić, Real Madrid 2017-18") and each break. Summary: `🔗 Teammate chain · 11 links` (every pick in one chain) or `🔗 Teammate chain · broken once` in the share text's extra lines, and the card prints the record and the chain of club codes in its `lines`, eleven codes to a line (`ARS→MCI→LIV`, a break written `/`; a squad of 18 takes two lines, the second starting with the arrow that carries it on).
+- **Links.** `RULE_CHECKS.chain` is a boolean and not a v1 key, so a chain link travels as version 2; it replays and verifies like any other, `spin` and `pick` applying the chain on every row.
+- **Achievement** `chain-champions`, Dressing Room: win the league with an unbroken teammate chain, in the chain's own season (not a Dynasty's later years, not a sacked season).
+
 ### Ghost drafts: challenge links and run-it-back
 
 A finished quick draft can be packed into a link and replayed on another device, because the wheel, the picks and the quick season all run on the one seeded `Rng`.
@@ -653,6 +667,7 @@ Prices round to the nearest £1M above 20, £0.5M above 5, else £0.1M.
 | dealmaker | Dealmaker | Sign a player under 70% of his opening price |
 | record-points | Record Books | Set an outright league points record on Realistic over a full season |
 | moneyball | Bargain Hunters | Win the league on a salary cap of £150M or less for an XI (section 5) |
+| chain-champions | Dressing Room | Win the league with an unbroken teammate chain (section 5) |
 
 **Share text** (`shareText`), copied to the clipboard from the summary screen:
 
@@ -669,9 +684,9 @@ Seed K7Q2-MX9A
 
 Line two names the host club and season; line three is the tier plus "+ CUP" where it applies; the block row is one square per win, draw and defeat; the daily variant labels the mode "Daily 2026-10-24" and omits the seed line; Dynasty labels it "Dynasty Y2".
 
-`extraLines` run in this order: the salary cap (`💰 £178M of a £180M cap · 0.52 pts per £M`, section 5), one nation, twists, the record-books line, the Season Story moment, the verdict against the real club, the challenge verdict. For example `🏆 Title sealed at MW 34 with 4 to play` then `📊 The real Burnley finished 19th on 22 · you 1st on 93` before the seed line.
+`extraLines` run in this order: the salary cap (`💰 £178M of a £180M cap · 0.52 pts per £M`, section 5), the teammate chain (`🔗 Teammate chain · 11 links`, section 5), one nation, twists, the record-books line, the Season Story moment, the verdict against the real club, the challenge verdict. For example `🏆 Title sealed at MW 34 with 4 to play` then `📊 The real Burnley finished 19th on 22 · you 1st on 93` before the seed line.
 
-**Share card** (`renderShareCard`, `src/ui/shareCard.ts`, 1080 by 1350). Optional fields, all additive, so a card without them draws exactly as before: `strip` (one 22 px cell per game under the record, up to 46, 4 px gaps), `moment` (one 30 px line under the strip), `banner` (`{ text, colour? }` in place of the tier label, for the arena modes) and `lines` (up to six lines in place of the W/D/L row and the points line, for knockout ties or a ladder). The pitch moves down and shortens by whatever sits above it. The summary passes the strip and the moment.
+**Share card** (`renderShareCard`, `src/ui/shareCard.ts`, 1080 by 1350). Optional fields, all additive, so a card without them draws exactly as before: `strip` (one 22 px cell per game under the record, up to 46, 4 px gaps), `moment` (one 30 px line under the strip), `banner` (`{ text, colour? }` in place of the tier label, for the arena modes) and `lines` (up to six lines in place of the W/D/L row and the points line, for knockout ties or a ladder). The pitch moves down and shortens by whatever sits above it. The summary passes the strip and the moment, and after a teammate-chain draft two `lines`: the record (`29W 6D 3L · 93 points · finished 1st`) and the chain of club codes.
 
 ### In the record books
 
@@ -801,7 +816,7 @@ Not in the code today:
 
 - 1992-93 to 2007-08 seasons; tables exist for 2000-01 to 2007-08 but no player data.
 - Online leaderboards, shared daily results and online multiplayer; the leaderboard is per browser and head-to-head is hot-seat only.
-- 38-0 modes not reproduced: Teammate Chain, Multiplayer leagues. (Last One Standing is built, managed, as the Gauntlet, and Tournaments as the Cup: section 17.)
+- 38-0 modes not reproduced: Multiplayer leagues. (Last One Standing is built, managed, as the Gauntlet, Tournaments as the Cup (section 17) and Teammate Chain as a wheel rule (section 5).)
 - Extra time in the arena's knockouts: a level tie goes straight to penalties at 90.
 - FM systems not reproduced: separate in-possession and out-of-possession shapes, scouting with attribute ranges, individual training, youth intake and regens, mentoring, press conferences beyond the events deck, finances beyond budget, wages, staff and prize money.
 - A group stage and two-legged ties for the Continental Cup.

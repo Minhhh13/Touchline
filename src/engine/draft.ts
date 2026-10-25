@@ -4,12 +4,14 @@
  *  - a human being can be drafted once, whatever the season;
  *  - squad drafts fill eleven starting slots first, then bench places;
  *  - optional filters: era, one club, one nation, hard mode (ratings hidden in the UI);
- *  - optional twists: every third spin is a golden, basement, blind or decade spin.
+ *  - optional twists: every third spin is a golden, basement, blind or decade spin;
+ *  - optional teammate chain: every pick after the first is a former teammate of the one before.
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
 import type { Rng } from './rng'
 import { canCover, describeFit, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
+import { formerTeammates, sharedClubSeasons } from './teammates'
 
 export interface DraftRules {
   /** Players to draft in total: 11 for a quick XI, 16-18 for a season squad. */
@@ -39,6 +41,11 @@ export interface DraftRules {
    * may not spend more than this. Off when omitted, so a draft without it draws and plays exactly as before.
    */
   budget?: number
+  /**
+   * The Teammate Chain: from the second pick, the wheel only lands on club-seasons holding a usable former teammate
+   * of the last pick, and only those teammates may be drafted. Off when omitted, so a draft without it is unchanged.
+   */
+  chain?: boolean
 }
 
 /**
@@ -73,11 +80,18 @@ export interface DraftState {
    * Every spin in order: the pick made on it, or nulls for a re-spin; `skipped` marks a pending spin
    * the assistant discarded on "Auto-complete" (it consumed the RNG like any other, so a replay needs it).
    */
-  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist; skipped?: boolean }>
+  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist; skipped?: boolean; chainLink?: string; chainBroken?: true }>
   /** The twist on the spin currently showing; null (or absent, in an older save) when the spin is a plain one. */
   twist?: Twist | null
   /** £M spent under the salary cap; absent when the draft has no cap, or before its first pick. */
   spent?: number
+  /** Teammate Chain: the player-season id of the pick the chain follows from (the last pick); absent before the first pick or without a chain. */
+  chainFrom?: string
+  /**
+   * Teammate Chain: the real player ids who shared a club-season with the last pick, the only men the next pick may be;
+   * null once the chain has broken for the next pick (no club-season on the wheel holds a usable one, so that spin is free).
+   */
+  chainMates?: string[] | null
 }
 
 export function newDraft(formation: Formation, rules: DraftRules): DraftState {
@@ -231,37 +245,70 @@ export function capRefusal(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'pos
   return `${p.name} (${capMoney(price)}) would take you ${capMoney(capOverBy(d, p))} over the cap${reserve ? `, keeping ${capMoney(BUDGET_FLOOR)} for each of the ${after} picks still to make` : ''}`
 }
 
+/** The chain's teammates as a set while the chain binds the next pick; null when it does not (off, before the first pick, or broken). */
+function chainSet(d: DraftState): Set<string> | null {
+  return d.rules.chain && d.chainMates ? new Set(d.chainMates) : null
+}
+
+/** The Teammate Chain rule: always true without a chain, before the first pick and on a free spin after a break. */
+export function chainAllows(d: DraftState, p: Pick<PlayerSeason, 'playerId'>): boolean {
+  return !d.rules.chain || !d.chainMates || d.chainMates.includes(p.playerId)
+}
+
+/** Whether the chain broke for the spin showing (or the next one): no club-season on the wheel held a usable teammate of the last pick. */
+export function chainBroken(d: DraftState): boolean {
+  return !!d.rules.chain && !!d.chainFrom && d.chainMates === null
+}
+
 /** The nationality rule, when the draft has one. */
 export function nationAllows(d: DraftState, p: PlayerSeason): boolean {
   return !d.rules.onlyNation || p.nationality === d.rules.onlyNation
 }
 
-export function canUse(d: DraftState, p: PlayerSeason): boolean {
+/** `canUse` with the chain's teammates passed in (null when the chain does not bind), so a pass over the wheel builds the set once. */
+function usableBy(d: DraftState, p: PlayerSeason, mates: Set<string> | null): boolean {
   if (d.takenPlayers.includes(p.playerId)) return false
   if (!nationAllows(d, p)) return false
+  if (mates && !mates.has(p.playerId)) return false
   if (!affordable(d, p)) return false
   if (fillingXI(d)) return openSlots(d).some((s) => canCover(p, s.position, d.rules.minFit))
   return true
 }
 
+export function canUse(d: DraftState, p: PlayerSeason): boolean {
+  return usableBy(d, p, chainSet(d))
+}
+
 export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'] {
-  if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p) || !affordable(d, p)) return []
+  if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p) || !chainAllows(d, p) || !affordable(d, p)) return []
   return openSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
 }
 
 /**
  * The club-seasons the era, club, nation and league rules admit that still hold
- * someone usable: the expensive pass (every `canUse` check), independent of the twist.
+ * someone usable (`mates` the chain's teammates, or null): the expensive pass, independent of the twist.
  */
-function rulesPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
+function admitted(u: LoadedUniverse, d: DraftState, mates: Set<string> | null): ClubSeason[] {
   const r = d.rules
   return u.clubSeasons.filter((cs) => {
     if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
     if (r.toSeason !== undefined && cs.season > r.toSeason) return false
     if (r.onlyClub && cs.clubId !== r.onlyClub) return false
     if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
-    return cs.squad.some((p) => canUse(d, p))
+    return cs.squad.some((p) => usableBy(d, p, mates))
   })
+}
+
+/**
+ * The rules pool of the next spin. Under the Teammate Chain it holds only club-seasons with a usable former
+ * teammate of the last pick; when there is none the chain breaks and the spin is free (`broken`), so the
+ * wheel never runs dry because of the chain.
+ */
+function rulesPool(u: LoadedUniverse, d: DraftState): { pool: ClubSeason[]; broken: boolean } {
+  const mates = chainSet(d)
+  const pool = admitted(u, d, mates)
+  if (pool.length || !mates) return { pool, broken: false }
+  return { pool: admitted(u, d, null), broken: true }
 }
 
 /** Narrow a rules pool by a twist, then by the one-club-season-once rule. */
@@ -276,7 +323,12 @@ function narrowPool(u: LoadedUniverse, d: DraftState, twist: Twist | null | unde
 
 /** The club-seasons the wheel may land on right now, the twist on the current spin applied. */
 export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
-  return narrowPool(u, d, d.twist, rulesPool(u, d))
+  return narrowPool(u, d, d.twist, rulesPool(u, d).pool)
+}
+
+/** Whether the next spin breaks the chain: no club-season on the wheel holds a usable teammate of the last pick. */
+export function chainBreakDue(u: LoadedUniverse, d: DraftState): boolean {
+  return chainBroken(d) || (!!chainSet(d) && rulesPool(u, d).broken)
 }
 
 /**
@@ -301,7 +353,10 @@ export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
 export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
   d.twist = null
   // One expensive pass; each twist's wheel is that pool narrowed, exactly what `wheelPool` would return with the twist set
-  const base = rulesPool(u, d)
+  const { pool: base, broken } = rulesPool(u, d)
+  // The chain has no teammate of the last pick left on the wheel: it breaks, this spin is free and the next pick restarts it
+  if (broken) d.chainMates = null
+  const mates = chainSet(d)
   if (nextSpinTwisted(d)) {
     const candidates = TWISTS.filter((twist) => narrowPool(u, d, twist, base).length > 0)
     if (candidates.length) d.twist = rng.pick(candidates)
@@ -316,7 +371,7 @@ export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
   // picks are not hopeless.
   const chosen = rng.pickWeighted(inSeason, (cs) => {
     const quality = cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6
-    return quality * (1 + Math.min(10, cs.squad.filter((p) => canUse(d, p)).length) / 10)
+    return quality * (1 + Math.min(10, cs.squad.filter((p) => usableBy(d, p, mates)).length) / 10)
   })
   d.current = { clubId: chosen.clubId, season: chosen.season }
   d.spins++
@@ -339,6 +394,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
   if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
   if (!nationAllows(d, p)) throw new Error(`${p.name} is not ${u.nations[d.rules.onlyNation ?? '']?.name ?? d.rules.onlyNation}`)
+  if (!chainAllows(d, p)) throw new Error(`${p.name} is not a former teammate of ${u.index[d.chainFrom ?? '']?.name ?? 'your last pick'}`)
   const refusal = capRefusal(d, p)
   if (refusal) throw new Error(refusal)
   if (slotId === 'bench') {
@@ -355,9 +411,23 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   d.takenPlayers.push(p.playerId)
   if (d.rules.budget !== undefined) d.spent = round1(capSpent(d) + capPrice(p))
   d.usedClubSeasons.push(`${d.current.clubId}@${d.current.season}`)
-  d.history.push({ ...d.current, pickedId: p.id, slotId: slotId === 'bench' ? null : slotId, ...(d.twist ? { twist: d.twist } : {}) })
+  d.history.push({ ...d.current, pickedId: p.id, slotId: slotId === 'bench' ? null : slotId, ...(d.twist ? { twist: d.twist } : {}), ...chainRow(u, d, p) })
+  if (d.rules.chain) {
+    // The chain now follows from this pick: the next one must have shared a club-season with him
+    d.chainFrom = p.id
+    d.chainMates = formerTeammates(u, d.rules.leagues, p.playerId)
+  }
   d.current = null
   d.twist = null
+}
+
+/** What a pick's history row records of the chain: the club-season it shares with the pick before, or that the chain broke before it. */
+function chainRow(u: LoadedUniverse, d: DraftState, p: PlayerSeason): { chainLink?: string; chainBroken?: true } {
+  if (!d.rules.chain || !d.chainFrom) return {}
+  if (d.chainMates === null) return { chainBroken: true }
+  const from = u.index[d.chainFrom]
+  const link = from ? sharedClubSeasons(u, d.rules.leagues, from.playerId, p.playerId)[0] : undefined
+  return link ? { chainLink: link } : {}
 }
 
 /** Best slot suggestion for a player given what is open. */

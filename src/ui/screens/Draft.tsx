@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, wheelPool } from '@engine/draft'
+import { canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, wheelPool } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel } from '../components/CaseReel'
@@ -13,6 +13,7 @@ import { playerLookup } from '@game/logic/players'
 import { finishDraftLabel } from '@game/logic/modes'
 import { leagueSegments } from '../components/leagueSegments'
 import { CapChip, CapChips } from '../components/CapControl'
+import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -50,6 +51,8 @@ export function Draft() {
 
   // A one-nation wheel can run out of eligible players; checked after every pick, not only on a spin
   const dry = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && !canSpin(u, d), [u, d])
+  // Teammate Chain: whether the next spin is a free one because no teammate of the last pick is left on the wheel
+  const chainDue = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && chainBreakDue(u, d), [u, d])
 
   useEffect(() => {
     if (d?.current) {
@@ -115,7 +118,8 @@ export function Draft() {
             {nation ? `${nationLabel} only · ` : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
             {d.rules.hardMode ? 'Hard mode · ' : ''}
-            {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
+            {d.rules.twists ? 'Twists · ' : ''}
+            {d.rules.chain ? 'Teammate chain · ' : ''}seed {game.settings.seed}
           </div>
         </div>
         <div className="row wrap">
@@ -149,6 +153,7 @@ export function Draft() {
                     : `${challenge.name}'s spin ${d.spins} is not in this data`}
               </div>
             )}
+            {!complete && !dry && (!spinning || revealed) && <ChainStatus u={u} d={d} due={chainDue} />}
             {!complete && dry && (
               <div className="notice">
                 The wheel has run dry for {nationLabel || 'this draft'}: no one left to draft.{' '}
@@ -199,8 +204,11 @@ export function Draft() {
               <div className="col" style={{ gap: 4, maxHeight: 220, overflow: 'auto' }}>
                 {[...d.history].reverse().map((h, i) => {
                   const p = h.pickedId ? get(h.pickedId) : undefined
+                  // The pick before this one, for the chain's link
+                  const at = d.history.length - 1 - i
+                  const prevId = d.rules.chain ? d.history.slice(0, at).reverse().find((x) => x.pickedId)?.pickedId : undefined
                   return (
-                    <div key={i} className="row small" style={{ gap: 8 }}>
+                    <div key={i} className="row small wrap" style={{ gap: 8 }}>
                       <ClubBadge clubId={h.clubId} size={20} />
                       <span className="muted">{seasonLabel(h.season)}</span>
                       {h.twist && (
@@ -211,6 +219,7 @@ export function Draft() {
                       <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">{h.skipped ? 'skipped' : 're-spun'}</span>}</span>
                       {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
                       {p && !d.rules.hardMode && h.twist !== 'blind' && <Rating value={p.overall} />}
+                      {p && d.rules.chain && <ChainLogNote u={u} h={h} prevName={prevId ? get(prevId)?.name : undefined} name={p.name} />}
                     </div>
                   )
                 })}
@@ -285,7 +294,7 @@ export function Draft() {
                         selected={selectedPlayer === p.id}
                         hideRatings={hide}
                         onClick={() => onPick(p)}
-                        extra={<><CapChips d={d} p={p} show={!taken && !foreign} />{taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}</>}
+                        extra={<><ChainChip u={u} d={d} p={p} show={!taken && !foreign} /><CapChips d={d} p={p} show={!taken && !foreign && chainAllows(d, p)} />{taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}</>}
                         right={ok ? <span className="btn sm primary">{fillingStarters ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )

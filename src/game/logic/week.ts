@@ -18,6 +18,7 @@ import { autoPickLineup } from '@engine/ratings'
 import type { SquadPlayer } from '@engine/types'
 import { earnsPointsRecord } from './records'
 import { earnsMoneyball } from './cap'
+import { earnsChainChampions } from './chain'
 import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
@@ -832,6 +833,7 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1 && game.settings.rules.onlyClub) unlock('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) unlock('one-nation-champions')
   if (pos === 1 && !season.sacked && earnsMoneyball(game)) unlock('moneyball')
+  if (pos === 1 && !season.sacked && earnsChainChampions(game)) unlock('chain-champions')
   if (earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')
   if (game.unlocked.includes('survivor-pending') && !season.sacked) unlock('survivor')
   const titles = game.history.slice(-3).filter((h) => h.position === 1).length

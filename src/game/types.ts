@@ -286,6 +286,15 @@ export interface Game {
   arena?: ArenaState | null
   /** £M the first draft spent under a salary cap, kept when a managed season drops the draft; absent without a cap. */
   capSpent?: number
+  /** The Teammate Chain the first draft made, kept when a managed season drops the draft; absent without a chain. */
+  teammateChain?: TeammateChainRecord
+}
+
+/** A drafted Teammate Chain: the club of every pick in order, and the picks that restarted it after a break. */
+export interface TeammateChainRecord {
+  clubs: string[]
+  /** Indexes into `clubs` of the picks made on a free spin after the chain broke. */
+  broken: number[]
 }
 
 export interface CareerRecord {

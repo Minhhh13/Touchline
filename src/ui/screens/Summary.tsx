@@ -24,6 +24,7 @@ import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByG
 import { realityLine, realSeasonRow, storyForGame } from '@game/logic/story'
 import { SeasonStoryPanel } from '../components/SeasonStory'
 import { capLine } from '@game/logic/cap'
+import { chainCodes, chainLine } from '@game/logic/chain'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -56,6 +57,9 @@ export function Summary() {
   // The Moneyball wheel brags in money: what the cap bought, and the points each £M of it earned
   const cap = capLine(game, record.points)
   if (cap) extraLines.push(cap)
+  // The Teammate Chain: how many links held, or how often it broke
+  const chain = chainLine(game)
+  if (chain) extraLines.push(chain)
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)
@@ -139,6 +143,7 @@ export function Summary() {
   const realRow = useMemo(() => realSeasonRow(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId), [u, game.settings.hostClubId, game.settings.leagueSeason, game.settings.leagueId])
   const [cardUrl, setCardUrl] = useState<string | null>(null)
   const makeCard = () => {
+    const codes = chainCodes(u, game)
     try {
       const url = renderShareCard({
         title: game.settings.teamName,
@@ -152,6 +157,8 @@ export function Summary() {
         footer: shareCardFooter(game),
         strip: story?.strip,
         moment: story?.moment,
+        // A chained draft prints its chain of club codes under the record
+        ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${record.points} points · finished ${ordinal(record.position)}`, ...codes.map((l, i) => (i === 0 ? `🔗 ${l}` : l))] } : {}),
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)

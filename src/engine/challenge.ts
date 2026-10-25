@@ -175,6 +175,8 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   twists: isBool,
   // A v2 rule: a capped link travels as version 2 (`payloadVersionFor`), so a v1 build reads it as newer
   budget: (v) => isNumber(v) && v >= CHALLENGE_BUDGET_RANGE[0] && v <= CHALLENGE_BUDGET_RANGE[1],
+  // A v2 rule too: a teammate chain link travels as version 2
+  chain: isBool,
 }
 
 /**

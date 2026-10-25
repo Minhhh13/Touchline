@@ -133,7 +133,7 @@ Quick Draft and Daily Challenge keep the pure 38-0 loop for people who want five
 - **Separate in- and out-of-possession shapes.** One shape with roles; the instructions carry the rest.
 - **A backend.** Saves live in `localStorage`; the daily challenge is shared by seed, not by server. Online leaderboards and multiplayer are roadmap items.
 - **1992-2008 squads.** The open datasets we rely on start at 2008-09. Earlier seasons are a roadmap item, not a promise.
-- **38-0's full mode list.** Last One Standing, Teammate Chain, European Nights, Tournaments and live multiplayer drafts are not built.
+- **38-0's full mode list.** Live multiplayer drafts are not built. (Since written: European Nights, Teammate Chain as a wheel rule, Last One Standing as the Gauntlet and Tournaments as the Cup are.)
 
 ## 8. Sources
 

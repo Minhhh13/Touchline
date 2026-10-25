@@ -7,7 +7,8 @@ import type { ClubSeason } from '../types'
 import type { LoadedUniverse } from '../universe'
 import { getFormation } from '../formations'
 import { canCover } from '../positions'
-import { affordable, BUDGET_FLOOR, capForSquad, capPrice, capRoom, picksMade, xiCapOf } from '../draft'
+import { affordable, BUDGET_FLOOR, capForSquad, capPrice, capRoom, chainBreakDue, chainBroken, picksMade, xiCapOf } from '../draft'
+import { formerTeammates, sharedClubSeasons, teammateIndex } from '../teammates'
 
 describe('draft', () => {
   const u = loadTestUniverse()
@@ -400,6 +401,148 @@ describe('salary cap (the Moneyball wheel)', () => {
       autoDraft(u, b, new Rng(`bigcap-${i}`))
       expect(b.history).toEqual(a.history)
       expect(b.spent).toBeGreaterThan(0)
+    }
+  }, 30000)
+})
+
+describe('teammate chain', () => {
+  const u = loadTestUniverse()
+  const chained = (partial: Partial<typeof QUICK_RULES> = {}): typeof QUICK_RULES => ({ ...QUICK_RULES, leagues: ['england'], chain: true, ...partial })
+  const playerOf = (uu: LoadedUniverse, id: string) => uu.index[id].playerId
+  const shareAClubSeason = (uu: LoadedUniverse, a: string, b: string) => sharedClubSeasons(uu, ['england'], playerOf(uu, a), playerOf(uu, b)).length > 0
+  /** Every pick after the first shares a club-season with the pick before, unless its row logs a break. */
+  const checkLinks = (uu: LoadedUniverse, d: DraftState, label: string) => {
+    const picks = d.history.filter((h) => h.pickedId)
+    expect(picks[0].chainLink, label).toBeUndefined()
+    expect(picks[0].chainBroken, label).toBeUndefined()
+    for (let i = 1; i < picks.length; i++) {
+      const [prev, next] = [picks[i - 1].pickedId!, picks[i].pickedId!]
+      if (picks[i].chainBroken) {
+        expect(picks[i].chainLink, label).toBeUndefined()
+        continue
+      }
+      expect(shareAClubSeason(uu, prev, next), `${label} pick ${i + 1}`).toBe(true)
+      // The row names a club-season both men were in
+      const link = uu.clubSeasonByKey[picks[i].chainLink!]
+      expect(link.leagueId).toBe('england')
+      expect(link.squad.some((p) => p.playerId === playerOf(uu, prev)) && link.squad.some((p) => p.playerId === playerOf(uu, next)), `${label} pick ${i + 1}`).toBe(true)
+    }
+    return picks.filter((h) => h.chainBroken).length
+  }
+
+  it('100 seeded England chain drafts complete, every pick a former teammate of the one before', () => {
+    let breaks = 0
+    for (let i = 0; i < 100; i++) {
+      const d = newDraft(getFormation('4-3-3'), chained())
+      autoDraft(u, d, new Rng(`chain-${i}`))
+      expect(isComplete(d), `chain-${i}`).toBe(true)
+      breaks += checkLinks(u, d, `chain-${i}`)
+    }
+    // An England wheel has a teammate of almost anyone somewhere: 0 breaks in these 100 drafts when measured
+    expect(breaks).toBeLessThanOrEqual(5)
+  }, 120000) // 100 chained drafts, each spin checking every player of every club-season against the teammates: a sweep
+
+  it('by hand: the wheel lands only where a teammate is usable, and only teammates may be drafted', () => {
+    for (let i = 0; i < 20; i++) {
+      const d = newDraft(getFormation('4-3-3'), chained())
+      const rng = new Rng(`chain-hand-${i}`)
+      while (!isComplete(d)) {
+        expect(canSpin(u, d)).toBe(true)
+        const before = d.chainFrom
+        const cs = spin(u, d, rng)
+        const usable = cs.squad.filter((p) => canUse(d, p))
+        expect(usable.length).toBeGreaterThan(0)
+        if (before && !chainBroken(d)) {
+          const mates = new Set(formerTeammates(u, ['england'], playerOf(u, before)))
+          for (const p of usable) expect(mates.has(p.playerId)).toBe(true)
+          // A man who can fill a slot but never played beside the last pick is dimmed and refused
+          const stranger = cs.squad.find((p) => !mates.has(p.playerId) && !d.takenPlayers.includes(p.playerId) && d.formation.slots.some((s) => !d.lineup[s.id] && canCover(p, s.position, d.rules.minFit)))
+          if (stranger) {
+            expect(canUse(d, stranger)).toBe(false)
+            expect(eligibleSlots(d, stranger)).toEqual([])
+            const slot = d.formation.slots.find((s) => !d.lineup[s.id] && canCover(stranger, s.position, d.rules.minFit))!
+            expect(() => pick(u, d, stranger.id, slot.id)).toThrow(`${stranger.name} is not a former teammate of ${u.index[before].name}`)
+          }
+        }
+        // The lowest-rated usable man, so the chain wanders rather than following the stars
+        const p = usable.sort((a, b) => a.overall - b.overall)[0]
+        pick(u, d, p.id, eligibleSlots(d, p)[0]?.id ?? 'bench')
+      }
+      checkLinks(u, d, `chain-hand-${i}`)
+    }
+  }, 60000)
+
+  it('breaks when no teammate is left on the wheel: the next spin is free, logged, and the chain restarts from that pick', () => {
+    // One nation narrows the teammates until the chain cannot always go on
+    let breaks = 0
+    for (let i = 0; i < 20; i++) {
+      const d = newDraft(getFormation('4-3-3'), chained({ onlyNation: 'BRA' }))
+      const rng = new Rng(`chain-bra-${i}`)
+      while (!isComplete(d) && canSpin(u, d)) {
+        const prev = d.chainFrom
+        const due = !!prev && chainBreakDue(u, d)
+        if (due) {
+          // Nobody on the wheel is a usable teammate of the last pick: the chain-bound wheel would be empty
+          const mates = new Set(formerTeammates(u, ['england'], playerOf(u, prev!)))
+          expect(wheelPool(u, d).every((cs) => !cs.squad.some((p) => mates.has(p.playerId) && canUse(d, p)))).toBe(true)
+        }
+        const cs = spin(u, d, rng)
+        expect(chainBroken(d)).toBe(due)
+        const usable = cs.squad.filter((p) => canUse(d, p))
+        expect(usable.length).toBeGreaterThan(0)
+        const p = usable.sort((a, b) => b.overall - a.overall)[0]
+        pick(u, d, p.id, eligibleSlots(d, p)[0]?.id ?? 'bench')
+        expect(!!d.history.at(-1)!.chainBroken).toBe(due)
+        // Whatever happened, the chain now follows from this pick
+        expect(d.chainFrom).toBe(p.id)
+        expect(d.chainMates).toEqual(formerTeammates(u, ['england'], p.playerId))
+        if (due) breaks++
+      }
+      checkLinks(u, d, `chain-bra-${i}`)
+    }
+    expect(breaks).toBeGreaterThan(5)
+  }, 60000)
+
+  it('an England-only chain draws the same wheel with one pack loaded or three', () => {
+    const u3 = loadTestUniverse(['england', 'spain', 'italy'])
+    // Ids are shared across packs, so an index over every loaded pack would give some men more teammates
+    const moved = [...teammateIndex(u, ['england']).keys()].find((id) => formerTeammates(u3, undefined, id).length > formerTeammates(u3, ['england'], id).length)
+    expect(moved).toBeDefined()
+    for (let i = 0; i < 10; i++) {
+      const a = newDraft(getFormation('4-3-3'), chained())
+      const b = newDraft(getFormation('4-3-3'), chained())
+      autoDraft(u, a, new Rng(`chain-packs-${i}`))
+      autoDraft(u3, b, new Rng(`chain-packs-${i}`))
+      expect(b.history).toEqual(a.history)
+      expect(b.chainMates).toEqual(a.chainMates)
+    }
+  }, 60000)
+
+  it('the index holds no club-season outside the wheel leagues', () => {
+    const u3 = loadTestUniverse(['england', 'spain', 'italy'])
+    for (const leagues of [['england'], ['spain', 'italy']]) {
+      const index = teammateIndex(u3, leagues)
+      let n = 0
+      for (const keys of index.values())
+        for (const key of keys) {
+          expect(leagues).toContain(u3.clubSeasonByKey[key].leagueId)
+          n++
+        }
+      expect(n).toBe(u3.clubSeasons.filter((cs) => leagues.includes(cs.leagueId)).reduce((t, cs) => t + cs.squad.length, 0))
+      // Memoised by universe and leagues, whatever their order
+      expect(teammateIndex(u3, [...leagues].reverse())).toBe(index)
+    }
+  })
+
+  it('a draft without the chain spins exactly as one whose rules leave it off', () => {
+    for (let i = 0; i < 10; i++) {
+      const a = newDraft(getFormation('4-3-3'), { ...QUICK_RULES, leagues: ['england'] })
+      const b = newDraft(getFormation('4-3-3'), { ...QUICK_RULES, leagues: ['england'], chain: false })
+      autoDraft(u, a, new Rng(`nochain-${i}`))
+      autoDraft(u, b, new Rng(`nochain-${i}`))
+      expect(b.history).toEqual(a.history)
+      expect(a.chainFrom).toBeUndefined()
+      expect(b.chainMates).toBeUndefined()
     }
   }, 30000)
 })
