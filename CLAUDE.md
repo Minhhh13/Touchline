@@ -48,11 +48,16 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - `match/` pure helpers for the match visuals (`pitchGeometry.ts`, `possession.ts`, `charts.ts`, `clockStore.ts`).
   - `styles.css` one global stylesheet: design tokens on `:root` (Floodlit, dark) and `[data-theme='light']` (Daylight), then every shared component; `brand.ts` (`APP_NAME`, the mark's geometry, `BRAND_COLOURS` for canvas drawing) and `components/Logo.tsx`; `format.ts` display helpers (`tierName`, `conditionColour`, `fitRingColour`); `shareCard.ts` canvas PNGs (the result card and the match card).
   - The look is specified in `docs/DESIGN_SYSTEM.md`: use its tokens and components, no raw colours (the pitch's fixed whites and club kit colours excepted).
-- `src/main.tsx` React root; registers `public/sw.js` on production builds only.
+- `src/main.tsx` React root; registers `public/sw.js` on production builds only; imports `./online/boot` only when `onlineConfig()` is not null.
+- `src/online/` the optional online layer (`docs/ONLINE.md`). No React and no Supabase import outside `client.ts` (arrives with sign-in).
+  - `config.ts` `onlineConfig()` (null without both `VITE_SUPABASE_*`, or with a secret key), function `touchline-e{ENGINE_VERSION}`, region `ap-southeast-2`; `state.ts` `onlineStore`/`useOnline` (vanilla Zustand, no Supabase); `boot.ts` the dynamic entry; `buildInfo.ts` the pure half of the `dist/build.json` plugin (also compiled by `tsconfig.node.json`).
+  - `core/` pure helpers: `canonical.ts` (`canonicalJson`, `fingerprint`), `bytes.ts` (gzip, SHA-256), `codes.ts` (8-character codes, `#c=`/`#s=`/`#h=`), `authUrl.ts`, `slots.ts` (cloud-save slots, `progressKey`, `saveMeta`), `country.ts`, `merge.ts` (`mergeProfileDoc`), `syncPlan.ts` (`planSlot`).
+  - `server/dailyVerify.ts` the ranked-board verifier (`puzzleOf`, `settingsHash`, `strictReplayDraft`, `verifyDaily`, `verifyWeekly`); `daily.ts` (`dailyStartSettings`, `weeklyStartSettings`, `buildRankedSubmission`); `weekly.ts` (ISO week keys, `weeklyGameSettings`, the weekly mapping).
+- `supabase/` `config.toml`, `migrations/` (Phase 1, applied to project `yvqpmyqomkwtudxmkeou` only), `tests/sql/phase1.sql`. `scripts/online/` `check-dist-keys.mjs`, `sql/stub.sql` (a stand-in for Supabase on plain Postgres) and `sql/run-local.sh`.
 - `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`. Committed; they are also the test fixtures.
 - `scripts/import/` offline data pipeline (`build.mjs`, `download.mjs`, `config.mjs`, `leagues.mjs`, club tables, `nations*.{mjs,json}`, `enrich-nations.mjs`).
-- `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences), `RESEARCH.md`, `HANDOVER.md`.
-- `.github/workflows/ci.yml` npm ci, typecheck, test, build on Node 22 for every push and PR.
+- `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences), `RESEARCH.md`, `HANDOVER.md`, `ONLINE.md` (the online layer and its runbooks).
+- `.github/workflows/ci.yml` npm ci, typecheck, test, build, `check:dist-keys` on Node 22 for every push and PR; `db-tests.yml` the SQL suite on Postgres 17, only for commits touching `supabase/**` or `scripts/online/sql/**`; `keepalive.yml` a daily Data API ping for the Free project (scheduled, never fails).
 
 ## Commands
 
@@ -60,13 +65,15 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
 
 - `npm ci` install exactly from the lockfile.
 - `npm run dev` Vite dev server (no service worker in dev).
-- `npm test` Vitest over `src/**/*.test.ts` (about a minute locally, 239 tests; on a loaded machine a slow seeded sweep can hit the 5 s timeout, so rerun that file alone before suspecting it); `npx vitest run src/engine` or `src/game` for one area.
+- `npm test` Vitest over `src/**/*.test.ts` (about a minute locally, 321 tests; on a loaded machine a slow seeded sweep can hit the 5 s timeout, so rerun that file alone before suspecting it); `npx vitest run src/engine` or `src/game` for one area.
 - `npm run typecheck` `tsc -b --noEmit`. `npm run lint` is the same command; there is no ESLint or Prettier.
 - `npm run build` `tsc -b && vite build` into `dist/` (what Render runs).
 - `npx vite preview --port 4173 --strictPort` serve `dist/` for Playwright smokes and service-worker checks.
+- `npm run check:dist-keys` fail when `dist/` holds an `sb_secret_` key or a JWT whose role is not `anon`.
+- `npm run sql:test` the stand-in, every migration and `supabase/tests/sql/phase1.sql` on a throwaway Postgres (`PG_BIN`, default `/usr/lib/postgresql/16/bin`; as root it runs the cluster as `postgres`), or on `DATABASE_URL` (an empty database, never the Supabase project). Prints `PHASE 1 ASSERTIONS PASSED`.
 - Rebuild data: `node scripts/import/build.mjs` (optionally `DATA_CACHE=/path/to/datasets node scripts/import/build.mjs`).
   - The cache directory is `DATA_CACHE` if set, otherwise `.cache/datasets` (gitignored) (`scripts/import/config.mjs`). `ensureDatasets()` (`download.mjs`) downloads only what is missing there: several large Kaggle archives (EA FC 24/25/26/27 ratings, the European Soccer Database sqlite), unpacked with `unzip`, plus openfootball results files. Needs `unzip` on PATH and Node >= 22.13 for `node:sqlite`.
-  - Writes `public/data/**` with a new `generatedAt` stamp (today's date) and prints per-season counts, unknown nations and warnings.
+  - Writes `public/data/**` with a new `generatedAt` stamp (today's date, plus `.<suffix>` with `DATA_STAMP_SUFFIX=<1-8 letters or digits>` for a second rebuild the same day) and prints per-season counts, unknown nations and warnings. Then record the stamp: `UPDATE_PACK_HASHES=1 npx vitest run src/online/__tests__/stamps.test.ts` and commit `packHashes.json` with the packs.
   - Nationality enrichment (optional, network): after a build, `node scripts/import/enrich-nations.mjs` reads the built packs, queries Wikidata and writes `scripts/import/nations-override.json`; then rebuild so `build.mjs` applies it.
   - If the build runs out of memory, raise the heap with `NODE_OPTIONS=--max-old-space-size=4096`.
 
@@ -87,6 +94,11 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 11. **Playwright smokes stay green** for UI changes (see below). Prefer `data-testid` selectors.
 12. **The UI decides nothing.** Screens call store actions; logic lives in `src/game/logic` or `src/engine` where it can be tested.
 13. **Offline-first.** The game must work logged out and offline. Online features degrade to local-only when `VITE_SUPABASE_*` are missing.
+14. **Clients never write shared tables.** Daily and weekly entries, all-time totals and (Phase 2) head-to-head rooms are written only by the Edge Function through `svc_*` functions that only `service_role` can execute. The server's replay is the official result; a posted claim is only compared (`claim_matched`).
+15. **One Edge Function per ENGINE_VERSION** (`touchline-e4` today), kept deployed at least 7 days after the next ships.
+16. **One data stamp, one set of bytes.** A rebuild that changes any pack takes a new `generatedAt`; `src/online/__tests__/stamps.test.ts` fails CI otherwise.
+17. **Database changes are migrations.** A new file in `supabase/migrations/` (never edit one that is applied; match the file name to the version the project records), tested with `npm run sql:test`, applied only to `yvqpmyqomkwtudxmkeou`, then both advisors. This project's default privileges grant every new public table and function to `anon` and `authenticated`: every table revokes them before its own grants, every function revokes EXECUTE before its grants, and the suite asserts what `anon` can reach.
+18. **The weekly mapping is frozen like the Daily's** (`weeklyGameSettings` in `src/online/weekly.ts`, pinned by a test for 2026-W43). The Daily stays at two re-spins (owner's decision of 2026-10-25, pinned in `setup.test.ts`).
 
 ## Conventions
 
@@ -132,7 +144,8 @@ Specific recipes: a draft rule (optional `DraftRules` field, apply in `rulesPool
 
 - **Render** (workspace TouchLine, `tea-dbeoghbrjlhs738bpcng`; touch nothing in any other workspace): static site `Touchline` (https://touchline-16xv.onrender.com) deploys `main` once CI passes on the commit; static site `touchline-preview` (https://touchline-preview-hfvi.onrender.com) deploys `claude/touchline-preview` on every push, for previews of in-progress branches merged together. Both build `npm ci && npm run build`, publish `dist`, `BASE_PATH` unset (base `/`), `NODE_VERSION=22`.
 - Env vars on Render: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (public publishable keys). Vite inlines `VITE_*` at build time, so a change needs a redeploy and anything `VITE_*` is public. Locally put them in `.env.local` (gitignored via `*.local`).
-- **Supabase** project id `yvqpmyqomkwtudxmkeou` (org Team TouchLine, Sydney, Free plan), schema empty today. Migrations will go in `supabase/migrations/` (the folder does not exist yet) and are applied to that project only. RLS on every table; run the security advisors after each change.
+- **Supabase** project id `yvqpmyqomkwtudxmkeou` (org Team TouchLine, Sydney `ap-southeast-2`, Postgres 17, Free plan; the owner keeps it and upgrades the same project before a public launch). Never touch any other project (in particular `hkmpcaalyemfhfohkgbd`, which is not TouchLine's). Migrations are in `supabase/migrations/` and are applied to that project only (state in `docs/ONLINE.md` section 4 and the handover change log). RLS on every table; run both advisors after each change. Free projects pause after a week idle: `keepalive.yml` pings it daily once the repository variables `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` exist.
+- Domain `touchline.quest` (Render custom domain; Supabase Site URL and redirect list in `docs/ONLINE.md`). Auth: accounts only (anonymous sign-ins off), custom SMTP through Resend, Confirm email on.
 - **No secrets in the repo.** The Supabase `service_role` key is never used in the browser, never in a `VITE_` var, never committed. Server-side work (Edge Functions) reads it from Supabase secrets.
 - There is no GitHub Pages workflow any more (the repo is private and Render hosts). Do not add one: Render deploys `main` only when every check on the commit passes, so a failing extra workflow blocks the live deploy.
 
@@ -148,7 +161,7 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 
 ## Gotchas
 
-- Rebuilding data changes `leagues.json` `generatedAt`: update the pinned stamp in `universe.test.ts`; old challenge links read as unverified. `universe.test.ts` and `records.test.ts` assert real facts and can break on a rebuild with no code change.
+- Rebuilding data changes `leagues.json` `generatedAt`: update the pinned stamp in `universe.test.ts` and record the stamp in `src/online/__tests__/packHashes.json` (command above); old challenge links read as unverified. Deploy engine bumps and data rebuilds right after 00:00 UTC so a day's Daily pin and the live site agree. `universe.test.ts` and `records.test.ts` assert real facts and can break on a rebuild with no code change.
 - Nested RNG in cup ties: `completeUserCupTie` rebuilds from a stale `game.rngState` inside `afterLeagueMatch`. Deterministic, just correlated; fixing it needs an ENGINE_VERSION bump. Pass `rng` down rather than adding more `Rng.fromState` calls.
 - A sent-off or injured man stays in his slot inside `advanceMatch`; `shortHandedFactor` costs it. Do not "fix" it.
 - `simulateMatch` must equal `beginMatch` -> `advanceMatch(70)` -> `finishMatch` event for event (tested).
@@ -172,4 +185,5 @@ On GitHub today: `main` (the live site), the working branch `claude/youthful-mcc
 - `integration` (local): the working branch merged with `reel-ui`, `fm-depth`, `match-visuals` and `redesign`; it is what the working branch becomes once pushed.
 - `replica-setup`: 38-0 style setup (difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets); expected to rewrite Setup.tsx and add `DraftRules` fields.
 - `matchday`: a Football Manager style match-day dashboard; expected to rebuild the live view in MatchScreen.tsx.
-- Planned: online layer on Supabase (accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms) and casual modes.
+- `online-layer` (local, from the preview build): the online layer's foundation (plan items 1 to 6: scaffolding, the Phase 1 database with the world leaderboard, core helpers, profile merge and sync planner, the Daily and weekly verifier core, the stamp guard). No UI yet; next are the verifier bundle and the Edge Function.
+- Planned: the rest of the online layer (sign-in and the Account panel, cloud sync, the online Daily and weekly boards, short challenge links, online head-to-head rooms) and casual modes.

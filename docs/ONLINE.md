@@ -34,7 +34,7 @@ The game stays offline-first and unchanged. `src/online` loads only when the bui
 
 ## 4. Database (Phase 1)
 
-Applied in this order (file names carry the version the project recorded):
+Applied in this order (file names carry the version the project recorded once applied). State on 2026-10-25: `online_core` applied (version `20261025092919`); the others pending, because the Supabase connector asked the owner to confirm the second migration and the question went unanswered. Apply them in file order with the connector's `apply_migration` (or `supabase link --project-ref yvqpmyqomkwtudxmkeou && supabase db push`), rename each local file to the version the project records (`list_migrations`), then run both advisors.
 
 1. `online_core`: the `private` schema, helpers, rate limits, the data-pack registry and its private `packs` bucket, `profiles` (one display name per account, unique ignoring case, and an optional `country`, both readable only by the owner).
 2. `cloud_saves`: the private `saves` bucket with owner-folder policies and a 16-object cap, `cloud_saves` (compare-and-set rows with one previous copy), `cloud_profile`, and the client writers `save_claim`, `save_delete`, `save_orphans`, `cloud_delete_all`, `profile_put`.
@@ -42,6 +42,9 @@ Applied in this order (file names carry the version the project recorded):
 4. `weekly_board`: `weekly_puzzles` (one fixed seed per ISO week, Monday 00:00 UTC), `private.weekly_entries` (written only by `svc_weekly_submit`) and the anon readers `weekly_board`, `weekly_summary`, `weekly_rank`, plus `weekly_my_entries`.
 5. `challenge_codes`: `challenges`, `create_challenge`, `get_challenge`.
 6. `online_housekeeping`: pg_cron, daily clean-up of spent rate-limit windows and expired codes.
+7. `service_only_policies`: an explicit deny-all policy for the client roles on the five service-only tables in `private` (answers the Security Advisor's INFO lint 0008; no behaviour change).
+
+This project's default privileges grant every new table, sequence and function in `public` to `anon` and `authenticated` (read from `pg_default_acl` on 2026-10-25). Every migration therefore revokes table privileges and EXECUTE before granting, the stand-in mirrors those defaults, and the suite asserts that `anon` can read only `daily_puzzles` and `weekly_puzzles` and execute only the eight readers.
 
 Every board function takes an optional country (`p_country`, ISO 3166-1 alpha-2 such as `GB`, `VN`); with it the board, the positions and the counts are those of that country only. The country, like the display name, is copied onto each board row when it is posted, so the public never reads a profile and a later change never rewrites history.
 
@@ -53,7 +56,7 @@ Run the SQL suite locally with `npm run sql:test` (needs PostgreSQL 16 or 17 bin
 
 - One puzzle per ISO week (Monday 00:00 UTC to the next Monday), seed `weekly-YYYY-Www` (`weekKeyOf(date)`), settings from `weeklyGameSettings(u, key)` in `src/online/weekly.ts`: an England wheel (the Daily's), a complete English season, host club and formation chosen by hashing the week key, Quick rules with twists and two re-spins. It is played as a Quick game; changing the mapping changes that week's puzzle for everyone, so treat it like the Daily mapping.
 - Verified exactly like the Daily (`verifyWeekly`): the strict draft replay, then the quick season, figures from the replay only.
-- First post stands (like the Daily): one entry per account per week; posts accepted until Monday 00:00 UTC one day after the week ends (a one-day grace), picks revealed after that.
+- First post stands (like the Daily): one entry per account per week; posts accepted until 00:00 UTC on the Tuesday after the week (a one-day grace for a run started late on Sunday), picks revealed after that. 2026-W43 is a 4-4-2 diamond as Southampton in 2018-19.
 
 ## 6. Checks only the real project can confirm
 
@@ -62,10 +65,11 @@ Recorded with their dates as they are done.
 | Check | Status |
 | --- | --- |
 | PostgREST answers `PT401`/`PT403`/`PT429`/`PT503` with those HTTP statuses | pending (needs the Edge Function and a signed-in client) |
-| SECURITY DEFINER functions can read `storage.objects` | see the change log in `docs/HANDOVER.md` |
+| SECURITY DEFINER functions can read `storage.objects` | pending (`cloud_saves` not applied yet) |
 | Storage refuses a 17th upload under the uploader's JWT | pending (needs a signed-in client) |
-| pg_cron lists `touchline-housekeeping` | see the change log in `docs/HANDOVER.md` |
-| Security and performance advisors clean | see the change log in `docs/HANDOVER.md` |
+| pg_cron lists `touchline-housekeeping` | pending (`online_housekeeping` not applied yet; pg_cron is available, not installed) |
+| Security and performance advisors clean | after `online_core` (2026-10-25): performance clean; security one INFO (lint 0008 on `private.rate_limits` and `private.data_packs`), fixed by `service_only_policies` once applied |
+| The project's default privileges | read 2026-10-25: new public tables and functions are granted to anon and authenticated; handled in every migration |
 | `private` not in the Data API's exposed schemas | the default; confirm in Settings > API |
 
 ## 7. Runbooks
