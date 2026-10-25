@@ -53,9 +53,10 @@ export function weakestSlots(game: Game, lineup: Lineup, get: (id: string) => Pl
 
 /**
  * Who could come in: every player-season the wheel could have offered (the wheel leagues, the era, one club or one
- * nation as the draft rules say) who plays `position` naturally, whose player is not already in the XI.
+ * nation as the draft rules say) who plays `position` naturally, whose player is not already in the squad (the XI or
+ * the bench, who can come on as a substitute).
  */
-function candidatesFor(game: Game, u: LoadedUniverse, position: Position, inXI: Set<string>): PlayerSeason[] {
+function candidatesFor(game: Game, u: LoadedUniverse, position: Position, inSquad: Set<string>): PlayerSeason[] {
   const r = game.settings.rules
   const leagues = r.leagues ?? game.settings.wheelLeagues
   const out: PlayerSeason[] = []
@@ -65,7 +66,7 @@ function candidatesFor(game: Game, u: LoadedUniverse, position: Position, inXI: 
     if (r.toSeason !== undefined && cs.season > r.toSeason) continue
     if (r.onlyClub && cs.clubId !== r.onlyClub) continue
     for (const p of cs.squad) {
-      if (!p.positions.includes(position) || inXI.has(p.playerId)) continue
+      if (!p.positions.includes(position) || inSquad.has(p.playerId)) continue
       if (r.onlyNation && p.nationality !== r.onlyNation) continue
       out.push(p)
     }
@@ -78,12 +79,13 @@ function candidatesFor(game: Game, u: LoadedUniverse, position: Position, inXI: 
  * of the budget, rated 3 to 15 above the man he replaces), the last a straight swap (no fee, 0 to 5 above). The
  * slots cycle through the three weakest; a slot with no candidate passes to the next weakest, so a narrow wheel (one
  * club, one nation) can offer fewer. Each listing is drawn from the 25 best candidates for its slot. Every draw comes
- * from `rng`, which the caller forks off a copy of the season's stream so the season itself is untouched.
+ * from `rng`, which the caller forks off a copy of the season's stream so the season itself is untouched. Nobody already
+ * in the squad is offered, bench included, so a substitute can never meet himself on the pitch.
  */
-export function januaryListings(game: Game, u: LoadedUniverse, lineup: Lineup, budget: number, get: (id: string) => PlayerSeason | undefined, rng: Rng): JanuaryListing[] {
+export function januaryListings(game: Game, u: LoadedUniverse, lineup: Lineup, budget: number, get: (id: string) => PlayerSeason | undefined, rng: Rng, bench: string[] = []): JanuaryListing[] {
   const slots = weakestSlots(game, lineup, get)
   if (!slots.length) return []
-  const inXI = new Set(Object.values(lineup).map((id) => get(id)?.playerId ?? id))
+  const inSquad = new Set([...Object.values(lineup), ...bench].map((id) => get(id)?.playerId ?? id))
   const n = rng.int(JANUARY_LISTINGS.min, JANUARY_LISTINGS.max)
   const taken = new Set<string>()
   const cache = new Map<Position, PlayerSeason[]>()
@@ -94,7 +96,7 @@ export function januaryListings(game: Game, u: LoadedUniverse, lineup: Lineup, b
     const first = i % Math.min(JANUARY_WEAK_SLOTS, slots.length)
     for (let k = 0; k < slots.length; k++) {
       const slot = slots[(first + k) % slots.length]
-      if (!cache.has(slot.position)) cache.set(slot.position, candidatesFor(game, u, slot.position, inXI))
+      if (!cache.has(slot.position)) cache.set(slot.position, candidatesFor(game, u, slot.position, inSquad))
       const pool = cache
         .get(slot.position)!
         .flatMap((raw) => {

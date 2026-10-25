@@ -114,6 +114,18 @@ describe('the January window of a quick season', { timeout: 90_000 }, () => {
     }
   })
 
+  it('never offers a man already in the squad, bench included', () => {
+    for (const seed of ['jan-bench-1', 'jan-bench-2', 'jan-bench-3', 'jan-bench-4']) {
+      const g = drafted({ seed, rules: { ...QUICK_RULES, leagues: ['england'], squadSize: 15 } })
+      expect(g.bench.length).toBeGreaterThan(0)
+      kickOff(g, u)
+      const get = playerLookup(g, u)
+      const squad = new Set([...Object.values(g.lineup), ...g.bench].map((id) => get(id)!.playerId))
+      expect(g.quickJanuary!.listings.length).toBeGreaterThan(0)
+      for (const l of g.quickJanuary!.listings) expect(squad.has(get(l.playerSeasonId)!.playerId)).toBe(false)
+    }
+  })
+
   it('a signing changes the second half only, and the summary records it', () => {
     for (const seed of SEEDS) {
       const base = drafted({ seed })
@@ -253,6 +265,21 @@ describe('the store flow', { timeout: 90_000 }, () => {
     s.endPlayback()
     expect(useStore.getState().playback).toBeNull()
     useStore.setState({ game: null, universe: null, loadedLeagues: [] })
+  })
+
+  it('sends a save paused for a January window it does not hold back to the tactics step, which replays the season', () => {
+    const g = drafted({ seed: 'jan-2' })
+    const at = clone(g)
+    kickOff(g, u)
+    const broken = clone(g) as unknown as Record<string, unknown>
+    delete broken.quickJanuary
+    const n = normaliseGame(broken as unknown as Game)!
+    expect(n.phase).toBe('kickoff')
+    kickOff(n, u)
+    kickOff(at, u)
+    expect(n.quickJanuary).toEqual(at.quickJanuary)
+    // An intact pause is left where it is
+    expect(normaliseGame(clone(g))!.phase).toBe('january')
   })
 
   it('opens a save written before the window with nothing to fill in', () => {

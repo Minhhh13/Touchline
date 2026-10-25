@@ -106,7 +106,7 @@ function windowAt(game: Game, u: LoadedUniverse, run: QuickRun): Pick<QuickJanua
   const position = positionOf(table, USER_TEAM)
   const xiValue = Object.values(run.lineup).reduce((s, id) => s + (run.get(id)?.value ?? 0), 0)
   const budget = januaryBudget(position, run.ids.length, xiValue)
-  const listings = januaryListings(game, u, run.lineup, budget, run.get, Rng.fromState(run.rng.getState()).fork('january'))
+  const listings = januaryListings(game, u, run.lineup, budget, run.get, Rng.fromState(run.rng.getState()).fork('january'), run.bench)
   return { afterMatchweek: run.half, position, budget, listings }
 }
 
