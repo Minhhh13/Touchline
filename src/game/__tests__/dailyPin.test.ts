@@ -19,7 +19,8 @@ const PRE_38_0_DAILY_RULES: DraftRules = { squadSize: 11, respins: 2, minFit: 'a
 /** The pre-38-0 Daily mapping for a seed (the same digits, sorted seasons and clubs, times seven and times three). */
 function pre38Mapping(universe: LoadedUniverse, seed: string) {
   const n = Number(seed.split('-').slice(1).join('')) || 0
-  const complete = universe.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england')
+  // Before classic seasons existed: the standard (EA-rated) English seasons only
+  const complete = universe.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england' && !cs.classic)
   const seasons = [...new Set(complete.map((cs) => cs.season))].sort()
   const season = seasons[n % seasons.length]
   const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()

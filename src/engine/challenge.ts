@@ -248,6 +248,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   modes: (v) => Array.isArray(v) && v.length <= QUICK_MODES.length && v.every((m) => QUICK_MODES.includes(m as QuickMode)) && new Set(v).size === v.length,
   upgrader: isBool,
   powerUps: isBool,
+  classic: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */

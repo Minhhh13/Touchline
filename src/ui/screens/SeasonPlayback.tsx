@@ -20,6 +20,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { Pos, Segmented } from '../components/bits'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
 import { clubName, money, ordinal, seasonLabel } from '../format'
+import { LeagueFlag } from '../components/Flag'
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -53,7 +54,7 @@ export function SeasonPlayback() {
           <div>
             <h1>{j && pb.done ? 'January' : 'The season'}</h1>
             <p className="muted setup-sub">
-              {s.teamName} · {u.leagues.find((l) => l.id === s.leagueId)?.name ?? ''} {seasonLabel(s.leagueSeason)} · game {pb.revealed} of {total}
+              {s.mode === 'quick' ? <><LeagueFlag leagueId={s.leagueId} /> {s.teamName}</> : <>{s.teamName} · {u.leagues.find((l) => l.id === s.leagueId)?.name ?? ''} {seasonLabel(s.leagueSeason)}</>} · game {pb.revealed} of {total}
             </p>
           </div>
           {!pb.done && (

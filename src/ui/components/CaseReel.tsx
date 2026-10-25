@@ -6,6 +6,7 @@ import { DISPLAY_TIER_INFO, tierName, type DisplayTier } from '@game/logic/rarit
 import { ICONS_SEASON } from '@engine/icons'
 import { clubName, seasonLabel, textColourFor } from '../format'
 import { NeonFlow } from './Art'
+import { EstimatedChip } from './bits'
 
 /** Stage 1: the season drum rolls for DRUM_MS; the strip starts at SEASON_MS. */
 export const DRUM_MS = 850
@@ -38,6 +39,8 @@ export interface CaseReelProps {
   twist?: string | null
   /** Called once per run, with its spinKey, when the strip lands (or the run is skipped to the landing). */
   onSettled?: (spinKey: number) => void
+  /** The drawn club-season is a classic one: its ratings are TouchLine's estimate. */
+  estimated?: boolean
 }
 
 function prefersReducedMotion(): boolean {
@@ -131,7 +134,7 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   )
 }
 
-function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void }) {
+function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void }) {
   // Dealt once per run; Math.random only shuffles cosmetic filler cards and the stop jitter, never the game
   const [deal] = useState<ReelDeal>(() => dealReel(u, { leagues, pool, target }, Math.random))
   const [reduced] = useState(prefersReducedMotion)
@@ -284,6 +287,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
             <span className="reel-club">{club}</span>
             {!iconsSpin && <span className="reel-club-season">{seasonLabel(deal.season)}</span>}
             <TierChip tier={tier} />
+            {estimated && <EstimatedChip compact />}
           </>
         ) : (
           <button type="button" className="reel-skip" data-testid="reel-skip" onClick={(e) => { e.stopPropagation(); skipRef.current() }}>

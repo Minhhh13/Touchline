@@ -217,11 +217,14 @@ describe('the three ways to play a match', () => {
 
   // Pinned before the assistant, the auto-play modes and the new pitch existed: Watch, then
   // "No changes" at both stops of every live match, for six seeds and eight matchweeks.
+  // Re-pinned on classic-release (2026-10-25) for the data alone: the packs' 2008-14 position and trait fixes
+  // (classic-seasons f7fb8e3, packs rebuilt with faba5a6) change who the all-time wheel drafts and how he plays; seeds 0, 2 and 3 moved, 1, 4 and 5
+  // did not, and this code on the previous packs still gives the old pins.
   const NO_CHANGES: Record<string, string> = {
-    'nochange-0': '1-1:22 1-1:21 0-0:21 2-1:23 1-3:27 1-0:20 2-2:20 6-0:28 | {"a":-2013927475,"b":-1194208708,"c":816882748,"d":1898028393}',
+    'nochange-0': '1-1:22 1-2:21 0-0:21 2-1:23 3-2:26 2-1:23 0-0:22 2-0:21 | {"a":1448608573,"b":1286388347,"c":-814278932,"d":-574803831}',
     'nochange-1': '3-1:22 1-2:22 0-6:25 2-0:21 0-0:19 0-0:15 2-0:20 4-3:23 | {"a":-457853650,"b":-1292216832,"c":-1003535281,"d":745269842}',
-    'nochange-2': '0-0:20 0-1:18 1-6:24 0-1:20 2-6:27 3-3:22 2-2:24 4-0:25 | {"a":-970600428,"b":1492406997,"c":-1443725060,"d":-88145279}',
-    'nochange-3': '2-2:19 0-0:22 3-0:18 0-0:15 1-2:20 3-2:21 2-2:21 1-1:20 | {"a":1954827892,"b":1752051480,"c":1997004075,"d":332861320}',
+    'nochange-2': '0-0:20 0-1:18 1-6:24 0-1:21 4-4:32 2-4:22 4-0:28 2-1:25 | {"a":164570991,"b":-734037867,"c":-1525153624,"d":221870957}',
+    'nochange-3': '2-2:19 0-0:22 3-0:18 0-0:15 1-2:20 3-2:21 1-1:20 1-1:20 | {"a":1954827892,"b":1752051480,"c":1997004075,"d":332861320}',
     'nochange-4': '0-2:19 4-1:20 0-5:22 1-1:24 3-0:28 2-4:24 0-7:28 3-4:26 | {"a":-583909369,"b":-1802310069,"c":-705170307,"d":370352460}',
     'nochange-5': '2-0:19 1-1:19 1-0:18 0-4:19 2-4:24 0-2:23 1-0:21 4-3:23 | {"a":1921535986,"b":1126402745,"c":-1814733773,"d":1144483427}',
   }

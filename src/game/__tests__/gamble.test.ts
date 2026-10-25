@@ -156,7 +156,8 @@ describe('Gamble mode: the Icons spin', () => {
     for (const p of icons.squad) expect(primeOf(u, p.playerId, LEAGUES)!.id).toBe(p.id)
     const floor = icons.squad[icons.squad.length - 1].overall
     const inside = new Set(icons.squad.map((p) => p.playerId))
-    for (const cs of u.clubSeasons) for (const p of cs.squad) if (!inside.has(p.playerId)) expect(p.overall).toBeLessThanOrEqual(floor)
+    // Over the standard seasons: classic ones (estimated ratings) are never in the collection
+    for (const cs of u.clubSeasons) if (!cs.classic) for (const p of cs.squad) if (!inside.has(p.playerId)) expect(p.overall).toBeLessThanOrEqual(floor)
     // The same object on a second call, and the universe untouched
     expect(iconsCollection(u, LEAGUES)).toBe(icons)
     expect(u.clubSeasonByKey[`${ICONS_CLUB}@0`]).toBeUndefined()

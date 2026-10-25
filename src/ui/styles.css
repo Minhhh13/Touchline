@@ -1109,6 +1109,10 @@ label.field,
   background: var(--gold-soft);
   border-color: color-mix(in srgb, var(--gold) 45%, transparent);
 }
+.chip.estimated {
+  border-style: dashed;
+  color: var(--text-2);
+}
 .chip.info {
   color: var(--accent);
   background: var(--primary-soft);
@@ -4274,6 +4278,16 @@ table.tbl.contracts .btn.sm {
 .toggle.is-off {
   opacity: 0.6;
   cursor: not-allowed;
+}
+/* The Classic seasons toggle sits in the Era panel's head row, so it adds no height */
+.toggle.era-classic {
+  min-height: 0;
+  padding: 2px 10px;
+  font-size: 13px;
+}
+.toggle.era-classic input {
+  width: 15px;
+  height: 15px;
 }
 @media (max-width: 520px) {
   .choice-cards.n3 .choice-card {
@@ -7574,6 +7588,12 @@ table.tbl.match-stats th {
   .setup-page [data-testid='era-caption'] {
     display: none;
   }
+  .setup-page .setup-rules {
+    row-gap: var(--space-2);
+  }
+  .setup-page .era-classic {
+    padding-block: 2px;
+  }
 }
 /* On a desktop the Modes label gives its room to the eight cards (its Info tip stays, and step 4 names the box), so no
    mode name is cut; below 1200px the cards take two rows of four */
@@ -7764,4 +7784,18 @@ table.tbl.match-stats th {
   .app.shell .screen-body:has(.h2h-league) > .steps {
     display: none;
   }
+}
+/* Step 3's season picker: a compact select ("2025-26 ▾") on the step's title line, so it costs no height */
+.step-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.step-head-row .season-pick {
+  width: auto;
+  min-width: 120px;
+  min-height: 34px;
+  padding-block: 4px;
+  flex: none;
 }

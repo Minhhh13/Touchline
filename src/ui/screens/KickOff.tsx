@@ -8,6 +8,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
 import { seasonLabel } from '../format'
+import { LeagueFlag } from '../components/Flag'
 
 /**
  * The tactics step between a quick draft (or the Daily) and its season: the six team instructions, the captain and the
@@ -30,7 +31,7 @@ export function KickOff() {
         <div>
           <h1>Kick-off</h1>
           <p className="muted setup-sub">
-            {s.teamName} · {u.leagues.find((l) => l.id === s.leagueId)?.name ?? ''} {seasonLabel(s.leagueSeason)}. Set how the XI plays, then watch the season game by game.
+            {s.mode === 'quick' ? <><LeagueFlag leagueId={s.leagueId} /> {s.teamName}</> : <>{s.teamName} · {u.leagues.find((l) => l.id === s.leagueId)?.name ?? ''} {seasonLabel(s.leagueSeason)}</>}. Set how the XI plays, then watch the season game by game.
           </p>
         </div>
         <div className="grid two">

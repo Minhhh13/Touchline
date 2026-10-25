@@ -5,6 +5,7 @@ import { benchPlaces, difficultyOf, DIFFICULTY_RESPINS, draftModeOf, modesOf, ne
 import { MODE_INFO, crazyFormation, withModes } from '@engine/modes'
 import { POWER_UPS_ICON } from '@engine/powerups'
 import { dailySettings } from './daily'
+import { eraFirstSeason } from './era'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
 import { newSquadPlayer, buildAiClubs, buildContinentalClubs, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
@@ -56,6 +57,8 @@ export interface SetupChoices {
   onlyNation?: string
   /** Quick Draft bench places (0 to 5); none when absent or 0. */
   benchPicks?: number
+  /** The Classic toggle: the wheel may land on 1992-93 to 2007-08 (estimated ratings), and `first` is then the first classic season. */
+  classic?: boolean
   /** Quick Draft mode cards other than Hard (Crazy, Underdog, Legends, Speedrun, Gamble, the Upgrader); Hard is `difficulty`. None when absent. */
   modes?: Array<QuickMode | 'upgrader'>
   /** Quick Draft power-ups (the tray of six on the draft screen); off when absent. */
@@ -94,6 +97,7 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     twists: c.twists,
     leagues: c.leagues,
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
+    ...(c.classic ? { classic: true } : {}),
   }
   // The mode flags (and Crazy's twists); Hard is already the difficulty, so it rides along unchanged
   const moded = c.modes?.length ? withModes(rules, [...(hard ? (['hard'] as const) : []), ...c.modes]) : rules
@@ -116,7 +120,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on',
     draftModeOf(r) === 'position' ? 'Position First' : 'Squad First',
     ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
-    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
+    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
     r.twists ? 'Twists on' : 'No twists',
     ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
     ...modesOf(r).map((m) => `${MODE_INFO[m].icon} ${MODE_INFO[m].title}`),
@@ -176,7 +180,8 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
   const r = s.rules
   if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
-  if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
+  if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
+  if (r.classic) parts.push('classic seasons (estimated ratings)')
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) parts.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
   const manage = s.mode === 'season' || s.mode === 'dynasty'
@@ -200,6 +205,31 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
     if (s.continental) parts.push('Continental Cup run')
   }
   return parts.join(', ')
+}
+
+/**
+ * The Quick Draft's line above Spin: the team name, the shape and the rules or modes in play, never the league season
+ * or the seed (the goal is the season itself; both stay under More options and in the summary). Shown as
+ * "Touchline XI · 4-3-3 · Normal · bench 5 · Crazy": the difficulty always, then only what differs from the defaults.
+ */
+export function quickSetupLine(u: LoadedUniverse, s: GameSettings): string {
+  const r = s.rules
+  const words = [s.teamName, getFormation(s.formationId).name, { easy: 'Easy', normal: 'Normal', hard: 'Hard' }[difficultyOf(r)]]
+  for (const t of rulesTags(r, QUICK_RULES)) if (!['Easy', 'Normal', 'Hard'].includes(t)) words.push(t)
+  if (r.fromSeason !== undefined || r.toSeason !== undefined) words.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
+  if (r.classic) words.push('Classic (est.)')
+  if (s.wheelLeagues.length > 1) words.push(`${s.wheelLeagues.length} leagues`)
+  if (r.onlyClub) words.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
+  if (r.onlyNation) words.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
+  if (!r.twists && !modesOf(r).includes('crazy')) words.push('no twists')
+  if (benchPlaces(r)) words.push(`bench ${benchPlaces(r)}`)
+  for (const m of modesOf(r)) words.push(MODE_INFO[m].title)
+  if (r.upgrader && !modesOf(r).includes('gamble')) words.push(MODE_INFO.upgrader.title)
+  if (r.powerUps) words.push('Power-ups')
+  if (s.january === false) words.push('no January')
+  if (s.continental) words.push('Continental run')
+  if ((s.difficulty ?? 'calibrated') === 'realistic') words.push('Realistic')
+  return words.join(' · ')
 }
 
 /** One chip of the row above Start: `key` names what it states (the UI adds the league's flag to `host`). */

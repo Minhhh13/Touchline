@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { QUICK_RULES, SEASON_RULES } from '@engine/draft'
-import { DAILY_FORMATIONS, DAILY_RULES, DEFAULT_HOST_POSITION, dailyGameSettings, dailySettings, defaultHostClub, setupChips, shortNameFor, summariseSetup } from '../logic/setup'
+import { DAILY_FORMATIONS, DAILY_RULES, DEFAULT_HOST_POSITION, dailyGameSettings, dailySettings, defaultHostClub, quickSetupLine, setupChips, shortNameFor, summariseSetup } from '../logic/setup'
 import { FUN_TEAM_NAMES, randomTeamName } from '../logic/teamNames'
 import { POWER_UPS_ICON } from '@engine/powerups'
 import type { GameSettings } from '../types'
@@ -88,7 +88,7 @@ describe('the default host club', () => {
 
   it('falls back to the alphabetical middle when the table is missing', () => {
     const clubs = clubsIn(2025)
-    expect(defaultHostClub(u, 'england', 1999, clubs)).toBe(clubs[Math.floor(clubs.length / 2)])
+    expect(defaultHostClub(u, 'england', 1991, clubs)).toBe(clubs[Math.floor(clubs.length / 2)])
     expect(defaultHostClub(u, 'nowhere', 2025, clubs)).toBe(clubs[Math.floor(clubs.length / 2)])
     expect(defaultHostClub(u, 'england', 2025, [])).toBe('')
   })
@@ -220,5 +220,18 @@ describe('the Randomise button for the team name', () => {
       expect(next).not.toBe(other)
       expect(next).not.toBe(mine)
     }
+  })
+})
+
+describe("the Quick Draft's line above Spin", () => {
+  const quick: GameSettings = { mode: 'quick', seed: 'K7Q2-MX9A', formationId: '4-3-3', teamName: 'Touchline XI', shortName: 'TXI', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'brentford', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated', january: true }
+  it('names the team, the shape and the rules, never the league season or the seed', () => {
+    expect(quickSetupLine(u, quick)).toBe('Touchline XI · 4-3-3 · Normal')
+    const busy = quickSetupLine(u, { ...quick, rules: { ...quick.rules, benchPicks: 5, modes: ['crazy'], powerUps: true } })
+    expect(busy).toBe('Touchline XI · 4-3-3 · Normal · bench 5 · Crazy · Power-ups')
+    for (const line of [quickSetupLine(u, quick), busy]) {
+      expect(line).not.toMatch(/2025-26|Premier League|K7Q2/)
+    }
+    expect(quickSetupLine(u, { ...quick, rules: { ...quick.rules, difficulty: 'easy', respins: 3, draftMode: 'position', twists: false }, january: false })).toBe('Touchline XI · 4-3-3 · Easy · Position First · no twists · no January')
   })
 })

@@ -111,6 +111,15 @@ export interface ClubSeason {
   /** False while the real season is still being played. */
   complete: boolean
   squad: PlayerSeason[]
+  /**
+   * A classic season (1992-93 to 2007-08). Opt-in: the wheel, the market and
+   * every all-season pool skip it unless the rules say `classic`, and classic
+   * club-seasons sit after every standard one in `Universe.clubSeasons`, so no
+   * existing seed changes meaning.
+   */
+  classic?: boolean
+  /** Ratings estimated by TouchLine's model (no official ratings exist for the season). */
+  estimated?: boolean
 }
 
 export interface LeagueSeasonRow {
@@ -122,6 +131,8 @@ export interface LeagueSeasonRow {
   lost: number
   goalsFor: number
   goalsAgainst: number
+  /** Points deducted by the league that season; `points` is already net of it. */
+  deduction?: number
 }
 
 export interface LeagueInfo {
@@ -134,6 +145,10 @@ export interface LeagueInfo {
   playerSeasons: number
   players: number
   clubs: number
+  /** First classic season (opt-in, estimated ratings) when the league has any; `firstSeason` stays the first standard one. */
+  classicFrom?: number
+  /** Player-seasons in the classic pack (`players-classic.json`), not counted in `playerSeasons`. */
+  classicPlayerSeasons?: number
 }
 
 export interface Universe {

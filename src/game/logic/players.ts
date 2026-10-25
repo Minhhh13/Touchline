@@ -26,8 +26,8 @@ export function playerLookup(game: Game, u: LoadedUniverse): (id: string) => Pla
 
 function basicLookup(game: Game, u: LoadedUniverse): (id: string) => PlayerSeason | undefined {
   if (ratingsModeOf(game.settings.rules) === 'prime') {
-    const leagues = game.settings.rules.leagues
-    return (id: string) => game.customPlayers[id] ?? primeLookup(u, id, leagues)
+    const { leagues, classic } = game.settings.rules
+    return (id: string) => game.customPlayers[id] ?? primeLookup(u, id, leagues, classic)
   }
   return (id: string) => game.customPlayers[id] ?? u.index[id]
 }

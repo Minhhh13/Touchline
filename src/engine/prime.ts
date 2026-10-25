@@ -8,7 +8,9 @@
  * happens to be loaded: leagues load lazily (a device that once opened La Liga
  * holds it, another does not), and a prime that followed the loaded packs would
  * rate the same draft differently on two devices and break challenge replays.
- * With no leagues given, every league in the universe counts.
+ * With no leagues given, every league in the universe counts. Classic club-seasons
+ * (estimated ratings, 1992-2008) count only when the game opts in (`classic`), so
+ * loading the classic pack moves no standard game's prime.
  *
  * Under `rules.ratings === 'prime'` a drafted player-season keeps its identity
  * (id, club, season, age, positions, traits, contract figures) and takes the
@@ -36,8 +38,8 @@ function better(a: PlayerSeason, b: PlayerSeason): boolean {
 }
 
 /** The cache for one league set: the key is the sorted league ids, or `*` for every league. */
-function cacheFor(u: LoadedUniverse, leagues?: readonly string[]): PrimeCache {
-  const key = leagues ? [...new Set(leagues)].sort().join(',') : '*'
+function cacheFor(u: LoadedUniverse, leagues?: readonly string[], classic?: boolean): PrimeCache {
+  const key = (leagues ? [...new Set(leagues)].sort().join(',') : '*') + (classic ? '+classic' : '')
   let byKey = caches.get(u)
   if (!byKey) {
     byKey = new Map()
@@ -48,6 +50,7 @@ function cacheFor(u: LoadedUniverse, leagues?: readonly string[]): PrimeCache {
     const best = new Map<string, PlayerSeason>()
     for (const cs of u.clubSeasons) {
       if (leagues && !leagues.includes(cs.leagueId)) continue
+      if (cs.classic && !classic) continue
       for (const p of cs.squad) {
         const cur = best.get(p.playerId)
         if (!cur || better(p, cur)) best.set(p.playerId, p)
@@ -63,8 +66,8 @@ function cacheFor(u: LoadedUniverse, leagues?: readonly string[]): PrimeCache {
  * The player-season in which a player (by `playerId`) was rated highest in the given leagues
  * (every league when omitted), or undefined when he has no season there.
  */
-export function primeOf(u: LoadedUniverse, playerId: string, leagues?: readonly string[]): PlayerSeason | undefined {
-  return cacheFor(u, leagues).best.get(playerId)
+export function primeOf(u: LoadedUniverse, playerId: string, leagues?: readonly string[], classic?: boolean): PlayerSeason | undefined {
+  return cacheFor(u, leagues, classic).best.get(playerId)
 }
 
 /**
@@ -72,8 +75,8 @@ export function primeOf(u: LoadedUniverse, playerId: string, leagues?: readonly 
  * and attributes of his best season there. Returns the same object for the same id on every call
  * (cached), and the season itself when it already is his best.
  */
-export function primed(u: LoadedUniverse, p: PlayerSeason, leagues?: readonly string[]): PlayerSeason {
-  const cache = cacheFor(u, leagues)
+export function primed(u: LoadedUniverse, p: PlayerSeason, leagues?: readonly string[], classic?: boolean): PlayerSeason {
+  const cache = cacheFor(u, leagues, classic)
   const hit = cache.primed.get(p.id)
   if (hit) return hit
   const best = cache.best.get(p.playerId)
@@ -83,9 +86,9 @@ export function primed(u: LoadedUniverse, p: PlayerSeason, leagues?: readonly st
 }
 
 /** Prime lookup of a player-season id in the universe, over the given leagues. */
-export function primeLookup(u: LoadedUniverse, id: string, leagues?: readonly string[]): PlayerSeason | undefined {
+export function primeLookup(u: LoadedUniverse, id: string, leagues?: readonly string[], classic?: boolean): PlayerSeason | undefined {
   const p = u.index[id]
-  return p ? primed(u, p, leagues) : undefined
+  return p ? primed(u, p, leagues, classic) : undefined
 }
 
 /** Every player's prime player-season over the given leagues (every league when omitted), one per player, in no set order. */
