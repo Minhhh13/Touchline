@@ -27,7 +27,7 @@ import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
-import { advanceWithAssistant, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
+import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -108,6 +108,8 @@ interface Store {
   finishLiveNow: (changes?: LiveChanges) => void
   /** Turn the assistant on or off for the stops still to come in this match. */
   setLiveAuto: (on: boolean) => void
+  /** On to the live match that follows (a cup tie after the league match): the assistant is back to the saved preference, whatever was asked for the last match. */
+  nextLiveMatch: () => void
   /** The remembered way to play a match (Season and Dynasty). */
   setMatchPlay: (mode: MatchPlayMode) => void
   simToEnd: () => void
@@ -416,6 +418,7 @@ export const useStore = create<Store>()(
           }
         },
         setLiveAuto: (on) => set({ liveAuto: on }),
+        nextLiveMatch: () => set({ liveAuto: assistantTakesStops(get().game), matchView: 'ticker' }),
         setMatchPlay: (mode) => mutate((g) => void (g.settings.matchPlay = mode)),
         playWeek: () => {
           const g0 = get().game
@@ -650,7 +653,9 @@ export const useStore = create<Store>()(
           if (n) parked[slot] = n
         }
         const game = normaliseGame(p.game)
-        return { ...current, ...p, game, parked, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
+        // A match reloaded mid-way under Auto-play carries on with the assistant at the stops
+        const liveAuto = assistantTakesStops(game)
+        return { ...current, ...p, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },
   ),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { celebrationEnvelope, confetti, flightProgress, netBulge, netPoint, scorerRun } from '../match/celebration'
-import { approach } from '../components/LivePitch'
+import { approach, dotKey, frameFor } from '../components/LivePitch'
 import { GOAL_FLIGHT_MS, HOLD_MS } from '../match/clockStore'
 
 describe('goal celebration helpers', () => {
@@ -58,5 +58,27 @@ describe('goal celebration helpers', () => {
     const twoSmall = approach(approach(0, 10, 16, 100), 10, 16, 100)
     expect(oneBig).toBeCloseTo(twoSmall, 10)
     expect(approach(0, 10, 100, 100)).toBeCloseTo(10 * (1 - Math.exp(-1)))
+  })
+})
+
+describe('the live pitch between segments', () => {
+  it('a later segment of the same match starts where the last frame left everyone; another match or a fresh viewing starts afresh', () => {
+    const first = frameFor('opp-3-league', 0)
+    first.dots.set(dotKey('home', 'p1'), { x: 61, y: 40 })
+    first.ball = { x: 70, y: 45 }
+    // A re-render of the same segment keeps it
+    expect(frameFor('opp-3-league', 0)).toBe(first)
+    // The second half (and the last twenty minutes after it) pick up from there
+    const second = frameFor('opp-3-league', 46)
+    expect(second).toBe(first)
+    expect(second.dots.get(dotKey('home', 'p1'))).toEqual({ x: 61, y: 40 })
+    expect(frameFor('opp-3-league', 71)).toBe(first)
+    // Watching the match again from the kick-off, or the next match, does not
+    expect(frameFor('opp-3-league', 0).dots.size).toBe(0)
+    expect(frameFor('other-4-league', 0)).not.toBe(first)
+  })
+
+  it('tells apart a man who turns out for both sides', () => {
+    expect(dotKey('home', 's1@2025@club')).not.toBe(dotKey('away', 's1@2025@club'))
   })
 })

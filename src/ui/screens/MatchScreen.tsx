@@ -124,7 +124,7 @@ export function MatchScreen() {
     if (cupNext) {
       setHoldLive(false)
       setResumeFrom(0)
-      setMatchView('ticker')
+      store.nextLiveMatch()
       return
     }
     setResumeFrom(0)

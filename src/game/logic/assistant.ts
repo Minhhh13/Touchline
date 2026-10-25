@@ -32,6 +32,15 @@ export function matchPlayOf(game: Game): MatchPlayMode {
   return game.settings.matchPlay ?? 'watch'
 }
 
+/**
+ * Whether the assistant takes the stops of the live match now on the screen when it opens fresh:
+ * after a reload, or as the cup tie that follows a league match. Only the saved preference counts
+ * ("Finish the match" and "Auto from here" were for the match they were asked in).
+ */
+export function assistantTakesStops(game: Game | null | undefined): boolean {
+  return !!game?.live && matchPlayOf(game) === 'auto'
+}
+
 /** Below this estimated condition at the 70th minute a man is taken off; at half time only below the lower one. */
 export const TIRED_AT_70 = 65
 export const TIRED_AT_45 = 50

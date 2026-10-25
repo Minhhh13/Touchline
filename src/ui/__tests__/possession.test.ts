@@ -57,10 +57,12 @@ describe('ball path generator', () => {
   it('strikes every shot at its event position on the strike moment the ticker holds for, and kicks off after a goal', () => {
     const shots = path.filter((k) => k.kind === 'shot')
     expect(shots).toHaveLength(6)
-    // Two shots in minute 67 fall at 67.275 and 67.775; a lone one a little past the middle of its minute
+    // A lone shot a little past the middle of its minute; two in minute 67 (a penalty at one end, then a chance at the other) spread
+    // apart within it, so the ball has the time to get from the kick-off to the second
     expect(strikes.get(0)).toBeCloseTo(12.55)
-    expect(strikes.get(4)).toBeCloseTo(67.275)
-    expect(strikes.get(5)).toBeCloseTo(67.775)
+    expect(strikes.get(4)!).toBeGreaterThanOrEqual(67.05)
+    expect(strikes.get(5)!).toBeLessThanOrEqual(67.95)
+    expect(strikes.get(5)! - strikes.get(4)!).toBeGreaterThan(0.74)
     expect(strikes.has(3)).toBe(false)
     // The strike moment of every shot is exactly the one strikeTimes gives (the ticker holds the clock there for a goal)
     expect(shots.map((k) => k.t).sort((x, y) => x - y)).toEqual([...strikes.values()].sort((x, y) => x - y))

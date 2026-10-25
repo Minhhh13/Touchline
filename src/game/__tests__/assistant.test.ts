@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playMatchweek, startSeasonProper } from '../logic/week'
-import { advanceWithAssistant, assistantCall, bestBenchFit, autoPlayMatchweek, matchPlayOf, playMatchweekAs, TIRED_AT_70 } from '../logic/assistant'
+import { advanceWithAssistant, assistantCall, assistantTakesStops, bestBenchFit, autoPlayMatchweek, matchPlayOf, playMatchweekAs, TIRED_AT_70 } from '../logic/assistant'
 import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
@@ -241,5 +241,22 @@ describe('the three ways to play a match', () => {
     expect(matchPlayOf({ ...g, settings: { ...g.settings, mode: 'dynasty', matchPlay: 'auto' } })).toBe('auto')
     expect(matchPlayOf({ ...g, settings: { ...g.settings, mode: 'quick', matchPlay: 'sim' } })).toBe('watch')
     expect(matchPlayOf({ ...g, settings: { ...g.settings, mode: 'daily', matchPlay: 'auto' } })).toBe('watch')
+  })
+
+  it('a match reopened mid-way (a reload, or the cup tie after the league match) keeps the assistant on only under Auto-play', { timeout: 120_000 }, () => {
+    const g = started('reopen')
+    expect(assistantTakesStops(g)).toBe(false)
+    g.settings.matchPlay = 'auto'
+    // No live match on: nothing to take
+    expect(assistantTakesStops(g)).toBe(false)
+    playMatchweek(g, u, false)
+    expect(g.live).toBeTruthy()
+    expect(assistantTakesStops(g)).toBe(true)
+    // Through the save and back, as a reload reads it
+    expect(assistantTakesStops(normaliseGame(clone(g)))).toBe(true)
+    expect(assistantTakesStops({ ...g, settings: { ...g.settings, matchPlay: 'watch' } })).toBe(false)
+    expect(assistantTakesStops({ ...g, settings: { ...g.settings, matchPlay: undefined } })).toBe(false)
+    expect(assistantTakesStops({ ...g, settings: { ...g.settings, mode: 'quick' } })).toBe(false)
+    expect(assistantTakesStops(null)).toBe(false)
   })
 })

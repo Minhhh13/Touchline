@@ -63,6 +63,8 @@ export const MAX_HOP = 48
 export const PASS_SPEED = 46
 /** A strike flies at about twice that. */
 export const SHOT_SPEED = 120
+/** A hop squeezed to fit before a deadline may go at most this much faster than its own speed. */
+export const MAX_SQUEEZE = 1.8
 
 /** The minutes an event range covers: from `max(1, from)` to `to`, or to stoppage time (94) when `to` reaches 90. */
 function inRange(e: MatchEvent, from: number, to: number): boolean {
@@ -70,9 +72,23 @@ function inRange(e: MatchEvent, from: number, to: number): boolean {
 }
 
 /**
+ * The least match time between two strikes: time for the ball to get from
+ * where the last one ended up to where the next is struck, at a brisk pace
+ * (`STRIKE_TRAVEL` units a minute), plus the restart in between (a goal kick
+ * or the keeper's throw, or a kick-off from the centre spot after a goal).
+ */
+export const STRIKE_TRAVEL = 70
+export const STRIKE_RESTART = 0.35
+export const STRIKE_KICKOFF = 0.3
+
+/**
  * The strike moment of every shot in the range (goals, penalties, own goals,
- * chances and saves): the k shots of a minute m fall at m + (i + 0.55) / k.
- * Keyed by the event's index in `events`.
+ * chances and saves), keyed by the event's index in `events`. The k shots of
+ * a minute m start at m + (i + 0.55) / k and are then spread apart, never
+ * leaving their minute (between m + 0.05 and m + 0.95), so that consecutive
+ * strikes leave the ball the time it needs to get from one to the next
+ * wherever the minutes allow: it never has to cross the pitch in a few
+ * frames because two shots, at either end, came close together.
  */
 export function strikeTimes(events: MatchEvent[], from: number, to: number): Map<number, number> {
   const byMinute = new Map<number, number[]>()
@@ -82,9 +98,31 @@ export function strikeTimes(events: MatchEvent[], from: number, to: number): Map
     list.push(i)
     byMinute.set(e.minute, list)
   })
-  const out = new Map<number, number>()
-  for (const [m, list] of byMinute) list.forEach((idx, i) => out.set(idx, m + (i + 0.55) / list.length))
-  return out
+  const shots: Array<{ idx: number; t: number; lo: number; hi: number; goal: boolean; at: PitchPoint }> = []
+  for (const [m, list] of [...byMinute].sort((a, b) => a[0] - b[0])) {
+    list.forEach((idx, i) => {
+      const e = events[idx]
+      shots.push({ idx, t: m + (i + 0.55) / list.length, lo: m + 0.05, hi: m + 0.95, goal: GOAL_TYPES.has(e.type), at: toShared(e.position ?? { x: 88, y: 50 }, e.side) })
+    })
+  }
+  // The first strike leaves time to get there from the kick-off that starts the range
+  if (shots.length) {
+    const f = shots[0]
+    f.t = Math.min(f.hi, Math.max(f.t, from + STRIKE_KICKOFF + dist({ x: 50, y: 50 }, f.at) / STRIKE_TRAVEL))
+    f.lo = Math.max(f.lo, Math.min(f.hi, from + STRIKE_KICKOFF + dist({ x: 50, y: 50 }, f.at) / STRIKE_TRAVEL))
+  }
+  const gap = (i: number) => {
+    const prev = shots[i - 1]
+    return prev.goal ? STRIKE_KICKOFF + dist({ x: 50, y: 50 }, shots[i].at) / STRIKE_TRAVEL : STRIKE_RESTART + dist(prev.at, shots[i].at) / STRIKE_TRAVEL
+  }
+  // Push later strikes on, then earlier ones back, each within its own minute (twice, to settle a crowded run)
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 1; i < shots.length; i++) shots[i].t = Math.min(shots[i].hi, Math.max(shots[i].t, shots[i - 1].t + gap(i)))
+    for (let i = shots.length - 2; i >= 0; i--) shots[i].t = Math.max(shots[i].lo, Math.min(shots[i].t, shots[i + 1].t - gap(i + 1)))
+  }
+  // Never out of order, whatever the squeeze
+  for (let i = 1; i < shots.length; i++) shots[i].t = Math.max(shots[i].t, shots[i - 1].t + 0.01)
+  return new Map(shots.map((s) => [s.idx, s.t]))
 }
 
 /** The clock holds for the goals in a range: our goals get the full celebration, theirs a short one; a still frame when motion is reduced. */
@@ -134,9 +172,11 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
 
   /** A hop to `target` that takes as long as its length needs (at least `min` minutes), squeezed to the deadline; false when it does not fit. */
   const hop = (target: PitchPoint, kind: BallKind, s: Side, who: string | undefined, speed = PASS_SPEED, min = 0.22, extra: Partial<BallKeyframe> = {}): boolean => {
-    let dur = Math.max(min, dist(pos, target) / speed)
+    const d = dist(pos, target)
+    let dur = Math.max(min, d / speed)
     if (now + dur > deadline) dur = deadline - now
-    if (dur < 0.1) return false
+    // Squeezed to the deadline it may be a little brisk, never a blur: then it does not happen
+    if (dur < 0.1 || d / dur > speed * MAX_SQUEEZE) return false
     now += dur
     pos = { x: target.x, y: target.y }
     side = s
@@ -170,8 +210,10 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
   const passTo = (s: Side, goal?: PitchPoint): boolean => {
     const men = outfield(s, now).filter((p) => p.psId !== holder)
     if (!men.length) return false
-    const near = men.filter((p) => dist(p, pos) <= MAX_HOP && (!goal || dist(p, goal) <= MAX_HOP))
-    const pool = near.length ? near : [nearest(men, pos)]
+    const reach = men.filter((p) => dist(p, pos) <= MAX_HOP)
+    const near = reach.filter((p) => !goal || dist(p, goal) <= MAX_HOP)
+    // Towards a goal with nobody in range of it: the man in reach who is nearest to it, so the move still progresses
+    const pool = near.length ? near : goal && reach.length ? [nearest(reach, goal)] : [nearest(men, pos)]
     const pick = rng.pickWeighted(pool, (p) => {
       const d = dist(p, pos)
       const progress = (p.x - pos.x) * forward(s)
@@ -232,10 +274,10 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
     if (side !== s) turnover(s)
     const men = outfield(s, ev.minute)
     const shooter = men.find((p) => p.psId === ev.playerId) ?? (men.length ? nearest(men, target) : undefined)
-    // A pass towards the box first, when there is time for it and for the last ball after it
-    if (holder !== shooter?.psId && strike - now > 0.95) {
+    // Passes towards the box first, while it is far and there is time for them and for the last ball after
+    if (holder !== shooter?.psId) {
       deadline = strike - 0.5
-      passTo(s, target)
+      for (let k = 0; k < 4 && strike - now > 0.95 && (k === 0 || dist(pos, target) > 26); k++) if (!passTo(s, target)) break
       deadline = strike - 0.12
     }
     // Into the shooter's stride (a cross when it comes in from wide), or his own run with it
@@ -247,7 +289,9 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
     const last = out[out.length - 1]
     if (last.t < strike - 0.004) {
       const cross = !own && Math.abs(pos.y - target.y) > 22
-      push({ t: strike - 0.002, x: target.x, y: target.y, kind: own ? 'carry' : 'pass', side: s, holder: shooter?.psId, loft: cross ? 0.45 : 0, bend: cross ? (pos.y > target.y ? 0.12 : -0.12) * forward(s) : 0 })
+      // A last ball that has to be quick goes long and in the air, so it reads as a ball over the top rather than a blur
+      const quick = !own && dist(pos, target) / Math.max(0.01, strike - 0.002 - last.t) > PASS_SPEED * 1.6
+      push({ t: strike - 0.002, x: target.x, y: target.y, kind: own ? 'carry' : 'pass', side: s, holder: shooter?.psId, loft: quick ? 0.7 : cross ? 0.45 : 0, bend: cross ? (pos.y > target.y ? 0.12 : -0.12) * forward(s) : 0 })
     }
     pos = target
     side = s
@@ -255,17 +299,31 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
     now = strike
     push({ t: strike, x: target.x, y: target.y, kind: 'shot', side: s, holder })
     deadline = si + 1 < shots.length ? shots[si + 1].t - 0.3 : end
+    /** After the restart, leave the next move the time it needs to get from here to its strike. */
+    const reserve = () => {
+      const n = shots[si + 1]
+      if (!n) return end
+      // The other side to strike next: it has to win the ball back first, so keep the restart short
+      const far = dist(pos, toShared(n.ev.position ?? { x: 88, y: 50 }, n.ev.side)) + (n.ev.side !== side ? 30 : 0)
+      return Math.max(now, n.t - Math.min(1.5, 0.3 + far / (PASS_SPEED * 1.2)))
+    }
     const gk = keeper(other(s), ev.minute)
     const goalLine = s === 'home' ? 100 : 0
     if (GOAL_TYPES.has(ev.type)) {
       // In the net (the flight is drawn while the clock holds), then a kick-off from the centre spot
       push({ t: strike + 0.001, x: goalLine, y: 50 + clamp((target.y - 50) * 0.25, -4, 4), kind: 'goal', side: s })
       kickOff(other(s), strike + 0.002)
-      carry(0.3)
-      if (holder && deadline - now > 0.3) passTo(side)
+      // Play out of the kick-off only when there is time for it: when the scorers strike again within the minute or so, they win it straight back
+      const nextShot = shots[si + 1]
+      const hurry = !!nextShot && nextShot.ev.side !== side && nextShot.t - now < 1.5
+      if (!hurry) {
+        carry(0.3)
+        if (holder && deadline - now > 0.3) passTo(side)
+      }
     } else if (ev.type === 'save') {
       const at = gk ? { x: gk.x + (target.x - gk.x) * 0.15, y: gk.y + (target.y - gk.y) * 0.35 } : { x: s === 'home' ? 96 : 4, y: 50 }
       if (!hop(at, 'save', other(s), gk?.psId, SHOT_SPEED, 0.12)) continue
+      deadline = reserve()
       // The keeper gathers, then sends it long
       if (deadline - now > 0.9) {
         now += 0.35
@@ -284,6 +342,7 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
       // Fetched and placed for the goal kick, then played out
       const kick = gk ? { x: gk.x + forward(other(s)) * 3, y: 50 } : { x: s === 'home' ? 94 : 6, y: 50 }
       if (!hop(kick, 'reset', other(s), gk?.psId, PASS_SPEED * 0.8, 0.45)) continue
+      deadline = reserve()
       if (deadline - now > 0.6) {
         now += 0.2
         push({ t: now, x: kick.x, y: kick.y, kind: 'carry', side: other(s), holder: gk?.psId })

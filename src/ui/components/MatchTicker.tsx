@@ -96,6 +96,27 @@ export function MatchTicker({ events, homeName, awayName, onDone, onStop, startC
     return () => clearInterval(id)
   }, [running, flight])
 
+  // Hidden tab: the match waits for you (the clock runs on real time, so it would otherwise play on unseen)
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    let pausedByHide = false
+    const onVisibility = () => {
+      const s = useLiveClock.getState()
+      const now = performance.now()
+      if (document.visibilityState === 'hidden') {
+        if (s.running) {
+          pausedByHide = true
+          useLiveClock.setState({ ...reanchor(s, now), running: false })
+        }
+      } else if (pausedByHide) {
+        pausedByHide = false
+        if (!s.running && !s.done) useLiveClock.setState({ since: now, running: true })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
   useEffect(() => {
     // Read the store, not the render: the first render of a new segment still sees the last one's finish
     if (finished && useLiveClock.getState().done && !doneRef.current) {
@@ -125,7 +146,11 @@ export function MatchTicker({ events, homeName, awayName, onDone, onStop, startC
   const live = celebrating >= 0 && revealed > celebrating ? holds[celebrating] : null
   const fresh = live ? +live.key : -1
   const flash = live ? true : !visuals && shown.some(({ e }) => GOAL_TYPES.has(e.type) && e.minute >= clock - 1)
-  const firstScore = useRef(`${hg}-${ag}`)
+  // The score this segment started from: a number pops only when a goal of this segment changes it (not from the first render, which can still see the last match's clock)
+  const startScore = useMemo(() => {
+    const before = events.filter((e) => GOAL_TYPES.has(e.type) && e.minute < startClock)
+    return `${before.filter((e) => e.side === 'home').length}-${before.filter((e) => e.side === 'away').length}`
+  }, [events, startClock])
 
   const setSpeed = (v: number) => {
     const s = useLiveClock.getState()
@@ -152,7 +177,7 @@ export function MatchTicker({ events, homeName, awayName, onDone, onStop, startC
         <div className="team">{homeName}</div>
         <div className="col" style={{ alignItems: 'center', gap: 2 }}>
           <div className="score" data-testid="live-score">
-            <span key={`h${hg}`} className={`n ${firstScore.current !== `${hg}-${ag}` && live?.side === 'home' ? 'pop' : ''}`}>{hg}</span> - <span key={`a${ag}`} className={`n ${firstScore.current !== `${hg}-${ag}` && live?.side === 'away' ? 'pop' : ''}`}>{ag}</span>
+            <span key={`h${hg}`} className={`n ${startScore !== `${hg}-${ag}` && live?.side === 'home' ? 'pop' : ''}`}>{hg}</span> - <span key={`a${ag}`} className={`n ${startScore !== `${hg}-${ag}` && live?.side === 'away' ? 'pop' : ''}`}>{ag}</span>
           </div>
           <div className="clock">{atStop ? stopLabel(stopAt).toUpperCase() : finished ? 'FULL TIME' : clock === 0 ? 'KICK-OFF' : minuteLabel(clock)}</div>
         </div>

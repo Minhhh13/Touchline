@@ -159,6 +159,50 @@ export function approach(cur: number, target: number, dt: number, tau: number): 
   return cur + (target - cur) * (1 - Math.exp(-dt / tau))
 }
 
+/** A man on the pitch, by side: the same player-season can turn out for both (a man drafted from the club you are playing). */
+export function dotKey(side: Side, psId: string): string {
+  return `${side}:${psId}`
+}
+
+/** Where a man who comes on walks on from: the touchline by the halfway line (shared coordinates). */
+export const ENTRY_POINT: P = { x: 50, y: 103 }
+
+/**
+ * Where everything stood on the last frame drawn for a match (its pitch seed): a new segment of the
+ * same match (the second half, the last twenty minutes, the replay from 71) starts from there rather
+ * than from the formation, so nobody jumps when the pitch remounts. Only the latest match is kept.
+ */
+interface BallMotion {
+  /** The ball on screen, and two slower followers of it (the players' drift and the blocks' lean). */
+  p: P | null
+  slow: P | null
+  lean: P | null
+  /** The patches' roll offset. */
+  u: number
+  v: number
+  /** The time of the last frame drawn (0: the next frame moves nothing, after a sleep or a remount). */
+  last: number
+}
+
+interface LastFrame {
+  dots: Map<string, P>
+  ball: P | null
+  motion?: BallMotion
+  /** The first minute of the segment that drew it: a pitch starting earlier than that is another viewing, which starts afresh. */
+  from: number
+}
+const lastFrame = new Map<string, LastFrame>()
+export function frameFor(seed: string, from: number): LastFrame {
+  let f = lastFrame.get(seed)
+  if (!f || from < f.from) {
+    lastFrame.clear()
+    f = { dots: new Map(), ball: null, from }
+    lastFrame.set(seed, f)
+  }
+  f.from = from
+  return f
+}
+
 export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer }: LivePitchProps) {
   const portrait = useMediaQuery('(max-width: 720px)')
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
@@ -207,7 +251,9 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     }
     return fn
   }
-  const placed = useMemo(() => new Map<string, PlacedPlayer>([...homePlaced, ...awayPlaced].map((p) => [p.psId, p])), [homePlaced, awayPlaced])
+  const placed = useMemo(() => new Map<string, PlacedPlayer>([...homePlaced, ...awayPlaced].map((p) => [dotKey(p.side, p.psId), p])), [homePlaced, awayPlaced])
+  // Where each man was when this match's pitch was last drawn (read once per mount, so React never moves a dot itself)
+  const initial = useMemo(() => new Map(frameFor(seed, from).dots), [seed, from])
   // A fixed sway phase per man, from his id, so the picture is the same on every replay
   const phases = useMemo(() => new Map([...placed.keys()].map((id) => [id, [...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 6283, 7) / 1000])), [placed])
   const colourOf = useMemo(() => ({ home: home.colour, away: away.colour }), [home.colour, away.colour])
@@ -218,8 +264,15 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   // clock store changes again.
   useEffect(() => {
     if (reduced) return
-    const shown = new Map<string, P>()
-    const ball: { p: P | null; slow: P | null; lean: P | null; u: number; v: number; last: number } = { p: null, slow: null, lean: null, u: 0, v: 0, last: 0 }
+    const kept = frameFor(seed, from)
+    const shown = kept.dots
+    // Carry on from the last frame drawn for this match, so a re-render, a remount or a new segment never moves anyone at once
+    const ball: BallMotion = kept.motion ?? { p: kept.ball, slow: kept.ball, lean: kept.ball, u: 0, v: 0, last: 0 }
+    kept.motion = ball
+    ball.last = 0
+    /** The first frame of a brand-new match places everyone; after that a man new to the pitch walks on. */
+    let first = shown.size === 0
+    const entered = new Map<string, number>()
     let id = 0
     const at = (x: number, y: number) => {
       const [sx, sy] = map(x, y)
@@ -229,7 +282,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       id = 0
       const s = useLiveClock.getState()
       if (s.running) id = requestAnimationFrame(frame)
-      const dt = ball.last ? Math.min(80, Math.max(0, now - ball.last)) : 0
+      // Time moves things only while the clock runs; stood at a stop or paused, a wake-up redraws without moving anyone
+      const dt = s.running && ball.last ? Math.min(80, Math.max(0, now - ball.last)) : 0
       ball.last = now
       const tl = timeline(s, now)
       const T = Math.min(to + 1, tl.t)
@@ -244,6 +298,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       let snapBall = false
       let shotKf: BallKeyframe | undefined
       let goalKf: BallKeyframe | undefined
+      // Just past a goal's hold the path still runs from the strike into the net and back to the spot: the ball is on the spot
+      if (!hold && b && (b.next?.kind === 'goal' || path[b.index]?.kind === 'goal')) target = { x: 50, y: 50 }
       if (hold && b) {
         shotKf = path[b.index]
         goalKf = b.next ?? undefined
@@ -269,6 +325,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       const prevBall = ball.p ?? target
       const cur: P = snapBall || !ball.p ? target : { x: approach(prevBall.x, target.x, dt, tauBall), y: approach(prevBall.y, target.y, dt, tauBall) }
       ball.p = cur
+      kept.ball = cur
       ball.slow = ball.slow ? { x: approach(ball.slow.x, cur.x, dt, 260), y: approach(ball.slow.y, cur.y, dt, 260) } : cur
       ball.lean = ball.lean ? { x: approach(ball.lean.x, cur.x, dt, 700), y: approach(ball.lean.y, cur.y, dt, 700) } : cur
       const [bx, by] = map(cur.x, cur.y)
@@ -302,19 +359,20 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       for (let k = i; k >= 0 && k >= i - 2; k--) if (path[k].kind === 'save' && Math.abs(T - path[k].t) < 0.5) saveKf = path[k]
       const env = hold ? celebrationEnvelope(elapsed, hold.ms, GOAL_FLIGHT_MS) : 0
       const ev = hold ? events[+hold.key] : undefined
-      const scorerId = hold && ev && ev.type !== 'own_goal' ? ev.playerId : undefined
+      const scorerId = hold && ev && ev.type !== 'own_goal' && ev.playerId ? dotKey(hold.side, ev.playerId) : undefined
       const scorerAt = hold && shotKf ? scorerRun(shotKf, hold.side === 'home', (elapsed - GOAL_FLIGHT_MS) / (hold.ms * 0.55)) : null
       const tauDot = 150 * Math.min(2, Math.max(1, s.speed / 2))
-      for (const [psId, el] of dots.current) {
-        const p = placed.get(psId)
+      const has = (k: BallKeyframe | null | undefined, p: PlacedPlayer) => !!k && k.holder === p.psId && k.side === p.side
+      for (const [key, el] of dots.current) {
+        const p = placed.get(key)
         if (!p) continue
         let w = 0
-        if (next?.kind === 'carry' && next.holder === psId) w = 1
+        if (next?.kind === 'carry' && has(next, p)) w = 1
         else {
-          if (curKf?.holder === psId && next?.kind !== 'carry') w = Math.max(w, 1 - f)
-          if (next?.holder === psId) w = Math.max(w, f)
+          if (has(curKf, p) && next?.kind !== 'carry') w = Math.max(w, 1 - f)
+          if (has(next, p)) w = Math.max(w, f)
         }
-        if (curKf?.holder === psId && !next) w = 1
+        if (has(curKf, p) && !next) w = 1
         let x = p.x + lean * (p.position === 'GK' ? 0.35 : 1)
         let y = p.y
         if (ball.slow && p.position !== 'GK') {
@@ -322,7 +380,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           x += (ball.slow.x - x) * pull
           y += (ball.slow.y - y) * pull
         }
-        const phase = phases.get(psId) ?? 0
+        const phase = phases.get(key) ?? 0
         x += Math.sin(T * 1.7 + phase) * 0.5
         y += Math.cos(T * 1.3 + phase) * 0.7
         if (w > 0 && b) {
@@ -331,7 +389,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           x += (ax - x) * w
           y += (b.y - y) * w
         }
-        if (saveKf && saveKf.holder === psId) {
+        if (saveKf && has(saveKf, p)) {
           const prev = path[path.indexOf(saveKf) - 1]
           const dive = 1 - Math.abs(T - saveKf.t) / 0.5
           if (prev) {
@@ -340,7 +398,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           }
         }
         if (env > 0 && scorerAt && hold) {
-          if (psId === scorerId) {
+          if (key === scorerId) {
             x += (scorerAt.x - x) * env
             y += (scorerAt.y - y) * env
           } else if (p.side === hold.side && p.position !== 'GK') {
@@ -352,15 +410,23 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
             y += (scorerAt.y + Math.sin(a) * 6 - y) * pullIn
           }
         }
-        const prev = shown.get(psId)
-        const now2 = prev ? { x: approach(prev.x, x, dt, tauDot), y: approach(prev.y, y, dt, tauDot) } : { x, y }
+        let prev = shown.get(key)
+        // A man new to the pitch (a substitute) walks on from the touchline, a little slower than the rest move
+        if (!prev && !first) {
+          prev = initial.get(key) ?? ENTRY_POINT
+          entered.set(key, now)
+        }
+        const since = entered.get(key)
+        const tau = since !== undefined && now - since < 1500 ? tauDot * 3 : tauDot
+        const now2 = prev ? { x: approach(prev.x, x, dt, tau), y: approach(prev.y, y, dt, tau) } : { x, y }
         el.setAttribute('transform', at(now2.x, now2.y))
-        shown.set(psId, now2)
+        shown.set(key, now2)
       }
-      for (const psId of shown.keys()) if (!dots.current.has(psId)) shown.delete(psId)
+      first = false
+      for (const key of shown.keys()) if (!dots.current.has(key)) shown.delete(key)
 
       if (ringRef.current) {
-        const holder = !hold && b?.holder ? shown.get(b.holder) : undefined
+        const holder = !hold && b?.holder ? shown.get(dotKey(b.side, b.holder)) : undefined
         if (holder) {
           const [sx, sy] = map(holder.x, holder.y)
           ringRef.current.setAttribute('cx', sx.toFixed(2))
@@ -408,7 +474,10 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       }
     }
     const wake = () => {
-      if (!id) id = requestAnimationFrame(frame)
+      if (id) return
+      // Waking from a sleep: the first frame back takes no time step, so nothing leaps by the time it slept
+      ball.last = 0
+      id = requestAnimationFrame(frame)
     }
     wake()
     const unsubscribe = useLiveClock.subscribe(wake)
@@ -416,11 +485,11 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       unsubscribe()
       cancelAnimationFrame(id)
     }
-  }, [path, reduced, to, map, placed, phases, events, colourOf, portrait, R])
+  }, [path, reduced, to, map, placed, phases, events, colourOf, portrait, R, seed, initial, from])
 
   const homeOn = onPitchAt(homePlaced, minute)
   const awayOn = onPitchAt(awayPlaced, minute)
-  const booked = useMemo(() => new Set(events.filter((e) => e.type === 'yellow' && e.minute <= minute).map((e) => e.playerId)), [events, minute])
+  const booked = useMemo(() => new Set(events.filter((e) => e.type === 'yellow' && e.minute <= minute && e.playerId).map((e) => dotKey(e.side, e.playerId!))), [events, minute])
   const flashes = events.filter((e) => (e.type === 'red' || e.type === 'injury' || e.type === 'substitution') && e.minute <= minute && (minute < e.minute + 3 || minute >= to) && e.minute > minute - 6 && e.playerId)
   const stillBall = reduced ? ballAt(path, Math.min(to, minute) + 0.99, true) : null
   const hidden = useMemo(() => new Set(holds.slice(revealed).map((h) => +h.key)), [holds, revealed])
@@ -429,16 +498,19 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
 
   const dot = (p: PlacedPlayer, colour: string) => {
     const name = getPlayer(p.psId)?.name
-    const [sx, sy] = map(p.x, p.y)
+    const key = dotKey(p.side, p.psId)
+    // Drawn first where he stood when this match's pitch was last drawn, or walking on, or at his slot; the loop moves him from there
+    const startAt = reduced ? p : initial.get(key) ?? (initial.size || p.onAt > Math.max(0, from) ? ENTRY_POINT : p)
+    const [sx, sy] = map(startAt.x, startAt.y)
     return (
-      <g key={p.psId} ref={dotRef(p.psId)} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className="live-dot" data-testid="live-dot">
+      <g key={key} ref={dotRef(key)} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className="live-dot" data-testid="live-dot">
         <title>{name ?? p.psId}</title>
         <g className="dot-body">
           <circle r="2.7" fill={colour} stroke="rgba(0,0,0,0.55)" strokeWidth="0.4" />
           <text y="0.85" textAnchor="middle" fontSize="2.3" fontWeight="700" fill={textColourFor(colour)}>
             {initials(name)}
           </text>
-          {booked.has(p.psId) && <rect x="1.7" y="-3.9" width="1.5" height="2.1" rx="0.2" fill="var(--gold)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.2" />}
+          {booked.has(key) && <rect x="1.7" y="-3.9" width="1.5" height="2.1" rx="0.2" fill="var(--gold)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.2" />}
         </g>
       </g>
     )
@@ -474,7 +546,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           <g>{homeOn.map((p) => dot(p, home.colour))}</g>
           <g>{awayOn.map((p) => dot(p, away.colour))}</g>
           {flashes.map((e, i) => {
-            const p = placed.get(e.playerId!)
+            const p = placed.get(dotKey(e.side, e.playerId!))
             if (!p) return null
             const [sx, sy] = map(p.x, p.y)
             return (
