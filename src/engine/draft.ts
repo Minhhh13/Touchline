@@ -211,7 +211,7 @@ export interface DraftState {
   surprise?: (Surprise & { atSpin: number }) | null
   /** Gamble: the Icons stream, seeded from the game seed by `newDraft`, drawn once per spin until the Icons spin has come. Absent otherwise. */
   gambleRng?: RngState
-  /** The Player Upgrader's stream, seeded from the game seed by `newDraft` (its one draw is the same whenever it is made). Absent without the upgrader. */
+  /** The Player Upgrader's stream, seeded from the game seed by `newDraft` and forked by the player and boost chosen (the same whenever it is made). Absent without the upgrader. */
   upgradeRng?: RngState
   /** The Player Upgrader's one gamble, once made: who, the boost, the chance shown, the roll and the change to his rating. */
   upgrade?: DraftUpgrade | null

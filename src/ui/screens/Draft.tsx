@@ -202,7 +202,7 @@ export function Draft() {
                   : ghostPlayer
                     ? ghostSameWheel
                       ? `Last time here: ${ghostPlayer.name}`
-                      : `${challenge.name}'s spin ${d.spins}: ${ghostPlayer.name} (${clubName(u, ghost.clubId)} ${seasonLabel(ghost.season)})`
+                      : `${challenge.name}'s spin ${d.spins}: ${ghostPlayer.name} (${isIcons(ghost) ? 'Icons' : `${clubName(u, ghost.clubId)} ${seasonLabel(ghost.season)}`})`
                     : `${challenge.name}'s spin ${d.spins} is not in this data`}
               </div>
             )}

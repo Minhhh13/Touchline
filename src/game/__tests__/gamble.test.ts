@@ -257,6 +257,22 @@ describe('the Player Upgrader', () => {
     expect(Math.abs(wins / n - expected)).toBeLessThan(4 * Math.sqrt((expected * (1 - expected)) / n))
   })
 
+  it('rolls for the player and boost chosen: the same choice replays, another choice on the same seed is a fresh roll', () => {
+    let differ = 0
+    for (let i = 0; i < 60; i++) {
+      const seed = `UPG-KEY-${i}`
+      const a = draftAfter(rules([], { upgrader: true }), 2, seed).d
+      const b = clone(a)
+      const c = clone(a)
+      const [x, y] = upgradeCandidates(a)
+      const ra = upgradePlayer(u, a, x, 10).roll
+      expect(upgradePlayer(u, b, x, 10).roll).toBe(ra)
+      if (upgradePlayer(u, c, y, 2).roll !== ra) differ++
+    }
+    // Two independent rolls of 0-99 agree about once in a hundred
+    expect(differ).toBeGreaterThan(50)
+  })
+
   it('is once per draft, needs a drafted player, and never touches the universe', () => {
     const { d } = draftAfter(rules(['gamble']), 2, 'UPG-ONCE')
     expect(upgraderOn(d.rules)).toBe(true)

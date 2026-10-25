@@ -8,8 +8,9 @@
  * in the side. The result lives on the draft (`DraftState.upgrade`) and is applied by the game's player lookup as an
  * override, so the universe is never touched.
  *
- * The roll comes from the draft's own stream (`upgradeRng`, seeded from the game seed), which nothing else draws from,
- * so it is the same whenever in the draft it is made and never moves a spin, a pick or a match.
+ * The roll comes from the draft's own stream (`upgradeRng`, seeded from the game seed), forked by the player and the
+ * boost chosen, which nothing else draws from: it is the same whenever in the draft it is made and never moves a spin,
+ * a pick or a match, and a replay of the seed that saw one choice's roll learns nothing about another choice's.
  */
 import { Rng } from './rng'
 import type { PlayerSeason } from './types'
@@ -70,8 +71,10 @@ export function upgradePlayer(u: LoadedUniverse, d: DraftState, id: string, boos
   const rating = upgradeBaseRating(u, d, id)
   if (rating === null) throw new Error('Unknown player')
   const chance = upgradeChance(rating, boost)
+  // The roll belongs to this player and boost: a replay of the seed ("Run it back", a link) that saw one gamble's needle
+  // learns nothing about another choice. Still one stream and one fork, so it is the same whenever in the draft it is made
   const rng = Rng.fromState(d.upgradeRng)
-  const roll = rng.int(0, 99)
+  const roll = rng.fork(`${id}:${boost}`).int(0, 99)
   d.upgradeRng = rng.getState()
   const won = roll < chance
   const delta = won ? upgradeGain(rating, boost) : -upgradeLoss(boost)
