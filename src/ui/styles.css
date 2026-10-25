@@ -2359,6 +2359,14 @@ table.tbl tr.clickable:hover {
   font: inherit;
   cursor: pointer;
 }
+.modal .hl-controls {
+  position: sticky;
+  bottom: -18px;
+  margin: 0 -18px -18px;
+  padding: 10px 18px 18px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
 .hl-moment-text {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2375,6 +2383,11 @@ table.tbl tr.clickable:hover {
     border-radius: var(--radius) var(--radius) 0 0;
     border-bottom: 0;
     padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  }
+  .modal.sheet .hl-controls {
+    bottom: calc(-14px - env(safe-area-inset-bottom));
+    margin: 0 -16px calc(-14px - env(safe-area-inset-bottom));
+    padding: 10px 16px calc(14px + env(safe-area-inset-bottom));
   }
   .modal.sheet .pitch-svg.portrait {
     max-height: 50vh;

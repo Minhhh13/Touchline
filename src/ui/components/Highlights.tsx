@@ -25,11 +25,40 @@ export const HIGHLIGHT_HOLD_MS = 1700
 const LABEL: Record<HighlightKind, string> = { goal: 'Goal', penalty: 'Penalty', own_goal: 'Own goal', chance: 'Chance', save: 'Save', yellow: 'Booked', red: 'Sent off' }
 const CHIP: Record<HighlightKind, string> = { goal: 'chip good', penalty: 'chip good', own_goal: 'chip good', chance: 'chip', save: 'chip', yellow: 'chip warn', red: 'chip bad' }
 
+type HighlightsProps = { game: Game; u: LoadedUniverse; matchweek: number; onClose: () => void }
 
-export function HighlightsModal({ game, u, matchweek, onClose }: { game: Game; u: LoadedUniverse; matchweek: number; onClose: () => void }) {
+/**
+ * The reel in a modal (a bottom sheet on a phone). Rebuilding a late game replays most of the season, a second on a
+ * slow phone, so the sheet opens at once with a holding line and the game is rebuilt after that first paint.
+ */
+export function HighlightsModal(props: HighlightsProps) {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined
+    const f = requestAnimationFrame(() => {
+      t = setTimeout(() => setReady(true), 0)
+    })
+    return () => {
+      cancelAnimationFrame(f)
+      if (t) clearTimeout(t)
+    }
+  }, [])
+  if (ready) return <HighlightsReel {...props} />
+  return (
+    <Modal open onClose={props.onClose} title={`Highlights · matchweek ${props.matchweek}`} sheet testId="highlights">
+      <p className="muted" data-testid="highlights-loading">
+        Rebuilding the game…
+      </p>
+    </Modal>
+  )
+}
+
+function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
   const hl = useMemo(() => quickHighlights(game, u, matchweek), [game, u, matchweek])
   const get = useMemo(() => playerLookup(game, u), [game, u])
   const moments = useMemo(() => hl?.moments ?? [], [hl])
+  // Full time is after the last event: a goal in stoppage time (90+) must still be on the pitch at the end
+  const end = useMemo(() => Math.max(90, ...(hl?.events ?? []).map((e) => e.minute)), [hl])
   const [index, setIndex] = useState(0)
   const [tick, setTick] = useState(() => buildUpFrom(moments, 0))
   const [paused, setPaused] = useState(false)
@@ -42,7 +71,7 @@ export function HighlightsModal({ game, u, matchweek, onClose }: { game: Game; u
   // The clock runs through the build-up to the moment's minute, holds on it, then moves to the next moment
   useEffect(() => {
     if (!m) {
-      publishClock({ clock: 95, running: false, speed: 1, period: HIGHLIGHT_MINUTE_MS })
+      publishClock({ clock: end, running: false, speed: 1, period: HIGHLIGHT_MINUTE_MS })
       return
     }
     const building = tick <= m.minute
@@ -56,7 +85,7 @@ export function HighlightsModal({ game, u, matchweek, onClose }: { game: Game; u
       }
     }, building ? HIGHLIGHT_MINUTE_MS : HIGHLIGHT_HOLD_MS)
     return () => clearTimeout(t)
-  }, [m, tick, paused, index, moments])
+  }, [m, tick, paused, index, moments, end])
   // The live match screen starts its own clock; leave this one stopped
   useEffect(() => () => publishClock({ clock: 0, running: false, speed: 1, period: 110 }), [])
 
@@ -92,8 +121,8 @@ export function HighlightsModal({ game, u, matchweek, onClose }: { game: Game; u
           away={{ name: hl.awayName, shortName: hl.awayShort, colour: kit.away, tactics: hl.awayTactics, appearances: hl.away.appearances }}
           events={hl.events}
           momentum={hl.momentum}
-          from={done ? 90 : buildUpFrom(moments, index)}
-          to={done ? 90 : m.minute}
+          from={done ? end : buildUpFrom(moments, index)}
+          to={done ? end : m.minute}
           seed={`hl-${matchweek}-${hl.homeTeamId}-${hl.awayTeamId}`}
           getPlayer={get}
         />
@@ -133,7 +162,7 @@ export function HighlightsModal({ game, u, matchweek, onClose }: { game: Game; u
             )}
           </div>
         )}
-        <div className="row wrap" style={{ gap: 8 }}>
+        <div className="row wrap hl-controls" style={{ gap: 8 }}>
           {!done && (
             <>
               <button className="btn sm" onClick={() => setPaused((p) => !p)} data-testid="highlights-pause">

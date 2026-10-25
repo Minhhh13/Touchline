@@ -59,7 +59,7 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
 
 - `npm ci` install exactly from the lockfile.
 - `npm run dev` Vite dev server (no service worker in dev).
-- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 312 tests); `npx vitest run src/engine` or `src/game` for one area.
+- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 314 tests); `npx vitest run src/engine` or `src/game` for one area.
 - `npm run typecheck` `tsc -b --noEmit`. `npm run lint` is the same command; there is no ESLint or Prettier.
 - `npm run build` `tsc -b && vite build` into `dist/` (what Render runs).
 - `npx vite preview --port 4173 --strictPort` serve `dist/` for Playwright smokes and service-worker checks.

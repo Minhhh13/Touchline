@@ -53,18 +53,17 @@ function expectEveryGameRebuilt(g: Game, results: QuickGameResult[]): void {
 
 // Whole seasons replayed game by game: seconds alone, slower beside the other files
 describe('highlights of any game of a quick season', { timeout: 300_000 }, () => {
-  it('rebuilds every game of a season to exactly the score shown, the same reel every time, the save untouched', () => {
-    for (const seed of ['hl-1', 'hl-2']) {
-      const g = drafted({ seed })
-      kickOff(g, u)
-      expect(g.phase).toBe('summary')
-      expect(g.quickResult!.startRng).toBeDefined()
-      expect(canShowHighlights(g)).toBe(true)
-      const results = g.quickResult!.results!
-      expect(results).toHaveLength(38)
-      expectEveryGameRebuilt(g, results)
-      expect(quickHighlights(g, u, 7)).toEqual(quickHighlights(g, u, 7))
-    }
+  // One season per test: a whole season replayed game by game is long synchronous work for one worker
+  it.each(['hl-1', 'hl-2'])('rebuilds every game of a season (%s) to exactly the score shown, the same reel every time, the save untouched', (seed) => {
+    const g = drafted({ seed })
+    kickOff(g, u)
+    expect(g.phase).toBe('summary')
+    expect(g.quickResult!.startRng).toBeDefined()
+    expect(canShowHighlights(g)).toBe(true)
+    const results = g.quickResult!.results!
+    expect(results).toHaveLength(38)
+    expectEveryGameRebuilt(g, results)
+    expect(quickHighlights(g, u, 7)).toEqual(quickHighlights(g, u, 7))
   })
 
   it('rebuilds a season with a January deal and tactics changed in the window, and the first half while the window is open', () => {
@@ -140,6 +139,18 @@ describe('highlights of any game of a quick season', { timeout: 300_000 }, () =>
     forged.quickResult!.results![4].gf += 1
     expect(quickHighlights(forged, u, 5)).toBeNull()
     expect(quickHighlights(g, u, 99)).toBeNull()
+  })
+
+  it('offers nothing, and does not throw, when a bench change no longer replays on the data loaded', () => {
+    const g = drafted({ seed: 'hl-bench-gone' }, { benchPicks: 3 })
+    kickOff(g, u)
+    const slot = getFormation(g.tactics.formationId).slots[0].id
+    const broken = JSON.parse(snapshot(g)) as Game
+    broken.quickChanges = [{ from: 3, slotId: slot, inId: 'nobody@2025@nowhere' }]
+    expect(() => quickHighlights(broken, u, 10)).not.toThrow()
+    expect(quickHighlights(broken, u, 10)).toBeNull()
+    // The games before the change still replay
+    expect(quickHighlights(broken, u, 2)).not.toBeNull()
   })
 })
 

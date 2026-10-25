@@ -35,7 +35,13 @@ export function canShowHighlights(game: Game): boolean {
 export function quickHighlights(game: Game, u: LoadedUniverse, matchweek: number): QuickHighlights | null {
   const r = playbackResults(game).find((x) => x.matchweek === matchweek)
   if (!r) return null
-  const m = replayUserMatch(game, u, matchweek)
+  let m: ReturnType<typeof replayUserMatch>
+  try {
+    m = replayUserMatch(game, u, matchweek)
+  } catch {
+    // A bench change that no longer fits the squad on the data now loaded stops the replay: nothing to show, no crash
+    return null
+  }
   if (!m) return null
   const userHome = m.home.teamId === USER_TEAM
   const res = m.result

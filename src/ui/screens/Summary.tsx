@@ -265,7 +265,15 @@ export function Summary() {
 
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} onHighlights={canShowHighlights(game) ? (r) => setHlWeek(r.matchweek) : undefined} />
+          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} onHighlights={
+              canShowHighlights(game)
+                ? (r) => {
+                    // A running replay would keep revealing and scrolling the list under the reel: show it all first
+                    if (replay.playing) replay.skip()
+                    setHlWeek(r.matchweek)
+                  }
+                : undefined
+            } />
           {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
         </div>
       )}
