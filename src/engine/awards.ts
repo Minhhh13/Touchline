@@ -76,6 +76,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'dynasty-3', title: 'Dynasty', description: 'Win three league titles in a row.', icon: '👑' },
   { id: 'survivor', title: 'Survivor', description: 'Keep your job with board confidence under 20 at some point.', icon: '🪑' },
   { id: 'dealmaker', title: 'Dealmaker', description: 'Sign a player for less than 70% of his opening asking price.', icon: '🤝' },
+  { id: 'record-points', title: 'Record Books', description: 'Set a new league points record on Realistic difficulty.', icon: '📜' },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))

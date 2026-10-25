@@ -49,7 +49,8 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Export and import your save file from the Record page, and a trophy cabinet across every game you have played.
 - Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
-- Awards, a team of the season, eighteen achievements, a local leaderboard and a share card for every season.
+- Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.
+- **In the record books**: the summary ranks your points, wins, goals scored, goals conceded and defeats against every complete real season of your league in the data with the same number of matches (26 Premier League seasons back to 2000-01, 16 Bundesliga seasons of 34 games), names the three seasons ahead of you and the real champions that year, and marks an outright league record with a gold chip; the share text adds a line for a top-ten points total. A new points record on Realistic difficulty over a full season unlocks the Record Books achievement; leagues without tables (Ligue 1, the Eredivisie, the Primeira Liga) have no record book. Dynasty history shows the real champions beside each of your seasons.
 - Calibrated or Realistic difficulty.
 - One saved game per mode: a quick draft never overwrites your dynasty.
 

@@ -4,6 +4,7 @@ import { continentalRun } from '@game/logic/week'
 import { TIER_LABEL, USER_TEAM, computeTable } from '@engine/season'
 import { shareText } from '@engine/awards'
 import { getFormation } from '@engine/formations'
+import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
 import { Pitch } from '../components/Pitch'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
@@ -31,6 +32,15 @@ export function Summary() {
   }, [q, season])
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
+  // Where this season sits against every complete real season of the league with the same number of matches
+  const leagueName = u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? game.settings.leagueId
+  const bench = useMemo(() => (season?.sacked ? null : benchmarkSeason(u, game.settings.leagueId, record)), [u, game.settings.leagueId, record.won, record.drawn, record.lost, record.points, record.goalsFor, record.goalsAgainst, season?.sacked])
+  const inBooks = bench !== null && hasRecordBook(bench)
+  const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
+  const extraLines: string[] = []
+  if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`)
+  const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
+  if (recordLine) extraLines.push(recordLine)
   const text = shareText({
     teamName: game.settings.teamName,
     tier,
@@ -45,7 +55,7 @@ export function Summary() {
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
     bootName: q ? get(q.topScorer?.playerSeasonId ?? '')?.name : game.awards?.goldenBoot?.name,
     bootGoals: q ? q.topScorer?.goals : game.awards?.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
-    extraLines: game.settings.rules.onlyNation ? [`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`] : undefined,
+    extraLines: extraLines.length ? extraLines : undefined,
   })
   const copy = async () => {
     try {
@@ -153,6 +163,53 @@ export function Summary() {
           </button>
         </div>
       </div>
+
+      {bench && inBooks && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="record-books">
+          <div className="panel-head">
+            <h3>In the record books</h3>
+            <span className="small muted">
+              Against {bench.seasons} complete {leagueName} seasons of {bench.played} matches in the data
+              {champion ? ` · the real champions in ${seasonLabel(game.settings.leagueSeason)} were ${clubName(u, champion)}` : ''}
+            </span>
+          </div>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th className="num">Yours</th>
+                <th>All-time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {([bench.points, bench.wins, bench.goalsFor, bench.goalsAgainst, bench.defeats] as RecordMetric[]).map((m) => {
+                const isRecord = bench.records.some((r) => r.key === m.key)
+                return (
+                  <tr key={m.key}>
+                    <td>{m.label}</td>
+                    <td className="num">{m.value}</td>
+                    <td style={{ whiteSpace: 'normal' }}>
+                      {isRecord ? (
+                        <span className="chip gold">📜 League record</span>
+                      ) : (
+                        <span>
+                          {m.rank === 1 ? 'Joint best' : `${ordinal(m.rank)} best`} <span className="muted small">of {m.of + 1}{m.equal > 0 && m.rank > 1 ? ` · level with ${m.equal}` : ''}</span>
+                        </span>
+                      )}
+                      {m.better.length > 0 && <div className="small muted">Ahead: {m.better.map((b) => `${clubName(u, b.clubId)} ${b.value} (${seasonLabel(b.season)})`).join(', ')}</div>}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {game.settings.difficulty !== 'realistic' && (
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Calibrated difficulty handicaps the AI clubs, so these are benchmarks rather than records. The Record Books achievement needs a points record on Realistic.
+            </div>
+          )}
+        </div>
+      )}
 
       {game.jobOffers.length > 0 && (
         <div className="panel" style={{ marginTop: 14, borderColor: 'var(--gold)' }}>
@@ -289,11 +346,14 @@ export function Summary() {
                     <th className="num">Pos</th>
                     <th className="num">Pts</th>
                     <th>Result</th>
+                    <th>Real champions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {game.history.map((h) => (
-                    <tr key={h.year}>
+                  {game.history.map((h) => {
+                    const real = realChampion(u, h.leagueId, h.leagueSeason)
+                    return (
+                      <tr key={h.year}>
                       <td>{h.year}</td>
                       <td>{seasonLabel(h.leagueSeason)}</td>
                       <td>
@@ -309,8 +369,19 @@ export function Summary() {
                         {h.cupWon ? ' + Cup' : ''}
                         {h.continentalWon ? ' + Europe' : ''}
                       </td>
+                      <td>
+                        {real ? (
+                          <span className="row" style={{ gap: 6 }}>
+                            <ClubBadge clubId={real} size={20} />
+                            {clubName(u, real)}
+                          </span>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -16,6 +16,7 @@ import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { SquadPlayer, Tactics } from '@engine/types'
+import { earnsPointsRecord } from './records'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
   game.season!.news.unshift({ matchweek: game.season!.matchweek, ...item })
@@ -759,6 +760,7 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1 && game.settings.rules.hardMode) unlock('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) unlock('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) unlock('one-nation-champions')
+  if (earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')
   if (game.unlocked.includes('survivor-pending') && !season.sacked) unlock('survivor')
   const titles = game.history.slice(-3).filter((h) => h.position === 1).length
   if (titles >= 3) unlock('dynasty-3')
