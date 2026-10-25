@@ -1,0 +1,124 @@
+# TouchLine handover
+
+For the people working on TouchLine: what it is, what works today, what is being built, where everything lives and how it is hosted. AI agents should start from [CLAUDE.md](../CLAUDE.md); the way we work together is in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## 1. What TouchLine is
+
+A free web football game that fuses the wheel draft of **38-0** with the depth of **Football Manager**. A wheel lands on a real club in a real season, you draft one player from that squad, repeat until your side is built, then either simulate the season instantly or manage it week by week. Your side takes one real club's place in a real league season and plays the other clubs' real squads.
+
+- Seven leagues: Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Eredivisie, Primeira Liga, seasons 2008-09 to 2026-27 (about 69,000 player-seasons).
+- Runs entirely in the browser, installable and playable offline. Saves live in the browser (`localStorage`). No account needed.
+- Deterministic: one seed always plays out the same way on every device, which is what makes the Daily, challenge links and (soon) online leaderboards fair.
+
+## 2. What it does today
+
+**Modes**
+- **Quick Draft** (the 38-0 mode): 11 spins, simulate 38 matches in one click, share the result.
+- **Daily Challenge**: the same wheel for everyone each day (UTC), with streaks.
+- **Season**: draft 16 to 22 players, then manage every matchweek: friendlies, live matches, a cup, a January window, a board that can sack you.
+- **Dynasty**: Season mode that never ends: ageing, contracts, retirements, youth intake, summer draft and summer window.
+- **Head-to-head**: two managers on one device draft from the same spins and play the same season.
+
+**Draft systems**: no dead spins, eight formations, era / one-club / one-nation filters, hard mode (hidden ratings), re-spins, wheel twists every third spin (Golden, Basement, Blind, Decade), European Nights (draft from all seven leagues), ghost-draft challenge links (`#c=...`) verified by replay.
+
+**Management systems**: 34 roles and six team instructions, an xG match engine with live stops at half time and the 70th minute (talks, subs, touchline shouts), condition / sharpness / morale / familiarity, injuries and suspensions, training focus, squad status and playing time, player conversations, captain and set-piece takers, backroom staff, man-marking, press conferences and dressing-room events, the assistant's briefing, a domestic cup and an optional Continental Cup, a transfer market with bids, loans and part-exchange, finances, board objectives, in-season development, awards, 19 achievements, record books against real seasons, a share card, save export / import.
+
+Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.md](DATA.md). Design research: [RESEARCH.md](RESEARCH.md).
+
+## 3. In progress (not shipped yet)
+
+Each item lives on its own branch until it is merged into the working branch and then `main`.
+
+| Work | Branch | State |
+| --- | --- | --- |
+| Case-opening reel instead of the wheel; game-by-game quick season | `reel-ui` | Built, waiting to merge |
+| Football Manager depth attributes (stamina, strength, aggression, jumping, work rate) through data, engine and UI | `fm-depth` | In progress; rebuilds the data packs |
+| Live match visuals: 2D pitch, momentum, shot map, xG race | `match-visuals` | In progress |
+| Redesign: blue palette, a proper TouchLine logo, cleaner Setup | `redesign` | In progress; previewed on `touchline-preview` |
+| 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
+| "While you were away" digest, coach marks, slot picker | working branch `claude/youthful-mccarthy-a57idu` | In progress |
+| Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
+| Casual modes | not started in code | Designed |
+
+## 4. Where things live
+
+| Path | What |
+| --- | --- |
+| `src/engine/` | The deterministic game engine: RNG, draft and wheel, ratings, match engine, season, cups, market, events. Pure TypeScript. |
+| `src/game/` | The save format (`types.ts`), the Zustand store (`store.ts`) and the game rules on top of the engine (`logic/`). |
+| `src/ui/` | React screens and components, one global stylesheet. |
+| `public/data/` | Generated league packs (committed). |
+| `scripts/import/` | The offline pipeline that builds the packs from public datasets. |
+| `public/sw.js`, `public/manifest.webmanifest`, `public/icons/` | Offline support and app install. |
+| `docs/` | Design, data and research docs, this file. |
+| `.github/workflows/ci.yml` | CI: typecheck, test, build on every push and PR. |
+
+## 5. Run it
+
+Needs Node 22.13 or later.
+
+```bash
+git clone https://github.com/Minhhh13/Touchline.git   # private: you need collaborator access
+cd Touchline
+npm ci
+npm run dev          # http://localhost:5173
+npm test             # all Vitest suites
+npm run typecheck
+npm run build        # production build into dist/
+npx vite preview --port 4173 --strictPort   # serve the build
+```
+
+Rebuilding the player data is rarely needed and downloads several GB the first time: `DATA_CACHE=/path/to/datasets node scripts/import/build.mjs` (see [DATA.md](DATA.md)).
+
+## 6. Hosting and backend
+
+### Render (hosting)
+
+Both sites are static sites in the Render project **TouchLine**. That Render workspace also holds an unrelated project; never change anything outside the TouchLine project.
+
+| Service | URL | Tracks | Use |
+| --- | --- | --- | --- |
+| `touchline` | https://touchline-o5ot.onrender.com | `claude/youthful-mccarthy-a57idu` (the working branch) | The live game |
+| `touchline-preview` | https://touchline-preview.onrender.com | `claude/touchline-preview` | Redesign and other previews |
+
+- Build command `npm ci && npm run build`, publish directory `dist`, no `BASE_PATH`.
+- Auto-deploy on every push to the tracked branch (Render's GitHub app is installed on the repo).
+- Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. These are the public publishable keys; Vite bakes them into the build, so changing them needs a redeploy.
+- To deploy from `main` instead, change the tracked branch in the Render dashboard once `main` is the integration branch.
+- Optional: rename the service to drop the `-o5ot` suffix, and add a custom domain.
+- The GitHub Pages workflow (`.github/workflows/pages.yml`) is obsolete and is being removed.
+
+### Supabase (backend for the online layer)
+
+- Organisation **Team TouchLine**, project **TouchLine**, id `yvqpmyqomkwtudxmkeou`, region Sydney (ap-southeast-2), Free plan.
+- Status: provisioned and healthy, **no schema yet**. Nothing in the code uses it yet.
+- Still to configure:
+  - Auth providers: email magic link, Google (optional; needs a Google OAuth client id and secret).
+  - Auth URL configuration: Site URL set to the Render URL (or the custom domain), plus redirect URLs for `http://localhost:5173` and the preview site.
+  - Schema via migrations in `supabase/migrations/` (profiles, cloud saves, daily scores, challenge codes, head-to-head rooms), with row-level security on every table.
+  - A keep-alive: free projects **pause after about a week without activity**.
+- Keys: the publishable (anon) key may go in the browser. The `service_role` key must never appear in the repo, in a `VITE_` variable or in browser code; it belongs only in Supabase secrets for Edge Functions.
+
+## 7. Known issues and limits
+
+- **Data licensing.** Ratings come from community Kaggle datasets derived from EA Sports FC ratings (FC 24 CC0, FC 25 Apache 2.0, FC 26 CC0, FC 27 an unofficial non-commercial snapshot), the European Soccer Database (ODbL), openfootball results (public domain) and Wikidata (CC0). The ratings themselves originate with EA. Treat TouchLine as a non-commercial fan project; going commercial would need a different ratings source. Full credits in [DATA.md](DATA.md).
+- **No real crests, kits, logos or photos.** Clubs are shown as colours plus a letter code. Keep it that way.
+- **Free Supabase projects pause** after about a week idle; the online layer needs a keep-alive or a paid plan.
+- No player data before 2008-09; Ligue 1, the Eredivisie and the Primeira Liga have no real tables (no record books there).
+- About 230 players have an unknown nationality.
+- Values and wages are our own model, not real figures.
+- The product name is TouchLine, but many screens, the manifest and the share card still say "Touchline" until the redesign lands.
+- Theme "Auto" always shows the dark theme.
+- Some docs are partly stale (README league list and Node version, DATA.md totals, the "no backend" line in GAME_DESIGN.md section 15).
+- Saves are per browser; clearing site data loses them unless exported from the Record page (cloud saves will fix this).
+
+## 8. Roadmap at a glance
+
+Tracked as GitHub issues labelled `roadmap`: https://github.com/Minhhh13/Touchline/issues?q=is%3Aissue+label%3Aroadmap
+
+1. Merge the finished branches (reel, FM depth, match visuals) and ship them.
+2. Redesign: blue palette, logo, cleaner Setup.
+3. Quick Draft as a faithful 38-0 replica (difficulty tiers, ratings toggle, squad-first / position-first, era presets, game-by-game playback).
+4. Online layer: accounts, cloud saves for every mode, a verified daily leaderboard, challenge codes, online head-to-head rooms.
+5. Casual modes.
+6. Later: seasons before 2008-09, a Continental Cup group stage and two-legged ties.
