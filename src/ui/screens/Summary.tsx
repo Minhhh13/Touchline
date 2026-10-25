@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
-import { TIER_LABEL, USER_TEAM, computeTable } from '@engine/season'
+import { TIER_LABEL, USER_TEAM, computeTable, tierBlurb, tierLabel } from '@engine/season'
 import { shareText } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
@@ -11,21 +11,25 @@ import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
+import { ManagerChip } from '../components/ManagerPick'
+import { managerLine } from '@game/logic/managers'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
 import { LeagueFlag, NationFlag } from '../components/Flag'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { APP_NAME } from '../brand'
-import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
+import { challengeFromGame, challengeLink, claimCupsLine, claimOf, verdictLine } from '@game/logic/challenge'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
-import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
+import { GameByGame, SeasonTally, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
+import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { CupRuns } from '../components/CupRuns'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -33,8 +37,18 @@ export function Summary() {
   const [link, setLink] = useState<string | null>(null)
   // The game whose highlights are open, by matchweek
   const [hlWeek, setHlWeek] = useState<number | null>(null)
+  // The post-season cups being revealed tie by tie (both can be at once): the banner keeps each trophy back until its run is shown
+  const [revealingCups, setRevealingCups] = useState<QuickCupComp[]>([])
+  const onCupReveal = useCallback((comp: QuickCupComp, on: boolean) => setRevealingCups((list) => (on ? (list.includes(comp) ? list : [...list, comp]) : list.filter((c) => c !== comp))), [])
+  // A challenge link made before a cup was played would leave the cup out: make it again on the next click
+  const cupClaim = `${game?.quickResult?.cup?.reached ?? ''}|${game?.quickResult?.continentalCup?.reached ?? ''}`
+  useEffect(() => setLink(null), [cupClaim])
   // Every game of a quick season, game by game; the replay is UI state only
-  const replay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
+  const seasonReplay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
+  // Play the season hides the record and shows the tally in the banner: bring the banner up so the tally and the
+  // newest game at the top of the list are seen together, wherever the list's Play button was pressed
+  const bannerRef = useRef<HTMLDivElement | null>(null)
+  const replay = { ...seasonReplay, start: () => { seasonReplay.start(); bannerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }) } }
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const q = game.quickResult
@@ -66,6 +80,9 @@ export function Summary() {
     const landed = (game.draft?.history ?? []).flatMap((h): Twist[] => (h.pickedId && h.twist ? [h.twist] : [])).map((t) => TWIST_INFO[t].icon)
     extraLines.push(landed.length ? `Twists ${landed.join(' ')}` : 'Twists 🎲')
   }
+  // The Quick Draft's manager, by name and style
+  const mgrLine = managerLine(game.manager)
+  if (mgrLine) extraLines.push(mgrLine)
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
@@ -77,6 +94,11 @@ export function Summary() {
   if (benchLine) extraLines.push(benchLine)
   const euroLine = europeLine(q?.europe)
   if (euroLine) extraLines.push(euroLine)
+  // The post-season cups, once played and revealed
+  const cupsShown = (comp: QuickCupComp) => !revealingCups.includes(comp)
+  for (const [line, comp] of [[cupLine(q?.cup, 'cup'), 'cup'], [cupLine(q?.continentalCup, 'continental'), 'continental']] as Array<[string | null, QuickCupComp]>) if (line && cupsShown(comp)) extraLines.push(line)
+  const quickCupWon = cupsShown('cup') && wonCup(q, 'cup')
+  const quickEuroWon = (cupsShown('continental') && q?.continentalCup?.reached === 'W') || q?.europe?.reached === 'W'
   // Head-to-head against the ghost this game was played against
   const challenge = game.settings.challenge
   const mine = claimOf(game)
@@ -86,8 +108,8 @@ export function Summary() {
     tier,
     row,
     position: record.position,
-    cupWon: season?.cupWon ?? false,
-    continentalWon: season?.continental?.won ?? q?.europe?.reached === 'W',
+    cupWon: season?.cupWon ?? quickCupWon,
+    continentalWon: season?.continental?.won ?? quickEuroWon,
     leagueSeason: game.settings.leagueSeason,
     hostClubName: clubName(u, game.settings.hostClubId),
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
@@ -172,7 +194,7 @@ export function Summary() {
 
   return (
     <div className="page">
-      <div className="tier-banner">
+      <div className="tier-banner" ref={bannerRef}>
         <div className="muted small">
           {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
           {tags.map((t) => ` · ${t}`).join('')}
@@ -183,13 +205,23 @@ export function Summary() {
           </div>
         ) : (
           <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-            {tierName(tier)}
+            {tierName(tier, record.position)}
           </div>
         )}
-        {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
-        {!replay.playing && season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
-        {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
+        {!replay.playing && (
+          <p className="tier-blurb" data-testid="tier-blurb">
+            {tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+          </p>
+        )}
+        {replay.playing && <SeasonTally results={results} upTo={replay.revealed} />}
+        {!replay.playing && (season?.cupWon || quickCupWon) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-cup">🏆 Cup winners</div>}
+        {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-continental">🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
+        {game.manager && (
+          <div style={{ marginTop: 6 }}>
+            <ManagerChip manager={game.manager} />
+          </div>
+        )}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)}</div>}
         {season?.objectives?.length ? <div className="chip" style={{ marginTop: 6 }}>Board objectives: {season.objectives.filter((o) => o.met).length} of {season.objectives.length} met</div> : null}
@@ -265,9 +297,15 @@ export function Summary() {
         </div>
       </div>
 
+      {q && !replay.playing && (
+        <div style={{ marginTop: 14 }}>
+          <CupRuns game={game} u={u} onReveal={onCupReveal} />
+        </div>
+      )}
+
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} onHighlights={
+          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} strip={false} orderToggle onHighlights={
               canShowHighlights(game)
                 ? (r) => {
                     // A running replay would keep revealing and scrolling the list under the reel: show it all first
@@ -320,14 +358,16 @@ export function Summary() {
           <ol className="gbg-list">
             {q.europe.ties.map((t) => (
               <li key={t.round} className={`gbg-game ${t.won ? 'W' : 'L'}`}>
-                <span className="gbg-mw">{t.round}</span>
+                <span className={`gbg-badge ${t.won ? 'W' : 'L'} round`}>{t.round}</span>
                 <ClubBadge clubId={t.opponentId} size={22} />
                 <span className="gbg-fix">{t.round === 'F' ? `v ${clubName(u, t.opponentId)} (final)` : t.home ? `v ${clubName(u, t.opponentId)} (H)` : `at ${clubName(u, t.opponentId)}`}</span>
                 <span className="gbg-score">
                   {t.gf}-{t.ga}
                 </span>
-                <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
-                <span className="gbg-pos small muted">{t.pens ? `${t.pens.for}-${t.pens.against}p` : ''}</span>
+                <span className="gbg-mw">
+                  <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
+                  {t.pens ? ` ${t.pens.for}-${t.pens.against}p` : ''}
+                </span>
               </li>
             ))}
           </ol>
@@ -363,6 +403,7 @@ export function Summary() {
                   {challenge.claim.pts} pts · {TIER_LABEL[challenge.claim.t]} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
                 </span>
               </div>
+              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
               {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{challenge.name}'s picks could not be resolved on this data.</div>}
             </div>
             <div className="col">
@@ -372,6 +413,7 @@ export function Summary() {
                   {mine.pts} pts · {TIER_LABEL[mine.t]} · {mine.w}-{mine.d}-{mine.l}
                 </span>
               </div>
+              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
             </div>
           </div>
@@ -582,7 +624,7 @@ export function Summary() {
                       <td className="num">{ordinal(h.position)}</td>
                       <td className="num">{h.points}</td>
                       <td>
-                        {TIER_LABEL[h.tier]}
+                        {tierLabel(h.tier, h.position)}
                         {h.cupWon ? ' + Cup' : ''}
                         {h.continentalWon ? ' + Europe' : ''}
                       </td>

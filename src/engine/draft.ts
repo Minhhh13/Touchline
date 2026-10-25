@@ -55,6 +55,12 @@ export interface DraftRules {
    * XI is full with bench places to spare. Bench spins after the XI draw from their own stream (`DraftState.benchRng`).
    */
   benchPicks?: number
+  /**
+   * Quick Draft managers: once the draft is done the user picks a manager from the real managers of the club-seasons
+   * drafted (`src/engine/managers.ts`), whose style gives a small edge. On in `QUICK_RULES`, off in the Daily; read as
+   * off when absent, so older saves and every other mode are unchanged.
+   */
+  managers?: boolean
 }
 
 export type DraftDifficulty = 'easy' | 'normal' | 'hard'
@@ -123,7 +129,7 @@ export const TWISTS: readonly Twist[] = ['golden', 'basement', 'blind', 'decade'
 /** A twist arrives on every spin whose number is a multiple of this. */
 export const TWIST_EVERY = 3
 
-export const QUICK_RULES: DraftRules = { squadSize: 11, respins: DIFFICULTY_RESPINS.normal, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true, twists: true, difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season' }
+export const QUICK_RULES: DraftRules = { squadSize: 11, respins: DIFFICULTY_RESPINS.normal, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true, twists: true, difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season', managers: true }
 export const SEASON_RULES: DraftRules = { squadSize: 18, respins: DIFFICULTY_RESPINS.easy, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: false, twists: false, difficulty: 'easy', showRatings: true, draftMode: 'squad', ratings: 'season' }
 
 export interface DraftState {

@@ -131,6 +131,9 @@ describe('audit fixes: season and squad', () => {
     expect(n.customPlayers).toEqual({})
     expect(n.settings.wheelLeagues).toEqual(['england'])
     expect(n.squad).toBe(g.squad)
+    // No Quick Draft manager on a save from before managers: optional, left absent, and no rule switches them on
+    expect(n.manager).toBeUndefined()
+    expect(n.settings.rules.managers).toBeUndefined()
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
   })

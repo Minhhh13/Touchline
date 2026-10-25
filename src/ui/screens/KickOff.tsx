@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { QUICK_CONTINENTAL_PLACES } from '@game/logic/quickCups'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
 import { getFormation } from '@engine/formations'
@@ -7,14 +9,22 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
+import { SquadComplete } from '../components/PreSeasonOdds'
 import { clubName, seasonLabel } from '../format'
+import { quickManagerOptions } from '@game/logic/managers'
+import { ManagerChip, ManagerPick } from '../components/ManagerPick'
+import { MANAGER_STYLE_HELP } from '@engine/managers'
 
 /**
- * The tactics step between a quick draft (or the Daily) and its season: the six team instructions, the captain and the
- * penalty taker for the drafted XI, then "Kick off the season", or "Skip" to play it with the defaults.
+ * The step between a quick draft (or the Daily) and its season, the way 38-0 shows a finished squad: the pre-season
+ * odds and the XI's unit ratings, a big "Simulate season" button, and the tactics (the six team instructions, the
+ * captain and the penalty taker) folded under it for a manager who wants to set them first. "Simulate with the
+ * defaults" plays it with the default tactics instead.
  */
 export function KickOff() {
-  const { universe: u, game, setTactics, setCaptain, kickOff } = useStore()
+  const { universe: u, game, setTactics, setCaptain, kickOff, pickManager } = useStore()
+  const [showTactics, setShowTactics] = useState(false)
+  const [showManagers, setShowManagers] = useState(false)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
@@ -28,12 +38,41 @@ export function KickOff() {
     <div className="page">
       <div className="setup-flow" data-testid="kickoff">
         <div>
-          <h1>Kick-off</h1>
+          <h1>Squad complete</h1>
           <p className="muted setup-sub">
-            {s.teamName} as {clubName(u, s.hostClubId)}, {seasonLabel(s.leagueSeason)}. Set how the XI plays, then watch the season game by game.
+            {s.teamName} as {clubName(u, s.hostClubId)}, {seasonLabel(s.leagueSeason)} · {formation.name}. Eleven in, and this is how the season shapes up.
           </p>
         </div>
-        <div className="grid two">
+        {game.manager && (
+          <div className="panel col" data-testid="kickoff-manager" style={{ gap: 8 }}>
+            <div className="row between wrap" style={{ gap: 8 }}>
+              <div className="col" style={{ gap: 4 }}>
+                <span className="sc-kicker">In the dugout</span>
+                <ManagerChip manager={game.manager} />
+                <span className="help">{MANAGER_STYLE_HELP[game.manager.style]}</span>
+              </div>
+              <button type="button" className="btn sm ghost" onClick={() => setShowManagers(!showManagers)} aria-expanded={showManagers} data-testid="kickoff-manager-change">
+                {showManagers ? 'Done' : 'Change manager'}
+              </button>
+            </div>
+            {showManagers && <ManagerPick options={quickManagerOptions(game)} picked={game.manager.id} onPick={pickManager} />}
+          </div>
+        )}
+        <SquadComplete game={game} u={u} hideRatings={hide}>
+          <button className="btn primary big sc-go" onClick={() => kickOff()} data-testid="kickoff-go">
+            Simulate season
+          </button>
+          <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
+            {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
+            {s.mode === 'quick' ? ` After the league you can play the Cup, and the Continental Cup with a top-${QUICK_CONTINENTAL_PLACES} finish.` : ''}
+          </p>
+        </SquadComplete>
+        <button type="button" className="fold-head" onClick={() => setShowTactics(!showTactics)} aria-expanded={showTactics} data-testid="kickoff-tactics-toggle">
+          <b>Tactics, captain and penalties</b>
+          <span className="small muted">{showTactics ? 'Hide ▴' : 'Set them first ▾'}</span>
+        </button>
+        {showTactics && (
+        <div className="grid two" data-testid="kickoff-tactics">
           <div className="panel col">
             <h3>Your XI · {formation.name}</h3>
             <div inert>
@@ -60,18 +99,17 @@ export function KickOff() {
             <TeamInstructions t={t} onChange={setTactics} />
           </div>
         </div>
-        <p className="help setup-line" data-testid="kickoff-line">
-          {s.january ? 'The season stops after the halfway matchweek for a January window, where the tactics can change too.' : 'No January window: the XI plays all the way through.'}
-          {s.continental ? ' A top-four finish earns a Continental Cup run.' : ''}
-        </p>
-        <div className="row wrap" style={{ gap: 10 }}>
-          <button className="btn primary big" onClick={() => kickOff()} data-testid="kickoff-go">
-            Kick off the season
-          </button>
-          <button className="btn ghost" onClick={() => kickOff(true)} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
-            Skip
-          </button>
-        </div>
+        )}
+        {showTactics && (
+          <div className="row wrap" style={{ gap: 10 }}>
+            <button className="btn primary" onClick={() => kickOff()} data-testid="kickoff-go-tactics">
+              Simulate season
+            </button>
+            <button className="btn ghost" onClick={() => kickOff(true)} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
+              Simulate with the default tactics
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

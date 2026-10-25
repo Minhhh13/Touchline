@@ -54,6 +54,8 @@ export interface SetupChoices {
   onlyNation?: string
   /** Quick Draft bench places (0 to 5); none when absent or 0. */
   benchPicks?: number
+  /** Quick Draft managers on or off; the base rules' value when absent. */
+  managers?: boolean
 }
 
 /**
@@ -80,6 +82,7 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     twists: c.twists,
     leagues: c.leagues,
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
+    ...(c.managers !== undefined ? { managers: c.managers } : {}),
   }
 }
 
@@ -100,6 +103,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
     r.twists ? 'Twists on' : 'No twists',
     ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
+    ...(r.managers ? ['Manager pick'] : []),
   ]
 }
 
@@ -167,10 +171,11 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
     if (!s.jobSecurity) parts.push('no sack')
     if (s.continental) parts.push('Continental Cup')
   } else {
-    // The quick season's options: the January window is on by default, the Continental Cup run off
+    // The quick season's options: the January window is on by default (the cups are offered after every league season)
     if (s.january === false) parts.push('no January window')
     if (benchPlaces(r)) parts.push(`bench of up to ${benchPlaces(r)}`)
-    if (s.continental) parts.push('Continental Cup run')
+    // A manager pick is on by default for a Quick Draft (off in the Daily, which this line never describes)
+    if (s.mode === 'quick' && !r.managers) parts.push('no manager')
   }
   return parts.join(', ')
 }

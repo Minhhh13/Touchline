@@ -25,12 +25,20 @@ import { FIT_ORDER, type Fit } from './positions'
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
 
+/** How far a post-season cup run went: the round it ended in, W for winners. */
+export type CupReach = 'R16' | 'QF' | 'SF' | 'F' | 'W'
+export const CUP_REACHES: readonly CupReach[] = ['R16', 'QF', 'SF', 'F', 'W']
+
 export interface ChallengeClaim {
   pts: number
   w: number
   d: number
   l: number
   t: SeasonTier
+  /** The post-season domestic cup, when the challenger played it. Older builds ignore it. */
+  cu?: CupReach
+  /** The post-season Continental Cup, when the challenger played it. */
+  eu?: CupReach
 }
 
 /**
@@ -58,13 +66,15 @@ export interface ChallengeTactics {
  * The quick season's own choices, carried only when something differs from a default season: `t` the tactics of the
  * first half (the whole season without a window), `t2` those of the second half when they were changed at the January
  * pause, `j` the January deal as `[incoming player-season id, slot id]`, `s` the bench changes of a Quick Draft with a
- * bench as `[first matchweek, slot id, incoming player-season id]`, in order.
+ * bench as `[first matchweek, slot id, incoming player-season id]`, in order, `m` the manager picked.
  */
 export interface ChallengeSeason {
   t?: ChallengeTactics
   t2?: ChallengeTactics
   j?: [playerSeasonId: string, slotId: string]
   s?: Array<[from: number, slotId: string, playerSeasonId: string]>
+  /** The manager picked for the season (a Wikidata id or an `arch-` archetype id), when the draft had one. */
+  m?: string
 }
 
 /** Most bench changes a link may carry: the three a quick season allows. */
@@ -133,14 +143,15 @@ export const LEGACY_QUICK_RESPINS = 2
 
 /**
  * The rules as a diff against `QUICK_RULES`, without `leagues` (which the payload carries as `wl`).
- * The difficulty is always written, even at the default, so a link made before difficulties existed
- * (no `difficulty` key) can be told apart and opened with the re-spins its challenger had.
+ * The difficulty and the manager rule are always written, even at the default, so a link made before
+ * either existed (no `difficulty` or `managers` key) can be told apart and opened as its challenger played.
  */
 export function rulesDiff(rules: DraftRules, base: DraftRules = QUICK_RULES): Partial<DraftRules> {
-  const out: Partial<DraftRules> = { difficulty: difficultyOf(rules) }
+  // The manager rule is always written too: a link made before managers existed (no `managers` key) replays without one
+  const out: Partial<DraftRules> = { difficulty: difficultyOf(rules), managers: rules.managers === true }
   const b = base as unknown as Record<string, unknown>
   for (const [key, value] of Object.entries(rules) as Array<[keyof DraftRules, unknown]>) {
-    if (key === 'leagues' || key === 'difficulty' || value === undefined) continue
+    if (key === 'leagues' || key === 'difficulty' || key === 'managers' || value === undefined) continue
     if (b[key] !== value) (out as Record<string, unknown>)[key] = value
   }
   return out
@@ -149,12 +160,14 @@ export function rulesDiff(rules: DraftRules, base: DraftRules = QUICK_RULES): Pa
 /**
  * The full rules from a payload: `QUICK_RULES`, the diff, and the wheel leagues. A diff without a
  * difficulty comes from a link made before difficulties: its draft had `LEGACY_QUICK_RESPINS`
- * re-spins unless it says otherwise, and its hard mode reads as hard.
+ * re-spins unless it says otherwise, and its hard mode reads as hard. A diff without `managers`
+ * comes from a link made before managers, and reads as managers off.
  */
 export function rulesFromPayload(c: ChallengePayload): DraftRules {
   const r = c.s.r
   const legacy: Partial<DraftRules> = r.difficulty === undefined ? { respins: LEGACY_QUICK_RESPINS, difficulty: r.hardMode ? 'hard' : 'normal', ...(r.hardMode ? { showRatings: false } : {}) } : {}
-  return { ...QUICK_RULES, ...legacy, ...r, leagues: c.s.wl }
+  // No `managers` key: the link predates managers, so its challenger played without one
+  return { ...QUICK_RULES, ...legacy, managers: false, ...r, leagues: c.s.wl }
 }
 
 /** A draft's history as payload rows: the real player id of each pick (or null) and its slot. */
@@ -211,6 +224,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   draftMode: (v) => DRAFT_MODES.includes(v as DraftMode),
   ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
   benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
+  managers: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
@@ -233,7 +247,8 @@ export function isChallengeTactics(t: unknown): t is ChallengeTactics {
 export function isChallengeSeason(x: unknown): x is ChallengeSeason {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return false
   const o = x as Record<string, unknown>
-  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's')) return false
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm')) return false
+  if (o.m !== undefined && !(isString(o.m) && /^(Q\d{1,12}|arch-[a-z-]{1,20})$/.test(o.m))) return false
   if (o.t !== undefined && !isChallengeTactics(o.t)) return false
   if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
   if (o.j !== undefined && !(Array.isArray(o.j) && o.j.length === 2 && o.j.every(isString))) return false
@@ -267,6 +282,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
   if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
+  if ((c.cu !== undefined && !CUP_REACHES.includes(c.cu as CupReach)) || (c.eu !== undefined && !CUP_REACHES.includes(c.eu as CupReach))) throw new Error('Not a Touchline challenge link')
   return {
     v: 1,
     data: o.data,
@@ -274,7 +290,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     name: cleanName(o.name),
     s: { seed: s.seed, f: s.f, l: s.l, wl: s.wl, h: s.h, ls: s.ls, d: s.d, r: s.r },
     p: o.p as ChallengePick[],
-    c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
+    c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier, ...(c.cu !== undefined ? { cu: c.cu as CupReach } : {}), ...(c.eu !== undefined ? { eu: c.eu as CupReach } : {}) },
     k: o.k,
     ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
   }
@@ -334,7 +350,12 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
   return out
 }
 
-/** The claim and a replayed result agree when every figure matches. */
+/** The cup runs a claim names agree with a replay's: every cup the claim names went as far. */
+export function sameCups(claim: ChallengeClaim, replay: ChallengeClaim): boolean {
+  return (claim.cu === undefined || claim.cu === replay.cu) && (claim.eu === undefined || claim.eu === replay.eu)
+}
+
+/** The claim and a replayed result agree when every league figure matches (the cups are checked by `sameCups`). */
 export function sameClaim(a: ChallengeClaim, b: ChallengeClaim): boolean {
   return a.pts === b.pts && a.w === b.w && a.d === b.d && a.l === b.l && a.t === b.t
 }

@@ -1,5 +1,6 @@
 import type { Fixture, MatchEvent } from '@engine/types'
 import { computeTable, positionOf } from '@engine/season'
+import { ordinal } from '@engine/universe'
 import type { QuickGameResult, QuickScorer } from '../types'
 
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
@@ -22,13 +23,17 @@ export function recordUserGames(fixtures: Fixture[], teamIds: string[], userId: 
   return mine.map((f) => {
     const res = f.result!
     const home = f.homeTeamId === userId
-    const side = home ? 'home' : 'away'
-    const scorers: QuickScorer[] = res.events
-      .filter((e) => GOAL_TYPES.has(e.type) && e.side === side)
-      .sort((a, b) => a.minute - b.minute)
-      .map((e) => (e.type === 'own_goal' ? { name: 'OG', minute: e.minute } : { name: (e.playerId && nameOf(e.playerId)) ?? e.playerName ?? 'Unknown', minute: e.minute, ...(e.playerId ? { playerSeasonId: e.playerId } : {}) }))
+    const scorers = sideScorers(res.events, home ? 'home' : 'away', nameOf)
     return { matchweek: f.matchweek, opponentId: home ? f.awayTeamId : f.homeTeamId, home, gf: home ? res.homeGoals : res.awayGoals, ga: home ? res.awayGoals : res.homeGoals, scorers, position: positions.get(f.matchweek) ?? 0 }
   })
+}
+
+/** One side's goalscorers in a match's events, ordered by minute; an opponent's own goal is credited as "OG". Pure. */
+export function sideScorers(events: MatchEvent[], side: 'home' | 'away', nameOf: (playerSeasonId: string) => string | undefined): QuickScorer[] {
+  return events
+    .filter((e) => GOAL_TYPES.has(e.type) && e.side === side)
+    .sort((a, b) => a.minute - b.minute)
+    .map((e) => (e.type === 'own_goal' ? { name: 'OG', minute: e.minute } : { name: (e.playerId && nameOf(e.playerId)) ?? e.playerName ?? 'Unknown', minute: e.minute, ...(e.playerId ? { playerSeasonId: e.playerId } : {}) }))
 }
 
 export type Outcome = 'W' | 'D' | 'L'
@@ -67,6 +72,31 @@ export function foldResults(results: QuickGameResult[], upTo = results.length): 
     t.position = r.position
   }
   return t
+}
+
+/** The order a game list is read in: the newest game at the top (the season as it happens) or matchweek 1 first. */
+export type GameOrder = 'newest' | 'oldest'
+
+/** The first `revealed` games, newest at the top or in matchweek order. Never changes the results themselves. */
+export function gamesInOrder(results: QuickGameResult[], revealed = results.length, order: GameOrder = 'oldest'): QuickGameResult[] {
+  const shown = results.slice(0, Math.max(0, Math.min(revealed, results.length)))
+  return order === 'newest' ? shown.reverse() : shown
+}
+
+/** Goal difference as it is printed: "+3", "-1" or "0". */
+export function goalDifferenceLabel(goalsFor: number, goalsAgainst: number): string {
+  const gd = goalsFor - goalsAgainst
+  return gd > 0 ? `+${gd}` : String(gd)
+}
+
+/**
+ * One frame of a number counting up from `from` to `to`: `t` runs from 0 to 1 and the value eases out, rounded to a
+ * whole number and never past `to`. The running tally uses it so a new result ticks the boxes up; display only.
+ */
+export function countUpValue(from: number, to: number, t: number): number {
+  const k = Math.max(0, Math.min(1, t))
+  const eased = 1 - (1 - k) ** 3
+  return Math.round(from + (to - from) * eased)
 }
 
 /** The biggest win of the season: widest margin, then most goals scored, then the earliest matchweek. Null without a win. */
@@ -165,4 +195,25 @@ export function europeLine(e: { reached: 'R16' | 'QF' | 'SF' | 'F' | 'W' } | und
 
 export function europeRoundLabel(r: 'R16' | 'QF' | 'SF' | 'F' | 'W'): string {
   return EURO_ROUND[r]
+}
+
+/** The points the season would end on at the rate so far: points per game times the games in the season, rounded. */
+export function pointsPace(t: Pick<RunningTotals, 'played' | 'points'>, totalGames: number): number {
+  return t.played > 0 ? Math.round((t.points / t.played) * totalGames) : 0
+}
+
+/**
+ * The one line of the January halfway panel: where the side is on course to finish (its place now) and the points
+ * pace, with what that place means at either end of the table. `teams` is the size of the league.
+ */
+export function paceLine(t: RunningTotals, totalGames: number, teams: number): string {
+  if (t.played === 0) return 'No games played yet.'
+  const n = pointsPace(t, totalGames)
+  // "an 88-point pace", "an 11-point pace", "a 58-point pace"
+  const pace = `${String(n).startsWith('8') || n === 11 || n === 18 ? 'an' : 'a'} ${n}`
+  const place = ordinal(t.position)
+  if (t.position === 1) return `Top at the turn and on course for the title, at ${pace}-point pace.`
+  if (t.position <= 4) return `On course for ${place}, inside the top four, at ${pace}-point pace.`
+  if (t.position > teams - 3) return `On course for ${place}, in the bottom three, at ${pace}-point pace: the drop if nothing changes.`
+  return `On course for ${place}, at ${pace}-point pace.`
 }

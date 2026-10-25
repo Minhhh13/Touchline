@@ -88,7 +88,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
 
   ctx.fillStyle = TIER_COLOUR[input.tier] ?? C.text
   ctx.font = font(72)
-  ctx.fillText(fit(ctx, tierName(input.tier), W - 120), W / 2, 228)
+  ctx.fillText(fit(ctx, tierName(input.tier, input.position), W - 120), W / 2, 228)
 
   // Record: wins, draws, defeats in the status colours
   const rec = [

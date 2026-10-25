@@ -58,8 +58,8 @@ describe('setupRules: the setup screen to DraftRules', () => {
     expect(r).toEqual({ ...QUICK_RULES, leagues: ['england'] })
     expect(r.fromSeason).toBeUndefined()
     expect(r.toSeason).toBeUndefined()
-    // The Daily's literal rules are the same wheel as an untouched quick setup
-    expect(r).toEqual({ ...DAILY_RULES, leagues: ['england'] })
+    // The Daily's literal rules are the same wheel as an untouched quick setup, without the manager pick
+    expect(r).toEqual({ ...DAILY_RULES, managers: true, leagues: ['england'] })
   })
 
   it('gives each difficulty card its re-spins and keeps hard mode in step', () => {
@@ -170,7 +170,7 @@ describe('describeRules: a fixed wheel in plain words', () => {
   })
 
   it('names every option that differs', () => {
-    expect(describeRules(u, setupRules(QUICK_RULES, choices({ difficulty: 'hard', draftMode: 'position', ratings: 'prime', eraFrom: 2016, eraTo: 2019, twists: false })))).toEqual(['Hard: no re-spins', 'Ratings hidden', 'Position First', 'Prime ratings', '2016-17 to 2019-20', 'No twists'])
+    expect(describeRules(u, setupRules(QUICK_RULES, choices({ difficulty: 'hard', draftMode: 'position', ratings: 'prime', eraFrom: 2016, eraTo: 2019, twists: false })))).toEqual(['Hard: no re-spins', 'Ratings hidden', 'Position First', 'Prime ratings', '2016-17 to 2019-20', 'No twists', 'Manager pick'])
     expect(describeRules(u, setupRules(QUICK_RULES, choices({ difficulty: 'easy', showRatings: false }))).slice(0, 2)).toEqual(['Easy: 3 re-spins', 'Ratings hidden'])
   })
 })

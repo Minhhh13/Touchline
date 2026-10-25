@@ -1,3 +1,4 @@
+import type { Manager } from '@engine/managers'
 import type { DraftState } from '@engine/draft'
 import type { FullMatchResult, MatchInProgress, TeamTalk } from '@engine/match'
 import type { Finances, Window } from '@engine/market'
@@ -40,7 +41,7 @@ export interface GameSettings {
   difficulty: 'calibrated' | 'realistic'
   /**
    * Season and Dynasty: enter the Continental Cup in the first season (later seasons qualify by finishing top four).
-   * Quick Draft: a top-four finish earns a short Continental Cup run after the league season.
+   * Quick Draft: no longer used (it once ran a Continental Cup inside the season); the cups are offered after the league instead.
    */
   continental?: boolean
   /** Quick Draft and the Daily: the season stops after the halfway matchweek for a January window. Absent (older saves) is off. */
@@ -204,6 +205,11 @@ export interface Game {
   quickOpen?: boolean
   /** The RNG state a quick season with a bench kicked off from, so a change replays the same season up to it. */
   quickStartRng?: RngState
+  /**
+   * The Quick Draft manager picked once the draft was done (`src/game/logic/managers.ts`), kept with his name and style
+   * as picked. Absent when the rules have no managers, and on older saves: the season then plays as it always has.
+   */
+  manager?: Manager
 }
 
 /**
@@ -320,8 +326,12 @@ export interface QuickResult {
   results?: QuickGameResult[]
   /** The January deal, when one was made: names kept so the summary reads without the window. */
   january?: { kind: JanuaryDealKind; inId: string; inName: string; outId: string; outName: string; fee: number; slotId: string }
-  /** The Continental Cup run a top-four finish earned, when the option was on and a field could be drawn. */
+  /** The Continental Cup run a top-four finish earned, when the option was on and a field could be drawn (saves before the post-season cups; new seasons leave it out). */
   europe?: QuickEuropeRun
+  /** The post-season domestic cup, once played; null when the manager skipped it. Absent while it is still on offer (and on older saves). */
+  cup?: QuickCupRun | null
+  /** The post-season Continental Cup a top-seven finish offers, once played; null when skipped. Absent while on offer or not earned. */
+  continentalCup?: QuickCupRun | null
   /** Quick bench: the voluntary changes the season was played with, with the starter each sent to the bench. */
   changes?: Array<QuickChange & { outId: string }>
   /** The RNG state the season kicked off from, so the highlights of any game can be played again. Absent on older saves. */
@@ -338,6 +348,36 @@ export interface QuickEuropeTie {
   /** Shoot-out score from the user's side, after a draw. */
   pens?: { for: number; against: number }
   won: boolean
+}
+
+/** A knockout round of the post-season cups: round of 16, quarter-final, semi-final, final. */
+export type QuickCupRound = 'R16' | 'QF' | 'SF' | 'F'
+/** How far a cup run went: the round it ended in, W for winners. */
+export type QuickCupReach = QuickCupRound | 'W'
+
+/** One tie of a post-season cup run, from the user's side. */
+export interface QuickCupTie {
+  round: QuickCupRound
+  opponentId: string
+  home: boolean
+  /** The final is played at a neutral ground. */
+  neutral?: boolean
+  /** Goals over the whole tie, extra time included. */
+  gf: number
+  ga: number
+  /** Goals in extra time alone, after a draw over ninety minutes. */
+  et?: { for: number; against: number }
+  /** Shoot-out score from the user's side, after a draw over 120 minutes. */
+  pens?: { for: number; against: number }
+  /** The user's goalscorers, ordered by minute (91 to 120 in extra time). */
+  scorers: QuickScorer[]
+  won: boolean
+}
+
+/** A post-season cup run: the user's ties in order, and how far it went. */
+export interface QuickCupRun {
+  ties: QuickCupTie[]
+  reached: QuickCupReach
 }
 
 export interface QuickEuropeRun {

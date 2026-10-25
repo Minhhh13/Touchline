@@ -3,7 +3,7 @@
  */
 import type { PlayerSeason, SquadPlayer, TableRow, SeasonTier, Position } from './types'
 import { FORMATION_BY_ID } from './formations'
-import { TIER_LABEL } from './season'
+import { tierLabel } from './season'
 
 export interface AwardWinner {
   playerSeasonId: string
@@ -105,7 +105,7 @@ export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): stri
   const lines = [
     `${appName} · ${s.mode}`,
     `${s.teamName} as ${s.hostClubName}, ${seasonLabel}`,
-    `${TIER_LABEL[s.tier]}${s.cupWon ? ' + CUP' : ''}${s.continentalWon ? ' + EUROPE' : ''}`,
+    `${tierLabel(s.tier, s.position)}${s.cupWon ? ' + CUP' : ''}${s.continentalWon ? ' + EUROPE' : ''}`,
     `${s.row.won}W ${s.row.drawn}D ${s.row.lost}L · ${s.row.points} pts · ${ordinal(s.position)}`,
     blocks,
   ]

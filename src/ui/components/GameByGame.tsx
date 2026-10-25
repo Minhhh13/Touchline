@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
-import { foldResults, nextReveal, outcomeOf, playbackDelay, scorersLabel, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, playbackDelay, scorersLabel, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
 
@@ -20,13 +20,18 @@ export interface SeasonReplay {
   skip: () => void
 }
 
+/** The viewer asked for reduced motion: lists appear without animation and the tally does not count up. */
+function useReducedMotion(): boolean {
+  return useMemo(() => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches, [])
+}
+
 /**
  * The season replay is UI state only: the list shows everything by default,
  * "Play the season" hides it and reveals one game every REPLAY_STEP_MS, and
  * "Skip" shows the rest at once. Reduced motion never animates.
  */
 export function useSeasonReplay(total: number): SeasonReplay {
-  const reduced = useMemo(() => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches, [])
+  const reduced = useReducedMotion()
   const [revealed, setRevealed] = useState(total)
   const [playing, setPlaying] = useState(false)
   const [used, setUsed] = useState(false)
@@ -107,39 +112,6 @@ export function useSeasonPlayback(total: number, from: number, stopAt = total): 
   }
 }
 
-/** One game of the season, large: the latest result of the playback. */
-export function GameCard({ r, opponent, onHighlights }: { r: QuickGameResult; opponent: Opponent; onHighlights?: (r: QuickGameResult) => void }) {
-  const o = outcomeOf(r)
-  const scorers = scorersLabel(r.scorers)
-  const chip: Record<ReturnType<typeof outcomeOf>, string> = { W: 'chip good', D: 'chip warn', L: 'chip bad' }
-  return (
-    <div className={`gbg-card ${o}`} data-testid="playback-latest" data-outcome={o} key={r.matchweek}>
-      <div className="row between wrap">
-        <span className="small muted">
-          Matchweek {r.matchweek} · {r.home ? 'Home' : 'Away'}
-        </span>
-        <span className={chip[o]}>{o === 'W' ? 'Win' : o === 'D' ? 'Draw' : 'Defeat'}</span>
-      </div>
-      <div className="gbg-card-main">
-        <ClubBadge clubId={opponent.clubId} size={36} />
-        <span className="gbg-card-opp">{r.home ? `v ${opponent.name}` : `at ${opponent.name}`}</span>
-        <span className="gbg-card-score">
-          {r.gf}-{r.ga}
-        </span>
-      </div>
-      <div className="row between wrap small">
-        <span className="muted">{scorers || 'No goals for you'}</span>
-        <span>{ordinal(r.position)} in the table</span>
-      </div>
-      {onHighlights && (
-        <button className="btn sm" onClick={() => onHighlights(r)} data-testid="card-highlights">
-          ▶ Highlights
-        </button>
-      )}
-    </div>
-  )
-}
-
 export interface Opponent {
   /** The club whose badge and colours stand for the opponent. */
   clubId: string
@@ -170,6 +142,9 @@ export function RunningStrip({ results, upTo }: { results: QuickGameResult[]; up
         <b>GA</b> {t.goalsAgainst}
       </span>
       <span>
+        <b>GD</b> {goalDifferenceLabel(t.goalsFor, t.goalsAgainst)}
+      </span>
+      <span>
         <b>Pts</b> {t.points}
       </span>
       <span className="pos">{t.played ? ordinal(t.position) : '—'}</span>
@@ -177,23 +152,122 @@ export function RunningStrip({ results, upTo }: { results: QuickGameResult[]; up
   )
 }
 
-export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void }) {
+/** A number that counts up to `value` over about a third of a second whenever it changes; reduced motion shows it at once. */
+function CountUp({ value }: { value: number }) {
+  const reduced = useReducedMotion()
+  const [shown, setShown] = useState(value)
+  const from = useRef(value)
+  useEffect(() => {
+    if (reduced || typeof requestAnimationFrame !== 'function') {
+      from.current = value
+      setShown(value)
+      return
+    }
+    const start = from.current
+    const t0 = performance.now()
+    let raf = 0
+    const tick = (now: number) => {
+      const t = (now - t0) / 350
+      const v = countUpValue(start, value, t)
+      from.current = v
+      setShown(v)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value, reduced])
+  return <>{shown}</>
+}
+
+/**
+ * The running tally of a season as it plays: Won, Drawn, Lost and Points in boxes that count up as each result lands,
+ * then goals for, against and the difference, and the league position after the last game shown.
+ */
+export function SeasonTally({ results, upTo }: { results: QuickGameResult[]; upTo: number }) {
+  const t = foldResults(results, upTo)
+  const boxes: Array<{ key: string; label: string; value: number }> = [
+    { key: 'w', label: 'Won', value: t.won },
+    { key: 'd', label: 'Drawn', value: t.drawn },
+    { key: 'l', label: 'Lost', value: t.lost },
+    { key: 'pts', label: 'Points', value: t.points },
+  ]
+  return (
+    <div className="tally" data-testid="season-tally" aria-live="polite">
+      <div className="tally-boxes">
+        {boxes.map((b) => (
+          <div key={b.key} className={`tally-box ${b.key}`} data-testid={`tally-${b.key}`}>
+            <span className="tally-num">
+              <CountUp value={b.value} />
+            </span>
+            <span className="tally-label">{b.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="tally-goals small" data-testid="tally-goals">
+        <span>GF {t.goalsFor}</span>
+        <span>GA {t.goalsAgainst}</span>
+        <span>GD {goalDifferenceLabel(t.goalsFor, t.goalsAgainst)}</span>
+        {t.played > 0 && <span className="tally-pos">{ordinal(t.position)} in the table</span>}
+      </div>
+    </div>
+  )
+}
+
+const ORDER_KEY = 'touchline-gbg-order'
+
+/** The order the reader last chose for the season list after the game, a per-viewer convenience. */
+function readOrder(fallback: GameOrder): GameOrder {
+  try {
+    const v = localStorage.getItem(ORDER_KEY)
+    return v === 'newest' || v === 'oldest' ? v : fallback
+  } catch {
+    return fallback
+  }
+}
+
+export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights, order: fixedOrder, orderToggle = false, total = results.length }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void; /** Newest game at the top, or matchweek 1 first (the default). */ order?: GameOrder; /** Offer a Newest / Oldest switch, remembered per viewer; starts newest first. */ orderToggle?: boolean; /** Games in the whole season, when `results` holds only part of it (the playback before January). */ total?: number }) {
   const revealed = replay ? replay.revealed : results.length
   const playing = replay?.playing ?? false
-  const lastRef = useRef<HTMLLIElement | null>(null)
+  const [chosen, setChosen] = useState<GameOrder>(() => (orderToggle ? readOrder('newest') : 'oldest'))
+  const order: GameOrder = orderToggle ? chosen : fixedOrder ?? 'oldest'
+  const choose = (o: GameOrder) => {
+    setChosen(o)
+    try {
+      localStorage.setItem(ORDER_KEY, o)
+    } catch {
+      // Storage blocked: the choice lasts for this screen only
+    }
+  }
+  const newestRef = useRef<HTMLLIElement | null>(null)
   const listRef = useRef<HTMLOListElement | null>(null)
   useEffect(() => {
-    // A compact list scrolls inside itself, so the page never jumps under the reader; a full list brings the new game into view
-    if (compact) {
+    // Newest first, the new game lands at the top: a compact list scrolls back up to it, a full list never moves.
+    // Oldest first, a compact list scrolls inside itself to the bottom and a full list brings the new game into view.
+    if (order === 'newest') {
+      if (compact && listRef.current) listRef.current.scrollTop = 0
+    } else if (compact) {
       if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
-    } else if (playing && lastRef.current) lastRef.current.scrollIntoView({ block: 'nearest' })
-  }, [playing, revealed, compact])
-  const outcomeChip: Record<ReturnType<typeof outcomeOf>, string> = { W: 'chip good', D: 'chip warn', L: 'chip bad' }
+    } else if (playing && newestRef.current) newestRef.current.scrollIntoView({ block: 'nearest' })
+  }, [playing, revealed, compact, order])
+  const shown = gamesInOrder(results, revealed, order)
+  const newestWeek = revealed ? results[revealed - 1].matchweek : null
   return (
-    <div className={`panel gbg ${compact ? 'compact' : ''} ${onHighlights ? 'with-hl' : ''}`} data-testid="game-by-game">
+    <div className={`panel gbg ${compact ? 'compact' : ''} ${onHighlights ? 'with-hl' : ''}`} data-testid="game-by-game" data-order={order}>
       <div className="panel-head">
         <h3>{title}</h3>
-        <span className="small muted">{revealed < results.length ? `${revealed} of ${results.length}` : `${results.length} games`}</span>
+        <span className="row" style={{ gap: 8 }}>
+          {orderToggle && (
+            <span className="segmented seg-mini" role="group" aria-label="Order of the games">
+              <button className={order === 'newest' ? 'active' : ''} aria-pressed={order === 'newest'} onClick={() => choose('newest')} data-testid="order-newest">
+                Newest
+              </button>
+              <button className={order === 'oldest' ? 'active' : ''} aria-pressed={order === 'oldest'} onClick={() => choose('oldest')} data-testid="order-oldest">
+                Oldest
+              </button>
+            </span>
+          )}
+          <span className="small muted">{revealed < total ? `${revealed} of ${total}` : `${total} games`}</span>
+        </span>
       </div>
       {replay?.canReplay && (
         <div className="row between wrap" style={{ marginBottom: 8 }}>
@@ -211,28 +285,32 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
       )}
       {strip && <RunningStrip results={results} upTo={revealed} />}
       <ol className="gbg-list" aria-label={title} ref={listRef}>
-        {results.slice(0, revealed).map((r, i) => {
+        {shown.map((r) => {
           const opp = opponent(r.opponentId)
           const o = outcomeOf(r)
           const scorers = scorersLabel(r.scorers)
+          const isNewest = r.matchweek === newestWeek
           return (
-            <li key={r.matchweek} className={`gbg-game ${o}`} data-testid="gbg-game" data-outcome={o} ref={i === revealed - 1 ? lastRef : undefined}>
-              <span className="gbg-mw">MW {r.matchweek}</span>
+            <li key={r.matchweek} className={`gbg-game ${o} ${isNewest && order === 'newest' ? 'newest' : ''}`} data-testid="gbg-game" data-outcome={o} data-matchweek={r.matchweek} ref={isNewest ? newestRef : undefined}>
+              <span className={`gbg-badge ${o}`} aria-label={o === 'W' ? 'Won' : o === 'D' ? 'Drawn' : 'Lost'}>
+                {o}
+              </span>
               <ClubBadge clubId={opp.clubId} size={22} />
-              <span className="gbg-fix">{r.home ? `v ${opp.name} (H)` : `at ${opp.name}`}</span>
+              <span className="gbg-fix">
+                {opp.name} <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
+              </span>
               <span className="gbg-score">
                 {r.gf}-{r.ga}
               </span>
-              <span className={outcomeChip[o]}>{o}</span>
-              <span className="gbg-pos" title="League position after this matchweek">
-                {ordinal(r.position)}
+              <span className="gbg-mw" title="Matchweek, and the league position after it">
+                MW {r.matchweek} · {ordinal(r.position)}
               </span>
               {onHighlights && (
                 <button className="btn sm ghost gbg-hl" onClick={() => onHighlights(r)} title="Highlights" aria-label={`Highlights of matchweek ${r.matchweek}`} data-testid="gbg-highlights">
                   ▶
                 </button>
               )}
-              {scorers && <span className="gbg-scorers small muted">{scorers}</span>}
+              {scorers && <span className="gbg-scorers small">⚽ {scorers}</span>}
             </li>
           )
         })}
