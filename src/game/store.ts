@@ -14,7 +14,7 @@ import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { isQuickLike } from './logic/modes'
 import { advanceStreak, streakDay } from './logic/streaks'
-import { creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, trophiesOf } from './logic/cabinet'
+import { alreadyCredited, creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
@@ -537,7 +537,7 @@ export const useStore = create<Store>()(
           const rec = finishedRecord(game)
           if (!rec) return
           const entry: LeaderboardEntry = {
-            id: `${game.id}-${game.year}`,
+            id: resultId(game),
             date: new Date().toISOString().slice(0, 10),
             mode: game.settings.mode,
             teamName: game.settings.teamName,
@@ -557,7 +557,8 @@ export const useStore = create<Store>()(
           }
           const moment = storyForGame(game, universe)?.moment
           if (moment) entry.moment = moment
-          if (profile.leaderboard.some((e) => e.id === entry.id)) return
+          // Once per result: the leaderboard holds the best 50, the cabinet remembers the last few credited beyond them
+          if (alreadyCredited(profile, entry.id)) return
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)
           let { dailyStreak, lastDailyDate } = profile
           const dailyResults = { ...profile.dailyResults }
@@ -612,8 +613,7 @@ export const useStore = create<Store>()(
         h2hFinish: () => {
           const { h2h, universe, profile } = get()
           if (!h2h || !universe || !h2hComplete(h2h.draft)) return
-          // A hot-seat season leaves one mark in the cabinet, the first time it is played
-          if (!h2h.result) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
+          const first = !h2h.result
           set({
             h2h: produce(h2h, (h) => {
               const rng = Rng.fromState(h.rngState)
@@ -621,6 +621,8 @@ export const useStore = create<Store>()(
               h.rngState = rng.getState()
             }),
           })
+          // A hot-seat season leaves one mark in the cabinet, the first time it is played
+          if (first) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
@@ -642,7 +644,7 @@ export const useStore = create<Store>()(
         }
         const game = normaliseGame(p.game)
         // A profile from before the Trophy Room gets its cabinet rebuilt once, from the trophies and the leaderboard
-        const profile = p.profile ? { ...p.profile, cabinet: p.profile.cabinet ? normaliseCabinet(p.profile.cabinet) : rebuildCabinet(p.profile) } : current.profile
+        const profile = p.profile ? { ...p.profile, cabinet: p.profile.cabinet ? reconcileTrophies(normaliseCabinet(p.profile.cabinet), p.profile.trophies) : rebuildCabinet(p.profile) } : current.profile
         return { ...current, ...p, game, parked, profile, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },

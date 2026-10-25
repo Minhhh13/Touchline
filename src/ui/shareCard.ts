@@ -434,6 +434,8 @@ export function renderManagerCard(input: ManagerCardInput): string {
     roundRect(ctx, x + 10, y, cellW - 20, 150, 16)
     ctx.fill()
     ctx.globalAlpha = n ? 1 : 0.45
+    // An emoji takes the fill's alpha too, so not the cell's 5% white
+    ctx.fillStyle = '#eef5f0'
     ctx.font = font(40, 400, body)
     ctx.fillText(icon, x + cellW / 2, y + 50)
     ctx.fillStyle = n ? '#f5c542' : '#eef5f0'

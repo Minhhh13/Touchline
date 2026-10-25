@@ -234,6 +234,33 @@ describe('the store', () => {
     useStore.setState({ game: null, universe: null, loadedLeagues: [], profile: before })
   }, 30_000)
 
+  it('recordResult credits once even when the result misses a full top 50', () => {
+    useStore.setState({ universe: u, loadedLeagues: ['england'], game: null, parked: {} })
+    const before = useStore.getState().profile
+    const full = Array.from({ length: 50 }, (_, i) => entry({ id: `full-${i}`, points: 120, won: 38, drawn: 0, lost: 0, position: 1, tier: 'PERFECT' }))
+    useStore.setState({ profile: { ...before, leaderboard: full, cabinet: emptyCabinet(), seasonsSimulated: 50 } })
+    const g = quickGame('cab-store-full')
+    g.quickResult = { ...g.quickResult!, points: 30, won: 6, drawn: 12, lost: 20, position: 20, tier: 'RELEGATED' }
+    useStore.setState({ game: g })
+    useStore.getState().recordResult()
+    useStore.getState().recordResult()
+    const p = useStore.getState().profile
+    expect(p.leaderboard.map((e) => e.id)).toEqual(full.map((e) => e.id))
+    expect(p.cabinet!.byMode).toEqual({ quick: 1 })
+    expect(p.seasonsSimulated).toBe(51)
+    useStore.setState({ game: null, universe: null, loadedLeagues: [], profile: before })
+  }, 30_000)
+
+  it('an older build that advanced profile.trophies past the cabinet is caught up on load', () => {
+    const merge = useStore.persist.getOptions().merge!
+    const current = useStore.getState()
+    const cabinet = { ...emptyCabinet(), league: 3, cup: 1, perfect: 2 }
+    const profile = { ...current.profile, cabinet, trophies: { league: 4, cup: 1, continental: 1, doubles: 1, trebles: 0 } }
+    const merged = merge({ profile }, current) as typeof current
+    expect(trophiesOf(merged.profile.cabinet!)).toEqual({ league: 4, cup: 1, continental: 1, doubles: 1, trebles: 0 })
+    expect(merged.profile.cabinet!.perfect).toBe(2)
+  })
+
   it('a profile without a cabinet gets one built through the persist merge; one with a cabinet keeps it', () => {
     const merge = useStore.persist.getOptions().merge!
     const current = useStore.getState()

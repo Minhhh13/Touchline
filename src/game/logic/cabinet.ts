@@ -39,6 +39,7 @@ export function normaliseCabinet(c: Partial<Cabinet>): Cabinet {
     ...c,
     v: 1,
     hostsTitled: Array.isArray(c.hostsTitled) ? c.hostsTitled : [],
+    ...(Array.isArray(c.recent) ? { recent: c.recent } : {}),
     nationsTitled: Array.isArray(c.nationsTitled) ? c.nationsTitled : [],
     byMode: { ...(c.byMode ?? {}) },
     gauntlet: { ...e.gauntlet, ...(c.gauntlet ?? {}) },
@@ -79,6 +80,19 @@ export function finishedRecord(game: Game): { points: number; won: number; drawn
   return last ? { points: last.points, won: last.won, drawn: last.drawn, lost: last.lost, position: last.position, tier: last.tier } : null
 }
 
+/** The id a finished game's result is filed under, on the leaderboard and in `Cabinet.recent`. */
+export function resultId(game: Pick<Game, 'id' | 'year'>): string {
+  return `${game.id}-${game.year}`
+}
+
+/** How many credited result ids the cabinet remembers beyond the leaderboard. */
+export const RECENT_RESULTS = 20
+
+/** True when this result is already on the leaderboard or was credited recently (it may have missed a full top 50). */
+export function alreadyCredited(profile: Pick<Profile, 'leaderboard' | 'cabinet'>, id: string): boolean {
+  return profile.leaderboard.some((e) => e.id === id) || !!profile.cabinet?.recent?.includes(id)
+}
+
 function addOnce(list: string[], id: string | undefined): string[] {
   return id && !list.includes(id) ? [...list, id] : list
 }
@@ -93,6 +107,7 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
   const mode = game.settings.mode
   const last = game.history.at(-1)
   const c = normaliseCabinet(cabinet)
+  c.recent = [...(c.recent ?? []).filter((id) => id !== resultId(game)), resultId(game)].slice(-RECENT_RESULTS)
   c.byMode[mode] = (c.byMode[mode] ?? 0) + 1
   if (opts.newDaily) c.dailies += 1
   if (!countsAsLeagueSeason(mode)) return c
@@ -151,6 +166,16 @@ export function rebuildCabinet(profile: Pick<Profile, 'trophies' | 'leaderboard'
   c.dailies = Object.keys(profile.dailyResults ?? {}).length
   if (board.length) c.rebuilt = true
   return c
+}
+
+/**
+ * A cabinet caught up with `profile.trophies`: a build from before the Trophy
+ * Room keeps the cabinet it finds but only advances `trophies`, so on load
+ * each of the five counts takes the larger of the two.
+ */
+export function reconcileTrophies(c: Cabinet, t: Profile['trophies']): Cabinet {
+  if (!t) return c
+  return { ...c, league: Math.max(c.league, t.league ?? 0), cup: Math.max(c.cup, t.cup ?? 0), continental: Math.max(c.continental, t.continental ?? 0), doubles: Math.max(c.doubles, t.doubles ?? 0), trebles: Math.max(c.trebles, t.trebles ?? 0) }
 }
 
 /** The five counts `profile.trophies` keeps for older builds. */

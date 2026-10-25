@@ -325,4 +325,6 @@ export interface Cabinet {
   runIns: { played: number; met: number }
   /** Set when the counts beyond `trophies` were rebuilt from the 50-entry leaderboard of an older save. */
   rebuilt?: boolean
+  /** Ids of the last results credited (`resultId`), newest last, so a result that missed a full top 50 is not credited again. */
+  recent?: string[]
 }
