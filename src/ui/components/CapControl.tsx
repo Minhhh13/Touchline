@@ -4,7 +4,7 @@ import { CAP_CUSTOM_RANGE, CAP_CUSTOM_STEP, CAP_PRESETS, capBudget, capTotal, ca
 import { Segmented } from './bits'
 
 /** The salary cap setting (Setup and the arena setup): Off, the three presets or a custom cap, scaled to the squad drafted. */
-export function CapControl({ value, onChange, squadSize }: { value: CapChoice; onChange: (c: CapChoice) => void; squadSize: number }) {
+export function CapControl({ value, onChange, squadSize, note }: { value: CapChoice; onChange: (c: CapChoice) => void; squadSize: number; note?: string }) {
   const budget = capBudget(value, squadSize)
   const xi = capXI(value)
   return (
@@ -12,12 +12,13 @@ export function CapControl({ value, onChange, squadSize }: { value: CapChoice; o
       Salary cap
       <Segmented<CapPreset> value={value.preset} onChange={(preset) => onChange({ ...value, preset })} options={CAP_PRESETS.map((p) => ({ value: p.value, label: p.label, hint: p.hint }))} />
       {value.preset === 'custom' && (
-        <input type="range" min={CAP_CUSTOM_RANGE[0]} max={CAP_CUSTOM_RANGE[1]} step={CAP_CUSTOM_STEP} value={value.custom} onChange={(e) => onChange({ ...value, custom: Number(e.target.value) })} aria-label="Custom cap for an XI" data-testid="cap-custom" />
+        <input type="range" min={CAP_CUSTOM_RANGE[0]} max={CAP_CUSTOM_RANGE[1]} step={CAP_CUSTOM_STEP} value={value.custom} onChange={(e) => onChange({ ...value, custom: Number(e.target.value) })} aria-label="Custom cap for an XI" data-testid="cap-custom" style={{ display: 'block', width: '100%' }} />
       )}
       <span className="help" data-testid="cap-help">
         {budget === undefined
           ? 'Off: draft anyone the wheel lands on. With a cap every player carries a price by rating and position (never age), and the draft may not spend more.'
           : `${capTotal(budget)} for ${squadSize} picks${squadSize > 11 ? ` (${capTotal(xi ?? 0)} for an XI, plus 8% a pick beyond eleven)` : ''}. Every player carries a price by rating and position, never age; ${capMoney(BUDGET_FLOOR)} is kept for each pick still to make, so the wheel never runs dry.`}
+        {note ? ` ${note}` : ''}
       </span>
     </div>
   )

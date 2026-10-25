@@ -14,7 +14,7 @@
  * draft the way the store does, one `spin` per history row.
  */
 import type { DraftRules, DraftState } from './draft'
-import { QUICK_RULES, canSpin, isComplete, picksMade, pick, spin } from './draft'
+import { QUICK_RULES, canSpin, capFits, isComplete, picksMade, pick, spin } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
 import type { SeasonTier } from './types'
@@ -201,10 +201,10 @@ export function isArenaLink(arena: unknown): arena is ChallengeArena {
 /** Top-level keys a v2 link may carry; anything else is from a newer build. */
 const V2_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 'c', 'k']
 
-/** Whether an object is a rules diff made only of known rules holding sensible values. */
+/** Whether an object is a rules diff made only of known rules holding sensible values (a salary cap never beside one club or one nation, `capFits`). */
 export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return false
-  return Object.entries(r).every(([key, value]) => Object.prototype.hasOwnProperty.call(RULE_CHECKS, key) && RULE_CHECKS[key as keyof DraftRules](value))
+  return Object.entries(r).every(([key, value]) => Object.prototype.hasOwnProperty.call(RULE_CHECKS, key) && RULE_CHECKS[key as keyof DraftRules](value)) && capFits(r as Partial<DraftRules>)
 }
 
 /** The reason a link from a later build gives. */

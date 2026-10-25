@@ -178,6 +178,15 @@ export function capRoom(d: DraftState): number {
   return round1(budget - capSpent(d) - BUDGET_FLOOR * after)
 }
 
+/**
+ * Whether the salary cap can share a draft with its other rules. One club or one nation narrows the pool until a
+ * position may have nobody at `BUDGET_FLOOR` (no Brazilian keeper in England is that cheap), so the floor could not
+ * keep the wheel alive and a frugal-last draft would strand short of an XI: the cap goes with neither.
+ */
+export function capFits(r: Pick<DraftRules, 'budget' | 'onlyClub' | 'onlyNation'>): boolean {
+  return r.budget === undefined || (!r.onlyClub && !r.onlyNation)
+}
+
 /** The one affordability rule every usability check shares: always true without a cap. */
 export function affordable(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions'>, price?: number): boolean {
   // Without a cap nothing is priced, so a cap-less draft costs no more than it did

@@ -288,6 +288,10 @@ describe('challenge payload v2 gate', () => {
     // The salary cap is a v2 rule now: a v2 link may carry one in range, never one outside it or of the wrong type
     expect(decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 500 } } })).s.r).toEqual({ budget: 500 })
     for (const budget of [5000, 49, '180', null]) expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget } } })), String(budget)).toThrow('Not a Touchline challenge link')
+    // Nor beside one club or one nation, which this build never drafts under a cap (`capFits`)
+    expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 180, onlyNation: 'BRA' } } }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 180, onlyClub: 'burnley' } } }))).toThrow('Not a Touchline challenge link')
+    expect(isRulesDiff({ onlyNation: 'BRA' })).toBe(true)
   })
 
   it('picks the payload version from the rule keys and the kind', () => {

@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
-import { autoDraft, capForSquad, isComplete, QUICK_RULES, SEASON_RULES } from '@engine/draft'
+import { autoDraft, canSpin, canUse, capFits, capForSquad, capPrice, eligibleSlots, fillingXI, isComplete, newDraft, pick, QUICK_RULES, SEASON_RULES, spin } from '@engine/draft'
+import { getFormation } from '@engine/formations'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { beginSeason, createGame, summariseSetup } from '../logic/setup'
 import { runQuickSeason } from '../logic/quick'
 import { startSeasonProper, playMatchweek } from '../logic/week'
 import { advanceToNextSeason } from '../logic/dynasty'
-import { capBudget, capTotal, capFooter, capLine, capOfGame, capXI, earnsMoneyball, CAP_PRESETS } from '../logic/cap'
+import { capBudget, capTotal, capFooter, capLine, capOfGame, capXI, DEFAULT_CAP_CHOICE, earnsMoneyball, withCap, CAP_PRESETS, type CapChoice } from '../logic/cap'
 import { shareCardFooter } from '../logic/modes'
 import { filterBoard } from '../logic/cabinet'
 import { normaliseGame } from '../logic/save'
@@ -68,6 +69,31 @@ describe('the salary cap: presets and lines', () => {
     expect(capXI({ preset: 'custom', custom: 144 })).toBe(140)
     expect([capTotal(0), capTotal(50), capTotal(52.5), capTotal(178.4), capTotal(281)]).toEqual(['£0M', '£50M', '£52.5M', '£178M', '£281M'])
   })
+
+  it('never pairs the cap with one club or one nation, whose thin pools strand a frugal-last draft short of an XI', () => {
+    const base = { ...QUICK_RULES, leagues: ['england'] }
+    const moneyball: CapChoice = { preset: 'moneyball', custom: 180 }
+    expect(withCap(base, moneyball).budget).toBe(180)
+    expect(withCap({ ...base, squadSize: 18 }, moneyball).budget).toBe(281)
+    expect(withCap(base, DEFAULT_CAP_CHOICE).budget).toBeUndefined()
+    expect(withCap({ ...base, onlyNation: 'BRA' }, moneyball).budget).toBeUndefined()
+    expect(withCap({ ...base, onlyClub: 'burnley' }, moneyball).budget).toBeUndefined()
+    expect([capFits({ budget: 180 }), capFits({ onlyNation: 'BRA' }), capFits({ budget: 180, onlyNation: 'BRA' }), capFits({ budget: 180, onlyClub: 'burnley' })]).toEqual([true, true, false, false])
+    // Why: Brazilians in England on £120M, the dearest affordable man on every spin. The £0.5M floor keeps money
+    // back for every pick, but the nation has nobody that cheap in some positions, so the wheel runs dry mid-XI
+    let stranded = 0
+    for (let i = 0; i < 20; i++) {
+      const d = newDraft(getFormation('4-3-3'), { ...base, onlyNation: 'BRA', budget: 120 })
+      const rng = new Rng(`cap-nation-${i}`)
+      while (!isComplete(d) && canSpin(u, d)) {
+        const usable = spin(u, d, rng).squad.filter((p) => canUse(d, p)).sort((a, b) => capPrice(b) - capPrice(a))
+        if (!usable.length) d.current = null
+        else pick(u, d, usable[0].id, eligibleSlots(d, usable[0])[0]?.id ?? 'bench')
+      }
+      if (!isComplete(d) && fillingXI(d)) stranded++
+    }
+    expect(stranded).toBeGreaterThan(0)
+  }, 30000)
 
   it('a capped quick season says what it spent, per point, on the summary, the card and the setup line', () => {
     const g = drafted()

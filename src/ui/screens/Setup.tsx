@@ -13,7 +13,7 @@ import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
 import { CapControl } from '../components/CapControl'
-import { capBudget, DEFAULT_CAP_CHOICE, type CapChoice } from '@game/logic/cap'
+import { CAP_NARROW_NOTE, DEFAULT_CAP_CHOICE, withCap, type CapChoice } from '@game/logic/cap'
 
 type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
 
@@ -161,7 +161,7 @@ export function Setup() {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
-    const rules: DraftRules = fixed?.rules ?? { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode, twists, leagues: wheelLeagues, budget: capBudget(cap, base.squadSize) }
+    const rules: DraftRules = fixed?.rules ?? withCap({ ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode, twists, leagues: wheelLeagues }, cap)
     return {
       // A challenge always plays as a quick draft, whatever seed it carries, so the Daily streak is never touched
       mode: challenge ? 'quick' : mode,
@@ -353,6 +353,7 @@ export function Setup() {
                       onChange={(e) => {
                         setOnlyClub(e.target.value)
                         if (e.target.value) setOnlyNation('')
+                        if (e.target.value) setCap((c) => ({ ...c, preset: 'off' }))
                       }}
                     >
                       <option value="">Off: every club</option>
@@ -371,6 +372,7 @@ export function Setup() {
                       onChange={(e) => {
                         setOnlyNation(e.target.value)
                         if (e.target.value) setOnlyClub('')
+                        if (e.target.value) setCap((c) => ({ ...c, preset: 'off' }))
                       }}
                     >
                       <option value="">Off: every nationality</option>
@@ -394,7 +396,18 @@ export function Setup() {
                     <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
                     Twists: every third spin is golden, basement, blind or decade
                   </label>
-                  <CapControl value={cap} onChange={setCap} squadSize={isManage ? squadSize : QUICK_RULES.squadSize} />
+                  <CapControl
+                    value={cap}
+                    onChange={(c) => {
+                      setCap(c)
+                      if (c.preset !== 'off') {
+                        setOnlyClub('')
+                        setOnlyNation('')
+                      }
+                    }}
+                    squadSize={isManage ? squadSize : QUICK_RULES.squadSize}
+                    note={CAP_NARROW_NOTE}
+                  />
                   {isManage && u.available.length >= 2 && (
                     <label className="toggle" title="A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.">
                       <input

@@ -7,7 +7,7 @@
  * The cap binds a draft only. A Season or a Dynasty's first year is drafted
  * under it, then the market takes over; a Dynasty's summer draft has none.
  */
-import { capForSquad, xiCapOf, type DraftRules } from '@engine/draft'
+import { capFits, capForSquad, xiCapOf, type DraftRules } from '@engine/draft'
 import type { Mode } from '../types'
 
 /** The parts of a game the cap's lines read: a whole `Game`, or the lighter shape the mode labels take. */
@@ -53,6 +53,15 @@ export function capXI(choice: CapChoice): number | undefined {
 export function capBudget(choice: CapChoice, squadSize: number): number | undefined {
   const xi = capXI(choice)
   return xi === undefined ? undefined : capForSquad(xi, squadSize)
+}
+
+/** What Setup says beside the cap: it switches one-club and one-nation mode off, and they switch it off. */
+export const CAP_NARROW_NOTE = 'Not with one club or one nation: their pools are too thin to keep the wheel alive on a budget.'
+
+/** Rules with a choice's cap on them, scaled to their squad; no cap beside one club or one nation (`capFits`), whose pools are too thin for the floor. */
+export function withCap(rules: DraftRules, choice: CapChoice): DraftRules {
+  const budget = capBudget(choice, rules.squadSize)
+  return { ...rules, budget: capFits({ ...rules, budget }) ? budget : undefined }
 }
 
 /** The XI cap a squad's budget was scaled from, back on the £10M grid every preset and custom cap sits on. */
