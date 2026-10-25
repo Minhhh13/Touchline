@@ -2,6 +2,18 @@
 
 Guide for AI coding agents working in this repository. Humans: see `docs/HANDOVER.md` and `CONTRIBUTING.md`.
 
+## Keep the handover current (every change)
+
+TouchLine is built by two people, the owner and a friend, each working with their own AI coding agent. These documents are the shared memory between those agents, so they are only useful if every change keeps them true.
+
+- **Before you start:** read `docs/HANDOVER.md` (the in-progress table and the change log) and the open GitHub issues, and pick or claim an issue so the other person's agent does not build the same thing.
+- **In the same pull request as your change**, update:
+  - `docs/HANDOVER.md`: the in-progress table when work starts, moves branch or finishes; "What it does today" when a feature ships; hosting and backend notes when a service, environment variable or setting changes; known issues when you find or fix one; and one dated line in the change log at the bottom (date, who or which agent, what changed, PR or issue link).
+  - `CLAUDE.md`: whenever a command, path, invariant or convention changes (for example a new module, a renamed script, a new `ENGINE_VERSION` value).
+  - `CONTRIBUTING.md`: whenever the way the two of you work together changes.
+- A pull request that changes behaviour without touching `docs/HANDOVER.md` says why in its description. The pull-request template has a checkbox for this.
+- Never delete another person's change-log lines; add your own below them.
+
 ## What this is
 
 - **TouchLine** (written with a capital L) is a browser football game: 38-0's spin-the-wheel draft fused with Football Manager depth.

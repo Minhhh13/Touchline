@@ -36,7 +36,8 @@ Each item lives on its own branch until it is merged into the working branch and
 | Live match visuals: 2D pitch, momentum, shot map, xG race | `match-visuals` | In progress |
 | Redesign: blue palette, a proper TouchLine logo, cleaner Setup | `redesign` | In progress |
 | 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
-| "While you were away" digest, coach marks, slot picker | working branch `claude/youthful-mccarthy-a57idu` | In progress |
+| "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch (live site) |
+| Coach marks, slot picker | working branch `claude/youthful-mccarthy-a57idu` | In progress |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
 | Casual modes | not started in code | Designed |
 
@@ -114,7 +115,7 @@ Both sites are static sites in the Render project **TouchLine**. That Render wor
 
 ## 8. Roadmap at a glance
 
-To be tracked as GitHub issues labelled `roadmap` (the label and the issues do not exist yet; create them first): https://github.com/Minhhh13/Touchline/issues?q=is%3Aissue+label%3Aroadmap
+Tracked as GitHub issues #3 to #20, labelled by area (`area:engine`, `area:game`, `area:ui`, `area:data`, `area:online`, `area:ops`) and size (`size:S/M/L`); work already being built carries `status:in-progress` and names its branch: https://github.com/Minhhh13/Touchline/issues
 
 1. Merge the finished branches (reel, FM depth, match visuals) and ship them.
 2. Redesign: blue palette, logo, cleaner Setup.
@@ -122,3 +123,14 @@ To be tracked as GitHub issues labelled `roadmap` (the label and the issues do n
 4. Online layer: accounts, cloud saves for every mode, a verified daily leaderboard, challenge codes, online head-to-head rooms.
 5. Casual modes.
 6. Later: seasons before 2008-09, a Continental Cup group stage and two-legged ties.
+
+## 9. Keeping this document current
+
+This page is only useful while it is true. Every change, by either of us or by either of our AI agents, updates it in the same pull request: the in-progress table when work starts, moves or finishes; section 2 when a feature ships; section 6 when hosting or the backend changes; section 7 when an issue is found or fixed; and one line in the change log below. Agents find the same rule at the top of [CLAUDE.md](../CLAUDE.md) and in [AGENTS.md](../AGENTS.md). Add your line at the bottom of the log and never edit someone else's.
+
+## 10. Change log
+
+Newest at the bottom. Format: date (UTC) · who · what changed · link.
+
+- 2026-10-25 · owner's agent · Handover written: CLAUDE.md, AGENTS.md, CONTRIBUTING.md, this page, a pull-request template, and roadmap issues #3 to #20 with area, size and status labels.
+- 2026-10-25 · owner's agent · "While you were away" digest shipped on the working branch; the preview site (`claude/touchline-preview`) carries the case-opening reel, the game-by-game quick season and the Football Manager depth attributes merged together (`ENGINE_VERSION` `'4'` there).

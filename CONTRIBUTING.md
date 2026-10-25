@@ -61,6 +61,7 @@ Also check:
 - `ENGINE_VERSION` is bumped if random draws changed, with a note in `docs/GAME_DESIGN.md` section 15.
 - New save fields are optional; an old save still loads (extend the old-save test in `src/game/__tests__/audit.test.ts`).
 - README and `docs/GAME_DESIGN.md` describe the change.
+- `docs/HANDOVER.md` is updated in the same PR (in-progress table, what ships, hosting notes, and a dated change-log line), and `CLAUDE.md` too if a command, path or convention changed. This applies to every change an AI agent makes, so the other person's agent always starts from the truth.
 - No secrets, `.env.local` or dataset archives are staged.
 
 ## 6. Pull requests and review
