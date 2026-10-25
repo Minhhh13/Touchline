@@ -130,4 +130,18 @@ describe('rarity tiers', () => {
     expect(Object.keys(flat).length).toBe(Object.keys(tierTable(u, ['england'])).length)
     expect(tierTable(u, ['england'])).toBe(tierTable(u, ['england']))
   })
+
+  it('breaks ties by the club-season key, whatever order the data comes in', () => {
+    // Every squad equally strong: the ranking is the key order alone, so gold is the first 5% of the sorted keys
+    const flat: RatingOf = () => 70
+    const table = tierTable(u, ['england'], flat)
+    const keys = Object.keys(table).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    const golds = Math.round(keys.length * 0.05)
+    expect(keys.slice(0, golds).every((k) => table[k] === 'gold')).toBe(true)
+    expect(table[keys[golds]]).toBe('red')
+    // The same rows in reverse order (a new universe object, so no memo) give the same table, real ratings included
+    const reversed = { ...u, clubSeasons: [...u.clubSeasons].reverse() }
+    expect(tierTable(reversed, ['england'], flat)).toEqual(table)
+    expect(tierTable(reversed, ['england'])).toEqual(tierTable(u, ['england']))
+  })
 })

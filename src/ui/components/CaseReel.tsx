@@ -155,19 +155,22 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
     const drumTo = `translate3d(0, ${-(label?.offsetTop ?? 0)}px, 0)`
     let stripTo = stripEnd()
     let slide: Animation | null = null
+    let done = false
     // A resize (a phone turned, a window dragged, the card size changing at the container breakpoint) moves the
-    // landing card and the marker, so the stop is measured again: mid-slide the slide retargets, after it the strip moves
+    // landing card and the marker, so the stop is measured again: mid-slide the slide retargets, after it the strip moves.
+    // Before the landing without a slide (reduced motion) the strip stays put, so the drawn card never shows early
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
       const next = stripEnd()
       if (next === stripTo) return
       stripTo = next
       if (slide?.effect instanceof KeyframeEffect) slide.effect.setKeyframes([{ transform: 'translate3d(0, 0, 0)' }, { transform: stripTo }])
-      strip.style.transform = stripTo
+      if (done) strip.style.transform = stripTo
     }) : null
     observer?.observe(win)
     if (landCard) observer?.observe(landCard)
     const land = () => {
       if (!alive) return
+      done = true
       drum.style.transform = drumTo
       strip.style.transform = stripTo
       setStage('landed')
