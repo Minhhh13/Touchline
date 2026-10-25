@@ -1,7 +1,7 @@
 import type { Game, LiveMatch } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { advanceMatch, beginMatch, finishMatch, simulateMatch, type FullMatchResult, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
+import { advanceMatch, beginMatch, changeInPlay, finishMatch, simulateMatch, type FullMatchResult, type InPlayChange, type InPlayOutcome, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
 import { aiTeamInput, applyMatchToState, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
@@ -39,7 +39,8 @@ export function clubOf(season: SeasonState, clubId: string): AiClub | undefined 
   return season.ai[clubId] ?? season.continental?.clubs[clubId]
 }
 
-function tiesOf(season: SeasonState, comp: Competition): CupTie[] {
+/** A knockout competition's ties: the domestic cup or the Continental Cup. */
+export function tiesOf(season: SeasonState, comp: Competition): CupTie[] {
   return comp === 'cup' ? season.cup : season.continental?.ties ?? []
 }
 
@@ -320,39 +321,52 @@ function recordUserLeagueResult(game: Game, u: LoadedUniverse, res: FullMatchRes
   news(game, { kind: 'result', title: `${userIsHome ? game.settings.shortName : season.ai[opponentId].shortName} ${res.homeGoals}-${res.awayGoals} ${userIsHome ? season.ai[opponentId].shortName : game.settings.shortName}`, body: gf > ga ? 'Three points.' : gf === ga ? 'A point apiece.' : 'A defeat to learn from.' })
 }
 
+/** The engine's lookups for both sides of the live match: the user's squad, an AI club or a friendly's opponents. */
+function liveLookups(game: Game, u: LoadedUniverse, live: LiveMatch) {
+  return live.kind === 'friendly' ? { home: userLookups(game, u), away: friendlyLookups(u, live.opponentId) } : live.userIsHome ? { home: userLookups(game, u), away: aiLookups(game, u, live.opponentId) } : { home: aiLookups(game, u, live.opponentId), away: userLookups(game, u) }
+}
+
+/** Write the manager's substitutions the engine made at `minute` into the lineup and bench, so the squad screen matches the pitch. */
+function persistSubstitutions(game: Game, live: LiveMatch, minute: number, asked: Array<{ off: string; on: string }>): void {
+  const made = live.userIsHome ? live.mp.hSubs : live.mp.aSubs
+  for (const s of asked.filter((s) => made.some((m) => m.minute === minute && m.off === s.off && m.on === s.on))) {
+    const slot = Object.keys(game.lineup).find((k) => game.lineup[k] === s.off)
+    if (slot && game.squad[s.on]) {
+      game.lineup[slot] = s.on
+      game.bench = game.bench.filter((id) => id !== s.on)
+      if (!game.bench.includes(s.off)) game.bench.push(s.off)
+    }
+  }
+}
+
 /**
  * Play the paused match on from the stop it stands at. From half time it runs to
  * the 70th minute and returns with `game.live` intact for the second stop; from
- * 70 it plays to the final whistle and carries on with the week. `second` holds
- * the manager's changes at this stop; without it the assistant reacts for both
- * sides. A paused match saved before the window existed carries no clock and
- * resumes at 45.
+ * 70 it plays to the final whistle and carries on with the week, unless `hold`
+ * keeps the match live through the last twenty minutes (decided to the whistle,
+ * still open to changes) until `completeLiveMatch`. A match held at 90 completes.
+ * `second` holds the manager's changes at this stop; without it the assistant
+ * reacts for both sides. A paused match saved before the window existed carries
+ * no clock and resumes at 45.
  */
-export function advanceLiveMatch(game: Game, u: LoadedUniverse, second?: LiveChanges, autoManage = false): void {
+export function advanceLiveMatch(game: Game, u: LoadedUniverse, second?: LiveChanges, autoManage = false, hold = false): void {
   const live = game.live
   if (!live || !game.season) return
-  const season = game.season
+  const stop = live.mp.clock ?? 45
+  if (stop >= 90) {
+    completeLiveMatch(game, u, autoManage)
+    return
+  }
   const userSide: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
-  const lookups = live.kind === 'friendly' ? { home: userLookups(game, u), away: friendlyLookups(u, live.opponentId) } : live.userIsHome ? { home: userLookups(game, u), away: aiLookups(game, u, live.opponentId) } : { home: aiLookups(game, u, live.opponentId), away: userLookups(game, u) }
+  const lookups = liveLookups(game, u, live)
   const opts: SecondHalfOptions | undefined = second ? { side: userSide, talk: second.talk, tactics: second.tactics, substitutions: second.substitutions, shout: second.shout } : undefined
   if (second?.tactics) game.tactics = second.tactics
-  const stop = live.mp.clock ?? 45
   // Persist the changes made at this stop to the lineup so the squad screen matches what is on the
   // pitch: only those the engine actually made (it refuses a man who has already played, a used
   // substitute or a sixth change), never the request as typed.
-  const persistSubs = () => {
-    const made = live.userIsHome ? live.mp.hSubs : live.mp.aSubs
-    for (const s of (second?.substitutions ?? []).filter((s) => made.some((m) => m.minute === stop && m.off === s.off && m.on === s.on))) {
-      const slot = Object.keys(game.lineup).find((k) => game.lineup[k] === s.off)
-      if (slot && game.squad[s.on]) {
-        game.lineup[slot] = s.on
-        game.bench = game.bench.filter((id) => id !== s.on)
-        if (!game.bench.includes(s.off)) game.bench.push(s.off)
-      }
-    }
-  }
-  if (stop < 70) {
-    advanceMatch(live.mp, lookups, opts, 70)
+  const persistSubs = () => persistSubstitutions(game, live, stop, second?.substitutions ?? [])
+  if (stop < 70 || hold) {
+    advanceMatch(live.mp, lookups, opts, stop < 70 ? 70 : 90)
     persistSubs()
     return
   }
@@ -361,6 +375,47 @@ export function advanceLiveMatch(game: Game, u: LoadedUniverse, second?: LiveCha
   const res = finishMatch(live.mp, lookups, opts)
   game.live = null
   persistSubs()
+  afterLiveResult(game, u, live, res, kickOffXI, autoManage)
+}
+
+/**
+ * Close a match held to the whistle: write the report (the engine has nothing
+ * left to play, so it draws exactly what it would have in one go) and carry on
+ * with the week as the unheld path does.
+ */
+export function completeLiveMatch(game: Game, u: LoadedUniverse, autoManage = false): void {
+  const live = game.live
+  if (!live || !game.season) return
+  if ((live.mp.clock ?? 45) < 90) {
+    finishLiveMatch(game, u, undefined, autoManage)
+    return
+  }
+  const kickOffXI = new Set((live.userIsHome ? live.mp.hLive : live.mp.aLive).filter((p) => p.onAt === 0).map((p) => p.psId))
+  const res = finishMatch(live.mp, liveLookups(game, u, live))
+  game.live = null
+  afterLiveResult(game, u, live, res, kickOffXI, autoManage)
+}
+
+/**
+ * A change with the ball in play for the user's side at `change.minute`:
+ * instructions, set-piece takers, substitutions and (from 70) a shout. The
+ * instructions go into `game.tactics` and the substitutions the engine made
+ * into the lineup and bench, as at the stops.
+ */
+export function changeLiveMatch(game: Game, u: LoadedUniverse, change: Omit<InPlayChange, 'side'>): InPlayOutcome {
+  const live = game.live
+  if (!live || !game.season) return { applied: false, refusal: 'no-segment', made: [], refused: [] }
+  const side: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
+  const out = changeInPlay(live.mp, liveLookups(game, u, live), { ...change, side })
+  if (!out.applied) return out
+  game.tactics = { ...(side === 'home' ? live.mp.home : live.mp.away).tactics }
+  persistSubstitutions(game, live, change.minute, out.made)
+  return out
+}
+
+/** The bookkeeping once the user's live match has its report: friendly, league or knockout. */
+function afterLiveResult(game: Game, u: LoadedUniverse, live: LiveMatch, res: FullMatchResult, kickOffXI: Set<string>, autoManage: boolean): void {
+  const season = game.season!
   if (live.kind === 'friendly') {
     applyResultToUser(game, u, res, true, false)
     for (const s of Object.values(game.squad)) s.condition = Math.min(100, s.condition + 14)
