@@ -25,12 +25,20 @@ import { FIT_ORDER, type Fit } from './positions'
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
 
+/** How far a post-season cup run went: the round it ended in, W for winners. */
+export type CupReach = 'R16' | 'QF' | 'SF' | 'F' | 'W'
+export const CUP_REACHES: readonly CupReach[] = ['R16', 'QF', 'SF', 'F', 'W']
+
 export interface ChallengeClaim {
   pts: number
   w: number
   d: number
   l: number
   t: SeasonTier
+  /** The post-season domestic cup, when the challenger played it. Older builds ignore it. */
+  cu?: CupReach
+  /** The post-season Continental Cup, when the challenger played it. */
+  eu?: CupReach
 }
 
 /**
@@ -267,6 +275,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
   if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
+  if ((c.cu !== undefined && !CUP_REACHES.includes(c.cu as CupReach)) || (c.eu !== undefined && !CUP_REACHES.includes(c.eu as CupReach))) throw new Error('Not a Touchline challenge link')
   return {
     v: 1,
     data: o.data,
@@ -274,7 +283,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     name: cleanName(o.name),
     s: { seed: s.seed, f: s.f, l: s.l, wl: s.wl, h: s.h, ls: s.ls, d: s.d, r: s.r },
     p: o.p as ChallengePick[],
-    c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
+    c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier, ...(c.cu !== undefined ? { cu: c.cu as CupReach } : {}), ...(c.eu !== undefined ? { eu: c.eu as CupReach } : {}) },
     k: o.k,
     ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
   }
@@ -334,7 +343,12 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
   return out
 }
 
-/** The claim and a replayed result agree when every figure matches. */
+/** The cup runs a claim names agree with a replay's: every cup the claim names went as far. */
+export function sameCups(claim: ChallengeClaim, replay: ChallengeClaim): boolean {
+  return (claim.cu === undefined || claim.cu === replay.cu) && (claim.eu === undefined || claim.eu === replay.eu)
+}
+
+/** The claim and a replayed result agree when every league figure matches (the cups are checked by `sameCups`). */
 export function sameClaim(a: ChallengeClaim, b: ChallengeClaim): boolean {
   return a.pts === b.pts && a.w === b.w && a.d === b.d && a.l === b.l && a.t === b.t
 }

@@ -1,9 +1,9 @@
-import type { Game, JanuaryListing, QuickChange, QuickCover, QuickEuropeRun, QuickEuropeTie, QuickGameResult, QuickJanuary, QuickResult } from '../types'
+import type { Game, JanuaryListing, QuickChange, QuickCover, QuickGameResult, QuickJanuary, QuickResult } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput } from '@engine/match'
 import type { RngState } from '@engine/rng'
-import { aiTeamInput, aiRatingOffset, buildAiClubs, buildContinentalClubs, computeTable, continentalRounds, drawFirstRound, drawNextRound, generateFixtures, matchweeksFor, positionOf, seasonTier, shootout, USER_TEAM, type AiClub } from '@engine/season'
+import { aiTeamInput, aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, USER_TEAM, type AiClub } from '@engine/season'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -14,9 +14,6 @@ import { recordUserGames } from './gameByGame'
 import { januaryBudget, januaryListings, sameListing } from './january'
 import { difficultyOf } from '@engine/draft'
 import { applyChange, canPlayFor, fieldXI, injuredThrough, QUICK_CHANGES, quickBenchRule } from './quickBench'
-
-/** A quick season finishing in this place or higher earns the Continental Cup run, when the option is on. */
-export const QUICK_EUROPE_PLACES = 4
 
 /** The drafted XI as the quick season fields it: the draft's lineup, every empty slot filled by `autoPickLineup` (no RNG). */
 export function quickXI(game: Game, u: LoadedUniverse): { lineup: Lineup; bench: string[] } {
@@ -316,8 +313,6 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   }
   const second: QuickSide = { tactics: game.tactics, captainId: game.captainId }
   playMatchweeks(run, u, game, second, run.half + 1, matchweeks)
-  // The European run is played by the XI as the league season left it, injuries still out covered from the bench
-  const user = userFor(game, run, second, matchweeks + 1).input
   const { fixtures, ids, goals, ratings } = run
   const table = computeTable(fixtures, ids)
   const row = table.find((r) => r.teamId === USER_TEAM)!
@@ -328,8 +323,6 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     .filter(([, r]) => r.n >= Math.floor(matchweeks * 0.4))
     .map(([id, r]) => ({ id, avg: r.sum / r.n }))
     .sort((a, b) => b.avg - a.avg)[0]
-  // The European run draws from a fork of a copy of the stream, after the league: the league season and the RNG state are as without it
-  const europe = game.settings.continental && pos <= QUICK_EUROPE_PLACES ? europeanRun(game, u, run, user, Rng.fromState(rng.getState()).fork('continental')) : null
   const quick: QuickResult = {
     points: row.points,
     won: row.won,
@@ -346,7 +339,6 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     // Game by game, from the fixtures already played: no random numbers are drawn here
     results: userResults(run),
     ...(deal ? { january: { kind: deal.kind, inId: deal.playerSeasonId, inName: get(deal.playerSeasonId)?.name ?? deal.playerSeasonId, outId: deal.outId, outName: get(deal.outId)?.name ?? deal.outId, fee: deal.fee, slotId: deal.slotId } } : {}),
-    ...(europe ? { europe } : {}),
     ...(run.applied.length ? { changes: run.applied } : {}),
     startRng: { ...startRng },
   }
@@ -362,7 +354,6 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1 && game.settings.rules.onlyClub) game.unlocked.push('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) game.unlocked.push('one-nation-champions')
   if (earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')
-  if (europe?.reached === 'W') game.unlocked.push('continental')
   game.phase = 'summary'
   if (run.benchOn) {
     // Open to bench changes while the playback runs; the store records the result when it closes
@@ -373,49 +364,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
 }
 
 /** Every achievement a quick season can unlock (`runQuickSeason` works them out again on each run). */
-export const QUICK_UNLOCKS: readonly string[] = ['quick-perfect', 'perfect', 'champions', 'centurions', 'invincible', 'hard-champions', 'one-club-champions', 'one-nation-champions', 'record-points', 'continental']
-
-/**
- * A short Continental Cup after the league: the user and the fifteen strongest clubs of the other loaded leagues that
- * season (`buildContinentalClubs`), drawn by `drawFirstRound`, four single-match rounds (round of 16 to a neutral
- * final), a shoot-out after a draw, the AI clubs handicapped like the league's. The run stops when the user goes out.
- * Null when fewer than fifteen foreign clubs are loaded.
- */
-function europeanRun(game: Game, u: LoadedUniverse, run: QuickRun, user: MatchTeamInput, rng: Rng): QuickEuropeRun | null {
-  const s = game.settings
-  const clubs = buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, 15)
-  if (Object.keys(clubs).length < 15) return null
-  const rounds = continentalRounds(run.matchweeks)
-  const ties = drawFirstRound([USER_TEAM, ...Object.keys(clubs)], rng, rounds)
-  const mine: QuickEuropeTie[] = []
-  for (let r = 0; r < rounds.length; r++) {
-    const round = rounds[r].round
-    let out = false
-    for (const tie of ties.filter((t) => t.round === round)) {
-      const home = tie.homeTeamId === USER_TEAM ? user : aiTeamInput(u, clubs[tie.homeTeamId], run.offset)
-      const away = tie.awayTeamId === USER_TEAM ? user : aiTeamInput(u, clubs[tie.awayTeamId], run.offset)
-      const res = simulateMatch({ rng, home, away, neutral: round === 'F', detail: 'summary' })
-      let winner = res.homeGoals > res.awayGoals ? tie.homeTeamId : res.awayGoals > res.homeGoals ? tie.awayTeamId : null
-      let pens: { home: number; away: number } | undefined
-      if (!winner) {
-        pens = shootout(rng, res.homeReport.strength.overall, res.awayReport.strength.overall)
-        winner = pens.home > pens.away ? tie.homeTeamId : tie.awayTeamId
-      }
-      tie.result = { ...res, penalties: pens }
-      tie.winnerId = winner
-      const home1 = tie.homeTeamId === USER_TEAM
-      if (home1 || tie.awayTeamId === USER_TEAM) {
-        mine.push({ round, opponentId: home1 ? tie.awayTeamId : tie.homeTeamId, home: home1, gf: home1 ? res.homeGoals : res.awayGoals, ga: home1 ? res.awayGoals : res.homeGoals, ...(pens ? { pens: home1 ? { for: pens.home, against: pens.away } : { for: pens.away, against: pens.home } } : {}), won: winner === USER_TEAM })
-        if (winner !== USER_TEAM) out = true
-      }
-    }
-    if (out || r === rounds.length - 1) break
-    ties.push(...drawNextRound(ties, rounds[r + 1].round, rng, rounds))
-  }
-  const last = mine.at(-1)
-  if (!last) return null
-  return { ties: mine, reached: last.round === 'F' && last.won ? 'W' : last.round }
-}
+export const QUICK_UNLOCKS: readonly string[] = ['quick-perfect', 'perfect', 'champions', 'centurions', 'invincible', 'hard-champions', 'one-club-champions', 'one-nation-champions', 'record-points', 'continental', 'cup', 'double', 'treble']
 
 /** What the bench panel of the playback shows before the next game: the chosen XI and bench, who is out, who covers. */
 export interface QuickSquadView {

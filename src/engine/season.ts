@@ -527,6 +527,17 @@ export function shootout(rng: Rng, homeMentality: number, awayMentality: number)
   return { home: h, away: a }
 }
 
+/** Extra time is thirty minutes, a third of a match, played by tired legs at 85% of the ninety minutes' rate. */
+export const EXTRA_TIME_RATE = 0.85 / 3
+
+/**
+ * Extra time after a level ninety minutes: each side's goals are Poisson draws from its expected goals over the match
+ * times `EXTRA_TIME_RATE`, home first. Two draws, nothing else.
+ */
+export function extraTime(rng: Rng, xg: { home: number; away: number }): { home: number; away: number } {
+  return { home: rng.poisson(Math.max(0, xg.home) * EXTRA_TIME_RATE), away: rng.poisson(Math.max(0, xg.away) * EXTRA_TIME_RATE) }
+}
+
 export function clubSeasonFor(u: LoadedUniverse, clubId: string, season: number): ClubSeason | undefined {
   return u.clubSeasonByKey[`${clubId}@${season}`]
 }

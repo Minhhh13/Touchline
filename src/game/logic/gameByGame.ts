@@ -23,13 +23,17 @@ export function recordUserGames(fixtures: Fixture[], teamIds: string[], userId: 
   return mine.map((f) => {
     const res = f.result!
     const home = f.homeTeamId === userId
-    const side = home ? 'home' : 'away'
-    const scorers: QuickScorer[] = res.events
-      .filter((e) => GOAL_TYPES.has(e.type) && e.side === side)
-      .sort((a, b) => a.minute - b.minute)
-      .map((e) => (e.type === 'own_goal' ? { name: 'OG', minute: e.minute } : { name: (e.playerId && nameOf(e.playerId)) ?? e.playerName ?? 'Unknown', minute: e.minute, ...(e.playerId ? { playerSeasonId: e.playerId } : {}) }))
+    const scorers = sideScorers(res.events, home ? 'home' : 'away', nameOf)
     return { matchweek: f.matchweek, opponentId: home ? f.awayTeamId : f.homeTeamId, home, gf: home ? res.homeGoals : res.awayGoals, ga: home ? res.awayGoals : res.homeGoals, scorers, position: positions.get(f.matchweek) ?? 0 }
   })
+}
+
+/** One side's goalscorers in a match's events, ordered by minute; an opponent's own goal is credited as "OG". Pure. */
+export function sideScorers(events: MatchEvent[], side: 'home' | 'away', nameOf: (playerSeasonId: string) => string | undefined): QuickScorer[] {
+  return events
+    .filter((e) => GOAL_TYPES.has(e.type) && e.side === side)
+    .sort((a, b) => a.minute - b.minute)
+    .map((e) => (e.type === 'own_goal' ? { name: 'OG', minute: e.minute } : { name: (e.playerId && nameOf(e.playerId)) ?? e.playerName ?? 'Unknown', minute: e.minute, ...(e.playerId ? { playerSeasonId: e.playerId } : {}) }))
 }
 
 export type Outcome = 'W' | 'D' | 'L'

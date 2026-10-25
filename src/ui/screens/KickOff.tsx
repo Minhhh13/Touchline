@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { QUICK_CONTINENTAL_PLACES } from '@game/logic/quickCups'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
 import { getFormation } from '@engine/formations'
@@ -44,7 +45,7 @@ export function KickOff() {
           </button>
           <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
             {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
-            {s.continental ? ' A top-four finish earns a Continental Cup run.' : ''}
+            {s.mode === 'quick' ? ` After the league you can play the Cup, and the Continental Cup with a top-${QUICK_CONTINENTAL_PLACES} finish.` : ''}
           </p>
         </SquadComplete>
         <button type="button" className="fold-head" onClick={() => setShowTactics(!showTactics)} aria-expanded={showTactics} data-testid="kickoff-tactics-toggle">

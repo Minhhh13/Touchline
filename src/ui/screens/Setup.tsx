@@ -136,7 +136,7 @@ export function Setup() {
   // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
   const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, formationId])
   const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
-  const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
+  const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!(isManage && continental) || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   // The club handed over by default sits nearest tenth in that season's real table, so the board's ask is reachable
   const defaultHost = useMemo(() => (u ? defaultHostClub(u, leagueId, effectiveSeason, clubsInLeague) : ''), [u, leagueId, effectiveSeason, clubsInLeague])
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : defaultHost
@@ -197,8 +197,8 @@ export function Setup() {
       rules,
       jobSecurity: isManage ? jobSecurity : false,
       difficulty: fixed ? fixed.difficulty : opposition,
-      // A Continental Cup in a managed season, a Continental Cup run after a top-four finish in a quick one; never on a challenge
-      continental: !challenge && continental && u.available.length >= 2,
+      // A Continental Cup in a managed season; a Quick Draft offers its cups after the league instead, so it never sets one
+      continental: isManage && !challenge && continental && u.available.length >= 2,
       // A challenge keeps the window: the friend may trade in January as the challenger could
       ...(isManage ? {} : { january: challenge ? true : january }),
       ...(challenge ? { challenge } : {}),
@@ -384,8 +384,8 @@ export function Setup() {
                     January window: one deal at the halfway mark
                   </label>
                 )}
-                {u.available.length >= 2 && (
-                  <label className="toggle" data-testid="continental-toggle" title={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'}>
+                {isManage && u.available.length >= 2 && (
+                  <label className="toggle" data-testid="continental-toggle" title="A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.">
                     <input
                       type="checkbox"
                       checked={continental}
@@ -394,7 +394,7 @@ export function Setup() {
                         if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                       }}
                     />
-                    {isManage ? 'Continental Cup: a midweek knockout against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
+                    Continental Cup: a midweek knockout against the best of the other leagues
                   </label>
                 )}
                 {!isManage && teamField}

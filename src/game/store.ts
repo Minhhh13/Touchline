@@ -29,6 +29,7 @@ import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
+import { addCupTrophies, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -109,6 +110,10 @@ interface Store {
   endPlayback: () => void
   /** Quick bench: before game `revealed + 1` of the playback, put bench player `inId` into slot `slotId` (one of the three changes). */
   benchChange: (revealed: number, slotId: string, inId: string) => void
+  /** Quick Draft after the league: play the domestic cup or the Continental Cup through (loading every league first for the Continental Cup). Resolves true when it was played. */
+  playCup: (comp: QuickCupComp) => Promise<boolean>
+  /** Quick Draft after the league: pass on a cup. */
+  skipCup: (comp: QuickCupComp) => void
 
   playFriendly: () => void
   startSeason: () => void
@@ -306,7 +311,8 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
             return false
           }
-          const needs = [...new Set([payload.s.l, ...payload.s.wl])]
+          // A challenger who played the Continental Cup needs every league loaded for the replay to check it
+          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(payload.c.eu ? (get().universe?.available ?? []).map((l) => l.id) : [])])]
           const known = (get().universe?.available ?? []).map((l) => l.id)
           const unknown = needs.filter((id) => !known.includes(id))
           if (unknown.length) {
@@ -476,6 +482,39 @@ export const useStore = create<Store>()(
             return
           }
           mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
+        },
+
+        playCup: async (comp) => {
+          const { game, universe } = get()
+          if (!game || !universe) return false
+          // The Continental Cup's field comes from every other league that season
+          if (comp === 'continental' && !(await get().ensureLeagues(universe.available.map((l) => l.id)))) return false
+          const u = get().universe
+          const before = get().game
+          if (!u || !before?.quickResult) return false
+          const problem = quickCupProblem(before, u, comp)
+          if (problem) {
+            set({ toast: problem })
+            return false
+          }
+          mutate((g, uu) => playQuickCup(g, uu, comp))
+          const after = get().game?.quickResult
+          if (!after || after === before.quickResult) return false
+          const profile = get().profile
+          const trophies = addCupTrophies(profile.trophies ?? { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }, before.quickResult, after, comp)
+          set({ profile: { ...profile, trophies } })
+          unlockFromGame()
+          return true
+        },
+        skipCup: (comp) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          const problem = quickCupProblem(game, universe, comp)
+          if (problem) {
+            set({ toast: problem })
+            return
+          }
+          mutate((g, u) => skipQuickCup(g, u, comp))
         },
 
         playFriendly: () => {
@@ -747,7 +786,7 @@ export const useStore = create<Store>()(
 
 /** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup. */
 function leaguesFor(game: Game, allLeagues: string[]): string[] {
-  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental
+  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup
   return [...new Set([game.settings.leagueId ?? DEFAULT_LEAGUE, ...(game.settings.wheelLeagues ?? []), ...(wantsAll ? allLeagues : [])])]
 }
 

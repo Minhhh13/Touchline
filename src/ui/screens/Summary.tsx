@@ -15,7 +15,7 @@ import { clubName, flag, money, nationName, ordinal, seasonLabel } from '../form
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
-import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
+import { challengeFromGame, challengeLink, claimCupsLine, claimOf, verdictLine } from '@game/logic/challenge'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
@@ -24,6 +24,8 @@ import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
+import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { CupRuns } from '../components/CupRuns'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -31,6 +33,8 @@ export function Summary() {
   const [link, setLink] = useState<string | null>(null)
   // The game whose highlights are open, by matchweek
   const [hlWeek, setHlWeek] = useState<number | null>(null)
+  // The post-season cup being revealed tie by tie: the banner keeps its trophy back until the run is shown
+  const [revealingCup, setRevealingCup] = useState<QuickCupComp | null>(null)
   // Every game of a quick season, game by game; the replay is UI state only
   const seasonReplay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
   // Play the season hides the record and shows the tally in the banner: bring the banner up so the tally and the
@@ -79,6 +83,11 @@ export function Summary() {
   if (benchLine) extraLines.push(benchLine)
   const euroLine = europeLine(q?.europe)
   if (euroLine) extraLines.push(euroLine)
+  // The post-season cups, once played and revealed
+  const cupsShown = (comp: QuickCupComp) => revealingCup !== comp
+  for (const [line, comp] of [[cupLine(q?.cup, 'cup'), 'cup'], [cupLine(q?.continentalCup, 'continental'), 'continental']] as Array<[string | null, QuickCupComp]>) if (line && cupsShown(comp)) extraLines.push(line)
+  const quickCupWon = cupsShown('cup') && wonCup(q, 'cup')
+  const quickEuroWon = (cupsShown('continental') && q?.continentalCup?.reached === 'W') || q?.europe?.reached === 'W'
   // Head-to-head against the ghost this game was played against
   const challenge = game.settings.challenge
   const mine = claimOf(game)
@@ -88,8 +97,8 @@ export function Summary() {
     tier,
     row,
     position: record.position,
-    cupWon: season?.cupWon ?? false,
-    continentalWon: season?.continental?.won ?? q?.europe?.reached === 'W',
+    cupWon: season?.cupWon ?? quickCupWon,
+    continentalWon: season?.continental?.won ?? quickEuroWon,
     leagueSeason: game.settings.leagueSeason,
     hostClubName: clubName(u, game.settings.hostClubId),
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
@@ -194,8 +203,8 @@ export function Summary() {
           </p>
         )}
         {replay.playing && <SeasonTally results={results} upTo={replay.revealed} />}
-        {!replay.playing && season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
-        {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
+        {!replay.playing && (season?.cupWon || quickCupWon) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-cup">🏆 Cup winners</div>}
+        {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-continental">🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: {flag(u, game.settings.rules.onlyNation)} {nationName(u, game.settings.rules.onlyNation)}</div>}
@@ -271,6 +280,12 @@ export function Summary() {
           </button>
         </div>
       </div>
+
+      {q && !replay.playing && (
+        <div style={{ marginTop: 14 }}>
+          <CupRuns game={game} u={u} onReveal={setRevealingCup} />
+        </div>
+      )}
 
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
@@ -364,6 +379,7 @@ export function Summary() {
                   {challenge.claim.pts} pts · {TIER_LABEL[challenge.claim.t]} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
                 </span>
               </div>
+              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
               {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{challenge.name}'s picks could not be resolved on this data.</div>}
             </div>
             <div className="col">
@@ -373,6 +389,7 @@ export function Summary() {
                   {mine.pts} pts · {TIER_LABEL[mine.t]} · {mine.w}-{mine.d}-{mine.l}
                 </span>
               </div>
+              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
             </div>
           </div>

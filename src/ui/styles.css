@@ -2665,3 +2665,62 @@ table.tbl tr.clickable:hover {
     font-size: 34px;
   }
 }
+
+/* The Quick Draft's post-season cups: a card per cup, the ties revealed newest first, the trophy at the end */
+.cup-nights {
+  border-color: var(--line-2);
+  gap: 12px;
+}
+.cup-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.cup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.cup-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.cup-ties .gbg-game {
+  animation: gbg-drop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.cup-extra {
+  grid-column: 3 / -1;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.cup-trophy {
+  padding: 12px;
+  border-radius: 10px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  animation: tier-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@media (max-width: 760px) {
+  .cup-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cup-ties .gbg-game,
+  .cup-trophy {
+    animation: none;
+  }
+}

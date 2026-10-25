@@ -167,10 +167,9 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
     if (!s.jobSecurity) parts.push('no sack')
     if (s.continental) parts.push('Continental Cup')
   } else {
-    // The quick season's options: the January window is on by default, the Continental Cup run off
+    // The quick season's options: the January window is on by default (the cups are offered after every league season)
     if (s.january === false) parts.push('no January window')
     if (benchPlaces(r)) parts.push(`bench of up to ${benchPlaces(r)}`)
-    if (s.continental) parts.push('Continental Cup run')
   }
   return parts.join(', ')
 }
