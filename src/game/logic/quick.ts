@@ -8,6 +8,7 @@ import { getFormation } from '@engine/formations'
 import { playerLookup } from './players'
 import { earnsPointsRecord } from './records'
 import { recordUserGames } from './gameByGame'
+import { difficultyOf } from '@engine/draft'
 
 /**
  * 38-0 mode: the drafted XI plays the whole season instantly against the real
@@ -85,7 +86,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (pos === 1) game.unlocked.push('champions')
   if (row.points >= 100) game.unlocked.push('centurions')
   if (tier === 'INVINCIBLE' || tier === 'PERFECT') game.unlocked.push('invincible')
-  if (pos === 1 && game.settings.rules.hardMode) game.unlocked.push('hard-champions')
+  if (pos === 1 && difficultyOf(game.settings.rules) === 'hard') game.unlocked.push('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) game.unlocked.push('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) game.unlocked.push('one-nation-champions')
   if (earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')

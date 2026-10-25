@@ -7,7 +7,7 @@ import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
 import { Pitch } from '../components/Pitch'
 import { TWIST_INFO } from '../components/TwistCard'
-import type { Twist } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
@@ -50,6 +50,9 @@ export function Summary() {
   const inBooks = bench !== null && hasRecordBook(bench)
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
+  // The 38-0 options that differ from the mode's defaults: difficulty, blind, draft mode, ratings
+  const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES)
+  if (tags.length) extraLines.push(tags.join(' · '))
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)
@@ -158,6 +161,7 @@ export function Summary() {
       <div className="tier-banner">
         <div className="muted small">
           {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
+          {tags.map((t) => ` · ${t}`).join('')}
         </div>
         {replay.playing ? (
           <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">

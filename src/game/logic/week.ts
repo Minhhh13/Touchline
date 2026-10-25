@@ -18,6 +18,7 @@ import { autoPickLineup } from '@engine/ratings'
 import type { SquadPlayer } from '@engine/types'
 import { earnsPointsRecord } from './records'
 import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
+import { difficultyOf } from '@engine/draft'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
   game.season!.news.unshift({ matchweek: game.season!.matchweek, ...item })
@@ -827,7 +828,7 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (season.continental?.won && season.cupWon && pos === 1) unlock('treble')
   if (game.awards.goldenBoot && Number(game.awards.goldenBoot.value.split(' ')[0]) >= 30) unlock('boot30')
   if (game.awards.goldenGlove && Number(game.awards.goldenGlove.value.split(' ')[0]) >= 20) unlock('glove20')
-  if (pos === 1 && game.settings.rules.hardMode) unlock('hard-champions')
+  if (pos === 1 && difficultyOf(game.settings.rules) === 'hard') unlock('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) unlock('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) unlock('one-nation-champions')
   if (earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')

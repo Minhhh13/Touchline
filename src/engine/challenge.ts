@@ -14,7 +14,7 @@
  * draft the way the store does, one `spin` per history row.
  */
 import type { DraftRules, DraftState } from './draft'
-import { QUICK_RULES, canSpin, isComplete, picksMade, pick, spin } from './draft'
+import { DIFFICULTIES, DRAFT_MODES, QUICK_RULES, RATINGS_MODES, canSpin, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
 import type { SeasonTier } from './types'
@@ -33,7 +33,10 @@ export interface ChallengeClaim {
   t: SeasonTier
 }
 
-/** One spin of the challenger's draft: the real player id drafted (`s200458`) and the slot, or nulls for a spin that drafted no one. */
+/**
+ * One spin of the challenger's draft: the real player id drafted (`s200458`) and the slot, or nulls for a
+ * spin that drafted no one. Under Position First a spin that drafted no one carries the slot it was filling.
+ */
 export type ChallengePick = [playerId: string | null, slotId: string | null]
 
 export interface ChallengePayload {
@@ -100,7 +103,7 @@ export function rulesFromPayload(c: ChallengePayload): DraftRules {
 
 /** A draft's history as payload rows: the real player id of each pick (or null) and its slot. */
 export function picksFromHistory(history: DraftState['history'], playerIdOf: (playerSeasonId: string) => string | undefined): ChallengePick[] {
-  return history.map((h) => [h.pickedId ? playerIdOf(h.pickedId) ?? null : null, h.pickedId ? h.slotId : null])
+  return history.map((h) => [h.pickedId ? playerIdOf(h.pickedId) ?? null : null, h.pickedId ? h.slotId : h.target ?? null])
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -147,6 +150,10 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   hardMode: isBool,
   uniqueClubSeasons: isBool,
   twists: isBool,
+  difficulty: (v) => DIFFICULTIES.includes(v as DraftDifficulty),
+  showRatings: isBool,
+  draftMode: (v) => DRAFT_MODES.includes(v as DraftMode),
+  ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
@@ -214,11 +221,16 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
     const [playerId, slotId] = c.p[i]
     const n = i + 1
     if (isComplete(d)) throw new Error(`Spin ${n} came after the squad was complete`)
+    // Position First: every spin of the XI fills the slot its row names, chosen before the spin as the player did
+    if (positionFirst(d)) {
+      if (!slotId || !openSlots(d).some((s) => s.id === slotId)) throw new Error(`Spin ${n}: no open slot ${slotId ?? ''} to fill`.trim())
+      d.target = slotId
+    }
     if (!canSpin(u, d)) throw new Error(`Spin ${n}: the wheel had run dry`)
     const cs = spin(u, d, rng)
     if (playerId === null) {
       d.respinsLeft = Math.max(0, d.respinsLeft - 1)
-      d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}) })
+      d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}), ...(d.target ? { target: d.target } : {}) })
       d.current = null
       d.twist = null
       out.push({ clubId: cs.clubId, season: cs.season, id: null, slotId: null })

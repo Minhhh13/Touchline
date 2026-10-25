@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { FORMATIONS, getFormation } from '@engine/formations'
-import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, rulesTags, withDifficulty, type DraftRules } from '@engine/draft'
+import { dailySettings } from '@game/logic/daily'
 import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel, type EraRange } from '@engine/nations'
@@ -105,15 +106,8 @@ export function Setup() {
       return { kind: 'challenge', season: c.s.ls, host: c.s.h, formationId: c.s.f, leagueId: c.s.l, wheelLeagues: c.s.wl, difficulty: c.s.d, rules: rulesFromPayload(c), seed: c.s.seed }
     }
     if (!isDaily) return null
-    const seedNum = todaysDailySeed().split('-').slice(1).join('')
-    const n = Number(seedNum) || 0
-    const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === 'england')
-    const seasonsComplete = [...new Set(complete.map((cs) => cs.season))].sort()
-    const season = seasonsComplete[n % seasonsComplete.length]
-    const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()
-    const host = clubs[(n * 7) % clubs.length]
-    const formations = ['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '4-4-2-diamond']
-    return { kind: 'daily', season, host, formationId: formations[(n * 3) % formations.length], leagueId: 'england', wheelLeagues: ['england'], difficulty: 'calibrated', rules: null, seed: todaysDailySeed() }
+    // Every rule of the Daily comes from `dailySettings`, so it is the same wheel for everyone
+    return { kind: 'daily', ...dailySettings(u, todaysDailySeed()) }
   })()
   const challenge = pendingChallenge?.challenge ?? null
   const fixedReady = !fixed || (fixed.wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(fixed.leagueId))
@@ -122,7 +116,7 @@ export function Setup() {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = !isDaily && onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = !isDaily && onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
-    const rules: DraftRules = fixed?.rules ?? { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode: !isDaily && hardMode, twists: isDaily ? true : twists, leagues: fixed ? fixed.wheelLeagues : wheelLeagues }
+    const rules: DraftRules = fixed?.rules ?? { ...withDifficulty(base, hardMode ? 'hard' : base.difficulty ?? 'normal'), ...eraRange, onlyClub: club, onlyNation: nation, twists, leagues: wheelLeagues }
     const name = teamName.trim() || 'Touchline XI'
     const short = name
       .split(/\s+/)
@@ -175,7 +169,7 @@ export function Setup() {
               <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
                 <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts as {clubName(u, fixed.host)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
                 Same seed, same wheel, {fixed.difficulty} difficulty
-                {fixed.rules?.hardMode ? ', hard mode' : ''}
+                {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
                 {fixed.rules?.twists ? ', twists on' : ', no twists'}
                 {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
                 {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
@@ -323,7 +317,7 @@ export function Setup() {
               </label>
               <label className="toggle">
                 <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
-                Hard mode: ratings hidden while drafting
+                Hard mode: no re-spins, ratings hidden while drafting
               </label>
               <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
                 <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />

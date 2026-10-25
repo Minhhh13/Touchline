@@ -5,7 +5,7 @@ import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Pro
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
-import { canSpin, isComplete, picksMade, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
+import { canSpin, chooseSlot as draftChooseSlot, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
@@ -90,6 +90,8 @@ interface Store {
 
   spin: () => void
   respin: () => void
+  /** Position First: choose the open slot the next spin fills. */
+  chooseSlot: (slotId: string) => void
   pickPlayer: (playerSeasonId: string, slotId: string | 'bench') => void
   autoDraftRest: () => void
   finishDraft: () => void
@@ -322,9 +324,22 @@ export const useStore = create<Store>()(
           set({ parked: next })
         },
 
+        chooseSlot: (slotId) =>
+          mutate((g, u) => {
+            if (!g.draft) return
+            try {
+              draftChooseSlot(u, g.draft, slotId)
+            } catch (e) {
+              set({ toast: e instanceof Error ? e.message : String(e) })
+            }
+          }),
         spin: () =>
           mutate((g, u) => {
             if (!g.draft || g.draft.current) return
+            if (positionFirst(g.draft) && !targetSlot(g.draft)) {
+              set({ toast: 'Choose a slot on the pitch first.' })
+              return
+            }
             if (!canSpin(u, g.draft)) {
               set({ toast: `The wheel has run dry for ${u.nations[g.draft.rules.onlyNation ?? '']?.name ?? 'this draft'}.` })
               return
@@ -355,7 +370,8 @@ export const useStore = create<Store>()(
             const rng = Rng.fromState(g.rngState)
             // A pending spin is discarded with its twist, but it consumed the RNG, so it stays in the history
             // as a skipped row (a challenge replay needs every spin) and the assistant's first `canSpin` sees the plain wheel
-            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}) })
+            // Position First keeps the slot being filled, so the assistant fills it next and a replay can set it again
+            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: g.draft.target! } : {}) })
             g.draft.current = null
             g.draft.twist = null
             autoDraft(u, g.draft, rng)
@@ -561,7 +577,7 @@ export const useStore = create<Store>()(
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
-          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, leagues: wheelLeagues, twists: false })
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, difficulty: hardMode ? 'hard' : 'normal', showRatings: !hardMode, leagues: wheelLeagues, twists: false })
           set({ h2h: { managers, leagueId, wheelLeagues, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
         },
         h2hSpin: () => {

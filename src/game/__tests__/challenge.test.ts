@@ -160,7 +160,8 @@ describe('challenge links', () => {
   })
 
   it('replays a draft that used a re-spin', () => {
-    const g = createGame(settings({ seed: 'GHOST-RESPIN' }))
+    // Two re-spins (the budget quick drafts had before difficulties; normal now gives one), which the link carries in its rules diff
+    const g = createGame(settings({ seed: 'GHOST-RESPIN', rules: { ...QUICK_RULES, respins: 2, leagues: ['england'] } }))
     const d = g.draft!
     const rng = Rng.fromState(g.rngState)
     let n = 0
