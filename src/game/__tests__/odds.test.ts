@@ -59,6 +59,31 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
     }
   })
 
+  it('put a side that wins every game top and a side that loses every game down, in the right place of the tally', () => {
+    const ids = [USER_TEAM, 'a', 'b', 'c', 'd', 'e']
+    const league = (lamUser: number, lamOther: number) => {
+      const pairings = []
+      for (let h = 0; h < ids.length; h++)
+        for (let a = 0; a < ids.length; a++) {
+          if (h === a) continue
+          const lam = (i: number) => (i === 0 ? lamUser : lamOther)
+          pairings.push({ home: h, away: a, lamH: lam(h), lamA: lam(a), sigmaH: 0.06, sigmaA: 0.06 })
+        }
+      return { ids, pairings }
+    }
+    const strong = oddsFrom(sampleSeasons(league(5.8, 0.12), new Rng('odds-strong'), 200, emptyTally(ids.length)))
+    expect(strong.title).toBeGreaterThan(0.99)
+    expect(strong.projectedFinish).toBe(1)
+    expect(strong.relegation).toBe(0)
+    expect(strong.expectedPoints).toBeGreaterThan(28)
+    const weak = oddsFrom(sampleSeasons(league(0.12, 5.8), new Rng('odds-weak'), 200, emptyTally(ids.length)))
+    expect(weak.finishes[ids.length - 1]).toBeGreaterThan(190)
+    expect(weak.projectedFinish).toBe(ids.length)
+    expect(weak.relegation).toBeGreaterThan(0.99)
+    expect(weak.top4).toBeLessThan(0.01)
+    expect(weak.expectedPoints).toBeLessThan(2)
+  })
+
   it('match the engine: a pairing is the expected goals beginMatch works out before its match-day variance', () => {
     const g = drafted('odds-6')
     const league = oddsLeague(g, u)
@@ -108,6 +133,11 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
     const h = clone(g)
     h.tactics.mentality = h.tactics.mentality === 'attacking' ? 'defensive' : 'attacking'
     expect(oddsKey(h)).not.toBe(oddsKey(g))
+    // Another game, or other draft rules, never shares a cached answer
+    expect(oddsKey({ ...clone(g), id: `${g.id}-other` })).not.toBe(oddsKey(g))
+    const r = clone(g)
+    r.settings.rules = { ...r.settings.rules, leagues: ['england', 'spain'] }
+    expect(oddsKey(r)).not.toBe(oddsKey(g))
   })
 
   it('break the squad down into units with bars and print chances plainly', () => {

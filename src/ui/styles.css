@@ -2609,6 +2609,24 @@ table.tbl tr.clickable:hover {
 .sc-unit .bar > span {
   background: linear-gradient(90deg, var(--accent-2), var(--accent));
 }
+.squad-complete .bar > span {
+  transform-origin: left center;
+  animation: sc-grow 0.6s ease-out both;
+}
+.sc-chance:nth-child(2) .bar > span { animation-delay: 0.06s; }
+.sc-chance:nth-child(3) .bar > span { animation-delay: 0.12s; }
+.sc-chance:nth-child(4) .bar > span { animation-delay: 0.18s; }
+.sc-chance:nth-child(5) .bar > span { animation-delay: 0.24s; }
+@keyframes sc-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .squad-complete .bar > span {
+    animation: none;
+  }
+}
 .sc-working {
   padding: 18px 0;
   text-align: center;
