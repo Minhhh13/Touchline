@@ -7,7 +7,7 @@
  * run plays are the same weeks `simWeeks(k)` would play.
  */
 import type { LoadedUniverse } from '@engine/universe'
-import { computeTable, describeImportance, positionOf, USER_TEAM, type Competition } from '@engine/season'
+import { describeImportance, positionOf, seasonTable, USER_TEAM, type Competition } from '@engine/season'
 import type { Game } from '../types'
 import { nextOpponent, playMatchweek, startSeasonProper, upcomingCupTie } from './week'
 
@@ -51,7 +51,7 @@ export function nextStop(game: Game, u: LoadedUniverse): StopReason | null {
   const season = game.season
   if (!season || season.sacked || season.matchweek >= season.matchweeks || game.phase === 'summary') return null
   const mw = season.matchweek + 1
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
 
   const tie = upcomingCupTie(game)
   if (tie && (tie.tie.round === 'F' || tie.tie.round === 'SF')) {

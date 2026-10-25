@@ -2,7 +2,7 @@ import type { Game, LiveMatch } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { advanceMatch, beginMatch, finishMatch, simulateMatch, type FullMatchResult, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
-import { aiTeamInput, applyMatchToState, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
+import { aiTeamInput, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
 import { openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
@@ -261,7 +261,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
 
   const mw = season.matchweek + 1
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   const week = season.fixtures.filter((f) => f.matchweek === mw)
   const boosts = matchBoosts(game)
 
@@ -565,7 +565,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
   game.finances.budget = Math.round((game.finances.budget + flow) * 10) / 10
   if (flow > 0) game.finances.income += flow
 
-  const newTable = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const newTable = seasonTable(season)
   const userRow = newTable.find((r) => r.teamId === USER_TEAM)!
   // On a bye week there is no new result to judge; do not count last week's again
   const playedThisWeek = season.fixtures.some((f) => f.matchweek === mw && f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM))
@@ -606,9 +606,9 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
   }
 }
 
-export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: ReturnType<typeof computeTable>): EventContext {
+export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: ReturnType<typeof seasonTable>): EventContext {
   const season = game.season!
-  const t = table ?? computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const t = table ?? seasonTable(season)
   const row = t.find((r) => r.teamId === USER_TEAM)!
   const next = nextOpponent(game)
   const host = u.clubById[season.hostClubId]
@@ -752,7 +752,7 @@ export function startSeasonProper(game: Game): void {
 
 export function finishSeason(game: Game, u: LoadedUniverse): void {
   const season = game.season!
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   const row = table.find((r) => r.teamId === USER_TEAM)!
   const pos = positionOf(table, USER_TEAM)
   const tier = season.sacked ? 'RELEGATED' : seasonTier(table, USER_TEAM, season.cupWon, season.matchweeks)

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
-import { TIER_LABEL, USER_TEAM, computeTable } from '@engine/season'
+import { TIER_LABEL, USER_TEAM, seasonTable } from '@engine/season'
 import { shareText } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
@@ -40,7 +40,7 @@ export function Summary() {
   if (!record) return null
   const table: TableRow[] = useMemo(() => {
     if (q) return q.table.map((r) => ({ ...r, played: (q.table.length - 1) * 2, form: [] }))
-    if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+    if (season) return seasonTable(season)
     return []
   }, [q, season])
   // Every game of a quick season, game by game; the replay is UI state only

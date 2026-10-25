@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useStore } from '@game/store'
 import { staffTier } from '@engine/staff'
-import { aiTeamInput, computeTable, USER_TEAM, type AiClub } from '@engine/season'
+import { aiTeamInput, seasonTable, type AiClub } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
 import { STYLE_LABEL } from '@engine/tactics'
 import { FormDots, Rating, Pos } from '../components/bits'
@@ -23,7 +23,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral 
     const xi = Object.values(input.lineup).map((id) => u.index[id]).filter(Boolean)
     const stars = [...xi].sort((a, b) => b.overall - a.overall).slice(0, 3)
     const weak = staffTier(game.staff, 'scout') >= 2 ? [...xi].filter((p) => p.positions[0] !== 'GK').sort((a, b) => a.overall - b.overall)[0] : undefined
-    const table = game.season && !given ? computeTable(game.season.fixtures, [USER_TEAM, ...Object.keys(game.season.ai)]) : []
+    const table = game.season && !given ? seasonTable(game.season) : []
     const row = table.find((r) => r.teamId === clubId) ?? { teamId: clubId, points: 0, form: [] as Array<'W' | 'D' | 'L'> }
     const pos = table.indexOf(row as (typeof table)[number]) + 1
     const injured = club.squad.filter((id) => club.state[id]?.injury).length

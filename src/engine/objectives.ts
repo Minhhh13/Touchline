@@ -5,7 +5,7 @@
  */
 import type { Rng } from './rng'
 import type { SeasonState, CupTie } from './season'
-import { USER_TEAM, computeTable, positionOf } from './season'
+import { USER_TEAM, positionOf, seasonTable } from './season'
 import type { PlayerSeason, SquadPlayer } from './types'
 
 export type ObjectiveId = 'cup-qf' | 'cup-sf' | 'goals' | 'home-form' | 'youth' | 'continental-qf' | 'rivals'
@@ -65,7 +65,7 @@ export function evaluateObjective(o: Objective, ctx: ObjectiveContext): { met: b
       return { met, progress: met ? 'Reached' : season.continental?.eliminated ? 'Knocked out in the round of 16' : 'Still in Europe' }
     }
     case 'goals': {
-      const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+      const table = seasonTable(season)
       const row = table.find((r) => r.teamId === USER_TEAM)
       const gf = row?.goalsFor ?? 0
       return { met: gf >= (o.target ?? 0), progress: `${gf} of ${o.target}` }

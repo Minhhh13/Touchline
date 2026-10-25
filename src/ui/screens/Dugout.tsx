@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
-import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
+import { positionOf, seasonTable, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation, FORMATIONS } from '@engine/formations'
 import { rolesFor, getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
@@ -52,7 +52,7 @@ export function Dugout() {
   const season = game.season
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
-  const table = useMemo(() => computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)]), [season.fixtures, season.ai])
+  const table = useMemo(() => seasonTable(season), [season.fixtures, season.ai])
   const pos = positionOf(table, USER_TEAM)
   const row = table.find((r) => r.teamId === USER_TEAM)!
   const next = nextOpponent(game)

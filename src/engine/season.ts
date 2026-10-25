@@ -82,6 +82,19 @@ export interface SeasonState {
   /** Secondary asks from the board, judged at the end of the season. */
   objectives?: Objective[]
   sacked: boolean
+  /** Run-in: the table the manager took over, keyed by team id (the user's row under `USER_TEAM`), projected from the real final table; absent in every other season. */
+  carryIn?: Record<string, CarryRow>
+  /** Run-in: the matchweek the manager took over after; fixtures up to it carry no result ("before you arrived"). */
+  takeoverAt?: number
+}
+
+/** A league row carried into a season that starts part-way through (the run-in): its points are `3 × won + drawn`. */
+export interface CarryRow {
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
 }
 
 export interface NewsItem {
@@ -181,9 +194,13 @@ export function aiRatingOffset(u: LoadedUniverse, ai: Record<string, AiClub>, di
   return Math.max(0, Math.round((avg - CALIBRATED_LEAGUE_AVERAGE) * 10) / 10)
 }
 
-export function computeTable(fixtures: Fixture[], teamIds: string[]): TableRow[] {
+export function computeTable(fixtures: Fixture[], teamIds: string[], carryIn?: Record<string, CarryRow>): TableRow[] {
   const rows = new Map<string, TableRow>()
-  for (const id of teamIds) rows.set(id, { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, form: [] })
+  for (const id of teamIds) {
+    // A carried row (the run-in's projection) is where the club starts; its form is not known
+    const c = carryIn?.[id]
+    rows.set(id, c ? { teamId: id, played: c.won + c.drawn + c.lost, won: c.won, drawn: c.drawn, lost: c.lost, goalsFor: c.goalsFor, goalsAgainst: c.goalsAgainst, points: 3 * c.won + c.drawn, form: [] } : { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, form: [] })
+  }
   const sorted = [...fixtures].filter((f) => f.result).sort((a, b) => a.matchweek - b.matchweek)
   for (const f of sorted) {
     const r = f.result!
@@ -219,6 +236,15 @@ export function computeTable(fixtures: Fixture[], teamIds: string[]): TableRow[]
     if (a.form.length > 5) a.form.shift()
   }
   return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || x.teamId.localeCompare(y.teamId))
+}
+
+/**
+ * The league table of a season in play: its fixtures' results over the rows it
+ * carried in (a run-in's projected table), or from zero. Every screen and rule
+ * reads a season's table through here, so a carried table is never left out.
+ */
+export function seasonTable(season: Pick<SeasonState, 'fixtures' | 'ai' | 'carryIn'>): TableRow[] {
+  return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)], season.carryIn)
 }
 
 export function positionOf(table: TableRow[], teamId: string): number {
