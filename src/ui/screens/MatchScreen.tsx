@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { MatchTicker } from '../components/MatchTicker'
 import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs } from '../components/bits'
@@ -16,6 +16,8 @@ import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import { isAvailable } from '@game/logic/players'
+import { liveMatchKey } from '@game/logic/assistant'
+import { DecisionSheet } from '../components/DecisionSheet'
 
 /** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
 function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, awayTeamId: string): { home: string; away: string } {
@@ -40,6 +42,11 @@ function sidesFromResult(res: FullMatchResult, names: { home: string; away: stri
     home: { name: names.home, shortName: names.homeShort, colour: colours.home, tactics: res.homeReport.tactics, appearances: res.homeReport.appearances },
     away: { name: names.away, shortName: names.awayShort, colour: colours.away, tactics: res.awayReport.tactics, appearances: res.awayReport.appearances },
   }
+}
+
+/** The live pitch's seed for a match: the same for its live segments and the replay of its last twenty minutes, so the ball picks up where it was. */
+function pitchSeed(opponentId: string, matchweek: number, kind: string): string {
+  return `${opponentId}-${matchweek}-${kind}`
 }
 
 /** A side's short name: the manager's own, or the club's. */
@@ -82,12 +89,12 @@ export function MatchScreen() {
           key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}-${clock}`}
           homeName={homeName}
           awayName={awayName}
-          onPlayed={(finished) => {
+          onPlayed={(finished, view = 'ticker') => {
             if (!finished) return
             setWhich(live.kind === 'cup' ? 'cup' : 'league')
             setResumeFrom(71)
             setHoldLive(true)
-            setMatchView('ticker')
+            setMatchView(view)
           }}
         />
       </div>
@@ -163,7 +170,8 @@ export function MatchScreen() {
           awayName={awayName}
           startClock={resumeFrom}
           onDone={() => setMatchView('report')}
-          visuals={<MatchVisuals {...sidesFromResult(res, names, kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId))} events={res.events} momentum={res.momentum ?? []} xg={res.xg} from={resumeFrom} to={95} seed={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}`} getPlayer={get} />}
+          userSide={userIsHome ? 'home' : 'away'}
+          visuals={<MatchVisuals {...sidesFromResult(res, names, kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId))} events={res.events} momentum={res.momentum ?? []} xg={res.xg} from={resumeFrom} to={95} seed={pitchSeed(ctx.opponentClubId, ctx.matchweek, ctx.roundLabel === 'Friendly' ? 'friendly' : ctx.competition === 'league' ? 'league' : 'cup')} getPlayer={get} />}
         />
       )}
       {matchView === 'report' && <Report res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
@@ -173,19 +181,41 @@ export function MatchScreen() {
 
 /**
  * The paused match at one of its two stops: the ticker plays the segment just
- * simulated (1-45, then 46-70) and stops, and the manager makes his changes for
- * the next one. At half time: a talk, instructions and up to three
+ * simulated (1-45, then 46-70) and stops, and the manager's calls open as a
+ * pop-up the moment it does. At half time: a talk, instructions and up to three
  * substitutions. At 70: instructions, the remaining substitutions and a shout.
+ * With the assistant on (Auto-play, "Finish the match" or "Auto from here") the
+ * stop is answered for him with `assistantCall` and the match plays on.
  */
-function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayName: string; onPlayed: (finished: boolean) => void }) {
+function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayName: string; onPlayed: (finished: boolean, view?: 'ticker' | 'report') => void }) {
   const store = useStore()
   const { universe: u, game } = store
+  const liveAuto = useStore((s) => s.liveAuto)
   const [atStop, setAtStop] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(true)
   const [talk, setTalk] = useState<TeamTalk>('encourage')
   const [shout, setShout] = useState<Shout>('keep-shape')
   const [tactics, setTactics] = useState<Tactics | null>(null)
   const [subs, setSubs] = useState<Array<{ off: string; on: string }>>([])
   const [subbingOff, setSubbingOff] = useState<string | null>(null)
+  const answered = useRef(false)
+  const minimise = useCallback(() => setSheetOpen(false), [])
+  const onStop = useCallback(() => setAtStop(true), [])
+  const key = liveMatchKey(game?.live ?? null)
+  /** Run a store action that plays the match on, then tell the screen whether this match is over (a cup tie that follows is another match). */
+  const after = (run: () => void, view?: 'ticker' | 'report') => {
+    if (answered.current) return
+    answered.current = true
+    run()
+    const now = useStore.getState().game?.live ?? null
+    onPlayed(!now || liveMatchKey(now) !== key, view)
+  }
+  // The assistant answers the stop when he has been asked to
+  useEffect(() => {
+    if (!atStop || !liveAuto || answered.current) return
+    const id = setTimeout(() => after(() => useStore.getState().assistantAdvance()), 700)
+    return () => clearTimeout(id)
+  })
   if (!u || !game?.live) return null
   const live = game.live
   const mp = live.mp
@@ -206,13 +236,22 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
   const subbedOn = new Set(subs.map((s) => s.on))
   const subbedOff = new Set(subs.map((s) => s.off))
   const benchOptions = game.bench.filter((id) => !appeared.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
-  const advance = (changes: Parameters<typeof store.advanceLive>[0]) => {
-    store.advanceLive(changes)
-    onPlayed(!useStore.getState().game?.live)
+  const changes = atBreak ? { talk, tactics: tactics ?? undefined, substitutions: subs } : { shout, tactics: tactics ?? undefined, substitutions: subs }
+  const play = () => after(() => store.advanceLive(changes))
+  const noChanges = () => {
+    setTactics(null)
+    setSubs([])
+    after(() => store.advanceLive(atBreak ? { talk: 'none' } : {}))
   }
-  const play = () => advance(atBreak ? { talk, tactics: tactics ?? undefined, substitutions: subs } : { shout, tactics: tactics ?? undefined, substitutions: subs })
+  const assistant = () => after(() => store.assistantAdvance())
+  const finishMatch = () => {
+    store.setLiveAuto(true)
+    after(() => store.advanceLive(changes))
+  }
+  const fullSim = (withChanges: boolean) => after(() => store.finishLiveNow(withChanges ? changes : undefined), 'report')
   const stateLabel = us > them ? `ahead ${us}-${them}` : us < them ? `behind ${us}-${them}` : `level ${us}-${them}`
   const kit = kitColours(u, game.settings.hostClubId, mp.home.teamId, mp.away.teamId)
+  const waiting = atStop && !liveAuto
   return (
     <div className="col">
       <MatchTicker
@@ -221,37 +260,79 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
         awayName={awayName}
         startClock={atBreak ? 0 : 46}
         stopAt={clock}
-        onStop={() => setAtStop(true)}
-        visuals={<MatchVisuals home={sideFromSnapshot(mp.home, mp.hLive, kit.home)} away={sideFromSnapshot(mp.away, mp.aLive, kit.away)} events={mp.events} momentum={mp.momentum ?? []} xg={{ home: mp.lamH, away: mp.lamA }} from={atBreak ? 0 : 46} to={clock} seed={`${live.opponentId}-${live.ctx.matchweek}-${live.kind}`} getPlayer={get} />}
+        onStop={onStop}
+        userSide={side}
+        controls={
+          <>
+            <label className={`chip-toggle ${liveAuto ? 'on' : ''}`} title="The assistant makes the calls at the stops still to come">
+              <input type="checkbox" checked={liveAuto} onChange={(e) => store.setLiveAuto(e.target.checked)} data-testid="auto-toggle" /> Auto from here
+            </label>
+            <button className="btn sm" onClick={() => fullSim(false)} data-testid="skip-full-time" title="The assistant makes any remaining calls and the match goes straight to the whistle">
+              Skip to full time
+            </button>
+          </>
+        }
+        visuals={<MatchVisuals home={sideFromSnapshot(mp.home, mp.hLive, kit.home)} away={sideFromSnapshot(mp.away, mp.aLive, kit.away)} events={mp.events} momentum={mp.momentum ?? []} xg={{ home: mp.lamH, away: mp.lamA }} from={atBreak ? 0 : 46} to={clock} seed={pitchSeed(live.opponentId, live.ctx.matchweek, live.kind)} getPlayer={get} />}
       />
-      {atStop && (
-        <div className="panel" style={{ borderColor: 'var(--accent)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
-          <div className="panel-head">
-            <h2>{atBreak ? 'Half time' : '70 minutes'}: {stateLabel}</h2>
-            <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
-          </div>
-          <div className="grid two">
-            <div className="col">
-              {atBreak ? (
-                <div className="field">
-                  Team talk
-                  <Segmented<TeamTalk>
-                    value={talk}
-                    onChange={setTalk}
-                    options={[
-                      { value: 'calm', label: 'Calm', hint: 'Protects a lead' },
-                      { value: 'encourage', label: 'Encourage', hint: 'Safe lift' },
-                      { value: 'demand', label: 'Demand', hint: 'Sharpens a level game, risky when behind' },
-                      { value: 'fire-up', label: 'Fire up', hint: 'Best when behind, risky when ahead' },
-                    ]}
-                  />
-                </div>
-              ) : (
-                <div className="field" data-testid="shout">
-                  Touchline shout <span className="help">{SHOUTS[shout].hint}</span>
-                  <Segmented<Shout> value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: SHOUTS[k].label, hint: SHOUTS[k].hint }))} />
-                </div>
-              )}
+      {atStop && liveAuto && (
+        <div className="panel assistant-note small" data-testid="assistant-note">
+          The assistant is making the {atBreak ? 'half-time' : '70th-minute'} calls…
+        </div>
+      )}
+      {waiting && !sheetOpen && (
+        <button className="btn primary decisions-pill" onClick={() => setSheetOpen(true)} data-testid="decisions-pill">
+          Decisions · {atBreak ? 'half time' : '70 minutes'}
+        </button>
+      )}
+      <DecisionSheet
+        open={waiting && sheetOpen}
+        title={`${atBreak ? 'Half time' : '70 minutes'}: ${stateLabel}`}
+        subtitle={atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}
+        onMinimise={minimise}
+        testId={atBreak ? 'half-time-panel' : 'late-panel'}
+        actions={
+          <>
+            <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus>
+              {atBreak ? 'Play on to 70 minutes' : 'Play to the whistle'}
+            </button>
+            <button className="btn" onClick={noChanges} data-testid="no-changes">
+              No changes
+            </button>
+            <button className="btn" onClick={assistant} data-testid="assistant-decide" title="The assistant's talk or shout and changes for this stop">
+              Let the assistant decide
+            </button>
+            <button className="btn" onClick={finishMatch} data-testid="finish-match" title="Your changes now; the assistant takes any later call and the match plays to the whistle">
+              Finish the match
+            </button>
+            <button className="btn ghost" onClick={() => fullSim(true)} data-testid="full-sim" title="Your changes now, then straight to full time and the report">
+              Full sim
+            </button>
+          </>
+        }
+      >
+        <div className="decision-grid">
+          <div className="col" style={{ gap: 8 }}>
+            {atBreak ? (
+              <div className="field">
+                Team talk
+                <Segmented<TeamTalk>
+                  value={talk}
+                  onChange={setTalk}
+                  options={[
+                    { value: 'calm', label: 'Calm', hint: 'Protects a lead' },
+                    { value: 'encourage', label: 'Encourage', hint: 'Safe lift' },
+                    { value: 'demand', label: 'Demand', hint: 'Sharpens a level game, risky when behind' },
+                    { value: 'fire-up', label: 'Fire up', hint: 'Best when behind, risky when ahead' },
+                  ]}
+                />
+              </div>
+            ) : (
+              <div className="field" data-testid="shout">
+                Touchline shout <span className="help">{SHOUTS[shout].hint}</span>
+                <Segmented<Shout> value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: SHOUTS[k].label, hint: SHOUTS[k].hint }))} />
+              </div>
+            )}
+            <div className="instr-grid">
               <div className="field">
                 Mentality <span className="help">{MENTALITY_HELP[t.mentality]}</span>
                 <Segmented value={t.mentality} onChange={(v) => setTactics({ ...t, mentality: v })} options={[{ value: 'defensive', label: 'Defensive' }, { value: 'balanced', label: 'Balanced' }, { value: 'attacking', label: 'Attacking' }]} />
@@ -269,85 +350,77 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
                 <Segmented value={t.tempo} onChange={(v) => setTactics({ ...t, tempo: v })} options={[{ value: 'slow', label: 'Slow' }, { value: 'standard', label: 'Standard' }, { value: 'fast', label: 'Fast' }]} />
               </div>
             </div>
-            <div className="col">
-              <div className="row between">
-                <span style={{ fontWeight: 600 }}>Substitutions ({subs.length}/{subCap}{atBreak ? ' at the break' : ' left'})</span>
-                {subbingOff && (
-                  <button className="btn sm" onClick={() => setSubbingOff(null)}>
-                    Cancel
-                  </button>
-                )}
-              </div>
-              {subbingOff ? (
-                <div className="plist">
-                  <div className="small muted">Bring on for {get(subbingOff)?.name}:</div>
-                  {benchOptions.map((id) => {
-                    const p = get(id)
-                    if (!p) return null
-                    return (
-                      <button key={id} className="prow" onClick={() => { setSubs([...subs, { off: subbingOff, on: id }]); setSubbingOff(null) }}>
-                        <Rating value={p.overall} />
-                        <span className="name">
-                          {p.name}{' '}
-                          {p.positions.map((x) => (
-                            <Pos key={x} p={x} />
-                          ))}
-                          <span className="muted small">condition {game.squad[id]?.condition}</span>
-                        </span>
-                        <span className="btn sm primary">On</span>
-                      </button>
-                    )
-                  })}
-                  {benchOptions.length === 0 && <div className="muted small">Nobody available on the bench.</div>}
-                </div>
-              ) : (
-                <div className="plist">
-                  {pitch
-                    .filter((p) => !subbedOff.has(p.psId))
-                    .map((p) => {
-                      const ps = get(p.psId)
-                      const sub = subs.find((s) => s.on === p.psId)
-                      return (
-                        <div key={p.psId} className="prow" style={{ cursor: 'default' }}>
-                          {ps ? <Rating value={ps.overall} /> : <span />}
-                          <span className="name">
-                            <Pos p={p.position} /> {ps?.name}
-                            {p.yellow && ' 🟨'}
-                            {p.goals > 0 && ` ⚽${p.goals > 1 ? p.goals : ''}`}
-                            {p.onAt > 0 && !sub && <span className="chip">on {p.onAt}'</span>}
-                            {sub && <span className="chip good">on at {clock}'</span>}
-                            <span className="muted small">cond {game.squad[p.psId]?.condition ?? '–'}</span>
-                          </span>
-                          {subs.length < subCap && !sub && (
-                            <button className="btn sm" onClick={() => setSubbingOff(p.psId)}>
-                              Off
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  {subs.map((s) => (
-                    <div key={s.on} className="small muted">
-                      {get(s.on)?.name} replaces {get(s.off)?.name}{' '}
-                      <button className="btn sm ghost" onClick={() => setSubs(subs.filter((x) => x !== s))}>
-                        undo
-                      </button>
-                    </div>
-                  ))}
-                </div>
+          </div>
+          <div className="col" style={{ gap: 6 }}>
+            <div className="row between">
+              <span style={{ fontWeight: 600 }}>Substitutions ({subs.length}/{subCap}{atBreak ? ' at the break' : ' left'})</span>
+              {subbingOff && (
+                <button className="btn sm" onClick={() => setSubbingOff(null)}>
+                  Cancel
+                </button>
               )}
             </div>
-          </div>
-          <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn primary big" onClick={play} data-testid="play-on">
-              {atBreak ? 'Play on to 70 minutes' : 'Play to the whistle'}
-            </button>
-            <button className="btn ghost" onClick={() => { setTactics(null); setSubs([]); advance(atBreak ? { talk: 'none' } : {}) }} data-testid="no-changes">
-              No changes
-            </button>
+            {subbingOff ? (
+              <div className="plist">
+                <div className="small muted">Bring on for {get(subbingOff)?.name}:</div>
+                {benchOptions.map((id) => {
+                  const p = get(id)
+                  if (!p) return null
+                  return (
+                    <button key={id} className="prow" onClick={() => { setSubs([...subs, { off: subbingOff, on: id }]); setSubbingOff(null) }}>
+                      <Rating value={p.overall} />
+                      <span className="name">
+                        {p.name}{' '}
+                        {p.positions.map((x) => (
+                          <Pos key={x} p={x} />
+                        ))}
+                        <span className="muted small">condition {game.squad[id]?.condition}</span>
+                      </span>
+                      <span className="btn sm primary">On</span>
+                    </button>
+                  )
+                })}
+                {benchOptions.length === 0 && <div className="muted small">Nobody available on the bench.</div>}
+              </div>
+            ) : (
+              <div className="plist compact">
+                {pitch
+                  .filter((p) => !subbedOff.has(p.psId))
+                  .map((p) => {
+                    const ps = get(p.psId)
+                    const sub = subs.find((s) => s.on === p.psId)
+                    return (
+                      <div key={p.psId} className="prow" style={{ cursor: 'default' }}>
+                        {ps ? <Rating value={ps.overall} /> : <span />}
+                        <span className="name">
+                          <Pos p={p.position} /> {ps?.name}
+                          {p.yellow && ' 🟨'}
+                          {p.goals > 0 && ` ⚽${p.goals > 1 ? p.goals : ''}`}
+                          {p.onAt > 0 && !sub && <span className="chip">on {p.onAt}'</span>}
+                          {sub && <span className="chip good">on at {clock}'</span>}
+                          <span className="muted small">cond {game.squad[p.psId]?.condition ?? '–'}</span>
+                        </span>
+                        {subs.length < subCap && !sub && (
+                          <button className="btn sm" onClick={() => setSubbingOff(p.psId)} data-testid="sub-off">
+                            Off
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                {subs.map((s) => (
+                  <div key={s.on} className="small muted">
+                    {get(s.on)?.name} replaces {get(s.off)?.name}{' '}
+                    <button className="btn sm ghost" onClick={() => setSubs(subs.filter((x) => x !== s))}>
+                      undo
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </DecisionSheet>
     </div>
   )
 }

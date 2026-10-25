@@ -17,17 +17,23 @@ import { minuteLabel, textColourFor } from '../format'
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
 const SHOT_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', 'chance', 'save'])
 
-/** The pitch and the two live charts, driven by the ticker's clock. */
+/** The pitch and the two live charts, driven by the ticker's clock. A goal reaches the charts when the ball crosses the line, as it does the scoreboard. */
 export function MatchVisuals({ home, away, events, momentum, xg, from, to, seed, getPlayer }: { home: PitchSide; away: PitchSide; events: MatchEvent[]; momentum: number[]; xg: { home: number; away: number }; from: number; to: number; seed: string; getPlayer: (id: string) => PlayerSeason | undefined }) {
   const clock = useLiveClock((s) => s.clock)
+  const holds = useLiveClock((s) => s.holds)
+  const revealed = useLiveClock((s) => s.revealed)
   const minute = Math.min(clock, to)
   const pitch = home.tactics && home.appearances && away.tactics && away.appearances
+  const seen = useMemo(() => {
+    const hidden = new Set(holds.slice(revealed).map((h) => +h.key))
+    return hidden.size ? events.filter((_, i) => !hidden.has(i)) : events
+  }, [events, holds, revealed])
   return (
     <div className="col match-visuals">
       {pitch && <LivePitch home={{ ...home, tactics: home.tactics!, appearances: home.appearances! }} away={{ ...away, tactics: away.tactics!, appearances: away.appearances! }} events={events} momentum={momentum} from={from} to={to} seed={seed} getPlayer={getPlayer} />}
       <div className="grid two charts">
-        <MomentumBar momentum={momentum} clock={minute} events={events} home={home} away={away} />
-        <XgRace momentum={momentum} xg={xg} clock={minute} events={events} home={home} away={away} />
+        <MomentumBar momentum={momentum} clock={minute} events={seen} home={home} away={away} />
+        <XgRace momentum={momentum} xg={xg} clock={minute} events={seen} home={home} away={away} />
       </div>
     </div>
   )
