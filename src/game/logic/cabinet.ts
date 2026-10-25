@@ -133,7 +133,7 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
 
 /**
  * Credit one finished arena run, on the arena's own shelves: cups by size,
- * and a giant killed for every win on Realistic over a side whose real team
+ * Gauntlet runs, best climb and completions, and a giant killed for every win on Realistic over a side whose real team
  * strength is 85 or more. Never a league title or a season cup.
  */
 export function creditArena(cabinet: Cabinet, game: Game): Cabinet {
@@ -149,6 +149,13 @@ export function creditArena(cabinet: Cabinet, game: Game): Cabinet {
       const size = String(a.size ?? 2)
       c.cups.bySize[size] = (c.cups.bySize[size] ?? 0) + 1
     }
+  }
+  if (a.format === 'gauntlet') {
+    // Rungs climbed: the score of the run, never a cup
+    const rungs = a.log.filter((s) => s.gf > s.ga || (s.gf === s.ga && !!s.pens && s.pens.us > s.pens.them)).length
+    c.gauntlet.runs += 1
+    c.gauntlet.best = Math.max(c.gauntlet.best, rungs)
+    if (a.won) c.gauntlet.complete += 1
   }
   if (game.settings.difficulty === 'realistic') c.giantKills += a.log.filter((s) => s.realStrength >= GIANT_STRENGTH && (s.gf > s.ga || (s.gf === s.ga && !!s.pens && s.pens.us > s.pens.them))).length
   return c

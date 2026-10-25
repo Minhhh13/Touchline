@@ -1,7 +1,8 @@
 /**
  * The arena: one-sitting knockouts against real club-seasons, played beside a
- * season rather than inside one. This item ships its plumbing and the first
- * format, a one-off cup final (draft 16, manage one final to the last kick).
+ * season rather than inside one. Two formats: a one-off cup final (draft 16,
+ * manage one final to the last kick) and the Gauntlet (draft 14, climb a
+ * ladder of fifteen ever stronger club-seasons until the first defeat).
  *
  * Seed streams (`ArenaState.streams`, seeded in `createGame`) draw the field,
  * so everyone on a seed meets the same opponents whatever they drafted; the
@@ -10,13 +11,14 @@
 import type { ArenaRunEntry, ArenaSettings, ArenaState, ArenaStep, Game, GameSettings, MatchContext, PendingShootout } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { QUICK_RULES } from '@engine/draft'
+import { autoDraft, picksMade, QUICK_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { advanceMatch, beginMatch, finishMatch, onPitch, type FullMatchResult, type LiveChanges, type MatchInProgress, type MatchOptions, type MatchTeamInput, type SecondHalfOptions, type TeamLookups } from '@engine/match'
 import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, userTeamInput, type AiClub } from '@engine/season'
 import { TRAINING } from '@engine/training'
-import { ARENA_TIER_LABEL, arenaClub, clubIdOfKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
-import type { ArenaShareInput } from '@engine/awards'
+import { arenaClub, arenaPool, arenaTierLabel, clubIdOfKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
+import { buildLadder, gauntletHome, gauntletImportance, gauntletOffset, GAUNTLET_RUNGS, GIANT_KILLING, rungLabels } from '@engine/gauntlet'
+import { lastName, type ArenaShareInput } from '@engine/awards'
 import type { ClubSeason } from '@engine/types'
 import { playerLookup } from './players'
 import { autoPick, lineupProblems } from './squad'
@@ -26,6 +28,14 @@ import { resultId } from './cabinet'
 
 /** Players drafted for a one-off final. */
 export const FINAL_SQUAD = 16
+/** Players drafted for the Gauntlet, before its bonus spins. */
+export const GAUNTLET_SQUAD = 14
+/** The Gauntlet's bonus spins stop once the squad has this many. */
+export const GAUNTLET_SQUAD_CAP = 18
+/** Surviving these rungs reopens the draft for one more bench pick. */
+export const GAUNTLET_BONUS_AFTER: readonly number[] = [2, 4, 6, 8]
+/** The share of a week's recovery the squad gets between two rungs. */
+export const GAUNTLET_RECOVERY = 0.8
 
 /** The fields this build offers for a final, the default first. */
 export const FINAL_FIELDS: ReadonlyArray<{ value: ArenaField; label: string; hint: string }> = [
@@ -108,6 +118,12 @@ export function finalGameSettings(u: LoadedUniverse, c: ArenaChoices, shortName:
   }
 }
 
+/** The settings of a Gauntlet: a final's, with fourteen picks and no field (the ladder comes from the wheel's own leagues and era). */
+export function gauntletGameSettings(u: LoadedUniverse, c: Omit<ArenaChoices, 'field'>, shortName: string): GameSettings {
+  const s = finalGameSettings(u, { ...c, field: 'wheel' }, shortName)
+  return { ...s, rules: { ...s.rules, squadSize: GAUNTLET_SQUAD }, arena: { format: 'gauntlet' } }
+}
+
 /** The wheel in a few words, for the share text: `Premier League wheel`, `European Nights wheel`. */
 export function wheelName(u: LoadedUniverse, s: Pick<GameSettings, 'wheelLeagues' | 'leagueId'>): string {
   return s.wheelLeagues.length > 1 ? 'European Nights wheel' : `${u.available.find((l) => l.id === s.wheelLeagues[0])?.name ?? s.wheelLeagues[0] ?? s.leagueId} wheel`
@@ -119,7 +135,8 @@ const FIELD_WORDS: Record<ArenaField, string> = { giants: 'against the giants', 
 export function summariseArena(u: LoadedUniverse, s: GameSettings): string {
   const field = s.arena?.field ?? 'giants'
   const wheel = s.wheelLeagues.length > 1 ? `European Nights wheel of ${s.wheelLeagues.length} leagues` : wheelName(u, s)
-  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${arenaFormatLabel(s.arena)} ${FIELD_WORDS[field]}, ${wheel}, ${s.difficulty}, seed ${s.seed}`]
+  const format = s.arena?.format === 'gauntlet' ? 'The Gauntlet up the wheel' : `${arenaFormatLabel(s.arena)} ${FIELD_WORDS[field]}`
+  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${format}, ${wheel}, ${s.difficulty}, seed ${s.seed}`]
   const r = s.rules
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
   if (r.hardMode) parts.push('hard mode')
@@ -130,23 +147,45 @@ export function summariseArena(u: LoadedUniverse, s: GameSettings): string {
 
 /** What the next match of a run is: label, the share code, importance, venue. */
 export function arenaStepInfo(a: Pick<ArenaState, 'format' | 'size' | 'step'>): { label: string; code: string; importance: number; neutral: boolean; home: boolean } {
-  void a
+  if (a.format === 'gauntlet') {
+    const rung = a.step + 1
+    return { label: `Rung ${rung}`, code: `R${rung}`, importance: gauntletImportance(rung), neutral: false, home: gauntletHome(rung) }
+  }
   return { label: 'Cup final', code: 'F', importance: 1.4, neutral: true, home: true }
 }
 
 /** True when the run has no match after this one. */
 function lastStep(a: ArenaState): boolean {
+  if (a.format === 'gauntlet') return a.step >= GAUNTLET_RUNGS
   return a.format === 'cup' && (a.size ?? 2) === 2 ? a.step >= 1 : true
 }
 
-/** Draw the next opponent from the field's stream. A final draws its one opponent. */
+/** The club-season key a Gauntlet rung (1-based) is played against: its main, or its alternate once the lifeline swapped it. */
+export function rungOpponent(a: Pick<ArenaState, 'ladder' | 'lifelineUsed'>, rung: number): string | null {
+  if (!a.ladder) return null
+  return (a.lifelineUsed === rung ? a.ladder.alternates[rung - 1] : a.ladder.mains[rung - 1]) ?? null
+}
+
+/** Rating points taken off the opponent of step `step` (0-based) whose real strength is `real`. */
+function stepOffset(game: Game, real: number, step: number): number {
+  return game.arena?.format === 'gauntlet' ? gauntletOffset(real, step + 1, game.settings.difficulty) : knockoutOffset([real], game.settings.arena?.field ?? 'giants', game.settings.difficulty)
+}
+
+/** Draw the next opponent: a final draws its one opponent from the field's stream; the Gauntlet reads its ladder (no draw). */
 function drawNextOpponent(game: Game, u: LoadedUniverse): void {
   const a = game.arena
   if (!a) return
-  const rng = Rng.fromState(a.streams.field)
-  const r = game.settings.rules
-  const cs = finalOpponent(u, rng, { leagues: fieldLeagues(game, u), fromSeason: r.fromSeason, toSeason: r.toSeason, field: game.settings.arena?.field ?? 'giants' })
-  a.streams.field = rng.getState()
+  let cs: ClubSeason | undefined
+  if (a.format === 'gauntlet') {
+    const key = rungOpponent(a, a.step + 1)
+    cs = key ? u.clubSeasonByKey[key] : undefined
+    if (!cs) return
+  } else {
+    const rng = Rng.fromState(a.streams.field)
+    const r = game.settings.rules
+    cs = finalOpponent(u, rng, { leagues: fieldLeagues(game, u), fromSeason: r.fromSeason, toSeason: r.toSeason, field: game.settings.arena?.field ?? 'giants' })
+    a.streams.field = rng.getState()
+  }
   const club = arenaClub(u, cs)
   a.clubs[club.id] = club
   a.next = club.id
@@ -157,6 +196,24 @@ export function beginArena(game: Game, u: LoadedUniverse): void {
   const a = game.arena
   if (!a) return
   const d = game.draft
+  if (a.step > 0) {
+    // Back from a bonus spin: the new man joins the bench at a new player's state; the side the manager set stays
+    for (const id of d ? [...Object.values(d.lineup), ...d.bench] : []) {
+      if (game.squad[id]) continue
+      game.squad[id] = newSquadPlayer(id)
+      game.bench.push(id)
+    }
+    game.bonusSpins = 0
+    game.phase = 'week'
+    return
+  }
+  if (a.format === 'gauntlet' && !a.ladder) {
+    // The ladder comes from the field's stream, once: the same fifteen rungs for everyone on the seed
+    const rng = Rng.fromState(a.streams.field)
+    const r = game.settings.rules
+    a.ladder = buildLadder(u, rng, arenaPool(u, { leagues: fieldLeagues(game, u), fromSeason: r.fromSeason, toSeason: r.toSeason }))
+    a.streams.field = rng.getState()
+  }
   if (d) {
     for (const id of [...Object.values(d.lineup), ...d.bench]) game.squad[id] ??= newSquadPlayer(id)
     game.lineup = { ...d.lineup }
@@ -187,7 +244,7 @@ export function nextArenaOpponent(game: Game, u: LoadedUniverse): ArenaOpponent 
   if (!club) return null
   const cs = u.clubSeasonByKey[a.next]
   const real = cs ? teamStrengthOf(u, cs) : 0
-  return { key: a.next, club, cs, real, offset: knockoutOffset([real], game.settings.arena?.field ?? 'giants', game.settings.difficulty) }
+  return { key: a.next, club, cs, real, offset: stepOffset(game, real, a.step) }
 }
 
 /** The user's side as the engine reads it: `week.ts`'s recipe, so prime ratings and custom players resolve the same way. */
@@ -213,14 +270,15 @@ export function playArenaStep(game: Game, u: LoadedUniverse, live: boolean): voi
   if (!opp) return
   if (lineupProblems(game, u).length || !live) autoPick(game, u, live)
   const info = arenaStepInfo(a)
+  const billing = a.format === 'gauntlet' ? rungLabels(a.step + 1, opp.real).billing : undefined
   const rng = Rng.fromState(game.rngState)
   const t = TRAINING[game.training]
   const boosts = { attack: t.attack, defence: t.defence }
   const user = arenaUserInput(game, u)
   // The opponent plays under its club id, so badges and kits resolve; the arena files it by club and season
   const them: MatchTeamInput = { ...aiTeamInput(u, opp.club, opp.offset), teamId: opp.club.clubId }
-  const opts: MatchOptions = { rng, home: info.home ? user : them, away: info.home ? them : user, importance: info.importance, importanceLabel: info.label, neutral: info.neutral, detail: 'full', boosts: info.home ? { home: boosts } : { away: boosts } }
-  const ctx: MatchContext = { matchweek: a.step + 1, competition: 'arena', roundLabel: info.label, opponentClubId: opp.club.clubId, home: info.home }
+  const opts: MatchOptions = { rng, home: info.home ? user : them, away: info.home ? them : user, importance: info.importance, importanceLabel: billing ?? info.label, neutral: info.neutral, detail: 'full', boosts: info.home ? { home: boosts } : { away: boosts } }
+  const ctx: MatchContext = { matchweek: a.step + 1, competition: 'arena', roundLabel: info.label, opponentClubId: opp.club.clubId, home: info.home, ...(billing ? { importanceLabel: billing } : {}) }
   const mp = beginMatch(opts)
   game.rngState = rng.getState()
   if (live) {
@@ -354,12 +412,12 @@ export function resolveArenaStep(game: Game, u: LoadedUniverse, res: FullMatchRe
   game.lastCupContext = null
   const cs = u.clubSeasonByKey[key]
   const real = cs ? Math.round(teamStrengthOf(u, cs) * 10) / 10 : 0
-  const row: ArenaStep = { label: info.label, opponent: key, neutral: info.neutral, home: userIsHome, gf, ga, training: game.training, live, realStrength: real, offset: knockoutOffset([real], game.settings.arena?.field ?? 'giants', game.settings.difficulty) }
+  const row: ArenaStep = { label: info.label, opponent: key, neutral: info.neutral, home: userIsHome, gf, ga, training: game.training, live, realStrength: real, offset: stepOffset(game, real, a.step) }
   if (res.motmId) row.motmId = res.motmId
   a.log.push(row)
   game.phase = 'match'
   if (gf !== ga) {
-    settleStep(game, gf > ga)
+    settleStep(game, u, gf > ga)
     return
   }
   const pending = pendingShootout(game, u, mp, userIsHome)
@@ -370,8 +428,12 @@ export function resolveArenaStep(game: Game, u: LoadedUniverse, res: FullMatchRe
   kickPenalties(game, u, pending, pending.defaultOrder, pending.keepers[0])
 }
 
-/** The step is decided: on to the next match, or the run is over. */
-function settleStep(game: Game, won: boolean): void {
+/**
+ * The step is decided: on to the next match, or the run is over. A Gauntlet
+ * rung survived recovers the squad by most of a week and puts the next rung's
+ * club in place for the hub.
+ */
+function settleStep(game: Game, u: LoadedUniverse, won: boolean): void {
   const a = game.arena!
   const key = a.next!
   a.step += 1
@@ -380,6 +442,12 @@ function settleStep(game: Game, won: boolean): void {
     a.over = true
     a.won = won
     a.next = null
+    return
+  }
+  if (a.format === 'gauntlet') {
+    a.next = null
+    arenaRecovery(game, u, GAUNTLET_RECOVERY)
+    drawNextOpponent(game, u)
   }
 }
 
@@ -400,7 +468,7 @@ function kickPenalties(game: Game, u: LoadedUniverse, pending: PendingShootout, 
   const row = a.log[a.log.length - 1]
   row.pens = { us, them, kicks: so.kicks.map((k) => ({ us: (k.side === 'home') === usFirst, takerId: k.takerId, scored: k.scored })), ...(keeperSwap ? { keeperSwap } : {}) }
   delete a.pending
-  settleStep(game, us > them)
+  settleStep(game, u, us > them)
 }
 
 /**
@@ -460,17 +528,88 @@ export function arenaRecovery(game: Game, u: LoadedUniverse, factor: number): vo
   game.weekPlayed = []
 }
 
-/** Leaving the match screen: back to the hub, or to the summary when the run is over. Nothing moves while penalties wait. */
+/** True when leaving this match opens a Gauntlet bonus spin: rungs 2, 4, 6 and 8 survived, the squad under 18. */
+export function bonusSpinDue(game: Pick<Game, 'arena' | 'draft' | 'phase'>): boolean {
+  const a = game.arena
+  return !!a && a.format === 'gauntlet' && !a.over && !a.pending && game.phase === 'match' && !!game.draft && GAUNTLET_BONUS_AFTER.includes(a.step) && picksMade(game.draft) < GAUNTLET_SQUAD_CAP
+}
+
+/**
+ * Leaving the match screen: back to the hub, to a bonus spin, or to the
+ * summary when the run is over. Nothing moves while penalties wait. A bonus
+ * spin reopens the run's own draft for one more pick: the rules are copied
+ * (`createGame` hands `settings.rules` to the draft by reference), so the
+ * settings keep the squad size the run started with.
+ */
 export function closeArenaMatch(game: Game): void {
   const a = game.arena
   if (!a || a.pending || game.live) return
   if (a.over) finishArena(game)
-  else if (game.phase === 'match') game.phase = 'week'
+  else if (bonusSpinDue(game)) {
+    const d = game.draft!
+    d.rules = { ...d.rules, squadSize: picksMade(d) + 1 }
+    game.bonusSpins = 1
+    game.phase = 'draft'
+  } else if (game.phase === 'match') game.phase = 'week'
+}
+
+/** The match screen's continue label: penalties first, the summary, a bonus spin or the next round. */
+export function arenaContinueLabel(game: Pick<Game, 'arena' | 'draft' | 'phase'>): string {
+  const a = game.arena
+  if (!a) return ''
+  if (a.pending) return 'Penalties first'
+  if (a.over) return 'Run summary →'
+  if (bonusSpinDue(game)) return 'Bonus spin →'
+  return `Next: ${arenaStepInfo(a).label} →`
+}
+
+/** Change the draw: once a run, before a Gauntlet rung, its main is swapped for its alternate. */
+export function changeTheDraw(game: Game, u: LoadedUniverse): { ok: boolean; message: string } {
+  const a = game.arena
+  if (!a || a.format !== 'gauntlet' || !a.ladder) return { ok: false, message: 'Only the Gauntlet has a lifeline.' }
+  if (a.over || a.pending || game.live || game.phase !== 'week') return { ok: false, message: 'The draw can only change before a rung.' }
+  if (a.lifelineUsed !== undefined) return { ok: false, message: `The lifeline was used at rung ${a.lifelineUsed}.` }
+  const rung = a.step + 1
+  if (a.next) delete a.clubs[a.next]
+  a.next = null
+  a.lifelineUsed = rung
+  drawNextOpponent(game, u)
+  return { ok: true, message: '' }
+}
+
+/**
+ * Sim to the end: the assistant plays every rung (or match) left, penalties
+ * included, and drafts every bonus spin with `autoDraft` on `rngState`. Ends
+ * on the summary.
+ */
+export function simArenaToEnd(game: Game, u: LoadedUniverse): void {
+  const a = game.arena
+  if (!a || game.live || a.pending) return
+  for (let guard = 0; guard < 4 * GAUNTLET_RUNGS && game.phase !== 'summary'; guard++) {
+    if (game.phase === 'draft') {
+      const d = game.draft
+      if (!d) break
+      const rng = Rng.fromState(game.rngState)
+      autoDraft(u, d, rng)
+      game.rngState = rng.getState()
+      beginArena(game, u)
+      continue
+    }
+    if (game.phase === 'week' && !a.over) playArenaStep(game, u, false)
+    closeArenaMatch(game)
+    if (a.pending) break
+  }
 }
 
 /** How the run ended. */
-export function arenaTier(a: Pick<ArenaState, 'won'>): ArenaTier {
+export function arenaTier(a: Pick<ArenaState, 'won' | 'format'>): ArenaTier {
+  if (a.format === 'gauntlet') return a.won ? 'GAUNTLET COMPLETE' : 'RUNGS'
   return a.won ? 'WINNERS' : 'RUNNERS-UP'
+}
+
+/** The banner of a run: `WINNERS`, `7 RUNGS`, `GAUNTLET COMPLETE`. */
+export function arenaBanner(a: Pick<ArenaState, 'won' | 'format' | 'log'>): string {
+  return arenaTierLabel(arenaTier(a), a.log.filter(stepWon).length)
 }
 
 /** Did the user win this step (in 90 minutes or on penalties)? */
@@ -487,6 +626,13 @@ export function finishArena(game: Game): void {
   }
   if (a.won && a.format === 'cup' && (a.size ?? 2) === 2) unlock('final-whistle')
   if (a.log.some((s) => s.pens && s.pens.us > s.pens.them)) unlock('spot-kick-kings')
+  if (a.format === 'gauntlet') {
+    const rungs = a.log.filter(stepWon).length
+    if (rungs >= 5) unlock('gauntlet-5')
+    if (rungs >= 10) unlock('gauntlet-10')
+    if (rungs >= GAUNTLET_RUNGS) unlock('gauntlet-15')
+  }
+  if (game.settings.difficulty === 'realistic' && a.log.some((s) => stepWon(s) && s.realStrength >= GIANT_KILLING)) unlock('giant-killer')
   game.phase = 'summary'
 }
 
@@ -533,7 +679,8 @@ export function arenaClubName(u: LoadedUniverse, key: string): string {
 export function arenaStatus(game: Game): string {
   const a = game.arena
   if (!a) return ''
-  if (game.phase === 'draft') return 'Drafting'
+  if (game.phase === 'draft') return a.step > 0 ? 'Bonus spin' : 'Drafting'
+  if (a.format === 'gauntlet' && a.over) return a.won ? 'Gauntlet complete' : `Climbed ${arenaBanner(a).toLowerCase()}`
   if (a.over) return a.won ? 'Won the final' : 'Lost the final'
   if (a.pending) return 'Penalties to take'
   return `${arenaStepInfo(a).label} next`
@@ -551,10 +698,39 @@ export function arenaShareInput(game: Game, u: LoadedUniverse): ArenaShareInput 
     teamName: s.teamName,
     formationName: getFormation(game.tactics.formationId).name,
     wheel: wheelName(u, s),
-    banner: ARENA_TIER_LABEL[arenaTier(a)],
-    icon: a.won ? '🏆' : '🥈',
+    banner: arenaBanner(a),
+    icon: a.format === 'gauntlet' ? (a.won ? '🏔️' : '🪜') : a.won ? '🏆' : '🥈',
     steps: a.log.map((x, i) => ({ code: arenaStepInfo({ ...a, step: i }).code, gf: x.gf, ga: x.ga, opponent: arenaClubName(u, x.opponent), ...(x.pens ? { pens: { us: x.pens.us, them: x.pens.them } } : {}) })),
-    ...(motmId ? { motm: get(motmId)?.name ?? motmId } : {}),
+    ...(a.format === 'gauntlet' ? { strip: a.log.map(rungMark).join(''), lines: gauntletLines(game, u) } : motmId ? { motm: get(motmId)?.name ?? motmId } : {}),
     seed: s.seed,
   }
+}
+
+/** A Gauntlet rung as the strip marks it: 🟩 won in 90 minutes, 🟨 won on penalties, 🟥 the defeat (a lost shoot-out included). */
+export function rungMark(s: ArenaStep): string {
+  return !stepWon(s) ? '🟥' : s.gf > s.ga ? '🟩' : '🟨'
+}
+
+/** The run's top scorer and most frequent man of the match among the user's squad, for the Gauntlet's share line. */
+export function runHeroes(game: Game, u: LoadedUniverse): { scorer?: { name: string; goals: number }; star?: string } {
+  const get = playerLookup(game, u)
+  const ids = Object.keys(game.squad).sort()
+  const stats = (id: string) => game.squad[id].seasonStats
+  const scorerId = ids.filter((id) => stats(id).goals > 0).sort((x, y) => stats(y).goals - stats(x).goals || stats(y).motm - stats(x).motm)[0]
+  const starId = ids.filter((id) => stats(id).motm > 0).sort((x, y) => stats(y).motm - stats(x).motm || stats(y).goals - stats(x).goals)[0]
+  return { ...(scorerId ? { scorer: { name: get(scorerId)?.name ?? scorerId, goals: stats(scorerId).goals } } : {}), ...(starId ? { star: get(starId)?.name ?? starId } : {}) }
+}
+
+/** The Gauntlet's lines under the strip: where it ended, then `⚽ Haaland 6 · ⭐ De Bruyne`. */
+export function gauntletLines(game: Game, u: LoadedUniverse): string[] {
+  const a = game.arena
+  if (!a) return []
+  const last = a.log[a.log.length - 1]
+  const lines: string[] = []
+  if (a.won) lines.push(`Climbed all ${GAUNTLET_RUNGS} rungs`)
+  else if (last) lines.push(`Fell to ${arenaClubName(u, last.opponent)} at rung ${a.log.length}, ${last.gf}-${last.ga}${last.pens ? ` (${last.pens.us}-${last.pens.them} pens)` : ''}`)
+  const h = runHeroes(game, u)
+  const hero = [h.scorer ? `⚽ ${lastName(h.scorer.name)} ${h.scorer.goals}` : '', h.star ? `⭐ ${lastName(h.star)}` : ''].filter(Boolean).join(' · ')
+  if (hero) lines.push(hero)
+  return lines
 }

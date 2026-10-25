@@ -7,7 +7,7 @@ import { fetchClubLeagues } from '@engine/universe'
 import type { LeaderboardEntry } from '@game/types'
 import { MODE_TITLE, arenaFormatLabel } from '@game/logic/modes'
 import { arenaClubName } from '@game/logic/arena'
-import { ARENA_TIER_LABEL } from '@engine/knockout'
+import { arenaTierLabel } from '@engine/knockout'
 import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
@@ -145,6 +145,7 @@ export function ProfileScreen() {
                   ['💯', 'Centurions', cabinet.centurions],
                   // The arena's own shelf: never in the league and cup totals
                   ['🏟️', 'Arena cups', cabinet.cups.won],
+                  ['🪜', 'Best Gauntlet', cabinet.gauntlet.best],
                 ] as const
               ).map(([icon, label, n]) => (
                 <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
@@ -269,7 +270,7 @@ export function ProfileScreen() {
         </div>
         <div className="panel" data-testid="best-runs">
           <h3>Best runs</h3>
-          {!profile.arenaRuns?.length && <div className="muted small">No arena runs yet. Try the Cup Final from Home.</div>}
+          {!profile.arenaRuns?.length && <div className="muted small">No arena runs yet. Try the Cup Final or the Gauntlet from Home.</div>}
           {!!profile.arenaRuns?.length && (
             <table className="tbl">
               <thead>
@@ -293,7 +294,7 @@ export function ProfileScreen() {
                       </div>
                     </td>
                     <td>{arenaFormatLabel(e)}</td>
-                    <td>{ARENA_TIER_LABEL[e.tier]}</td>
+                    <td>{arenaTierLabel(e.tier, e.score)}</td>
                     <td className="num">
                       {e.goalsFor}-{e.goalsAgainst}
                     </td>

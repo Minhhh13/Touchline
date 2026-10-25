@@ -18,7 +18,7 @@ export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: '
 export type ModeLabelStyle = 'short' | 'heading' | 'share'
 
 /** The parts of a game a label reads. */
-export type LabelledGame = Pick<Game, 'year'> & { settings: Pick<Game['settings'], 'mode' | 'seed'> & Partial<Pick<Game['settings'], 'arena'>> }
+export type LabelledGame = Pick<Game, 'year'> & Partial<Pick<Game, 'arena'>> & { settings: Pick<Game['settings'], 'mode' | 'seed'> & Partial<Pick<Game['settings'], 'arena'>> }
 
 /** An arena format's name: `Cup Final`, `The Gauntlet`, `The Cup · 16 clubs`. */
 export function arenaFormatLabel(a: (Pick<ArenaSettings, 'format'> & { size?: number }) | undefined): string {
@@ -87,7 +87,7 @@ export function isQuickLike(mode: Mode): boolean {
  */
 export function finishDraftLabel(game: LabelledGame, made?: number): string {
   if (isQuickLike(game.settings.mode)) return 'Simulate the season'
-  if (game.settings.mode === 'arena') return arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : 'Into the arena'
+  if (game.settings.mode === 'arena') return game.arena && game.arena.step > 0 ? 'Back to the ladder' : arenaFormatLabel(game.settings.arena) === 'Cup Final' ? 'On to the final' : game.settings.arena?.format === 'gauntlet' ? 'Onto the ladder' : 'Into the arena'
   if (game.settings.mode === 'dynasty' && game.year > 1) return 'Into the new season'
   return made === undefined ? 'Go to pre-season' : `Go to pre-season with ${made}`
 }

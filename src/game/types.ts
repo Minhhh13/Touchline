@@ -13,6 +13,7 @@ import type { ChallengeClaim } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
 import type { AiClub } from '@engine/season'
 import type { ArenaField, ArenaTier } from '@engine/knockout'
+import type { GauntletLadder } from '@engine/gauntlet'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena'
 export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
@@ -106,6 +107,10 @@ export interface ArenaState {
   won: boolean
   /** The manager touched the team, the tactics, a live match or the penalty order while the run was under way. */
   handManaged: boolean
+  /** The Gauntlet: the rung (1-based) whose main was swapped for its alternate; absent until the lifeline is used. */
+  lifelineUsed?: number
+  /** The Gauntlet's ladder, built once from the field stream; absent for the other formats. */
+  ladder?: GauntletLadder
 }
 
 /** One finished arena run on the Record page's Best runs. */

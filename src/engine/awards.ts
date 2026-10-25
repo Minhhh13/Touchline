@@ -79,6 +79,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'record-points', title: 'Record Books', description: 'Set a new league points record on Realistic difficulty.', icon: '📜' },
   { id: 'final-whistle', title: 'Final Whistle', description: 'Win a one-off final.', icon: '🏟️' },
   { id: 'spot-kick-kings', title: 'Spot-Kick Kings', description: 'Win a shoot-out in the arena.', icon: '🥅' },
+  { id: 'gauntlet-5', title: 'Five Rungs', description: 'Climb five rungs of the Gauntlet.', icon: '🪜' },
+  { id: 'gauntlet-10', title: 'Last One Standing', description: 'Climb ten rungs of the Gauntlet.', icon: '🧗' },
+  { id: 'gauntlet-15', title: 'Gauntlet Complete', description: 'Climb all fifteen rungs of the Gauntlet.', icon: '🏔️' },
+  { id: 'giant-killer', title: 'Giant Killer', description: 'Beat a side with a real team strength of 85+ in the arena on Realistic.', icon: '🪓' },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))
@@ -141,6 +145,9 @@ export interface ArenaShareInput {
   steps: ArenaShareStep[]
   motm?: string
   seed?: string
+  /** The Gauntlet: one mark per rung printed in place of the per-match lines, then `lines` (the fall, the scorer). */
+  strip?: string
+  lines?: string[]
 }
 
 /** 🟩 won in 90 minutes, 🟨 level at 90 (penalties either way), 🟥 lost in 90. */
@@ -154,13 +161,25 @@ export function initialName(name: string): string {
   return parts.length > 1 ? `${parts[0][0]}. ${parts.slice(1).join(' ')}` : name
 }
 
+/** `De Bruyne`: the name without its first part, for the Gauntlet's scorer line. */
+export function lastName(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  return parts.length > 1 ? parts.slice(1).join(' ') : name
+}
+
 /**
  * The arena's share text:
  * TouchLine · Cup Final / the side and its wheel / the banner / one line per match / MOTM / the seed.
+ * The Gauntlet prints its strip and lines in place of the per-match lines.
  */
 export function arenaShareText(s: ArenaShareInput, appName = 'TouchLine'): string {
   const lines = [`${appName} · ${s.mode}`, `${s.teamName} · ${s.formationName} · ${s.wheel}`, `${s.icon} ${s.banner}`]
-  for (const st of s.steps) lines.push(`${st.code} ${arenaStepMark(st)} ${st.gf}-${st.ga} ${st.opponent}${st.pens ? ` (${st.pens.us}-${st.pens.them} pens)` : ''}`)
+  if (s.strip !== undefined) {
+    if (s.strip) lines.push(s.strip)
+    for (const l of s.lines ?? []) if (l.trim()) lines.push(l)
+  } else {
+    for (const st of s.steps) lines.push(`${st.code} ${arenaStepMark(st)} ${st.gf}-${st.ga} ${st.opponent}${st.pens ? ` (${st.pens.us}-${st.pens.them} pens)` : ''}`)
+  }
   if (s.motm) lines.push(`⭐ MOTM: ${initialName(s.motm)}`)
   if (s.seed) lines.push(`Seed ${s.seed}`)
   return lines.join('\n')

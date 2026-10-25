@@ -2,20 +2,21 @@ import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import { arenaShareText, arenaStepMark } from '@engine/awards'
 import { getFormation } from '@engine/formations'
-import { ARENA_TIER_LABEL, clubIdOfKey } from '@engine/knockout'
+import { clubIdOfKey } from '@engine/knockout'
 import { randomSeed } from '@engine/rng'
 import { USER_TEAM } from '@engine/season'
-import { arenaClubName, arenaShareInput, arenaTier } from '@game/logic/arena'
+import { arenaBanner, arenaClubName, arenaShareInput, gauntletLines, rungMark } from '@game/logic/arena'
 import { arenaFormatLabel, shareCardFooter } from '@game/logic/modes'
 import { playerLookup } from '@game/logic/players'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge } from '../components/bits'
+import { GauntletLadder } from '../components/GauntletLadder'
 import { minuteLabel } from '../format'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
-  const { universe: u, game, startGame, go, showToast } = useStore()
+  const { universe: u, game, startGame, openArenaSetup, showToast } = useStore()
   const [copied, setCopied] = useState(false)
   // The "Copied!" label goes back after a moment; the timer is cleared if the summary closes first
   useEffect(() => {
@@ -26,14 +27,19 @@ export function ArenaSummary() {
   if (!u || !game?.arena) return null
   const a = game.arena
   const get = playerLookup(game, u)
-  const tier = arenaTier(a)
+  const gauntlet = a.format === 'gauntlet'
+  const banner = arenaBanner(a)
   const input = arenaShareInput(game, u)
   const text = input ? arenaShareText(input) : ''
   const last = a.log[a.log.length - 1]
   const res = game.lastMatch
   const userHome = res?.homeTeamId === USER_TEAM
+  // The Gauntlet's scorers are the run's; a final's are the match's
+  const runScorers = Object.entries(game.squad)
+    .filter(([, s]) => s.seasonStats.goals > 0)
+    .sort(([x, sx], [y, sy]) => sy.seasonStats.goals - sx.seasonStats.goals || (x < y ? -1 : 1))
   const goals = (res?.events ?? []).filter((e) => (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal') && (e.side === 'home') === userHome)
-  const motm = last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
+  const motm = gauntlet ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
   const formation = getFormation(game.tactics.formationId)
   const stepLine = (i: number) => {
     const s = a.log[i]
@@ -60,10 +66,10 @@ export function ArenaSummary() {
         getPlayer: get,
         footer: shareCardFooter(game),
         hideRatings: game.settings.rules.hardMode,
-        banner: { text: ARENA_TIER_LABEL[tier] },
-        lines: [...a.log.map((_, i) => stepLine(i)), ...(motm ? [`⭐ ${motm}`] : [])],
+        banner: { text: banner },
+        lines: gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(motm ? [`⭐ ${motm}`] : [])],
       })
-      downloadDataUrl(url, `touchline-final-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+      downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
       showToast('Could not render the share card.')
     }
@@ -76,9 +82,14 @@ export function ArenaSummary() {
           {game.settings.teamName} · {arenaFormatLabel(game.settings.arena)}
         </div>
         <div className={`tier ${a.won ? 'CHAMPIONS' : ''}`} data-testid="tier">
-          {a.won ? '🏆 ' : ''}
-          {ARENA_TIER_LABEL[tier]}
+          {a.won ? (gauntlet ? '🏔️ ' : '🏆 ') : gauntlet ? '🪜 ' : ''}
+          {banner}
         </div>
+        {gauntlet && (
+          <div className="row" style={{ justifyContent: 'center', marginTop: 10 }}>
+            <GauntletLadder u={u} a={a} />
+          </div>
+        )}
         <div className="row" style={{ justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
           <button className="btn primary" onClick={() => void copy()} data-testid="arena-copy">
             {copied ? 'Copied!' : 'Copy result to share'}
@@ -89,7 +100,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={() => startGame({ ...game.settings, seed: randomSeed() })} data-testid="arena-again">
             Play again
           </button>
-          <button className="btn ghost" onClick={() => go('setup', 'arena')}>
+          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')}>
             New game
           </button>
         </div>
@@ -121,7 +132,7 @@ export function ArenaSummary() {
                 </div>
               ))}
             </div>
-            {last?.pens && (
+            {!gauntlet && last?.pens && (
               <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
                 {last.pens.kicks.map((k, i) => (
                   <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`}>
@@ -133,10 +144,21 @@ export function ArenaSummary() {
             )}
           </div>
           <div className="panel">
-            <h3>Man of the match and scorers</h3>
+            <h3>{gauntlet ? 'The run’s scorers' : 'Man of the match and scorers'}</h3>
             {motm && <div style={{ fontWeight: 600 }}>⭐ {motm}</div>}
-            {goals.length === 0 && <div className="muted small">No goals for us.</div>}
-            {goals.map((g, i) => (
+            {gauntlet && runScorers.length === 0 && <div className="muted small">No goals for us.</div>}
+            {gauntlet &&
+              runScorers.map(([id, s]) => (
+                <div key={id} className="row between small">
+                  <span>
+                    ⚽ {get(id)?.name ?? id}
+                    {s.seasonStats.motm > 0 ? ` · ⭐ ${s.seasonStats.motm}` : ''}
+                  </span>
+                  <span className="mono muted">{s.seasonStats.goals}</span>
+                </div>
+              ))}
+            {!gauntlet && goals.length === 0 && <div className="muted small">No goals for us.</div>}
+            {!gauntlet && goals.map((g, i) => (
               <div key={i} className="row between small">
                 <span>
                   ⚽ {g.playerName}

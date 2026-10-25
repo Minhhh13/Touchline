@@ -6,6 +6,8 @@ import { clubIdOfKey } from '@engine/knockout'
 import type { TeamTalk } from '@engine/match'
 import type { Position } from '@engine/types'
 import { arenaStepInfo, nextArenaOpponent } from '@game/logic/arena'
+import { rungBandLabel, rungLabels } from '@engine/gauntlet'
+import { GauntletLadder } from '../components/GauntletLadder'
 import { arenaFormatLabel } from '@game/logic/modes'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import { lineupProblems, teamStrength } from '@game/logic/squad'
@@ -44,6 +46,12 @@ export function Arena() {
   const a = game.arena
   const info = arenaStepInfo(a)
   const opp = nextArenaOpponent(game, u)
+  const gauntlet = a.format === 'gauntlet'
+  const rung = a.step + 1
+  const billing = gauntlet && opp ? rungLabels(rung, opp.real).billing : undefined
+  const changeDraw = () => {
+    if (opp && confirm(`Change the draw? ${opp.club.name} makes way for another side from the same band. Once a run.`)) store.changeTheDraw()
+  }
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
   const strength = teamStrength(game, u)
@@ -89,18 +97,36 @@ export function Arena() {
         </div>
       </div>
 
+      {gauntlet && (
+        <div className="panel col" style={{ marginBottom: 12, gap: 8 }}>
+          <div className="row between wrap">
+            <h3>The ladder · {a.step} of 15 climbed</h3>
+            <span className="small muted">{a.lifelineUsed ? `Lifeline used at rung ${a.lifelineUsed}` : 'Lifeline unused'}</span>
+          </div>
+          <GauntletLadder u={u} a={a} />
+        </div>
+      )}
       {opp && (
         <div className="panel row between wrap" style={{ marginBottom: 12, background: 'linear-gradient(135deg, var(--panel), var(--bg-3))' }} data-testid="arena-opponent">
           <div className="row">
             <ClubBadge clubId={clubIdOfKey(opp.key)} size={44} />
             <div>
-              <div className="small muted">{info.label}{info.neutral ? ' · neutral ground' : info.home ? ' · home' : ' · away'}</div>
+              <div className="small muted">
+                {gauntlet ? `Rung ${rung} · ${rungBandLabel(rung)}` : info.label}
+                {info.neutral ? ' · neutral ground' : info.home ? ' · home' : ' · away'}
+                {billing ? ` · ${billing}` : ''}
+              </div>
               <div style={{ fontWeight: 700, fontSize: 18 }}>{opp.club.name}</div>
               <div className="small muted" data-testid="arena-rating">
                 {opp.offset > 0 ? `Plays at ${(opp.real - opp.offset).toFixed(1)} (real ${opp.real.toFixed(1)})` : `Plays at full strength, ${opp.real.toFixed(1)}`} · you {strength.overall.toFixed(1)}
               </div>
             </div>
           </div>
+          {gauntlet && (
+            <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined} data-testid="arena-lifeline" title="Once a run: swap this rung's club for another from the same band">
+              {a.lifelineUsed !== undefined ? 'Lifeline used' : 'Change the draw'}
+            </button>
+          )}
         </div>
       )}
       {opp && <OppositionReport clubId={opp.club.clubId} home={info.home} club={opp.club} aiOffset={opp.offset} neutral={info.neutral} />}
@@ -196,6 +222,11 @@ export function Arena() {
           <button className="btn" onClick={() => store.playArenaStep(false)} disabled={!opp} data-testid="arena-sim" title="The assistant picks the side and plays the match, penalties included">
             Assistant plays it
           </button>
+          {gauntlet && (
+            <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp} data-testid="arena-sim-end" title="The assistant plays every rung left and drafts the bonus spins">
+              Sim to the end
+            </button>
+          )}
         </div>
       </div>
     </div>

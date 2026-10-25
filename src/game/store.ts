@@ -32,7 +32,7 @@ import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
 import { simToNextStop, type StopReason } from './logic/highlights'
-import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, closeArenaMatch, playArenaStep, sortArenaRuns, takePenalties } from './logic/arena'
+import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeTheDraw, closeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -65,6 +65,8 @@ interface Store {
   loadingLeagues: boolean
   screen: Screen
   setupMode: Mode
+  /** The format the arena's setup opens on (Home's Cup Final or Gauntlet card); not persisted. */
+  arenaSetupFormat: 'cup' | 'gauntlet'
   game: Game | null
   /** Saved games of other kinds, parked while another game is active (one per slot). */
   parked: Record<string, Game>
@@ -86,6 +88,8 @@ interface Store {
   /** Load any of the given leagues not loaded yet. Resolves true when all of them are available. */
   ensureLeagues: (ids: string[]) => Promise<boolean>
   go: (screen: Screen, mode?: Mode) => void
+  /** Open the arena's setup on a format. */
+  openArenaSetup: (format: 'cup' | 'gauntlet') => void
   showToast: (text: string | null) => void
   /** Open a challenge link (`#c=...`): decode it, load its leagues, replay it and go to Setup. Resolves false with a toast when it cannot be opened. */
   openChallenge: (encoded: string) => Promise<boolean>
@@ -116,6 +120,10 @@ interface Store {
   playArenaStep: (live: boolean) => void
   /** Arena: the shoot-out of a level live match, in the manager's order with his keeper. */
   takePenalties: (order: string[], keeperId: string) => { ok: boolean; message: string }
+  /** The Gauntlet's lifeline: once a run, swap the next rung's club for its alternate. */
+  changeTheDraw: () => void
+  /** Arena: the assistant plays every match left and drafts every bonus spin, to the summary. */
+  simArenaToEnd: () => void
   setMatchView: (v: 'ticker' | 'report') => void
 
   setTactics: (t: Partial<Tactics>) => void
@@ -211,6 +219,7 @@ export const useStore = create<Store>()(
         loadingLeagues: false,
         screen: 'home',
         setupMode: 'quick',
+        arenaSetupFormat: 'cup',
         game: null,
         parked: {},
         shortlist: [],
@@ -277,6 +286,7 @@ export const useStore = create<Store>()(
         },
         // Any navigation drops a challenge waiting on the Setup screen, so a later Quick Draft starts clean
         go: (screen, mode) => set({ screen, pendingChallenge: null, ...(mode ? { setupMode: mode } : {}) }),
+        openArenaSetup: (format) => set({ screen: 'setup', setupMode: 'arena', arenaSetupFormat: format, pendingChallenge: null }),
         showToast: (text) => set({ toast: text }),
         openChallenge: async (encoded) => {
           let payload: ChallengePayload
@@ -467,6 +477,21 @@ export const useStore = create<Store>()(
           })
           if (!out.ok) set({ toast: out.message })
           return out
+        },
+        changeTheDraw: () => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = changeTheDraw(g, u)
+          })
+          if (!out.ok) set({ toast: out.message })
+        },
+        simArenaToEnd: () => {
+          mutate((g, u) => simArenaToEnd(g, u))
+          set({ matchView: 'report' })
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
         },
         setMatchView: (v) => set({ matchView: v }),
 

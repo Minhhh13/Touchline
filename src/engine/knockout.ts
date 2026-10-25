@@ -213,7 +213,12 @@ export function takerOf(id: string, getPlayer: (id: string) => PlayerSeason | un
   return { id, shooting: p?.attributes.shooting ?? 50, mentality: p?.attributes.mentality ?? 50 }
 }
 
-/** How an arena run ended. Items with more rounds add theirs. */
-export type ArenaTier = 'WINNERS' | 'RUNNERS-UP'
+/** How an arena run ended: a final's result, or how far up the Gauntlet (`RUNGS`, with the count beside it, or all fifteen). */
+export type ArenaTier = 'WINNERS' | 'RUNNERS-UP' | 'RUNGS' | 'GAUNTLET COMPLETE'
 
-export const ARENA_TIER_LABEL: Record<ArenaTier, string> = { WINNERS: 'WINNERS', 'RUNNERS-UP': 'RUNNERS-UP' }
+export const ARENA_TIER_LABEL: Record<ArenaTier, string> = { WINNERS: 'WINNERS', 'RUNNERS-UP': 'RUNNERS-UP', RUNGS: 'RUNGS', 'GAUNTLET COMPLETE': 'GAUNTLET COMPLETE' }
+
+/** The banner of a run: `WINNERS`, `7 RUNGS`, `1 RUNG`, `GAUNTLET COMPLETE`. `score` is the rounds won. */
+export function arenaTierLabel(tier: ArenaTier, score: number): string {
+  return tier === 'RUNGS' ? `${score} ${score === 1 ? 'RUNG' : 'RUNGS'}` : ARENA_TIER_LABEL[tier]
+}

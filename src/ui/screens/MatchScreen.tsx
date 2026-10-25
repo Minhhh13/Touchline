@@ -16,7 +16,7 @@ import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import { isAvailable } from '@game/logic/players'
-import { arenaStepInfo } from '@game/logic/arena'
+import { arenaContinueLabel } from '@game/logic/arena'
 import { ShootoutPanel } from '../components/ShootoutPanel'
 
 /** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
@@ -110,7 +110,7 @@ export function MatchScreen() {
   const cupNext = !!game.live && holdLive
   // The arena: penalties first, then the run's summary or its next match
   const arena = game.arena
-  const continueLabel = arena ? (arena.pending ? 'Penalties first' : arena.over ? 'Run summary →' : `Next: ${arenaStepInfo(arena).label} →`) : seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
+  const continueLabel = arena ? arenaContinueLabel(game) : seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
   const onContinue = () => {
     if (arena) {
       setResumeFrom(0)

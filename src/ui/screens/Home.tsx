@@ -6,7 +6,7 @@ import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 
 export function Home() {
-  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
+  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues, openArenaSetup } = useStore()
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const players = u ? u.available.reduce((s, l) => s + l.players, 0) : 0
   const clubCount = u ? u.available.reduce((s, l) => s + l.clubs, 0) : 0
@@ -126,11 +126,17 @@ export function Home() {
         <span className="small muted">One sitting, real club-seasons, no season attached.</span>
       </div>
       <div className="modes" data-testid="arena-row">
-        <button className="mode-card" onClick={() => go('setup', 'arena')} data-testid="arena-final-card">
+        <button className="mode-card" onClick={() => openArenaSetup('cup')} data-testid="arena-final-card">
           <span className="icon">🏟️</span>
           <h3>Cup Final</h3>
           <p>Draft sixteen, then one final against a real giant: pick the side, make the changes at half time and the 70th minute, and choose the penalty takers if it goes to a shoot-out.</p>
           <span className="foot">8 minutes · one match, one trophy</span>
+        </button>
+        <button className="mode-card" onClick={() => openArenaSetup('gauntlet')} data-testid="arena-gauntlet-card">
+          <span className="icon">🪜</span>
+          <h3>The Gauntlet</h3>
+          <p>Draft fourteen, then climb fifteen rungs of real club-seasons, each stronger than the last. Lose once and it is over: one lifeline, a bonus spin every second rung, and tired legs to rotate.</p>
+          <span className="foot">5 minutes · how far can you climb?</span>
         </button>
       </div>
 
