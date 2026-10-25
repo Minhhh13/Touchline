@@ -103,6 +103,18 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
   ]
 }
 
+/** Made-up team names the setup's Randomise button steps through, in this order. No real club is named. */
+export const TEAM_NAME_IDEAS = ['Touchline XI', 'Wheel of Fortune FC', 'Spin City', 'The Re-spinners', 'Golden Spin United', 'Basement Boys', 'Prime Time XI', 'Draft Day FC', 'Sunday League Legends', 'The Wildcards', 'Blind Pick Rovers', 'Era Hoppers']
+
+/**
+ * The next name for the Randomise button: the idea after the current one, or the first when the name is not on the list.
+ * A fixed cycle rather than a random draw, so the setup takes nothing from any random stream (the name never touches the seed).
+ */
+export function nextTeamName(current: string): string {
+  const at = TEAM_NAME_IDEAS.indexOf(current.trim())
+  return TEAM_NAME_IDEAS[(at + 1) % TEAM_NAME_IDEAS.length]
+}
+
 /** The 2 to 3 letter code shown on the scoreboard, from the initials of the team name. */
 export function shortNameFor(name: string): string {
   const short = name
@@ -143,14 +155,15 @@ const TAG_WORDS: Record<string, string> = { Easy: 'easy mode', Normal: 'normal m
 
 /**
  * One line stating every choice a game will start with, so the ones folded away under More options are still read:
- * "Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
+ * "Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
  * the defaults (European Nights, era, one club or nation, the difficulty, blind, Position First or prime ratings when
  * they differ from the mode's defaults, twists changed from the mode's default, squad size, job security, Europe; for a
  * quick draft no January window, or a Continental Cup run).
  */
 export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
-  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
+  // The club replaced is not named: a quick draft never shows it, and Season and Dynasty name it in the setup's team box
+  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
   const r = s.rules
   if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)

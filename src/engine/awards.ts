@@ -89,7 +89,8 @@ export interface SeasonSummaryForShare {
   cupWon: boolean
   continentalWon?: boolean
   leagueSeason: number
-  hostClubName: string
+  /** Not printed: the share text names the team, never the real club it replaced. Kept so older callers still type-check. */
+  hostClubName?: string
   mode: string
   seed?: string
   potsName?: string
@@ -104,7 +105,7 @@ export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): stri
   const seasonLabel = `${s.leagueSeason}-${String((s.leagueSeason + 1) % 100).padStart(2, '0')}`
   const lines = [
     `${appName} · ${s.mode}`,
-    `${s.teamName} as ${s.hostClubName}, ${seasonLabel}`,
+    `${s.teamName}, ${seasonLabel}`,
     `${TIER_LABEL[s.tier]}${s.cupWon ? ' + CUP' : ''}${s.continentalWon ? ' + EUROPE' : ''}`,
     `${s.row.won}W ${s.row.drawn}D ${s.row.lost}L · ${s.row.points} pts · ${ordinal(s.position)}`,
     blocks,

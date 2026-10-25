@@ -7,7 +7,7 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
-import { clubName, seasonLabel } from '../format'
+import { seasonLabel } from '../format'
 
 /**
  * The tactics step between a quick draft (or the Daily) and its season: the six team instructions, the captain and the
@@ -30,7 +30,7 @@ export function KickOff() {
         <div>
           <h1>Kick-off</h1>
           <p className="muted setup-sub">
-            {s.teamName} as {clubName(u, s.hostClubId)}, {seasonLabel(s.leagueSeason)}. Set how the XI plays, then watch the season game by game.
+            {s.teamName}, {seasonLabel(s.leagueSeason)}. Set how the XI plays, then watch the season game by game.
           </p>
         </div>
         <div className="grid two">

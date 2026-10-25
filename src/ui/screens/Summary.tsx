@@ -89,7 +89,6 @@ export function Summary() {
     cupWon: season?.cupWon ?? false,
     continentalWon: season?.continental?.won ?? q?.europe?.reached === 'W',
     leagueSeason: game.settings.leagueSeason,
-    hostClubName: clubName(u, game.settings.hostClubId),
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
     seed: game.settings.mode === 'daily' ? undefined : game.settings.seed,
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
@@ -154,7 +153,7 @@ export function Summary() {
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
-        subtitle: `as ${clubName(u, game.settings.hostClubId)} · ${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
+        subtitle: `${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
         tier,
         row,
         position: record.position,
@@ -174,7 +173,7 @@ export function Summary() {
     <div className="page">
       <div className="tier-banner">
         <div className="muted small">
-          {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
+          {game.settings.teamName} · <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
           {tags.map((t) => ` · ${t}`).join('')}
         </div>
         {replay.playing ? (

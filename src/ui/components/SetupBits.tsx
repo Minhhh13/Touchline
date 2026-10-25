@@ -13,7 +13,7 @@ export function ChoiceCards<T extends string>({ label, options, value, onChange,
   return (
     <div className={`choice-cards n${options.length}`} role="radiogroup" aria-label={label} data-testid={testId}>
       {options.map((o) => (
-        <button key={o.value} type="button" role="radio" aria-checked={o.value === value} className={`choice-card ${o.value === value ? 'active' : ''}`} disabled={disabled} onClick={() => onChange(o.value)} data-value={o.value}>
+        <button key={o.value} type="button" role="radio" aria-checked={o.value === value} className={`choice-card ${o.value === value ? 'active' : ''}`} disabled={disabled} onClick={() => onChange(o.value)} data-value={o.value} title={o.line}>
           <span className="ctitle">{o.title}</span>
           <span className="cline">{o.line}</span>
         </button>

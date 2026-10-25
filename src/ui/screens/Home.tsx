@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Trophy, type LucideIcon } from 'lucide-react'
-import { useStore, todaysDailySeed, slotOf } from '@game/store'
-import { dailyGameSettings, dailySettings } from '@game/logic/setup'
+import { useStore, todaysDailySeed } from '@game/store'
+import { dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
@@ -59,7 +59,7 @@ function Tile({ icon: Icon, title, meta, onClick }: { icon: LucideIcon; title: s
 }
 
 export function Home() {
-  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
+  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues } = useStore()
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
@@ -74,8 +74,8 @@ export function Home() {
       go('game')
       return
     }
-    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
-    startGame(dailyGameSettings(u, todaysDailySeed()))
+    // The button opens the Daily setup, as the card does: the team name, today's puzzle, and Start Draft there
+    go('setup', 'daily')
   }
   const achievements = Object.keys(profile.achievements).length
   return (
@@ -191,7 +191,7 @@ export function Home() {
               <span className="foot">
                 <TimeTag>5 min</TimeTag>
                 {daily && u && (
-                  <span className="daily-today" title={`Today: a ${daily.formationId} as ${u.clubById[daily.host]?.name ?? daily.host}, ${seasonLabel(daily.season)}`}>
+                  <span className="daily-today" title={`Today: a ${daily.formationId}, ${seasonLabel(daily.season)}`}>
                     <ClubBadge clubId={daily.host} size={18} />
                     {daily.formationId} · {seasonLabel(daily.season)}
                   </span>

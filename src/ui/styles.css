@@ -2955,7 +2955,15 @@ table.tbl.contracts .btn.sm {
   font-family: var(--font-display);
   font-size: 17px;
   line-height: 1.1;
-  overflow-wrap: anywhere;
+}
+/* On a small tile the numbers never break at a hyphen and a word after them ("Diamond") takes its own, smaller line */
+.formations:not(.with-blurbs) .fname {
+  white-space: nowrap;
+}
+.formations:not(.with-blurbs) .fname-sub {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
 }
 .formations.with-blurbs .fname {
   font-size: 20px;
@@ -3202,6 +3210,297 @@ table.tbl.contracts .btn.sm {
   gap: 12px;
   max-width: 760px;
   margin: 0 auto;
+}
+/* The setup screen itself: numbered steps in two boxes, as 38-0 reads. Left: 1 formation, 2 name, 3 league.
+   Right: 4 the rules, 5 Spin. Side by side from 1000px; below that the boxes stack, so the steps run 1 to 5 */
+.page.setup-page {
+  max-width: 1480px;
+}
+.setup-flow.setup-wide {
+  max-width: none;
+}
+.setup-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.setup-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.setup-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.setup-step + .setup-step {
+  border-top: var(--border);
+  padding-top: var(--space-3);
+}
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--fs-h3);
+}
+.step-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1;
+}
+.setup-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.setup-name .setup-name-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Step 2's title names the field; the label stays for screen readers */
+.setup-name .field-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.setup-formation-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.setup-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+/* The 38-0 options: two to a row from 640px, the bench and the era across it */
+.setup-rules {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.setup-rules .setup-opt + .setup-opt {
+  margin-top: 0;
+}
+.setup-more {
+  gap: var(--space-3);
+}
+.setup-replace {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.setup-replace b {
+  color: var(--text);
+}
+.setup-squad input[type='range'] {
+  width: 100%;
+}
+.setup-era-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.setup-era-head .chip {
+  margin-left: auto;
+}
+@media (min-width: 640px) {
+  .setup-rules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-4);
+  }
+  .setup-rules .setup-wide-opt {
+    grid-column: 1 / -1;
+  }
+}
+/* On a phone Spin is the fixed bar at the bottom: the summary and the button say enough without the step title */
+@media (max-width: 720px) {
+  .setup-start .step-head {
+    display: none;
+  }
+}
+@media (min-width: 1000px) {
+  .setup-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+  /* Step 1: the tiles two to a row beside the chosen shape's pitch */
+  .setup-formation-body {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .setup-formation-body > .formations {
+    flex: 1 1 55%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+  .setup-formation-body > .setup-preview {
+    flex: 1 1 45%;
+  }
+  .setup-formation .formations button {
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 6px;
+    text-align: left;
+  }
+  .setup-formation .fthumb {
+    width: 30px;
+  }
+  .setup-formation .pitch-mini {
+    width: min(240px, 100%);
+  }
+  /* Steps 2 and 5: the title beside the field or the summary */
+  .setup-team {
+    flex-direction: row;
+    align-items: center;
+  }
+  .setup-team .setup-name {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .setup-start {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  .setup-start > .btn {
+    grid-column: 1 / -1;
+  }
+  .setup-page .setup-opt h3 {
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+  }
+  /* Compact choice cards: the title only, its line kept as the tooltip and for screen readers */
+  .setup-page .choice-card {
+    position: relative;
+    align-items: center;
+    padding: 6px 10px;
+    text-align: center;
+  }
+  .setup-page .choice-card .ctitle {
+    font-size: 15px;
+  }
+  .setup-page .choice-card .cline {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .setup-page .setup-rules .setup-wide-opt[data-testid='bench-option'] {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+  /* The fold's title says enough here, and the summary by Spin states every choice */
+  .setup-more-help {
+    display: none;
+  }
+}
+/* A desktop window: the whole setup fits the screen with no page scroll. The page fills the height under the top bar;
+   the left box gives step 1's pitch what height is left, and in the right box the rules scroll inside themselves
+   when More options is open while Spin stays at the bottom */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .app:has(> .setup-page) {
+    height: 100%;
+  }
+  .page.setup-page {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+  }
+  .setup-page h1 {
+    font-size: var(--fs-h2);
+  }
+  .setup-page .setup-flow {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .setup-page .setup-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .setup-page .setup-box {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .setup-page .setup-box > .setup-step {
+    flex: none;
+  }
+  .setup-page .setup-box > .setup-formation {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .setup-page .setup-formation-body {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .setup-page .setup-box > .setup-step:has(.setup-rules) {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .setup-page .setup-box > .setup-start {
+    margin-top: auto;
+  }
+  .setup-formation .setup-preview {
+    min-height: 0;
+  }
+  .setup-formation .pitch-mini {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .setup-formation .pitch-mini .pitch-wrap {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    max-height: 420px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot {
+    width: 32px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot .disc {
+    width: 24px;
+    height: 24px;
+    font-size: 9px;
+  }
 }
 .setup-sub {
   margin: 4px 0 0;

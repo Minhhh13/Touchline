@@ -17,7 +17,7 @@ describe('share text', () => {
   it('prints the season in order with the seed last', () => {
     const lines = shareText(base).split('\n')
     expect(lines[0]).toBe('Touchline · Quick Draft')
-    expect(lines[1]).toBe('Spinners as Burnley, 2025-26')
+    expect(lines[1]).toBe('Spinners, 2025-26')
     expect(lines[3]).toBe('30W 5D 3L · 95 pts · 1st')
     expect(lines.at(-1)).toBe('Seed K7Q2-MX9A')
     expect(lines).toHaveLength(6)

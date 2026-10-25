@@ -111,7 +111,7 @@ export function Dugout() {
           <div>
             <h2 style={{ fontSize: 26 }}>{game.settings.teamName}</h2>
             <div className="small muted">
-              as {clubName(u, season.hostClubId)} · {seasonLabel(season.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Year ${game.year} · ` : ''}
+              {seasonLabel(season.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Year ${game.year} · ` : ''}
               {preseason ? 'Pre-season' : `Matchweek ${season.matchweek} of ${season.matchweeks}`}
             </div>
           </div>

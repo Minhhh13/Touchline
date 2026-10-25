@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useStore, todaysDailySeed } from '@game/store'
+import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupRules, shortNameFor, summariseSetup } from '@game/logic/setup'
+import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, nextTeamName, setupRules, shortNameFor, summariseSetup } from '@game/logic/setup'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
@@ -64,7 +64,7 @@ function writeAdvanced(open: boolean): void {
 }
 
 export function Setup() {
-  const { universe: u, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, pendingChallenge } = useStore()
+  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, pendingChallenge } = useStore()
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
@@ -100,6 +100,7 @@ export function Setup() {
   const [squadSize, setSquadSize] = useState(18)
   const [advanced, setAdvanced] = useState(readAdvanced)
   const moreRef = useRef<HTMLDivElement>(null)
+  const hostRef = useRef<HTMLSelectElement>(null)
   // On a phone the start bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
@@ -158,6 +159,15 @@ export function Setup() {
     setAdvanced(open)
     writeAdvanced(open)
   }
+  // Season and Dynasty's "You replace: <club> · Change": open the fold and put the club select in view
+  const openHost = () => {
+    toggleAdvanced(true)
+    requestAnimationFrame(() => {
+      hostRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      hostRef.current?.focus({ preventScroll: true })
+    })
+  }
+  const leagueNameOf = (id: string) => u.available.find((l) => l.id === id)?.name ?? u.leagues.find((l) => l.id === id)?.name ?? id
   const openMore = () => {
     toggleAdvanced(true)
     moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -206,21 +216,25 @@ export function Setup() {
       ...(challenge ? { challenge } : {}),
     }
   }
-  const start = () => startGame(buildSettings(false))
+  const start = () => {
+    // Today's puzzle shares the Quick Draft's save slot: ask before an unfinished quick draft or Daily is dropped (as Home's Daily button used to)
+    if (fixed?.kind === 'daily' && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    startGame(buildSettings(false))
+  }
   const summary = summariseSetup(u, buildSettings(true))
   const ready = fixed ? fixedReady : leagueReady
   const shownFormation = getFormation(fixed ? fixed.formationId : formationId)
   const hard = draftDifficulty === 'hard'
   const teamField = (
-    <label className="field">
-      Team name
+    <label className="field setup-name-field">
+      <span className="field-name">Team name</span>
       <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={28} />
     </label>
   )
 
   return (
-    <div className="page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
-      <div className="setup-flow">
+    <div className="page setup-page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+      <div className="setup-flow setup-wide">
         <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
           <div>
             <h1>{challenge ? 'Challenge' : MODE_TITLE[mode]}</h1>
@@ -231,284 +245,330 @@ export function Setup() {
           </button>
         </div>
 
-        {fixed && (
-          <div className="panel col">
-            {teamField}
-            {fixed.kind === 'daily' && (
-              <div className="notice" data-testid="daily-notice">
-                Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {fixed.seed}.
-              </div>
-            )}
-            {fixed.kind === 'challenge' && challenge && (
-              <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
-                <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts as {clubName(u, fixed.host)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
-                Same seed, same wheel, {fixed.difficulty} difficulty
-                {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
-                {fixed.rules?.twists ? ', twists on' : ', no twists'}
-                {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
-                {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
-                {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(fixed.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
-                <div className="small" style={{ marginTop: 6 }}>
-                  {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
-                  {challenge.verified === 'unverified' && `Unverified: built on different data (${challenge.reason}). You can still play the same wheel.`}
-                  {challenge.verified === 'no' && `Could not verify the claim (${challenge.reason}). You can still play the same wheel.`}
+        {/* Numbered steps in two boxes, as 38-0 reads: formation, name and league on the left; the rules and Spin on the right */}
+        <div className="setup-grid">
+          <div className="panel setup-box">
+            <section className="setup-step setup-formation">
+              <StepHead n={1} title={fixed ? 'Your formation' : 'Pick your formation'} />
+              <div className="setup-formation-body">
+                {!fixed && <FormationPicker value={formationId} onChange={setFormationId} />}
+                <div className="setup-preview">
+                  {/* A picture of the shape, not a control: inert keeps its slot discs out of the tab order and the accessibility tree */}
+                  <div className="pitch-mini" data-testid="formation-preview" inert>
+                    <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
+                  </div>
+                  <p className="help setup-line">
+                    <b>{shownFormation.name}</b>: {shownFormation.blurb}
+                  </p>
                 </div>
               </div>
-            )}
-            {fixed.rules && (
-              <div className="pill-list" data-testid="fixed-rules">
-                {describeRules(u, fixed.rules).map((t) => (
-                  <span key={t} className="chip">
-                    {t}
-                  </span>
-                ))}
+            </section>
+
+            <section className="setup-step setup-team">
+              <StepHead n={2} title="Name your team" />
+              <div className="setup-name">
+                {teamField}
+                <button type="button" className="btn sm ghost" onClick={() => setTeamName('')} disabled={!teamName} data-testid="team-clear">
+                  Clear
+                </button>
+                <button type="button" className="btn sm" onClick={() => setTeamName(nextTeamName(teamName))} data-testid="team-random">
+                  Randomise
+                </button>
               </div>
-            )}
-          </div>
-        )}
+            </section>
 
-        {!fixed && isManage && (
-          <div className="panel col">
-            <h3>Your squad</h3>
-            {teamField}
-            <label className="field">
-              Squad size to draft: {squadSize}
-              <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} />
-            </label>
-            <label className="toggle">
-              <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
-              Job security: the board can sack you
-            </label>
-          </div>
-        )}
-
-        <div className="panel col">
-          <h3>Formation</h3>
-          {!fixed && (
-            <FormationPicker value={formationId} onChange={setFormationId} />
-          )}
-          {/* A picture of the shape, not a control: inert keeps its slot discs out of the tab order and the accessibility tree */}
-          <div className="pitch-mini" data-testid="formation-preview" inert>
-            <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
-          </div>
-          <p className="help setup-line">
-            <b>{shownFormation.name}</b>: {shownFormation.blurb}
-          </p>
-        </div>
-
-        {!fixed && (
-          <div className="panel col">
-            <div className="setup-opt">
-              <h3>Difficulty</h3>
-              <ChoiceCards label="Difficulty" testId="difficulty" options={DIFFICULTY_OPTIONS} value={draftDifficulty} onChange={setDraftDifficulty} />
-            </div>
-            <div className="setup-opt">
-              <h3>Show ratings</h3>
-              <ChoiceCards label="Show ratings" testId="show-ratings" options={RATINGS_SHOWN} value={hard || !showRatings ? 'off' : 'on'} onChange={(v) => setShowRatings(v === 'on')} disabled={hard} />
-              {hard && <span className="help setup-line">Hard always hides ratings.</span>}
-            </div>
-            <div className="setup-opt">
-              <h3>Draft mode</h3>
-              <ChoiceCards label="Draft mode" testId="draft-mode" options={DRAFT_MODE_OPTIONS} value={draftMode} onChange={setDraftMode} />
-            </div>
-            {!isManage && (
-              <div className="setup-opt" data-testid="bench-option">
-                <h3>Bench</h3>
-                <Segmented value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS} />
-                <span className="help setup-line">{benchPicks ? `Up to ${benchPicks} extra pick${benchPicks === 1 ? '' : 's'}, optional. Any pick can go to the bench; in the season make 3 changes between games, and injured starters are covered from it.` : 'No bench: the XI plays every game.'}</span>
-              </div>
-            )}
-            {!isManage && (
-              <div className="setup-opt">
-                <h3>Player ratings</h3>
-                <ChoiceCards label="Player ratings" testId="ratings-mode" options={RATINGS_MODE_OPTIONS} value={ratingsMode} onChange={setRatingsMode} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {!fixed && (
-          <div className="panel col" data-testid="era">
-            <div className="row between wrap">
-              <h3>Era</h3>
-              <span className="chip" data-testid="era-count">
-                {eraLine?.label}
-              </span>
-            </div>
-            <Segmented value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: 'Custom' }] : [])]} />
-            <SeasonRange
-              seasons={eraStops}
-              from={eraFrom}
-              to={eraTo}
-              onChange={(a, b) => {
-                setCustomEra([a, b])
-                setEraPreset('custom')
-              }}
-            />
-            <span className="help setup-line" data-testid="era-caption">
-              {eraLine && eraLine.n > 0 ? `The wheel lands on ${eraLine.caption}.` : 'No seasons in this range.'}
-            </span>
-          </div>
-        )}
-
-        {!fixed && (
-          <div className="panel col" ref={moreRef} data-testid="more-options">
-            <button type="button" className="fold-head" onClick={() => toggleAdvanced(!advanced)} aria-expanded={advanced} data-testid="more-options-toggle">
-              <h3>{isManage ? 'More options' : 'Advanced'}</h3>
-              <span className="small muted">{advanced ? 'Hide ▴' : 'Show ▾'}</span>
-            </button>
-            {!advanced && (
-              <span className="help">
-                {isManage ? '' : 'Team name, '}European Nights, twists, {isManage ? '' : 'the January window, '}seed, league and season, your club, the opposition, one-club and one-nation{u.available.length >= 2 ? ', the Continental Cup' : ''}. The line above Start states them.
-              </span>
-            )}
-            {advanced && (
-              <>
-                {u.available.length >= 2 && (
-                  <label className="toggle" data-testid="europe-toggle">
-                    <input type="checkbox" checked={europe} onChange={(e) => pickEurope(e.target.checked)} />
-                    <LeagueFlag leagueId="europe" /> European Nights: draft from all {u.available.length} leagues
-                  </label>
-                )}
-                <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
-                  <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
-                  Twists: every third spin is golden, basement, blind or decade
-                </label>
-                {!isManage && (
-                  <label className="toggle" data-testid="january-toggle" title="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change.">
-                    <input type="checkbox" checked={january} onChange={(e) => setJanuary(e.target.checked)} />
-                    January window: one deal at the halfway mark
-                  </label>
-                )}
-                {u.available.length >= 2 && (
-                  <label className="toggle" data-testid="continental-toggle" title={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'}>
-                    <input
-                      type="checkbox"
-                      checked={continental}
-                      onChange={(e) => {
-                        setContinental(e.target.checked)
-                        if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
-                      }}
-                    />
-                    {isManage ? 'Continental Cup: European nights against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
-                  </label>
-                )}
-                {!isManage && teamField}
-                <label className="field">
-                  Seed
-                  <div className="row">
-                    <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
-                    <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                      New
+            {!fixed && (
+              <section className="setup-step">
+                <StepHead n={3} title="Choose your league" />
+                <div className="field setup-league">
+                  <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
+                  {(loadingLeagues || europe) && <span className="help">{loadingLeagues ? 'Loading league data…' : 'Where your side plays; the wheel draws from every league.'}</span>}
+                </div>
+                {isManage && (
+                  <div className="setup-replace" data-testid="you-replace">
+                    <ClubBadge clubId={host} size={22} />
+                    <span>
+                      You replace: <b>{clubName(u, host)}</b>
+                    </span>
+                    <button type="button" className="linklike" onClick={openHost} data-testid="you-replace-change">
+                      Change
                     </button>
                   </div>
-                  <span className="help">Share a seed and a friend gets the same wheel.</span>
-                </label>
-                <div className="field">
-                  League
-                  <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
-                  <span className="help">{loadingLeagues ? 'Loading league data…' : europe ? 'Where your side plays; the wheel draws from every league.' : 'Where your side plays, and where the wheel draws from.'}</span>
-                </div>
-                <label className="field">
-                  League season to play in
-                  <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
-                    {seasons.map((s) => (
-                      <option key={s} value={s}>
-                        {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="help">You replace one real club and play its {Math.max(0, clubsInLeague.length - 1)} rivals with their real squads.</span>
-                </label>
-                <label className="field">
-                  Club whose place you take
-                  <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)} data-testid="host-select">
-                    {clubsInLeague.map((c) => (
-                      <option key={c} value={c}>
-                        {u.clubById[c]?.name ?? c}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="help row" style={{ gap: 8 }} data-testid="host-help">
-                    <ClubBadge clubId={host} size={22} />
-                    {host === defaultHost && hostRow ? `A mid-table club (${ordinal(hostRow.position)} in ${seasonLabel(effectiveSeason)}), so the board's target is reachable.` : 'You take their colours, rivals and fixtures.'}
-                  </span>
-                </label>
-                <div className="field">
-                  Opposition
-                  <Segmented
-                    value={opposition}
-                    onChange={setOpposition}
-                    options={[
-                      { value: 'calibrated', label: 'Calibrated', hint: 'Real clubs are handicapped so a decent draft competes' },
-                      { value: 'realistic', label: 'Realistic', hint: 'The real squads at full strength. Brutal.' },
-                    ]}
-                  />
-                  <span className="help">{opposition === 'calibrated' ? 'Scaled so an average draft finishes mid-table.' : 'Real squads at full strength: only a great draft survives.'}</span>
-                </div>
-                <label className="field">
-                  One-club mode
-                  <select
-                    className="input"
-                    value={onlyClub}
-                    onChange={(e) => {
-                      setOnlyClub(e.target.value)
-                      if (e.target.value) setOnlyNation('')
-                    }}
-                  >
-                    <option value="">Off: every club</option>
-                    {allClubs.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} only
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  One-nation mode
-                  <select
-                    className="input"
-                    value={nations.some((n) => n.nation === onlyNation) ? onlyNation : ''}
-                    onChange={(e) => {
-                      setOnlyNation(e.target.value)
-                      if (e.target.value) setOnlyClub('')
-                    }}
-                  >
-                    <option value="">Off: every nationality</option>
-                    {nations.map((n) => (
-                      <option key={n.nation} value={n.nation}>
-                        {nationDepthLabel(n)}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="help">
-                    {onlyNation && nations.some((n) => n.nation === onlyNation)
-                      ? <><NationFlag nation={onlyNation} named /> Every pick, signing and academy prospect comes from {nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.</>
-                      : `${nations.length} nations have ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}.`}
-                  </span>
-                </label>
-              </>
+                )}
+              </section>
             )}
           </div>
-        )}
 
-        <div className="bottom-bar" ref={barRef}>
-          <div className="small muted" data-testid="setup-summary">
-            {summary}
-            {!fixed && (
-              <>
-                {' · '}
-                <button type="button" className="linklike" onClick={openMore}>
-                  change
-                </button>
-              </>
+          <div className="panel setup-box">
+            {fixed && (
+              <section className="setup-step">
+                <StepHead n={3} title={fixed.kind === 'daily' ? "Today's rules" : 'The rules'} />
+                {fixed?.kind === 'daily' && (
+                  <div className="notice" data-testid="daily-notice">
+                    Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, in the <b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
+                  </div>
+                )}
+                {fixed?.kind === 'challenge' && challenge && (
+                  <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
+                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts in the {leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
+                    Same seed, same wheel, {fixed.difficulty} difficulty
+                    {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
+                    {fixed.rules?.twists ? ', twists on' : ', no twists'}
+                    {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
+                    {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
+                    {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(fixed.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
+                    <div className="small" style={{ marginTop: 6 }}>
+                      {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
+                      {challenge.verified === 'unverified' && `Unverified: built on different data (${challenge.reason}). You can still play the same wheel.`}
+                      {challenge.verified === 'no' && `Could not verify the claim (${challenge.reason}). You can still play the same wheel.`}
+                    </div>
+                  </div>
+                )}
+                {fixed?.rules && (
+                  <div className="pill-list" data-testid="fixed-rules">
+                    {describeRules(u, fixed.rules).map((t) => (
+                      <span key={t} className="chip">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
             )}
+            {!fixed && (
+              <section className="setup-step">
+                <StepHead n={4} title="Set the rules" />
+                <div className="setup-rules">
+                  <div className="setup-opt">
+                    <h3>Difficulty</h3>
+                    <ChoiceCards label="Difficulty" testId="difficulty" options={DIFFICULTY_OPTIONS} value={draftDifficulty} onChange={setDraftDifficulty} />
+                  </div>
+                  <div className="setup-opt">
+                    <h3>Show ratings</h3>
+                    <ChoiceCards label="Show ratings" testId="show-ratings" options={RATINGS_SHOWN} value={hard || !showRatings ? 'off' : 'on'} onChange={(v) => setShowRatings(v === 'on')} disabled={hard} />
+                    {hard && <span className="help setup-line">Hard always hides ratings.</span>}
+                  </div>
+                  <div className="setup-opt">
+                    <h3>Draft mode</h3>
+                    <ChoiceCards label="Draft mode" testId="draft-mode" options={DRAFT_MODE_OPTIONS} value={draftMode} onChange={setDraftMode} />
+                  </div>
+                  {!isManage && (
+                    <div className="setup-opt">
+                      <h3>Player ratings</h3>
+                      <ChoiceCards label="Player ratings" testId="ratings-mode" options={RATINGS_MODE_OPTIONS} value={ratingsMode} onChange={setRatingsMode} />
+                    </div>
+                  )}
+                  {isManage && (
+                    <div className="setup-opt setup-squad">
+                      <h3>Squad size: {squadSize}</h3>
+                      <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} aria-label="Squad size to draft" />
+                    </div>
+                  )}
+                  {!isManage && (
+                    <div className="setup-opt setup-wide-opt" data-testid="bench-option">
+                      <h3>Bench</h3>
+                      <Segmented value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS} />
+                      <span className="help setup-line">{benchPicks ? `Optional: 3 changes and injury cover.` : 'The XI plays every game.'}</span>
+                    </div>
+                  )}
+                  <div className="setup-opt setup-wide-opt" data-testid="era">
+                    <div className="setup-era-head">
+                      <h3>Era</h3>
+                      <Segmented value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: 'Custom' }] : [])]} />
+                      <span className="chip" data-testid="era-count">
+                        {eraLine?.label}
+                      </span>
+                    </div>
+                    <SeasonRange
+                      seasons={eraStops}
+                      from={eraFrom}
+                      to={eraTo}
+                      onChange={(a, b) => {
+                        setCustomEra([a, b])
+                        setEraPreset('custom')
+                      }}
+                    />
+                    <span className="help setup-line" data-testid="era-caption">
+                      {eraLine && eraLine.n > 0 ? `The wheel lands on ${eraLine.caption}.` : 'No seasons in this range.'}
+                    </span>
+                  </div>
+                  <div className="setup-opt setup-wide-opt setup-more" ref={moreRef} data-testid="more-options">
+                    <button type="button" className="fold-head" onClick={() => toggleAdvanced(!advanced)} aria-expanded={advanced} data-testid="more-options-toggle">
+                      <h3>{isManage ? 'More options' : 'Advanced'}</h3>
+                      <span className="small muted">{advanced ? 'Hide ▴' : 'Show ▾'}</span>
+                    </button>
+                    {!advanced && (
+                      <span className="help setup-more-help">
+                        {isManage ? 'Job security, ' : ''}European Nights, twists, {isManage ? '' : 'the January window, '}seed, season, {isManage ? 'your club, ' : ''}the opposition, one-club and one-nation{u.available.length >= 2 ? ', the Continental Cup' : ''}. The line above Start states them.
+                      </span>
+                    )}
+                    {advanced && (
+                      <>
+                        {isManage && (
+                          <label className="toggle">
+                            <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
+                            Job security: the board can sack you
+                          </label>
+                        )}
+                        {u.available.length >= 2 && (
+                          <label className="toggle" data-testid="europe-toggle">
+                            <input type="checkbox" checked={europe} onChange={(e) => pickEurope(e.target.checked)} />
+                            <LeagueFlag leagueId="europe" /> European Nights: draft from all {u.available.length} leagues
+                          </label>
+                        )}
+                        <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
+                          <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
+                          Twists: every third spin is golden, basement, blind or decade
+                        </label>
+                        {!isManage && (
+                          <label className="toggle" data-testid="january-toggle" title="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change.">
+                            <input type="checkbox" checked={january} onChange={(e) => setJanuary(e.target.checked)} />
+                            January window: one deal at the halfway mark
+                          </label>
+                        )}
+                        {u.available.length >= 2 && (
+                          <label className="toggle" data-testid="continental-toggle" title={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'}>
+                            <input
+                              type="checkbox"
+                              checked={continental}
+                              onChange={(e) => {
+                                setContinental(e.target.checked)
+                                if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
+                              }}
+                            />
+                            {isManage ? 'Continental Cup: European nights against the best of the other leagues' : 'Continental Cup run: a top-four finish plays a short knockout against the best of the other leagues'}
+                          </label>
+                        )}
+                        <label className="field">
+                          Seed
+                          <div className="row">
+                            <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
+                            <button className="btn sm" onClick={() => setSeed(randomSeed())}>
+                              New
+                            </button>
+                          </div>
+                          <span className="help">Share a seed and a friend gets the same wheel.</span>
+                        </label>
+                        <label className="field">
+                          League season to play in
+                          <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
+                            {seasons.map((s) => (
+                              <option key={s} value={s}>
+                                {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="help">{isManage ? 'You replace one real club and play' : 'You play'} its {Math.max(0, clubsInLeague.length - 1)} rivals with their real squads.</span>
+                        </label>
+                        {isManage && (
+                          <label className="field">
+                            You replace
+                            <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)} data-testid="host-select" ref={hostRef}>
+                              {clubsInLeague.map((c) => (
+                                <option key={c} value={c}>
+                                  {u.clubById[c]?.name ?? c}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="help row" style={{ gap: 8 }} data-testid="host-help">
+                              <ClubBadge clubId={host} size={22} />
+                              {host === defaultHost && hostRow ? `A mid-table club (${ordinal(hostRow.position)} in ${seasonLabel(effectiveSeason)}), so the board's target is reachable.` : 'You take their colours, rivals and fixtures.'}
+                            </span>
+                          </label>
+                        )}
+                        <div className="field">
+                          Opposition
+                          <Segmented
+                            value={opposition}
+                            onChange={setOpposition}
+                            options={[
+                              { value: 'calibrated', label: 'Calibrated', hint: 'Real clubs are handicapped so a decent draft competes' },
+                              { value: 'realistic', label: 'Realistic', hint: 'The real squads at full strength. Brutal.' },
+                            ]}
+                          />
+                          <span className="help">{opposition === 'calibrated' ? 'Scaled so an average draft finishes mid-table.' : 'Real squads at full strength: only a great draft survives.'}</span>
+                        </div>
+                        <label className="field">
+                          One-club mode
+                          <select
+                            className="input"
+                            value={onlyClub}
+                            onChange={(e) => {
+                              setOnlyClub(e.target.value)
+                              if (e.target.value) setOnlyNation('')
+                            }}
+                          >
+                            <option value="">Off: every club</option>
+                            {allClubs.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name} only
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          One-nation mode
+                          <select
+                            className="input"
+                            value={nations.some((n) => n.nation === onlyNation) ? onlyNation : ''}
+                            onChange={(e) => {
+                              setOnlyNation(e.target.value)
+                              if (e.target.value) setOnlyClub('')
+                            }}
+                          >
+                            <option value="">Off: every nationality</option>
+                            {nations.map((n) => (
+                              <option key={n.nation} value={n.nation}>
+                                {nationDepthLabel(n)}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="help">
+                            {onlyNation && nations.some((n) => n.nation === onlyNation)
+                              ? <><NationFlag nation={onlyNation} named /> Every pick, signing and academy prospect comes from {nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.</>
+                              : `${nations.length} nations have ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}.`}
+                          </span>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            <section className="setup-step setup-start bottom-bar" ref={barRef}>
+              <StepHead n={fixed ? 4 : 5} title="Spin" />
+              <div className="small muted" data-testid="setup-summary">
+                {summary}
+                {!fixed && (
+                  <>
+                    {' · '}
+                    <button type="button" className="linklike" onClick={openMore}>
+                      change
+                    </button>
+                  </>
+                )}
+              </div>
+              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
+                {!ready ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
+              </button>
+            </section>
           </div>
-          <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
-            {!ready ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
-          </button>
         </div>
       </div>
     </div>
+  )
+}
+
+/** A step's numbered badge and short title. */
+function StepHead({ n, title }: { n: number; title: string }) {
+  return (
+    <h3 className="step-head">
+      <span className="step-num" aria-hidden="true">
+        {n}
+      </span>
+      <span className="sr-only">Step {n}: </span>
+      {title}
+    </h3>
   )
 }
