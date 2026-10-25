@@ -226,7 +226,16 @@ export function Draft() {
               <p className="muted small">The wheel only stops on squads with a player who can fill a slot you still need, so there are no dead spins. A player can be drafted once, whichever season you catch him in.</p>
             </div>
           )}
-          {current && (
+          {current && spinning && !revealed && (
+            <div className="row">
+              <span className="badge" style={{ width: 44, height: 44, background: '#2a3a31', color: '#fff', fontSize: 18 }}>?</span>
+              <div>
+                <h2 style={{ fontSize: 26 }}>Opening…</h2>
+                <div className="muted small">The reel is landing on a club and a season.</div>
+              </div>
+            </div>
+          )}
+          {current && (!spinning || revealed) && (
             <>
               <div className="row between wrap">
                 <div className="row">
@@ -247,7 +256,7 @@ export function Draft() {
                   </button>
                 </div>
               </div>
-              {!revealed && spinning && <div className="notice">The wheel is spinning…</div>}
+              {!revealed && spinning && <div className="notice">The reel is running…</div>}
               {revealed && twist === 'blind' && <div className="notice">Blind pick: ratings stay hidden until you have chosen. Positions and ages are still shown.</div>}
               {revealed && selected && (
                 <div className="notice">

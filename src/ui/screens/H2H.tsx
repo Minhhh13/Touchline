@@ -239,7 +239,16 @@ export function H2HScreen() {
               <h3>{complete ? 'Both squads complete' : `Spin: ${h2h.managers[d.first].name} picks first`}</h3>
             </div>
           )}
-          {current && (
+          {current && spinning && !revealed && (
+            <div className="row">
+              <span className="badge" style={{ width: 44, height: 44, background: '#2a3a31', color: '#fff', fontSize: 18 }}>?</span>
+              <div>
+                <h2 style={{ fontSize: 26 }}>Opening…</h2>
+                <div className="muted small">The reel is landing on a club and a season.</div>
+              </div>
+            </div>
+          )}
+          {current && (!spinning || revealed) && (
             <>
               <div className="row">
                 <ClubBadge clubId={current.clubId} size={44} />
