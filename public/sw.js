@@ -1,5 +1,5 @@
 /* Touchline service worker. The shell is cached on install and refreshed in
-   the background on every visit; hashed assets and icons are cache-first;
+   the background on every visit; hashed assets, icons and flags are cache-first;
    league packs are served from the cache and refreshed behind the scenes, so
    a rebuilt pack shows up on the next visit. VERSION is stamped per build, so
    a new deploy installs a fresh worker and drops the old cache. */
@@ -19,8 +19,8 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return
   const url = new URL(req.url)
   if (url.origin !== location.origin) return
-  // Hashed assets and icons never change under the same name: cache first
-  if (url.pathname.includes('/assets/') || url.pathname.includes('/icons/')) {
+  // Hashed assets, icons and flags (public/flags/<code>.svg) never change under the same name: cache first
+  if (url.pathname.includes('/assets/') || url.pathname.includes('/icons/') || url.pathname.includes('/flags/')) {
     event.respondWith(
       caches.open(VERSION).then(async (cache) => {
         const hit = await cache.match(req)

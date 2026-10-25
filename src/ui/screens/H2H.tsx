@@ -11,6 +11,7 @@ import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool } from '@game/logic/reel'
@@ -82,11 +83,11 @@ export function H2HSetup() {
           <h3>The league</h3>
           <div className="field">
             League
-            <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: l.name }))} />
+            <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
           </div>
           <div className="field">
             Draft from
-            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: 'This league' }, { value: 'europe', label: `All ${u.available.length} leagues` }]} />
+            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> This league</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> All {u.available.length} leagues</> }]} />
           </div>
           <label className="field">
             Season
@@ -187,7 +188,7 @@ export function H2HScreen() {
         <div>
           <h1>Head-to-head draft</h1>
           <div className="muted small">
-            {h2h.managers[0].name} v {h2h.managers[1].name} · {seasonLabel(h2h.leagueSeason)} league · seed {h2h.seed}
+            {h2h.managers[0].name} v {h2h.managers[1].name} · <LeagueFlag leagueId={h2h.leagueId} /> {u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? 'League'} {seasonLabel(h2h.leagueSeason)} · seed {h2h.seed}
           </div>
         </div>
         <div className="row">
@@ -328,7 +329,7 @@ function H2HSummary() {
   return (
     <div className="page">
       <div className="tier-banner">
-        <div className="muted small">Head-to-head · {seasonLabel(h2h.leagueSeason)}</div>
+        <div className="muted small">Head-to-head · <LeagueFlag leagueId={h2h.leagueId} label={u.leagues.find((l) => l.id === h2h.leagueId)?.name} /> {seasonLabel(h2h.leagueSeason)}</div>
         <div className="tier CHAMPIONS">{r.winner === null ? 'Dead heat' : `${m[r.winner].name} wins`}</div>
         <div className="row" style={{ justifyContent: 'center', gap: 30, marginTop: 10, flexWrap: 'wrap' }}>
           {([0, 1] as const).map((i) => (

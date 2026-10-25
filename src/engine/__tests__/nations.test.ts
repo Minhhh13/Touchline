@@ -20,7 +20,7 @@ describe('nationDepth', () => {
     // England itself is obviously deep enough, and the label carries flag, name and count
     const eng = depth.find((n) => n.nation === 'ENG')
     expect(eng).toBeDefined()
-    expect(nationDepthLabel(eng!)).toBe(`${u.nations['ENG'].flag} England · ${eng!.players} players`)
+    expect(nationDepthLabel(eng!)).toBe(`England · ${eng!.players} players`)
     expect(eng!.players).toBeGreaterThan(1000)
     expect(depth.map((n) => n.name)).toEqual([...depth.map((n) => n.name)].sort((a, b) => a.localeCompare(b)))
   })

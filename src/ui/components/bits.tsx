@@ -6,6 +6,7 @@ import { POSITION_GROUP } from '@engine/positions'
 import { ratingBand, textColourFor } from '../format'
 import { useStore } from '@game/store'
 import { tipSeen, type TipId } from '@game/logic/tips'
+import { NationFlag } from './Flag'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -33,14 +34,9 @@ export function Pos({ p }: { p: Position }) {
   return <span className={`pos ${POSITION_GROUP[p]}`}>{p}</span>
 }
 
+/** A nation's drawn flag, labelled with its name (kept for existing callers; see NationFlag in Flag.tsx). */
 export function Flag({ nation }: { nation: string }) {
-  const u = useStore((s) => s.universe)
-  const n = u?.nations[nation]
-  return (
-    <span title={n?.name ?? nation} aria-label={n?.name ?? nation}>
-      {n?.flag ?? '🏳️'}
-    </span>
-  )
+  return <NationFlag nation={nation} />
 }
 
 export function Bar({ value, max = 100, colour, thick }: { value: number; max?: number; colour?: string; thick?: boolean }) {
@@ -52,7 +48,7 @@ export function Bar({ value, max = 100, colour, thick }: { value: number; max?: 
   )
 }
 
-export function Segmented<T extends string>({ options, value, onChange }: { options: Array<{ value: T; label: string; hint?: string }>; value: T; onChange: (v: T) => void }) {
+export function Segmented<T extends string>({ options, value, onChange }: { options: Array<{ value: T; label: ReactNode; hint?: string }>; value: T; onChange: (v: T) => void }) {
   return (
     <div className="segmented" role="radiogroup">
       {options.map((o) => (
@@ -217,7 +213,7 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
 }
 
 /** Tab strip; `alert` draws a dot, `badge` a count (which takes the dot's place when both are set). */
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: string; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void }) {
+export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void }) {
   return (
     <div className="tabs" role="tablist">
       {tabs.map((t) => (

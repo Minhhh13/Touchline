@@ -29,8 +29,39 @@ export function wage(k: number): string {
   if (k >= 1000) return `£${(k / 1000).toFixed(2)}M/wk`
   return `£${Math.round(k)}k/wk`
 }
+/** @deprecated The data's emoji flag: never render it (Windows draws two letters); use NationFlag in components/Flag.tsx. */
 export function flag(u: LoadedUniverse | null, nation: string): string {
   return u?.nations[nation]?.flag ?? '🏳️'
+}
+/** The drawn flag for a nation without one (public/flags/unknown.svg, our own). */
+export const FALLBACK_FLAG = 'unknown'
+/** Nations whose emoji in the data is a stand-in: Northern Ireland carries the UK flag. */
+const NATION_FLAG_OVERRIDE: Record<string, string> = { NIR: 'gb-nir' }
+/**
+ * The flag-icons code for an emoji flag: a regional-indicator pair gives the ISO 3166-1 alpha-2 code (the pair for B and
+ * E -> be), a black flag with a tag sequence the subdivision (tags "gbeng" -> gb-eng); null for anything else (the white
+ * flag of an unknown nation). Mirrors `flagCodeFromEmoji` in scripts/brand/flags.mjs, which copies the SVGs.
+ */
+export function flagCodeFromEmoji(emoji: string): string | null {
+  const cps = [...emoji].map((c) => c.codePointAt(0) ?? 0)
+  if (cps.length === 2 && cps.every((c) => c >= 0x1f1e6 && c <= 0x1f1ff)) return cps.map((c) => String.fromCharCode(c - 0x1f1e6 + 97)).join('')
+  if (cps.length > 2 && cps[0] === 0x1f3f4 && cps[cps.length - 1] === 0xe007f) {
+    const tag = cps.slice(1, -1).map((c) => ((c >= 0xe0061 && c <= 0xe007a) || (c >= 0xe0030 && c <= 0xe0039) ? String.fromCharCode(c - 0xe0000) : '?')).join('')
+    if (/^[a-z]{2}[a-z0-9]{1,3}$/.test(tag)) return `${tag.slice(0, 2)}-${tag.slice(2)}`
+  }
+  return null
+}
+/** The file under public/flags (without .svg) drawn for a nation code from the packs. */
+export function nationFlagCode(u: LoadedUniverse | null, nation: string): string {
+  const fixed = NATION_FLAG_OVERRIDE[nation]
+  if (fixed) return fixed
+  const emoji = u?.nations[nation]?.flag
+  return (emoji ? flagCodeFromEmoji(emoji) : null) ?? FALLBACK_FLAG
+}
+const LEAGUE_FLAG: Record<string, string> = { england: 'gb-eng', spain: 'es', italy: 'it', germany: 'de', france: 'fr', netherlands: 'nl', portugal: 'pt', europe: 'eu' }
+/** The flag drawn beside a league's name; 'europe' (the European Nights and the all-leagues wheel) is the EU flag. */
+export function leagueFlagCode(leagueId: string): string {
+  return LEAGUE_FLAG[leagueId] ?? FALLBACK_FLAG
 }
 export function nationName(u: LoadedUniverse | null, nation: string): string {
   return u?.nations[nation]?.name ?? nation

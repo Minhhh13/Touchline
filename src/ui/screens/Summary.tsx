@@ -11,7 +11,8 @@ import type { Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, flag, money, nationName, ordinal, seasonLabel, tierName } from '../format'
+import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
+import { LeagueFlag, NationFlag } from '../components/Flag'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
@@ -51,7 +52,7 @@ export function Summary() {
   const inBooks = bench !== null && hasRecordBook(bench)
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
-  if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`)
+  if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)
     const landed = (game.draft?.history ?? []).flatMap((h): Twist[] => (h.pickedId && h.twist ? [h.twist] : [])).map((t) => TWIST_INFO[t].icon)
@@ -158,7 +159,7 @@ export function Summary() {
     <div className="page">
       <div className="tier-banner">
         <div className="muted small">
-          {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
+          {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
         </div>
         {replay.playing ? (
           <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">
@@ -174,7 +175,7 @@ export function Summary() {
         {season?.continental?.won && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
-        {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: {flag(u, game.settings.rules.onlyNation)} {nationName(u, game.settings.rules.onlyNation)}</div>}
+        {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)}</div>}
         {season?.objectives?.length ? <div className="chip" style={{ marginTop: 6 }}>Board objectives: {season.objectives.filter((o) => o.met).length} of {season.objectives.length} met</div> : null}
         {!replay.playing && (
           <div className="record">
@@ -306,7 +307,7 @@ export function Summary() {
           <div className="panel-head">
             <h3>In the record books</h3>
             <span className="small muted">
-              Against {bench.seasons} complete {leagueName} seasons of {bench.played} matches in the data
+              Against {bench.seasons} complete <LeagueFlag leagueId={game.settings.leagueId} /> {leagueName} seasons of {bench.played} matches in the data
               {champion ? ` · the real champions in ${seasonLabel(game.settings.leagueSeason)} were ${clubName(u, champion)}` : ''}
             </span>
           </div>
@@ -363,7 +364,7 @@ export function Summary() {
                     <ClubBadge clubId={o.clubId} size={40} />
                     <div>
                       <div style={{ fontWeight: 700 }}>{clubName(u, o.clubId)}</div>
-                      <div className="small muted">{u.leagues.find((l) => l.id === o.leagueId)?.name ?? o.leagueId} · +{money(o.budgetBonus)} budget</div>
+                      <div className="small muted"><LeagueFlag leagueId={o.leagueId} /> {u.leagues.find((l) => l.id === o.leagueId)?.name ?? o.leagueId} · +{money(o.budgetBonus)} budget</div>
                     </div>
                   </div>
                   <p className="small" style={{ margin: '8px 0' }}>{o.pitch}</p>
@@ -453,7 +454,7 @@ export function Summary() {
         </div>
         <div className="col">
           <div className="panel">
-            <h3>Final table · {seasonLabel(game.settings.leagueSeason)}</h3>
+            <h3><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> Final table · {seasonLabel(game.settings.leagueSeason)}</h3>
             <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop />
           </div>
           {isManage && (
@@ -492,7 +493,7 @@ export function Summary() {
                     return (
                       <tr key={h.year}>
                       <td>{h.year}</td>
-                      <td>{seasonLabel(h.leagueSeason)}</td>
+                      <td><LeagueFlag leagueId={h.leagueId} label={u.leagues.find((l) => l.id === h.leagueId)?.name ?? h.leagueId} /> {seasonLabel(h.leagueSeason)}</td>
                       <td>
                         <span className="row" style={{ gap: 6 }}>
                           <ClubBadge clubId={h.hostClubId} size={20} />
