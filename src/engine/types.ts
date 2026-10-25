@@ -252,6 +252,8 @@ export interface MatchEvent {
   secondaryId?: string
   secondaryName?: string
   text: string
+  /** Where a shot was taken from (goals, penalties, own goals, chances and saves): x 0..100 along the pitch towards the attacking goal, y 0..100 across. Absent on results written before the pitch views. */
+  position?: { x: number; y: number }
 }
 
 export interface PlayerMatchStats {
