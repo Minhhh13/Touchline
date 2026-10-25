@@ -742,20 +742,118 @@ label.field {
 }
 
 /* ------------------------------------------------------------------ reel */
-/* The wheel as a case opening: a strip of club cards slides under a marker and lands on the pick. */
+/*
+ * The wheel as a case opening, season first: a season drum stops on the drawn season, then a strip of that
+ * season's clubs slides under the marker and lands on the drawn club. Every card carries its rarity tier in
+ * Counter-Strike case colours (src/game/logic/rarity.ts). The tier colours are defined here once; anything else
+ * reads the theme tokens with a fallback. Timings live in CaseReel.tsx (DRUM_MS, SEASON_MS, STRIP_MS).
+ */
+:root {
+  --tier-gold: #e4ae39;
+  --tier-red: #eb4b4b;
+  --tier-pink: #d32ce6;
+  --tier-purple: #8847ff;
+  --tier-blue: #4b69ff;
+  /* Text on a solid tier colour, each at 4.5:1 or better (gold 10.4, red 5.6, pink 5.3, purple 4.8, blue 4.8) */
+  --tier-gold-ink: #000;
+  --tier-red-ink: #000;
+  --tier-pink-ink: #000;
+  --tier-purple-ink: #fff;
+  --tier-blue-ink: #000;
+}
+[data-tier='gold'] {
+  --tier: var(--tier-gold);
+  --tier-ink: var(--tier-gold-ink);
+}
+[data-tier='red'] {
+  --tier: var(--tier-red);
+  --tier-ink: var(--tier-red-ink);
+}
+[data-tier='pink'] {
+  --tier: var(--tier-pink);
+  --tier-ink: var(--tier-pink-ink);
+}
+[data-tier='purple'] {
+  --tier: var(--tier-purple);
+  --tier-ink: var(--tier-purple-ink);
+}
+[data-tier='blue'] {
+  --tier: var(--tier-blue);
+  --tier-ink: var(--tier-blue-ink);
+}
 .reel-wrap {
   position: relative;
   width: 100%;
   margin: 0 auto;
   user-select: none;
+  container-type: inline-size;
 }
+.reel-run {
+  --card: 68px;
+  --gap: 6px;
+}
+@container (min-width: 420px) {
+  .reel-run {
+    --card: 84px;
+  }
+}
+.reel-run:not(.idle):not(.stage-landed) {
+  cursor: pointer;
+}
+
+/* Stage 1: the season drum */
+.reel-season {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  min-height: 34px;
+  font-family: var(--font-display, 'Arial Narrow', sans-serif);
+  text-transform: uppercase;
+  line-height: 1;
+}
+.reel-season .lbl {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--text-2, #b4c6ba);
+}
+.reel-season .lbl.twist {
+  color: var(--gold, #f5c542);
+}
+:root[data-theme='light'] .reel-season .lbl.twist {
+  color: var(--text, #0f1b15);
+}
+.reel-drum-window {
+  position: relative;
+  height: 34px;
+  min-width: 4.4em;
+  overflow: hidden;
+}
+.reel-season:not(.out) .reel-drum-window {
+  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+}
+.reel-drum {
+  will-change: transform;
+}
+.reel-drum-label {
+  height: 34px;
+  line-height: 34px;
+  font-size: 30px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #eef5f0);
+}
+
+/* Stage 2: the strip */
 .reel-window {
   position: relative;
   overflow: hidden;
   height: 112px;
   border-radius: 12px;
   background: linear-gradient(180deg, #0d1a13, #091009);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line, #24382d);
   box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.65);
 }
 .reel-window::before,
@@ -783,8 +881,8 @@ label.field {
   bottom: 0;
   width: 2px;
   transform: translateX(-50%);
-  background: var(--gold);
-  box-shadow: 0 0 10px var(--gold);
+  background: var(--gold, #f5c542);
+  box-shadow: 0 0 10px var(--gold, #f5c542);
   z-index: 3;
   pointer-events: none;
 }
@@ -799,96 +897,197 @@ label.field {
 }
 .reel-marker::before {
   top: 0;
-  border-top: 12px solid var(--gold);
+  border-top: 12px solid var(--gold, #f5c542);
 }
 .reel-marker::after {
   bottom: 0;
-  border-bottom: 12px solid var(--gold);
+  border-bottom: 12px solid var(--gold, #f5c542);
+}
+/* Hides the strip while the season rolls, so the season reads first */
+.reel-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: #0b140f;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+.reel-run.stage-season .reel-veil {
+  opacity: 0.94;
 }
 .reel-strip {
   display: flex;
   align-items: center;
-  gap: var(--gap, 6px);
+  gap: var(--gap);
   width: max-content;
   height: 100%;
   padding-left: 8px;
   will-change: transform;
 }
-.reel-strip.moving {
-  transition: transform 2.3s cubic-bezier(0.1, 0.78, 0.1, 1);
-}
 .reel-card {
-  flex: 0 0 var(--card, 84px);
-  width: var(--card, 84px);
+  flex: 0 0 var(--card);
+  width: var(--card);
   height: 84px;
   border-radius: 10px;
   display: grid;
   place-items: center;
-  font-family: var(--font-display);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-display, 'Arial Narrow', sans-serif);
   font-weight: 700;
-  font-size: 24px;
+  font-size: 22px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  box-shadow: inset 0 0 0 3px var(--secondary, #fff), 0 6px 14px rgba(0, 0, 0, 0.45);
-  position: relative;
+  box-shadow: inset 0 0 0 3px var(--secondary, #fff), 0 0 12px color-mix(in srgb, var(--tier, transparent) 40%, transparent), 0 6px 14px rgba(0, 0, 0, 0.45);
 }
+/* The rarity bar along the bottom edge, as on a CS case item */
+.reel-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: var(--tier, transparent);
+  box-shadow: 0 0 8px var(--tier, transparent);
+}
+.reel-card .lg {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+}
+/* Cards the wheel could not stop on this spin */
+.reel-card.dim {
+  filter: grayscale(0.9) brightness(0.6);
+  opacity: 0.45;
+}
+
+/* Stage 3: the landing */
 .reel-card.landed {
-  animation: land 0.45s ease-out both;
-  box-shadow: inset 0 0 0 3px var(--secondary, #fff), 0 0 0 3px var(--gold), 0 0 26px color-mix(in srgb, var(--gold) 70%, transparent);
   z-index: 1;
+  transform: scale(1.08);
+  animation: reel-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  box-shadow: inset 0 0 0 3px var(--secondary, #fff), 0 0 0 3px var(--tier), 0 0 28px var(--tier);
 }
-@keyframes land {
+@keyframes reel-pop {
   0% {
     transform: scale(1);
   }
-  50% {
-    transform: scale(1.14);
+  55% {
+    transform: scale(1.16);
   }
   100% {
-    transform: scale(1.07);
+    transform: scale(1.08);
   }
 }
-.reel-hub {
+/* A gold landing gets a sweep of light across the card */
+.reel-card.landed[data-tier='gold']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.6) 50%, transparent 70%);
+  transform: translateX(-130%);
+  animation: reel-shimmer 1.1s ease-in-out 0.2s 2 both;
+  pointer-events: none;
+}
+@keyframes reel-shimmer {
+  to {
+    transform: translateX(130%);
+  }
+}
+.reel-run.stage-landed .reel-window {
+  border-color: var(--tier);
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.65), 0 0 14px color-mix(in srgb, var(--tier) 45%, transparent);
+  animation: reel-flash 0.6s ease-out;
+}
+@keyframes reel-flash {
+  0% {
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.65), 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: inset 0 0 46px color-mix(in srgb, var(--tier) 60%, transparent), 0 0 26px var(--tier);
+  }
+  100% {
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.65), 0 0 14px color-mix(in srgb, var(--tier) 45%, transparent);
+  }
+}
+.reel-result {
   margin-top: 10px;
+  min-height: 30px;
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: 10px;
-  font-family: var(--font-display);
+  gap: 8px;
+  text-align: center;
+}
+.reel-club {
+  font-family: var(--font-display, 'Arial Narrow', sans-serif);
+  font-size: 22px;
+  font-weight: 700;
   text-transform: uppercase;
   line-height: 1;
-  min-height: 34px;
+  color: var(--text, #eef5f0);
 }
-.reel-hub .year {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--text-1, #fff);
+.reel-club-season {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2, #b4c6ba);
 }
-.reel-hub .lbl {
+.reel-skip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-2, #2f4a3b);
+  background: none;
+  font: inherit;
   font-size: 12px;
-  letter-spacing: 0.12em;
-  color: var(--text-3);
+  color: var(--text-2, #b4c6ba);
+  cursor: pointer;
 }
-.reel-hub .lbl.twist {
-  color: var(--gold);
+
+/* The tier as a chip (header, landing) and as a dot (draft log) */
+.tier-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: middle;
+  background: var(--tier);
+  color: var(--tier-ink);
 }
-.reel-hub.rolling .year {
-  animation: flicker 0.12s steps(2) infinite;
+.tier-dot {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tier);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 6px color-mix(in srgb, var(--tier) 60%, transparent);
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .reel-strip.moving {
-    transition-duration: 0.4s;
-  }
-  .reel-card.landed {
+  .reel-card.landed,
+  .reel-card.landed[data-tier='gold']::before,
+  .reel-run.stage-landed .reel-window {
     animation: none;
   }
-}
-@keyframes flicker {
-  from {
-    opacity: 0.4;
-  }
-  to {
-    opacity: 1;
+  .reel-veil {
+    transition: none;
   }
 }
 

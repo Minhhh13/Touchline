@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, wheelPool } from '@engine/draft'
+import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, type DraftState } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
-import { CaseReel } from '../components/CaseReel'
+import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Pos, Rating } from '../components/bits'
 import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
-import { leagueSegments } from '../components/leagueSegments'
+import { tierTable, type TierTable } from '@game/logic/rarity'
+import { draftReelPool, reelLeagues } from '@game/logic/reel'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -21,41 +22,30 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 
 export function Draft() {
   const { universe: u, game, spin, respin, pickPlayer, autoDraftRest, finishDraft, go, showToast } = useStore()
-  const [spinning, setSpinning] = useState(false)
-  const [revealed, setRevealed] = useState(false)
-  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+  // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
+  // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
+  const [settled, setSettled] = useState<DraftState['current']>(null)
+  // A selected player belongs to the spin he was selected on
+  const [picked, setPicked] = useState<{ id: string; spin: number } | null>(null)
   const [sort, setSort] = useState<'rating' | 'position'>('rating')
   const d = game?.draft
   const get = useMemo(() => (game && u ? playerLookup(game, u) : () => undefined), [game, u])
+  const spinning = !!d?.current && settled !== d.current
+  const revealed = !!d?.current && settled === d.current
+  const selectedPlayer = picked && picked.spin === d?.spins ? picked.id : null
+  const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, spin: d.spins } : null)
 
-  const segments = useMemo(() => {
-    if (!u || !d) return []
-    const pool = wheelPool(u, d)
-    const leagues = [...new Set(pool.map((cs) => cs.leagueId))]
-    // Across several leagues the wheel shows leagues as segments; within one league, the clubs.
-    if (leagues.length > 1) return leagueSegments(u, leagues)
-    const clubs = [...new Set(pool.map((cs) => cs.clubId))]
-    const sorted = clubs.sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b))
-    return sorted.map((id) => ({ id, label: u.clubById[id]?.code ?? id.slice(0, 3).toUpperCase(), colour: u.clubById[id]?.colours.primary ?? '#555', secondary: u.clubById[id]?.colours.secondary ?? '#fff' }))
-    // Recompute only when the current spin changes so the wheel is stable while a pick is pending.
+  // The reel: the draft's leagues, their tiers, and what this spin could land on (recomputed per spin and per pick)
+  const leagues = useMemo(() => (u && d ? reelLeagues(u, d.rules) : []), [u, d?.rules])
+  const tiers = useMemo<TierTable>(() => (u ? tierTable(u, leagues) : {}), [u, leagues])
+  const pool = useMemo(
+    () => (u && d ? draftReelPool(u, d) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [u, d?.spins, d?.rules])
-  const wheelTarget = useMemo(() => {
-    if (!u || !d?.current) return null
-    const cs = u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`]
-    return segments.length && segments[0].id.startsWith('league:') ? `league:${cs?.leagueId ?? ''}` : d.current.clubId
-  }, [u, d?.current, segments])
+    [u, d?.spins, d?.rules, d?.history.length],
+  )
 
   // A one-nation wheel can run out of eligible players; checked after every pick, not only on a spin
   const dry = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && !canSpin(u, d), [u, d])
-
-  useEffect(() => {
-    if (d?.current) {
-      setSpinning(true)
-      setRevealed(false)
-      setSelectedPlayer(null)
-    }
-  }, [d?.current?.clubId, d?.current?.season, d?.spins])
 
   if (!u || !game || !d) return null
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
@@ -133,7 +123,7 @@ export function Draft() {
         <div className="col">
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} />}
-            <CaseReel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title.replace(' spin', '') : null} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} onSettled={() => setSettled(d.current)} />
             {ghost && challenge && revealed && (
               <div className="chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`} style={{ alignSelf: 'center', whiteSpace: 'normal', textAlign: 'center' }}>
                 👻{' '}
@@ -199,6 +189,7 @@ export function Draft() {
                   return (
                     <div key={i} className="row small" style={{ gap: 8 }}>
                       <ClubBadge clubId={h.clubId} size={20} />
+                      {tiers[`${h.clubId}@${h.season}`] && <TierDot tier={tiers[`${h.clubId}@${h.season}`]} />}
                       <span className="muted">{seasonLabel(h.season)}</span>
                       {h.twist && (
                         <span title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
@@ -244,6 +235,7 @@ export function Draft() {
                     <h2 style={{ fontSize: 26 }}>{clubName(u, current.clubId)}</h2>
                     <div className="muted small">
                       {seasonLabel(current.season)} · {!current.complete ? 'season in progress' : current.champions ? '🏆 Champions' : current.position > 0 ? `${ordinal(current.position)} · ${current.points} pts` : 'final table not on record'}{current.position > 0 ? ` · ${current.won}-${current.drawn}-${current.lost}` : ''}
+                      {tiers[`${current.clubId}@${current.season}`] && <> <TierChip tier={tiers[`${current.clubId}@${current.season}`]} /></>}
                     </div>
                   </div>
                 </div>

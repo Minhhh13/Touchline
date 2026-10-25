@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
-import { h2hComplete, h2hEligibleSlots, h2hUsable } from '@engine/h2h'
+import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
 import { TIER_LABEL } from '@engine/season'
 import { H2H_IDS } from '@game/logic/h2h'
-import { CaseReel } from '../components/CaseReel'
+import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
-import { leagueSegments } from '../components/leagueSegments'
+import { tierTable } from '@game/logic/rarity'
+import { h2hReelPool } from '@game/logic/reel'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
 import { GameByGame } from '../components/GameByGame'
 
@@ -135,30 +136,23 @@ export function H2HSetup() {
 
 export function H2HScreen() {
   const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast } = useStore()
-  const [spinning, setSpinning] = useState(false)
-  const [revealed, setRevealed] = useState(false)
-  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-  const segments = useMemo(() => {
-    if (!u || !h2h) return []
-    if (h2h.wheelLeagues.length > 1) return leagueSegments(u, h2h.wheelLeagues)
-    return [...u.clubs].filter((c) => h2h.wheelLeagues.includes(c.leagueId)).sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ id: c.id, label: c.code, colour: c.colours.primary, secondary: c.colours.secondary }))
-  }, [u, h2h?.wheelLeagues])
-  const wheelTarget = useMemo(() => {
-    if (!u || !h2h?.draft.current) return null
-    const cs = u.clubSeasonByKey[`${h2h.draft.current.clubId}@${h2h.draft.current.season}`]
-    return h2h.wheelLeagues.length > 1 ? `league:${cs?.leagueId ?? ''}` : h2h.draft.current.clubId
-  }, [u, h2h?.draft.current, h2h?.wheelLeagues])
+  // As in the Draft: the spin whose reel has landed, and a selection that belongs to its spin
+  const [settled, setSettled] = useState<H2HDraft['current']>(null)
+  const [picked, setPicked] = useState<{ id: string; spin: number } | null>(null)
   const d = h2h?.draft
-  useEffect(() => {
-    if (d?.current) {
-      setSpinning(true)
-      setRevealed(false)
-      setSelectedPlayer(null)
-    }
-  }, [d?.spins])
+  const spinning = !!d?.current && settled !== d.current
+  const revealed = !!d?.current && settled === d.current
+  const selectedPlayer = picked && picked.spin === d?.spins ? picked.id : null
+  const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, spin: d.spins } : null)
+  const pool = useMemo(
+    () => (u && h2h ? h2hReelPool(u, h2h.draft) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [u, h2h?.draft.spins, h2h?.draft.log.length],
+  )
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
+  const tier = current ? tierTable(u, h2h.wheelLeagues)[`${current.clubId}@${current.season}`] : undefined
   const complete = h2hComplete(d)
   const picking = d.picking
   const manager = picking !== null ? h2h.managers[picking] : null
@@ -205,7 +199,7 @@ export function H2HScreen() {
       <div className="grid draft">
         <div className="col">
           <div className="panel col">
-            <CaseReel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <CaseReel u={u} leagues={h2h.wheelLeagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
@@ -257,6 +251,7 @@ export function H2HScreen() {
                   <h2 style={{ fontSize: 26 }}>{clubName(u, current.clubId)}</h2>
                   <div className="muted small">
                     {seasonLabel(current.season)} · {!current.complete ? 'in progress' : current.champions ? '🏆 Champions' : current.position > 0 ? ordinal(current.position) : 'no table on record'}
+                    {tier && <> <TierChip tier={tier} /></>}
                   </div>
                 </div>
               </div>
