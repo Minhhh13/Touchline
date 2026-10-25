@@ -129,13 +129,20 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
   )
 }
 
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: string; alert?: boolean }>; value: T; onChange: (t: T) => void }) {
+/** Tab strip; `alert` draws a dot, `badge` a count (which takes the dot's place when both are set). */
+export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: string; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void }) {
   return (
     <div className="tabs" role="tablist">
       {tabs.map((t) => (
         <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)}>
           {t.label}
-          {t.alert && <span className="dot" />}
+          {t.badge ? (
+            <span className="tab-badge" data-testid={`badge-${t.id}`} aria-label={`${t.badge} new`}>
+              {t.badge > 99 ? '99+' : t.badge}
+            </span>
+          ) : (
+            t.alert && <span className="dot" />
+          )}
         </button>
       ))}
     </div>

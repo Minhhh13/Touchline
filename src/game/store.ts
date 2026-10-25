@@ -27,6 +27,8 @@ import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
+import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
+import { newsTotal } from './logic/news'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -68,6 +70,8 @@ interface Store {
   profile: Profile
   toast: string | null
   offseason: OffseasonReport | null
+  /** What happened over the matchweeks just simulated (Sim 5, Sim to end); transient, never saved. */
+  digest: SimDigest | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
   matchView: 'ticker' | 'report'
   /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
@@ -103,6 +107,9 @@ interface Store {
   simWeeks: (n: number) => void
   closeMatch: () => void
   setMatchView: (v: 'ticker' | 'report') => void
+  dismissDigest: () => void
+  /** The Inbox was opened: everything posted so far counts as read. */
+  markNewsSeen: () => void
 
   setTactics: (t: Partial<Tactics>) => void
   setRole: (slotId: string, roleId: string) => void
@@ -203,6 +210,7 @@ export const useStore = create<Store>()(
         profile: defaultProfile,
         toast: null,
         offseason: null,
+        digest: null,
         matchView: 'ticker',
         pendingChallenge: null,
 
@@ -298,9 +306,9 @@ export const useStore = create<Store>()(
           // Park a game of a different kind rather than losing it; a finished one is dropped.
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
-          set({ game, parked: next, screen: 'game', pendingChallenge: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          set({ game, parked: next, screen: 'game', pendingChallenge: null, digest: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
-        abandonGame: () => set({ game: null, screen: 'home', offseason: null }),
+        abandonGame: () => set({ game: null, screen: 'home', offseason: null, digest: null }),
         resumeGame: (slot) => {
           const { game: current, parked } = get()
           const target = parked[slot]
@@ -313,7 +321,7 @@ export const useStore = create<Store>()(
           void get()
             .ensureLeagues(ids)
             .then((ok) => {
-              if (ok) set({ game: target, parked: next, screen: 'game' })
+              if (ok) set({ game: target, parked: next, screen: 'game', digest: null })
             })
         },
         discardParked: (slot) => {
@@ -400,6 +408,8 @@ export const useStore = create<Store>()(
           }
         },
         simWeeks: (n) => {
+          // Plain numbers from the saved game, read before the mutation so the digest compares before with after
+          const before = digestSnapshot(get().game)
           mutate((g, u) => {
             if (g.phase === 'preseason') startSeasonProper(g)
             for (let i = 0; i < n; i++) {
@@ -408,8 +418,11 @@ export const useStore = create<Store>()(
               if (g.phase === 'match') g.phase = 'week'
             }
           })
-          set({ matchView: 'report' })
-          if (get().game?.phase === 'summary') {
+          const after = get().game
+          // The season summary covers a run that ended the season, so no digest then
+          const digest = before && after && after.phase !== 'summary' ? buildDigest(before, after) : null
+          set({ matchView: 'report', digest })
+          if (after?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
           }
@@ -424,6 +437,13 @@ export const useStore = create<Store>()(
           }
         },
         setMatchView: (v) => set({ matchView: v }),
+        dismissDigest: () => set({ digest: null }),
+        markNewsSeen: () => {
+          const { game } = get()
+          // Only when something is unread or the field is missing, so a visit to a read inbox never rewrites the save
+          if (!game?.season || (game.newsSeen !== undefined && game.newsSeen >= newsTotal(game))) return
+          mutate((g) => void (g.newsSeen = newsTotal(g)))
+        },
 
         setTactics: (t) => mutate((g) => void Object.assign(g.tactics, t)),
         setRole: (slotId, roleId) => mutate((g) => void (g.tactics.roles[slotId] = roleId)),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation, FORMATIONS } from '@engine/formations'
@@ -16,6 +16,7 @@ import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
+import { newsTotal, unseenNews } from '@game/logic/news'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -44,6 +45,17 @@ export function Dugout() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [game?.phase, game?.season?.matchweek, game?.season?.sacked])
+  // Opening the Inbox marks everything read, but the divider keeps the unread count as it stood when the tab
+  // opened (or when items arrived while it was open), so the reader can see where the new items end
+  const unseen = game ? unseenNews(game) : 0
+  const posted = game ? newsTotal(game) : 0
+  const [dividerAt, setDividerAt] = useState(0)
+  useEffect(() => {
+    if (tab !== 'inbox') return
+    setDividerAt(unseen)
+    store.markNewsSeen()
+    // `posted` is the trigger: a batch arriving while the tab is open moves the divider to the new batch
+  }, [tab, posted])
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
@@ -207,7 +219,7 @@ export function Dugout() {
           ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
-          { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent },
+          { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
           { id: 'club', label: 'Club' },
         ]}
       />
@@ -376,17 +388,32 @@ export function Dugout() {
       {tab === 'market' && <MarketTab />}
       {tab === 'inbox' && (
         <div className="panel">
-          <h3>Inbox</h3>
+          <div className="panel-head">
+            <h3>Inbox</h3>
+            {dividerAt > 0 && (
+              <span className="small muted" data-testid="inbox-new-count">
+                {Math.min(dividerAt, season.news.length)} new since your last visit
+              </span>
+            )}
+          </div>
           <div className="news">
             {season.news.map((n, i) => (
-              <div key={i} className="item">
-                <span>{{ result: '⚽', injury: '🩹', suspension: '🟥', board: '🏛', transfer: '💷', award: '🏆', event: '💬', cup: '🏟', training: '🏃', info: 'ℹ️' }[n.kind]}</span>
-                <span>
-                  <div className="t">{n.title}</div>
-                  <div className="b">{n.body}</div>
-                </span>
-                <span className="small muted">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
-              </div>
+              <Fragment key={i}>
+                <div className={`item ${i < dividerAt ? 'new' : ''}`}>
+                  <span>{{ result: '⚽', injury: '🩹', suspension: '🟥', board: '🏛', transfer: '💷', award: '🏆', event: '💬', cup: '🏟', training: '🏃', info: 'ℹ️' }[n.kind]}</span>
+                  <span>
+                    <div className="t">{n.title}</div>
+                    <div className="b">{n.body}</div>
+                  </span>
+                  <span className="small muted">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
+                </div>
+                {/* The divider sits under the last unread item, when anything older is still in the feed */}
+                {i === dividerAt - 1 && i < season.news.length - 1 && (
+                  <div className="divider" data-testid="inbox-divider">
+                    <span>New above · seen before below</span>
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
         </div>
@@ -710,7 +737,7 @@ function MarketTab() {
       <div className="panel">
         <div className="panel-head">
           <h3>
-            {w.kind === 'summer' ? 'Summer' : 'January'} window · day {w.day}/{w.days}
+            {w.kind === 'summer' ? 'Summer' : 'January'} window · day {w.day + 1}/{w.days}
             {w.day >= w.days - 1 ? ' · deadline day' : ''}
           </h3>
           <div className="row wrap">
@@ -1103,7 +1130,7 @@ function EventCard() {
       </div>
       <div className="row wrap" style={{ marginTop: 8 }}>
         {ev.choices.map((c) => (
-          <button key={c.id} className="btn" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
+          <button key={c.id} className="btn event-choice" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
               <span>{c.label}</span>
               <span className="small muted" style={{ fontWeight: 400 }}>

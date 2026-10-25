@@ -256,6 +256,9 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     const c = (game.contracts[id] ??= { years: 1 })
     c.status ??= statuses[id] ?? 'rotation'
   }
+  // A fresh inbox: everything posted so far is this season's opening news, all of it unread
+  game.newsTotal = game.season.news.length
+  game.newsSeen = 0
   game.rngState = rng.getState()
   void playerLookup
 }

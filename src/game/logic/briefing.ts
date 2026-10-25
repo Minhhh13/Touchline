@@ -116,12 +116,20 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
   }
 }
 
-/** The squad player with the strongest mentality and professionalism: who the assistant would hand the armband. */
+/** The mentality a captain must exceed to lift the side: the pivot of the engine's `leadership` modifier. */
+export const LEADER_MENTALITY = 75
+
+/**
+ * The squad player the engine's `leadership` modifier rates highest, so who the
+ * assistant would hand the armband: `(mentality - 75) × (0.6 + 0.8 × professionalism)`,
+ * plus 10 for a starter because only a captain on the pitch counts. A man under
+ * 75 mentality scores below zero however professional he is.
+ */
 export function suggestedCaptain(game: Game, u: LoadedUniverse): string | undefined {
   const inXI = new Set(Object.values(game.lineup))
   return squadPlayers(game, u)
-    .map((x) => ({ id: x.p.id, score: x.p.attributes.mentality * (0.6 + x.p.traits.professionalism * 0.8) + (inXI.has(x.p.id) ? 10 : 0) }))
-    .sort((a, b) => b.score - a.score)[0]?.id
+    .map((x) => ({ id: x.p.id, score: (x.p.attributes.mentality - LEADER_MENTALITY) * (0.6 + x.p.traits.professionalism * 0.8) + (inXI.has(x.p.id) ? 10 : 0) }))
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))[0]?.id
 }
 
 function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
