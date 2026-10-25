@@ -151,12 +151,14 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
   const them = live.userIsHome ? scoreNow.away : scoreNow.home
   const t = tactics ?? game.tactics
   const pitch = onPitch(mp, side)
+  /** Everyone who has been on the pitch for us, including the men already taken off: none can come back on. */
+  const appeared = live.userIsHome ? mp.hLive : mp.aLive
   const made = (live.userIsHome ? mp.hSubs : mp.aSubs).length
   // Three changes at the break; whatever is left of the five at 70
   const subCap = atBreak ? Math.min(3, 5 - made) : 5 - made
   const subbedOn = new Set(subs.map((s) => s.on))
   const subbedOff = new Set(subs.map((s) => s.off))
-  const benchOptions = game.bench.filter((id) => !pitch.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
+  const benchOptions = game.bench.filter((id) => !appeared.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
   const advance = (changes: Parameters<typeof store.advanceLive>[0]) => {
     store.advanceLive(changes)
     onPlayed(!useStore.getState().game?.live)

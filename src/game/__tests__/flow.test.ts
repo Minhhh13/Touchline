@@ -136,6 +136,38 @@ describe('game flow', () => {
     expect(g.squad[htOn].seasonStats.starts).toBe(0)
   })
 
+  it('a man taken off at half time cannot come back on at 70, and only the changes the engine made reach the lineup', () => {
+    const g = createGame(settings({ seed: 'no-way-back' }))
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    startSeasonProper(g)
+    playMatchweek(g, u, false)
+    const live = g.live!
+    const userLive = () => (live.userIsHome ? live.mp.hLive : live.mp.aLive)
+    const htOff = Object.values(g.lineup).find((id) => id !== g.lineup['gk'] && !userLive().some((p) => p.psId === id && (p.red || p.offAt < 90)))!
+    const htOn = g.bench.find((id) => g.squad[id] && !g.squad[id].injury)!
+    advanceLiveMatch(g, u, { talk: 'encourage', substitutions: [{ off: htOff, on: htOn }] })
+    expect(live.mp.clock).toBe(70)
+    // The half-time change was written back: the man who came off now sits on the bench
+    expect(g.bench).toContain(htOff)
+    expect(Object.values(g.lineup)).toContain(htOn)
+    const lineupAt70 = { ...g.lineup }
+    const benchAt70 = [...g.bench]
+    // Asking for him again at 70 is refused by the engine and leaves the lineup and bench untouched
+    const lateOff = userLive().find((p) => p.offAt >= 90 && !p.red && p.position !== 'GK' && p.psId !== htOn)!
+    advanceLiveMatch(g, u, { shout: 'keep-shape', substitutions: [{ off: lateOff.psId, on: htOff }] })
+    expect(g.live).toBeNull()
+    const res = g.lastMatch!
+    const ours = live.userIsHome ? res.homeReport : res.awayReport
+    expect(ours.substitutions.some((s) => s.reason === '70th minute')).toBe(false)
+    expect(ours.substitutions.filter((s) => s.on === htOff)).toHaveLength(0)
+    expect(userLive().filter((p) => p.psId === htOff)).toHaveLength(1)
+    expect(g.lineup).toEqual(lineupAt70)
+    expect(g.bench).toEqual(benchAt70)
+  })
+
   it('dynasty moves to the next season with ageing and a summer draft', () => {
     const g = createGame(settings({ mode: 'dynasty', leagueSeason: 2015, hostClubId: 'leicester-city' }))
     const rng = Rng.fromState(g.rngState)

@@ -336,9 +336,13 @@ export function advanceLiveMatch(game: Game, u: LoadedUniverse, second?: LiveCha
   const lookups = live.kind === 'friendly' ? { home: userLookups(game, u), away: friendlyLookups(u, live.opponentId) } : live.userIsHome ? { home: userLookups(game, u), away: aiLookups(game, u, live.opponentId) } : { home: aiLookups(game, u, live.opponentId), away: userLookups(game, u) }
   const opts: SecondHalfOptions | undefined = second ? { side: userSide, talk: second.talk, tactics: second.tactics, substitutions: second.substitutions, shout: second.shout } : undefined
   if (second?.tactics) game.tactics = second.tactics
-  // Persist the changes made at a stop to the lineup so the squad screen matches what is on the pitch
+  const stop = live.mp.clock ?? 45
+  // Persist the changes made at this stop to the lineup so the squad screen matches what is on the
+  // pitch: only those the engine actually made (it refuses a man who has already played, a used
+  // substitute or a sixth change), never the request as typed.
   const persistSubs = () => {
-    for (const s of second?.substitutions ?? []) {
+    const made = live.userIsHome ? live.mp.hSubs : live.mp.aSubs
+    for (const s of (second?.substitutions ?? []).filter((s) => made.some((m) => m.minute === stop && m.off === s.off && m.on === s.on))) {
       const slot = Object.keys(game.lineup).find((k) => game.lineup[k] === s.off)
       if (slot && game.squad[s.on]) {
         game.lineup[slot] = s.on
@@ -347,7 +351,7 @@ export function advanceLiveMatch(game: Game, u: LoadedUniverse, second?: LiveCha
       }
     }
   }
-  if ((live.mp.clock ?? 45) < 70) {
+  if (stop < 70) {
     advanceMatch(live.mp, lookups, opts, 70)
     persistSubs()
     return
