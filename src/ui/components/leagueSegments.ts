@@ -1,5 +1,5 @@
 import type { LoadedUniverse } from '@engine/universe'
-import type { WheelSegment } from './Wheel'
+import type { WheelSegment } from './CaseReel'
 
 const LEAGUE_COLOURS: Record<string, { colour: string; secondary: string; label: string }> = {
   england: { colour: '#3d195b', secondary: '#ffffff', label: 'ENG' },

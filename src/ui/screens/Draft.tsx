@@ -3,7 +3,7 @@ import { useStore } from '@game/store'
 import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, wheelPool } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
-import { Wheel } from '../components/Wheel'
+import { CaseReel } from '../components/CaseReel'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
@@ -133,7 +133,7 @@ export function Draft() {
         <div className="col">
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} />}
-            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title.replace(' spin', '') : null} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <CaseReel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title.replace(' spin', '') : null} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {ghost && challenge && revealed && (
               <div className="chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`} style={{ alignSelf: 'center', whiteSpace: 'normal', textAlign: 'center' }}>
                 👻{' '}

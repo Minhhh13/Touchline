@@ -6,7 +6,7 @@ import { h2hComplete, h2hEligibleSlots, h2hUsable } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
 import { TIER_LABEL } from '@engine/season'
 import { H2H_IDS } from '@game/logic/h2h'
-import { Wheel } from '../components/Wheel'
+import { CaseReel } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
@@ -204,7 +204,7 @@ export function H2HScreen() {
       <div className="grid draft">
         <div className="col">
           <div className="panel col">
-            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <CaseReel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
