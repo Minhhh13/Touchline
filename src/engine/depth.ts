@@ -20,9 +20,9 @@ export type CoreAttributes = Omit<Attributes, DepthKey>
 
 const clamp99 = (v: number): number => Math.min(99, Math.max(1, Math.round(v)))
 
-/** Stamina from physical and age: legs go from 30 (a 33-year-old rated 70 physical reads 65). */
+/** Stamina from physical and age: legs go from 30 (a 33-year-old rated 70 physical reads 65; an unknown age reads as 26). */
 export function deriveStamina(physical: number, age: number): number {
-  return clamp99(physical + 3 - Math.max(0, age - 29) * 2)
+  return clamp99(physical + 3 - Math.max(0, (Number.isFinite(age) ? age : 26) - 29) * 2)
 }
 
 /** Strength from physical and height (unknown height, 0, reads as 180 cm). */

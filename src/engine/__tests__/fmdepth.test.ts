@@ -209,10 +209,27 @@ describe('depth in the match engine', () => {
     expect(lowLoss / highLoss).toBeLessThan(1.5)
     // The fade: the low-stamina side scores a smaller share of its goals after the 70th minute
     expect(lowLate / (lowLate + lowEarly)).toBeLessThan(highLate / (highLate + highEarly))
-    // The fade itself, measured on a kicked-off match: 0.08 for stamina 35, nothing for 90
+    // The fade itself, measured on a kicked-off match: 0.08 for each of the ten outfielders at
+    // stamina 35 (the keeper counts as fresh), so 0.08 × 10/11 over the eleven; nothing for 90
     const mp = beginMatch({ rng: new Rng('fade'), home: teamInputFromPool('L', 'Low', 'LOW', tacticsForStyle('balanced', '4-3-3'), low), away: teamInputFromPool('H', 'High', 'HIG', tacticsForStyle('balanced', '4-3-3'), high), detail: 'summary' })
-    expect(lateFade(mp.hLive, (id) => low.find((p) => p.id === id))).toBeCloseTo(0.08, 5)
+    expect(lateFade(mp.hLive, (id) => low.find((p) => p.id === id))).toBeCloseTo((0.08 * 10) / 11, 5)
     expect(lateFade(mp.aLive, (id) => high.find((p) => p.id === id))).toBe(0)
+  })
+
+  it('a keeper\'s low stamina, a convention of the data, costs him nothing', () => {
+    // Only the keeper differs: stamina 20 against 95. He does not fade, loses the same condition
+    // and the side's late fade stays at nothing.
+    const gkLow = mid.map((p) => (p.positions[0] === 'GK' ? { ...p, attributes: { ...p.attributes, stamina: 20 } } : { ...p, attributes: { ...p.attributes, stamina: 90 } }))
+    const gkHigh = gkLow.map((p) => (p.positions[0] === 'GK' ? { ...p, attributes: { ...p.attributes, stamina: 95 } } : p))
+    const get = (pool: PlayerSeason[]) => (id: string) => pool.find((p) => p.id === id)
+    const mp = beginMatch({ rng: new Rng('gk-fade'), home: teamInputFromPool('L', 'L', 'L', tacticsForStyle('balanced', '4-3-3'), gkLow), away: teamInputFromPool('H', 'H', 'H', tacticsForStyle('balanced', '4-3-3'), renamed(gkHigh, 'gk')), detail: 'summary' })
+    expect(lateFade(mp.hLive, get(gkLow))).toBe(0)
+    const keeperLoss = (pool: PlayerSeason[]) => {
+      const r = simulateMatch({ rng: new Rng('gk-cost'), home: teamInputFromPool('A', 'A', 'A', tacticsForStyle('balanced', '4-3-3'), pool), away: teamInputFromPool('B', 'B', 'B', tacticsForStyle('balanced', '4-3-3'), renamed(mid, 'opp')), detail: 'summary' })
+      return Object.entries(r.conditionLoss).filter(([id]) => pool.find((p) => p.id === id)?.positions[0] === 'GK').map(([, loss]) => loss)
+    }
+    expect(keeperLoss(gkLow)).toEqual(keeperLoss(gkHigh))
+    expect(keeperLoss(gkLow).length).toBeGreaterThan(0)
   })
 
   it('routine substitutions take off the low-stamina men first', () => {

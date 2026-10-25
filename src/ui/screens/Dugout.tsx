@@ -244,7 +244,7 @@ export function Dugout() {
                       <>
                         {game.captainId === p.id && <span className="chip gold">©</span>}
                         {showStamina && (
-                          <span className={`chip ${p.attributes.stamina >= 75 ? 'good' : p.attributes.stamina < 55 ? 'warn' : ''}`} data-testid="stamina-col" title={`Stamina ${p.attributes.stamina}: how long his legs last`}>
+                          <span className={`chip ${p.positions[0] === 'GK' ? '' : p.attributes.stamina >= 75 ? 'good' : p.attributes.stamina < 55 ? 'warn' : ''}`} data-testid="stamina-col" title={p.positions[0] === 'GK' ? `Stamina ${p.attributes.stamina}: a keeper's reads low and costs him nothing` : `Stamina ${p.attributes.stamina}: how long his legs last`}>
                             {SQUAD_COLUMNS[0].short} {p.attributes.stamina}
                           </span>
                         )}

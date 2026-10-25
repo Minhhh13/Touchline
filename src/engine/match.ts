@@ -407,15 +407,17 @@ export function advanceMatch(mp: MatchInProgress, lookups: { home: TeamLookups; 
  * The late-match fade for one side: every starter still on the pitch has his
  * effective rating cut by `LATE_FADE × legs(stamina)` (nothing at stamina 75
  * and above, 5 per cent at 50, 10 at 25) and the side's fade is the mean cut
- * over the eleven on the pitch, substitutes counting as fresh. Returns that
- * mean, 0 to 0.1, which moves the last segment's expected goals both ways.
+ * over the eleven on the pitch, substitutes and the goalkeeper counting as
+ * fresh (a keeper's stamina in the data reads low by convention, about 36
+ * against 67 for outfielders, because he does not run). Returns that mean,
+ * 0 to 0.1, which moves the last segment's expected goals both ways.
  */
 export function applyLateFade(live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
   const on = live.filter((p) => p.offAt >= 90 && !p.red)
   if (!on.length) return 0
   let total = 0
   for (const p of on) {
-    if (p.onAt !== 0) continue
+    if (p.onAt !== 0 || p.position === 'GK') continue
     const stamina = get(p.psId)?.attributes.stamina ?? 65
     const cut = LATE_FADE * legs(stamina)
     p.effective *= 1 - cut
@@ -428,7 +430,7 @@ export function applyLateFade(live: LivePlayer[], get: MatchTeamInput['getPlayer
 export function lateFade(live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
   const on = live.filter((p) => p.offAt >= 90 && !p.red)
   if (!on.length) return 0
-  return on.reduce((s, p) => s + (p.onAt === 0 ? LATE_FADE * legs(get(p.psId)?.attributes.stamina ?? 65) : 0), 0) / on.length
+  return on.reduce((s, p) => s + (p.onAt === 0 && p.position !== 'GK' ? LATE_FADE * legs(get(p.psId)?.attributes.stamina ?? 65) : 0), 0) / on.length
 }
 
 /** Play whatever is left of the match (the human side's `second` applies at the stop it stands at) and write the report. */
@@ -466,8 +468,9 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
       const ps = get(p.psId)
       if (!ps) continue
       const base = 26 + side.modifiers.fatigue + (ps.age >= 33 ? 5 : ps.age >= 30 ? 2 : 0) + (100 - ps.attributes.physical) / 10 + (side.tactics.tempo === 'fast' ? 2 : 0)
-      // Stamina decides how much of it he feels: ×1.0 at 50, ×0.8 at 90, ×1.1 at 30
-      conditionLoss[p.psId] = Math.round((base * staminaCostFactor(ps.attributes.stamina) * minutes) / 90)
+      // Stamina decides how much of it he feels: ×1.0 at 50, ×0.8 at 90, ×1.1 at 30 (a keeper, whose
+      // stamina is not a running number, keeps the neutral ×1.0)
+      conditionLoss[p.psId] = Math.round((base * (p.position === 'GK' ? 1 : staminaCostFactor(ps.attributes.stamina)) * minutes) / 90)
     }
   }
   cost(mp.hLive, mp.home, home.getPlayer)
@@ -754,8 +757,8 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
     const st = team.getState(p.psId)
     const cond = st?.condition ?? 90
     const condF = cond < 55 ? 2 : cond < 70 ? 1.45 : cond < 80 ? 1.1 : 1
-    // Tired legs on a player with little stamina: up to 30 per cent more risk
-    const pInj = 0.021 * (0.5 + ps.traits.injuryProneness) * condF * fatigueInjuryFactor(ps.attributes.stamina, cond) * halfF
+    // Tired legs on an outfielder with little stamina: up to 30 per cent more risk (never a keeper)
+    const pInj = 0.021 * (0.5 + ps.traits.injuryProneness) * condF * (p.position === 'GK' ? 1 : fatigueInjuryFactor(ps.attributes.stamina, cond)) * halfF
     if (rng.chance(pInj)) {
       const minute = rng.int(Math.max(from, 3), Math.min(to, 88))
       const injury = rollInjury(rng)

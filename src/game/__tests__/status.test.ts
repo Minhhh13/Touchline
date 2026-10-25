@@ -44,8 +44,12 @@ function newGame(u: ReturnType<typeof loadTestUniverse>, partial: Partial<GameSe
 
 /** Mean squad morale after 20 auto-managed weeks in season mode before statuses existed (bench drift only), pinned on seed `status-flow`. */
 const MORALE_BEFORE_STATUSES = 92.2
-/** One seed's twenty weeks swing the mean by several points with the results, so the comparison averages a few. */
-const MORALE_SEEDS = ['status-flow', 'status-flow-2', 'status-flow-3', 'status-flow-4', 'status-flow-5', 'status-flow-6']
+/**
+ * One seed's twenty weeks swing the mean by several points with the results (a losing run feeds on
+ * itself through morale: `status-flow` ends near 20 on the current stream while thirty other
+ * seeds all stay above 70), so the comparison averages twelve.
+ */
+const MORALE_SEEDS = ['status-flow', 'status-flow-2', 'status-flow-3', 'status-flow-4', 'status-flow-5', 'status-flow-6', 'status-flow-7', 'status-flow-8', 'status-flow-9', 'status-flow-10', 'status-flow-11', 'status-flow-12']
 
 describe('squad status and playing time', () => {
   const u = loadTestUniverse()

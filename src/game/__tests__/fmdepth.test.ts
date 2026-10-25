@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
-import { startSeasonProper } from '../logic/week'
+import { playMatchweek, startSeasonProper } from '../logic/week'
 import { developSquad, DEVELOPMENT_INTERVAL } from '../logic/development'
 import { ageOneYear } from '../logic/dynasty'
+import { normaliseGame } from '../logic/save'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { applyMatchToState } from '@engine/season'
-import { DEPTH_KEYS } from '@engine/depth'
+import { DEPTH_KEYS, deriveAggression, deriveJumping, deriveStamina, deriveStrength, deriveWorkRate } from '@engine/depth'
 import { playerLookup } from '../logic/players'
 import type { GameSettings } from '../types'
-import type { PlayerSeason, SquadPlayer } from '@engine/types'
+import type { Attributes, PlayerSeason, SquadPlayer } from '@engine/types'
+import type { Game } from '../types'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
   return {
@@ -142,5 +144,40 @@ describe('depth attributes through a career', () => {
         expect(aged.attributes[k]).toBeLessThanOrEqual(99)
       }
     }
+  })
+
+  it('an older save whose game-created players lack the depth attributes gets them derived on load', () => {
+    const g = createGame(settings({ seed: 'fm-depth-oldsave' }))
+    autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+    beginSeason(g, u)
+    startSeasonProper(g)
+    // A dynasty save from before format 3: every squad player was aged into customPlayers without the five
+    const get = playerLookup(g, u)
+    for (const id of Object.keys(g.squad)) {
+      const p = get(id)!
+      const core: Record<string, number> = { ...p.attributes }
+      for (const k of DEPTH_KEYS) delete core[k]
+      g.customPlayers[id] = { ...p, attributes: core as unknown as Attributes }
+    }
+    // Normalised on load (played as saved, the missing attributes would turn condition into NaN), every custom player reads the engine's derivations and the week plays through
+    const n = normaliseGame(structuredClone(g) as Game)!
+    for (const id of Object.keys(n.squad)) {
+      const p = n.customPlayers[id]
+      expect(p.attributes.stamina).toBe(deriveStamina(p.attributes.physical, p.age))
+      expect(p.attributes.strength).toBe(deriveStrength(p.attributes.physical, p.height))
+      expect(p.attributes.aggression).toBe(deriveAggression(p.attributes.defending, p.attributes.mentality))
+      expect(p.attributes.jumping).toBe(deriveJumping(p.height, p.attributes.physical))
+      expect(p.attributes.workRate).toBe(deriveWorkRate(p.attributes.mentality))
+    }
+    playMatchweek(n, u, true)
+    for (const s of Object.values(n.squad)) {
+      expect(Number.isFinite(s.condition)).toBe(true)
+      expect(s.condition).toBeGreaterThanOrEqual(5)
+    }
+    // A save whose players already carry the five is handed back as it is
+    const fresh = normaliseGame(structuredClone(n) as Game)!
+    expect(fresh.customPlayers).toEqual(n.customPlayers)
+    const same = { ...n, customPlayers: { ...n.customPlayers } }
+    expect(normaliseGame(same)!.customPlayers).toBe(same.customPlayers)
   })
 })
