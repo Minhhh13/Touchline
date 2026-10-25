@@ -246,6 +246,22 @@ export interface SquadPlayer {
     cleanSheets: number
     motm: number
   }
+  /** Why his morale moved: the last few changes, oldest first (the user's squad only; capped in `logMorale`). Absent on older saves. */
+  moraleLog?: MoraleEntry[]
+}
+
+/** What moved a player's morale: a result, his minutes against his status, the captain, a promise, an event, a talk, a status change, the summer. */
+export type MoraleReason = 'result' | 'cup' | 'minutes' | 'captain' | 'promise' | 'event' | 'talk' | 'status' | 'summer'
+
+/** One morale change, as `src/game/logic/happiness.ts` records it: kept short because it is saved for every player. */
+export interface MoraleEntry {
+  /** Matchweek it happened in. */
+  w: number
+  /** The change actually applied (after the clamp), to one decimal. */
+  d: number
+  r: MoraleReason
+  /** A detail for the line: the result and rating ("W 7.4"), the share against the expectation ("30/85"), an event title, a talk or a status. */
+  n?: string
 }
 
 /** Mapping from formation slot id to player-season id. */

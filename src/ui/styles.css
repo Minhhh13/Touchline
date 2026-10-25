@@ -6556,3 +6556,211 @@ table.tbl.match-stats th {
     font-size: 18px;
   }
 }
+
+/* ------------------------------------------------------------------ squad views: the Dressing room and the Planner */
+/* Three boxes side by side on a desktop, each scrolling inside itself; two across on a tablet, stacked on a phone */
+@media (max-width: 1099px) {
+  .grid.three.squad-views {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 720px) {
+  .grid.three.squad-views {
+    grid-template-columns: 1fr;
+  }
+}
+@media (min-width: 1100px) {
+  .app.shell .tab-body:has(> .grid.fill) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .app.shell .tab-body > .grid.fill {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+.room-tier + .room-tier {
+  margin-top: var(--space-3);
+}
+.room-tier > .eyebrow,
+.med-out > .eyebrow {
+  margin-bottom: var(--space-1);
+}
+.room-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px var(--space-2);
+  border: 0;
+  border-bottom: var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.room-row:hover {
+  background: var(--bg-3);
+}
+.room-row .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.room-row .who b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-row .chip {
+  flex-shrink: 0;
+}
+.atmos {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.atmos-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.atmos .bar {
+  flex: 1;
+}
+.atmos-lines {
+  margin: var(--space-2) 0 0;
+  padding-left: 18px;
+}
+.room-sub {
+  margin: var(--space-4) 0 var(--space-2);
+}
+.room-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.room-group {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+}
+.room-group .link-btn {
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.room-group .link-btn:hover {
+  color: var(--accent);
+}
+.mood-lines {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mood-lines li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+.mood-lines .mw {
+  color: var(--text-3);
+  font-size: var(--fs-meta);
+}
+.mood-lines .delta {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.delta.up {
+  color: var(--good);
+}
+.delta.down {
+  color: var(--bad);
+}
+.plan-rows {
+  display: flex;
+  flex-direction: column;
+}
+.plan-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-2) 0;
+  border-bottom: var(--border);
+}
+.plan-row.spare {
+  opacity: 0.72;
+}
+.plan-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.plan-names .chip {
+  cursor: pointer;
+  border: 0;
+  font-family: inherit;
+}
+.plan-names .chip.dim {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.plan-row .next-in {
+  color: var(--text);
+  font-weight: 600;
+}
+table.tbl.contracts-overview td .chip {
+  margin-left: 6px;
+}
+table.tbl.contracts-overview .link-btn.name {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-weight: 600;
+}
+.league-awards {
+  display: flex;
+  flex-direction: column;
+}
+.league-award {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 0;
+  border-bottom: var(--border);
+}
+.league-award > svg {
+  color: var(--gold-text);
+}
+.league-award .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.league-award .chip {
+  max-width: 150px;
+}
+.tots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.news-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: 6px;
+}

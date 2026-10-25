@@ -1,8 +1,9 @@
 import type { Game, GameSettings } from '../types'
-import type { PlayerSeason } from '@engine/types'
+import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
 import { DIFFICULTY_RESPINS, type DraftRules } from '@engine/draft'
+import { MORALE_LOG_CAP } from './happiness'
 
 /**
  * Draft rules written before the 38-0 options: the difficulty is read from hard mode (hard) or the
@@ -27,7 +28,7 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     ...g,
     settings,
     draft,
-    squad: g.squad ?? {},
+    squad: withMoraleLogs(g.squad ?? {}),
     contracts: g.contracts ?? {},
     customPlayers: withDepthAttributes(g.customPlayers ?? {}),
     lineup: g.lineup ?? {},
@@ -71,4 +72,26 @@ function withDepthAttributes(players: Record<string, PlayerSeason>): Record<stri
     changed = true
   }
   return changed ? out : players
+}
+
+/**
+ * The happiness log (`SquadPlayer.moraleLog`) is optional: a save from before it simply has none, and every reader
+ * uses `?? []`. A log that is not a list is dropped and one longer than the cap is trimmed to its newest entries; a
+ * squad that needs neither is returned as it was.
+ */
+function withMoraleLogs(squad: Record<string, SquadPlayer>): Record<string, SquadPlayer> {
+  let changed = false
+  const out: Record<string, SquadPlayer> = {}
+  for (const [id, s] of Object.entries(squad)) {
+    const log = s?.moraleLog
+    if (log === undefined || (Array.isArray(log) && log.length <= MORALE_LOG_CAP)) {
+      out[id] = s
+      continue
+    }
+    changed = true
+    const rest = { ...s }
+    delete rest.moraleLog
+    out[id] = Array.isArray(log) ? { ...rest, moraleLog: log.slice(-MORALE_LOG_CAP) } : rest
+  }
+  return changed ? out : squad
 }

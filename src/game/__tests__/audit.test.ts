@@ -141,6 +141,20 @@ describe('audit fixes: season and squad', () => {
     expect(normaliseGame({} as Game)).toBeNull()
   })
 
+  it('a save from before the happiness log and the Inbox player links loads and plays', () => {
+    const g = started(u, { seed: 'pre-happiness-save' })
+    playMatchweek(g, u, true)
+    playMatchweek(g, u, true)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    for (const s of Object.values(old.squad)) delete s.moraleLog
+    for (const item of old.season!.news) delete item.playerId
+    const n = normaliseGame(old)!
+    expect(n.squad).toBe(old.squad)
+    expect(Object.values(n.squad).every((s) => s.moraleLog === undefined)).toBe(true)
+    while (n.season!.matchweek < 6) playMatchweek(n, u, true)
+    expect(Object.values(n.squad).some((s) => (s.moraleLog?.length ?? 0) > 0)).toBe(true)
+  }, 60_000)
+
   it('a save from before classic seasons (no `classic` rule) loads and plays without ever meeting one', () => {
     const g = started(u, { seed: 'pre-classic-save', leagueSeason: 2008, hostClubId: 'chelsea' })
     const rules: Record<string, unknown> = { ...g.settings.rules }
