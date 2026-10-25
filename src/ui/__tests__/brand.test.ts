@@ -193,8 +193,8 @@ describe('the lockup', () => {
 
   it('sizes the mark to the name: cap height plus a little, the ball about the x-height, half a letter between, centred in the box', () => {
     const { name, finial, pennant, ball, rule } = LOCKUP
-    const cap = 0.708 * name.size
-    const xh = 0.514 * name.size
+    const cap = 0.73 * name.size
+    const xh = 0.55 * name.size
     const top = finial.cy - finial.r
     expect((name.baseline - top) / cap).toBeGreaterThan(1.05)
     expect((name.baseline - top) / cap).toBeLessThan(1.25)
@@ -203,10 +203,10 @@ describe('the lockup', () => {
     expect(name.baseline - cap - pennant.top).toBeLessThanOrEqual(3)
     expect((2 * ball.r) / xh).toBeGreaterThan(0.85)
     expect((2 * ball.r) / xh).toBeLessThan(1.1)
-    // the gap after the line is 0.35 to 0.6 of a letter (Barlow Condensed's o is 0.5 of the size)
+    // the gap after the line is 0.35 to 0.6 of a letter (Sora's o is 0.68 of the size)
     const gap = name.left - (rule.left + rule.length)
-    expect(gap / (0.5 * name.size)).toBeGreaterThan(0.3)
-    expect(gap / (0.5 * name.size)).toBeLessThan(0.6)
+    expect(gap / (0.68 * name.size)).toBeGreaterThan(0.3)
+    expect(gap / (0.68 * name.size)).toBeLessThan(0.6)
     // finial to the line's bottom is centred in the 64u box
     expect(Math.abs((top + rule.y + rule.w) / 2 - LOCKUP.grid / 2)).toBeLessThan(1)
   })
@@ -236,8 +236,8 @@ describe('the lockup', () => {
     expect(block('.tl-ball')).toContain(`top: ${u(LOCKUP.rule.y - 2 * LOCKUP.ball.r)}`)
     expect(block('.tl-name')).toContain(`margin-top: ${u(LOCKUP.name.top)}`)
     expect(block('.tl-name')).toContain(`font-size: ${u(LOCKUP.name.size)}`)
-    // the line box's baseline sits 0.903 of the font size below its top (Barlow Condensed)
-    expect(LOCKUP.name.top + 0.903 * LOCKUP.name.size).toBeCloseTo(LOCKUP.name.baseline, 0)
+    // the line box's baseline sits 0.84 of the font size below its top (Sora)
+    expect(LOCKUP.name.top + 0.84 * LOCKUP.name.size).toBeCloseTo(LOCKUP.name.baseline, 0)
     expect(css).toContain(`translateX(${u(-LOCKUP.roll)}) rotate(-${((LOCKUP.roll / LOCKUP.ball.r) * 180 / Math.PI).toFixed(1)}deg)`)
     expect(css).not.toContain('.tl-track')
     // each half of the name keeps a solid colour under its gradient, and forced colours get plain text

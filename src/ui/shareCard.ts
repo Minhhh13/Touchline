@@ -1,7 +1,8 @@
 /**
  * Render a shareable PNG of a season result on a canvas: tier, record, the XI
- * on a pitch and the TouchLine lockup. Returns a data URL. The card is always
- * drawn in the Floodlit colours (brand.ts), whatever the viewer's theme.
+ * on a pitch and the TouchLine lockup. Resolves to a data URL once the type
+ * has loaded. The card is always drawn in the Floodlit colours (brand.ts),
+ * whatever the viewer's theme.
  */
 import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/types'
 import type { SeasonTier } from '@engine/types'
@@ -42,10 +43,22 @@ function ratingColour(v: number): string {
   return C.ratingBase
 }
 
-const DISPLAY = "'Barlow Condensed', 'Arial Narrow', Impact, sans-serif"
-const BODY = "'Inter', system-ui, sans-serif"
+/** The site's one family (--font-display and --font-body in styles.css). */
+const DISPLAY = "'Sora', 'Segoe UI', system-ui, sans-serif"
+const BODY = DISPLAY
 
-export function renderShareCard(input: ShareCardInput): string {
+/**
+ * A canvas draws with whatever is loaded when it draws, so wait for the faces
+ * the cards use (at most 2 s; offline it draws in the fallback face).
+ */
+async function cardFontsReady(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return
+  const load = Promise.all([400, 600, 700].map((w) => document.fonts.load(`${w} 40px 'Sora'`))).then(() => undefined, () => undefined)
+  await Promise.race([load, new Promise<void>((done) => setTimeout(done, 2000))])
+}
+
+export async function renderShareCard(input: ShareCardInput): Promise<string> {
+  await cardFontsReady()
   const W = 1080
   const H = 1350
   const canvas = document.createElement('canvas')
@@ -67,15 +80,15 @@ export function renderShareCard(input: ShareCardInput): string {
   const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
   ctx.textAlign = 'center'
   ctx.fillStyle = C.text
-  ctx.font = font(54)
-  ctx.fillText(input.title, W / 2, 92)
+  ctx.font = font(48)
+  ctx.fillText(fit(ctx, input.title, W - 120), W / 2, 92)
   ctx.fillStyle = C.text2
-  ctx.font = font(26, 400, BODY)
-  ctx.fillText(input.subtitle, W / 2, 134)
+  ctx.font = font(24, 400, BODY)
+  ctx.fillText(fit(ctx, input.subtitle, W - 120), W / 2, 134)
 
   ctx.fillStyle = TIER_COLOUR[input.tier] ?? C.text
-  ctx.font = font(88)
-  ctx.fillText(tierName(input.tier), W / 2, 232)
+  ctx.font = font(72)
+  ctx.fillText(fit(ctx, tierName(input.tier), W - 120), W / 2, 228)
 
   // Record: wins, draws, defeats in the status colours
   const rec = [
@@ -83,7 +96,7 @@ export function renderShareCard(input: ShareCardInput): string {
     { t: `${input.row.drawn}D`, c: C.draw },
     { t: `${input.row.lost}L`, c: C.bad },
   ]
-  ctx.font = font(60)
+  ctx.font = font(52)
   const widths = rec.map((r) => ctx.measureText(r.t).width)
   const gap = 40
   let x = W / 2 - (widths.reduce((a, b) => a + b, 0) + gap * 2) / 2
@@ -95,7 +108,7 @@ export function renderShareCard(input: ShareCardInput): string {
   }
   ctx.textAlign = 'center'
   ctx.fillStyle = C.text
-  ctx.font = font(30, 600, BODY)
+  ctx.font = font(28, 600, BODY)
   const ord = (n: number) => n + (['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 > 3 ? 0 : n % 10] ?? 'th')
   ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 354)
 
@@ -143,24 +156,24 @@ export function renderShareCard(input: ShareCardInput): string {
     ctx.lineWidth = 4
     ctx.stroke()
     ctx.fillStyle = '#ffffff'
-    ctx.font = font(28)
+    ctx.font = font(24)
     ctx.textAlign = 'center'
     ctx.fillText(p ? (input.hideRatings ? '?' : String(p.overall)) : slot.position, cx, cy)
     if (p) {
-      ctx.font = font(21, 600, BODY)
+      ctx.font = font(18, 600, BODY)
       ctx.fillStyle = '#ffffff'
       ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'
       ctx.shadowBlur = 4
-      ctx.fillText(p.name, cx, cy + 48)
+      ctx.fillText(fit(ctx, p.name, 170), cx, cy + 48)
       ctx.shadowBlur = 0
       ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
-      ctx.font = font(17, 400, BODY)
+      ctx.font = font(16, 400, BODY)
       ctx.fillText(`${p.season}-${String((p.season + 1) % 100).padStart(2, '0')}`, cx, cy + 70)
     }
   }
 
   ctx.fillStyle = C.text3
-  ctx.font = font(22, 400, BODY)
+  ctx.font = font(20, 400, BODY)
   ctx.textAlign = 'center'
   ctx.fillText(input.footer, W / 2, H - 132)
   drawLockup(ctx, W / 2, H - 72, 76)
@@ -263,9 +276,10 @@ const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
 
 /**
  * A shareable PNG of one match: the score, the shot map (home shots at the
- * right-hand goal, away at the left) and the xG race. Returns a data URL.
+ * right-hand goal, away at the left) and the xG race. Resolves to a data URL.
  */
-export function renderMatchCard(input: MatchCardInput): string {
+export async function renderMatchCard(input: MatchCardInput): Promise<string> {
+  await cardFontsReady()
   const W = 1080
   const H = 1350
   const canvas = document.createElement('canvas')
@@ -287,16 +301,16 @@ export function renderMatchCard(input: MatchCardInput): string {
 
   ctx.textAlign = 'center'
   ctx.fillStyle = C.text2
-  ctx.font = font(26, 400, body)
-  ctx.fillText(input.subtitle, W / 2, 70)
+  ctx.font = font(24, 400, body)
+  ctx.fillText(fit(ctx, input.subtitle, W - 120), W / 2, 70)
   ctx.fillStyle = C.text
-  ctx.font = font(40)
-  ctx.fillText(input.title, W / 2, 118)
+  ctx.font = font(36)
+  ctx.fillText(fit(ctx, input.title, W - 120), W / 2, 118)
 
   // Score: names either side, the colours as bars under them
-  ctx.font = font(150)
+  ctx.font = font(120)
   ctx.fillText(`${input.home.goals} - ${input.away.goals}`, W / 2, 290)
-  ctx.font = font(40)
+  ctx.font = font(34)
   ctx.textAlign = 'right'
   ctx.fillText(fit(ctx, input.home.name, 300), 330, 240)
   ctx.textAlign = 'left'
@@ -359,7 +373,7 @@ export function renderMatchCard(input: MatchCardInput): string {
     }
   }
   ctx.fillStyle = C.text2
-  ctx.font = font(22, 400, body)
+  ctx.font = font(20, 400, body)
   ctx.textAlign = 'center'
   ctx.fillText('Shot map: filled = goal, ring = saved, dashed = chance', W / 2, py + ph + 40)
 
@@ -397,14 +411,14 @@ export function renderMatchCard(input: MatchCardInput): string {
   }
   line(input.xgHome, input.home.colour)
   line(input.xgAway, input.away.colour)
-  ctx.font = font(34)
+  ctx.font = font(30)
   ctx.textAlign = 'left'
   ctx.fillStyle = C.text
   ctx.fillText(`xG ${input.home.xg.toFixed(2)} - ${input.away.xg.toFixed(2)}`, cx, cy - 14)
 
   ctx.textAlign = 'center'
   ctx.fillStyle = C.text3
-  ctx.font = font(22, 400, body)
+  ctx.font = font(20, 400, body)
   ctx.fillText(input.footer, W / 2, H - 120)
   drawLockup(ctx, W / 2, H - 62, 48)
   return canvas.toDataURL('image/png')

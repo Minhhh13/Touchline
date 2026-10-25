@@ -150,9 +150,9 @@ export function Summary() {
     return u.tables[game.settings.leagueId]?.[game.settings.leagueSeason]?.find((r) => r.clubId === game.settings.hostClubId) ?? null
   }, [u, game.settings.hostClubId, game.settings.leagueSeason, game.settings.leagueId])
   const [cardUrl, setCardUrl] = useState<string | null>(null)
-  const makeCard = () => {
+  const makeCard = async () => {
     try {
-      const url = renderShareCard({
+      const url = await renderShareCard({
         title: game.settings.teamName,
         subtitle: `as ${clubName(u, game.settings.hostClubId)} · ${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
         tier,

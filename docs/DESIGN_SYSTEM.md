@@ -60,13 +60,13 @@ Strength (`MARK.cloth.strength`) scales all three: 1.3 on the full tile, 0.6 on 
 
 The mark is sized to the name (the owner's "balanced and well ratioed with the text"; a test holds the ratios):
 
-- The name is real text in Barlow Condensed 700 at 50u from 53.5u (cap height 35.4u, x-height 25.7u, letter spacing 0.012em); its line box starts at 5.85u, so its baseline lands at 51u, on the line. "Touch" (`.tl-touch`) and "Line" each carry a top-lit gradient clipped to the letters over a solid fallback colour: on Floodlit "Touch" `#ffffff` to `#c9d5e8` and "Line" `#9ccaff` to `#4b8df8`; on Daylight "Touch" `#2d3d5e` to `#0d1526` and "Line" `#2563eb` to `#1e3a8a` (every end clears 4.5:1 on the page). Under `forced-colors` both fall back to plain text.
-- The mark, finial to baseline, is 40.8u: 1.15 cap heights. The pennant's top (14u) sits 1.6u above the cap tops; the ball's diameter (24u) is 0.93 of the x-height.
-- The line: top 51u, 2u thick (1 px at the smallest lockup, 32 px), from the pole's left edge (7.5u) for 37u, to 4u past the ball; then 9u (about half a letter, 0.36 of an "o") before the name.
+- The name is real text in Sora 700 at 48u from 57u (cap height 35.0u, x-height 26.4u, letter spacing 0.012em); its line box starts at 10.7u (Sora's baseline sits 0.84 of the size down a line-height-1 box), so its baseline lands at 51u, on the line. "Touch" (`.tl-touch`) and "Line" each carry a top-lit gradient clipped to the letters over a solid fallback colour: on Floodlit "Touch" `#ffffff` to `#c9d5e8` and "Line" `#9ccaff` to `#4b8df8`; on Daylight "Touch" `#2d3d5e` to `#0d1526` and "Line" `#2563eb` to `#1e3a8a` (every end clears 4.5:1 on the page). Under `forced-colors` both fall back to plain text.
+- The mark, finial to baseline, is 40.8u: 1.16 cap heights. The pennant's top (14u) sits 2u above the cap tops; the ball's diameter (24u) is 0.91 of the x-height.
+- The line: top 51u, 2u thick (1 px at the smallest lockup, 32 px), from the pole's left edge (7.5u) for 37u, to 4u past the ball; then 12.5u (about half a letter, 0.38 of an "o") before the name.
 - Finial top (10.2u) to line bottom (53u) is centred in the 64u box (31.6u).
 - The pole: x 9u, 3u wide, 13.4u to 49.5u, its round foot on the line's top edge; a rounded post like the full tile's (highlight and shade over `--tl-ink`) with a finial r 2.2u at 12.4u. The pennant: top 14u, bottom 26u, tip (37.5u, 19u), tip radius 1.3u, cloth at strength 1.1.
 - The ball: r 12u resting on the line at x 28.5u, a clear 6u right of the pole and clear of the pennant at every frame of the wave. It is the flat tier below a 40 px diameter (every size in the app today), with a darker edge (`#94a3b8`), plus a soft navy rim shade, a small highlight at the top left and a contact shadow (a soft ellipse, r 0.85 × 0.14 of the ball, drawn under it) where it sits on the line.
-- Width is about 245u: 397 px at 104 px high (the Home hero), 275 px at 72 (the hero on a phone), 153 px at 40 (the top bar), 122 px at 32 (the top bar on a phone).
+- Width is about 317u: 515 px at 104 px high (the Home hero), 297 px at 60 (the hero on a phone), 198 px at 40 (the top bar), 158 px at 32 (the top bar on a phone).
 
 Colours: on Floodlit the pole and the line are white; on Daylight they, and a thin ring round the ball, take `--text` (`#0a1b51`), the same navy as the name. The pennant stays red on both. All of it follows the theme through CSS variables (`--tl-ink`, `--tl-ball-ring`).
 
@@ -233,16 +233,16 @@ A new colour pair is only added after it is checked against both themes.
 
 ## 4. Typography
 
-Two faces: **Barlow Condensed** (`--font-display`, 600 and 700) for titles, big numbers and the main call to action; **Inter** (`--font-body`, 400, 600, 700) for everything else; `--mono` for seeds, minutes and codes.
+One family: **Sora** (Google Fonts, SIL Open Font License; 400, 600, 700, 800 from one stylesheet in `index.html`) for titles, big numbers, the call to action and body text alike: a wide geometric sans with flat, squared terminals, our free stand-in for the look of a European club-competition broadcast face (the real broadcast fonts are exclusive and are never used). `--font-display` and `--font-body` both name it, so a rule can still say which role it plays; the fallbacks are `'Segoe UI', system-ui, -apple-system, Roboto, sans-serif`. `--mono` for seeds, minutes and codes. Sora is about 45 % wider than the old condensed display face, so display sizes were cut where a box is fixed (below). The share cards draw in Sora too and wait (up to 2 s) for `document.fonts` before drawing; `public/sw.js` caches the Google Fonts stylesheet and files cache-first, so the type survives offline after one visit.
 
 | Token | Size | Phone | Face | Use |
 |---|---|---|---|---|
-| `--fs-hero` | 64 px | 46 px | display 700 | The home hero (the lockup there sets its own size: 104 px high, 72 on a phone) |
-| `--fs-h1` | 36 px | 30 px | display 700 | Page title, one per screen (`h1`) |
-| `--fs-h2` | 26 px | 22 px | display 700 | Section and modal titles, club names (`h2`) |
+| `--fs-hero` | 64 px | 46 px | display 700 | The home hero (the lockup there sets its own size: 104 px high, 60 on a phone) |
+| `--fs-h1` | 32 px | 30 px | display 700 | Page title, one per screen (`h1`) |
+| `--fs-h2` | 24 px | 22 px | display 700 | Section and modal titles, club names (`h2`) |
 | `--fs-h3` | 19 px | 19 px | display 700 | Panel titles (`h3`) |
 | (h4) | 16 px | 16 px | display 700 | A group inside a panel |
-| `--fs-base` | 15 px | 15 px | body 400 | Body text, buttons (600) |
+| `--fs-base` | 14 px | 14 px | body 400 | Body text, buttons (600) |
 | `--fs-sm` | 13 px | 13 px | body | Captions (`.help`), field labels (600), secondary lines, small buttons |
 | `--fs-meta` | 12 px | 12 px | body 600 | Chips, list meta lines |
 | `--fs-xs` | 11 px | 11 px | body 600 | Capital labels: `.eyebrow`, `.stat .label`, table headers, position codes |
@@ -251,7 +251,7 @@ Rules:
 
 - **Mixed case everywhere.** `h1` to `h4`, panel titles, buttons (the big ones too), the scoreboard and the tier banner are written in sentence case with no `text-transform`. Capitals are only for `.eyebrow`, `.stat .label`, table headers, position and club codes, chips that hold a code, and the scoreboard clock ("HALF TIME").
 - **Tier names** come from the engine in capitals. Display them with `tierName(tier)` ("Title race", "38-0: The perfect season"). The share card already does; the tier banner, the leaderboard and head-to-head move to it in the screen pass.
-- **Numbers that matter are big and condensed**: scores, points, prices, ratings, stat values (`.stat .value` is 28 px display). Tables use `.num` for tabular figures.
+- **Numbers that matter are big and bold**: scores, points, prices, ratings, stat values (`.stat .value` is 24 px display, no wrap). Scores, stat values, the record line, the hero stats and table `.num` cells use `font-variant-numeric: tabular-nums` so figures line up. Other display sizes set for the wider face: the big button 17 px, the tier banner 44 px, the record 30 px, the scoreboard 46 px (team codes 19 px), the reel's club 19 px and codes 20 px.
 - Line height 1.45 for body text, 1.1 for titles, 1 for big numbers.
 - On phones, inputs are 16 px so iOS does not zoom (already global).
 
@@ -403,7 +403,7 @@ On a phone the screen's main action lives in a bar fixed to the bottom (`--panel
 
 ### Top bar
 
-The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, on the left, the nav on the right: pills of 14 px semibold with a 16 px icon before each label (Home, Draft or Dugout or Summary, Head-to-head, Explore, Profile, How it works), the active one in the selection pattern. Last comes the theme switch (`.theme-switch`, `data-testid="theme-switch"`): a 36 px round button with the sun in Floodlit and the moon in Daylight, outside the `nav` so `.topbar nav button` still means the pages. On a phone the nav is one row of labels without icons that scrolls sideways, with a fade at the right edge, and the switch stays visible at the end.
+The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, on the left, the nav on the right: pills of 14 px semibold with a 16 px icon before each label (Home, Draft or Dugout or Summary, Head-to-head, Explore database ("Database" at 1100 px and below; the screen's title is "Explore database", the route stays `explore`), Profile, How it works; each label is a `.nav-label` span), the active one in the selection pattern. Last comes the theme switch (`.theme-switch`, `data-testid="theme-switch"`): a 36 px round button with the sun in Floodlit and the moon in Daylight, outside the `nav` so `.topbar nav button` still means the pages. At 1100 px and below the lockup and the switch share the first row and the nav takes a full-width second row, spread evenly, 13 px labels with their icons; on a phone (720 px and below) that row is icons only, the labels kept for screen readers (visually hidden). Nothing wraps, clips or scrolls at any width.
 
 ### Pitch, ratings, positions, badges, flags
 

@@ -103,16 +103,16 @@
   --pitch-highlight: #5ee3fb;
   --pitch-bad: #f87171;
   /* Type */
-  --font-display: 'Barlow Condensed', 'Arial Narrow', Impact, system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --fs-xs: 11px;
   --fs-meta: 12px;
   --fs-sm: 13px;
-  --fs-base: 15px;
+  --fs-base: 14px;
   --fs-h3: 19px;
-  --fs-h2: 26px;
-  --fs-h1: 36px;
+  --fs-h2: 24px;
+  --fs-h1: 32px;
   --fs-hero: 64px;
   /* Space, shape, elevation */
   --space-1: 4px;
@@ -373,7 +373,7 @@ p {
   vertical-align: middle;
   box-sizing: border-box;
   height: var(--h);
-  padding: 0 0 0 calc(53.5 * var(--u));
+  padding: 0 0 0 calc(57 * var(--u));
   line-height: 0;
   text-align: left;
 }
@@ -417,10 +417,10 @@ p {
 .tl-name {
   position: relative;
   display: block;
-  margin-top: calc(5.85 * var(--u));
+  margin-top: calc(10.7 * var(--u));
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: calc(50 * var(--u));
+  font-size: calc(48 * var(--u));
   line-height: 1;
   letter-spacing: 0.012em;
   font-kerning: normal;
@@ -610,6 +610,37 @@ p {
   flex: none;
   opacity: 0.85;
 }
+/* "Explore database" in full on a wide screen, "Database" where the nav is tight */
+.topbar nav .nav-short {
+  display: none;
+}
+/* Below 1100 px the lockup and the switch share the first row and the nav takes a full-width second row, so nothing wraps or clips */
+@media (max-width: 1100px) {
+  .topbar nav .nav-long {
+    display: none;
+  }
+  .topbar nav .nav-short {
+    display: inline;
+  }
+  .topbar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .topbar .brand {
+    margin-right: auto;
+  }
+  .topbar nav {
+    order: 3;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+  .topbar nav button {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+}
 /* The sun and moon: flips Light and Dark and stores the choice on the profile */
 .theme-switch {
   flex: none;
@@ -712,27 +743,21 @@ p {
   .topbar .tl-lockup {
     --h: 32px;
   }
-  /* The nav scrolls sideways; the fade at the right edge says there is more */
-  .topbar nav {
-    flex-wrap: nowrap;
-    min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding-right: var(--space-5);
-    -webkit-mask-image: linear-gradient(90deg, #000 80%, transparent);
-    mask-image: linear-gradient(90deg, #000 80%, transparent);
-  }
-  .topbar nav::-webkit-scrollbar {
-    display: none;
-  }
+  /* On a phone the nav's row is icons only (the label stays for screen readers) */
   .topbar nav button {
-    padding: 6px 10px;
-    font-size: 13px;
+    padding: 7px 14px;
   }
-  /* Labels only on a phone: the nav already scrolls */
   .topbar nav button svg {
-    display: none;
+    width: 18px;
+    height: 18px;
+  }
+  .topbar nav .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .theme-switch {
     width: 34px;
@@ -909,7 +934,7 @@ p {
 .btn.big {
   min-height: var(--control-h-lg);
   padding: 10px 24px;
-  font-size: 20px;
+  font-size: 17px;
   font-family: var(--font-display);
   letter-spacing: 0.01em;
   border-radius: var(--radius-m);
@@ -1212,8 +1237,10 @@ label.field,
 .stat .value {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------------ player rows */
@@ -1507,7 +1534,7 @@ label.field,
   gap: 10px;
   margin-bottom: 8px;
   min-height: 34px;
-  font-family: var(--font-display, 'Arial Narrow', sans-serif);
+  font-family: var(--font-display, system-ui, sans-serif);
   text-transform: uppercase;
   line-height: 1;
 }
@@ -1642,10 +1669,10 @@ label.field,
   place-items: center;
   position: relative;
   overflow: hidden;
-  font-family: var(--font-display, 'Arial Narrow', sans-serif);
+  font-family: var(--font-display, system-ui, sans-serif);
   font-weight: 700;
-  font-size: 22px;
-  letter-spacing: 0.04em;
+  font-size: 20px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   box-shadow: inset 0 0 0 3px var(--secondary, #fff), 0 0 12px color-mix(in srgb, var(--tier, transparent) 40%, transparent), 0 6px 14px rgba(0, 0, 0, 0.45);
 }
@@ -1740,15 +1767,15 @@ label.field,
   text-align: center;
 }
 .reel-club {
-  font-family: var(--font-display, 'Arial Narrow', sans-serif);
-  font-size: 22px;
+  font-family: var(--font-display, system-ui, sans-serif);
+  font-size: 19px;
   font-weight: 700;
   text-transform: uppercase;
   line-height: 1;
   color: var(--text, #eef5f0);
 }
 .reel-hub .year {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--text);
 }
@@ -2155,14 +2182,17 @@ table.tbl.contracts .btn.sm {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 32px;
+  font-size: 28px;
   line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .hero-stats dt {
   font-size: var(--fs-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
   color: var(--on-photo-2);
 }
 .hero-content > * {
@@ -2198,7 +2228,7 @@ table.tbl.contracts .btn.sm {
     font-size: 46px;
   }
   .hero h1 .tl-lockup {
-    --h: 72px;
+    --h: 60px;
   }
 }
 .mode-card {
@@ -2488,7 +2518,10 @@ table.tbl.contracts .btn.sm {
     margin-top: var(--space-4);
   }
   .hero-stats dd {
-    font-size: 26px;
+    font-size: 22px;
+  }
+  .hero-stats dt {
+    letter-spacing: 0.04em;
   }
   .home-tile {
     flex-direction: column;
@@ -2549,7 +2582,7 @@ table.tbl.contracts .btn.sm {
 .tier-banner .tier {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 52px;
+  font-size: 44px;
   line-height: 1;
   letter-spacing: 0.01em;
 }
@@ -2575,7 +2608,8 @@ table.tbl.contracts .btn.sm {
 .record {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 34px;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
   display: flex;
   gap: 18px;
   justify-content: center;
@@ -2725,7 +2759,7 @@ table.tbl.contracts .btn.sm {
   gap: 10px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 22px;
+  font-size: 19px;
 }
 .scoreboard .team.away {
   justify-content: flex-end;
@@ -2734,7 +2768,7 @@ table.tbl.contracts .btn.sm {
 .scoreboard .score {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 54px;
+  font-size: 46px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }

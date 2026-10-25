@@ -358,9 +358,9 @@ function H2HSummary() {
             <button
               key={i}
               className="btn"
-              onClick={() => {
+              onClick={async () => {
                 try {
-                  const url = renderShareCard({
+                  const url = await renderShareCard({
                     title: m[i].name,
                     subtitle: `as ${clubName(u, m[i].hostClubId)} · head-to-head v ${m[i === 0 ? 1 : 0].name} · ${seasonLabel(h2h.leagueSeason)}`,
                     tier: r.tiers[i],

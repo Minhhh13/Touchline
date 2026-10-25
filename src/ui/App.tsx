@@ -117,29 +117,29 @@ export function App() {
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>
             <House size={16} />
-            Home
+            <span className="nav-label">Home</span>
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => go('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
-              {game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : 'Dugout'}
+              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : 'Dugout'}</span>
             </button>
           )}
           <button className={screen === 'h2h' ? 'active' : ''} onClick={() => go('h2h')}>
             <Swords size={16} />
-            Head-to-head
+            <span className="nav-label">Head-to-head</span>
           </button>
           <button className={screen === 'explore' ? 'active' : ''} onClick={() => go('explore')}>
             <Search size={16} />
-            Explore
+            <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
           </button>
           <button className={screen === 'profile' ? 'active' : ''} onClick={() => go('profile')}>
             <Trophy size={16} />
-            Profile
+            <span className="nav-label">Profile</span>
           </button>
           <button className={screen === 'howto' ? 'active' : ''} onClick={() => go('howto')}>
             <BookOpen size={16} />
-            How it works
+            <span className="nav-label">How it works</span>
           </button>
         </nav>
         <button
