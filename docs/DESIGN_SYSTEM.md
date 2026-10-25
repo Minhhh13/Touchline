@@ -409,7 +409,7 @@ One-word labels; the active tab has a 2 px `--primary` underline, one ink bar (`
 
 ### Modals and sheets (`Modal`)
 
-The title is an `h2` in a `.panel-head` with the close button on the right (`aria-label="Close"`; smoke10 clicks it). Content is a `.col`; actions sit at the end, primary last on desktop and full width on a phone. On a phone (720 px and below) every modal is a bottom sheet: full width, anchored to the bottom, 88 % of the screen at most, with a grabber bar, sliding up as it opens; on a desktop it rises 8 px and fades in. The scrim fades in on its own layer (`.modal-back::before`), so the dialog is never see-through while it arrives. Escape and a tap on the scrim close it.
+The title is an `h2` in a `.panel-head` with the close button on the right (`aria-label="Close"`; smoke10 clicks it). Content is a `.col`; actions sit at the end, primary last on desktop and full width on a phone. On a phone (720 px and below) every modal is a bottom sheet: full width, anchored to the bottom, 88 % of the screen at most, with a grabber bar, sliding up as it opens; on a desktop it rises 8 px and fades in. The scrim fades in on its own layer (`.modal-back::before`), so the dialog is never see-through while it arrives. Escape and a tap on the scrim close it. One exception: the live match's half-time and 70th-minute decisions (`DecisionSheet`) are a dialog centred in the window on every width, over a lighter scrim (`--scrim` at 55 %) with a `--primary` border, so the scoreboard and the pitch stay in view and the whole pop-up is visible without scrolling on a phone; Escape or a tap on the scrim minimises it to a Decisions pill rather than dismissing the stop.
 
 ### Bottom bars (`.bottom-bar`, `.cta-bar`)
 
