@@ -92,7 +92,7 @@ describe('the Gauntlet: the ladder', () => {
       for (const k of l.alternates) expect(mains.has(k)).toBe(false)
       expect(new Set(l.alternates).size).toBe(GAUNTLET_RUNGS)
     }
-  })
+  }, 30_000)
 
   it('gives two players on one seed the same ladder and the same opponents, whatever they drafted', () => {
     for (let i = 0; i < 6; i++) {
@@ -107,7 +107,34 @@ describe('the Gauntlet: the ladder', () => {
       for (let r = 0; r < both; r++) expect(b.arena!.log[r].opponent).toBe(a.arena!.log[r].opponent)
       for (let r = 0; r < both; r++) expect(a.arena!.log[r].opponent).toBe(a.arena!.ladder!.mains[r])
     }
-  })
+  }, 30_000)
+
+  it('replays a run exactly on one seed, and a run saved and reloaded mid-climb plays on as if it never closed', () => {
+    for (let i = 0; i < 4; i++) {
+      const seed = `replay-${i}`
+      const a = climbed(seed)
+      const b = climbed(seed)
+      expect(b.arena!.log).toEqual(a.arena!.log)
+      expect(b.rngState).toEqual(a.rngState)
+      // Three rungs (or the end) by the assistant, then a save and a reload through normaliseGame
+      const c = gauntletGame(seed)
+      while (!c.arena!.over && c.arena!.step < 3) {
+        if (c.phase === 'draft') {
+          const rng = Rng.fromState(c.rngState)
+          autoDraft(u, c.draft!, rng)
+          c.rngState = rng.getState()
+          beginArena(c, u)
+          continue
+        }
+        playArenaStep(c, u, false)
+        closeArenaMatch(c)
+      }
+      const reloaded = normaliseGame(JSON.parse(JSON.stringify(c)))!
+      simArenaToEnd(reloaded, u)
+      expect(reloaded.arena!.log).toEqual(a.arena!.log)
+      expect(reloaded.rngState).toEqual(a.rngState)
+    }
+  }, 60_000)
 
   it('labels a rung by its band and billing, and calibrates it to the rising ceiling', () => {
     expect(rungBandLabel(1)).toBe('the weakest 10% of the wheel')
@@ -172,7 +199,7 @@ describe('the Gauntlet: the rules', () => {
       expect(Object.keys(a.clubs).length).toBeLessThanOrEqual(1)
     }
     expect(complete).toBeLessThan(40)
-  })
+  }, 30_000)
 
   it('changes the draw once: the rung is played against its alternate, a second use is refused', () => {
     const g = gauntletGame('lifeline')

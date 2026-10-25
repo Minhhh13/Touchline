@@ -6,7 +6,7 @@ import { clubIdOfKey } from '@engine/knockout'
 import type { TeamTalk } from '@engine/match'
 import type { Position } from '@engine/types'
 import { arenaStepInfo, nextArenaOpponent } from '@game/logic/arena'
-import { rungBandLabel, rungLabels } from '@engine/gauntlet'
+import { GAUNTLET_RUNGS, rungBandLabel, rungLabels } from '@engine/gauntlet'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { arenaFormatLabel } from '@game/logic/modes'
 import { playerLookup, squadPlayers } from '@game/logic/players'
@@ -100,7 +100,7 @@ export function Arena() {
       {gauntlet && (
         <div className="panel col" style={{ marginBottom: 12, gap: 8 }}>
           <div className="row between wrap">
-            <h3>The ladder · {a.step} of 15 climbed</h3>
+            <h3>The ladder · {a.step} of {GAUNTLET_RUNGS} climbed</h3>
             <span className="small muted">{a.lifelineUsed ? `Lifeline used at rung ${a.lifelineUsed}` : 'Lifeline unused'}</span>
           </div>
           <GauntletLadder u={u} a={a} />
