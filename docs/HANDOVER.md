@@ -31,7 +31,7 @@ Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.
 
 ## 3. In progress (not shipped yet)
 
-Each item lives on its own branch until it is merged into the working branch and then `main`. On GitHub today there are only `main` (PR #1 merged), the working branch (draft PR #2 into `main`) and `claude/touchline-preview`; the feature branches below are pushed when ready, so ask before starting overlapping work.
+Each item lives on its own branch until it is merged into the working branch and then `main`. On GitHub today: `main` (the live site; PRs #1, #2, #21 and #22 merged), the working branch `claude/youthful-mccarthy-a57idu`, `claude/touchline-preview` (the preview site) and `redesign`; the other feature branches below are pushed when ready, so ask before starting overlapping work.
 
 | Work | Branch | State |
 | --- | --- | --- |
@@ -40,9 +40,9 @@ Each item lives on its own branch until it is merged into the working branch and
 | Live match visuals: 2D pitch, momentum, shot map, xG race | `match-visuals` | Merged into `integration` (local) |
 | Redesign: blue palette, a proper TouchLine logo, the design system (`docs/DESIGN_SYSTEM.md`) | `redesign` | Foundation merged into `integration` (local), with the later screens moved to its tokens; the screen-by-screen pass and the cleaner Setup are still to do |
 | 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
-| "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch (live site); merged into `integration` |
-| Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch; merged into `integration` |
-| Slot picker | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch; merged into `integration` |
+| "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on `main` (PR #2); merged into `integration` |
+| Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on `main` (PR #21); merged into `integration` |
+| Slot picker | working branch `claude/youthful-mccarthy-a57idu` | Shipped on `main` (PR #22); merged into `integration` |
 | Football Manager style match-day dashboard | `matchday` | In progress; rebuilds the live match view |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
 | Casual modes | not started in code | Designed |
@@ -81,19 +81,18 @@ Rebuilding the player data is rarely needed and downloads several large archives
 
 ### Render (hosting)
 
-Both sites are static sites in the Render project **TouchLine**. That Render workspace also holds an unrelated project; never change anything outside the TouchLine project.
+Both sites are static sites in their own Render workspace **TouchLine** (workspace id `tea-dbeoghbrjlhs738bpcng`). Nothing else lives there. The owner's other projects are in a different Render workspace; never touch them.
 
-| Service | URL | Tracks | Use |
-| --- | --- | --- | --- |
-| `touchline` | https://touchline-o5ot.onrender.com | `claude/youthful-mccarthy-a57idu` (the working branch) | The live game |
-| `touchline-preview` | https://touchline-preview.onrender.com | `claude/touchline-preview` | Previews of in-progress branches (today `reel-ui` and `fm-depth` merged) |
+| Service | URL | Tracks | Deploys | Use |
+| --- | --- | --- | --- | --- |
+| `Touchline` (`srv-dbeoi38m7kps73ei85dg`) | https://touchline-16xv.onrender.com | `main` | after CI passes on the commit | The live game |
+| `touchline-preview` (`srv-dbeoj9tg1s2s7388iei0`) | https://touchline-preview-hfvi.onrender.com | `claude/touchline-preview` | on every push | Previews of in-progress branches merged together (the `integration` branch) |
 
-- Build command `npm ci && npm run build`, publish directory `dist`, no `BASE_PATH`.
-- Auto-deploy on every push to the tracked branch (Render's GitHub app is installed on the repo).
+- Build command `npm ci && npm run build`, publish directory `dist`, no `BASE_PATH`, `NODE_VERSION=22`.
+- Render's GitHub app is installed on the repo, so both sites deploy on their own. A merge into `main` goes live a few minutes after CI turns green; a red CI run never deploys.
 - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. These are the public publishable keys; Vite bakes them into the build, so changing them needs a redeploy.
-- To deploy from `main` instead, change the tracked branch in the Render dashboard once `main` is the integration branch.
-- Optional: rename the service to drop the `-o5ot` suffix, and add a custom domain.
-- The GitHub Pages workflow is removed on `integration` (it arrived with `reel-ui`).
+- Optional: add a custom domain (also needed before Supabase can send sign-up emails through Resend, see below). The `-16xv` and `-hfvi` suffixes are Render's and stay unless a custom domain is added.
+- The old GitHub Pages workflow is removed. It failed on every push to `main` (Pages is unavailable on a private repo), and because Render waits for every check to pass, it blocked the live deploy.
 
 ### Supabase (backend for the online layer)
 
@@ -101,6 +100,7 @@ Both sites are static sites in the Render project **TouchLine**. That Render wor
 - Status: provisioned and healthy, **no schema yet**. Nothing in the code uses it yet.
 - Still to configure:
   - Auth providers: email magic link, Google (optional; needs a Google OAuth client id and secret).
+  - Sign-up email through Resend (the owner has an account): Supabase's built-in mailer only reaches the project's team and is rate-limited, so real users need custom SMTP. Needs a domain verified in Resend first, then Auth > SMTP: host `smtp.resend.com`, port 465, user `resend`, password a Resend API key typed straight into the dashboard (never into the repo or a chat), sender `no-reply@<domain>`, name TouchLine; then turn on Confirm email.
   - Auth URL configuration: Site URL set to the Render URL (or the custom domain), plus redirect URLs for `http://localhost:5173` and the preview site.
   - Schema via migrations in `supabase/migrations/` (profiles, cloud saves, daily scores, challenge codes, head-to-head rooms), with row-level security on every table.
   - A keep-alive: free projects **pause after about a week without activity**.
@@ -145,3 +145,6 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · Slot picker shipped on the working branch: tapping a Dugout pitch slot opens a sheet of everyone who can cover it (the same `canCover`/`isAvailable` line auto-pick and `lineupProblems` use; `ACCOMPLISHED_FACTOR` replaces the literal 0.86), replacing the two-tap swap; Draft slot chips, the phone scroll to the landed squad, and the squad list's Out chip renamed Unused.
 - 2026-10-25 · owner's agent · Working branch merged into `integration` (with `reel-ui`, `fm-depth`, `match-visuals`): the Draft keeps the case-opening reel and gains the slot chips; the Dugout squad panel carries both the Key chip and the Stamina column toggle, the slot sheet replaces the two-tap swap and the player card uses the attribute panel; coach marks sit on the live match and report. No seeded test moved. `tsconfig.app.tsbuildinfo` untracked.
 - 2026-10-25 · owner's agent · `redesign` merged into `integration`: blue tokens in both themes, the TouchLine logo and icons, mixed-case headings and the `Info` tooltip, now also covering the screens that arrived after it (the reel window and placeholder badge, game by game, the attribute panel, the pitch frame and the scoreboard flash, the match card, the digest's confidence bar, coach marks, the Inbox badge and the slot sheet, which now uses the shared phone bottom sheet). Starter, Key and depth-chart chips are `.chip.info`; the tier banner uses `tierName()`. No behaviour change; no seeded test moved.
+- 2026-10-25 · owner's agent · Hosting notes corrected: both Render sites now live in their own TouchLine workspace; the live site deploys `main` after CI passes (https://touchline-16xv.onrender.com), the preview deploys `claude/touchline-preview` (https://touchline-preview-hfvi.onrender.com); the old `-o5ot` and `touchline-preview.onrender.com` sites are gone.
+- 2026-10-25 · owner's agent · Removed `.github/workflows/pages.yml`: its failing run on every push to `main` stopped Render's checks-pass deploy, so merges were not reaching the live site on their own.
+- 2026-10-25 · owner's agent · The working branch's latest commits merged into `integration` again (after `redesign`): the slot-picker review (a real Unused case in the tests, timeouts for two slow sweeps), the corrected hosting notes and the Pages workflow removal (already gone on `integration`). Docs only plus tests; no seeded test moved.

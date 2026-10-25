@@ -78,7 +78,7 @@ Also check:
   - UI: phone width, both themes, hidden ratings stay hidden.
 - Pull the branch and play the feature on `npm run dev` for anything visible.
 - Merge with "Squash and merge" or "Create a merge commit" once approved and green. Delete the branch afterwards.
-- Render deploys the working branch `claude/youthful-mccarthy-a57idu`, not `main`: a push there is live within minutes, while a merge into `main` changes nothing on the live site until Render is switched to `main` (see docs/HANDOVER.md). Check the site after anything reaches the tracked branch.
+- Render deploys `main` to the live site (https://touchline-16xv.onrender.com) a few minutes after CI passes on the merge, so a merge is a release: play the feature on the preview first. The preview site (https://touchline-preview-hfvi.onrender.com) deploys `claude/touchline-preview` on every push (see docs/HANDOVER.md). Check the live site after each merge.
 
 ## 7. Data-pack conflicts
 

@@ -129,11 +129,11 @@ Specific recipes: a draft rule (optional `DraftRules` field, apply in `rulesPool
 
 ## Deployment and services
 
-- **Render** static site `touchline` (https://touchline-o5ot.onrender.com) auto-deploys the working branch `claude/youthful-mccarthy-a57idu` on every push (not `main`): build `npm ci && npm run build`, publish `dist`, `BASE_PATH` unset (base `/`). A second site, `touchline-preview` (https://touchline-preview.onrender.com), tracks `claude/touchline-preview` for previews of in-progress branches. Both are in the Render project "TouchLine"; touch nothing else in that workspace.
+- **Render** (workspace TouchLine, `tea-dbeoghbrjlhs738bpcng`; touch nothing in any other workspace): static site `Touchline` (https://touchline-16xv.onrender.com) deploys `main` once CI passes on the commit; static site `touchline-preview` (https://touchline-preview-hfvi.onrender.com) deploys `claude/touchline-preview` on every push, for previews of in-progress branches merged together. Both build `npm ci && npm run build`, publish `dist`, `BASE_PATH` unset (base `/`), `NODE_VERSION=22`.
 - Env vars on Render: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (public publishable keys). Vite inlines `VITE_*` at build time, so a change needs a redeploy and anything `VITE_*` is public. Locally put them in `.env.local` (gitignored via `*.local`).
 - **Supabase** project id `yvqpmyqomkwtudxmkeou` (org Team TouchLine, Sydney, Free plan), schema empty today. Migrations will go in `supabase/migrations/` (the folder does not exist yet) and are applied to that project only. RLS on every table; run the security advisors after each change.
 - **No secrets in the repo.** The Supabase `service_role` key is never used in the browser, never in a `VITE_` var, never committed. Server-side work (Edge Functions) reads it from Supabase secrets.
-- The GitHub Pages workflow is gone (private repo, Render hosts).
+- There is no GitHub Pages workflow any more (the repo is private and Render hosts). Do not add one: Render deploys `main` only when every check on the commit passes, so a failing extra workflow blocks the live deploy.
 
 ## Playwright smokes
 
@@ -166,7 +166,7 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 
 ## Work in progress (not shipped; check branches before overlapping)
 
-On GitHub today: `main` (PR #1 merged), the working branch `claude/youthful-mccarthy-a57idu` (draft PR #2 into `main`) and `claude/touchline-preview`. The feature branches below are not on GitHub until they are pushed; ask the owner before overlapping them.
+On GitHub today: `main` (the live site), the working branch `claude/youthful-mccarthy-a57idu`, `claude/touchline-preview` (the preview site) and `redesign`. The feature branches below are not on GitHub until they are pushed; ask the owner before overlapping them.
 
 - `integration` (local): the working branch merged with `reel-ui`, `fm-depth`, `match-visuals` and `redesign`; it is what the working branch becomes once pushed.
 - `replica-setup`: 38-0 style setup (difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets); expected to rewrite Setup.tsx and add `DraftRules` fields.
