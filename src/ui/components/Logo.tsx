@@ -105,7 +105,7 @@ export function Lockup({ height = 64, animate = 'none', className }: { height?: 
       <svg className="tl-ball" viewBox={`0 0 ${d} ${d}`} aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: ball }} />
       <svg className="tl-flag" viewBox={`0 0 ${LOCKUP_FLAG_WIDTH} ${LOCKUP.grid}`} aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: flag }} />
       <span className="tl-name">
-        {WORDMARK[0]}
+        <span className="tl-touch">{WORDMARK[0]}</span>
         <span className="wordmark-line">{WORDMARK[1]}</span>
         {/* The glint's copy of the name is generated content, so the page text, find-in-page and copy see the name once */}
         <span className="tl-shine" aria-hidden="true" data-text={APP_NAME} />

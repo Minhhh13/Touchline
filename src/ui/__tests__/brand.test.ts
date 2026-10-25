@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { Lockup } from '../components/Logo'
-import { LOCKUP, MARK, ballPanels, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, pennantWave, tinyPanels, type MarkTier } from '../brand'
+import { LOCKUP, MARK, ballPanels, clothStops, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, tinyPanels, type MarkTier } from '../brand'
 
 const TIERS: MarkTier[] = ['full', 'mid', 'tiny']
 
@@ -97,11 +97,13 @@ describe('the mark', () => {
         const svg = markSvgInner('aa1', { tier: t, variant })
         const ids = [...svg.matchAll(/id="([^"]+)"/g)].map((m) => m[1])
         for (const id of ids) expect(id.startsWith('aa1-')).toBe(true)
-        for (const ref of svg.matchAll(/url\(#([^)]+)\)/g)) expect(ids).toContain(ref[1])
+        for (const ref of svg.matchAll(/(?:url\(|href=")#([^)"]+)/g)) expect(ids).toContain(ref[1])
       }
     }
     for (const svg of [lockupFlagSvg('bb2'), lockupFlagSvg('bb2', true), lockupBallSvg('bb2', 'full'), lockupBallSvg('bb2', 'mid')]) {
-      for (const m of svg.matchAll(/id="([^"]+)"/g)) expect(m[1].startsWith('bb2-')).toBe(true)
+      const ids = [...svg.matchAll(/id="([^"]+)"/g)].map((m) => m[1])
+      for (const id of ids) expect(id.startsWith('bb2-')).toBe(true)
+      for (const ref of svg.matchAll(/(?:url\(|href=")#([^)"]+)/g)) expect(ids).toContain(ref[1])
     }
   })
 })
@@ -128,7 +130,7 @@ describe('the lockup', () => {
   it('flutters the pennant along the cloth in a loop, its edge at the pole fixed, staying clear of the ball', () => {
     const P = LOCKUP.pennant
     const svg = lockupFlagSvg('w', true)
-    const values = /values="([^"]+)"/.exec(svg)![1].split(';')
+    const values = /attributeName="d" [^>]*values="([^"]+)"/.exec(svg)![1].split(';')
     expect(values.length).toBe(LOCKUP.wave.frames + 1)
     expect(values[0]).toBe(values[values.length - 1])
     expect(new Set(values).size).toBe(LOCKUP.wave.frames)
@@ -140,15 +142,79 @@ describe('the lockup', () => {
       expect(pts[pts.length - 1]).toEqual([P.x, P.bottom])
       for (const [x, y] of pts) expect(Math.hypot(x - LOCKUP.ball.cx, y - cy)).toBeGreaterThan(LOCKUP.ball.r + 2.5)
     }
-    // the pole and the resting shape are untouched; without the wave nothing animates
-    expect(svg.replace(pennantWave(P), '')).toBe(lockupFlagSvg('w'))
+    // the pole and the resting shape and folds are untouched; without the wave nothing animates
+    expect(svg.replace(/<animate [^>]*\/>/g, '').replace(/"><\/stop>/g, '"/>')).toBe(lockupFlagSvg('w'))
     expect(lockupFlagSvg('w')).not.toContain('<animate')
-    expect(svg.match(/<animate/g)?.length).toBe(1)
+    // one animation moves the shape (drawn three times through <use>), one per fold stop moves the folds with it
+    const stops = clothStops(P).length
+    expect(svg.match(/<animate /g)?.length).toBe(1 + stops)
+    expect(svg.match(/<use /g)?.length).toBe(3)
+    for (const m of svg.matchAll(/attributeName="stop-color" [^>]*values="([^"]+)"/g)) {
+      const v = m[1].split(';')
+      expect(v.length).toBe(LOCKUP.wave.frames + 1)
+      expect(v[0]).toBe(v[v.length - 1])
+    }
+    const moving = [...svg.matchAll(/attributeName="stop-color" [^>]*values="([^"]+)"/g)].filter((m) => new Set(m[1].split(';')).size > 2)
+    expect(moving.length).toBeGreaterThan(stops / 2)
+  })
+
+  it('folds the cloth: two or three light and dark bands from the pole to the tip, in every frame', () => {
+    const lum = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)).reduce((a, b, i) => a + b * [0.2126, 0.7152, 0.0722][i], 0)
+    const red = lum(MARK.red)
+    for (let f = 0; f < LOCKUP.wave.frames; f++) {
+      const st = clothStops({ ...LOCKUP.pennant, amp: LOCKUP.wave.amp }, (f / LOCKUP.wave.frames) * 2 * Math.PI)
+      // crests: runs of stops clearly lighter or darker than the plain red
+      const signs = st.map(([, c]) => lum(c) - red).filter((d) => Math.abs(d) > 6).map(Math.sign)
+      const runs = signs.filter((s, i) => i === 0 || s !== signs[i - 1]).length
+      expect(runs).toBeGreaterThanOrEqual(3)
+      expect(runs).toBeLessThanOrEqual(6)
+      expect(st[0][0]).toBe(0)
+      expect(st[st.length - 1][0]).toBe(1)
+    }
+    // fainter on the 22 to 63 px tier, so the red stays clean in the top bar and at 32 px
+    const spread = (k: number) => Math.max(...clothStops(MARK.tiers.mid.pennant, 0, k).map(([, c]) => Math.abs(lum(c) - red)))
+    expect(spread(MARK.cloth.strength.mid)).toBeLessThan(spread(MARK.cloth.strength.full))
+    // the 16 px pennant is one flat red path: no folds, no shade
+    const tiny = markSvgInner('t', { tier: 'tiny' })
+    expect(tiny).toContain(`fill="${MARK.red}"`)
+    expect(tiny).not.toContain('-pf')
+    expect(tiny).not.toContain('<use')
+  })
+
+  it('rounds the pennant\'s tip, inside its length', () => {
+    for (const P of [LOCKUP.pennant, MARK.tiers.full.pennant, MARK.tiers.mid.pennant]) {
+      const pts = points(pennantPath(P))
+      const xs = pts.map(([x]) => x)
+      expect(Math.max(...xs)).toBeLessThanOrEqual(P.tipX + 1e-6)
+      // more than one point at the far end: a curve, not a spike
+      expect(pts.filter(([x]) => x > P.tipX - (P.tip ?? 0) * 0.6).length).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('sizes the mark to the name: cap height plus a little, the ball about the x-height, half a letter between, centred in the box', () => {
+    const { name, finial, pennant, ball, rule } = LOCKUP
+    const cap = 0.708 * name.size
+    const xh = 0.514 * name.size
+    const top = finial.cy - finial.r
+    expect((name.baseline - top) / cap).toBeGreaterThan(1.05)
+    expect((name.baseline - top) / cap).toBeLessThan(1.25)
+    // the pennant's top level with or just above the cap tops
+    expect(name.baseline - cap - pennant.top).toBeGreaterThanOrEqual(0)
+    expect(name.baseline - cap - pennant.top).toBeLessThanOrEqual(3)
+    expect((2 * ball.r) / xh).toBeGreaterThan(0.85)
+    expect((2 * ball.r) / xh).toBeLessThan(1.1)
+    // the gap after the line is 0.35 to 0.6 of a letter (Barlow Condensed's o is 0.5 of the size)
+    const gap = name.left - (rule.left + rule.length)
+    expect(gap / (0.5 * name.size)).toBeGreaterThan(0.3)
+    expect(gap / (0.5 * name.size)).toBeLessThan(0.6)
+    // finial to the line's bottom is centred in the 64u box
+    expect(Math.abs((top + rule.y + rule.w) / 2 - LOCKUP.grid / 2)).toBeLessThan(1)
   })
 
   it('carries the name once as text; the glint copy is generated content', () => {
     const html = renderToStaticMarkup(createElement(Lockup, { animate: 'load' }))
     expect(html.replace(/<[^>]*>/g, '')).toBe('TouchLine')
+    expect(html).toContain('<span class="tl-touch">Touch</span>')
     expect(html).toContain('data-text="TouchLine"')
     // rendered without a window (as under reduced motion) the pennant is still
     expect(html).not.toContain('<animate')
@@ -174,5 +240,8 @@ describe('the lockup', () => {
     expect(LOCKUP.name.top + 0.903 * LOCKUP.name.size).toBeCloseTo(LOCKUP.name.baseline, 0)
     expect(css).toContain(`translateX(${u(-LOCKUP.roll)}) rotate(-${((LOCKUP.roll / LOCKUP.ball.r) * 180 / Math.PI).toFixed(1)}deg)`)
     expect(css).not.toContain('.tl-track')
+    // each half of the name keeps a solid colour under its gradient, and forced colours get plain text
+    expect(block('.tl-touch')).toContain('color: var(--text)')
+    expect(css).toContain('@media (forced-colors: active)')
   })
 })
