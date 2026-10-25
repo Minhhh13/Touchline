@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { Bandage, ChevronDown } from 'lucide-react'
 import { useStore } from '@game/store'
 import { staffTier } from '@engine/staff'
 import { aiTeamInput, computeTable, USER_TEAM } from '@engine/season'
@@ -72,7 +72,10 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
               <FormDots form={row.form} />
             </dd>
             <dt>Injured</dt>
-            <dd>{injured}</dd>
+            <dd className="icon-title" style={{ gap: 'var(--space-1)' }}>
+              {injured > 0 && <Bandage size={13} className="ic-injury" aria-hidden="true" />}
+              {injured}
+            </dd>
           </div>
         </div>
         <div className="col" style={{ gap: 6 }}>
@@ -92,7 +95,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
         </div>
         <div className="col" style={{ gap: 6 }}>
           <div className="eyebrow">Assistant's notes</div>
-          <ul className="small" style={{ margin: 0, paddingLeft: 16 }}>
+          <ul className="notes-list small">
             {tips.length ? tips.map((t, i) => <li key={i}>{t}</li>) : <li>Nothing stands out. Play your game.</li>}
           </ul>
         </div>

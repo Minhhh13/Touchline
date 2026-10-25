@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
+import { ArrowLeftRight, Bandage, ImageDown } from 'lucide-react'
 import { useStore } from '@game/store'
 import { Bar, ClubBadge, Rating, Tabs, Tip } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import type { PitchSide } from '../components/LivePitch'
 import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../components/MatchCharts'
+import { RedCard, YellowCard } from '../components/icons'
 import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
 import { clubName, clubShort, minuteLabel } from '../format'
@@ -188,7 +190,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
   return (
     <div className="grid two">
       <div className="col">
-        <div className="scoreboard">
+        <div className="scoreboard report-board">
           <div className="team">
             {res.homeTeamId !== USER_TEAM && <ClubBadge clubId={res.homeTeamId.replace(/^friendly-/, '')} size={34} />}
             {homeName}
@@ -209,20 +211,20 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
         <div className="panel">
           <h3>Goals</h3>
           {goals.length === 0 && <div className="muted small">No goals.</div>}
-          <div className="col" style={{ gap: 4 }}>
-            {goals.map((g, i) => (
-              <div key={i} className="row between small">
-                <span>
-                  {g.side === 'home' ? '⚽ ' : ''}
-                  {g.playerName}
-                  {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
-                  {g.secondaryName ? <span className="muted"> · {g.secondaryName}</span> : null}
-                  {g.side === 'away' ? ' ⚽' : ''}
-                </span>
-                <span className="mono muted">{minuteLabel(g.minute)}</span>
-              </div>
-            ))}
-          </div>
+          {goals.length > 0 && (
+            <ol className="goal-list">
+              {goals.map((g, i) => (
+                <li key={i} className={g.side}>
+                  <span className="goal-who">
+                    <b>{g.playerName}</b>
+                    {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
+                    {g.secondaryName ? <span className="muted"> · {g.secondaryName}</span> : null}
+                  </span>
+                  <span className="goal-min mono">{minuteLabel(g.minute)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
         {(res.momentum?.length ?? 0) > 0 && (
           <div className="panel" data-testid="report-charts">
@@ -235,10 +237,10 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
         )}
         {hasShots && (
           <div className="panel">
-            <div className="row between">
+            <div className="panel-head">
               <h3>Shot map</h3>
               <button className="btn sm" onClick={shareCard} data-testid="match-card">
-                Match card
+                <ImageDown size={14} aria-hidden="true" /> Match card
               </button>
             </div>
             <ShotMap events={res.events} home={sides.home} away={sides.away} />
@@ -253,7 +255,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
         </div>
         <div className="panel">
           <h3>Match stats</h3>
-          <table className="tbl">
+          <table className="tbl match-stats">
             <tbody>
               <tr>
                 <td className="num">{fig.home.xg.toFixed(2)}</td>
@@ -290,7 +292,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
         <Tip id="report-first">xG is the chances each side created; the notes are the exact modifiers your instructions produced.</Tip>
         <div className="panel">
           <h3>Tactical notes</h3>
-          <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+          <ul className="notes-list small">
             {ours.teamTalkEffect && <li>{ours.teamTalkEffect}</li>}
             {ours.lateEffect && <li>{ours.lateEffect}</li>}
             {ours.modifiers.notes.map((n, i) => (
@@ -298,20 +300,25 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
             ))}
             {theirs.modifiers.notes.length > 0 && <li className="muted">Opponent: {theirs.modifiers.notes.slice(0, 2).join('; ')}</li>}
           </ul>
-          <div className="small muted" style={{ marginTop: 6 }}>
-            Our attack ×{ours.modifiers.attack.toFixed(2)}, their chances ×{ours.modifiers.defence.toFixed(2)} from instructions. Extra fatigue {ours.modifiers.fatigue > 0 ? '+' : ''}
-            {ours.modifiers.fatigue}.
+          <div className="toolbar small" style={{ marginTop: 'var(--space-2)' }}>
+            <span className="chip">Attack ×{ours.modifiers.attack.toFixed(2)}</span>
+            <span className="chip">Their chances ×{ours.modifiers.defence.toFixed(2)}</span>
+            <span className="chip">
+              Fatigue {ours.modifiers.fatigue > 0 ? '+' : ''}
+              {ours.modifiers.fatigue}
+            </span>
           </div>
         </div>
       </div>
       <div className="col">
         <div className="panel">
           <h3>Player ratings</h3>
+          <div className="tbl-wrap">
           <table className="tbl">
             <thead>
               <tr>
                 <th>Player</th>
-                <th className="num">Min</th>
+                <th className="num hide-phone">Min</th>
                 <th className="num">G</th>
                 <th className="num">A</th>
                 <th className="num">Rating</th>
@@ -328,13 +335,13 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
                       <td>
                         <span className="row" style={{ gap: 6 }}>
                           {p && <Rating value={p.overall} />} {p?.name ?? s.playerSeasonId}
-                          {s.yellow && ' 🟨'}
-                          {s.red && ' 🟥'}
-                          {s.injured && ' 🩹'}
+                          {s.yellow && <span title="Booked" aria-label="Booked"><YellowCard size={13} /></span>}
+                          {s.red && <span title="Sent off" aria-label="Sent off"><RedCard size={13} /></span>}
+                          {s.injured && <Bandage size={13} className="ic-injury" aria-label="Injured" />}
                           {res.motmId === s.playerSeasonId && <span className="chip gold">MOTM</span>}
                         </span>
                       </td>
-                      <td className="num">{s.minutes}</td>
+                      <td className="num hide-phone">{s.minutes}</td>
                       <td className="num">{s.goals}</td>
                       <td className="num">{s.assists}</td>
                       <td className="num rating-cell" style={{ fontWeight: 700, color: s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : undefined }}>
@@ -346,9 +353,10 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
                 })}
             </tbody>
           </table>
+          </div>
           {ours.substitutions.length > 0 && (
-            <div className="small muted" style={{ marginTop: 8 }}>
-              Subs: {ours.substitutions.map((s) => `${get(s.on)?.name} for ${get(s.off)?.name} (${s.minute}', ${s.reason})`).join('; ')}
+            <div className="small muted icon-title" style={{ marginTop: 8, alignItems: 'flex-start' }}>
+              <ArrowLeftRight size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> {ours.substitutions.map((s) => `${get(s.on)?.name} for ${get(s.off)?.name} (${s.minute}', ${s.reason})`).join('; ')}
             </div>
           )}
         </div>
@@ -382,13 +390,26 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
         {game && u && ctx.competition === 'league' && ctx.roundLabel !== 'Friendly' && (
           <div className="panel">
             <h3>Opponent</h3>
-            <div className="row" style={{ gap: 10 }}>
+            <div className="club-head">
               <ClubBadge clubId={ctx.opponentClubId} size={40} />
               <div>
-                <div style={{ fontWeight: 600 }}>{clubName(u, ctx.opponentClubId)}</div>
-                <div className="small muted">
-                  Team rating {theirs.strength.overall.toFixed(1)} · GK {theirs.strength.goalkeeping.toFixed(0)} DEF {theirs.strength.defence.toFixed(0)} MID {theirs.strength.midfield.toFixed(0)} ATT {theirs.strength.attack.toFixed(0)}
+                <div style={{ fontWeight: 600 }}>
+                  {clubName(u, ctx.opponentClubId)} <span className="chip">{theirs.strength.overall.toFixed(1)}</span>
                 </div>
+                <span className="unit-strip" aria-label="Their unit ratings">
+                  {(
+                    [
+                      ['GK', theirs.strength.goalkeeping],
+                      ['DEF', theirs.strength.defence],
+                      ['MID', theirs.strength.midfield],
+                      ['ATT', theirs.strength.attack],
+                    ] as const
+                  ).map(([k, v]) => (
+                    <span key={k}>
+                      <i>{k}</i> {v.toFixed(0)}
+                    </span>
+                  ))}
+                </span>
               </div>
             </div>
           </div>
