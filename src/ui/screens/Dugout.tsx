@@ -121,7 +121,7 @@ export function Dugout() {
           <div className="stat" style={{ minWidth: 150 }}>
             <span className="label">Board confidence</span>
             <div className="conf">
-              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--good)' : season.confidence > 30 ? 'var(--gold)' : 'var(--danger)'} thick />
+              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--good)' : season.confidence > 30 ? 'var(--meter-mid)' : 'var(--danger)'} thick />
               <span className="small">{Math.round(season.confidence)}</span>
             </div>
             <span className="small muted">target {ordinal(season.boardTarget)}</span>
@@ -1157,7 +1157,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
               <span style={{ width: 90, textTransform: 'capitalize' }} className="small">
                 {k}
               </span>
-              <Bar value={attrs[k]} colour={attrs[k] >= 80 ? 'var(--accent)' : attrs[k] >= 65 ? 'var(--gold)' : 'var(--text-3)'} />
+              <Bar value={attrs[k]} colour={attrs[k] >= 80 ? 'var(--accent)' : attrs[k] >= 65 ? 'var(--meter-mid)' : 'var(--text-3)'} />
               <span className="mono small" style={{ width: 24, textAlign: 'right' }}>
                 {attrs[k]}
               </span>
@@ -1184,14 +1184,14 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
               <span style={{ width: 90 }} className="small">
                 Sharpness
               </span>
-              <Bar value={s.sharpness} colour="#c9a0ff" />
+              <Bar value={s.sharpness} colour="var(--meter-sharpness)" />
               <span className="mono small">{s.sharpness}</span>
             </div>
             <div className="row" style={{ gap: 8 }}>
               <span style={{ width: 90 }} className="small">
                 Familiarity
               </span>
-              <Bar value={s.familiarity} colour="var(--gold)" />
+              <Bar value={s.familiarity} colour="var(--meter-mid)" />
               <span className="mono small">{s.familiarity}</span>
             </div>
             <div className="kv" style={{ marginTop: 6 }}>

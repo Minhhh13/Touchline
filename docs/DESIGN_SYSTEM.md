@@ -122,6 +122,7 @@ Status colours never decorate, and the primary blue never means "good".
 | `--rating-80`, `--rating-75`, `--rating-70`, `--rating-base` | `#3b82f6`, `#93c5fd`, `#a5b4cb`, `#94a3b8` | same | Rating badges 80+, 75+, 70+, below 70 |
 | `--rating-ink` | `#0a1120` | same | The number on a rating badge |
 | `--meter-sharpness` | `#c4b5fd` | `#7c3aed` | The sharpness bar (condition uses `conditionColour()`, morale `--info`) |
+| `--meter-mid` | `= --gold` | `#a16207` | The middle band of a bar: condition 70 to 84, board confidence 31 to 60, familiarity, attributes 65 to 79, the best season in Explore. Bright gold is 1.3:1 on the Daylight bar track, so bars never use `--gold` |
 
 ### The pitch
 
@@ -157,6 +158,7 @@ Every text pair passes 4.5:1 and every UI pair 3:1, in both themes (166 pairs we
 | `--rating-ink` on `--rating-80` | 4.5:1 | 5.1 | 5.1 |
 | `--on-status` on `--draw` | 4.5:1 | 8.3 | 5.4 |
 | `--primary` against `--bg` | 3:1 | 3.6 | 4.8 |
+| `--meter-mid` against `--bg-3` (a bar on its track) | 3:1 | 9.3 | 4.0 |
 | `--focus` against `--panel` | 3:1 | 6.8 | 5.2 |
 | `--field-border` against `--panel` | 3:1 | 3.5 | 3.5 |
 
@@ -265,6 +267,7 @@ For two to five mutually exclusive options with labels of one or two words. The 
 ```
 
 - `.field` (a `label` or a `div`) stacks the label (13 px, 600, `--text-2`), the control, and at most one `.help` caption.
+- Native checkboxes, radios and sliders take `--primary` through `accent-color` on `body`.
 - `.input` and `select.input` are full width, 40 px, on `--field-bg` with the 3:1 `--field-border`; focus shows the `--focus` ring.
 - `.toggle` is a checkbox row; checked toggles take the selection pattern. The label is one line of six words or fewer.
 - Two fields side by side only on desktop (`.grid.two`); on a phone everything stacks.

@@ -54,7 +54,7 @@ export function ratingBand(v: number): string {
 }
 export function conditionColour(v: number): string {
   if (v >= 85) return 'var(--good)'
-  if (v >= 70) return 'var(--gold)'
+  if (v >= 70) return 'var(--meter-mid)'
   if (v >= 55) return 'var(--warn)'
   return 'var(--danger)'
 }

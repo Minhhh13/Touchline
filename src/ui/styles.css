@@ -66,6 +66,8 @@
   --rating-70: #a5b4cb;
   --rating-base: #94a3b8;
   --meter-sharpness: #c4b5fd;
+  /* The middle band of a bar (condition 70-84, familiarity, attributes 65-79): gold, darkened in Daylight to keep 3:1 on the track */
+  --meter-mid: var(--gold);
   /* The pitch is grass in both themes; what sits on it does not change with the theme */
   --pitch: #1d7a3f;
   --pitch-2: #1a6f39;
@@ -146,6 +148,7 @@
   --pos-mid: #6d28d9;
   --pos-att: #be123c;
   --meter-sharpness: #7c3aed;
+  --meter-mid: #a16207;
   --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
 }
 
@@ -164,6 +167,8 @@ body {
   background-image: radial-gradient(1200px 600px at 50% -10%, var(--glow), transparent 60%);
   background-repeat: no-repeat;
   color: var(--text);
+  /* Native checkboxes, radios and sliders take the brand blue, not the browser's own */
+  accent-color: var(--primary);
   font-family: var(--font-body);
   font-size: var(--fs-base);
   line-height: 1.45;
