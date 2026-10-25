@@ -10,9 +10,11 @@ import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
-import { normaliseGame } from './logic/save'
+import { normaliseGame, normaliseProfile } from './logic/save'
+import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
+import { pickManager } from './logic/managers'
 import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
@@ -35,6 +37,7 @@ import { challengeSettings, replayChallenge } from './logic/challenge'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
+import { addCupTrophies, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
 /** localStorage key the whole game is persisted under. */
@@ -126,6 +129,8 @@ interface Store {
   giveArmband: (playerSeasonId: string) => void
   lockPlayer: (playerSeasonId: string) => void
   finishDraft: () => void
+  /** Quick Draft with managers: pick the manager by id once the draft is done, up to kick-off (`src/game/logic/managers.ts`). */
+  pickManager: (id: string) => void
   /** Quick Draft and the Daily: leave the tactics step and play the season (to the January window when it is on); `skip` restores the default tactics first. */
   kickOff: (skip?: boolean) => void
   /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
@@ -134,6 +139,10 @@ interface Store {
   endPlayback: () => void
   /** Quick bench: before game `revealed + 1` of the playback, put bench player `inId` into slot `slotId` (one of the three changes). */
   benchChange: (revealed: number, slotId: string, inId: string) => void
+  /** Quick Draft after the league: play the domestic cup or the Continental Cup through (loading every league first for the Continental Cup). Resolves true when it was played. */
+  playCup: (comp: QuickCupComp) => Promise<boolean>
+  /** Quick Draft after the league: pass on a cup. */
+  skipCup: (comp: QuickCupComp) => void
 
   playFriendly: () => void
   startSeason: () => void
@@ -389,7 +398,8 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
             return false
           }
-          const needs = [...new Set([payload.s.l, ...payload.s.wl])]
+          // A challenger who played the Continental Cup needs every league loaded for the replay to check it
+          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(payload.c.eu ? (get().universe?.available ?? []).map((l) => l.id) : [])])]
           const known = (get().universe?.available ?? []).map((l) => l.id)
           const unknown = needs.filter((id) => !known.includes(id))
           if (unknown.length) {
@@ -538,6 +548,7 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
+        pickManager: (id) => mutate((g, u) => pickManager(g, u, id)),
         kickOff: (skip) => {
           if (get().game?.phase !== 'kickoff') return
           mutate((g, u) => kickOff(g, u, skip))
@@ -581,6 +592,39 @@ export const useStore = create<Store>()(
             return
           }
           mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
+        },
+
+        playCup: async (comp) => {
+          const { game, universe } = get()
+          if (!game || !universe) return false
+          // The Continental Cup's field comes from every other league that season
+          if (comp === 'continental' && !(await get().ensureLeagues(universe.available.map((l) => l.id)))) return false
+          const u = get().universe
+          const before = get().game
+          if (!u || !before?.quickResult) return false
+          const problem = quickCupProblem(before, u, comp)
+          if (problem) {
+            set({ toast: problem })
+            return false
+          }
+          mutate((g, uu) => playQuickCup(g, uu, comp))
+          const after = get().game?.quickResult
+          if (!after || after === before.quickResult) return false
+          const profile = get().profile
+          const trophies = addCupTrophies(profile.trophies ?? { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }, before.quickResult, after, comp)
+          set({ profile: { ...profile, trophies } })
+          unlockFromGame()
+          return true
+        },
+        skipCup: (comp) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          const problem = quickCupProblem(game, universe, comp)
+          if (problem) {
+            set({ toast: problem })
+            return
+          }
+          mutate((g, u) => skipQuickCup(g, u, comp))
         },
 
         playFriendly: () => {
@@ -824,7 +868,10 @@ export const useStore = create<Store>()(
           if (euro) trophies.continental++
           if (league && cup) trophies.doubles++
           if (league && cup && euro) trophies.trebles++
-          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies, seasonsSimulated: profile.seasonsSimulated + 1 } })
+          // The 38-0 chase: best record, longest perfect run and perfect seasons of every quick season (Quick Draft and the Daily)
+          const q = game.quickResult
+          const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests
+          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies, seasonsSimulated: profile.seasonsSimulated + 1, ...(quickBests ? { quickBests } : {}) } })
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
@@ -894,7 +941,7 @@ export const useStore = create<Store>()(
         const game = normaliseGame(p.game)
         // A match reloaded mid-way under Auto-play carries on with the assistant at the stops
         const liveAuto = assistantTakesStops(game)
-        return { ...current, ...p, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
+        return { ...current, ...p, profile: p.profile ? normaliseProfile(p.profile, defaultProfile) : current.profile, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },
   ),
@@ -952,7 +999,7 @@ export function wipeSave(): void {
 
 /** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup. */
 function leaguesFor(game: Game, allLeagues: string[]): string[] {
-  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental
+  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup
   return [...new Set([game.settings.leagueId ?? DEFAULT_LEAGUE, ...(game.settings.wheelLeagues ?? []), ...(wantsAll ? allLeagues : [])])]
 }
 

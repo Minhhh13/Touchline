@@ -58,8 +58,8 @@ describe('setupRules: the setup screen to DraftRules', () => {
     expect(r).toEqual({ ...QUICK_RULES, leagues: ['england'] })
     expect(r.fromSeason).toBeUndefined()
     expect(r.toSeason).toBeUndefined()
-    // The Daily's literal rules are the same wheel as an untouched quick setup, but for its original 2 re-spins
-    expect(r).toEqual({ ...DAILY_RULES, respins: 1, leagues: ['england'] })
+    // The Daily's literal rules are the same wheel as an untouched quick setup, but for its original 2 re-spins and no manager pick
+    expect(r).toEqual({ ...DAILY_RULES, respins: 1, managers: true, leagues: ['england'] })
   })
 
   it('gives each difficulty card its re-spins and keeps hard mode in step', () => {
@@ -170,20 +170,20 @@ describe('describeRules: a fixed wheel in plain words', () => {
   })
 
   it('names every option that differs', () => {
-    expect(describeRules(u, setupRules(QUICK_RULES, choices({ difficulty: 'hard', draftMode: 'position', ratings: 'prime', eraFrom: 2016, eraTo: 2019, twists: false })))).toEqual(['Hard: no re-spins', 'Ratings hidden', 'Position First', 'Prime ratings', '2016-17 to 2019-20', 'No twists'])
+    expect(describeRules(u, setupRules(QUICK_RULES, choices({ difficulty: 'hard', draftMode: 'position', ratings: 'prime', eraFrom: 2016, eraTo: 2019, twists: false })))).toEqual(['Hard: no re-spins', 'Ratings hidden', 'Position First', 'Prime ratings', '2016-17 to 2019-20', 'No twists', 'Manager pick'])
     expect(describeRules(u, setupRules(QUICK_RULES, choices({ difficulty: 'easy', showRatings: false }))).slice(0, 2)).toEqual(['Easy: 3 re-spins', 'Ratings hidden'])
   })
 })
 
 describe('the summary line above Start', () => {
   it('stays the documented short line for the default cards', () => {
-    expect(summariseSetup(u, settings())).toBe('Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed SETUP-38')
+    expect(summariseSetup(u, settings())).toBe('Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed SETUP-38')
   })
 
   it('names the cards that differ from the mode defaults', () => {
     const line = summariseSetup(u, settings(setupRules(QUICK_RULES, choices({ difficulty: 'easy', showRatings: false, draftMode: 'position', ratings: 'prime', eraFrom: 2016, eraTo: last }))))
-    expect(line).toBe('Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed SETUP-38, 2016-17 to 2026-27, easy mode, blind, Position First, prime ratings')
-    expect(summariseSetup(u, settings(setupRules(QUICK_RULES, choices({ difficulty: 'hard', showRatings: false }))))).toBe('Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed SETUP-38, hard mode')
+    expect(line).toBe('Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed SETUP-38, 2016-17 to 2026-27, easy mode, blind, Position First, prime ratings')
+    expect(summariseSetup(u, settings(setupRules(QUICK_RULES, choices({ difficulty: 'hard', showRatings: false }))))).toBe('Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed SETUP-38, hard mode')
     // A managed season defaults to Easy, so Normal is the change there
     const season: GameSettings = { ...settings(setupRules({ ...SEASON_RULES, squadSize: 18 }, choices({ difficulty: 'normal', twists: false }))), mode: 'season', jobSecurity: true }
     expect(summariseSetup(u, season)).toBe('Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed SETUP-38, normal mode, squad of 18')

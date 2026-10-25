@@ -1,5 +1,5 @@
 import { DISPLAY_TIER_INFO } from '@game/logic/rarity'
-import { formatOdds, type TierOdds } from '@game/logic/odds'
+import { formatOdds, type TierOdds } from '@game/logic/tierOdds'
 
 /**
  * The odds panel by the reel: the exact chance of each rarity tier on the next spin, as a bar of tier-coloured

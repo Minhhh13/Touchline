@@ -4,7 +4,7 @@ import { useStore } from '@game/store'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
-import { tierOdds } from '@game/logic/odds'
+import { tierOdds } from '@game/logic/tierOdds'
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
 import { PowerUpTray } from '../components/PowerUps'
@@ -26,6 +26,8 @@ import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
 import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
+import { canPickManager, quickManagerOptions } from '@game/logic/managers'
+import { ManagerPick } from '../components/ManagerPick'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -35,7 +37,7 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 ]
 
 export function Draft() {
-  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, go, showToast, upgradePlayer } = useStore()
+  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -123,6 +125,8 @@ export function Draft() {
   const isDynastySummer = game.settings.mode === 'dynasty' && game.year > 1
   // The power-ups used, newest first, above the spins in the draft log
   const puLog = powerUpLog(d, (id) => get(id)?.name ?? 'your player', seasonLabel).sort((a, b) => b.at - a.at)
+  // Quick Draft managers: offered once the draft is done or may close, from the club-seasons drafted
+  const managerChoice = !d.current && !spinning && canPickManager(game, u) ? quickManagerOptions(game) : []
 
   const nation = d.rules.onlyNation
   const nationLabel = nation ? (
@@ -385,7 +389,8 @@ export function Draft() {
               onConfirm={(id, boost) => upgradePlayer(id, boost)}
             />
           )}
-          {!current && (
+          {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
+          {!current && !managerChoice.length && (
             <div className="empty-state">
               <span className="empty-icon" aria-hidden="true">
                 <Dices size={26} />

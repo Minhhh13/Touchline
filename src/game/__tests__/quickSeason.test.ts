@@ -5,10 +5,11 @@ import { autoDraft, isComplete, QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, encodeChallenge } from '@engine/challenge'
 import { getFormation } from '@engine/formations'
 import { ratingAt } from '@engine/positions'
-import { closeJanuary, kickOff, QUICK_EUROPE_PLACES, quickSeasonGames, quickUserInput, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
+import { closeJanuary, kickOff, quickSeasonGames, quickUserInput, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
 import { JANUARY_BUDGET_FLOOR, JANUARY_LISTINGS, JANUARY_SHORTLIST, JANUARY_SIGN_GAIN, januaryBudget, januaryShortlist, weakestSlots } from '../logic/january'
-import { foldResults, januaryLine, europeLine, nextReveal, playbackDelay, playbackFrame, PLAYBACK_STEP_MS } from '../logic/gameByGame'
+import { foldResults, januaryLine, europeLine, nextReveal, parsePlaybackSpeed, playbackDelay, playbackFrame, PLAYBACK_STEP_MS } from '../logic/gameByGame'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
+import { settleManager } from '../logic/managers'
 import { createGame, dailyGameSettings, DAILY_SEASON, summariseSetup } from '../logic/setup'
 import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
@@ -71,6 +72,8 @@ describe('the January window of a quick season', { timeout: 90_000 }, () => {
     const rng = Rng.fromState(plain.rngState)
     autoDraft(u, plain.draft!, rng)
     plain.rngState = rng.getState()
+    // The same manager the kick-off step settles on (the first offered), which draws nothing
+    settleManager(plain)
     runQuickSeason(plain, u)
     const passed = drafted({ seed: 'jan-2' })
     kickOff(passed, u)
@@ -374,12 +377,19 @@ describe('challenge links carry the season’s choices', { timeout: 90_000 }, ()
   })
 
   it('a default season writes no season block, so older links and untouched seasons look the same', () => {
-    const g = drafted({ seed: 'jan-1' })
+    const g = drafted({ seed: 'jan-1', rules: { ...QUICK_RULES, leagues: ['england'], managers: false } })
     kickOff(g, u)
     closeJanuary(g, u, null)
     const c = challengeFromGame(g, u, 'Minh')!
     expect(c.x).toBeUndefined()
     expect(replayChallenge(u, c).verified).toBe('yes')
+    // With a manager (the Quick Draft default) the block holds only him
+    const m = drafted({ seed: 'jan-1' })
+    kickOff(m, u)
+    closeJanuary(m, u, null)
+    const cm = challengeFromGame(m, u, 'Minh')!
+    expect(cm.x).toEqual({ m: m.manager!.id })
+    expect(replayChallenge(u, cm).verified).toBe('yes')
   })
 
   it('refuses a season block holding unknown keys or values', () => {
@@ -405,9 +415,9 @@ describe('the Daily pins its season options', () => {
     expect(DAILY_SEASON).toEqual({ january: true, continental: false })
   })
 
-  it('names a quick draft without the window, or with the run, in the setup line', () => {
+  it('names a quick draft without the window in the setup line, and no Continental Cup option (the cups come after the league)', () => {
     expect(summariseSetup(u, settings({ seed: 'S', january: false }))).toContain('no January window')
-    expect(summariseSetup(u, settings({ seed: 'S', continental: true }))).toContain('Continental Cup run')
+    expect(summariseSetup(u, settings({ seed: 'S', continental: true }))).not.toMatch(/Continental/)
     expect(summariseSetup(u, settings({ seed: 'S' }))).not.toMatch(/January|Continental/)
   })
 })
@@ -436,13 +446,14 @@ describe('the playback helpers', () => {
     expect(playbackFrame(results, 2).totals).toMatchObject({ played: 2, points: 4, position: 3 })
   })
 
-  it('stops at the January pause and at the last game, at 700, 350 or 175 ms a game', () => {
+  it('stops at the January pause and at the last game, at 3000, 1500, 750 or 375 ms a game', () => {
     expect(nextReveal(1, 4, 2)).toBe(2)
     expect(nextReveal(2, 4, 2)).toBe(2)
     expect(nextReveal(4, 4)).toBe(4)
     expect(playbackFrame(results, 2, 2).done).toBe(true)
-    expect(PLAYBACK_STEP_MS).toBe(700)
-    expect([playbackDelay(1), playbackDelay(2), playbackDelay(4)]).toEqual([700, 350, 175])
+    expect(PLAYBACK_STEP_MS).toBe(1500)
+    expect([playbackDelay(0.5), playbackDelay(1), playbackDelay(2), playbackDelay(4)]).toEqual([3000, 1500, 750, 375])
+    expect([parsePlaybackSpeed('0.5'), parsePlaybackSpeed('4'), parsePlaybackSpeed(null), parsePlaybackSpeed('3'), parsePlaybackSpeed('')]).toEqual([0.5, 4, 1, 1, 1])
   })
 
   it('words January business and the European run for the share text', () => {
@@ -455,42 +466,18 @@ describe('the playback helpers', () => {
   })
 })
 
-describe('the Continental Cup run', { timeout: 90_000 }, () => {
+describe('the Continental Cup run of older quick seasons', { timeout: 90_000 }, () => {
   const big = loadTestUniverse(['england', 'spain', 'italy', 'germany'])
 
-  it('follows a top-four finish when the option is on, without touching the league season', () => {
-    let found = 0
-    for (const seed of ['euro-1', 'euro-2', 'euro-3', 'euro-4', 'euro-5', 'euro-6']) {
+  it('is no longer played inside the league season: the old option changes nothing', () => {
+    for (const seed of ['euro-1', 'euro-2']) {
       const on = drafted({ seed, continental: true, january: false }, big)
       kickOff(on, big)
       const off = drafted({ seed, january: false }, big)
       kickOff(off, big)
-      const { europe, ...league } = on.quickResult!
-      expect(league).toEqual(off.quickResult)
+      expect(on.quickResult!.europe).toBeUndefined()
+      expect(on.quickResult).toEqual(off.quickResult)
       expect(on.rngState).toEqual(off.rngState)
-      if (on.quickResult!.position > QUICK_EUROPE_PLACES) {
-        expect(europe).toBeUndefined()
-        continue
-      }
-      found++
-      expect(europe).toBeDefined()
-      const rounds = europe!.ties.map((t) => t.round)
-      expect(['R16', 'QF', 'SF', 'F'].slice(0, rounds.length)).toEqual(rounds)
-      // Through every tie but possibly the last; out in the last unless the final was won
-      expect(europe!.ties.slice(0, -1).every((t) => t.won)).toBe(true)
-      const last = europe!.ties.at(-1)!
-      expect(europe!.reached).toBe(last.won && last.round === 'F' ? 'W' : last.round)
-      if (!last.won) expect(rounds.length).toBe(rounds.indexOf(last.round) + 1)
-      for (const t of europe!.ties) {
-        expect(big.clubById[t.opponentId]?.leagueId).not.toBe('england')
-        if (t.gf === t.ga) expect(t.pens).toBeDefined()
-        else expect(t.won).toBe(t.gf > t.ga)
-      }
-      // The same seed, the same run
-      const again = drafted({ seed, continental: true, january: false }, big)
-      kickOff(again, big)
-      expect(again.quickResult!.europe).toEqual(europe)
     }
-    expect(found).toBeGreaterThan(0)
   })
 })

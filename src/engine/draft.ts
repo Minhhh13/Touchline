@@ -74,6 +74,12 @@ export interface DraftRules {
    * Re-roll season, Peek, Swap, Captain's armband and Lock). Quick Draft only, never the Daily. Off when absent.
    */
   powerUps?: boolean
+  /**
+   * Quick Draft managers: once the draft is done the user picks a manager from the real managers of the club-seasons
+   * drafted (`src/engine/managers.ts`), whose style gives a small edge. On in `QUICK_RULES`, off in the Daily; read as
+   * off when absent, so older saves and every other mode are unchanged.
+   */
+  managers?: boolean
   /** The wheel may land on classic club-seasons (1992-93 to 2007-08, estimated ratings). Off when omitted, so older saves and links are unchanged. */
   classic?: boolean
 }
@@ -173,7 +179,7 @@ export const TWISTS: readonly Twist[] = ['golden', 'basement', 'blind', 'decade'
 /** A twist arrives on every spin whose number is a multiple of this. */
 export const TWIST_EVERY = 3
 
-export const QUICK_RULES: DraftRules = { squadSize: 11, respins: DIFFICULTY_RESPINS.normal, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true, twists: true, difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season' }
+export const QUICK_RULES: DraftRules = { squadSize: 11, respins: DIFFICULTY_RESPINS.normal, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true, twists: true, difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season', managers: true }
 export const SEASON_RULES: DraftRules = { squadSize: 18, respins: DIFFICULTY_RESPINS.easy, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: false, twists: false, difficulty: 'easy', showRatings: true, draftMode: 'squad', ratings: 'season' }
 
 export interface DraftState {

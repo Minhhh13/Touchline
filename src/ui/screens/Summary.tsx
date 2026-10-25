@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Briefcase, Check, ChevronDown, Copy, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
-import { USER_TEAM, computeTable } from '@engine/season'
+import { USER_TEAM, computeTable, tierBlurb } from '@engine/season'
 import { shareText } from '@engine/awards'
 import { powerUpsShareLine } from '@game/logic/powerups'
 import { getFormation } from '@engine/formations'
@@ -23,7 +23,7 @@ import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { APP_NAME } from '../brand'
-import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
+import { challengeFromGame, challengeLink, claimCupsLine, claimOf, verdictLine } from '@game/logic/challenge'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
@@ -32,6 +32,11 @@ import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
+import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { CupRuns } from '../components/CupRuns'
+import { ManagerChip } from '../components/ManagerPick'
+import { managerLine } from '@game/logic/managers'
+import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
 
 export function Summary() {
@@ -41,6 +46,12 @@ export function Summary() {
   const [cardUrl, setCardUrl] = useState<string | null>(null)
   // The game whose highlights are open, by matchweek
   const [hlWeek, setHlWeek] = useState<number | null>(null)
+  // The post-season cups being revealed tie by tie (both can be at once): the banner keeps each trophy back until its run is shown
+  const [revealingCups, setRevealingCups] = useState<QuickCupComp[]>([])
+  const onCupReveal = useCallback((comp: QuickCupComp, on: boolean) => setRevealingCups((list) => (on ? (list.includes(comp) ? list : [...list, comp]) : list.filter((c) => c !== comp))), [])
+  // A challenge link made before a cup was played would leave the cup out: make it again on the next click
+  const cupClaim = `${game?.quickResult?.cup?.reached ?? ''}|${game?.quickResult?.continentalCup?.reached ?? ''}`
+  useEffect(() => setLink(null), [cupClaim])
   // Every hook runs before the early return below
   const q = game?.quickResult
   const season = game?.season
@@ -54,6 +65,10 @@ export function Summary() {
   // Every game of a quick season, game by game; the replay is UI state only
   const results = q?.results ?? []
   const replay = useSeasonReplay(results.length)
+  // The 38-0 chase: the record against a perfect season of this league's length, and the runs from the first game
+  const games = results.length || (q ? Math.max(0, (q.table.length - 1) * 2) : 38)
+  const chase = chaseAt(results)
+  const bests = profile.quickBests ?? emptyBests()
   const leagueId = game?.settings.leagueId ?? ''
   // Where this season sits against every complete real season of the league with the same number of matches
   const bench = useMemo(() => (!u || !record || season?.sacked ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked])
@@ -91,6 +106,11 @@ export function Summary() {
     const landed = (game.draft?.history ?? []).flatMap((h): Twist[] => (h.pickedId && h.twist ? [h.twist] : [])).map((t) => TWIST_INFO[t].icon)
     extraLines.push(landed.length ? `Twists ${landed.join(' ')}` : 'Twists 🎲')
   }
+  // The Quick Draft's manager, by name and style
+  const mgrLine = managerLine(game.manager)
+  if (mgrLine) extraLines.push(mgrLine)
+  // The 38-0 chase in the share text: how long the perfect run lasted, for a season short of perfect
+  if (q && results.length && chase.perfectRun < games) extraLines.push(runsLine(chase))
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
@@ -102,6 +122,11 @@ export function Summary() {
   if (benchLine) extraLines.push(benchLine)
   const euroLine = europeLine(q?.europe)
   if (euroLine) extraLines.push(euroLine)
+  // The post-season cups, once played and revealed
+  const cupsShown = (comp: QuickCupComp) => !revealingCups.includes(comp)
+  for (const [line, comp] of [[cupLine(q?.cup, 'cup'), 'cup'], [cupLine(q?.continentalCup, 'continental'), 'continental']] as Array<[string | null, QuickCupComp]>) if (line && cupsShown(comp)) extraLines.push(line)
+  const quickCupWon = cupsShown('cup') && wonCup(q, 'cup')
+  const quickEuroWon = (cupsShown('continental') && q?.continentalCup?.reached === 'W') || q?.europe?.reached === 'W'
   // A classic pick or a classic league season: the numbers are TouchLine's estimate, and the share says so
   // The player-seasons themselves, so a dynasty's aged copy still counts by the club-season it was drafted from
   const estimated = estimatedNote(u, Object.values(game.lineup).map((id) => get(id) ?? id), game.settings.leagueId, game.settings.leagueSeason)
@@ -114,9 +139,11 @@ export function Summary() {
     tier,
     row,
     position: record.position,
-    cupWon: season?.cupWon ?? false,
-    continentalWon: season?.continental?.won ?? q?.europe?.reached === 'W',
+    cupWon: season?.cupWon ?? quickCupWon,
+    continentalWon: season?.continental?.won ?? quickEuroWon,
     leagueSeason: game.settings.leagueSeason,
+    // A quick season's XI is the user's team, never "as" the club whose place it takes
+    hostClubName: game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? clubName(u, game.settings.hostClubId) : '',
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
     seed: game.settings.mode === 'daily' ? undefined : game.settings.seed,
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
@@ -173,7 +200,7 @@ export function Summary() {
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
-        subtitle: `${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
+        subtitle: `${q ? `${recordLabel(record.won, record.drawn, record.lost)} · ` : ''}${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
         tier,
         row,
         position: record.position,
@@ -212,7 +239,7 @@ export function Summary() {
   )
 
   return (
-    <div className="page summary">
+    <div className="page summary" data-testid="summary">
       <div className="tier-banner">
         <div className="banner-meta">
           <span className="bm-team">
@@ -220,10 +247,21 @@ export function Summary() {
             {game.settings.teamName}
           </span>
           <span className="bm-rest">
-            <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {game.settings.mode === 'quick' ? '' : `${seasonLabel(game.settings.leagueSeason)} · `}{modeName}
+            {game.settings.mode === 'quick' ? <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> : <><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {modeName}</>}
             {modeLine && <span data-testid="summary-modes">{` · ${modeLine}`}</span>}
           </span>
         </div>
+        {q && !replay.playing && (
+          <div className={`versus-perfect ${record.won >= games && games > 0 ? 'perfect' : record.lost === 0 ? 'unbeaten' : ''}`} data-testid="versus-perfect">
+            <span className="vp-record" data-testid="versus-perfect-record">{recordLabel(record.won, record.drawn, record.lost)}</span>
+            <span className="vp-against">against {perfectTarget(games)}</span>
+            <span className="vp-line small">{versusPerfectLine(record.won, record.lost, games)}</span>
+            <span className="vp-runs small muted" data-testid="versus-perfect-runs">
+              {runsLine(chase)}
+              {bests.longestPerfectRun ? ` · your best run ${bests.longestPerfectRun}-0` : ''}
+            </span>
+          </div>
+        )}
         {replay.playing ? (
           <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">
             Season in play…
@@ -232,12 +270,17 @@ export function Summary() {
           <div className="tier-wrap">
             <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} />
             <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-              {tierName(tier)}
+              {tierName(tier, record.position)}
             </div>
           </div>
         )}
-        {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!replay.playing && (
+          <p className="tier-blurb" data-testid="tier-blurb">
+            {tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+          </p>
+        )}
+        {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
+        {!q && !replay.playing && (
           <div className="record">
             <span className="w">
               <CountUp value={record.won} />W
@@ -272,8 +315,9 @@ export function Summary() {
           </div>
         )}
         <div className="banner-chips">
-          {!replay.playing && season?.cupWon && iconChip(Trophy, 'Cup winners', 'gold')}
-          {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && iconChip(Globe, 'Continental champions', 'gold')}
+          {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, 'Cup winners', 'gold')}</span>}
+          {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, 'Continental champions', 'gold')}</span>}
+          {game.manager && <ManagerChip manager={game.manager} />}
           {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
           {season?.sacked && <span className="chip bad">Sacked</span>}
           {tags.map((t) => (
@@ -330,11 +374,14 @@ export function Summary() {
 
       {/* Everything under the result: on a desktop one panel that scrolls inside itself */}
       <div className="summary-body fill" data-testid="summary-body">
+      {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
       {q && results.length > 0 && (
         <GameByGame
           results={results}
           opponent={(id) => ({ clubId: id, name: clubName(u, id) })}
           replay={replay}
+          orderToggle
+          strip={false}
           fold={8}
           onHighlights={
             canShowHighlights(game)
@@ -442,6 +489,7 @@ export function Summary() {
                   {challenge.claim.pts} pts · {tierName(challenge.claim.t)} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
                 </span>
               </div>
+              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
               {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{challenge.name}'s picks could not be resolved on this data.</div>}
             </div>
             <div className="col">
@@ -451,6 +499,7 @@ export function Summary() {
                   {mine.pts} pts · {tierName(mine.t)} · {mine.w}-{mine.d}-{mine.l}
                 </span>
               </div>
+              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
             </div>
           </div>
@@ -642,7 +691,7 @@ export function Summary() {
         <div className="col">
           <div className="panel">
             <h3>
-              <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> Final table · {seasonLabel(game.settings.leagueSeason)}
+              <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> Final table{game.settings.mode === 'quick' ? '' : ` · ${seasonLabel(game.settings.leagueSeason)}`}
             </h3>
             <div className="tbl-wrap">
               <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop />
@@ -694,7 +743,7 @@ export function Summary() {
                           <td className="num">{h.points}</td>
                           <td>
                             <span className="row" style={{ gap: 4 }}>
-                              {tierName(h.tier)}
+                              {tierName(h.tier, h.position)}
                               {h.cupWon && (
                                 <span className="chip gold icon-chip" title="Cup winners">
                                   <Medal size={12} aria-hidden="true" /> Cup
