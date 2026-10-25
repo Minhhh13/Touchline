@@ -13,6 +13,7 @@ import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { isQuickLike } from './logic/modes'
+import { capOfGame } from './logic/cap'
 import { advanceStreak, streakDay } from './logic/streaks'
 import { alreadyCredited, creditArena, creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
@@ -641,6 +642,8 @@ export const useStore = create<Store>()(
             nation: game.settings.rules.onlyNation,
             ...(game.settings.challenge ? { challenge: { name: game.settings.challenge.name, points: game.settings.challenge.claim.pts } } : {}),
           }
+          const cap = capOfGame(game)
+          if (cap) Object.assign(entry, cap)
           const moment = storyForGame(game, universe)?.moment
           if (moment) entry.moment = moment
           // Once per result: the leaderboard holds the best 50, the cabinet remembers the last few credited beyond them

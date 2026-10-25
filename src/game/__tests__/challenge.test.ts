@@ -285,7 +285,9 @@ describe('challenge payload v2 gate', () => {
     expect(() => decodeChallenge(b64({ ...v2, arena: { f: 'cup' } }))).toThrow('Not a Touchline challenge link')
     // A v1 link carrying a rule v1 builds never wrote
     expect(() => decodeChallenge(b64({ ...c, s: { ...c.s, r: { budget: 500 } } }))).toThrow('Not a Touchline challenge link')
-    expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 500 } } }))).toThrow('Not a Touchline challenge link')
+    // The salary cap is a v2 rule now: a v2 link may carry one in range, never one outside it or of the wrong type
+    expect(decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 500 } } })).s.r).toEqual({ budget: 500 })
+    for (const budget of [5000, 49, '180', null]) expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget } } })), String(budget)).toThrow('Not a Touchline challenge link')
   })
 
   it('picks the payload version from the rule keys and the kind', () => {
@@ -297,5 +299,27 @@ describe('challenge payload v2 gate', () => {
     expect(payloadVersionFor(everyRule, 'quick')).toBe(1)
     expect(payloadVersionFor({ budget: 500 } as unknown as Partial<typeof QUICK_RULES>, 'quick')).toBe(2)
     expect(payloadVersionFor({}, 'arena')).toBe(2)
+  })
+
+  it('a capped quick draft travels as v2, round-trips, replays and verifies; a tampered cap does not', () => {
+    const g = autoGame({ seed: 'GHOST-CAP', rules: { ...QUICK_RULES, leagues: ['england'], budget: 150 } })
+    expect(g.draft!.spent!).toBeLessThanOrEqual(150)
+    const c = challengeFromGame(g, u, 'Minh')!
+    expect(c.v).toBe(2)
+    expect(c.v === 2 && c.kind).toBe('quick')
+    expect(c.s.r).toEqual({ budget: 150 })
+    expect(payloadVersionFor(c.s.r, 'quick')).toBe(2)
+    const back = decodeChallenge(encodeChallenge(c))
+    expect(back).toEqual(c)
+    expect(rulesFromPayload(back).budget).toBe(150)
+    const out = replayChallenge(u, back)
+    expect(out.verified).toBe('yes')
+    expect(out.result).toEqual(c.c)
+    // The friend's game plays under the same cap
+    const s = settingsFromChallenge(back, 'Friend XI', 'FXI', challengeSettings(back, out))
+    expect(s.rules.budget).toBe(150)
+    // A cap too small for the picks cannot replay them
+    const tight = replayChallenge(u, { ...back, s: { ...back.s, r: { budget: 50 } } })
+    expect(tight.verified).toBe('no')
   })
 })

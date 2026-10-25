@@ -87,6 +87,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'cup-32', title: 'The Long Road', description: 'Win a 32-club Cup.', icon: '🛣️' },
   { id: 'giant-slayers', title: 'Giant Slayers', description: 'Win the Cup against the giants field.', icon: '⚔️' },
   { id: 'clean-run', title: 'Clean Run', description: 'Win the Cup without conceding a goal.', icon: '🧤' },
+  { id: 'moneyball', title: 'Bargain Hunters', description: 'Win the league on a £150M cap or less (a bigger squad\'s cap counted back to its XI).', icon: '💰' },
 ]
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))

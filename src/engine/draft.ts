@@ -34,6 +34,11 @@ export interface DraftRules {
   uniqueClubSeasons: boolean
   /** Every third spin carries a twist (section 5 of the design doc). Off when omitted, so older saves are unchanged. */
   twists?: boolean
+  /**
+   * Salary cap in £M (the Moneyball wheel): every player carries an age-neutral price (`capPrice`) and the draft
+   * may not spend more than this. Off when omitted, so a draft without it draws and plays exactly as before.
+   */
+  budget?: number
 }
 
 /**
@@ -71,6 +76,8 @@ export interface DraftState {
   history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist; skipped?: boolean }>
   /** The twist on the spin currently showing; null (or absent, in an older save) when the spin is a plain one. */
   twist?: Twist | null
+  /** £M spent under the salary cap; absent when the draft has no cap, or before its first pick. */
+  spent?: number
 }
 
 export function newDraft(formation: Formation, rules: DraftRules): DraftState {
@@ -127,6 +134,94 @@ export function fillingXI(d: DraftState): boolean {
   return openSlots(d).length > 0
 }
 
+/**
+ * The salary cap's price of a player by his first position: the data pipeline's own model value
+ * (`scripts/import/build.mjs`) at peak age, so it ignores age on purpose. On the real `value` an
+ * 80+ player of 33 costs about a quarter of a younger one, and a quick season has no ageing, so
+ * the oldest good man in every squad would be the only plan.
+ */
+export const POS_FACTOR: Record<Position, number> = { GK: 0.75, CB: 0.9, LB: 0.85, RB: 0.85, DM: 1, CM: 1, AM: 1.1, LW: 1.1, RW: 1.1, ST: 1.15 }
+/** The cheapest price any player carries, £M. */
+export const CAP_MIN_PRICE = 0.3
+/** £M the cap keeps back for every pick still to make after this one, so the wheel never runs dry: every position has players at this price or less. */
+export const BUDGET_FLOOR = 0.5
+/** How much a preset grows for each pick beyond eleven: Moneyball's £180M is £252M for 16 picks. */
+export const CAP_SQUAD_STEP = 0.08
+
+const round1 = (x: number) => Math.round(x * 10) / 10
+
+/** A player's price under the salary cap, £M to one decimal: `max(0.3, 0.25 × 1.21^(rating − 60) × POS_FACTOR)`. */
+export function capPrice(p: Pick<PlayerSeason, 'overall' | 'positions'>, rating: number = p.overall): number {
+  return Math.max(CAP_MIN_PRICE, round1(0.25 * Math.pow(1.21, rating - 60) * (POS_FACTOR[p.positions[0]] ?? 1)))
+}
+
+/** A cap set for an XI, scaled to a squad of `squadSize` picks, whole £M. */
+export function capForSquad(xiCap: number, squadSize: number): number {
+  return Math.round(xiCap * (1 + CAP_SQUAD_STEP * (squadSize - 11)))
+}
+
+/** The XI cap a squad's budget was scaled from (the inverse of `capForSquad`, before its rounding). */
+export function xiCapOf(budget: number, squadSize: number): number {
+  return budget / (1 + CAP_SQUAD_STEP * (squadSize - 11))
+}
+
+/** £M spent so far under the cap (0 without one). */
+export function capSpent(d: DraftState): number {
+  return d.spent ?? 0
+}
+
+/** The most the next pick may cost: what is left of the cap after keeping `BUDGET_FLOOR` for every pick still to make after it. Infinite without a cap. */
+export function capRoom(d: DraftState): number {
+  const budget = d.rules.budget
+  if (budget === undefined) return Infinity
+  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+  return round1(budget - capSpent(d) - BUDGET_FLOOR * after)
+}
+
+/** The one affordability rule every usability check shares: always true without a cap. */
+export function affordable(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions'>, price?: number): boolean {
+  // Without a cap nothing is priced, so a cap-less draft costs no more than it did
+  return d.rules.budget === undefined || (price ?? capPrice(p)) <= capRoom(d) + 1e-9
+}
+
+/** How far over the room a player's price is, £M (0 when affordable or without a cap). */
+export function capOverBy(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions'>): number {
+  return affordable(d, p) ? 0 : round1(capPrice(p) - capRoom(d))
+}
+
+/**
+ * Under a cap the assistant spreads the money: it drafts the best man priced at no more than this many
+ * times an even share of what is left (the cheapest usable man when nobody is). Buying the best it can
+ * afford on every spin spends the cap on the first two picks: over 60 seeds a £180M XI drafted that way
+ * scored 42 points on average, spread at twice the share 61 (no cap: 69).
+ */
+export const CAP_AUTO_STRETCH = 2
+
+/** The candidates the assistant weighs under a cap: those within `CAP_AUTO_STRETCH` shares, else the cheapest; everyone without a cap. */
+function capCandidates(d: DraftState, candidates: PlayerSeason[]): PlayerSeason[] {
+  if (d.rules.budget === undefined) return candidates
+  const share = (d.rules.budget - capSpent(d)) / Math.max(1, d.rules.squadSize - picksMade(d))
+  const within = candidates.filter((p) => capPrice(p) <= share * CAP_AUTO_STRETCH)
+  if (within.length) return within
+  const cheapest = Math.min(...candidates.map((p) => capPrice(p)))
+  return candidates.filter((p) => capPrice(p) === cheapest)
+}
+
+/** £M with one decimal, as the cap's messages write it (`£52.0M`). */
+export function capMoney(m: number): string {
+  return `£${m.toFixed(1)}M`
+}
+
+/** Why a player cannot be afforded, or null when he can: `Rodri (£52.0M) would take you £14.0M over the cap`. */
+export function capRefusal(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions' | 'name'>): string | null {
+  if (affordable(d, p)) return null
+  const price = capPrice(p)
+  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+  // Within the cap itself, it is the money kept for the picks still to make that rules him out
+  const reserve = d.rules.budget !== undefined && price <= d.rules.budget - capSpent(d) + 1e-9 && after > 0
+  return `${p.name} (${capMoney(price)}) would take you ${capMoney(capOverBy(d, p))} over the cap${reserve ? `, keeping ${capMoney(BUDGET_FLOOR)} for each of the ${after} picks still to make` : ''}`
+}
+
 /** The nationality rule, when the draft has one. */
 export function nationAllows(d: DraftState, p: PlayerSeason): boolean {
   return !d.rules.onlyNation || p.nationality === d.rules.onlyNation
@@ -135,12 +230,13 @@ export function nationAllows(d: DraftState, p: PlayerSeason): boolean {
 export function canUse(d: DraftState, p: PlayerSeason): boolean {
   if (d.takenPlayers.includes(p.playerId)) return false
   if (!nationAllows(d, p)) return false
+  if (!affordable(d, p)) return false
   if (fillingXI(d)) return openSlots(d).some((s) => canCover(p, s.position, d.rules.minFit))
   return true
 }
 
 export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'] {
-  if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p)) return []
+  if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p) || !affordable(d, p)) return []
   return openSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
 }
 
@@ -234,6 +330,8 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
   if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
   if (!nationAllows(d, p)) throw new Error(`${p.name} is not ${u.nations[d.rules.onlyNation ?? '']?.name ?? d.rules.onlyNation}`)
+  const refusal = capRefusal(d, p)
+  if (refusal) throw new Error(refusal)
   if (slotId === 'bench') {
     if (fillingXI(d)) throw new Error('Fill your starting XI first')
     if (isComplete(d)) throw new Error('Squad complete')
@@ -246,6 +344,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
     d.lineup[slot.id] = p.id
   }
   d.takenPlayers.push(p.playerId)
+  if (d.rules.budget !== undefined) d.spent = round1(capSpent(d) + capPrice(p))
   d.usedClubSeasons.push(`${d.current.clubId}@${d.current.season}`)
   d.history.push({ ...d.current, pickedId: p.id, slotId: slotId === 'bench' ? null : slotId, ...(d.twist ? { twist: d.twist } : {}) })
   d.current = null
@@ -277,7 +376,7 @@ export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
   while (!isComplete(d) && guard++ < 200) {
     if (!canSpin(u, d)) break
     const cs = spin(u, d, rng)
-    const candidates = cs.squad.filter((p) => canUse(d, p))
+    const candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))
     if (!candidates.length) {
       d.current = null
       d.twist = null

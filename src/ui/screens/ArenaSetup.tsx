@@ -11,6 +11,8 @@ import { GAUNTLET_CEILING } from '@engine/gauntlet'
 import { randomSeed } from '@engine/rng'
 import { ClubBadge, Segmented } from '../components/bits'
 import { seasonLabel } from '../format'
+import { CapControl } from '../components/CapControl'
+import { capXI, DEFAULT_CAP_CHOICE, type CapChoice } from '@game/logic/cap'
 
 type Era = 'all' | 'early' | 'mid' | 'modern'
 
@@ -58,6 +60,7 @@ export function ArenaSetup() {
   const [seed, setSeed] = useState(() => randomSeed())
   const [hardMode, setHardMode] = useState(false)
   const [twists, setTwists] = useState(true)
+  const [cap, setCap] = useState<CapChoice>(DEFAULT_CAP_CHOICE)
   const [hostClubId, setHostClubId] = useState('')
   const [advanced, setAdvanced] = useState(readAdvanced)
   const moreRef = useRef<HTMLDivElement>(null)
@@ -88,7 +91,7 @@ export function ArenaSetup() {
   const buildSettings = (preview: boolean): GameSettings | null => {
     if (!ready || !season) return null
     const name = teamName.trim() || 'Touchline XI'
-    const c = { teamName: name, formationId, field, wheelLeagues, ...eraRange(era, u.firstSeason), difficulty, seed: seed.trim() || (preview ? 'drawn when you start' : randomSeed()), hardMode, twists, hostClubId: hostClubId || undefined, size, decade }
+    const c = { teamName: name, formationId, field, wheelLeagues, ...eraRange(era, u.firstSeason), difficulty, seed: seed.trim() || (preview ? 'drawn when you start' : randomSeed()), hardMode, twists, hostClubId: hostClubId || undefined, size, decade, capXI: capXI(cap) }
     return gauntlet ? gauntletGameSettings(u, c, shortNameFor(name)) : cupGameSettings(u, c, shortNameFor(name))
   }
   const preview = buildSettings(true)
@@ -239,6 +242,7 @@ export function ArenaSetup() {
                   <input type="checkbox" checked={twists} onChange={(e) => setTwists(e.target.checked)} />
                   Twists: every third spin is golden, basement, blind or decade
                 </label>
+                <CapControl value={cap} onChange={setCap} squadSize={gauntlet ? GAUNTLET_SQUAD : CUP_SQUAD} />
                 {clubs.length > 0 && (
                   <label className="field">
                     Colours

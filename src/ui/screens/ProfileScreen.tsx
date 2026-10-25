@@ -8,6 +8,7 @@ import type { LeaderboardEntry } from '@game/types'
 import { MODE_TITLE, arenaFormatLabel } from '@game/logic/modes'
 import { arenaClubName } from '@game/logic/arena'
 import { arenaTierLabel } from '@engine/knockout'
+import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
@@ -223,7 +224,7 @@ export function ProfileScreen() {
             </span>
           </div>
           {profile.leaderboard.length === 0 && <div className="muted small">Nothing yet. Spin the wheel.</div>}
-          {profile.leaderboard.length > 0 && board.length === 0 && <div className="muted small">No {BOARD_FILTERS.find((f) => f.value === filter)?.label} seasons yet.</div>}
+          {profile.leaderboard.length > 0 && board.length === 0 && <div className="muted small">{BOARD_FILTERS.find((f) => f.value === filter)?.empty ?? `No ${BOARD_FILTERS.find((f) => f.value === filter)?.label} seasons yet.`}</div>}
           <table className="tbl">
             <thead>
               <tr>
@@ -246,6 +247,7 @@ export function ProfileScreen() {
                       <ClubBadge clubId={e.hostClubId} size={20} /> {e.teamName}
                       {e.nation && <Flag nation={e.nation} />}
                       {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">Best on this wheel · {runs.length} runs</span> : <span className="chip">{ordinal(rank)} of {runs.length} on this wheel</span>)}
+                      {e.budget !== undefined && <span className="chip" data-testid="entry-cap" title={`Drafted under a ${capTotal(e.budget)} salary cap`}>£ {capTotal(e.spent ?? 0)} of {capTotal(e.budget)}</span>}
                       {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
                     </span>
                     <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>

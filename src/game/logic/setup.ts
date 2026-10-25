@@ -107,6 +107,7 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) parts.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
   if (r.hardMode) parts.push('hard mode')
+  if (r.budget !== undefined) parts.push(`cap £${r.budget}M`)
   const manage = s.mode === 'season' || s.mode === 'dynasty'
   // Twists are on by default for a quick draft and off for a managed season: only a change from that is worth a word
   const twistsDefault = !!(manage ? SEASON_RULES.twists : QUICK_RULES.twists)
@@ -176,6 +177,8 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     }
     game.lineup = { ...d.lineup }
     game.bench = [...d.bench]
+    // The salary cap's spend outlives the draft, for the summary and the Record page
+    if (d.spent !== undefined) game.capSpent = d.spent
     // A summer signing made while the wheel was still spinning is in the squad but not the draft
     const placed = new Set([...Object.values(game.lineup), ...game.bench])
     for (const id of Object.keys(game.squad)) if (!placed.has(id)) game.bench.push(id)

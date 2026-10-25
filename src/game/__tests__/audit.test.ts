@@ -7,6 +7,7 @@ import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame } from '../logic/save'
+import { capOfGame } from '../logic/cap'
 import { rollEvent } from '@engine/events'
 import { newSquadPlayer, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
@@ -123,6 +124,7 @@ describe('audit fixes: season and squad', () => {
     delete old.pendingMove
     delete old.customPlayers
     delete old.arena
+    delete old.capSpent
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
     old.settings = oldSettings
@@ -133,6 +135,9 @@ describe('audit fixes: season and squad', () => {
     expect(n.pendingMove).toBeNull()
     expect(n.customPlayers).toEqual({})
     expect(n.arena).toBeNull()
+    // No salary cap before the Moneyball wheel: nothing to say about money
+    expect(n.settings.rules.budget).toBeUndefined()
+    expect(capOfGame(n)).toBeNull()
     expect(n.settings.wheelLeagues).toEqual(['england'])
     expect(n.squad).toBe(g.squad)
     expect(normaliseGame(null)).toBeNull()

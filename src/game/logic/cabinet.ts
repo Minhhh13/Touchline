@@ -241,18 +241,19 @@ export function leaguesWon(cabinet: Pick<Cabinet, 'hostsTitled'>, leaderboard: L
   return { leagues: [...leagues].sort(), unresolved }
 }
 
-/** The Record page's Best seasons filter. Arena and run-in results get their own tables. */
-export type BoardFilter = 'all' | 'quick' | 'season' | 'dynasty'
+/** The Record page's Best seasons filter. Arena and run-in results get their own tables. `budget` is every capped season, best value first. */
+export type BoardFilter = 'all' | 'quick' | 'season' | 'dynasty' | 'budget'
 
-export const BOARD_FILTERS: ReadonlyArray<{ value: BoardFilter; label: string }> = [
+export const BOARD_FILTERS: ReadonlyArray<{ value: BoardFilter; label: string; empty?: string }> = [
   { value: 'all', label: 'All' },
   { value: 'quick', label: 'Quick and Daily' },
   { value: 'season', label: 'Season' },
   { value: 'dynasty', label: 'Dynasty' },
+  { value: 'budget', label: 'Best on a budget', empty: 'No seasons on a salary cap yet. Set one under More options, Wheel rules.' },
 ]
 
 /** Which filter a mode's entries fall under, null for a mode that never files a season (the arena has Best runs). Exhaustive over `Mode`. */
-export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all'> | null {
+export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all' | 'budget'> | null {
   switch (mode) {
     case 'quick':
     case 'daily':
@@ -271,5 +272,7 @@ export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all'> | null {
 }
 
 export function filterBoard(entries: LeaderboardEntry[], filter: BoardFilter): LeaderboardEntry[] {
+  // Best on a budget: the seasons drafted under a salary cap, by points, then the smaller spend
+  if (filter === 'budget') return entries.filter((e) => e.budget !== undefined).sort((a, b) => b.points - a.points || (a.spent ?? 0) - (b.spent ?? 0))
   return filter === 'all' ? entries : entries.filter((e) => boardGroup(e.mode) === filter)
 }

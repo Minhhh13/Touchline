@@ -13,7 +13,7 @@
 import type { ArenaRunEntry, ArenaSettings, ArenaState, ArenaStep, Game, GameSettings, MatchContext, PendingShootout } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { autoDraft, picksMade, QUICK_RULES } from '@engine/draft'
+import { autoDraft, capForSquad, picksMade, QUICK_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { advanceMatch, beginMatch, finishMatch, onPitch, type FullMatchResult, type LiveChanges, type MatchInProgress, type MatchOptions, type MatchTeamInput, type SecondHalfOptions, type TeamLookups } from '@engine/match'
 import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, USER_TEAM, userTeamInput, type AiClub } from '@engine/season'
@@ -28,6 +28,7 @@ import { autoPick, lineupProblems } from './squad'
 import { defaultHostClub } from './setup'
 import { arenaFormatLabel } from './modes'
 import { resultId } from './cabinet'
+import { capLine, capTotal, grownBudget } from './cap'
 
 /** Players drafted for a one-off final. */
 export const FINAL_SQUAD = 16
@@ -102,6 +103,8 @@ export interface ArenaChoices {
   size?: CupSize
   /** The decade field's first year. */
   decade?: number
+  /** The salary cap for an XI, £M, scaled to the squad drafted; no cap when absent. */
+  capXI?: number
 }
 
 /** The latest complete season of a league (its latest season when none is complete). */
@@ -139,7 +142,7 @@ export function finalGameSettings(u: LoadedUniverse, c: ArenaChoices, shortName:
     wheelLeagues: c.wheelLeagues,
     hostClubId,
     leagueSeason,
-    rules: { ...QUICK_RULES, squadSize: FINAL_SQUAD, leagues: c.wheelLeagues, fromSeason: c.fromSeason, toSeason: c.toSeason, hardMode: c.hardMode, twists: c.twists },
+    rules: { ...QUICK_RULES, squadSize: FINAL_SQUAD, leagues: c.wheelLeagues, fromSeason: c.fromSeason, toSeason: c.toSeason, hardMode: c.hardMode, twists: c.twists, ...(c.capXI !== undefined ? { budget: capForSquad(c.capXI, FINAL_SQUAD) } : {}) },
     jobSecurity: false,
     difficulty: c.difficulty,
     continental: false,
@@ -155,7 +158,7 @@ export function cupGameSettings(u: LoadedUniverse, c: ArenaChoices, shortName: s
 /** The settings of a Gauntlet: a final's, with fourteen picks and no field (the ladder comes from the wheel's own leagues and era). */
 export function gauntletGameSettings(u: LoadedUniverse, c: Omit<ArenaChoices, 'field'>, shortName: string): GameSettings {
   const s = finalGameSettings(u, { ...c, field: 'wheel' }, shortName)
-  return { ...s, rules: { ...s.rules, squadSize: GAUNTLET_SQUAD }, arena: { format: 'gauntlet' } }
+  return { ...s, rules: { ...s.rules, squadSize: GAUNTLET_SQUAD, ...(c.capXI !== undefined ? { budget: capForSquad(c.capXI, GAUNTLET_SQUAD) } : {}) }, arena: { format: 'gauntlet' } }
 }
 
 /** The wheel in a few words, for the share text: `Premier League wheel`, `European Nights wheel`. */
@@ -175,6 +178,7 @@ export function summariseArena(u: LoadedUniverse, s: GameSettings): string {
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
   if (r.hardMode) parts.push('hard mode')
   if (!r.twists) parts.push('no twists')
+  if (r.budget !== undefined) parts.push(`cap ${capTotal(r.budget)}`)
   parts.push(`squad of ${r.squadSize}`, `in ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} colours`)
   return parts.join(', ')
 }
@@ -699,7 +703,9 @@ export function closeArenaMatch(game: Game): void {
   if (a.over) finishArena(game)
   else if (bonusSpinDue(game)) {
     const d = game.draft!
-    d.rules = { ...d.rules, squadSize: picksMade(d) + 1 }
+    // Under a salary cap the extra pick brings its share of the cap, as a bigger squad's preset would
+    const budget = d.rules.budget
+    d.rules = { ...d.rules, squadSize: picksMade(d) + 1, ...(budget !== undefined ? { budget: grownBudget(budget, d.rules.squadSize, picksMade(d) + 1) } : {}) }
     game.bonusSpins = 1
     game.phase = 'draft'
   } else if (game.phase === 'match') game.phase = 'week'
@@ -873,6 +879,13 @@ export function cupWinnerName(game: Game, u: LoadedUniverse): string | null {
 
 /** Everything the arena's share text prints, for a finished run (`arenaShareText`). */
 export function arenaShareInput(game: Game, u: LoadedUniverse): ArenaShareInput | null {
+  const input = arenaShareBody(game, u)
+  // Under a salary cap the money line closes the run's lines: `💰 £221M of a £252M cap`
+  const cap = capLine(game)
+  return input && cap ? { ...input, lines: [...(input.lines ?? []), cap] } : input
+}
+
+function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
   const a = game.arena
   if (!a?.over) return null
   const get = playerLookup(game, u)

@@ -157,6 +157,8 @@ const isBool = (x: unknown): x is boolean => typeof x === 'boolean'
 export const CHALLENGE_SQUAD_RANGE: readonly [number, number] = [11, 18]
 /** Most re-spins a link may grant. */
 export const CHALLENGE_RESPINS_MAX = 10
+/** The salary caps a link may carry, £M: the custom cap's floor up to a big squad's scaled Big Spender and more. */
+export const CHALLENGE_BUDGET_RANGE: readonly [number, number] = [50, 1000]
 
 /** What each draft rule may hold when it travels in a link; `leagues` never does (it is `wl`). */
 const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
@@ -171,6 +173,8 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   hardMode: isBool,
   uniqueClubSeasons: isBool,
   twists: isBool,
+  // A v2 rule: a capped link travels as version 2 (`payloadVersionFor`), so a v1 build reads it as newer
+  budget: (v) => isNumber(v) && v >= CHALLENGE_BUDGET_RANGE[0] && v <= CHALLENGE_BUDGET_RANGE[1],
 }
 
 /**

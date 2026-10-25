@@ -12,6 +12,8 @@ import { randomSeed } from '@engine/rng'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
+import { CapControl } from '../components/CapControl'
+import { capBudget, DEFAULT_CAP_CHOICE, type CapChoice } from '@game/logic/cap'
 
 type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
 
@@ -68,6 +70,7 @@ export function Setup() {
   const [hardMode, setHardMode] = useState(false)
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
+  const [cap, setCap] = useState<CapChoice>(DEFAULT_CAP_CHOICE)
   const [leagueSeason, setLeagueSeason] = useState(() => {
     if (!u) return 2025
     const complete = u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)
@@ -158,7 +161,7 @@ export function Setup() {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
-    const rules: DraftRules = fixed?.rules ?? { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode, twists, leagues: wheelLeagues }
+    const rules: DraftRules = fixed?.rules ?? { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode, twists, leagues: wheelLeagues, budget: capBudget(cap, base.squadSize) }
     return {
       // A challenge always plays as a quick draft, whatever seed it carries, so the Daily streak is never touched
       mode: challenge ? 'quick' : mode,
@@ -208,6 +211,7 @@ export function Setup() {
                 Same seed, same wheel, {fixed.difficulty} difficulty
                 {fixed.rules?.hardMode ? ', hard mode' : ''}
                 {fixed.rules?.twists ? ', twists on' : ', no twists'}
+                {fixed.rules?.budget !== undefined ? `, £${fixed.rules.budget}M cap` : ''}
                 {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
                 {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
                 {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(fixed.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
@@ -390,6 +394,7 @@ export function Setup() {
                     <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
                     Twists: every third spin is golden, basement, blind or decade
                   </label>
+                  <CapControl value={cap} onChange={setCap} squadSize={isManage ? squadSize : QUICK_RULES.squadSize} />
                   {isManage && u.available.length >= 2 && (
                     <label className="toggle" title="A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.">
                       <input

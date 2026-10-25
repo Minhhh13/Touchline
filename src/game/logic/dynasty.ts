@@ -158,7 +158,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   const lost = report.retired.length + report.expired.length + report.returned.length
   game.bonusSpins += Math.min(6, 2 + lost)
   const formation = getFormation(game.tactics.formationId)
-  const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1 })
+  const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1, budget: undefined })
   // Seed the draft with the existing squad: best eleven on the pitch, the rest on the bench,
   // so the bonus spins add squad depth wherever the wheel lands.
   for (const x of squadPlayers(game, u)) d.takenPlayers.push(x.p.playerId)

@@ -7,6 +7,7 @@ import type { ClubSeason } from '../types'
 import type { LoadedUniverse } from '../universe'
 import { getFormation } from '../formations'
 import { canCover } from '../positions'
+import { affordable, BUDGET_FLOOR, capForSquad, capPrice, capRoom, picksMade, xiCapOf } from '../draft'
 
 describe('draft', () => {
   const u = loadTestUniverse()
@@ -71,7 +72,7 @@ describe('one-nation draft', () => {
       expect(isComplete(auto)).toBe(true)
       for (const id of Object.values(auto.lineup)) expect(u.index[id].nationality).toBe('BRA')
     }
-  })
+  }, 30000) // 40 drafts, about 4 s alone: a sweep that hit the 5 s default on a loaded machine
 
   it('refuses a pick of another nationality and reports the nation by name', () => {
     const d = newDraft(getFormation('4-3-3'), rules)
@@ -289,4 +290,116 @@ describe('wheel twists', () => {
       expect(d.history.every((x) => x.twist === undefined)).toBe(true)
     }
   })
+})
+
+describe('salary cap (the Moneyball wheel)', () => {
+  const u = loadTestUniverse()
+  const capped = (budget: number): typeof QUICK_RULES => ({ ...QUICK_RULES, leagues: ['england'], budget })
+
+  it('prices by rating and first position on the model value at peak age', () => {
+    const cm = (rating: number) => capPrice({ overall: rating, positions: ['CM'] })
+    expect([70, 75, 80, 85, 88, 90, 92].map(cm)).toEqual([1.7, 4.4, 11.3, 29.3, 52, 76.1, 111.4])
+    expect(capPrice({ overall: 80, positions: ['ST'] })).toBe(13)
+    expect(capPrice({ overall: 80, positions: ['GK'] })).toBe(8.5)
+    // Nobody is free
+    expect(capPrice({ overall: 40, positions: ['GK'] })).toBe(0.3)
+    expect(capForSquad(180, 11)).toBe(180)
+    expect(capForSquad(180, 16)).toBe(252)
+    expect(capForSquad(180, 18)).toBe(281)
+    expect(xiCapOf(252, 16)).toBeCloseTo(180, 6)
+  })
+
+  it('ignores age: the same rating and position cost the same at 22 and 34', () => {
+    const young = { overall: 84, positions: ['CB' as const], age: 22 }
+    const old = { overall: 84, positions: ['CB' as const], age: 34 }
+    expect(capPrice(young)).toBe(capPrice(old))
+    // And on the real data: every rating and first position has one price, whatever the age of the men holding it
+    const byKey = new Map<string, Set<number>>()
+    const ages = new Map<string, Set<number>>()
+    for (const cs of u.clubSeasons)
+      for (const p of cs.squad) {
+        const key = `${p.overall}:${p.positions[0]}`
+        byKey.set(key, (byKey.get(key) ?? new Set()).add(capPrice(p)))
+        ages.set(key, (ages.get(key) ?? new Set()).add(p.age))
+      }
+    for (const [key, prices] of byKey) expect(prices.size, key).toBe(1)
+    expect([...ages.values()].some((a) => Math.min(...a) <= 22 && Math.max(...a) >= 34)).toBe(true)
+  })
+
+  it('100 seeded drafts on £120M complete under the cap, with the wheel alive before every spin', () => {
+    for (let i = 0; i < 100; i++) {
+      const d = newDraft(getFormation('4-3-3'), capped(120))
+      autoDraft(u, d, new Rng(`cap-${i}`))
+      expect(isComplete(d), `cap-${i}`).toBe(true)
+      expect(d.spent!).toBeLessThanOrEqual(120)
+      const ids = [...Object.values(d.lineup), ...d.bench]
+      expect(d.spent!).toBeCloseTo(ids.reduce((t, id) => t + capPrice(u.index[id]), 0), 6)
+    }
+    // By hand, the greediest way: the dearest player the cap allows on every spin, so the reserve is what saves the draft
+    for (let i = 0; i < 30; i++) {
+      const d = newDraft(getFormation('4-3-3'), capped(120))
+      const rng = new Rng(`cap-hand-${i}`)
+      while (!isComplete(d)) {
+        expect(canSpin(u, d), `cap-hand-${i} pick ${picksMade(d) + 1}`).toBe(true)
+        const cs = spin(u, d, rng)
+        const usable = cs.squad.filter((p) => canUse(d, p))
+        expect(usable.length).toBeGreaterThan(0)
+        for (const p of usable) expect(capPrice(p)).toBeLessThanOrEqual(capRoom(d) + 1e-9)
+        const p = usable.sort((a, b) => capPrice(b) - capPrice(a))[0]
+        pick(u, d, p.id, eligibleSlots(d, p)[0].id)
+        // The cap always keeps the floor for every pick still to make
+        expect(120 - d.spent! + 1e-9).toBeGreaterThanOrEqual(BUDGET_FLOOR * (d.rules.squadSize - picksMade(d)))
+      }
+      expect(d.spent!).toBeLessThanOrEqual(120)
+    }
+  }, 120000) // 1,500 capped spins, each pricing every player of every club-season: a sweep, not a unit test
+
+  it('refuses an over-cap pick with the price and the overshoot', () => {
+    const rng = new Rng('cap-throw')
+    for (let tries = 0; tries < 50; tries++) {
+      const d = newDraft(getFormation('4-3-3'), capped(50))
+      const cs = spin(u, d, rng)
+      // The dearest man in the squad who can fill a slot but costs more than the room left
+      const dear = cs.squad.filter((p) => d.formation.slots.some((s) => canCover(p, s.position, d.rules.minFit)) && !affordable(d, p)).sort((a, b) => capPrice(b) - capPrice(a))[0]
+      if (!dear) continue
+      const slot = d.formation.slots.find((s) => canCover(dear, s.position, d.rules.minFit))!
+      const room = capRoom(d)
+      expect(room).toBe(45)
+      const over = Math.round((capPrice(dear) - room) * 10) / 10
+      const reserve = capPrice(dear) <= 50 ? `, keeping £0.5M for each of the 10 picks still to make` : ''
+      expect(() => pick(u, d, dear.id, slot.id)).toThrow(`${dear.name} (£${capPrice(dear).toFixed(1)}M) would take you £${over.toFixed(1)}M over the cap${reserve}`)
+      expect(canUse(d, dear)).toBe(false)
+      expect(eligibleSlots(d, dear)).toEqual([])
+      expect(d.spent).toBeUndefined()
+      expect(picksMade(d)).toBe(0)
+      return
+    }
+    throw new Error('no over-cap player found in 50 spins')
+  })
+
+  it('a draft without a cap spends nothing and spins exactly as one whose rules leave the cap undefined', () => {
+    for (let i = 0; i < 10; i++) {
+      const a = newDraft(getFormation('4-3-3'), { ...QUICK_RULES, leagues: ['england'] })
+      const b = newDraft(getFormation('4-3-3'), { ...QUICK_RULES, leagues: ['england'], budget: undefined })
+      autoDraft(u, a, new Rng(`nocap-${i}`))
+      autoDraft(u, b, new Rng(`nocap-${i}`))
+      expect(b.history).toEqual(a.history)
+      expect(a.spent).toBeUndefined()
+      expect(b.spent).toBeUndefined()
+    }
+  }, 30000)
+
+  it('a cap no draft can reach draws the same wheel as no cap at all', () => {
+    // Eleven of the dearest player in England cost well under £5,000M, so every check passes and the weights match
+    const dearest = Math.max(...u.clubSeasons.flatMap((cs) => cs.squad.map((p) => capPrice(p))))
+    expect(dearest * 11).toBeLessThan(5000 - BUDGET_FLOOR * 10)
+    for (let i = 0; i < 10; i++) {
+      const a = newDraft(getFormation('4-3-3'), { ...QUICK_RULES, leagues: ['england'] })
+      const b = newDraft(getFormation('4-3-3'), capped(5000))
+      autoDraft(u, a, new Rng(`bigcap-${i}`))
+      autoDraft(u, b, new Rng(`bigcap-${i}`))
+      expect(b.history).toEqual(a.history)
+      expect(b.spent).toBeGreaterThan(0)
+    }
+  }, 30000)
 })

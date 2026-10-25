@@ -284,6 +284,8 @@ export interface Game {
   quickResult: QuickResult | null
   /** The arena run of a mode `arena` game; null (or absent, in an older save) otherwise. */
   arena?: ArenaState | null
+  /** £M the first draft spent under a salary cap, kept when a managed season drops the draft; absent without a cap. */
+  capSpent?: number
 }
 
 export interface CareerRecord {
@@ -374,6 +376,9 @@ export interface LeaderboardEntry {
   moment?: string
   /** League the season was played in, absent on entries filed before the Trophy Room. */
   leagueId?: string
+  /** Drafted under a salary cap: the cap and what the draft spent, £M; absent without one. */
+  budget?: number
+  spent?: number
 }
 
 export interface Profile {

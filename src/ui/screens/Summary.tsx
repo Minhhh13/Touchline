@@ -23,6 +23,7 @@ import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { realityLine, realSeasonRow, storyForGame } from '@game/logic/story'
 import { SeasonStoryPanel } from '../components/SeasonStory'
+import { capLine } from '@game/logic/cap'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -52,6 +53,9 @@ export function Summary() {
   const inBooks = bench !== null && hasRecordBook(bench)
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
+  // The Moneyball wheel brags in money: what the cap bought, and the points each £M of it earned
+  const cap = capLine(game, record.points)
+  if (cap) extraLines.push(cap)
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)

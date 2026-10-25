@@ -12,6 +12,7 @@ import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { finishDraftLabel } from '@game/logic/modes'
 import { leagueSegments } from '../components/leagueSegments'
+import { CapChip, CapChips } from '../components/CapControl'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -117,12 +118,13 @@ export function Draft() {
             {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
           </div>
         </div>
-        <div className="row">
+        <div className="row wrap">
           <span className="chip">
             Pick {Math.min(made + 1, total)} of {total}
           </span>
           <span className="chip">{d.respinsLeft} re-spin{d.respinsLeft === 1 ? '' : 's'} left</span>
           {game.bonusSpins > 0 && <span className="chip gold">+{game.bonusSpins} bonus</span>}
+          <CapChip d={d} />
           <button className="btn ghost sm" onClick={() => go('home')}>
             Home
           </button>
@@ -283,7 +285,7 @@ export function Draft() {
                         selected={selectedPlayer === p.id}
                         hideRatings={hide}
                         onClick={() => onPick(p)}
-                        extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
+                        extra={<><CapChips d={d} p={p} show={!taken && !foreign} />{taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}</>}
                         right={ok ? <span className="btn sm primary">{fillingStarters ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )

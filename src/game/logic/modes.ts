@@ -5,6 +5,7 @@
  * screen. Pure: no React, no store.
  */
 import type { ArenaSettings, Game, Mode } from '../types'
+import { capFooter } from './cap'
 
 /** The mode's title: Setup's heading, the Record page's mode column. */
 export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena' }
@@ -18,7 +19,7 @@ export const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: '
 export type ModeLabelStyle = 'short' | 'heading' | 'share'
 
 /** The parts of a game a label reads. */
-export type LabelledGame = Pick<Game, 'year'> & Partial<Pick<Game, 'arena'>> & { settings: Pick<Game['settings'], 'mode' | 'seed'> & Partial<Pick<Game['settings'], 'arena'>> }
+export type LabelledGame = Pick<Game, 'year'> & Partial<Pick<Game, 'arena'>> & { settings: Pick<Game['settings'], 'mode' | 'seed'> & Partial<Pick<Game['settings'], 'arena' | 'rules'>> }
 
 /** An arena format's name: `Cup Final`, `The Gauntlet`, `The Cup · 16 clubs`. */
 export function arenaFormatLabel(a: (Pick<ArenaSettings, 'format'> & { size?: number }) | undefined): string {
@@ -53,9 +54,9 @@ export function modeLabel(game: LabelledGame, style: ModeLabelStyle): string {
   }
 }
 
-/** The footer of the share card: the daily's day, or the seed a friend can replay. */
+/** The footer of the share card: the daily's day, or the seed a friend can replay (`Seed K7Q2-MX9A · £180M cap` under a salary cap). */
 export function shareCardFooter(game: LabelledGame): string {
-  return game.settings.mode === 'daily' ? `Daily challenge ${dailyDay(game.settings.seed)}` : `Seed ${game.settings.seed}`
+  return game.settings.mode === 'daily' ? `Daily challenge ${dailyDay(game.settings.seed)}` : `Seed ${game.settings.seed}${capFooter(game)}`
 }
 
 /** `Year 2` in a dynasty, nothing in a mode that plays one season. */

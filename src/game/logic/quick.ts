@@ -10,6 +10,7 @@ import { earnsPointsRecord } from './records'
 import { recordUserGames } from './gameByGame'
 import { clinchMatchweeks } from '@engine/story'
 import { seasonStory } from './story'
+import { earnsMoneyball } from './cap'
 
 /**
  * 38-0 mode: the drafted XI plays the whole season instantly against the real
@@ -93,6 +94,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (row.points >= 100) game.unlocked.push('centurions')
   if (tier === 'INVINCIBLE' || tier === 'PERFECT') game.unlocked.push('invincible')
   if (pos === 1 && game.settings.rules.hardMode) game.unlocked.push('hard-champions')
+  if (pos === 1 && earnsMoneyball(game)) game.unlocked.push('moneyball')
   if (pos === 1 && game.settings.rules.onlyClub) game.unlocked.push('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) game.unlocked.push('one-nation-champions')
   if (earnsPointsRecord(u, game.settings.leagueId, game.settings.difficulty, row, matchweeks, false)) game.unlocked.push('record-points')
