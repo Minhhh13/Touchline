@@ -363,7 +363,7 @@ On a phone the screen's main action lives in a bar fixed to the bottom (`--panel
 
 ### Top bar
 
-The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, on the left, the nav on the right: pills of 14 px semibold, the active one in the selection pattern. On a phone the nav is one row that scrolls sideways, with a fade at the right edge.
+The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, on the left, the nav on the right: pills of 14 px semibold, the active one in the selection pattern. On a phone the nav is one row that scrolls sideways, with a fade at the right edge. After the nav, outside its scroll, sits the theme switch (`.theme-toggle`, `data-testid="theme-toggle"`): a 34 px round icon button on `--border` in `--text-2` (`--text` and `--bg-3` on hover, a `--primary` focus ring) showing the theme it switches to, a sun on Floodlit and a moon on Daylight.
 
 ### Pitch, ratings, positions, badges, flags
 

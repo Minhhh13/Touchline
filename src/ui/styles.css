@@ -519,6 +519,27 @@ p {
   background: var(--bg-3);
   color: var(--text);
 }
+.theme-toggle {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  border: var(--border);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 .topbar nav button.active {
   color: var(--text);
   border-color: var(--primary);

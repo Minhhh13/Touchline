@@ -16,9 +16,10 @@ import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
+import { rendersLight, toggledTheme } from '@game/logic/theme'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
   const hashHandled = useRef(false)
 
   useEffect(() => {
@@ -122,6 +123,7 @@ export function App() {
             How it works
           </button>
         </nav>
+        <ThemeToggle light={rendersLight(profile.theme)} onToggle={() => setTheme(toggledTheme(profile.theme))} />
       </header>
       {body}
       <Toast />
@@ -270,5 +272,24 @@ function NewsGroup({ title, icon, items }: { title: string; icon: string; items:
         </li>
       ))}
     </DigestGroup>
+  )
+}
+
+/** The small sun or moon at the end of the top bar: one tap swaps Floodlit and Daylight. It shows the theme it switches to. */
+function ThemeToggle({ light, onToggle }: { light: boolean; onToggle: () => void }) {
+  const label = light ? 'Switch to dark mode (Floodlit)' : 'Switch to light mode (Daylight)'
+  return (
+    <button type="button" className="theme-toggle" onClick={onToggle} aria-label={label} title={label} aria-pressed={light} data-testid="theme-toggle">
+      {light ? (
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+          <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" />
+        </svg>
+      )}
+    </button>
   )
 }

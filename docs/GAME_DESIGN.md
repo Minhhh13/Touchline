@@ -704,7 +704,7 @@ Line two names the host club and season; line three is the tier plus "+ CUP" whe
 - **The replay** (`useSeasonReplay`) is UI state only. Everything is shown on arrival; "Play the season" empties the list and reveals one game every `REPLAY_STEP_MS = 220` ms (8.4 s for 38 games), the strip and the position update as games land, the banner shows "Season in play…" with the running strip in place of the tier and record, and the tier pops in after the last game. "Skip" shows the rest at once; `prefers-reduced-motion` offers no replay button and animates nothing. The head-to-head result shows both managers' lists (`H2HResult.results`, the two derbies against the other manager included) without the replay.
 - **Share text.** `bestWinLine` adds `Best win: 5-0 v Chelsea (MW 23)` (or `3-0 at Chelsea`) to `extraLines`: the widest margin, then the most goals scored, then the earliest matchweek; a season without a win adds nothing.
 
-**Profile** (local only): best 50 seasons by points then fewest defeats, daily streak and per-day results, games started, seasons simulated, manager name, theme (Auto, Floodlit, Daylight).
+**Profile** (local only): best 50 seasons by points then fewest defeats, daily streak and per-day results, games started, seasons simulated, manager name, theme (Auto, Floodlit, Daylight; the sun or moon at the right of the top bar swaps Floodlit and Daylight in one tap, `toggledTheme`, Auto counting as Floodlit).
 
 ## 13. Difficulty calibration
 
