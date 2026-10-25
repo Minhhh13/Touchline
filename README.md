@@ -26,7 +26,8 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Seven leagues: the Premier League, La Liga, Serie A, the Bundesliga, Ligue 1, the Eredivisie and the Primeira Liga, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all seven.
 - Seeds are honest across leagues: a European Nights seed lands on the same clubs whichever order the league packs were opened, and every loaded universe carries the data stamp of its packs beside an engine version, so a result can be checked against the data and engine that produced it.
 - **Head-to-head**: two managers on one device draft from the same spins in snake order, then both sides play the same season, derbies included.
-- Matches are played live in two halves: at the break you give a team talk, change instructions and make substitutions, and the AI reacts to the score too.
+- Matches are played live with two stops: at half time you give a team talk, change instructions and make up to three substitutions; at the 70th minute you get the rest of your five changes, the instructions again and a touchline shout, and the AI reacts to the score at both stops.
+- **The 70th-minute window with touchline shouts**: the match runs 1-45, 46-70 and 71-90, each segment taking its share of the expected goals by length (second half weighted 1.06 to 0.94, so 0.47, 0.294 and 0.236 of the match) and of the cards and injuries. All-out attack multiplies your chances by 1.3 and theirs by 1.35 and adds fatigue; shut up shop is ×0.55 and ×0.72; keep shape costs nothing. A side trailing at 70 goes attacking and fast, a side one up goes defensive and deep. Routine substitutions due after 70 wait for the window, and your own changes there override them. A simmed week and a hand-played one run the same three segments, so a seed gives the same match either way.
 
 **Management**
 

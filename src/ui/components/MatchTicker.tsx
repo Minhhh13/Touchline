@@ -17,7 +17,12 @@ const ICON: Record<MatchEvent['type'], string> = {
   full_time: '🏁',
 }
 
-export function MatchTicker({ events, homeName, awayName, onDone, onHalfTime, startClock = 0, stopAt = 95, autoStart = true }: { events: MatchEvent[]; homeName: string; awayName: string; onDone?: () => void; onHalfTime?: () => void; startClock?: number; stopAt?: number; autoStart?: boolean }) {
+/** The label for a stop short of the whistle: half time, or the 70th-minute window. */
+function stopLabel(stopAt: number): string {
+  return stopAt === 45 ? 'half time' : `${stopAt} minutes`
+}
+
+export function MatchTicker({ events, homeName, awayName, onDone, onStop, startClock = 0, stopAt = 95, autoStart = true }: { events: MatchEvent[]; homeName: string; awayName: string; onDone?: () => void; onStop?: () => void; startClock?: number; stopAt?: number; autoStart?: boolean }) {
   const [clock, setClock] = useState(startClock)
   const [speed, setSpeed] = useState(1)
   const [running, setRunning] = useState(autoStart)
@@ -42,10 +47,10 @@ export function MatchTicker({ events, homeName, awayName, onDone, onHalfTime, st
   useEffect(() => {
     if (clock >= stopAt && !doneRef.current) {
       doneRef.current = true
-      if (stopAt < 95) onHalfTime?.()
+      if (stopAt < 95) onStop?.()
       else onDone?.()
     }
-  }, [clock, onDone, onHalfTime, stopAt])
+  }, [clock, onDone, onStop, stopAt])
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
@@ -55,7 +60,7 @@ export function MatchTicker({ events, homeName, awayName, onDone, onHalfTime, st
   const hg = shown.filter((e) => e.side === 'home' && (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal')).length
   const ag = shown.filter((e) => e.side === 'away' && (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal')).length
   const finished = clock >= stopAt
-  const atHalfTime = finished && stopAt < 95
+  const atStop = finished && stopAt < 95
 
   return (
     <div className="col">
@@ -65,7 +70,7 @@ export function MatchTicker({ events, homeName, awayName, onDone, onHalfTime, st
           <div className="score">
             {hg} - {ag}
           </div>
-          <div className="clock">{atHalfTime ? 'HALF TIME' : finished ? 'FULL TIME' : clock === 0 ? 'KICK-OFF' : minuteLabel(clock)}</div>
+          <div className="clock">{atStop ? stopLabel(stopAt).toUpperCase() : finished ? 'FULL TIME' : clock === 0 ? 'KICK-OFF' : minuteLabel(clock)}</div>
         </div>
         <div className="team away">{awayName}</div>
       </div>
@@ -86,7 +91,7 @@ export function MatchTicker({ events, homeName, awayName, onDone, onHalfTime, st
         </div>
         {!finished && (
           <button className="btn sm" onClick={() => setClock(stopAt)}>
-            {stopAt < 95 ? 'Skip to half time' : 'Skip to full time'}
+            {stopAt < 95 ? `Skip to ${stopLabel(stopAt)}` : 'Skip to full time'}
           </button>
         )}
       </div>

@@ -1,7 +1,7 @@
 import type { Game, LiveMatch } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { beginMatch, finishMatch, simulateMatch, type FullMatchResult, type MatchTeamInput, type SecondHalfOptions, type TeamTalk } from '@engine/match'
+import { advanceMatch, beginMatch, finishMatch, simulateMatch, type FullMatchResult, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
 import { aiTeamInput, applyMatchToState, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
@@ -15,7 +15,7 @@ import { developSquad, DEVELOPMENT_INTERVAL } from './development'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
-import type { SquadPlayer, Tactics } from '@engine/types'
+import type { SquadPlayer } from '@engine/types'
 import { earnsPointsRecord } from './records'
 import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
 
@@ -236,9 +236,10 @@ export function upcomingCupTie(game: Game): UpcomingTie | null {
 }
 
 /**
- * Play the next matchweek. Interactive play stops at half time of the user's
- * match (`game.live`); `autoManage` plays everything through with the
- * assistant picking the team and answering decisions.
+ * Play the next matchweek. Interactive play stops at half time and again at
+ * the 70th minute of the user's match (`game.live`); `autoManage` plays
+ * everything through with the assistant picking the team and answering
+ * decisions.
  */
 export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false): void {
   const season = game.season
@@ -319,22 +320,25 @@ function recordUserLeagueResult(game: Game, u: LoadedUniverse, res: FullMatchRes
   news(game, { kind: 'result', title: `${userIsHome ? game.settings.shortName : season.ai[opponentId].shortName} ${res.homeGoals}-${res.awayGoals} ${userIsHome ? season.ai[opponentId].shortName : game.settings.shortName}`, body: gf > ga ? 'Three points.' : gf === ga ? 'A point apiece.' : 'A defeat to learn from.' })
 }
 
-/** Finish the paused match (second half), then carry on with the week. */
-export function finishLiveMatch(game: Game, u: LoadedUniverse, second?: { talk?: TeamTalk; tactics?: Tactics; substitutions?: Array<{ off: string; on: string }> }, autoManage = false): void {
+/**
+ * Play the paused match on from the stop it stands at. From half time it runs to
+ * the 70th minute and returns with `game.live` intact for the second stop; from
+ * 70 it plays to the final whistle and carries on with the week. `second` holds
+ * the manager's changes at this stop; without it the assistant reacts for both
+ * sides. A paused match saved before the window existed carries no clock and
+ * resumes at 45.
+ */
+export function advanceLiveMatch(game: Game, u: LoadedUniverse, second?: LiveChanges, autoManage = false): void {
   const live = game.live
   if (!live || !game.season) return
   const season = game.season
   const userSide: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
   const lookups = live.kind === 'friendly' ? { home: userLookups(game, u), away: friendlyLookups(u, live.opponentId) } : live.userIsHome ? { home: userLookups(game, u), away: aiLookups(game, u, live.opponentId) } : { home: aiLookups(game, u, live.opponentId), away: userLookups(game, u) }
-  const opts: SecondHalfOptions | undefined = second ? { side: userSide, talk: second.talk, tactics: second.tactics, substitutions: second.substitutions } : undefined
+  const opts: SecondHalfOptions | undefined = second ? { side: userSide, talk: second.talk, tactics: second.tactics, substitutions: second.substitutions, shout: second.shout } : undefined
   if (second?.tactics) game.tactics = second.tactics
-  // Who kicked off for us, before half-time substitutions are written back into the lineup
-  const kickOffXI = new Set((live.userIsHome ? live.mp.hLive : live.mp.aLive).filter((p) => p.onAt === 0).map((p) => p.psId))
-  const res = finishMatch(live.mp, lookups, opts)
-  game.live = null
-  // Persist the half-time changes to the lineup so the squad screen matches what finished the match
-  if (second?.substitutions?.length) {
-    for (const s of second.substitutions) {
+  // Persist the changes made at a stop to the lineup so the squad screen matches what is on the pitch
+  const persistSubs = () => {
+    for (const s of second?.substitutions ?? []) {
       const slot = Object.keys(game.lineup).find((k) => game.lineup[k] === s.off)
       if (slot && game.squad[s.on]) {
         game.lineup[slot] = s.on
@@ -343,6 +347,16 @@ export function finishLiveMatch(game: Game, u: LoadedUniverse, second?: { talk?:
       }
     }
   }
+  if ((live.mp.clock ?? 45) < 70) {
+    advanceMatch(live.mp, lookups, opts, 70)
+    persistSubs()
+    return
+  }
+  // Who kicked off for us, before the substitutions are written back into the lineup
+  const kickOffXI = new Set((live.userIsHome ? live.mp.hLive : live.mp.aLive).filter((p) => p.onAt === 0).map((p) => p.psId))
+  const res = finishMatch(live.mp, lookups, opts)
+  game.live = null
+  persistSubs()
   if (live.kind === 'friendly') {
     applyResultToUser(game, u, res, true, false)
     for (const s of Object.values(game.squad)) s.condition = Math.min(100, s.condition + 14)
@@ -369,6 +383,20 @@ export function finishLiveMatch(game: Game, u: LoadedUniverse, second?: { talk?:
   drawNext(game, u, rng, tie.round, comp)
   game.rngState = rng.getState()
   afterMatchweek(game, u, !autoManage)
+}
+
+/**
+ * Play the paused match to the final whistle: `second` is applied at the stop
+ * it stands at and the side plays on unchanged from the next one (with
+ * `autoManage`, the assistant reacts for both sides at every stop).
+ */
+export function finishLiveMatch(game: Game, u: LoadedUniverse, second?: LiveChanges, autoManage = false): void {
+  if (!game.live) return
+  if ((game.live.mp.clock ?? 45) < 70) {
+    advanceLiveMatch(game, u, second, autoManage)
+    second = second ? {} : undefined
+  }
+  advanceLiveMatch(game, u, second, autoManage)
 }
 
 /**

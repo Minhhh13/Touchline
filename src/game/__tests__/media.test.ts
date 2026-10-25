@@ -85,10 +85,11 @@ describe('press conferences and man-marking', () => {
     const xi = Object.values(opp.lineup).map((id) => u.index[id]).filter((p) => p.positions[0] !== 'GK')
     const target = [...xi].sort((a, b) => b.attributes.shooting - a.attributes.shooting)[0]
     const base = userTeamInput(u, { teamName: 'T', shortName: 'T', tactics: g.tactics, lineup: g.lineup, bench: g.bench, state: g.squad, teamTalk: 'none' })
+    // A 7 per cent cut to the opponent's expected goals needs the paired sample to be this big to clear the noise
     const run = (markTarget?: string) => {
       let goals = 0
       let conceded = 0
-      for (let i = 0; i < 150; i++) {
+      for (let i = 0; i < 1000; i++) {
         const res = simulateMatch({ rng: new Rng(`mm-${i}`), home: { ...base, markTarget }, away: opp, detail: 'full' })
         goals += res.events.filter((e) => e.type === 'goal' && e.playerId === target.id).length
         conceded += res.awayGoals

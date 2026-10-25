@@ -42,8 +42,10 @@ function newGame(u: ReturnType<typeof loadTestUniverse>, partial: Partial<GameSe
   return g
 }
 
-/** Mean squad morale after 20 auto-managed weeks on seed `status-flow` before statuses existed (bench drift only). */
+/** Mean squad morale after 20 auto-managed weeks in season mode before statuses existed (bench drift only), pinned on seed `status-flow`. */
 const MORALE_BEFORE_STATUSES = 92.2
+/** One seed's twenty weeks swing the mean by several points with the results, so the comparison averages a few. */
+const MORALE_SEEDS = ['status-flow', 'status-flow-2', 'status-flow-3', 'status-flow-4', 'status-flow-5', 'status-flow-6']
 
 describe('squad status and playing time', () => {
   const u = loadTestUniverse()
@@ -195,6 +197,8 @@ describe('squad status and playing time', () => {
     const squad = squadPlayers(g, u).sort((a, b) => b.p.overall - a.p.overall)
     // Our fourth best goes the other way: a target rated between our fourth and fifth best is fifth with him in the squad, fourth without him
     const fourth = squad[3]
+    // The selling club will not take an injured man; his fitness is not what this test is about
+    fourth.s.injury = null
     const listing = g.window!.listings.find((l) => {
       const p = u.index[l.playerSeasonId]
       return l.status === 'available' && p.age > 21 && p.overall <= fourth.p.overall && p.overall > squad[4].p.overall
@@ -351,14 +355,19 @@ describe('squad status and playing time', () => {
   })
 
   it('flow: twenty auto-managed weeks keep the squad about as happy as the bench-drift rule did', () => {
-    const g = newGame(u, { mode: 'season' })
-    for (let i = 0; i < 20; i++) playMatchweek(g, u, true)
-    const morale = Object.values(g.squad).map((s) => s.morale)
-    const mean = morale.reduce((a, b) => a + b, 0) / morale.length
-    expect(Math.abs(mean - MORALE_BEFORE_STATUSES)).toBeLessThanOrEqual(5)
-    for (const id of Object.keys(g.squad)) {
-      expect(g.contracts[id].status).toBeDefined()
-      expect(g.squad[id].recentMinutes!.length).toBe(RECENT_WEEKS)
+    const means: number[] = []
+    for (const seed of MORALE_SEEDS) {
+      const g = newGame(u, { mode: 'season', seed })
+      for (let i = 0; i < 20; i++) playMatchweek(g, u, true)
+      const morale = Object.values(g.squad).map((s) => s.morale)
+      means.push(morale.reduce((a, b) => a + b, 0) / morale.length)
+      for (const id of Object.keys(g.squad)) {
+        expect(g.contracts[id].status).toBeDefined()
+        expect(g.squad[id].recentMinutes!.length).toBe(RECENT_WEEKS)
+      }
     }
+    const mean = means.reduce((a, b) => a + b, 0) / means.length
+    console.log(`mean morale after 20 weeks: ${means.map((m) => m.toFixed(1)).join(', ')} (average ${mean.toFixed(2)}, before statuses ${MORALE_BEFORE_STATUSES})`)
+    expect(Math.abs(mean - MORALE_BEFORE_STATUSES)).toBeLessThanOrEqual(5)
   })
 })

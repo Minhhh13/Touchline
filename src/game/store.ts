@@ -7,12 +7,12 @@ import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
 import { canSpin, isComplete, picksMade, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
-import type { TeamTalk } from '@engine/match'
+import type { LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
-import { applyEventChoice, closeLiveMatch, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
+import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
@@ -97,8 +97,8 @@ interface Store {
   playFriendly: () => void
   startSeason: () => void
   playWeek: () => void
-  /** Second half of the paused match, with the manager's half-time changes. */
-  finishLive: (opts: { talk?: TeamTalk; tactics?: Tactics; substitutions?: Array<{ off: string; on: string }> }) => void
+  /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop. */
+  advanceLive: (opts: LiveChanges) => void
   simToEnd: () => void
   simWeeks: (n: number) => void
   closeMatch: () => void
@@ -380,8 +380,8 @@ export const useStore = create<Store>()(
           mutate((g, u) => playFriendly(g, u))
           set({ matchView: 'ticker' })
         },
-        finishLive: (opts) => {
-          mutate((g, u) => finishLiveMatch(g, u, opts))
+        advanceLive: (opts) => {
+          mutate((g, u) => advanceLiveMatch(g, u, opts))
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()

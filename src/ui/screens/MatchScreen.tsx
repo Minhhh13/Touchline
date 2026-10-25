@@ -4,7 +4,7 @@ import { MatchTicker } from '../components/MatchTicker'
 import { ClubBadge, Pos, Rating, Segmented, Tabs } from '../components/bits'
 import { clubName, minuteLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
-import { onPitch, type FullMatchResult, type TeamTalk } from '@engine/match'
+import { currentScore, onPitch, SHOUTS, type FullMatchResult, type Shout, type TeamTalk } from '@engine/match'
 import type { MatchContext } from '@game/types'
 import { USER_TEAM } from '@engine/season'
 import type { Tactics } from '@engine/types'
@@ -15,7 +15,7 @@ export function MatchScreen() {
   const store = useStore()
   const { universe: u, game, matchView, setMatchView, closeMatch } = store
   const [which, setWhich] = useState<'league' | 'cup'>('league')
-  /** After the second half is played, the ticker resumes from 46'. */
+  /** After the last segment is played, the ticker resumes from 71'. */
   const [resumeFrom, setResumeFrom] = useState(0)
   /** When a cup tie follows the league match, hold it until the league result has been seen. */
   const [holdLive, setHoldLive] = useState(false)
@@ -23,9 +23,10 @@ export function MatchScreen() {
   const get = playerLookup(game, u)
   const live = game.live && !holdLive ? game.live : null
 
-  // Live (first half) view
+  // Live view: the match stands at half time or at the 70th minute
   if (live) {
     const mp = live.mp
+    const clock = mp.clock ?? 45
     const homeName = mp.home.teamName
     const awayName = mp.away.teamName
     return (
@@ -41,7 +42,18 @@ export function MatchScreen() {
             </div>
           </div>
         </div>
-        <LiveFirstHalf key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}`} homeName={homeName} awayName={awayName} onPlayed={() => { setWhich(live.kind === 'cup' ? 'cup' : 'league'); setResumeFrom(46); setHoldLive(true); setMatchView('ticker') }} />
+        <LiveSegment
+          key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}-${clock}`}
+          homeName={homeName}
+          awayName={awayName}
+          onPlayed={(finished) => {
+            if (!finished) return
+            setWhich(live.kind === 'cup' ? 'cup' : 'league')
+            setResumeFrom(71)
+            setHoldLive(true)
+            setMatchView('ticker')
+          }}
+        />
       </div>
     )
   }
@@ -112,54 +124,76 @@ export function MatchScreen() {
   )
 }
 
-function LiveFirstHalf({ homeName, awayName, onPlayed }: { homeName: string; awayName: string; onPlayed: () => void }) {
+/**
+ * The paused match at one of its two stops: the ticker plays the segment just
+ * simulated (1-45, then 46-70) and stops, and the manager makes his changes for
+ * the next one. At half time: a talk, instructions and up to three
+ * substitutions. At 70: instructions, the remaining substitutions and a shout.
+ */
+function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayName: string; onPlayed: (finished: boolean) => void }) {
   const store = useStore()
   const { universe: u, game } = store
-  const [atHalfTime, setAtHalfTime] = useState(false)
+  const [atStop, setAtStop] = useState(false)
   const [talk, setTalk] = useState<TeamTalk>('encourage')
+  const [shout, setShout] = useState<Shout>('keep-shape')
   const [tactics, setTactics] = useState<Tactics | null>(null)
   const [subs, setSubs] = useState<Array<{ off: string; on: string }>>([])
   const [subbingOff, setSubbingOff] = useState<string | null>(null)
   if (!u || !game?.live) return null
   const live = game.live
   const mp = live.mp
+  const clock = mp.clock ?? 45
+  const atBreak = clock === 45
   const get = playerLookup(game, u)
   const side: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
-  const us = live.userIsHome ? mp.halfTimeScore.home : mp.halfTimeScore.away
-  const them = live.userIsHome ? mp.halfTimeScore.away : mp.halfTimeScore.home
+  const scoreNow = currentScore(mp)
+  const us = live.userIsHome ? scoreNow.home : scoreNow.away
+  const them = live.userIsHome ? scoreNow.away : scoreNow.home
   const t = tactics ?? game.tactics
   const pitch = onPitch(mp, side)
+  const made = (live.userIsHome ? mp.hSubs : mp.aSubs).length
+  // Three changes at the break; whatever is left of the five at 70
+  const subCap = atBreak ? Math.min(3, 5 - made) : 5 - made
   const subbedOn = new Set(subs.map((s) => s.on))
   const subbedOff = new Set(subs.map((s) => s.off))
   const benchOptions = game.bench.filter((id) => !pitch.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
-  const play = () => {
-    store.finishLive({ talk, tactics: tactics ?? undefined, substitutions: subs })
-    onPlayed()
+  const advance = (changes: Parameters<typeof store.advanceLive>[0]) => {
+    store.advanceLive(changes)
+    onPlayed(!useStore.getState().game?.live)
   }
+  const play = () => advance(atBreak ? { talk, tactics: tactics ?? undefined, substitutions: subs } : { shout, tactics: tactics ?? undefined, substitutions: subs })
+  const stateLabel = us > them ? `ahead ${us}-${them}` : us < them ? `behind ${us}-${them}` : `level ${us}-${them}`
   return (
     <div className="col">
-      <MatchTicker events={mp.events} homeName={homeName} awayName={awayName} stopAt={45} onHalfTime={() => setAtHalfTime(true)} />
-      {atHalfTime && (
-        <div className="panel" style={{ borderColor: 'var(--accent)' }}>
+      <MatchTicker events={mp.events} homeName={homeName} awayName={awayName} startClock={atBreak ? 0 : 46} stopAt={clock} onStop={() => setAtStop(true)} />
+      {atStop && (
+        <div className="panel" style={{ borderColor: 'var(--accent)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
           <div className="panel-head">
-            <h2>Half time: {us > them ? 'ahead' : us < them ? 'behind' : 'level'}</h2>
-            <span className="small muted">Make your changes, then play the second half.</span>
+            <h2>{atBreak ? 'Half time' : '70 minutes'}: {stateLabel}</h2>
+            <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
           </div>
           <div className="grid two">
             <div className="col">
-              <div className="field">
-                Team talk
-                <Segmented<TeamTalk>
-                  value={talk}
-                  onChange={setTalk}
-                  options={[
-                    { value: 'calm', label: 'Calm', hint: 'Protects a lead' },
-                    { value: 'encourage', label: 'Encourage', hint: 'Safe lift' },
-                    { value: 'demand', label: 'Demand', hint: 'Sharpens a level game, risky when behind' },
-                    { value: 'fire-up', label: 'Fire up', hint: 'Best when behind, risky when ahead' },
-                  ]}
-                />
-              </div>
+              {atBreak ? (
+                <div className="field">
+                  Team talk
+                  <Segmented<TeamTalk>
+                    value={talk}
+                    onChange={setTalk}
+                    options={[
+                      { value: 'calm', label: 'Calm', hint: 'Protects a lead' },
+                      { value: 'encourage', label: 'Encourage', hint: 'Safe lift' },
+                      { value: 'demand', label: 'Demand', hint: 'Sharpens a level game, risky when behind' },
+                      { value: 'fire-up', label: 'Fire up', hint: 'Best when behind, risky when ahead' },
+                    ]}
+                  />
+                </div>
+              ) : (
+                <div className="field" data-testid="shout">
+                  Touchline shout <span className="help">{SHOUTS[shout].hint}</span>
+                  <Segmented<Shout> value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: SHOUTS[k].label, hint: SHOUTS[k].hint }))} />
+                </div>
+              )}
               <div className="field">
                 Mentality <span className="help">{MENTALITY_HELP[t.mentality]}</span>
                 <Segmented value={t.mentality} onChange={(v) => setTactics({ ...t, mentality: v })} options={[{ value: 'defensive', label: 'Defensive' }, { value: 'balanced', label: 'Balanced' }, { value: 'attacking', label: 'Attacking' }]} />
@@ -179,7 +213,7 @@ function LiveFirstHalf({ homeName, awayName, onPlayed }: { homeName: string; awa
             </div>
             <div className="col">
               <div className="row between">
-                <span style={{ fontWeight: 600 }}>Substitutions ({subs.length}/3 at the break)</span>
+                <span style={{ fontWeight: 600 }}>Substitutions ({subs.length}/{subCap}{atBreak ? ' at the break' : ' left'})</span>
                 {subbingOff && (
                   <button className="btn sm" onClick={() => setSubbingOff(null)}>
                     Cancel
@@ -222,10 +256,11 @@ function LiveFirstHalf({ homeName, awayName, onPlayed }: { homeName: string; awa
                             <Pos p={p.position} /> {ps?.name}
                             {p.yellow && ' 🟨'}
                             {p.goals > 0 && ` ⚽${p.goals > 1 ? p.goals : ''}`}
-                            {sub && <span className="chip good">on at HT</span>}
+                            {p.onAt > 0 && !sub && <span className="chip">on {p.onAt}'</span>}
+                            {sub && <span className="chip good">on at {clock}'</span>}
                             <span className="muted small">cond {game.squad[p.psId]?.condition ?? '–'}</span>
                           </span>
-                          {subs.length < 3 && !sub && (
+                          {subs.length < subCap && !sub && (
                             <button className="btn sm" onClick={() => setSubbingOff(p.psId)}>
                               Off
                             </button>
@@ -246,10 +281,10 @@ function LiveFirstHalf({ homeName, awayName, onPlayed }: { homeName: string; awa
             </div>
           </div>
           <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn primary big" onClick={play}>
-              Play the second half
+            <button className="btn primary big" onClick={play} data-testid="play-on">
+              {atBreak ? 'Play on to 70 minutes' : 'Play to the whistle'}
             </button>
-            <button className="btn ghost" onClick={() => { setTactics(null); setSubs([]); store.finishLive({ talk: 'none' }); onPlayed() }}>
+            <button className="btn ghost" onClick={() => { setTactics(null); setSubs([]); advance(atBreak ? { talk: 'none' } : {}) }} data-testid="no-changes">
               No changes
             </button>
           </div>
@@ -340,6 +375,7 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
           <h3>Tactical notes</h3>
           <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
             {ours.teamTalkEffect && <li>{ours.teamTalkEffect}</li>}
+            {ours.lateEffect && <li>{ours.lateEffect}</li>}
             {ours.modifiers.notes.map((n, i) => (
               <li key={i}>{n}</li>
             ))}

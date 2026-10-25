@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
-import { playMatchweek, finishLiveMatch, playFriendly, startSeasonProper } from '../logic/week'
+import { advanceLiveMatch, playMatchweek, finishLiveMatch, playFriendly, startSeasonProper } from '../logic/week'
 import { autoDraft } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { runQuickSeason } from '../logic/quick'
@@ -56,13 +56,19 @@ describe('game flow', () => {
     expect(g.live).toBeNull()
     expect(g.lastMatch?.halfTimeScore).toBeDefined()
     startSeasonProper(g)
-    // Six live weeks (matchweek 6 is followed by a cup tie)
+    // Six live weeks through both stops (matchweek 6 is followed by a cup tie)
     for (let i = 0; i < 6; i++) {
       playMatchweek(g, u, false)
       expect(g.live?.kind).toBe('league')
-      finishLiveMatch(g, u, { talk: 'encourage' })
+      expect(g.live?.mp.clock).toBe(45)
+      advanceLiveMatch(g, u, { talk: 'encourage' })
+      expect(g.live?.kind).toBe('league')
+      expect(g.live?.mp.clock).toBe(70)
+      advanceLiveMatch(g, u, { shout: i % 2 ? 'all-out-attack' : 'shut-up-shop' })
       if (g.live?.kind === 'cup') finishLiveMatch(g, u, { talk: 'calm' })
       expect(g.live).toBeNull()
+      const ours = g.lastMatch!.homeTeamId === 'user' ? g.lastMatch!.homeReport : g.lastMatch!.awayReport
+      expect(ours.lateEffect).toContain(i % 2 ? 'All-out attack' : 'Shut up shop')
     }
     expect(g.season!.matchweek).toBe(6)
     expect(g.season!.cup.some((t) => t.result)).toBe(true)
@@ -80,6 +86,54 @@ describe('game flow', () => {
     expect(g.history[0].won + g.history[0].drawn + g.history[0].lost).toBe(38)
     expect(g.awards?.teamOfTheSeason.length).toBe(11)
     expect(Number.isFinite(g.finances.budget)).toBe(true)
+  })
+
+  it('a week stops at half time and at 70, keeps the changes made at both, and an old save without a clock resumes at 45', () => {
+    const g = createGame(settings({ seed: 'two-stops' }))
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    startSeasonProper(g)
+    playMatchweek(g, u, false)
+    expect(g.live?.kind).toBe('league')
+    const mw = g.season!.matchweek
+    const live = g.live!
+    // A paused match from before the window carries no clock: it stands at half time
+    delete live.mp.clock
+    delete live.mp.pendingSubs
+    const kickOff = { ...g.lineup }
+    const htOff = Object.values(g.lineup).find((id) => id !== g.lineup['gk'] && !live.mp.hLive.concat(live.mp.aLive).some((p) => p.psId === id && (p.red || p.offAt < 90)))!
+    const htOn = g.bench.find((id) => g.squad[id] && !g.squad[id].injury)!
+    advanceLiveMatch(g, u, { talk: 'fire-up', tactics: { ...g.tactics, mentality: 'attacking' }, substitutions: [{ off: htOff, on: htOn }] })
+    // Still live, now at the 70th minute, with the half-time changes written back
+    expect(g.live).toBe(live)
+    expect(live.mp.clock).toBe(70)
+    expect(g.season!.matchweek).toBe(mw)
+    expect(g.tactics.mentality).toBe('attacking')
+    expect(Object.values(g.lineup)).toContain(htOn)
+    expect(g.bench).toContain(htOff)
+    expect(live.mp.events.some((e) => e.minute > 45 && e.minute <= 70)).toBe(true)
+    expect(live.mp.events.some((e) => e.minute > 70)).toBe(false)
+    // A second change at 70, with a shout
+    const userLive = live.userIsHome ? live.mp.hLive : live.mp.aLive
+    const lateOff = userLive.find((p) => p.offAt >= 90 && !p.red && p.position !== 'GK' && p.psId !== htOn)!
+    const lateOn = g.bench.find((id) => g.squad[id] && !g.squad[id].injury && !userLive.some((p) => p.psId === id))!
+    advanceLiveMatch(g, u, { shout: 'shut-up-shop', tactics: { ...g.tactics, defensiveLine: 'deep' }, substitutions: [{ off: lateOff.psId, on: lateOn }] })
+    expect(g.live).toBeNull()
+    expect(g.season!.matchweek).toBe(mw + 1)
+    expect(g.tactics.defensiveLine).toBe('deep')
+    expect(Object.values(g.lineup)).toContain(lateOn)
+    const res = g.lastMatch!
+    const ours = live.userIsHome ? res.homeReport : res.awayReport
+    expect(ours.halfTimeEffect).toBeTruthy()
+    expect(ours.lateEffect).toContain('Shut up shop')
+    expect(ours.substitutions.map((s) => s.reason)).toEqual(expect.arrayContaining(['half-time', '70th minute']))
+    expect(ours.substitutions.find((s) => s.on === lateOn)?.minute).toBe(70)
+    // Appearances count the kick-off eleven as starters, not the men who came on
+    expect(g.squad[kickOff['gk']].seasonStats.apps).toBe(1)
+    expect(g.squad[htOn].seasonStats.apps).toBe(1)
+    expect(g.squad[htOn].seasonStats.starts).toBe(0)
   })
 
   it('dynasty moves to the next season with ageing and a summer draft', () => {
