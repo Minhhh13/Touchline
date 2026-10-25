@@ -10,7 +10,8 @@ const mem = vi.hoisted(() => {
   })
   return m
 })
-import { SAVE_KEY, useStore } from '../store'
+import { SAVE_KEY, saveStorage, useStore } from '../store'
+import { parseSave } from '../saveStorage'
 
 const oldProfile: Profile = {
   achievements: {},
@@ -71,8 +72,10 @@ describe('coach marks', () => {
   it('dismissed tips are saved with the profile and come back on reload; an older save loads with none dismissed', async () => {
     useStore.setState({ profile: { ...oldProfile } })
     useStore.getState().dismissTip('report-first')
-    const saved = JSON.parse(mem.get(SAVE_KEY) ?? '{}') as { state?: { profile?: Profile } }
-    expect(saved.state?.profile?.seenTips?.['report-first']).toBeTruthy()
+    // Writes are coalesced and compressed: flush the pending one, then read the stored save back
+    saveStorage.flush()
+    const saved = parseSave<{ profile?: Profile }>(mem.get(SAVE_KEY) ?? '')
+    expect(saved.state.profile?.seenTips?.['report-first']).toBeTruthy()
 
     // An older save: the same shape, without the field
     mem.set(SAVE_KEY, JSON.stringify({ state: { game: null, parked: {}, shortlist: [], h2h: null, profile: oldProfile, screen: 'home' }, version: 1 }))

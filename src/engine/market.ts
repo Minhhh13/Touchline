@@ -60,6 +60,15 @@ export interface Window {
   log: string[]
 }
 
+/** Lines a window's log keeps, newest first: the oldest drop off a long summer. */
+export const WINDOW_LOG_CAP = 80
+
+/** Add a line to the top of the window's log, keeping at most `WINDOW_LOG_CAP` lines. */
+export function logLine(w: Pick<Window, 'log'>, text: string): void {
+  w.log.unshift(text)
+  if (w.log.length > WINDOW_LOG_CAP) w.log.length = WINDOW_LOG_CAP
+}
+
 export interface Offer {
   playerSeasonId: string
   fromClubId: string
@@ -220,7 +229,7 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
       l.status = 'gone'
       const club = rng.pick(clubsInLeague)
       signings.push({ playerSeasonId: l.playerSeasonId, clubId: club, fee: l.asking })
-      w.log.unshift(`${p.name} has joined ${u.clubById[club]?.name ?? 'a rival'} for £${l.asking}M.`)
+      logLine(w, `${p.name} has joined ${u.clubById[club]?.name ?? 'a rival'} for £${l.asking}M.`)
       continue
     }
     // Deadline day discounts for the unwanted
@@ -237,7 +246,7 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
       l.tags.push('New listing')
     }
     w.listings.push(...extra)
-    if (extra.length) w.log.unshift(`${extra.length} new player${extra.length > 1 ? 's' : ''} listed: ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(', ')}.`)
+    if (extra.length) logLine(w, `${extra.length} new player${extra.length > 1 ? 's' : ''} listed: ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(', ')}.`)
   }
   // Offers for our players
   for (const { p, s: state, listed, loan } of ownSquad) {
@@ -249,7 +258,7 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
       const amount = roundM(price * rng.float(0.75, 1.1))
       const fromClubId = rng.pick(clubsInLeague)
       w.offers.push({ playerSeasonId: p.id, fromClubId, amount, day: w.day, status: 'open' })
-      w.log.unshift(`${u.clubById[fromClubId]?.name ?? 'A club'} has offered £${amount}M for ${p.name}.`)
+      logLine(w, `${u.clubById[fromClubId]?.name ?? 'A club'} has offered £${amount}M for ${p.name}.`)
     }
   }
   return { signings }
@@ -272,7 +281,7 @@ export function enquire(ctx: MarketContext, w: Window, p: PlayerSeason): { listi
   const rank = cs ? [...cs.squad].sort((a, b) => b.overall - a.overall).findIndex((x) => x.id === p.id) : 10
   const standing = rank < 0 ? 10 : rank
   if (standing < 3 && p.overall >= 86 && rng.chance(p.accolades.includes('Champion') ? 0.5 : 0.3)) {
-    w.log.unshift(`${club} refuse to discuss ${p.name}.`)
+    logLine(w, `${club} refuse to discuss ${p.name}.`)
     return { message: `${club} refuse to discuss ${p.name}. Not for sale at any price.` }
   }
   const { price, tags } = askingPrice(p, ctx)
@@ -284,7 +293,7 @@ export function enquire(ctx: MarketContext, w: Window, p: PlayerSeason): { listi
     listing.tags.push('Loan available')
   }
   w.listings.unshift(listing)
-  w.log.unshift(`${club} would let ${p.name} go for £${asking}M.`)
+  logLine(w, `${club} would let ${p.name} go for £${asking}M.`)
   return { listing, message: `${club} name their price: £${asking}M for ${p.name}.` }
 }
 
@@ -316,7 +325,7 @@ export function signOnLoan(ctx: MarketContext, w: Window, listing: Listing, fina
   listing.loan = true
   listing.bid = listing.loanFee
   listing.response = 'Loan agreed'
-  w.log.unshift(`${p.name} joins on loan until the end of the season (£${listing.loanFee}M fee).`)
+  logLine(w, `${p.name} joins on loan until the end of the season (£${listing.loanFee}M fee).`)
   return { accepted: true, message: `${u.clubById[p.clubId]?.shortName ?? 'The club'} agree. ${p.name} joins on loan for £${listing.loanFee}M.` }
 }
 
@@ -373,7 +382,7 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
     listing.status = 'signed'
     listing.response = 'Accepted'
     listing.exchangeId = exchange?.p.id
-    w.log.unshift(`Deal done: ${p.name} signs for ${dealText}.`)
+    logLine(w, `Deal done: ${p.name} signs for ${dealText}.`)
     return { accepted: true, message: `${u.clubById[p.clubId]?.shortName ?? 'The club'} accept. ${p.name} is yours for ${dealText}.`, credit, wage }
   }
   if (ratio >= 0.85) {
@@ -382,7 +391,7 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
       listing.status = 'signed'
       listing.response = 'Accepted'
       listing.exchangeId = exchange?.p.id
-      w.log.unshift(`Deal done: ${p.name} signs for ${dealText} after negotiation.`)
+      logLine(w, `Deal done: ${p.name} signs for ${dealText} after negotiation.`)
       return { accepted: true, message: `They take it. ${p.name} signs for ${dealText}.`, credit, wage }
     }
     const counter = roundM(listing.asking * rng.float(0.94, 1.0))

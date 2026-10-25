@@ -44,6 +44,7 @@ Each item lives on its own branch until it is merged into the working branch and
 | Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch; merged into `integration` |
 | Slot picker | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch; merged into `integration` |
 | Football Manager style match-day dashboard | `matchday` | In progress; rebuilds the live match view |
+| Save compaction: compacted results, lz-string compression, a toast when the browser's storage is full | `save-compaction` (from `integration`) | Built, waiting to merge into `integration` |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
 | Casual modes | not started in code | Designed |
 
@@ -118,6 +119,7 @@ Both sites are static sites in the Render project **TouchLine**. That Render wor
 - Theme "Auto" always shows the dark theme.
 - Some docs are partly stale (README's Node version, player-season count and roadmap line; DATA.md's England-only intro and totals; RESEARCH.md section 7).
 - Saves are per browser; clearing site data loses them unless exported from the Record page (cloud saves will fix this).
+- A season's full match detail passed the browser's 5 MB `localStorage` quota (4.4 MB for one Season at full time, and a parked game on top failed every write silently). Fixed on `save-compaction`: the save is compacted and compressed (about 50 K characters for a Season, under 100 K for a two-season Dynasty with a parked Season), and a refused write shows a toast instead of failing silently.
 
 ## 8. Roadmap at a glance
 
@@ -143,3 +145,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · Coach marks and the Key shipped on the working branch: seven first-time tips saved on the profile (`seenTips`), Show tips again on the Record page, and a Key chip that labels the state bars and draws a pitch legend; an injured or suspended player's red ring now wins over the fit colour on the pitch.
 - 2026-10-25 · owner's agent · Slot picker shipped on the working branch: tapping a Dugout pitch slot opens a sheet of everyone who can cover it (the same `canCover`/`isAvailable` line auto-pick and `lineupProblems` use; `ACCOMPLISHED_FACTOR` replaces the literal 0.86), replacing the two-tap swap; Draft slot chips, the phone scroll to the landed squad, and the squad list's Out chip renamed Unused.
 - 2026-10-25 · owner's agent · Working branch merged into `integration` (with `reel-ui`, `fm-depth`, `match-visuals`): the Draft keeps the case-opening reel and gains the slot chips; the Dugout squad panel carries both the Key chip and the Stamina column toggle, the slot sheet replaces the two-tap swap and the player card uses the attribute panel; coach marks sit on the live match and report. No seeded test moved. `tsconfig.app.tsbuildinfo` untracked.
+- 2026-10-25 · owner's agent · `save-compaction` (from `integration`): saves are compacted (a played fixture or tie older than the user's last two league matches and last tie keeps its score, xG and penalties only, since nothing reads more) and compressed with lz-string `compressToUTF16` through a custom persist storage that still reads the plain JSON every earlier build wrote; writes are coalesced (250 ms, flushed on page hide); a full storage shows a toast and the game carries on; Record export is plain JSON from memory and import takes plain or compressed files. A Season at full time drops from 4.4 MB to about 49 K characters stored; a two-season Dynasty with a parked Season from about 8 MB to about 83 K. Window logs capped at 80 lines. No result moved (tested by playing on from a compacted save). New dependency `lz-string` 1.5.0.
