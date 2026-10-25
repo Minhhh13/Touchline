@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveTheme, toggledTheme, type ThemePreference } from '../theme'
+import { rememberThemePreference, resolveTheme, toggledTheme, type ThemePreference } from '../theme'
 
 describe('the theme setting', () => {
   it('Auto follows the device in both directions', () => {
@@ -26,5 +26,10 @@ describe('the theme setting', () => {
         expect(toggledTheme(next)).toBe(shown)
       }
     }
+  })
+
+  it('remembering the choice for the pre-paint script never throws without storage', () => {
+    // The test environment has no localStorage, like a browser with blocked site data
+    expect(() => rememberThemePreference('light')).not.toThrow()
   })
 })

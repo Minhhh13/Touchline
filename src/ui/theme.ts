@@ -8,6 +8,20 @@ export type ResolvedTheme = 'light' | 'dark'
 
 const LIGHT_QUERY = '(prefers-color-scheme: light)'
 
+/**
+ * The preference mirrored outside the save, for the script in index.html that paints the theme before the app loads:
+ * the save itself is compressed (saveStorage.ts), so that script cannot read it. A per-viewer convenience, never read back by the game.
+ */
+export const THEME_KEY = 'touchline-theme'
+
+export function rememberThemePreference(pref: ThemePreference): void {
+  try {
+    localStorage.setItem(THEME_KEY, pref)
+  } catch {
+    // No storage (a private window, blocked site data): the app still sets the theme once it loads
+  }
+}
+
 /** Auto takes the device's setting; a device that says nothing gets Floodlit, as before. */
 export function resolveTheme(pref: ThemePreference, deviceLight: boolean): ResolvedTheme {
   if (pref === 'light' || pref === 'dark') return pref

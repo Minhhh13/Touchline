@@ -16,7 +16,7 @@ import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
-import { toggledTheme, useResolvedTheme } from './theme'
+import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { Bandage, Banknote, BookOpen, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 export function App() {
@@ -52,6 +52,9 @@ export function App() {
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
     if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
   }, [theme])
+  useEffect(() => {
+    rememberThemePreference(profile.theme)
+  }, [profile.theme])
 
   if (loadError) {
     return (
