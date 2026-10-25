@@ -16,6 +16,7 @@ import { GameByGame, SeasonTally, useSeasonPlayback } from '../components/GameBy
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { PlayerRow } from '../components/PlayerRow'
+import { ManagerChip } from '../components/ManagerPick'
 import { Pos, Segmented } from '../components/bits'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
 import { clubName, money, ordinal, seasonLabel } from '../format'
@@ -53,6 +54,7 @@ export function SeasonPlayback() {
             <p className="muted setup-sub">
               {s.teamName} as {clubName(u, s.hostClubId)} · {seasonLabel(s.leagueSeason)}
             </p>
+            {game.manager && <ManagerChip manager={game.manager} />}
             <div className="playback-mw" data-testid="playback-matchweek">
               Matchweek <b>{pb.revealed}</b> / {total}
             </div>

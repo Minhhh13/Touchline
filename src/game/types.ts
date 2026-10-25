@@ -1,3 +1,4 @@
+import type { Manager } from '@engine/managers'
 import type { DraftState } from '@engine/draft'
 import type { FullMatchResult, MatchInProgress, TeamTalk } from '@engine/match'
 import type { Finances, Window } from '@engine/market'
@@ -204,6 +205,11 @@ export interface Game {
   quickOpen?: boolean
   /** The RNG state a quick season with a bench kicked off from, so a change replays the same season up to it. */
   quickStartRng?: RngState
+  /**
+   * The Quick Draft manager picked once the draft was done (`src/game/logic/managers.ts`), kept with his name and style
+   * as picked. Absent when the rules have no managers, and on older saves: the season then plays as it always has.
+   */
+  manager?: Manager
 }
 
 /**

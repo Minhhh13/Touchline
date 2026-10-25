@@ -66,13 +66,15 @@ export interface ChallengeTactics {
  * The quick season's own choices, carried only when something differs from a default season: `t` the tactics of the
  * first half (the whole season without a window), `t2` those of the second half when they were changed at the January
  * pause, `j` the January deal as `[incoming player-season id, slot id]`, `s` the bench changes of a Quick Draft with a
- * bench as `[first matchweek, slot id, incoming player-season id]`, in order.
+ * bench as `[first matchweek, slot id, incoming player-season id]`, in order, `m` the manager picked.
  */
 export interface ChallengeSeason {
   t?: ChallengeTactics
   t2?: ChallengeTactics
   j?: [playerSeasonId: string, slotId: string]
   s?: Array<[from: number, slotId: string, playerSeasonId: string]>
+  /** The manager picked for the season (a Wikidata id or an `arch-` archetype id), when the draft had one. */
+  m?: string
 }
 
 /** Most bench changes a link may carry: the three a quick season allows. */
@@ -219,6 +221,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   draftMode: (v) => DRAFT_MODES.includes(v as DraftMode),
   ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
   benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
+  managers: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
@@ -241,7 +244,8 @@ export function isChallengeTactics(t: unknown): t is ChallengeTactics {
 export function isChallengeSeason(x: unknown): x is ChallengeSeason {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return false
   const o = x as Record<string, unknown>
-  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's')) return false
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm')) return false
+  if (o.m !== undefined && !(isString(o.m) && /^(Q\d{1,12}|arch-[a-z-]{1,20})$/.test(o.m))) return false
   if (o.t !== undefined && !isChallengeTactics(o.t)) return false
   if (o.t2 !== undefined && !isChallengeTactics(o.t2)) return false
   if (o.j !== undefined && !(Array.isArray(o.j) && o.j.length === 2 && o.j.every(isString))) return false

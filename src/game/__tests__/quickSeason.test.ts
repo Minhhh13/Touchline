@@ -9,6 +9,7 @@ import { closeJanuary, kickOff, quickSeasonGames, quickUserInput, quickXI, runQu
 import { JANUARY_BUDGET_FLOOR, JANUARY_LISTINGS, JANUARY_SHORTLIST, JANUARY_SIGN_GAIN, januaryBudget, januaryShortlist, weakestSlots } from '../logic/january'
 import { foldResults, januaryLine, europeLine, nextReveal, playbackDelay, playbackFrame, PLAYBACK_STEP_MS } from '../logic/gameByGame'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
+import { settleManager } from '../logic/managers'
 import { createGame, dailyGameSettings, DAILY_SEASON, summariseSetup } from '../logic/setup'
 import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
@@ -71,6 +72,8 @@ describe('the January window of a quick season', { timeout: 90_000 }, () => {
     const rng = Rng.fromState(plain.rngState)
     autoDraft(u, plain.draft!, rng)
     plain.rngState = rng.getState()
+    // The same manager the kick-off step settles on (the first offered), which draws nothing
+    settleManager(plain)
     runQuickSeason(plain, u)
     const passed = drafted({ seed: 'jan-2' })
     kickOff(passed, u)
@@ -374,12 +377,19 @@ describe('challenge links carry the season’s choices', { timeout: 90_000 }, ()
   })
 
   it('a default season writes no season block, so older links and untouched seasons look the same', () => {
-    const g = drafted({ seed: 'jan-1' })
+    const g = drafted({ seed: 'jan-1', rules: { ...QUICK_RULES, leagues: ['england'], managers: false } })
     kickOff(g, u)
     closeJanuary(g, u, null)
     const c = challengeFromGame(g, u, 'Minh')!
     expect(c.x).toBeUndefined()
     expect(replayChallenge(u, c).verified).toBe('yes')
+    // With a manager (the Quick Draft default) the block holds only him
+    const m = drafted({ seed: 'jan-1' })
+    kickOff(m, u)
+    closeJanuary(m, u, null)
+    const cm = challengeFromGame(m, u, 'Minh')!
+    expect(cm.x).toEqual({ m: m.manager!.id })
+    expect(replayChallenge(u, cm).verified).toBe('yes')
   })
 
   it('refuses a season block holding unknown keys or values', () => {

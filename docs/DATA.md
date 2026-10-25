@@ -65,7 +65,7 @@ Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 46
 | EA SPORTS FC 27 Player Ratings (Kaggle) | mikedpad | Unofficial non-commercial snapshot of EA's public ratings API (see the dataset README) | The FC 27 edition, men's football only (2026-27 membership and ratings; ratings for 2025-26). |
 | European Soccer Database (Kaggle) | Hugo Mathien | ODbL | 2008-09 to 2013-14: Premier League line-ups with pitch coordinates, player attributes over time, birthdays and heights. |
 | openfootball/england (GitHub) | openfootball | CC0 / public domain | Results text files, 2000-01 to 2026-27, parsed into league tables. |
-| Wikidata | Wikimedia | CC0 | Nationalities for players the EA data never covered, via `scripts/import/enrich-nations.mjs` (see section 6). |
+| Wikidata | Wikimedia | CC0 | Nationalities for players the EA data never covered, via `scripts/import/enrich-nations.mjs` (see section 6). The Quick Draft's managers: head coach statements (P286) with their start and end dates, via `scripts/import/managers.mjs` (see "Managers" below). |
 
 Download URLs and file names are in `scripts/import/config.mjs`. Kaggle datasets are fetched through the unauthenticated download redirect and unpacked with `unzip`.
 
@@ -180,3 +180,15 @@ The builder now produces one data pack per league under `public/data/<league>/` 
 | Primeira Liga (portugal) | 8,595 | 3,387 | 39 | 2008-09 to 2026-27 |
 
 69,155 player-seasons in all (the format 3 rebuild of 2026-10-25; Serie A and the Eredivisie gained a few rows from the cached dataset snapshots). The packs run from 1.09 MB (Eredivisie) to 1.46 MB (Premier League), about 13 per cent more than format 2 for the five integer columns. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results files exist for Ligue 1, the Eredivisie or the Primeira Liga, so those club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. A club with only 8 to 11 rows in an edition (Telstar in FC 26, for instance), or any club in that season's results table with fewer than 12 rows, is topped up with its own players from the adjacent season rather than dropped, so every shipped league season keeps its real entrants; the engine still handles odd counts with bye weeks. Only seasons the player data covers are built: a historic table on its own never becomes a playable season. Leagues without result tables mark their newest season as in progress and every earlier one as complete. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.
+
+## Managers
+
+`scripts/import/managers.mjs` builds `src/engine/data/managers.json` (about 60 KB, bundled with the game, committed) for the Quick Draft's manager pick. Run it after a pack rebuild: `node scripts/import/managers.mjs` (network, Wikidata's SPARQL endpoint only).
+
+- **Clubs.** Each club in the packs is matched to its Wikidata item by label or alias (our names, short names and dataset aliases, each also with `F.C.`, `FC`, `A.F.C.`, `CF`, `C.F.`), among items that are an association football club (Q476028) in the league's country, the one with the most Wikipedia articles winning. A few clubs the labels miss are pinned by hand in `CLUB_QID`; SPAL and Carpi are still unmatched.
+- **Managers.** Every head coach statement (P286) of each club with its start time (P580), end time (P582) and any role qualifier (P2868, a caretaker counted at half weight). For a club-season (July to June) the man in charge longest comes first; a second is kept only when he had at least 90 days. Under 30 days in all, or no dated statement, and the club-season is left out: the game offers archetypes instead.
+- **Styles** are ours, not Wikidata's: about sixty well-known managers are given one by hand in `KNOWN_STYLES`; anyone else takes the commonest style of the club-seasons he ran in the packs (the club's playing style in `meta.json` mapped to a manager style, or youth when the best sixteen averaged under 24.6).
+- **Coverage** (2026-10-25): 1,600 of 2,526 club-seasons, 551 managers. Wikidata often holds only a club's recent coaches, so older and smaller club-seasons are the gaps.
+- **Politeness.** One POST at a time with a 1.5 s pause, a retry that honours `Retry-After`, a descriptive `User-Agent`, and every response cached by query hash under `.cache/managers/` (gitignored), so a second run sends nothing.
+- **Licence.** Wikidata is CC0. Managers are public figures named as facts; nothing else about them is used.
+

@@ -11,6 +11,8 @@ import { ClubBadge, Pos, Rating } from '../components/bits'
 import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { leagueSegments } from '../components/leagueSegments'
+import { canPickManager, quickManagerOptions } from '@game/logic/managers'
+import { ManagerPick } from '../components/ManagerPick'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -20,7 +22,7 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 ]
 
 export function Draft() {
-  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, finishDraft, go, showToast } = useStore()
+  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, finishDraft, pickManager, go, showToast } = useStore()
   const [spinning, setSpinning] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
@@ -81,6 +83,8 @@ export function Draft() {
   const selected = selectedPlayer ? get(selectedPlayer) : undefined
   const selectedEligible = selected ? eligibleSlots(d, selected).map((s) => s.id) : []
   const isDynastySummer = game.settings.mode === 'dynasty' && game.year > 1
+  // Quick Draft managers: offered once the draft is done or may close, from the club-seasons drafted
+  const managerChoice = !d.current && !spinning && canPickManager(game, u) ? quickManagerOptions(game) : []
 
   const nation = d.rules.onlyNation
   const nationLabel = nation ? `${flag(u, nation)} ${nationName(u, nation)}` : ''
@@ -248,7 +252,8 @@ export function Draft() {
 
         {/* Squad list column */}
         <div className="panel col">
-          {!current && (
+          {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
+          {!current && !managerChoice.length && (
             <div className="col" style={{ alignItems: 'center', padding: '40px 10px', textAlign: 'center' }}>
               <div style={{ fontSize: 40 }}>🎡</div>
               <h3>{complete ? 'All picks made' : isDynastySummer ? `Summer signings: ${total - made} spin${total - made === 1 ? '' : 's'} to add depth` : 'Spin to land on a club and season'}</h3>

@@ -13,6 +13,7 @@ import { earnsPointsRecord } from './records'
 import { recordUserGames } from './gameByGame'
 import { januaryBudget, januaryListings, sameListing } from './january'
 import { difficultyOf } from '@engine/draft'
+import { quickManagerBoost, settleManager } from './managers'
 import { applyChange, canPlayFor, fieldXI, injuredThrough, QUICK_CHANGES, quickBenchRule } from './quickBench'
 
 /** The drafted XI as the quick season fields it: the draft's lineup, every empty slot filled by `autoPickLineup` (no RNG). */
@@ -44,7 +45,9 @@ export function quickSeasonGames(u: LoadedUniverse, s: Pick<Game['settings'], 'l
 
 /** The user's side in a quick-season match: the XI with the manager's tactics, captain and penalty taker. */
 export function quickUserInput(game: Game, lineup: Lineup, bench: string[], tactics: Tactics, captainId: string | undefined, get: (id: string) => PlayerSeason | undefined): MatchTeamInput {
-  return { teamId: USER_TEAM, teamName: game.settings.teamName, shortName: game.settings.shortName, tactics, lineup, bench, getPlayer: get, getState: () => undefined, ...(captainId ? { captainId } : {}) }
+  // The manager's edge rides on the side itself, so the league, the cups, the odds and the highlights all carry it
+  const managerBoost = quickManagerBoost(game, lineup, tactics, get)
+  return { teamId: USER_TEAM, teamName: game.settings.teamName, shortName: game.settings.shortName, tactics, lineup, bench, getPlayer: get, getState: () => undefined, ...(captainId ? { captainId } : {}), ...(managerBoost ? { managerBoost } : {}) }
 }
 
 /** Copy of a tactics object that shares nothing with the original (safe to keep beside a live draft). */
@@ -263,8 +266,9 @@ export function reopenJanuary(game: Game, u: LoadedUniverse): void {
   openJanuary(game, u)
 }
 
-/** The quick season's first step after the draft (Quick Draft and the Daily): the tactics screen, with the XI in place. */
+/** The quick season's first step after the draft (Quick Draft and the Daily): the tactics screen, with the XI in place and the manager settled. */
 export function toKickoff(game: Game, u: LoadedUniverse): void {
+  settleManager(game)
   const { lineup, bench } = quickXI(game, u)
   game.lineup = lineup
   game.bench = bench

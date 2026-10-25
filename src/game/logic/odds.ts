@@ -178,7 +178,7 @@ export function preSeasonOdds(game: Game, u: LoadedUniverse, seasons = ODDS_SEAS
  */
 export function oddsKey(game: Game): string {
   const s = game.settings
-  return JSON.stringify([game.id, game.quickStartRng ?? game.rngState, game.lineup, game.bench, game.tactics, game.captainId ?? null, s.leagueId, s.leagueSeason, s.hostClubId, s.difficulty ?? 'calibrated', s.rules])
+  return JSON.stringify([game.id, game.quickStartRng ?? game.rngState, game.lineup, game.bench, game.tactics, game.captainId ?? null, s.leagueId, s.leagueSeason, s.hostClubId, s.difficulty ?? 'calibrated', s.rules, game.manager?.id ?? null])
 }
 
 /** The XI's unit ratings for the breakdown, as the season will field it. Pure. */

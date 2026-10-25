@@ -47,7 +47,8 @@ describe('the Daily puzzle', () => {
     expect(s.hostClubId).toBe('swansea-city')
     expect(s.leagueSeason).toBe(2017)
     expect(s.formationId).toBe('4-3-3')
-    expect(s.rules).toEqual({ ...QUICK_RULES, twists: true, leagues: ['england'] })
+    // The quick wheel, without the manager pick
+    expect(s.rules).toEqual({ ...QUICK_RULES, twists: true, managers: false, leagues: ['england'] })
     // The rules come from the Daily's own literal, not the quick defaults
     expect(s.rules).toEqual({ ...DAILY_RULES, leagues: ['england'] })
     expect(s.jobSecurity).toBe(false)

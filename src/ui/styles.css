@@ -2724,3 +2724,42 @@ table.tbl tr.clickable:hover {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------ Quick Draft manager pick */
+.manager-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.manager-card {
+  gap: 6px;
+}
+.manager-card .manager-name {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.manager-card .manager-style,
+.manager-chip {
+  align-self: flex-start;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.manager-chip {
+  white-space: normal;
+}
+.manager-mono {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px dashed var(--line);
+  color: var(--text-3);
+  font-size: 12px;
+  flex: none;
+}
+@media (max-width: 520px) {
+  .manager-cards {
+    grid-template-columns: 1fr;
+  }
+}

@@ -11,6 +11,8 @@ import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
+import { ManagerChip } from '../components/ManagerPick'
+import { managerLine } from '@game/logic/managers'
 import { clubName, flag, money, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
@@ -76,6 +78,9 @@ export function Summary() {
     const landed = (game.draft?.history ?? []).flatMap((h): Twist[] => (h.pickedId && h.twist ? [h.twist] : [])).map((t) => TWIST_INFO[t].icon)
     extraLines.push(landed.length ? `Twists ${landed.join(' ')}` : 'Twists 🎲')
   }
+  // The Quick Draft's manager, by name and style
+  const mgrLine = managerLine(game.manager)
+  if (mgrLine) extraLines.push(mgrLine)
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
@@ -210,6 +215,11 @@ export function Summary() {
         {!replay.playing && (season?.cupWon || quickCupWon) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-cup">🏆 Cup winners</div>}
         {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-continental">🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
+        {game.manager && (
+          <div style={{ marginTop: 6 }}>
+            <ManagerChip manager={game.manager} />
+          </div>
+        )}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: {flag(u, game.settings.rules.onlyNation)} {nationName(u, game.settings.rules.onlyNation)}</div>}
         {season?.objectives?.length ? <div className="chip" style={{ marginTop: 6 }}>Board objectives: {season.objectives.filter((o) => o.met).length} of {season.objectives.length} met</div> : null}

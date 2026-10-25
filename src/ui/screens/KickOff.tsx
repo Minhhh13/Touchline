@@ -11,6 +11,9 @@ import { QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
 import { SquadComplete } from '../components/PreSeasonOdds'
 import { clubName, seasonLabel } from '../format'
+import { quickManagerOptions } from '@game/logic/managers'
+import { ManagerChip, ManagerPick } from '../components/ManagerPick'
+import { MANAGER_STYLE_HELP } from '@engine/managers'
 
 /**
  * The step between a quick draft (or the Daily) and its season, the way 38-0 shows a finished squad: the pre-season
@@ -19,8 +22,9 @@ import { clubName, seasonLabel } from '../format'
  * defaults" plays it with the default tactics instead.
  */
 export function KickOff() {
-  const { universe: u, game, setTactics, setCaptain, kickOff } = useStore()
+  const { universe: u, game, setTactics, setCaptain, kickOff, pickManager } = useStore()
   const [showTactics, setShowTactics] = useState(false)
+  const [showManagers, setShowManagers] = useState(false)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
@@ -39,6 +43,21 @@ export function KickOff() {
             {s.teamName} as {clubName(u, s.hostClubId)}, {seasonLabel(s.leagueSeason)} · {formation.name}. Eleven in, and this is how the season shapes up.
           </p>
         </div>
+        {game.manager && (
+          <div className="panel col" data-testid="kickoff-manager" style={{ gap: 8 }}>
+            <div className="row between wrap" style={{ gap: 8 }}>
+              <div className="col" style={{ gap: 4 }}>
+                <span className="sc-kicker">In the dugout</span>
+                <ManagerChip manager={game.manager} />
+                <span className="help">{MANAGER_STYLE_HELP[game.manager.style]}</span>
+              </div>
+              <button type="button" className="btn sm ghost" onClick={() => setShowManagers(!showManagers)} aria-expanded={showManagers} data-testid="kickoff-manager-change">
+                {showManagers ? 'Done' : 'Change manager'}
+              </button>
+            </div>
+            {showManagers && <ManagerPick options={quickManagerOptions(game)} picked={game.manager.id} onPick={pickManager} />}
+          </div>
+        )}
         <SquadComplete game={game} u={u} hideRatings={hide}>
           <button className="btn primary big sc-go" onClick={() => kickOff()} data-testid="kickoff-go">
             Simulate season

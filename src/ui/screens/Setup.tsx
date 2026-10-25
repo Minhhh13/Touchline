@@ -39,6 +39,11 @@ const DRAFT_MODE_OPTIONS: Array<{ value: DraftMode; title: string; line: string 
 ]
 /** Quick Draft bench places: off, or up to five extra picks the season can bring on (three changes, plus injury cover). */
 const BENCH_OPTIONS: Array<{ value: string; label: string }> = [{ value: '0', label: 'Off' }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))]
+/** Quick Draft managers: pick one of the real managers of the club-seasons drafted, or play without. */
+const MANAGER_OPTIONS: Array<{ value: 'on' | 'off'; title: string; line: string }> = [
+  { value: 'on', title: 'On', line: 'Pick a real manager from the clubs you drafted' },
+  { value: 'off', title: 'Off', line: 'No manager: the XI on its own' },
+]
 const RATINGS_MODE_OPTIONS: Array<{ value: RatingsMode; title: string; line: string }> = [
   { value: 'season', title: 'Season', line: 'Rated as he was in that very season' },
   { value: 'prime', title: 'Prime', line: 'Every player at his career best' },
@@ -81,6 +86,8 @@ export function Setup() {
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
   const [benchPicks, setBenchPicks] = useState(5)
+  // Quick Draft: a manager picked after the draft, on unless switched off
+  const [managers, setManagers] = useState(true)
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
   const [leagueSeason, setLeagueSeason] = useState(() => {
@@ -121,7 +128,7 @@ export function Setup() {
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks })
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, ...(isManage ? {} : { managers }) })
   const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason }
   const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
@@ -320,6 +327,13 @@ export function Setup() {
                 <h3>Bench</h3>
                 <Segmented value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS} />
                 <span className="help setup-line">{benchPicks ? `Up to ${benchPicks} extra pick${benchPicks === 1 ? '' : 's'}, optional. Any pick can go to the bench; in the season make 3 changes between games, and injured starters are covered from it.` : 'No bench: the XI plays every game.'}</span>
+              </div>
+            )}
+            {!isManage && (
+              <div className="setup-opt" data-testid="manager-option">
+                <h3>Manager</h3>
+                <ChoiceCards label="Manager" testId="managers" options={MANAGER_OPTIONS} value={managers ? 'on' : 'off'} onChange={(v) => setManagers(v === 'on')} />
+                <span className="help setup-line">{managers ? 'After the draft, choose who picks the team: each style gives a small edge.' : 'No manager: the season plays on the XI and the tactics alone.'}</span>
               </div>
             )}
             {!isManage && (

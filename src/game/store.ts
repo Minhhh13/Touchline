@@ -11,6 +11,7 @@ import type { LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
+import { pickManager } from './logic/managers'
 import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
@@ -102,6 +103,8 @@ interface Store {
   pickPlayer: (playerSeasonId: string, slotId: string | 'bench') => void
   autoDraftRest: () => void
   finishDraft: () => void
+  /** Quick Draft with managers: pick the manager by id once the draft is done, up to kick-off (`src/game/logic/managers.ts`). */
+  pickManager: (id: string) => void
   /** Quick Draft and the Daily: leave the tactics step and play the season (to the January window when it is on); `skip` restores the default tactics first. */
   kickOff: (skip?: boolean) => void
   /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
@@ -439,6 +442,7 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
+        pickManager: (id) => mutate((g, u) => pickManager(g, u, id)),
         kickOff: (skip) => {
           if (get().game?.phase !== 'kickoff') return
           mutate((g, u) => kickOff(g, u, skip))

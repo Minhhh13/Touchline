@@ -9,6 +9,7 @@ import { createGame } from './setup'
 import { closeJanuary, closeQuickSeason, openJanuary, runQuickSeason } from './quick'
 import { cupReachLabel, playQuickCup, quickCupProblem, type QuickCupComp } from './quickCups'
 import { playerLookup } from './players'
+import { managersOn, setManager } from './managers'
 
 /** The settings a challenge link fixes; the team name is the only free choice at setup. */
 export function settingsFromChallenge(c: ChallengePayload, teamName: string, shortName: string, challenge: ChallengeSettings): GameSettings {
@@ -51,7 +52,7 @@ export function applyTactics(game: Game, t: ChallengeTactics | undefined): void 
   else delete game.captainId
 }
 
-/** The season block of a finished quick game: the tactics of each half, the January deal and the bench changes, or undefined for a default season. */
+/** The season block of a finished quick game: the tactics of each half, the January deal, the bench changes and the manager, or undefined for a default season. */
 export function seasonOf(game: Game): ChallengeSeason | undefined {
   const j = game.quickJanuary && game.quickJanuary.move !== undefined ? game.quickJanuary : null
   const now = tacticsDiff(game.tactics, game.captainId)
@@ -63,6 +64,7 @@ export function seasonOf(game: Game): ChallengeSeason | undefined {
     ...(changed ? { t2: now ?? {} } : {}),
     ...(j?.move ? { j: [j.move.playerSeasonId, j.move.slotId] as [string, string] } : {}),
     ...(game.quickChanges?.length ? { s: game.quickChanges.map((c) => [c.from, c.slotId, c.inId] as [number, string, string]) } : {}),
+    ...(game.manager ? { m: game.manager.id } : {}),
   }
   return Object.keys(x).length ? x : undefined
 }
@@ -161,6 +163,11 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
  * not on offer throws), else the season in one go.
  */
 function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | undefined): void {
+  // The challenger's manager, found among those the replayed draft offers (one it does not offer throws); none without `m`
+  if (x?.m) {
+    if (!managersOn(game)) throw new Error('the link names a manager but its rules have none')
+    setManager(game, x.m)
+  }
   applyTactics(game, x?.t)
   // The bench changes travel as made; the season applies each at its matchweek (one that does not fit throws)
   if (x?.s?.length) game.quickChanges = x.s.map(([from, slotId, inId]) => ({ from, slotId, inId }))

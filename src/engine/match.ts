@@ -46,6 +46,11 @@ export interface MatchTeamInput {
   talkSkill?: number
   /** Opposition player-season id to man-mark: his influence drops, ours a little too. */
   markTarget?: string
+  /**
+   * A Quick Draft manager's edge (`managerBoost` in `managers.ts`): multiplied into the side's boost, `attack` on its
+   * own expected goals and `defence` on the opponent's. Absent, the side plays exactly as before managers existed.
+   */
+  managerBoost?: { attack: number; defence: number }
 }
 
 export interface MatchOptions {
@@ -555,8 +560,13 @@ function snapshotOf(t: MatchTeamInput, strength: TeamStrength, modifiers: Tactic
     modifiers,
     talkText,
     variance,
-    boost: boost ?? { attack: 1, defence: 1 },
+    boost: withManager(boost ?? { attack: 1, defence: 1 }, t.managerBoost),
   }
+}
+
+/** A side's boost with its manager's edge multiplied in; the very same object when it has no manager. */
+function withManager(boost: { attack: number; defence: number }, m: MatchTeamInput['managerBoost']): { attack: number; defence: number } {
+  return m ? { attack: boost.attack * m.attack, defence: boost.defence * m.defence } : boost
 }
 
 /** What a pairing is expected to produce before a ball is kicked: each side's expected goals and variance spread. */
