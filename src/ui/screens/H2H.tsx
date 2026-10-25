@@ -14,7 +14,7 @@ import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { tierTable } from '@game/logic/rarity'
-import { h2hReelPool } from '@game/logic/reel'
+import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
 import { GameByGame } from '../components/GameByGame'
 
@@ -151,10 +151,13 @@ export function H2HScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [u, h2h?.draft.spins, h2h?.draft.log.length],
   )
+  // The leagues the wheel draws from are the draft rules' (an older save may lack `wheelLeagues`)
+  const rules = h2h?.draft.drafts[0].rules
+  const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
-  const tier = current ? tierTable(u, h2h.wheelLeagues)[`${current.clubId}@${current.season}`] : undefined
+  const tier = current ? tierTable(u, leagues)[`${current.clubId}@${current.season}`] : undefined
   const complete = h2hComplete(d)
   const picking = d.picking
   const manager = picking !== null ? h2h.managers[picking] : null
@@ -201,7 +204,7 @@ export function H2HScreen() {
       <div className="grid draft">
         <div className="col">
           <div className="panel col">
-            <CaseReel u={u} leagues={h2h.wheelLeagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
+            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
