@@ -36,6 +36,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - An xG-based match engine with a live ticker, scorers, assists, cards, injuries, substitutions and player ratings.
 - Condition, sharpness, familiarity, morale and form; suspensions at five yellow cards; injuries from a knock to a ruptured ACL.
 - Weekly training focus, pre-match team talks, dressing-room events with choices, promises you can break.
+- **The assistant's briefing**: the dugout opens with a list of what needs doing before kick-off, each line with the button that does it: a pending decision, lineup problems, tired or rusty starters, a man one yellow from a ban, a promised start left out, the window and deadline day, the midweek tie, a board objective at risk, and when nothing is wrong one line naming your training focus and team talk. Six lines at most, in that order. In pre-season it is a checklist (three friendlies, a captain, roles, staff, set-piece takers, the youth intake) that ticks as you go. On a phone the Play, Sim 5 and Sim to end buttons sit in a fixed bottom bar with the top line of the briefing beside them.
 - Have a word with any player once a week: praise, demand more, promise a start or reassure him. The reply depends on his form and his professionalism.
 - A captain who matters: a leader with a strong mentality lifts the side in big matches and keeps low morale from sinking.
 - Set-piece takers: name your penalty, free-kick and corner specialists and the engine uses them.

@@ -1263,10 +1263,107 @@ table.tbl tr.clickable:hover {
   font-size: 12.5px;
   color: var(--text-2);
 }
-.sticky-cta {
-  position: sticky;
-  bottom: 12px;
-  z-index: 15;
+/* The dugout's CTA panel: fixture and briefing on the left, the action bar on the right (fixed to the bottom on phones). */
+.panel.cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+.cta-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.briefing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.brief,
+.bar-brief {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  padding: 2px 0;
+}
+.brief .icon,
+.bar-brief .icon {
+  text-align: center;
+  font-weight: 700;
+}
+.brief.block .icon,
+.bar-brief.block .icon {
+  color: var(--danger);
+}
+.brief.warn .icon,
+.bar-brief.warn .icon {
+  color: var(--warn);
+}
+.brief.info .icon,
+.bar-brief.info .icon {
+  color: var(--text-2);
+}
+.brief.ok .icon,
+.bar-brief.ok .icon {
+  color: var(--accent);
+}
+.brief.done .text {
+  color: var(--text-2);
+}
+.cta-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.cta-bar .bar-brief {
+  display: none;
+}
+.cta-bar .btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  .cta-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: 1px solid var(--line-2);
+    box-shadow: var(--shadow);
+    align-items: stretch;
+  }
+  .cta-bar .bar-brief {
+    display: grid;
+  }
+  .cta-bar .bar-brief .text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cta-bar .btns .btn {
+    flex: 1 1 auto;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .cta-bar .btns .btn.primary.big {
+    flex: 3 1 auto;
+    order: -1;
+  }
 }
 /* The start bar: the choice summary and the one button that matters. Fixed to the bottom on phones. */
 .bottom-bar {
