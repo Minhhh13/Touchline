@@ -166,7 +166,12 @@ export function claimFrom(v: unknown): ClaimResult {
   return { status, revision: Number(r.revision ?? 0), obsolete: Array.isArray(r.obsolete) ? r.obsolete.filter((x): x is string => typeof x === 'string') : [] }
 }
 
-const SAVE_COLUMNS = 'slot, revision, game_id, content_hash, object_path, meta, device_id, client_saved_at, deleted_at, updated_at, prev_game_id, prev_object_path, prev_meta, prev_saved_at'
+/** The Edge Function's address, pinned to the project's region with `forceFunctionRegion` (the CORS-safe form). */
+export function functionUrl(cfg: Pick<OnlineConfig, 'url' | 'functionName' | 'region'>): string {
+  return `${cfg.url}/functions/v1/${cfg.functionName}?forceFunctionRegion=${encodeURIComponent(cfg.region)}`
+}
+
+const SAVE_COLUMNS ='slot, revision, game_id, content_hash, object_path, meta, device_id, client_saved_at, deleted_at, updated_at, prev_game_id, prev_object_path, prev_meta, prev_saved_at'
 const SLOTS: SlotId[] = ['quick', 'season', 'dynasty', 'h2h']
 
 /** The browser transport over a supabase-js client. */
@@ -275,9 +280,11 @@ export class SupabaseTransport implements OnlineTransport {
     if (!token) return { status: 401, body: { code: 'signed_out', reason: 'Sign in first' } }
     let res: Response
     try {
-      res = await this.fetchImpl(`${this.cfg.url}/functions/v1/${this.cfg.functionName}`, {
+      // The region goes in the query, never as an `x-region` header: the function's CORS allow-list (supabase-js's
+      // corsHeaders, which withSupabase answers the preflight with) does not name it, so a browser would refuse the call
+      res = await this.fetchImpl(functionUrl(this.cfg), {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, apikey: this.cfg.key, 'x-region': this.cfg.region },
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, apikey: this.cfg.key },
         body: JSON.stringify(body),
       })
     } catch (e) {

@@ -21,7 +21,7 @@ export function bootOnline(): void {
     const g = rankedFinish(prev, s)
     if (!g || !s.universe) return
     const name = cleanName(s.profile.managerName) || cleanName(g.settings.teamName) || 'A friend'
-    const entry = captureEntry(g, s.universe, name, new Date())
+    const entry = captureEntry(g, s.universe, name, new Date(), onlineStore.getState().session?.userId ?? null)
     if (!entry) return
     const next = updateRecord((r) => enqueue(r, entry))
     onlineStore.setState({ posts: next.posts, outboxCount: next.outbox.length })

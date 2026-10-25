@@ -65,6 +65,16 @@ export interface SyncOutcome {
 }
 
 export const SEASON_UPLOAD_GAP_MS = 120000
+
+/** `resume`: the player's own "Sync now", the only way out of the pause "Delete my cloud data" leaves. */
+export interface SyncOptions {
+  force?: boolean
+  resolve?: Resolution
+  replaceAll?: boolean
+  resume?: boolean
+}
+
+export const PAUSED_MESSAGE = 'Cloud sync is off since you deleted your cloud data. Press Sync now to upload the games on this device again.'
 const SLOT_NAME: Record<SlotId, string> = { quick: 'Quick Draft', season: 'Season', dynasty: 'Dynasty', h2h: 'head-to-head' }
 
 /** What a slot uploads: the compacted game (what a local save keeps), or the hot-seat game as it is. */
@@ -133,7 +143,7 @@ export class SyncEngine {
    */
   async chooseAccount(choice: 'upload' | 'keep' | 'replace'): Promise<void> {
     const r = this.d.load()
-    const fresh: OnlineRecord = { ...r, userId: this.d.userId, slots: {}, profileBase: null, tombstones: [], localOnly: [], profileLocalOnly: false, lastUploadAt: {} }
+    const fresh: OnlineRecord = { ...r, userId: this.d.userId, slots: {}, profileBase: null, tombstones: [], localOnly: [], profileLocalOnly: false, lastUploadAt: {}, paused: false }
     if (choice === 'keep') {
       fresh.localOnly = Object.values(slotContents(this.d.store.getState())).map((v) => slotIdentity(v!))
       fresh.profileLocalOnly = true
@@ -171,9 +181,9 @@ export class SyncEngine {
   }
 
   /** Pull, plan and act once (a second call while one runs makes it run again afterwards). */
-  sync(opts: { force?: boolean; resolve?: Resolution; replaceAll?: boolean } = {}): Promise<SyncOutcome> {
+  sync(opts: SyncOptions = {}): Promise<SyncOutcome> {
     if (this.running) {
-      if (!opts.resolve && !opts.replaceAll) {
+      if (!opts.resolve && !opts.replaceAll && !opts.resume) {
         this.again = true
         return this.running
       }
@@ -189,10 +199,18 @@ export class SyncEngine {
     return this.running
   }
 
-  private async run(opts: { force?: boolean; resolve?: Resolution; replaceAll?: boolean }): Promise<SyncOutcome> {
+  private async run(opts: SyncOptions): Promise<SyncOutcome> {
     if (this.needsAccountChoice()) {
       this.d.report({ accountSwitch: { previousUserId: this.d.load().userId! }, syncStatus: 'paused', syncMessage: 'Another account synced this device before: choose what to do with its games.' })
       return { ok: false, error: null }
+    }
+    const held = this.d.load()
+    if (held.paused) {
+      if (!opts.resume) {
+        this.d.report({ syncStatus: 'paused', syncMessage: PAUSED_MESSAGE })
+        return { ok: true, error: null }
+      }
+      this.d.save({ ...held, paused: false })
     }
     this.d.report({ syncStatus: 'syncing' })
     try {
@@ -226,7 +244,7 @@ export class SyncEngine {
     return v.kind === 'game' ? v.active && s.screen === 'game' : s.screen === 'h2h'
   }
 
-  private async syncSlot(slot: SlotId, row: CloudRow | null, opts: { force?: boolean; resolve?: Resolution; replaceAll?: boolean }): Promise<SyncConflict | null> {
+  private async syncSlot(slot: SlotId, row: CloudRow | null, opts: SyncOptions): Promise<SyncConflict | null> {
     const v = this.local(slot)
     // A live match paused at a stop is never swapped or uploaded mid-match: the slot waits for the whistle
     if (v && v.kind === 'game' && v.game.phase === 'match' && v.game.live) return null
@@ -456,8 +474,9 @@ export class SyncEngine {
     }
     await this.removeQuietly(left)
     const r = this.d.load()
-    this.d.save({ ...r, slots: {}, profileBase: null, tombstones: [], lastUploadAt: {} })
-    this.d.report({ conflicts: [] })
+    // Paused, or this device's next pass would upload every game and the record straight back
+    this.d.save({ ...r, slots: {}, profileBase: null, tombstones: [], lastUploadAt: {}, paused: true })
+    this.d.report({ conflicts: [], syncStatus: 'paused', syncMessage: PAUSED_MESSAGE })
     return objects.length + left.length
   }
 }

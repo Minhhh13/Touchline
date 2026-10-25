@@ -78,13 +78,13 @@ export function classify(status: number, body: Record<string, unknown>, points: 
 }
 
 /** File a finished ranked run. Null when the game is not a finished Daily or weekly challenge, or it was filed already. */
-export function captureEntry(game: Game, u: LoadedUniverse, name: string, now: Date): OutboxEntry | null {
+export function captureEntry(game: Game, u: LoadedUniverse, name: string, now: Date, owner: string | null = null): OutboxEntry | null {
   const sub = buildRankedSubmission(game, u, name)
   if (!sub) return null
   const board = rankedBoardOf(game.settings)
   if (!board) return null
   const { kind, key } = board
-  return { id: `${kind}:${key}:${game.id}`, kind, key, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0 }
+  return { id: `${kind}:${key}:${game.id}`, kind, key, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner }
 }
 
 /** Add a captured entry: one per board key and device (the server keeps the first post anyway). */
@@ -97,6 +97,8 @@ export function enqueue(r: OnlineRecord, e: OutboxEntry): OnlineRecord {
 export interface FlushDeps {
   transport: OnlineTransport
   signedIn: boolean
+  /** The signed-in account; an entry another account filed waits for that account. */
+  userId?: string | null
   now: () => number
   random: () => number
 }
@@ -114,7 +116,8 @@ export async function flushOutbox(r: OnlineRecord, deps: FlushDeps): Promise<Onl
       rec = { ...rec, posts: { ...rec.posts, [k]: { state: 'closed' } } }
       continue
     }
-    if (!deps.signedIn) {
+    // A run filed while another account was signed in on this device never posts under this one
+    if (!deps.signedIn || (e.owner && e.owner !== deps.userId)) {
       rec = { ...rec, posts: { ...rec.posts, [k]: { state: 'waiting', reason: 'sign_in', points: e.points } } }
       keep.push(e)
       continue

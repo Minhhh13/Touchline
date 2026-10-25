@@ -29,6 +29,9 @@ export interface OutboxEntry {
   attempts: number
   /** Epoch ms before which the entry is not retried. */
   nextAt: number
+  /** The account signed in when the run finished: it posts only under that account. Null or missing: filed signed
+   * out, so it posts under the next account that signs in on this device. */
+  owner?: string | null
 }
 
 export interface OnlineRecord {
@@ -49,6 +52,9 @@ export interface OnlineRecord {
   captured: string[]
   lastUploadAt: Partial<Record<SlotId, number>>
   claims: number
+  /** Set by "Delete my cloud data": nothing uploads again until the player presses Sync now (otherwise this device's
+   * next pass would put every game straight back). */
+  paused?: boolean
 }
 
 const CAP_POSTS = 60
@@ -87,6 +93,7 @@ export function parseRecord(text: string | null): OnlineRecord {
       captured: Array.isArray(r.captured) ? r.captured : [],
       lastUploadAt: r.lastUploadAt && typeof r.lastUploadAt === 'object' ? r.lastUploadAt : {},
       claims: typeof r.claims === 'number' ? r.claims : 0,
+      paused: r.paused === true,
     }
   } catch {
     return freshRecord()

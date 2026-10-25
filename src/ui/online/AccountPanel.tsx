@@ -224,7 +224,7 @@ export function AccountPanel() {
             <button
               className="btn sm ghost danger"
               onClick={() => {
-                if (!confirm('Delete every cloud save and the synced record of this account? The games on this device stay. Other signed-in devices upload their own copies again on their next sync.')) return
+                if (!confirm('Delete every cloud save and the synced record of this account? The games on this device stay here, and this device stops syncing until you press Sync now. Other signed-in devices upload their own copies again on their next sync.')) return
                 void api.deleteCloudData().then((n) => useStore.getState().showToast(`Cloud data deleted (${n} file${n === 1 ? '' : 's'}).`))
               }}
             >

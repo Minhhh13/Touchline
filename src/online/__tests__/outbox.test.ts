@@ -115,4 +115,27 @@ describe('outbox answers (build plan 4.8)', () => {
     expect(late.posts['daily:2026-10-25']).toEqual({ state: 'closed' })
     expect(b.calls.length).toBe(calls)
   })
+
+  it('posts a run only under the account that was signed in when it finished (shared devices)', async () => {
+    const b = new FakeBackend()
+    b.fn = (body) => (body.op === 'daily.submit' ? { status: 200, body: { status: 'ranked', position: 1, total: 1, entry: { points: 70, claimMatched: true } } } : { status: 400, body: {} })
+    const mine = captureEntry(daily.after, u, 'Minh', new Date(NOW), 'user-a')!
+    expect(mine.owner).toBe('user-a')
+    let r = enqueue(freshRecord('device-test-0003'), mine)
+    // another account signs in on this device: the run waits for its own account and nothing is sent
+    r = await flushOutbox(r, { transport: new FakeTransport(b, 'user-b'), signedIn: true, userId: 'user-b', now: () => NOW, random: () => 0 })
+    expect(b.calls).toEqual([])
+    expect(r.outbox).toHaveLength(1)
+    expect(r.posts['daily:2026-10-25']).toMatchObject({ state: 'waiting', reason: 'sign_in' })
+    // its own account posts it
+    r = await flushOutbox(r, { transport: new FakeTransport(b, 'user-a'), signedIn: true, userId: 'user-a', now: () => NOW, random: () => 0 })
+    expect(r.outbox).toEqual([])
+    expect(r.posts['daily:2026-10-25']).toMatchObject({ state: 'posted' })
+    // a run filed signed out posts under whoever signs in next (the plan's "posted after sign-in")
+    const anon = captureEntry(daily.after, u, 'Minh', new Date(NOW))!
+    expect(anon.owner).toBeNull()
+    let r2 = enqueue(freshRecord('device-test-0004'), anon)
+    r2 = await flushOutbox(r2, { transport: new FakeTransport(b, 'user-b'), signedIn: true, userId: 'user-b', now: () => NOW, random: () => 0 })
+    expect(r2.outbox).toEqual([])
+  })
 })

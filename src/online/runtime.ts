@@ -16,7 +16,7 @@ import { freshRecord, loadRecord, saveRecord } from './localState'
 import { flushOutbox, nextDue } from './outbox'
 import { onlineStore, type OnlineSession, type OnlineState } from './state'
 import { SupabaseTransport, type OnlineTransport, type CloudRow } from './transport'
-import { SEASON_UPLOAD_GAP_MS, SyncEngine, type Resolution, type SyncStoreLike } from './sync'
+import { SEASON_UPLOAD_GAP_MS, SyncEngine, type SyncOptions, type SyncStoreLike } from './sync'
 import { weekKeyOf } from './weekly'
 import type { PuzzlePin } from './server/dailyVerify'
 import { DELETE_CONFIRMATION } from './server/validate'
@@ -196,7 +196,7 @@ export class Runtime {
     this.timer = null
   }
 
-  async syncNow(opts: { force?: boolean; resolve?: Resolution } = {}): Promise<void> {
+  async syncNow(opts: SyncOptions = {}): Promise<void> {
     const engine = this.engine
     if (!engine) return
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -244,7 +244,7 @@ export class Runtime {
 
   private async flushOnce(): Promise<void> {
     const before = loadRecord()
-    const rec = await flushOutbox(before, { transport: this.transport, signedIn: this.signedIn, now: () => Date.now(), random: Math.random })
+    const rec = await flushOutbox(before, { transport: this.transport, signedIn: this.signedIn, userId: this.userId, now: () => Date.now(), random: Math.random })
     // Entries captured while the flush ran are kept: merge rather than overwrite
     const latest = loadRecord()
     const startIds = new Set(before.outbox.map((e) => e.id))

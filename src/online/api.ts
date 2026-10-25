@@ -76,8 +76,9 @@ export async function saveAccount(name: string, country: string | null): Promise
   }
 }
 
+/** The player's "Sync now": also turns sync back on after "Delete my cloud data". */
 export async function syncNow(): Promise<void> {
-  await (await rt())?.syncNow({ force: true })
+  await (await rt())?.syncNow({ force: true, resume: true })
 }
 
 export async function resolveConflict(res: Resolution): Promise<void> {
