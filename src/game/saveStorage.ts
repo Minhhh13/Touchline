@@ -3,8 +3,9 @@
  * `compressToUTF16` before it reaches localStorage, and read back either
  * compressed or as the plain JSON every earlier build wrote (a plain save
  * starts with `{`, which a compressed one never does). Writes are coalesced:
- * the latest state is written once the store has been quiet for a moment, and
- * at once when the page is hidden or closed. A write the browser refuses
+ * a change schedules one write a moment later, which carries the latest state
+ * (so a steady stream of changes still writes every moment), and a waiting
+ * write goes out at once when the page is hidden or closed. A write the browser refuses
  * (its storage is full) is reported and the game carries on in memory.
  */
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string'
@@ -54,7 +55,7 @@ export function isQuotaError(e: unknown): boolean {
 export interface SaveStorageOptions {
   /** The backing storage; undefined (or a throw) when the browser has none. */
   storage: () => Storage | undefined
-  /** Milliseconds of quiet before a write; 0 writes at once. */
+  /** Milliseconds from the first unsaved change to the write that carries the latest state; 0 writes at once. */
   delayMs: number
   /** Called after every write the browser accepted. */
   onWrite?: () => void

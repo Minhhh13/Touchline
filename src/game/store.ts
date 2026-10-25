@@ -38,7 +38,7 @@ import { withTipSeen, type TipId } from './logic/tips'
 export const SAVE_KEY = 'touchline-save-v1'
 /** Persist version of the saved state (a change needs a `migrate`). */
 export const SAVE_VERSION = 1
-/** Quiet time before the save is written: a burst of changes is written once, with the latest state. */
+/** Delay from a change to the write: a burst of changes inside it is written once, with the latest state. */
 const SAVE_DELAY_MS = 250
 /** Shown when the browser refuses to store the save. */
 export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
