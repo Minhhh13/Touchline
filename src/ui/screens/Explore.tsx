@@ -138,7 +138,7 @@ export function Explore() {
     <div className="page">
       <div className="row between wrap" style={{ marginBottom: 10 }}>
         <div>
-          <h1>Explore</h1>
+          <h1>Explore database</h1>
           <div className="muted small">Every club-season on the wheel, with its real squad and the ratings the engine uses.</div>
         </div>
         <button className="btn ghost" onClick={() => go('home')}>
