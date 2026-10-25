@@ -4,6 +4,8 @@ import { Home } from './screens/Home'
 import { Setup } from './screens/Setup'
 import { Draft } from './screens/Draft'
 import { Summary } from './screens/Summary'
+import { KickOff } from './screens/KickOff'
+import { SeasonPlayback } from './screens/SeasonPlayback'
 import { Dugout } from './screens/Dugout'
 import { MatchScreen } from './screens/MatchScreen'
 import { Explore } from './screens/Explore'
@@ -20,7 +22,7 @@ import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme
 import { Bandage, Banknote, BookOpen, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
 
@@ -92,6 +94,10 @@ export function App() {
   let body: React.ReactNode
   if (screen === 'game' && game) {
     if (game.phase === 'draft') body = <Draft />
+    else if (game.phase === 'kickoff') body = <KickOff />
+    // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
+    // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
+    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = <Summary />
     else body = <Dugout />
@@ -116,7 +122,7 @@ export function App() {
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => go('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
-              {game.phase === 'draft' ? 'Draft' : game.phase === 'summary' ? 'Summary' : 'Dugout'}
+              {game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : 'Dugout'}
             </button>
           )}
           <button className={screen === 'h2h' ? 'active' : ''} onClick={() => go('h2h')}>

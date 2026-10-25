@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
-import { getFormation, FORMATIONS } from '@engine/formations'
+import { getFormation } from '@engine/formations'
 import { rolesFor, getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
 import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
@@ -19,6 +19,7 @@ import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingIte
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { Pitch, PitchLegend } from '../components/Pitch'
+import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos, Tip, useViewerFlag } from '../components/bits'
@@ -545,14 +546,7 @@ function TacticsTab() {
         <div className="col">
           <div className="panel">
             <h3>Formation</h3>
-            <div className="formations">
-              {FORMATIONS.map((f) => (
-                <button key={f.id} className={f.id === t.formationId ? 'active' : ''} onClick={() => store.setFormation(f.id)}>
-                  <div className="fname">{f.name}</div>
-                  <div className="fblurb">{f.blurb}</div>
-                </button>
-              ))}
-            </div>
+            <FormationPicker value={t.formationId} onChange={(id) => store.setFormation(id)} blurbs />
             <p className="help">Changing shape mid-season knocks tactical familiarity back a little.</p>
           </div>
           <div className="panel col">

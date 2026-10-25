@@ -7,7 +7,7 @@ import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
 import { Pitch } from '../components/Pitch'
 import { TWIST_INFO } from '../components/TwistCard'
-import type { Twist } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
@@ -22,12 +22,19 @@ import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
-import { bestWinLine } from '@game/logic/gameByGame'
+import { HighlightsModal } from '../components/Highlights'
+import { canShowHighlights } from '@game/logic/highlights'
+import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
+import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
   const [copied, setCopied] = useState(false)
   const [link, setLink] = useState<string | null>(null)
+  // The game whose highlights are open, by matchweek
+  const [hlWeek, setHlWeek] = useState<number | null>(null)
+  // Every game of a quick season, game by game; the replay is UI state only
+  const replay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const q = game.quickResult
@@ -41,9 +48,7 @@ export function Summary() {
     if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
     return []
   }, [q, season])
-  // Every game of a quick season, game by game; the replay is UI state only
   const results = q?.results ?? []
-  const replay = useSeasonReplay(results.length)
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
   // Where this season sits against every complete real season of the league with the same number of matches
@@ -52,6 +57,9 @@ export function Summary() {
   const inBooks = bench !== null && hasRecordBook(bench)
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
+  // The 38-0 options that differ from the mode's defaults: difficulty, blind, draft mode, ratings
+  const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES)
+  if (tags.length) extraLines.push(tags.join(' · '))
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)
@@ -62,6 +70,13 @@ export function Summary() {
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
   if (bestLine) extraLines.push(bestLine)
+  // January business and the European run of a quick season, when there were any
+  const janLine = januaryLine(q?.january)
+  if (janLine) extraLines.push(janLine)
+  const benchLine = changesLine(q?.changes, (id) => shortName(get(id)?.name ?? id))
+  if (benchLine) extraLines.push(benchLine)
+  const euroLine = europeLine(q?.europe)
+  if (euroLine) extraLines.push(euroLine)
   // Head-to-head against the ghost this game was played against
   const challenge = game.settings.challenge
   const mine = claimOf(game)
@@ -72,7 +87,7 @@ export function Summary() {
     row,
     position: record.position,
     cupWon: season?.cupWon ?? false,
-    continentalWon: season?.continental?.won ?? false,
+    continentalWon: season?.continental?.won ?? q?.europe?.reached === 'W',
     leagueSeason: game.settings.leagueSeason,
     hostClubName: clubName(u, game.settings.hostClubId),
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
@@ -160,6 +175,7 @@ export function Summary() {
       <div className="tier-banner">
         <div className="muted small">
           {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
+          {tags.map((t) => ` · ${t}`).join('')}
         </div>
         {replay.playing ? (
           <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">
@@ -172,7 +188,7 @@ export function Summary() {
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!replay.playing && season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
-        {season?.continental?.won && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
+        {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
         {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)}</div>}
@@ -251,7 +267,70 @@ export function Summary() {
 
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} />
+          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} onHighlights={
+              canShowHighlights(game)
+                ? (r) => {
+                    // A running replay would keep revealing and scrolling the list under the reel: show it all first
+                    if (replay.playing) replay.skip()
+                    setHlWeek(r.matchweek)
+                  }
+                : undefined
+            } />
+          {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
+        </div>
+      )}
+
+      {q?.january && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="january-summary">
+          <div className="panel-head">
+            <h3>January business</h3>
+            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+          </div>
+          <div className="small">
+            {q.january.kind === 'sign' ? `Signed ${q.january.inName} for ${money(q.january.fee)}; ${q.january.outName} left.` : `Swapped ${q.january.outName} for ${q.january.inName}.`}
+          </div>
+        </div>
+      )}
+
+      {q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="bench-summary">
+          <div className="panel-head">
+            <h3>The bench</h3>
+            <span className="small muted">
+              {q.changes?.length ?? 0} of {QUICK_CHANGES} changes · injury cover in {coveredGames(q.results)} game{coveredGames(q.results) === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="col small" style={{ gap: 4 }}>
+            {(q.changes ?? []).map((c, i) => (
+              <span key={i}>
+                Matchweek {c.from}: {get(c.inId)?.name ?? c.inId} on for {get(c.outId)?.name ?? c.outId}
+              </span>
+            ))}
+            {!q.changes?.length && <span className="muted">No changes: the XI you drafted saw it through, the bench covering injuries.</span>}
+          </div>
+        </div>
+      )}
+
+      {q?.europe && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="europe-run">
+          <div className="panel-head">
+            <h3>Continental Cup run</h3>
+            <span className={`chip ${q.europe.reached === 'W' ? 'gold' : ''}`}>{q.europe.reached === 'W' ? 'Winners' : `Out in the ${europeRoundLabel(q.europe.reached)}`}</span>
+          </div>
+          <ol className="gbg-list">
+            {q.europe.ties.map((t) => (
+              <li key={t.round} className={`gbg-game ${t.won ? 'W' : 'L'}`}>
+                <span className="gbg-mw">{t.round}</span>
+                <ClubBadge clubId={t.opponentId} size={22} />
+                <span className="gbg-fix">{t.round === 'F' ? `v ${clubName(u, t.opponentId)} (final)` : t.home ? `v ${clubName(u, t.opponentId)} (H)` : `at ${clubName(u, t.opponentId)}`}</span>
+                <span className="gbg-score">
+                  {t.gf}-{t.ga}
+                </span>
+                <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
+                <span className="gbg-pos small muted">{t.pens ? `${t.pens.for}-${t.pens.against}p` : ''}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
 

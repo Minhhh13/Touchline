@@ -2,9 +2,11 @@ import type { ChallengeSettings, Game, GameSettings } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { ENGINE_VERSION } from '@engine/version'
-import { encodeChallenge, historyKey, picksFromHistory, replayDraft, rulesDiff, rulesFromPayload, sameClaim, type ChallengeClaim, type ChallengePayload, type ReplayedPick } from '@engine/challenge'
+import { CHALLENGE_TACTIC_VALUES, encodeChallenge, historyKey, picksFromHistory, replayDraft, rulesDiff, rulesFromPayload, sameClaim, type ChallengeClaim, type ChallengePayload, type ChallengeSeason, type ChallengeTactics, type ReplayedPick } from '@engine/challenge'
+import type { Tactics } from '@engine/types'
+import { defaultTactics } from '@engine/tactics'
 import { createGame } from './setup'
-import { runQuickSeason } from './quick'
+import { closeJanuary, openJanuary, runQuickSeason } from './quick'
 import { playerLookup } from './players'
 
 /** The settings a challenge link fixes; the team name is the only free choice at setup. */
@@ -22,8 +24,46 @@ export function settingsFromChallenge(c: ChallengePayload, teamName: string, sho
     rules: rulesFromPayload(c),
     jobSecurity: false,
     difficulty: c.s.d,
+    // The friend's own season may stop for the window too; the challenger's deal travels in the link
+    january: true,
     challenge,
   }
+}
+
+const INSTRUCTIONS = Object.keys(CHALLENGE_TACTIC_VALUES) as Array<keyof typeof CHALLENGE_TACTIC_VALUES>
+
+/** The instructions, captain and penalty taker that differ from `defaultTactics`, or undefined when none do. */
+export function tacticsDiff(t: Tactics, captainId: string | undefined): ChallengeTactics | undefined {
+  const base = defaultTactics(t.formationId)
+  const out: ChallengeTactics = {}
+  for (const k of INSTRUCTIONS) if (t[k] !== base[k]) (out as Record<string, string>)[k] = t[k]
+  if (captainId) out.captain = captainId
+  if (t.setPieces?.penalties) out.penalties = t.setPieces.penalties
+  return Object.keys(out).length ? out : undefined
+}
+
+/** Put a link's instructions on a game: the defaults, the instructions it names, its captain and penalty taker. */
+export function applyTactics(game: Game, t: ChallengeTactics | undefined): void {
+  const base = defaultTactics(game.tactics.formationId)
+  game.tactics = { ...base, ...Object.fromEntries(INSTRUCTIONS.flatMap((k) => (t?.[k] ? [[k, t[k]]] : []))), ...(t?.penalties ? { setPieces: { penalties: t.penalties } } : {}) }
+  if (t?.captain) game.captainId = t.captain
+  else delete game.captainId
+}
+
+/** The season block of a finished quick game: the tactics of each half, the January deal and the bench changes, or undefined for a default season. */
+export function seasonOf(game: Game): ChallengeSeason | undefined {
+  const j = game.quickJanuary && game.quickJanuary.move !== undefined ? game.quickJanuary : null
+  const now = tacticsDiff(game.tactics, game.captainId)
+  const first = j ? tacticsDiff(j.firstHalfTactics, j.firstHalfCaptainId) : now
+  const changed = !!j && JSON.stringify(first ?? {}) !== JSON.stringify(now ?? {})
+  const x: ChallengeSeason = {
+    ...(first ? { t: first } : {}),
+    // A second half that differs from the first, defaults included, is written even when it is all defaults
+    ...(changed ? { t2: now ?? {} } : {}),
+    ...(j?.move ? { j: [j.move.playerSeasonId, j.move.slotId] as [string, string] } : {}),
+    ...(game.quickChanges?.length ? { s: game.quickChanges.map((c) => [c.from, c.slotId, c.inId] as [number, string, string]) } : {}),
+  }
+  return Object.keys(x).length ? x : undefined
 }
 
 /** The claim a finished quick game makes. */
@@ -43,6 +83,7 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
   if (!d || !claim || game.phase !== 'summary') return null
   const get = playerLookup(game, u)
   const s = game.settings
+  const x = seasonOf(game)
   return {
     v: 1,
     data: u.generatedAt,
@@ -52,6 +93,7 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
     p: picksFromHistory(d.history, (id) => get(id)?.playerId),
     c: claim,
     k: historyKey(d.history),
+    ...(x ? { x } : {}),
   }
 }
 
@@ -86,7 +128,7 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
     return { verified: 'no', reason: e instanceof Error ? e.message : String(e), picks: [] }
   }
   try {
-    runQuickSeason(game, u)
+    playSeason(game, u, c.x)
   } catch (e) {
     return { verified: 'no', reason: `the season could not be replayed: ${e instanceof Error ? e.message : String(e)}`, picks }
   }
@@ -94,6 +136,30 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
   if (!result) return { verified: 'no', reason: 'the season produced no result', picks }
   if (!sameClaim(result, c.c)) return { verified: 'no', reason: `the picks replay to ${result.pts} points (${result.w}-${result.d}-${result.l}), not ${c.c.pts}`, picks, result }
   return { verified: 'yes', picks, result }
+}
+
+/**
+ * The challenger's season from a link's `x`: the first-half tactics and the bench changes, then, when the link names a second half or a
+ * January deal, the window opened, the second-half tactics set and the deal found among the listings (a deal that was
+ * not on offer throws), else the season in one go.
+ */
+function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | undefined): void {
+  applyTactics(game, x?.t)
+  // The bench changes travel as made; the season applies each at its matchweek (one that does not fit throws)
+  if (x?.s?.length) game.quickChanges = x.s.map(([from, slotId, inId]) => ({ from, slotId, inId }))
+  if (!x?.t2 && !x?.j) {
+    runQuickSeason(game, u)
+    return
+  }
+  openJanuary(game, u)
+  if (x.t2) applyTactics(game, x.t2)
+  let index: number | null = null
+  if (x.j) {
+    const [id, slotId] = x.j
+    index = game.quickJanuary!.listings.findIndex((l) => l.playerSeasonId === id && l.slotId === slotId)
+    if (index < 0) throw new Error('the January deal was not on offer')
+  }
+  closeJanuary(game, u, index)
 }
 
 /** On different data the draft alone is still tried, so the ghost chips can show; a failure leaves them empty. */
