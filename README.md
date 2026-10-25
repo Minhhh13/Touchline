@@ -14,7 +14,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - **Every game, game by game**: the summary of a quick draft or the Daily lists all 38 games like 38-0 does, with the opponent, the score, your scorers and their minutes ("Haaland 12', 67'", an opponent's own goal as "OG") and your league position after each matchweek. "Play the season" replays it one game every 220 ms with a running P W D L GF GA strip, and the tier banner only lands after the last game; the share text names your best win. The head-to-head result shows the same list for both managers.
 - **Daily Challenge**: everyone gets the same wheel today (seed `daily-YYYY-MM-DD`). Streaks are tracked.
 - **Two-tap start**: Setup shows team name, league and formation (plus squad size and job security for a season); everything else sits under More options, folded by default and remembered per browser. One line above Start states every choice, with a change link, and on a phone that line and the Start button sit in a fixed bottom bar. The default host club is the one nearest tenth in that season's real table, and the Home card starts today's Daily directly.
-- **Coach marks and the Key**: seven short callouts appear inline the first time you meet the draft reveal, the bench picks, the Squad and Tactics tabs, half time, the match report and the market, each gone for good after Got it (Show tips again on the Record page brings them back). A Key chip on the Squad panel labels the condition, morale and sharpness bars and adds a legend under the pitch for the disc rating and its natural, acc. and awk. rings, remembered per browser.
+- **Coach marks and the Key**: seven short callouts appear inline the first time you meet the draft reveal, the bench picks, the Squad and Tactics tabs, half time, the match report and the market, each gone for good after Got it (Show tips again on the Profile page brings them back). A Key chip on the Squad panel labels the condition, morale and sharpness bars and adds a legend under the pitch for the disc rating and its natural, acc. and awk. rings, remembered per browser.
 - **Season**: draft 16 to 22 players, then manage 38 matchweeks with three pre-season friendlies, a 16-team cup, a transfer window and a board.
 - **Dynasty**: Season mode that never ends. Players age, contracts run down, some retire, you get summer bonus spins and the league moves on to the next real season.
 
@@ -26,7 +26,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - **One-Nation Draft**: pick a nationality at setup and every pick, signing and academy prospect must share it. Only nations with twice the cover for every position in your shape are offered (71 of the 161 known nations in the data for a 4-3-3 across all seven leagues, 26 from England alone); the wheel never lands on a squad without an eligible player, approaches for anyone else are refused by the board, and a wheel that runs dry lets you start with the eleven you have. Win the league for the International achievement.
 - **Wheel twists**: every third spin of a quick draft or the Daily is a twist spin. Golden: the wheel only stops on champions. Basement: only the bottom three of their league that season. Blind: ratings hidden until you have picked. Decade: the wheel stays in the decade of your last pick. The wheel decides which, never offers a twist its pool cannot serve (leagues without tables get only blind and decade spins), and a toggle at setup turns twists on for a Season or off for a quick draft.
 - **The case reel**: every spin opens like a Counter-Strike case, season first. A drum stops on the drawn season (2017-18), then a strip of every club in that season's league slides under the marker and lands on the drawn club; the clubs the wheel could actually stop on are lit and the rest greyed out, so a golden spin runs through the whole league with only the champion lit. Every club-season carries a rarity colour from its squad strength (gold for the top 5% of its league's history, then red, pink, purple and blue), shown on the card, in the squad header and in the draft log. Tap, Space or Enter skips to the landing; with reduced motion the result shows within a second.
-- **Ghost drafts**: after any quick draft, "Challenge a friend" copies a link (`#c=...`, about 600 characters for eleven picks) that carries the seed, the shape, the league, the host club, the rules, every spin's pick and your result. Whoever opens it drafts the same wheel with your pick shown on every spin ("Last time here: K. De Bruyne"), plays the same season and gets a head-to-head summary with both XIs and a verdict line in the share text. The link is replayed pick by pick on arrival, so a claim is marked verified, could not be verified, or unverified when it was built on other data or another engine version; "Run it back" sets your own result as the ghost, and the Record page marks the best run on each wheel.
+- **Ghost drafts**: after any quick draft, "Challenge a friend" copies a link (`#c=...`, about 600 characters for eleven picks) that carries the seed, the shape, the league, the host club, the rules, every spin's pick and your result. Whoever opens it drafts the same wheel with your pick shown on every spin ("Last time here: K. De Bruyne"), plays the same season and gets a head-to-head summary with both XIs and a verdict line in the share text. The link is replayed pick by pick on arrival, so a claim is marked verified, could not be verified, or unverified when it was built on other data or another engine version; "Run it back" sets your own result as the ghost, and the Profile page marks the best run on each wheel.
 - Seven leagues: the Premier League, La Liga, Serie A, the Bundesliga, Ligue 1, the Eredivisie and the Primeira Liga, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all seven.
 - **Drawn flags**: every nationality and league shows an SVG flag (from flag-icons, MIT; see [docs/CREDITS.md](docs/CREDITS.md)) rather than an emoji, so flags render on Windows too instead of letter pairs.
 - Seeds are honest across leagues: a European Nights seed lands on the same clubs whichever order the league packs were opened, and every loaded universe carries the data stamp of its packs beside an engine version, so a result can be checked against the data and engine that produced it.
@@ -60,9 +60,10 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Post-match press conferences: single out your star, credit the squad, take the blame or blame the referee, and answer the job question when the table turns.
 - Man-mark the opponent's danger man from the opposition report: his influence drops, your attack loses a little, and the report tells you whether it worked.
 - A depth chart of who can cover every position in your shape, rated there.
-- Export and import your save file from the Record page (plain JSON; old exports still import), and a trophy cabinet across every game you have played.
+- Export and import your save file from the Profile page (plain JSON; old exports still import), and a trophy cabinet across every game you have played.
 - Small saves: stored results keep only what the screens read and the save is compressed, so a full Season takes about 50 K characters of the browser's 5 MB, a Dynasty with a parked Season under 100 K; if the storage is ever full a toast says so and the game carries on.
-- Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
+- Installable as an app: a service worker caches the shell, the Home photos and any league pack you have opened, so the game starts and plays offline.
+- **Light and dark**: the sun and moon in the top bar flips between them and remembers the choice; Auto on the Profile page follows the device's light or dark setting live. Home opens on a floodlit photo with the three numbers that matter, photo cards for the four modes and compact tiles for the rest, with one icon set (Lucide) throughout.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.
 - **In the record books**: the summary ranks your points, wins, goals scored, goals conceded and defeats against every complete real season of your league in the data with the same number of matches (26 Premier League seasons back to 2000-01, 16 Bundesliga seasons of 34 games), names the three seasons ahead of you and the real champions that year, and marks an outright league record with a gold chip; the share text adds a line for a top-ten points total. A new points record on Realistic difficulty over a full season unlocks the Record Books achievement; leagues without tables (Ligue 1, the Eredivisie, the Primeira Liga) have no record book. Dynasty history shows the real champions beside each of your seasons.
@@ -121,6 +122,7 @@ See `docs/DATA.md` for sources, method, cache location (`.cache/datasets` or `DA
 ```
 index.html                 Entry page (fonts, favicon, meta)
 public/favicon.svg         The mark; public/icons/ holds the app icons rendered from it
+public/img/                The Home photos (WebP; credits in docs/CREDITS.md)
 src/
   main.tsx                 React root
   engine/                  Pure, deterministic game engine (no React, no DOM)
@@ -153,10 +155,11 @@ src/
     match/                 Pure pitch geometry, the ball path generator, chart series and the shared live clock
     brand.ts               The name, the mark's geometry and the canvas colours
     styles.css             Design tokens (dark "Floodlit" and light "Daylight") and the shared components
+    theme.ts               Auto, Light and Dark: which theme is on screen, following the device live
 scripts/import/            Data pipeline (build.mjs, download.mjs, parsers, club and nation tables)
 scripts/brand/icons.mjs    Renders the favicon and the app icons from the mark
 public/data/england/       Generated players.json and meta.json
-docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.md
+docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.md, CREDITS.md
 .github/workflows/ci.yml   Typecheck, test and build on Node 22
 ```
 
@@ -165,6 +168,7 @@ docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.m
 - Vite 6, React 19, TypeScript 5.8 (strict).
 - Zustand 5 with Immer for state, persisted to `localStorage` under `touchline-save-v1`, compacted and compressed with lz-string.
 - Vitest 3 for tests.
+- Lucide icons (`lucide-react`, ISC), imported icon by icon.
 - No backend, no analytics, no external services at runtime; Google Fonts is the only third-party request.
 - Path aliases `@engine`, `@game`, `@ui`.
 
@@ -172,12 +176,15 @@ docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.m
 
 Ratings and squads are built from public datasets: Stefano Leone's EA Sports FC 24 complete player dataset (CC0), nyagami's FC 25 database (Apache 2.0), justdhia's FC 26 ratings (CC0), mikedpad's FC 27 ratings (unofficial non-commercial snapshot), Hugo Mathien's European Soccer Database (ODbL), openfootball/england results (public domain) and Wikidata (CC0). A player's rating for a season comes from the edition published after it, so it reflects how he actually played. Values and wages are our own model. Full detail, method and limits are in [docs/DATA.md](docs/DATA.md).
 
+The Home photos are from Unsplash under the Unsplash License, by Jonathan Petersson, Riccardo Bernucci, Michal Balog, Izuddin Helmi Adnan and Christopher Le; icons are Lucide (ISC). Titles and links are in [docs/CREDITS.md](docs/CREDITS.md).
+
 Design documents:
 
 - [docs/RESEARCH.md](docs/RESEARCH.md): 38-0 and Football Manager analysis and the fusion thesis.
 - [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): every system and formula as implemented.
 - [docs/DATA.md](docs/DATA.md): data pipeline, sources and licences.
 - [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md): the logo, the blue palette for both themes, type, spacing and the component rules every screen follows.
+- [docs/CREDITS.md](docs/CREDITS.md): every photo and the icon set, with author, source and licence.
 
 ## Roadmap
 

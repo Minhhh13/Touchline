@@ -25,7 +25,9 @@ A free web football game that fuses the wheel draft of **38-0** with the depth o
 
 **Lineups**: tap a pitch slot in the Dugout for a picker (a bottom sheet on a phone) of everyone who can play there, rated there, with the occupant and To bench on top; in the Draft a player with several open slots shows one chip per slot.
 
-**Help on the page**: seven one-time coach marks (draft reveal, bench picks, Squad and Tactics tabs, half time, match report, market), each gone after Got it and brought back by Show tips again on the Record page; a Key chip on the Squad panel labels the condition, morale and sharpness bars and adds a pitch legend.
+**Help on the page**: seven one-time coach marks (draft reveal, bench picks, Squad and Tactics tabs, half time, match report, market), each gone after Got it and brought back by Show tips again on the Profile page; a Key chip on the Squad panel labels the condition, morale and sharpness bars and adds a pitch legend.
+
+**Look**: light and dark themes (the sun and moon in the top bar flips them and remembers the choice; Auto on the Profile page follows the device live); Home opens on a floodlit photo with three figures, photo cards for the four modes and compact tiles, with Lucide icons in place of emoji. Photo credits: [CREDITS.md](CREDITS.md).
 
 Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.md](DATA.md). Design research: [RESEARCH.md](RESEARCH.md).
 
@@ -38,7 +40,7 @@ Each item lives on its own branch until it is merged into the working branch and
 | Case-opening reel instead of the wheel; game-by-game quick season | `reel-ui` | Merged into `integration` (local), with the working branch |
 | Football Manager depth attributes (stamina, strength, aggression, jumping, work rate) through data, engine and UI | `fm-depth` | Merged into `integration` (local); data packs format 3, ENGINE_VERSION `'4'` |
 | Live match visuals: 2D pitch, momentum, shot map, xG race | `match-visuals` | Merged into `integration` (local) |
-| Redesign: blue palette, a proper TouchLine logo, the design system (`docs/DESIGN_SYSTEM.md`) | `redesign` | Foundation merged into `integration` (local), with the later screens moved to its tokens; the screen-by-screen pass and the cleaner Setup are still to do |
+| Redesign: blue palette, a proper TouchLine logo, the design system (`docs/DESIGN_SYSTEM.md`) | `redesign` | Foundation merged into `integration` (local), with the later screens moved to its tokens. Screen pass on `integration`: Home and the top bar done (photos, Lucide icons, Profile, the theme switch, Auto following the device); the other screens and the cleaner Setup are still to do |
 | 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
 | "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on `main` (PR #2); merged into `integration` |
 | Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on `main` (PR #21); merged into `integration` |
@@ -111,21 +113,17 @@ Both sites are static sites in their own Render workspace **TouchLine** (workspa
 ## 7. Known issues and limits
 
 - **Data licensing.** Ratings come from community Kaggle datasets derived from EA Sports FC ratings (FC 24 CC0, FC 25 Apache 2.0, FC 26 CC0, FC 27 an unofficial non-commercial snapshot), the European Soccer Database (ODbL), openfootball results (public domain) and Wikidata (CC0). The ratings themselves originate with EA. Treat TouchLine as a non-commercial fan project; going commercial would need a different ratings source. Full credits in [DATA.md](DATA.md).
-- **No real crests, kits, logos or photos.** Clubs are shown as colours plus a letter code. Keep it that way.
+- **No real crests, kits, logos or player photos.** Clubs are shown as colours plus a letter code. Keep it that way. The only photos are freely licensed shots of grounds, grass and crowds in silhouette, credited in [CREDITS.md](CREDITS.md).
 - **Free Supabase projects pause** after about a week idle; the online layer needs a keep-alive or a paid plan.
 - No player data before 2008-09; Ligue 1, the Eredivisie and the Primeira Liga have no real tables (no record books there).
 - About 230 players have an unknown nationality.
 - Values and wages are our own model, not real figures.
 - The default team name is still "Touchline XI" (set in the game logic and pinned by tests).
 - In the Daylight theme a side in white kit draws near-white momentum bars and xG line on the light chart panel; the match-day dashboard work is rebuilding that view.
-- Theme "Auto" always shows the dark theme.
 - Some docs are partly stale (README's Node version, player-season count and roadmap line; DATA.md's England-only intro and totals; RESEARCH.md section 7).
-- Saves are per browser; clearing site data loses them unless exported from the Record page (cloud saves will fix this).
+- Saves are per browser; clearing site data loses them unless exported from the Profile page (cloud saves will fix this).
 - A season's full match detail passed the browser's 5 MB `localStorage` quota (4.4 MB for one Season at full time, and a parked game on top failed every write silently). Fixed on `save-compaction`: the save is compacted and compressed (about 50 K characters for a Season, under 100 K for a two-season Dynasty with a parked Season), and a refused write shows a toast instead of failing silently.
 - The product name is TouchLine, but many screens, the manifest and the share card still say "Touchline" until the redesign lands.
-- Theme "Auto" always shows the dark theme.
-- Some docs are partly stale (README's Node version, player-season count and roadmap line; DATA.md's England-only intro and totals; RESEARCH.md section 7).
-- Saves are per browser; clearing site data loses them unless exported from the Record page (cloud saves will fix this).
 
 ## 8. Roadmap at a glance
 
@@ -165,3 +163,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · The live game is at https://touchline.quest (Porkbun domain, Render custom domain, www redirects); email sending verified in Resend; Supabase Auth Site URL and redirects set. The testing site moved to https://touchline-newfeature-preview.onrender.com; the old -hfvi preview was deleted.
 - 2026-10-25 · owner's agent · Drawn SVG flags (flag-icons 7.6.0, MIT) replace emoji flags for nationalities and leagues; the league renames stay on hold on neutral-names.
 - 2026-10-25 · owner's agent · Home photos and icons added on `integration`: five Unsplash photos (a floodlit pitch, a line on the grass, a goal in fog, a pitch from above, a crowd in silhouette) as WebP in `public/img/` (12 to 124 KB), each credited in `docs/CREDITS.md`; `lucide-react` 1.53.0 pinned for icons; the service worker caches `img/` cache-first so the photos work offline.
+- 2026-10-25 · owner's agent · Home and the top bar redesigned on `integration`: a floodlit hero photo under a navy scrim with three figures, photo cards for the four modes (one line each, a time tag, a phone layout as rows), compact tiles for the rest, Lucide icons (`lucide-react` 1.53.0) in place of the Home, nav, digest and trophy-cabinet emoji, Record renamed Profile in the nav, the tile and the title, short entrance and hover animations. Five Unsplash photos in `public/img/` credited in `docs/CREDITS.md`. Theme: a sun and moon switch in the top bar, Auto now follows the device's light or dark setting live (`src/ui/theme.ts`, tested), and the known issue "Auto always shows dark" is fixed. No engine or game-logic change.

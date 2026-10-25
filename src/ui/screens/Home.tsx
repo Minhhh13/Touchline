@@ -1,3 +1,5 @@
+import { useCallback, useState, type ReactNode } from 'react'
+import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Trophy, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
@@ -5,11 +7,61 @@ import { ClubBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
 
+/** Photos are served from public/img (credits in docs/CREDITS.md); BASE_URL keeps them working under a sub-path. */
+const img = (file: string) => `${import.meta.env.BASE_URL}img/${file}`
+
+/** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
+function compact(n: number): string {
+  return n >= 10_000 ? `${Math.floor(n / 1000)}k` : n.toLocaleString()
+}
+
+function ModeArt({ file, icon: Icon }: { file: string; icon: LucideIcon }) {
+  return (
+    <span className="mode-art">
+      <img src={img(file)} alt="" loading="lazy" decoding="async" width={720} height={360} />
+      <span className="mode-icon">
+        <Icon size={20} />
+      </span>
+    </span>
+  )
+}
+
+function TimeTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="time-tag">
+      <Clock size={13} />
+      {children}
+    </span>
+  )
+}
+
+/** The card is the button; this only shows where to tap, lined up with the Daily card's own button. Hidden on a phone, where cards are rows. */
+function GoLabel() {
+  return (
+    <span className="mode-go" aria-hidden>
+      Start
+      <ArrowRight size={16} />
+    </span>
+  )
+}
+
+function Tile({ icon: Icon, title, meta, onClick }: { icon: LucideIcon; title: string; meta: string; onClick: () => void }) {
+  return (
+    <button type="button" className="home-tile" onClick={onClick}>
+      <span className="tile-icon">
+        <Icon size={20} />
+      </span>
+      <span className="tile-text">
+        <b>{title}</b>
+        <span>{meta}</span>
+      </span>
+    </button>
+  )
+}
+
 export function Home() {
   const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
-  const players = u ? u.available.reduce((s, l) => s + l.players, 0) : 0
-  const clubCount = u ? u.available.reduce((s, l) => s + l.clubs, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
@@ -26,27 +78,61 @@ export function Home() {
     if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
     startGame(dailyGameSettings(u, todaysDailySeed()))
   }
+  const achievements = Object.keys(profile.achievements).length
+  // The hero photo fades in once it has decoded, so a slow connection shows the navy card rather than a half-drawn picture
+  const [heroReady, setHeroReady] = useState(false)
+  const heroRef = useCallback((el: HTMLImageElement | null) => {
+    if (el?.complete && el.naturalWidth > 0) setHeroReady(true)
+  }, [])
   return (
-    <div className="page">
+    <div className="page home">
       <section className="hero">
-        <h1>
-          <Lockup height={104} animate="load" />
-        </h1>
-        <div className="tag">Spin the wheel. Draft the XI. Manage the season.</div>
-        <p className="muted small" style={{ marginTop: 10 }}>
-          {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
-        </p>
-        {u && (
-          <div className="row wrap" style={{ gap: 8, marginTop: 8 }} aria-label="Leagues">
-            {u.available.map((l) => (
-              <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
-            ))}
-          </div>
-        )}
+        <picture className={`hero-photo${heroReady ? ' ready' : ''}`}>
+          <source media="(max-width: 720px)" srcSet={img('hero-floodlit-800.webp')} />
+          <img src={img('hero-floodlit-1600.webp')} alt="" width={1600} height={798} fetchPriority="high" decoding="async" ref={heroRef} onLoad={() => setHeroReady(true)} />
+        </picture>
+        <div className="hero-content">
+          <h1>
+            <Lockup height={104} animate="load" />
+          </h1>
+          <p className="tag">Spin the wheel. Draft the XI. Manage the season.</p>
+          <dl className="hero-stats" aria-live="polite">
+            {u ? (
+              <>
+                <div>
+                  <dt>Player-seasons</dt>
+                  <dd>{compact(playerSeasons)}</dd>
+                </div>
+                <div>
+                  <dt>Leagues</dt>
+                  <dd>{u.available.length}</dd>
+                </div>
+                <div>
+                  <dt>Seasons</dt>
+                  <dd>
+                    {seasonLabel(u.firstSeason).slice(0, 4)}–{seasonLabel(u.lastSeason).slice(-2)}
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <div>
+                <dt>Database</dt>
+                <dd>Loading…</dd>
+              </div>
+            )}
+          </dl>
+          {u && (
+            <div className="row wrap hero-flags" aria-label="Leagues">
+              {u.available.map((l) => (
+                <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {game && (
-        <div className="panel row between wrap" style={{ marginBottom: 14 }}>
+        <div className="panel resume-card row between wrap">
           <div className="row">
             <ClubBadge clubId={game.settings.hostClubId} size={36} />
             <div>
@@ -70,7 +156,7 @@ export function Home() {
       )}
 
       {Object.entries(parked).map(([slot, g]) => (
-        <div key={slot} className="panel row between wrap" style={{ marginBottom: 14, opacity: 0.9 }}>
+        <div key={slot} className="panel resume-card parked row between wrap">
           <div className="row">
             <ClubBadge clubId={g.settings.hostClubId} size={36} />
             <div>
@@ -90,65 +176,75 @@ export function Home() {
           </div>
         </div>
       ))}
+
       <div className="modes">
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
-          <span className="icon">🎡</span>
-          <h3>Quick Draft</h3>
-          <p>The 38-0 classic. Spin for a club and season, draft one player, repeat eleven times, simulate the season instantly.</p>
-          <span className="foot">5 minutes · shareable result</span>
+          <ModeArt file="mode-quick.webp" icon={Dices} />
+          <span className="mode-text">
+            <h3>Quick Draft</h3>
+            <p>Eleven spins, one XI, a whole season.</p>
+            <span className="foot">
+              <TimeTag>5 min</TimeTag>
+            </span>
+            <GoLabel />
+          </span>
         </button>
         <div className="mode-card daily" data-testid="daily-card">
           <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title="Open the full setup to name your team">
-            <span className="icon">📅</span>
-            <h3>Daily Challenge</h3>
-            <p>
-              Everyone gets the same spins today. Build the best XI from the same wheel and compare.
-              {daily && u && (
-                <>
-                  {' '}
-                  Today: a <b>{daily.formationId}</b> as <b>{u.clubById[daily.host]?.name ?? daily.host}</b>, {seasonLabel(daily.season)}.
-                </>
-              )}
-            </p>
-            <span className="foot">{dailyDone ? `Played today · streak ${profile.dailyStreak}` : profile.dailyStreak ? `Streak ${profile.dailyStreak}` : 'New puzzle every day'} · tap to name your team</span>
+            <ModeArt file="mode-daily.webp" icon={CalendarDays} />
+            <span className="mode-text">
+              <h3>Daily Challenge</h3>
+              <p>Same spins for everyone, every day.</p>
+              <span className="foot">
+                <TimeTag>5 min</TimeTag>
+                {daily && u && (
+                  <span className="daily-today" title={`Today: a ${daily.formationId} as ${u.clubById[daily.host]?.name ?? daily.host}, ${seasonLabel(daily.season)}`}>
+                    <ClubBadge clubId={daily.host} size={18} />
+                    {daily.formationId} · {seasonLabel(daily.season)}
+                  </span>
+                )}
+                {profile.dailyStreak > 0 && (
+                  <span className="streak" title={dailyDone ? 'Played today' : 'Daily streak'}>
+                    <Flame size={13} />
+                    {profile.dailyStreak}
+                  </span>
+                )}
+              </span>
+            </span>
           </button>
           <button type="button" className="btn primary block" disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
             {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
           </button>
         </div>
         <button className="mode-card" onClick={() => go('setup', 'season')}>
-          <span className="icon">📋</span>
-          <h3>Season</h3>
-          <p>Draft a squad of eighteen, then manage it week by week: tactics, roles, rotation, injuries, the cup, the January window, the board.</p>
-          <span className="foot">45 minutes · deep</span>
+          <ModeArt file="mode-season.webp" icon={ClipboardList} />
+          <span className="mode-text">
+            <h3>Season</h3>
+            <p>Draft eighteen, then manage every week.</p>
+            <span className="foot">
+              <TimeTag>45 min</TimeTag>
+            </span>
+            <GoLabel />
+          </span>
         </button>
         <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
-          <span className="icon">👑</span>
-          <h3>Dynasty</h3>
-          <p>Season mode that never ends. Players age, contracts expire, summer windows open and the league moves on a year at a time.</p>
-          <span className="foot">Multi-season career</span>
+          <ModeArt file="mode-dynasty.webp" icon={Crown} />
+          <span className="mode-text">
+            <h3>Dynasty</h3>
+            <p>Season mode that never ends.</p>
+            <span className="foot">
+              <TimeTag>Career</TimeTag>
+            </span>
+            <GoLabel />
+          </span>
         </button>
       </div>
 
-      <div className="grid four" style={{ marginTop: 16 }}>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer', borderColor: 'var(--line-2)' }} onClick={() => go('h2h')}>
-          <h3>🤝 Head-to-head</h3>
-          <p className="muted small">Two managers on one device draft from the same spins, then both sides play the same season. Settle it properly.</p>
-        </button>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('explore')}>
-          <h3>Explore the database</h3>
-          <p className="muted small">Every club-season in {u ? `${u.available.length} leagues` : 'seven leagues'} since 2008-09, with real squads and ratings. Settle the argument before you spin.</p>
-        </button>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('profile')}>
-          <h3>Your record</h3>
-          <p className="muted small">
-            {profile.seasonsSimulated} seasons simulated · {Object.keys(profile.achievements).length} achievements
-          </p>
-        </button>
-        <button className="panel" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go('howto')}>
-          <h3>How it works</h3>
-          <p className="muted small">The wheel, the draft rules, how matches are simulated and what the board expects.</p>
-        </button>
+      <div className="home-tiles">
+        <Tile icon={Swords} title="Head-to-head" meta="Two managers, one device" onClick={() => go('h2h')} />
+        <Tile icon={Search} title="Explore" meta={u ? `${u.available.length} leagues of real squads` : 'Real squads since 2008-09'} onClick={() => go('explore')} />
+        <Tile icon={Trophy} title="Profile" meta={`${profile.seasonsSimulated} seasons · ${achievements} achievements`} onClick={() => go('profile')} />
+        <Tile icon={BookOpen} title="How it works" meta="The wheel, matches, the board" onClick={() => go('howto')} />
       </div>
     </div>
   )

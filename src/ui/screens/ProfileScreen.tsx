@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Crown, Globe, Medal, Trophy } from 'lucide-react'
 import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
@@ -47,7 +48,7 @@ export function ProfileScreen() {
   return (
     <div className="page">
       <div className="row between wrap" style={{ marginBottom: 10 }}>
-        <h1>Your record</h1>
+        <h1>Profile</h1>
         <button className="btn ghost" onClick={() => go('home')}>
           ← Home
         </button>
@@ -62,7 +63,7 @@ export function ProfileScreen() {
             </label>
             <div className="field">
               Theme
-              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto' }, { value: 'dark', label: 'Floodlit' }, { value: 'light', label: 'Daylight' }]} />
+              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto', hint: "Follows your device's light or dark setting" }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
             </div>
             <div className="kv">
               <dt>Games started</dt>
@@ -98,15 +99,15 @@ export function ProfileScreen() {
             <div className="row wrap" style={{ gap: 14 }}>
               {(
                 [
-                  ['🏆', 'League titles', profile.trophies?.league ?? 0],
-                  ['🥇', 'Cups', profile.trophies?.cup ?? 0],
-                  ['🌍', 'Continental Cups', profile.trophies?.continental ?? 0],
-                  ['🏆🏆', 'Doubles', profile.trophies?.doubles ?? 0],
-                  ['👑', 'Trebles', profile.trophies?.trebles ?? 0],
+                  [<Trophy size={26} />, 'League titles', profile.trophies?.league ?? 0],
+                  [<Medal size={26} />, 'Cups', profile.trophies?.cup ?? 0],
+                  [<Globe size={26} />, 'Continental Cups', profile.trophies?.continental ?? 0],
+                  [<><Trophy size={22} /><Trophy size={22} /></>, 'Doubles', profile.trophies?.doubles ?? 0],
+                  [<Crown size={26} />, 'Trebles', profile.trophies?.trebles ?? 0],
                 ] as const
               ).map(([icon, label, n]) => (
                 <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
-                  <span style={{ fontSize: 26 }}>{icon}</span>
+                  <span className="cabinet-icon">{icon}</span>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 24 }}>{n}</span>
                   <span className="small muted">{label}</span>
                 </div>

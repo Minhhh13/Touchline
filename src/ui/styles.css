@@ -1,8 +1,10 @@
 /* ------------------------------------------------------------------ tokens */
 /*
  * The TouchLine design system; docs/DESIGN_SYSTEM.md says what each token is for.
- * Floodlit (dark) is the default and what "Auto" shows; Daylight overrides the
- * colour tokens under [data-theme='light']. Every pair used for text passes
+ * Floodlit (dark) is the default; Daylight overrides the
+ * colour tokens under [data-theme='light']. App.tsx always sets data-theme:
+ * the saved choice, or the device's prefers-color-scheme for Auto (live).
+ * Every pair used for text passes
  * 4.5:1 and every UI pair 3:1 in both themes. Screens use tokens, never raw colours.
  */
 :root {
@@ -38,6 +40,11 @@
   --navy: #0b1633;
   --navy-2: #1b2a4a;
   --glow: color-mix(in srgb, var(--primary) 16%, transparent);
+  /* On a photo (the home hero): fixed in both themes, because the photo and its navy scrim do not change */
+  --on-photo: #ffffff;
+  --on-photo-2: rgba(255, 255, 255, 0.8);
+  --photo-accent: #60a5fa;
+  --photo-scrim: color-mix(in srgb, var(--navy) 90%, transparent);
   /* Status */
   --good: #34d399;
   --warn: #fb923c;
@@ -505,6 +512,9 @@ p {
 }
 .topbar nav button {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   white-space: nowrap;
   background: transparent;
   border: 1px solid transparent;
@@ -523,6 +533,31 @@ p {
   color: var(--text);
   border-color: var(--primary);
   background: var(--primary-soft);
+}
+.topbar nav button svg {
+  flex: none;
+  opacity: 0.85;
+}
+/* The sun and moon: flips Light and Dark and stores the choice on the profile */
+.theme-switch {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  border: var(--border-strong);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.3s ease;
+}
+.theme-switch:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.theme-switch:active {
+  transform: rotate(30deg);
 }
 .page {
   width: 100%;
@@ -622,6 +657,14 @@ p {
   .topbar nav button {
     padding: 6px 10px;
     font-size: 13px;
+  }
+  /* Labels only on a phone: the nav already scrolls */
+  .topbar nav button svg {
+    display: none;
+  }
+  .theme-switch {
+    width: 34px;
+    height: 34px;
   }
   .scoreboard .score {
     font-size: 40px;
@@ -1761,15 +1804,51 @@ table.tbl tr.clickable:hover {
 }
 
 /* ------------------------------------------------------------------ hero / home */
+/* The hero is a floodlit photo under a navy scrim; text on it uses the fixed --on-photo tokens, so it reads the same in both themes */
 .hero {
-  padding: 40px 0 24px;
-  text-align: center;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: var(--border);
+  background: var(--navy);
+  min-height: 340px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
+  margin-bottom: var(--space-4);
 }
-.hero .logo-mark {
-  margin-bottom: var(--space-3);
+.hero-photo,
+.hero-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.hero-photo {
+  z-index: -2;
+}
+.hero-photo img {
+  object-fit: cover;
+  object-position: 50% 60%;
+  opacity: 0;
+  transform: scale(1.06);
+  transition: opacity 0.9s ease-out, transform 2.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.hero-photo.ready img {
+  opacity: 1;
+  transform: none;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 55%, transparent) 55%, color-mix(in srgb, var(--navy) 10%, transparent) 100%), linear-gradient(0deg, color-mix(in srgb, var(--navy) 70%, transparent) 0%, transparent 60%);
+}
+.hero-content {
+  padding: var(--space-6) 40px;
+  max-width: 620px;
+  color: var(--on-photo);
 }
 .hero h1 {
   font-size: var(--fs-hero);
@@ -1778,10 +1857,65 @@ table.tbl tr.clickable:hover {
 .hero h1 .tl-lockup {
   --tl-delay: 0.15s;
 }
+/* The lockup on the hero photo uses the fixed photo tokens in both themes, like the rest of the hero text */
+:root .hero h1 .tl-lockup {
+  --tl-ink: var(--on-photo);
+  --tl-ball-ring: transparent;
+}
+.hero .tl-name {
+  color: var(--on-photo);
+}
+.hero .tl-name .wordmark-line,
+.hero .wordmark-line {
+  color: var(--photo-accent);
+}
+.hero-flags {
+  gap: 8px;
+  margin-top: var(--space-4);
+}
 .hero .tag {
   font-size: 18px;
-  color: var(--text-2);
-  margin-top: var(--space-2);
+  color: var(--on-photo-2);
+  margin: var(--space-2) 0 0;
+}
+.hero-stats {
+  display: flex;
+  gap: var(--space-5);
+  margin: var(--space-5) 0 0;
+}
+.hero-stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+.hero-stats dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1;
+}
+.hero-stats dt {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--on-photo-2);
+}
+.hero-content > * {
+  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.hero-content > :nth-child(2) {
+  animation-delay: 0.08s;
+}
+.hero-content > :nth-child(3) {
+  animation-delay: 0.16s;
+}
+.resume-card {
+  margin-bottom: var(--space-3);
+}
+.resume-card.parked {
+  opacity: 0.9;
 }
 .modes {
   display: grid;
@@ -1806,24 +1940,77 @@ table.tbl tr.clickable:hover {
 }
 .mode-card {
   text-align: left;
-  padding: var(--space-4);
+  padding: 0;
+  overflow: hidden;
   border-radius: var(--radius);
   background: var(--panel);
   border: var(--border);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  min-height: 150px;
-  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.modes > * {
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.modes > :nth-child(2) {
+  animation-delay: 0.06s;
+}
+.modes > :nth-child(3) {
+  animation-delay: 0.12s;
+}
+.modes > :nth-child(4) {
+  animation-delay: 0.18s;
 }
 .mode-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--primary);
   box-shadow: var(--shadow);
 }
-.mode-card .icon {
-  font-size: 26px;
+/* The photo on top, its icon badge sitting on the edge between photo and text */
+.mode-art {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 1;
+  background: var(--navy);
+}
+.mode-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.mode-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--navy) 45%, transparent), transparent 60%);
+}
+.mode-card:hover .mode-art img,
+.mode-card-body:hover .mode-art img {
+  transform: scale(1.06);
+}
+.mode-icon {
+  position: absolute;
+  z-index: 1;
+  left: var(--space-4);
+  bottom: -20px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  border: 3px solid var(--panel);
+}
+.mode-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  padding: 28px var(--space-4) var(--space-4);
 }
 .mode-card h3 {
   color: var(--text);
@@ -1831,20 +2018,69 @@ table.tbl tr.clickable:hover {
 }
 .mode-card p {
   color: var(--text-2);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   margin: 0;
 }
 .mode-card .foot {
   margin-top: auto;
-  font-size: 12px;
+  padding-top: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-meta);
   color: var(--text-3);
+}
+.time-tag,
+.daily-today,
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.time-tag {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+.daily-today {
+  color: var(--text-2);
+}
+.streak {
+  color: var(--gold-text);
+}
+.mode-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  /* plus the column's 4px gap: 12px under the footer, as the Daily card's button sits */
+  margin-top: var(--space-2);
+  border-radius: var(--radius-m);
+  border: var(--border-strong);
+  background: var(--raised);
+  color: var(--text);
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.mode-go svg {
+  transition: transform 0.15s ease;
+}
+.mode-card:hover .mode-go {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.mode-card:hover .mode-go svg {
+  transform: translateX(3px);
 }
 /* The Daily card starts the puzzle itself; its body is the way to the full setup for a team name */
 .mode-card.daily {
-  padding: 0;
   cursor: default;
-  display: flex;
-  flex-direction: column;
 }
 .mode-card.daily:hover {
   transform: none;
@@ -1853,23 +2089,197 @@ table.tbl tr.clickable:hover {
 .mode-card-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   flex: 1;
   text-align: left;
-  padding: 16px 16px 10px;
+  padding: 0;
   background: none;
   border: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
   cursor: pointer;
 }
-.mode-card-body:hover {
+.mode-card-body:hover .mode-text {
   background: var(--panel-2);
+}
+.mode-card-body .mode-text {
+  padding-bottom: var(--space-3);
+  transition: background 0.15s ease;
 }
 .mode-card.daily > .btn {
   /* block buttons are 100% wide; inside the card the margins must come out of that width */
-  margin: 0 16px 16px;
+  margin: 0 var(--space-4) var(--space-4);
   width: auto;
   align-self: stretch;
+}
+/* The second row: compact tiles, an icon and two short lines each */
+.home-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.home-tiles > * {
+  animation: rise 0.5s 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.home-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  text-align: left;
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--panel);
+  border: var(--border);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.home-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+}
+.tile-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-m);
+  background: var(--primary-soft);
+  color: var(--accent);
+}
+.tile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tile-text b {
+  font-size: var(--fs-base);
+}
+.tile-text span {
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+}
+@media (max-width: 900px) {
+  .home-tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+/* Phones: the mode cards become rows, a square photo beside the text, so all four fit in about one screen */
+@media (max-width: 520px) {
+  .mode-card:not(.daily),
+  .mode-card-body {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .mode-art {
+    flex: none;
+    width: 108px;
+    aspect-ratio: auto;
+    min-height: 108px;
+  }
+  .mode-art img {
+    position: absolute;
+    inset: 0;
+  }
+  .mode-icon {
+    left: auto;
+    right: -14px;
+    bottom: auto;
+    top: var(--space-3);
+    width: 34px;
+    height: 34px;
+  }
+  .mode-text {
+    padding: var(--space-3) var(--space-3) var(--space-3) 28px;
+  }
+  .mode-card h3 {
+    font-size: 21px;
+  }
+  .mode-card.daily > .btn {
+    margin: 0 var(--space-3) var(--space-3);
+  }
+  .mode-go {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .hero {
+    min-height: 260px;
+  }
+  .hero-photo img {
+    object-position: 50% 75%;
+  }
+  .hero::before {
+    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 60%, transparent) 55%, color-mix(in srgb, var(--navy) 15%, transparent) 100%);
+  }
+  .hero-content {
+    padding: var(--space-5) var(--space-4);
+  }
+  .hero h1 {
+    font-size: 46px;
+  }
+  .hero .tag {
+    font-size: 16px;
+  }
+  .hero-stats {
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+  .hero-stats dd {
+    font-size: 26px;
+  }
+  .home-tile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+}
+
+/* ------------------------------------------------------------------ motion */
+/* Short entrances only: content rises into place once, hovers lift. Fill mode is backwards so a finished animation never pins a transform over :hover */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Every screen fades in when it opens; opacity only, since a transform on .page would move its fixed bottom bar */
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page {
+  animation: page-in 0.22s ease-out backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .hero-content > *,
+  .modes > *,
+  .home-tiles > * {
+    animation: none;
+  }
+  .mode-card,
+  .mode-art img,
+  .home-tile,
+  .hero-photo img {
+    transition: none;
+  }
+  .hero-photo img {
+    transform: none;
+  }
+  .mode-card:hover,
+  .home-tile:hover,
+  .mode-card:hover .mode-art img,
+  .mode-card-body:hover .mode-art img {
+    transform: none;
+  }
 }
 
 /* ------------------------------------------------------------------ misc */
@@ -2155,6 +2565,23 @@ table.tbl tr.clickable:hover {
 .digest-conf {
   display: grid;
   gap: 4px;
+}
+/* The Profile screen's trophy cabinet: drawn icons in gold, faded at 45 % while the count is 0 */
+.cabinet-icon {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  color: var(--gold-text);
+}
+.digest-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* A red card, drawn: the suspension group's icon */
+.ic-red-card {
+  color: var(--bad);
+  fill: var(--bad);
 }
 .digest-group ul {
   margin: 2px 0 0;
