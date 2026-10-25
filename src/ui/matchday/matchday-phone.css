@@ -196,6 +196,21 @@
     justify-items: center;
     gap: 8px;
   }
+  /* In the stop's pop-up the board takes the whole screen, like the top bar's sheet */
+  .matchday .decision-back:has(.md-stop-board) {
+    padding: 0;
+  }
+  .matchday .decision-sheet:has(.md-stop-board) {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: 0;
+  }
+  .matchday .md-stop-board .sub-board {
+    --sb-pitch-h: min(46dvh, calc((100vw - 24px) * 80.2 / 68));
+  }
   .matchday .sub-side {
     width: 100%;
     max-height: none;
