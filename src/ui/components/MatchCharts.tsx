@@ -8,42 +8,28 @@ import type { Appearance, FullMatchResult } from '@engine/match'
 import { binOf, MOMENTUM_BINS } from '@engine/matchDetail'
 import { ROLE_BY_ID } from '@engine/roles'
 import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
-import { useLiveClock } from '../match/clockStore'
 import { placeSide, toShared, type Side } from '../match/pitchGeometry'
 import { territory as territoryOf, xgSeries } from '../match/charts'
-import { LivePitch, PitchSvg, pitchMapper, useMediaQuery, type PitchSide } from './LivePitch'
+import { shotXg } from '@engine/matchStats'
+import { PitchSvg, pitchMapper, useMediaQuery, type PitchSide } from './LivePitch'
 import { minuteLabel, textColourFor } from '../format'
 
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
 const SHOT_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', 'chance', 'save'])
 
-/** The pitch and the two live charts, driven by the ticker's clock. */
-export function MatchVisuals({ home, away, events, momentum, xg, from, to, seed, getPlayer }: { home: PitchSide; away: PitchSide; events: MatchEvent[]; momentum: number[]; xg: { home: number; away: number }; from: number; to: number; seed: string; getPlayer: (id: string) => PlayerSeason | undefined }) {
-  const clock = useLiveClock((s) => s.clock)
-  const minute = Math.min(clock, to)
-  const pitch = home.tactics && home.appearances && away.tactics && away.appearances
-  return (
-    <div className="col match-visuals">
-      {pitch && <LivePitch home={{ ...home, tactics: home.tactics!, appearances: home.appearances! }} away={{ ...away, tactics: away.tactics!, appearances: away.appearances! }} events={events} momentum={momentum} from={from} to={to} seed={seed} getPlayer={getPlayer} />}
-      <div className="grid two charts">
-        <MomentumBar momentum={momentum} clock={minute} events={events} home={home} away={away} />
-        <XgRace momentum={momentum} xg={xg} clock={minute} events={events} home={home} away={away} />
-      </div>
-    </div>
-  )
-}
-
 /** The home side's share of the pressure per five-minute bin: up for the home side, down for the away side, filled to the clock. */
-export function MomentumBar({ momentum, clock, events, home, away }: { momentum: number[]; clock: number; events: MatchEvent[]; home: PitchSide; away: PitchSide }) {
-  const W = 360
-  const H = 76
-  const mid = 40
-  const bw = 17
-  const step = 19
+export function MomentumBar({ momentum, clock, events, home, away, strip = false }: { momentum: number[]; clock: number; events: MatchEvent[]; home: PitchSide; away: PitchSide; strip?: boolean }) {
+  // The strip variant runs the full width of the dashboard's centre column, a little over a third as tall
+  const W = strip ? 760 : 360
+  const H = strip ? 50 : 76
+  const mid = strip ? 25 : 40
+  const step = strip ? 40.5 : 19
+  const bw = strip ? 37 : 17
   const x0 = 10
+  const amp = strip ? 19 : 30
   const goals = events.filter((e) => GOAL_TYPES.has(e.type) && e.minute <= clock)
   return (
-    <div className="mchart" data-testid="momentum-bar">
+    <div className={`mchart ${strip ? 'momentum-strip' : ''}`} data-testid="momentum-bar">
       <div className="row between small">
         <span className="row" style={{ gap: 6 }}>
           <span className="swatch" style={{ background: home.colour }} />
@@ -57,14 +43,14 @@ export function MomentumBar({ momentum, clock, events, home, away }: { momentum:
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Momentum by five-minute spell">
         <line x1={x0} y1={mid} x2={x0 + MOMENTUM_BINS * step} y2={mid} stroke="var(--line-2)" strokeWidth="1" />
-        <line x1={x0 + 9 * step - 1} y1={6} x2={x0 + 9 * step - 1} y2={H - 6} stroke="var(--line-2)" strokeDasharray="2 2" />
-        <text x={x0 + 9 * step + 2} y={H - 2} fontSize="8" fill="var(--text-3)">
+        <line x1={x0 + 9 * step - 1} y1={strip ? 2 : 6} x2={x0 + 9 * step - 1} y2={H - (strip ? 2 : 6)} stroke="var(--line-2)" strokeDasharray="2 2" />
+        <text x={x0 + 9 * step + 2} y={H - 2} fontSize={strip ? 7 : 8} fill="var(--text-3)">
           HT
         </text>
         {momentum.slice(0, MOMENTUM_BINS).map((m, i) => {
           const frac = Math.max(0, Math.min(1, (clock - i * 5) / 5))
           if (frac <= 0) return null
-          const h = (m - 0.5) * 2 * 30 * frac
+          const h = (m - 0.5) * 2 * amp * frac
           const x = x0 + i * step
           return <rect key={i} x={x} y={h >= 0 ? mid - h : mid} width={bw} height={Math.max(0.5, Math.abs(h))} rx="2" fill={h >= 0 ? home.colour : away.colour} stroke="var(--text-3)" strokeWidth="0.75" opacity={0.95}>
             <title>{`${i * 5 + 1}-${i * 5 + 5}': ${Math.round(m * 100)}% ${home.shortName}`}</title>
@@ -73,10 +59,10 @@ export function MomentumBar({ momentum, clock, events, home, away }: { momentum:
         {goals.map((g, i) => {
           const b = binOf(g.minute)
           const x = x0 + b * step + bw / 2
-          const y = g.side === 'home' ? 7 : H - 7
+          const y = g.side === 'home' ? (strip ? 4 : 7) : H - (strip ? 4 : 7)
           return (
             <g key={i}>
-              <circle cx={x} cy={y} r="4" fill={g.side === 'home' ? home.colour : away.colour} stroke="var(--panel)" strokeWidth="1.5" />
+              <circle cx={x} cy={y} r={strip ? 3.4 : 4} fill={g.side === 'home' ? home.colour : away.colour} stroke="var(--panel)" strokeWidth="1.5" />
               <title>{`${minuteLabel(g.minute)} ${g.playerName ?? 'Goal'}`}</title>
             </g>
           )
@@ -149,9 +135,11 @@ export function XgRace({ momentum, xg, clock, events, home, away }: { momentum: 
 }
 
 /** Every shot of the match: the home side's at the right-hand goal, the away side's at the left. */
-export function ShotMap({ events, home, away }: { events: MatchEvent[]; home: PitchSide; away: PitchSide }) {
+export function ShotMap({ events, home, away, upTo = Infinity, sizeByXg = false }: { events: MatchEvent[]; home: PitchSide; away: PitchSide; upTo?: number; sizeByXg?: boolean }) {
   const map = pitchMapper(false)
-  const shots = events.filter((e) => SHOT_TYPES.has(e.type) && e.position)
+  const shots = events.filter((e) => SHOT_TYPES.has(e.type) && e.position && e.minute <= upTo)
+  // Marker size by expected goals: from a speculative effort to a tap-in
+  const size = (e: MatchEvent, base: number) => (sizeByXg ? base * (0.7 + Math.sqrt(shotXg(e)) * 1.1) : base)
   return (
     <div className="shot-map" data-testid="shot-map">
       <PitchSvg label="Shot map">
@@ -163,7 +151,7 @@ export function ShotMap({ events, home, away }: { events: MatchEvent[]; home: Pi
           return (
             <g key={i} transform={`translate(${cx.toFixed(2)} ${cy.toFixed(2)})`}>
               <title>{`${minuteLabel(e.minute)} ${e.text}`}</title>
-              {goal ? <circle r="2.6" fill={colour} stroke="#fff" strokeWidth="0.6" /> : e.type === 'save' ? <circle r="2.2" fill="rgba(0,0,0,0.25)" stroke={colour} strokeWidth="0.9" /> : <circle r="2.2" fill="none" stroke={colour} strokeWidth="0.9" strokeDasharray="1.4 1" />}
+              {goal ? <circle r={size(e, 2.6)} fill={colour} stroke="#fff" strokeWidth="0.6" /> : e.type === 'save' ? <circle r={size(e, 2.2)} fill="rgba(0,0,0,0.25)" stroke={colour} strokeWidth="0.9" /> : <circle r={size(e, 2.2)} fill="none" stroke={colour} strokeWidth="0.9" strokeDasharray="1.4 1" />}
               {e.type === 'save' && <circle r="0.7" fill={colour} />}
             </g>
           )
@@ -185,7 +173,7 @@ export function ShotMap({ events, home, away }: { events: MatchEvent[]; home: Pi
 }
 
 /** Two split bars: the ball, and the pitch. Territory is the mean of the momentum series. */
-export function PossessionTerritory({ res, home, away }: { res: FullMatchResult; home: PitchSide; away: PitchSide }) {
+export function PossessionTerritory({ res, home, away, possession }: { res: FullMatchResult; home: PitchSide; away: PitchSide; possession?: { home: number; away: number } }) {
   const territory = territoryOf(res.momentum ?? [])
   const row = (label: string, h: number, a: number) => (
     <div className="split-row" key={label}>
@@ -204,7 +192,7 @@ export function PossessionTerritory({ res, home, away }: { res: FullMatchResult;
   )
   return (
     <div className="col" style={{ gap: 8 }} data-testid="possession-territory">
-      {row('Possession', res.homeReport.possession, res.awayReport.possession)}
+      {row('Possession', possession?.home ?? res.homeReport.possession, possession?.away ?? res.awayReport.possession)}
       {territory !== null && row('Territory', territory, 100 - territory)}
     </div>
   )

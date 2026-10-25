@@ -1,29 +1,22 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { MatchTicker } from '../components/MatchTicker'
-import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs } from '../components/bits'
+import { Bar, ClubBadge, Rating, Tabs } from '../components/bits'
 import type { PitchSide } from '../components/LivePitch'
-import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay, XgRace } from '../components/MatchCharts'
-import { kitColours } from '../match/shirts'
-import { xgSeries } from '../match/charts'
+import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../components/MatchCharts'
+import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
 import { clubName, clubShort, minuteLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
-import { currentScore, onPitch, SHOUTS, type Appearance, type FullMatchResult, type LivePlayer, type Shout, type TeamSnapshot, type TeamTalk } from '@engine/match'
+import type { Appearance, FullMatchResult } from '@engine/match'
+import { feedFromResult } from '@engine/matchFeed'
+import { statsSeries, xgStory } from '@engine/matchStats'
 import type { MatchContext } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
-import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
-import { isAvailable } from '@game/logic/players'
-
-function appearancesOf(live: LivePlayer[]): Appearance[] {
-  return live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury }))
-}
-
-function sideFromSnapshot(snap: TeamSnapshot, live: LivePlayer[], colour: string): PitchSide {
-  return { name: snap.teamName, shortName: snap.shortName, colour, tactics: snap.tactics, appearances: appearancesOf(live) }
-}
+import { MatchDashboard } from '../matchday/MatchDashboard'
+import { cardSeries, reportFigures } from '../matchday/model'
+import { XgStory } from '../matchday/panels/XgStory'
 
 function sidesFromResult(res: FullMatchResult, names: { home: string; away: string; homeShort: string; awayShort: string }, colours: { home: string; away: string }): { home: PitchSide; away: PitchSide } {
   return {
@@ -37,47 +30,42 @@ function shortNameOf(u: LoadedUniverse, userShort: string, teamId: string): stri
   return teamId === USER_TEAM ? userShort : clubShort(u, teamId.replace(/^friendly-/, ''))
 }
 
+/**
+ * The whistle fires from the clock's effect, not a click: a save the browser refuses (storage
+ * full) must not take the screen down with it. The game in memory is already complete.
+ */
+function safely(fn: () => void): void {
+  try {
+    fn()
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 export function MatchScreen() {
   const store = useStore()
   const { universe: u, game, matchView, setMatchView, closeMatch } = store
   const [which, setWhich] = useState<'league' | 'cup'>('league')
-  /** After the last segment is played, the ticker resumes from 71'. */
-  const [resumeFrom, setResumeFrom] = useState(0)
   /** When a cup tie follows the league match, hold it until the league result has been seen. */
   const [holdLive, setHoldLive] = useState(false)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const live = game.live && !holdLive ? game.live : null
 
-  // Live view: the match stands at half time or at the 70th minute
+  // Live: the dashboard plays each segment the engine has decided, through both stops and the held last twenty minutes
   if (live) {
-    const mp = live.mp
-    const clock = mp.clock ?? 45
-    const homeName = mp.home.teamName
-    const awayName = mp.away.teamName
     return (
-      <div className="page">
-        <div className="row between wrap" style={{ marginBottom: 10 }}>
-          <div>
-            <h2>
-              {live.ctx.roundLabel ?? (live.ctx.competition === 'cup' ? 'Cup' : `Matchweek ${live.ctx.matchweek}`)}
-              {live.ctx.importanceLabel ? ` · ${live.ctx.importanceLabel}` : ''}
-            </h2>
-            <div className="small muted">
-              {homeName} v {awayName} · live
-            </div>
-          </div>
-        </div>
-        <LiveSegment
-          key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}-${clock}`}
-          homeName={homeName}
-          awayName={awayName}
-          onPlayed={(finished) => {
-            if (!finished) return
+      <div className="page matchday-page">
+        <MatchDashboard
+          key={`${live.kind}-${live.ctx.matchweek}-${live.opponentId}-${live.mp.clock ?? 45}`}
+          source={{ mode: 'live', live }}
+          onAdvance={(changes) => store.advanceLive(changes, true)}
+          onWhistle={() => {
+            // Hold a cup tie that follows until this report has been seen; then write the report
             setWhich(live.kind === 'cup' ? 'cup' : 'league')
-            setResumeFrom(71)
             setHoldLive(true)
-            setMatchView('ticker')
+            safely(store.completeLive)
+            safely(() => setMatchView('report'))
           }}
         />
       </div>
@@ -106,16 +94,14 @@ export function MatchScreen() {
     }
     if (cupNext) {
       setHoldLive(false)
-      setResumeFrom(0)
       setMatchView('ticker')
       return
     }
-    setResumeFrom(0)
     closeMatch()
   }
 
   return (
-    <div className="page">
+    <div className={`page ${matchView === 'ticker' ? 'matchday-page' : ''}`}>
       <div className="row between wrap" style={{ marginBottom: 10 }}>
         <div>
           <h2>
@@ -145,199 +131,8 @@ export function MatchScreen() {
 
       <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
 
-      {matchView === 'ticker' && (
-        <MatchTicker
-          key={res.homeTeamId + res.awayTeamId + ctx.matchweek + which + resumeFrom}
-          events={res.events}
-          homeName={homeName}
-          awayName={awayName}
-          startClock={resumeFrom}
-          onDone={() => setMatchView('report')}
-          visuals={<MatchVisuals {...sidesFromResult(res, names, kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId))} events={res.events} momentum={res.momentum ?? []} xg={res.xg} from={resumeFrom} to={95} seed={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}`} getPlayer={get} />}
-        />
-      )}
+      {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} />}
       {matchView === 'report' && <Report res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
-    </div>
-  )
-}
-
-/**
- * The paused match at one of its two stops: the ticker plays the segment just
- * simulated (1-45, then 46-70) and stops, and the manager makes his changes for
- * the next one. At half time: a talk, instructions and up to three
- * substitutions. At 70: instructions, the remaining substitutions and a shout.
- */
-function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayName: string; onPlayed: (finished: boolean) => void }) {
-  const store = useStore()
-  const { universe: u, game } = store
-  const [atStop, setAtStop] = useState(false)
-  const [talk, setTalk] = useState<TeamTalk>('encourage')
-  const [shout, setShout] = useState<Shout>('keep-shape')
-  const [tactics, setTactics] = useState<Tactics | null>(null)
-  const [subs, setSubs] = useState<Array<{ off: string; on: string }>>([])
-  const [subbingOff, setSubbingOff] = useState<string | null>(null)
-  if (!u || !game?.live) return null
-  const live = game.live
-  const mp = live.mp
-  const clock = mp.clock ?? 45
-  const atBreak = clock === 45
-  const get = playerLookup(game, u)
-  const side: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
-  const scoreNow = currentScore(mp)
-  const us = live.userIsHome ? scoreNow.home : scoreNow.away
-  const them = live.userIsHome ? scoreNow.away : scoreNow.home
-  const t = tactics ?? game.tactics
-  const pitch = onPitch(mp, side)
-  /** Everyone who has been on the pitch for us, including the men already taken off: none can come back on. */
-  const appeared = live.userIsHome ? mp.hLive : mp.aLive
-  const made = (live.userIsHome ? mp.hSubs : mp.aSubs).length
-  // Three changes at the break; whatever is left of the five at 70
-  const subCap = atBreak ? Math.min(3, 5 - made) : 5 - made
-  const subbedOn = new Set(subs.map((s) => s.on))
-  const subbedOff = new Set(subs.map((s) => s.off))
-  const benchOptions = game.bench.filter((id) => !appeared.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
-  const advance = (changes: Parameters<typeof store.advanceLive>[0]) => {
-    store.advanceLive(changes)
-    onPlayed(!useStore.getState().game?.live)
-  }
-  const play = () => advance(atBreak ? { talk, tactics: tactics ?? undefined, substitutions: subs } : { shout, tactics: tactics ?? undefined, substitutions: subs })
-  const stateLabel = us > them ? `ahead ${us}-${them}` : us < them ? `behind ${us}-${them}` : `level ${us}-${them}`
-  const kit = kitColours(u, game.settings.hostClubId, mp.home.teamId, mp.away.teamId)
-  return (
-    <div className="col">
-      <MatchTicker
-        events={mp.events}
-        homeName={homeName}
-        awayName={awayName}
-        startClock={atBreak ? 0 : 46}
-        stopAt={clock}
-        onStop={() => setAtStop(true)}
-        visuals={<MatchVisuals home={sideFromSnapshot(mp.home, mp.hLive, kit.home)} away={sideFromSnapshot(mp.away, mp.aLive, kit.away)} events={mp.events} momentum={mp.momentum ?? []} xg={{ home: mp.lamH, away: mp.lamA }} from={atBreak ? 0 : 46} to={clock} seed={`${live.opponentId}-${live.ctx.matchweek}-${live.kind}`} getPlayer={get} />}
-      />
-      {atStop && (
-        <div className="panel" style={{ borderColor: 'var(--accent)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
-          <div className="panel-head">
-            <h2>{atBreak ? 'Half time' : '70 minutes'}: {stateLabel}</h2>
-            <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
-          </div>
-          <div className="grid two">
-            <div className="col">
-              {atBreak ? (
-                <div className="field">
-                  Team talk
-                  <Segmented<TeamTalk>
-                    value={talk}
-                    onChange={setTalk}
-                    options={[
-                      { value: 'calm', label: 'Calm', hint: 'Protects a lead' },
-                      { value: 'encourage', label: 'Encourage', hint: 'Safe lift' },
-                      { value: 'demand', label: 'Demand', hint: 'Sharpens a level game, risky when behind' },
-                      { value: 'fire-up', label: 'Fire up', hint: 'Best when behind, risky when ahead' },
-                    ]}
-                  />
-                </div>
-              ) : (
-                <div className="field" data-testid="shout">
-                  Touchline shout <span className="help">{SHOUTS[shout].hint}</span>
-                  <Segmented<Shout> value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: SHOUTS[k].label, hint: SHOUTS[k].hint }))} />
-                </div>
-              )}
-              <div className="field">
-                Mentality <span className="help">{MENTALITY_HELP[t.mentality]}</span>
-                <Segmented value={t.mentality} onChange={(v) => setTactics({ ...t, mentality: v })} options={[{ value: 'defensive', label: 'Defensive' }, { value: 'balanced', label: 'Balanced' }, { value: 'attacking', label: 'Attacking' }]} />
-              </div>
-              <div className="field">
-                Pressing <span className="help">{PRESSING_HELP[t.pressing]}</span>
-                <Segmented value={t.pressing} onChange={(v) => setTactics({ ...t, pressing: v })} options={[{ value: 'low', label: 'Low' }, { value: 'mid', label: 'Mid' }, { value: 'high', label: 'High' }]} />
-              </div>
-              <div className="field">
-                Defensive line <span className="help">{LINE_HELP[t.defensiveLine]}</span>
-                <Segmented value={t.defensiveLine} onChange={(v) => setTactics({ ...t, defensiveLine: v })} options={[{ value: 'deep', label: 'Deep' }, { value: 'standard', label: 'Standard' }, { value: 'high', label: 'High' }]} />
-              </div>
-              <div className="field">
-                Tempo <span className="help">{TEMPO_HELP[t.tempo]}</span>
-                <Segmented value={t.tempo} onChange={(v) => setTactics({ ...t, tempo: v })} options={[{ value: 'slow', label: 'Slow' }, { value: 'standard', label: 'Standard' }, { value: 'fast', label: 'Fast' }]} />
-              </div>
-            </div>
-            <div className="col">
-              <div className="row between">
-                <span style={{ fontWeight: 600 }}>Substitutions ({subs.length}/{subCap}{atBreak ? ' at the break' : ' left'})</span>
-                {subbingOff && (
-                  <button className="btn sm" onClick={() => setSubbingOff(null)}>
-                    Cancel
-                  </button>
-                )}
-              </div>
-              {subbingOff ? (
-                <div className="plist">
-                  <div className="small muted">Bring on for {get(subbingOff)?.name}:</div>
-                  {benchOptions.map((id) => {
-                    const p = get(id)
-                    if (!p) return null
-                    return (
-                      <button key={id} className="prow" onClick={() => { setSubs([...subs, { off: subbingOff, on: id }]); setSubbingOff(null) }}>
-                        <Rating value={p.overall} />
-                        <span className="name">
-                          {p.name}{' '}
-                          {p.positions.map((x) => (
-                            <Pos key={x} p={x} />
-                          ))}
-                          <span className="muted small">condition {game.squad[id]?.condition}</span>
-                        </span>
-                        <span className="btn sm primary">On</span>
-                      </button>
-                    )
-                  })}
-                  {benchOptions.length === 0 && <div className="muted small">Nobody available on the bench.</div>}
-                </div>
-              ) : (
-                <div className="plist">
-                  {pitch
-                    .filter((p) => !subbedOff.has(p.psId))
-                    .map((p) => {
-                      const ps = get(p.psId)
-                      const sub = subs.find((s) => s.on === p.psId)
-                      return (
-                        <div key={p.psId} className="prow" style={{ cursor: 'default' }}>
-                          {ps ? <Rating value={ps.overall} /> : <span />}
-                          <span className="name">
-                            <Pos p={p.position} /> {ps?.name}
-                            {p.yellow && ' 🟨'}
-                            {p.goals > 0 && ` ⚽${p.goals > 1 ? p.goals : ''}`}
-                            {p.onAt > 0 && !sub && <span className="chip">on {p.onAt}'</span>}
-                            {sub && <span className="chip good">on at {clock}'</span>}
-                            <span className="muted small">cond {game.squad[p.psId]?.condition ?? '–'}</span>
-                          </span>
-                          {subs.length < subCap && !sub && (
-                            <button className="btn sm" onClick={() => setSubbingOff(p.psId)}>
-                              Off
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  {subs.map((s) => (
-                    <div key={s.on} className="small muted">
-                      {get(s.on)?.name} replaces {get(s.off)?.name}{' '}
-                      <button className="btn sm ghost" onClick={() => setSubs(subs.filter((x) => x !== s))}>
-                        undo
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn primary big" onClick={play} data-testid="play-on">
-              {atBreak ? 'Play on to 70 minutes' : 'Play to the whistle'}
-            </button>
-            <button className="btn ghost" onClick={() => { setTactics(null); setSubs([]); advance(atBreak ? { talk: 'none' } : {}) }} data-testid="no-changes">
-              No changes
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -354,18 +149,23 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
   const hasShots = res.events.some((e) => e.position)
   const withShape = (s: PitchSide): s is PitchSide & { tactics: Tactics; appearances: Appearance[] } => !!s.tactics && !!s.appearances
   const showToast = useStore((s) => s.showToast)
+  // The same feed and stats the dashboard shows at the whistle, so the report, the dashboard and the shot map agree
+  const feed = useMemo(() => feedFromResult(res, `${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}`, { home: names.homeShort, away: names.awayShort }), [res, ctx.matchweek, names.homeShort, names.awayShort])
+  const series = useMemo(() => statsSeries(feed, get), [feed, get])
+  const story = useMemo(() => xgStory(feed), [feed])
+  const fig = reportFigures(series, feed.lastMinute)
+  const codes = u && game ? { home: teamCode(u, res.homeTeamId, names.homeShort, game.settings.shortName), away: teamCode(u, res.awayTeamId, names.awayShort, game.settings.shortName) } : { home: names.homeShort, away: names.awayShort }
   const shareCard = () => {
     try {
-      const momentum = res.momentum ?? []
       const url = renderMatchCard({
         title: ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`),
         subtitle: `${homeName} v ${awayName}`,
-        home: { name: names.homeShort, colour: colours.home, goals: res.homeGoals, xg: res.xg.home },
-        away: { name: names.awayShort, colour: colours.away, goals: res.awayGoals, xg: res.xg.away },
+        home: { name: names.homeShort, colour: colours.home, goals: res.homeGoals, xg: fig.home.xg },
+        away: { name: names.awayShort, colour: colours.away, goals: res.awayGoals, xg: fig.away.xg },
         events: res.events,
-        xgHome: xgSeries(momentum, res.xg.home, 'home'),
-        xgAway: xgSeries(momentum, res.xg.away, 'away'),
-        footer: `HT ${res.halfTimeScore.home}-${res.halfTimeScore.away} · ${res.homeReport.shots}-${res.awayReport.shots} shots`,
+        xgHome: cardSeries(story.perMinute.home),
+        xgAway: cardSeries(story.perMinute.away),
+        footer: `HT ${res.halfTimeScore.home}-${res.halfTimeScore.away} · ${fig.home.shots}-${fig.away.shots} shots`,
       })
       downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
     } catch {
@@ -417,7 +217,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
             <h3>Momentum and expected goals</h3>
             <div className="col" style={{ gap: 10 }}>
               <MomentumBar momentum={res.momentum!} clock={95} events={res.events} home={sides.home} away={sides.away} />
-              <XgRace momentum={res.momentum!} xg={res.xg} clock={95} events={res.events} home={sides.home} away={sides.away} />
+              <XgStory story={story} events={feed.events} minute={feed.lastMinute} span={Math.max(95, feed.lastMinute)} home={{ code: codes.home, colour: colours.home }} away={{ code: codes.away, colour: colours.away }} />
             </div>
           </div>
         )}
@@ -431,36 +231,41 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
             </div>
             <ShotMap events={res.events} home={sides.home} away={sides.away} />
             <div className="small muted" style={{ marginTop: 6 }}>
-              {sides.home.shortName} {res.homeReport.shots} shots ({res.homeReport.shotsOnTarget} on target) · {sides.away.shortName} {res.awayReport.shots} ({res.awayReport.shotsOnTarget})
+              {sides.home.shortName} {fig.home.shots} shots ({fig.home.onTarget} on target, {fig.home.xg.toFixed(2)} xG) · {sides.away.shortName} {fig.away.shots} ({fig.away.onTarget}, {fig.away.xg.toFixed(2)} xG)
             </div>
           </div>
         )}
         <div className="panel">
           <h3>Possession and territory</h3>
-          <PossessionTerritory res={res} home={sides.home} away={sides.away} />
+          <PossessionTerritory res={res} home={sides.home} away={sides.away} possession={{ home: fig.home.possession, away: fig.away.possession }} />
         </div>
         <div className="panel">
           <h3>Match stats</h3>
           <table className="tbl">
             <tbody>
               <tr>
-                <td className="num">{res.homeReport.xg.toFixed(2)}</td>
+                <td className="num">{fig.home.xg.toFixed(2)}</td>
                 <th style={{ textAlign: 'center' }}>Expected goals</th>
-                <td>{res.awayReport.xg.toFixed(2)}</td>
+                <td>{fig.away.xg.toFixed(2)}</td>
               </tr>
               <tr>
-                <td className="num">{res.homeReport.possession}%</td>
+                <td className="num">{fig.home.possession}%</td>
                 <th style={{ textAlign: 'center' }}>Possession</th>
-                <td>{res.awayReport.possession}%</td>
+                <td>{fig.away.possession}%</td>
               </tr>
               <tr>
                 <td className="num">
-                  {res.homeReport.shots} ({res.homeReport.shotsOnTarget})
+                  {fig.home.shots} ({fig.home.onTarget})
                 </td>
                 <th style={{ textAlign: 'center' }}>Shots (on target)</th>
                 <td>
-                  {res.awayReport.shots} ({res.awayReport.shotsOnTarget})
+                  {fig.away.shots} ({fig.away.onTarget})
                 </td>
+              </tr>
+              <tr>
+                <td className="num">{res.xg.home.toFixed(2)}</td>
+                <th style={{ textAlign: 'center' }}>Expected before kick-off</th>
+                <td>{res.xg.away.toFixed(2)}</td>
               </tr>
               <tr>
                 <td className="num">{res.homeReport.strength.overall.toFixed(1)}</td>

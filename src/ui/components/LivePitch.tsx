@@ -13,6 +13,7 @@ import { fractionalClock, useLiveClock } from '../match/clockStore'
 import { initials, onPitchAt, placeSide, separateSides, type PlacedPlayer } from '../match/pitchGeometry'
 import { dotPosition, swayPhase } from '../match/movement'
 import { ballAt, buildBallPath, type BallKeyframe } from '../match/possession'
+import { epochAt, type MatchPath } from '../match/epochs'
 import { textColourFor } from '../format'
 
 export interface PitchSide {
@@ -33,6 +34,12 @@ export interface LivePitchProps {
   to: number
   seed: string
   getPlayer: (id: string) => PlayerSeason | undefined
+  /** What each dot shows (shirt numbers); initials when absent. */
+  labels?: Record<string, number | string>
+  /** The whole match's placements and ball path (epochs.ts): the shape moves from the minute a change was made and the ball carries on. Without it the pitch lays out its own path for `from`..`to`. */
+  track?: MatchPath
+  /** Goalkeepers' shirts, by side. */
+  keepers?: { home: string; away: string }
 }
 
 export function useMediaQuery(query: string): boolean {
@@ -84,13 +91,17 @@ export function PitchSvg({ portrait = false, children, label }: { portrait?: boo
 
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
 
-export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer }: LivePitchProps) {
+export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers }: LivePitchProps) {
   const portrait = useMediaQuery('(max-width: 720px)')
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   const clock = useLiveClock((s) => s.clock)
   const minute = Math.min(clock, to)
-  const { home: homePlaced, away: awayPlaced } = useMemo(() => separateSides(placeSide(home.appearances, home.tactics, 'home'), placeSide(away.appearances, away.tactics, 'away')), [home.appearances, home.tactics, away.appearances, away.tactics])
-  const path = useMemo(() => buildBallPath({ from, to, momentum, events, home: homePlaced, away: awayPlaced, seed }), [from, to, momentum, events, homePlaced, awayPlaced, seed])
+  const own = useMemo(() => (track ? null : separateSides(placeSide(home.appearances, home.tactics, 'home'), placeSide(away.appearances, away.tactics, 'away'))), [track, home.appearances, home.tactics, away.appearances, away.tactics])
+  // With a track, the placements of the spell the clock stands in
+  const epoch = track && track.epochs.length ? epochAt(track, Math.max(minute, 0) + 0.5) : null
+  const homePlaced = epoch?.home ?? own?.home ?? []
+  const awayPlaced = epoch?.away ?? own?.away ?? []
+  const path = useMemo(() => track?.path ?? buildBallPath({ from, to, momentum, events, home: homePlaced, away: awayPlaced, seed }), [track, from, to, momentum, events, homePlaced, awayPlaced, seed])
   const map = useMemo(() => pitchMapper(portrait), [portrait])
 
   const ballRef = useRef<SVGGElement>(null)
@@ -198,15 +209,17 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const stillBall = reduced ? ballAt(path, Math.min(to, minute) + 0.99, true) : null
   const scoreNow = events.filter((e) => GOAL_TYPES.has(e.type) && e.minute <= minute)
 
-  const dot = (p: PlacedPlayer, colour: string) => {
+  const dot = (p: PlacedPlayer, kit: string) => {
     const name = getPlayer(p.psId)?.name
+    const colour = keepers && p.position === 'GK' ? keepers[p.side] : kit
+    const label = labels?.[p.psId]
     const [sx, sy] = map(p.x, p.y)
     return (
       <g key={p.psId} ref={(el) => { if (el) dots.current.set(p.psId, el); else dots.current.delete(p.psId) }} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className="live-dot" data-testid="live-dot">
         <title>{name ?? p.psId}</title>
         <circle r="2.7" fill={colour} stroke="rgba(0,0,0,0.55)" strokeWidth="0.4" />
-        <text y="0.85" textAnchor="middle" fontSize="2.3" fontWeight="700" fill={textColourFor(colour)}>
-          {initials(name)}
+        <text y="0.85" textAnchor="middle" fontSize={label !== undefined ? 2.5 : 2.3} fontWeight="700" fill={textColourFor(colour)}>
+          {label !== undefined ? String(label) : initials(name)}
         </text>
         {booked.has(p.psId) && <rect x="1.7" y="-3.9" width="1.5" height="2.1" rx="0.2" fill="var(--gold)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.2" />}
       </g>

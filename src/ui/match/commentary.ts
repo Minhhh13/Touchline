@@ -81,7 +81,7 @@ export function boardText(n: number): string {
   return `The fourth official holds up the board: ${minutesInWords(n)} minute${n === 1 ? '' : 's'} of added time.`
 }
 
-const PASS_LINES = ['{a} finds {b} {zone}.', '{a} plays it into {b} {zone}.', 'Neat from {a}, and {b} takes it on {zone}.', '{a} and {b} combine {zone}.', '{a} slides it across to {b} {zone}.']
+const PASS_LINES = ['{a} finds {b} {zone}.', '{a} plays it into {b} {zone}.', 'Neat from {a}, and {b} carries it {zone}.', '{a} and {b} combine {zone}.', '{a} slides it across to {b} {zone}.']
 const KEEPER_LINES = ['{a} plays it short to {b}.', '{a} rolls it out to {b}.', '{a} takes his time, then finds {b}.']
 const TURNOVER_LINES = ['{b} wins it back {zone}.', '{b} nips in and takes it {zone}.', 'Loose ball, and {b} gets there first {zone}.']
 const QUIET_LINES = ['{team} keep the ball {zone}.', '{team} probe {zone}.', 'Patient stuff from {team}.']
