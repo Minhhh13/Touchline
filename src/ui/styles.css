@@ -1825,3 +1825,64 @@ table.tbl tr.clickable:hover {
     animation: none;
   }
 }
+
+/* FM-style attribute panel */
+.attr-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 16px;
+  min-width: 0;
+}
+.attr-group {
+  min-width: 0;
+}
+.attr-group h4 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.attr-row {
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.attr-row .bar {
+  flex: 1;
+  width: auto;
+  min-width: 30px;
+}
+.attr-label {
+  width: 84px;
+  flex: none;
+}
+.attr-value {
+  width: 24px;
+  text-align: right;
+  flex: none;
+}
+.attr-word {
+  width: 56px;
+  text-align: right;
+  flex: none;
+}
+.attr-pips {
+  display: inline-flex;
+  gap: 3px;
+  flex: 1;
+}
+.attr-pips .pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-3);
+}
+.attr-pips .pip.good {
+  background: var(--accent);
+}
+.attr-pips .pip.warn {
+  background: var(--gold);
+}
+.attr-pips .pip.bad {
+  background: var(--danger);
+}

@@ -5,6 +5,7 @@
  */
 import type { Attributes, Club, ClubSeason, LeagueInfo, LeagueSeasonRow, PlayerSeason, Position, Traits, Universe } from './types'
 import { overallOf } from './positions'
+import { withDepth } from './depth'
 
 export interface PlayersFile {
   version: number
@@ -70,16 +71,29 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     const season = Number(get(row, 'season'))
     const clubId = String(get(row, 'club'))
     const positions = String(get(row, 'pos')).split('|') as Position[]
-    const attributes: Attributes = {
-      pace: Number(get(row, 'pac')),
-      shooting: Number(get(row, 'sho')),
-      passing: Number(get(row, 'pas')),
-      dribbling: Number(get(row, 'dri')),
-      defending: Number(get(row, 'def')),
-      physical: Number(get(row, 'phy')),
-      mentality: Number(get(row, 'men')),
-      goalkeeping: Number(get(row, 'gk')),
-    }
+    const age = Number(get(row, 'age'))
+    const height = Number(get(row, 'height')) || 0
+    // A depth column missing from an older pack reads as undefined and is derived from the eight core attributes
+    const depth = (key: string): number | undefined => (key in col ? Number(get(row, key)) : undefined)
+    const attributes: Attributes = withDepth(
+      {
+        pace: Number(get(row, 'pac')),
+        shooting: Number(get(row, 'sho')),
+        passing: Number(get(row, 'pas')),
+        dribbling: Number(get(row, 'dri')),
+        defending: Number(get(row, 'def')),
+        physical: Number(get(row, 'phy')),
+        mentality: Number(get(row, 'men')),
+        goalkeeping: Number(get(row, 'gk')),
+        stamina: depth('sta'),
+        strength: depth('str'),
+        aggression: depth('agg'),
+        jumping: depth('jmp'),
+        workRate: depth('wr'),
+      },
+      age,
+      height,
+    )
     // A missing trait column reads as an average player, never as NaN
     const trait = (col: string): number => {
       const raw = get(row, col)
@@ -102,7 +116,7 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
       playerId,
       name: String(get(row, 'name')),
       nationality: String(get(row, 'nation')),
-      age: Number(get(row, 'age')),
+      age,
       clubId,
       season,
       positions,
@@ -112,7 +126,7 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
       value: Number(get(row, 'value')),
       wage: Number(get(row, 'wage')),
       foot: String(get(row, 'foot')) === 'L' ? 'L' : 'R',
-      height: Number(get(row, 'height')) || 0,
+      height,
       accolades: [],
     }
     if (!Number.isFinite(ps.overall) || ps.overall <= 0) ps.overall = overallOf(ps)

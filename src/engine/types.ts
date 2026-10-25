@@ -18,6 +18,16 @@ export interface Attributes {
   mentality: number
   /** Reflexes, handling, positioning. Only meaningful for goalkeepers. */
   goalkeeping: number
+  /** How long the legs last: condition lost per match, the fade after the 70th minute, the injury roll when tired. */
+  stamina: number
+  /** Winning the shoulder-to-shoulder: set pieces and the aerial mismatch between attack and defence. */
+  strength: number
+  /** Appetite for the tackle: cards, and a little bite in the press. */
+  aggression: number
+  /** Winning headers: set pieces and the aerial mismatch. */
+  jumping: number
+  /** How hard he runs for the team: pressing and counter efficiency, familiarity gains. */
+  workRate: number
 }
 
 export type AttributeKey = keyof Attributes

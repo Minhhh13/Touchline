@@ -4,6 +4,7 @@
  * other nineteen play with their real squads of that season.
  */
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
+import { familiarityGainFactor } from './depth'
 import type { Rng } from './rng'
 import type { LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
@@ -347,11 +348,12 @@ export function recoverWeek(state: SquadPlayer, player: PlayerSeason, played: bo
   }
 }
 
-export function applyMatchToState(state: SquadPlayer, stats: { minutes: number; goals: number; assists: number; rating: number; yellow: boolean; red: boolean; injured: { description: string; weeksOut: number } | null } | undefined, started: boolean, conditionLoss: number, cleanSheet: boolean, motm: boolean, teamResult: 'W' | 'D' | 'L'): void {
+export function applyMatchToState(state: SquadPlayer, stats: { minutes: number; goals: number; assists: number; rating: number; yellow: boolean; red: boolean; injured: { description: string; weeksOut: number } | null } | undefined, started: boolean, conditionLoss: number, cleanSheet: boolean, motm: boolean, teamResult: 'W' | 'D' | 'L', workRate = 55): void {
   if (!stats) return
   state.condition = Math.max(5, state.condition - conditionLoss)
   state.sharpness = Math.min(100, state.sharpness + (started ? 12 : 6))
-  state.familiarity = Math.min(100, state.familiarity + (started ? 4 : 2))
+  // A player who does not work for the team learns it more slowly: the gain is cut to 80 per cent at work rate 35
+  state.familiarity = Math.min(100, state.familiarity + Math.round((started ? 4 : 2) * familiarityGainFactor(workRate)))
   state.recentRatings.push(stats.rating)
   if (state.recentRatings.length > 6) state.recentRatings.shift()
   state.seasonStats.apps++

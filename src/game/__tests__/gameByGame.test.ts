@@ -6,6 +6,7 @@ import { runH2HSeason, H2H_IDS } from '../logic/h2h'
 import { bestWin, bestWinLine, foldResults, outcomeOf, recordUserGames, scorersLabel, shortName } from '../logic/gameByGame'
 import { autoDraft, isComplete, newDraft, QUICK_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
+import { ENGINE_VERSION } from '@engine/version'
 import { simulateMatch } from '@engine/match'
 import { aiRatingOffset, aiTeamInput, buildAiClubs, computeTable, generateFixtures, matchweeksFor, positionOf, USER_TEAM } from '@engine/season'
 import { autoPickLineup } from '@engine/ratings'
@@ -27,30 +28,33 @@ function quickGame(seed: string) {
   return g
 }
 
-// The final table of seed `game-by-game` as the engine produced it before any game was recorded
+// The final table of seed `game-by-game`. The recording was proved to add no draws against the commit
+// before it (same table, same RNG state); the snapshot is pinned to ENGINE_VERSION so a deliberate engine
+// change (as FM depth's '4' was) re-pins it on purpose rather than failing for an unrelated reason.
+const BASELINE_ENGINE = '4'
 const BASELINE_TABLE = [
-  'arsenal:80/24/8/6/70/29',
-  'user:79/24/7/7/87/44',
-  'manchester-city:68/18/14/6/65/37',
-  'liverpool:64/19/7/12/65/50',
-  'manchester-united:59/15/14/9/58/45',
-  'aston-villa:59/17/8/13/51/43',
-  'everton:58/16/10/12/48/42',
-  'nottingham-forest:57/17/6/15/48/40',
-  'bournemouth:53/13/14/11/62/63',
-  'chelsea:50/12/14/12/46/38',
-  'west-ham-united:50/14/8/16/55/58',
-  'newcastle-united:50/14/8/16/53/61',
-  'brighton:47/13/8/17/39/54',
-  'fulham:44/12/8/18/42/57',
-  'tottenham-hotspur:43/10/13/15/45/57',
-  'crystal-palace:41/9/14/15/31/42',
-  'sunderland:41/10/11/17/38/52',
-  'wolverhampton-wanderers:36/9/9/20/35/64',
-  'brentford:33/8/9/21/38/71',
-  'leeds-united:30/8/6/24/39/68',
+  'chelsea:79/22/13/3/62/24',
+  'user:75/22/9/7/91/36',
+  'arsenal:74/22/8/8/71/39',
+  'aston-villa:73/22/7/9/66/36',
+  'liverpool:67/18/13/7/76/45',
+  'manchester-united:60/15/15/8/60/38',
+  'manchester-city:60/16/12/10/61/40',
+  'everton:57/17/6/15/43/49',
+  'brighton:52/13/13/12/52/55',
+  'nottingham-forest:47/13/8/17/43/50',
+  'wolverhampton-wanderers:47/12/11/15/35/47',
+  'newcastle-united:46/12/10/16/62/60',
+  'tottenham-hotspur:44/12/8/18/55/82',
+  'crystal-palace:43/12/7/19/45/63',
+  'bournemouth:43/12/7/19/56/78',
+  'sunderland:42/10/12/16/54/67',
+  'brentford:39/10/9/19/53/82',
+  'west-ham-united:32/8/8/22/46/74',
+  'fulham:30/4/18/16/36/62',
+  'leeds-united:27/5/12/21/36/76',
 ]
-const BASELINE_RNG = { a: -1720087132, b: -1772400845, c: -2127551745, d: -1686302794 }
+const BASELINE_RNG = { a: 1559925814, b: 500370932, c: 2083791800, d: 1089738077 }
 
 describe('a quick season recorded game by game', () => {
   const g = quickGame('game-by-game')
@@ -58,9 +62,10 @@ describe('a quick season recorded game by game', () => {
   const results = q.results!
 
   it('draws no random numbers: the table and the RNG state are exactly what they were before the recording', () => {
+    expect(ENGINE_VERSION).toBe(BASELINE_ENGINE)
     expect(q.table.map((r) => `${r.teamId}:${r.points}/${r.won}/${r.drawn}/${r.lost}/${r.goalsFor}/${r.goalsAgainst}`)).toEqual(BASELINE_TABLE)
     expect(g.rngState).toEqual(BASELINE_RNG)
-    expect(q.topScorer).toEqual({ playerSeasonId: 's7826@2012@manchester-united', goals: 26 })
+    expect(q.topScorer).toEqual({ playerSeasonId: 's7826@2012@manchester-united', goals: 27 })
   })
 
   it('keeps one game per matchweek, in order, and the games add up to the season record exactly', () => {

@@ -35,6 +35,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 
 - Thirty-four player roles and six team instructions whose effects are printed in every match report.
 - An xG-based match engine with a live ticker, scorers, assists, cards, injuries, substitutions and player ratings.
+- **Football Manager depth in the player model**: beside the eight classic attributes every player carries stamina, strength, aggression, jumping and work rate, taken from the EA and European Soccer Database stats (derived from the eight for an older pack). Stamina sets how much condition a match costs (×0.8 at 90, ×1.1 at 30), how hard a starter fades after the 70th minute (up to 10 per cent of his effective rating, and the last twenty minutes' chances with it), who the assistant takes off and how much tired legs add to the injury roll (up to 30 per cent), keepers exempt since their data stamina is not a running number; strength and jumping decide set pieces and an aerial mismatch worth up to 4 per cent of expected goals each way; aggression scales every card (×0.7 to ×1.3) and gives a press some bite; work rate makes pressing and counters run (about ±2 points each) and slows a lazy player's familiarity. The player modal and Explore show an FM-style panel (Technical, Physical, Mental, Defending, Goalkeeping, Fitness with a 1-5 Injury risk) and the squad list can show stamina. Every effect is bounded and written up with its numbers in docs/GAME_DESIGN.md.
 - Condition, sharpness, familiarity, morale and form; suspensions at five yellow cards; injuries from a knock to a ruptured ACL.
 - Weekly training focus, pre-match team talks, dressing-room events with choices, promises you can break.
 - **The assistant's briefing**: the dugout opens with a list of what needs doing before kick-off, each line with the button that does it: a pending decision, lineup problems, tired or rusty starters, a man one yellow from a ban, a promised start left out, the window and deadline day, the midweek tie, a board objective at risk, and when nothing is wrong one line naming your training focus and team talk. Six lines at most, in that order. In pre-season it is a checklist (three friendlies, a captain, roles, staff, set-piece takers, the youth intake) that ticks as you go. On a phone the Play, Sim 5 and Sim to end buttons sit in a fixed bottom bar with the top line of the briefing beside them.
@@ -100,7 +101,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,118 player-seasons across seven leagues, about 1.0 to 1.3 MB per league, loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
 
 ```bash
 node scripts/import/build.mjs
@@ -130,6 +131,7 @@ src/
     training.ts            Weekly training focus
     awards.ts              Awards, achievements, share text
     universe.ts            Loads players.json and meta.json into typed structures
+    depth.ts               Stamina, strength, aggression, jumping, work rate: derivations and the bounded engine factors
     __tests__/             Vitest suites
   game/
     store.ts               Zustand store with Immer, persisted to localStorage
