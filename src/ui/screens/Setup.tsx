@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupRules, shortNameFor, summariseSetup } from '@game/logic/setup'
+import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
-import { MODE_CARDS, MODE_INFO, crazyFormation, toggleModeCard, type ModeCard } from '@engine/modes'
+import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
@@ -193,7 +193,7 @@ export function Setup() {
       // A challenge always plays as a quick draft, whatever seed it carries, so the Daily streak is never touched
       mode: challenge ? 'quick' : mode,
       seed: seedText,
-      formationId: fixed ? fixed.formationId : crazy ? (preview && !seed.trim() ? formationId : crazyFormation(seedText)) : formationId,
+      formationId: fixed ? fixed.formationId : crazy && preview && !seed.trim() ? formationId : startFormation(rules, seedText, formationId),
       teamName: name,
       shortName: shortNameFor(name),
       leagueId: fixed ? fixed.leagueId : leagueId,
@@ -407,8 +407,8 @@ export function Setup() {
                   </label>
                 )}
                 <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
-                  <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
-                  Twists: every third spin is golden, basement, blind or decade
+                  <input type="checkbox" checked={twists || crazyOn} disabled={crazyOn} onChange={(e) => setTwistsChoice(e.target.checked)} data-testid="twists-toggle" />
+                  {crazyOn ? 'Twists: Crazy puts one on every spin' : 'Twists: every third spin is golden, basement, blind or decade'}
                 </label>
                 {!isManage && (
                   <label className="toggle" data-testid="january-toggle" title="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change.">

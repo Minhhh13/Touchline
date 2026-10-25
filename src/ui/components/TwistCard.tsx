@@ -9,7 +9,7 @@ export const TWIST_INFO: Record<Twist, { icon: string; title: string; rule: stri
 }
 
 /** The twist on the spin now showing (or the one coming), above the wheel. */
-export function TwistCard({ twist, decade, next, every }: { twist: Twist | null | undefined; decade: number | null; next: boolean; every?: boolean }) {
+export function TwistCard({ twist, decade, next, every, coming }: { twist: Twist | null | undefined; decade: number | null; next: boolean; every?: boolean; coming?: Twist | null }) {
   if (twist) {
     const info = TWIST_INFO[twist]
     const rule = twist === 'decade' && decade !== null ? `The wheel stays in the ${decade}s: ${seasonLabel(decade)} to ${seasonLabel(decade + 9)}.` : info.rule
@@ -21,6 +21,21 @@ export function TwistCard({ twist, decade, next, every }: { twist: Twist | null 
         <div>
           <div className="twist-title">{info.title}</div>
           <div className="small muted">{rule}</div>
+        </div>
+      </div>
+    )
+  }
+  // A twist already decided for the next spin (a Crazy golden surprise): named, not left to the wheel
+  if (next && coming) {
+    const info = TWIST_INFO[coming]
+    return (
+      <div className={`twist-card next ${coming}`} data-testid="twist-card">
+        <span className="twist-icon" aria-hidden>
+          {info.icon}
+        </span>
+        <div>
+          <div className="twist-title">{info.title} next</div>
+          <div className="small muted">{info.rule}</div>
         </div>
       </div>
     )

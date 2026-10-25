@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
-import { assistantTurn, autoDraft, bottomHalf, canSpin, chooseSlot, CRAZY_SURPRISE_CHANCE, forcedSlotOf, hasLegend, isComplete, LEGENDS_RATING, modesOf, newDraft, picksMade, pick, QUICK_RULES, spin, targetSlot, TWISTS, type DraftRules, type QuickMode } from '@engine/draft'
+import { assistantChoice, assistantTurn, autoDraft, bottomHalf, canSpin, chooseSlot, CRAZY_SURPRISE_CHANCE, forcedSlotOf, hasLegend, isComplete, LEGENDS_RATING, modesOf, newDraft, picksMade, pick, QUICK_RULES, spin, targetSlot, TWISTS, type DraftRules, type QuickMode } from '@engine/draft'
 import { activeModeCards, crazyFormation, MODE_CARDS, modesLine, toggleModeCard, withModes } from '@engine/modes'
 import { decodeChallenge, encodeChallenge, isRulesDiff, rulesDiff, rulesFromPayload } from '@engine/challenge'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { canCover } from '@engine/positions'
 import type { LoadedUniverse } from '@engine/universe'
-import { createGame, describeRules, setupRules, summariseSetup, type SetupChoices } from '../logic/setup'
+import { createGame, describeRules, setupRules, startFormation, summariseSetup, type SetupChoices } from '../logic/setup'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
 import { kickOff, toKickoff } from '../logic/quick'
 import type { Game, GameSettings } from '../types'
@@ -173,6 +173,35 @@ describe('Crazy', () => {
     expect(hits / rolls).toBeGreaterThan(CRAZY_SURPRISE_CHANCE - 0.1)
     expect(hits / rolls).toBeLessThan(CRAZY_SURPRISE_CHANCE + 0.1)
     expect([...kinds].sort()).toEqual(['forced', 'golden', 'respin'])
+  })
+
+  it('announces a golden surprise only when it happens: never under Underdog, always golden otherwise', () => {
+    for (const modes of [['crazy', 'underdog'], ['crazy']] as QuickMode[][]) {
+      let golden = 0
+      for (let i = 0; i < 40; i++) {
+        const g = createGame(settings({ seed: `GOLD-${i}`, rules: rules(modes) }))
+        const d = g.draft!
+        const rng = Rng.fromState(g.rngState)
+        let pending = false
+        while (!isComplete(d)) {
+          const cs = spin(u, d, rng)
+          if (pending) expect(d.twist, `GOLD-${i}`).toBe('golden')
+          const before = d.surprise
+          const b = assistantChoice(u, d, cs)!
+          pick(u, d, b.id, b.slot)
+          pending = !isComplete(d) && d.surprise !== before && d.surprise?.kind === 'golden'
+          if (pending) golden++
+        }
+      }
+      if (modes.includes('underdog')) expect(golden).toBe(0)
+      else expect(golden).toBeGreaterThan(0)
+    }
+  })
+
+  it('starts in the shape the seed draws, whatever formation was chosen', () => {
+    expect(startFormation(rules(['crazy']), 'K7Q2-MX9A', '4-4-2')).toBe(crazyFormation('K7Q2-MX9A'))
+    expect(startFormation(rules(['speedrun']), 'K7Q2-MX9A', '4-4-2')).toBe('4-4-2')
+    expect(startFormation(rules([]), 'K7Q2-MX9A', '3-5-2')).toBe('3-5-2')
   })
 
   it('makes a golden surprise spin golden and blocks choosing another slot while one is forced', () => {

@@ -2,7 +2,7 @@ import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { benchPlaces, difficultyOf, DIFFICULTY_RESPINS, draftModeOf, modesOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
-import { MODE_INFO, withModes } from '@engine/modes'
+import { MODE_INFO, crazyFormation, withModes } from '@engine/modes'
 import { dailySettings } from './daily'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -57,6 +57,14 @@ export interface SetupChoices {
   benchPicks?: number
   /** Quick Draft mode flags (Crazy, Underdog, Legends, Speedrun); Hard is `difficulty`. None when absent. */
   modes?: QuickMode[]
+}
+
+/**
+ * The formation a new Quick Draft starts in: the one chosen on the setup screen, or under Crazy the shape the seed draws
+ * (`crazyFormation`), whatever was chosen. A challenge passes the shape its challenger had and never comes here. Pure.
+ */
+export function startFormation(rules: DraftRules, seed: string, chosen: string): string {
+  return modesOf(rules).includes('crazy') ? crazyFormation(seed) : chosen
 }
 
 /**

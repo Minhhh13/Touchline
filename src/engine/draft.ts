@@ -567,7 +567,8 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
 /**
  * Crazy: after a pick, one draw from the surprise stream decides whether a surprise lands (`CRAZY_SURPRISE_CHANCE`), and
  * a second which: a free re-spin, a forced position (an open slot some club on the wheel can fill, offered only with two
- * or more open slots, so a choice is taken away) or a golden spin. Nothing is rolled once the draft is complete. Draws
+ * or more open slots, so a choice is taken away) or a golden spin (only while champions are on the wheel). Nothing is
+ * rolled once the draft is complete. Draws
  * only from `crazyRng`, never the game's stream.
  */
 function rollSurprise(u: LoadedUniverse, d: DraftState): void {
@@ -575,7 +576,10 @@ function rollSurprise(u: LoadedUniverse, d: DraftState): void {
   const rng = Rng.fromState(d.crazyRng)
   if (rng.chance(CRAZY_SURPRISE_CHANCE)) {
     const open = fillingXI(d) ? openSlots(d).filter((s) => slotSpinnable(u, d, s)) : []
-    const kinds: Array<Surprise['kind']> = ['respin', 'golden', ...(open.length >= 2 ? (['forced'] as const) : [])]
+    // A golden spin is offered only while champions are on the next wheel (never under Underdog, nor in a league
+    // without tables), so a surprise that is announced always happens
+    const golden = narrowPool(u, d, 'golden', rulesPool(u, d)).length > 0
+    const kinds: Array<Surprise['kind']> = ['respin', ...(golden ? (['golden'] as const) : []), ...(open.length >= 2 ? (['forced'] as const) : [])]
     const kind = rng.pick(kinds)
     let s: Surprise
     if (kind === 'forced') {

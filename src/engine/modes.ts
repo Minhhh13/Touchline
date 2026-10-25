@@ -6,7 +6,7 @@
  * exclude each other (a bottom-half side with an 85+ player is too rare to fill a draft). Pure: no RNG here except
  * `crazyFormation`, which seeds its own stream from the game seed and never touches the game's stream.
  */
-import { DIFFICULTY_RESPINS, LEGENDS_RATING, QUICK_MODES, difficultyOf, modesOf, withDifficulty, type DraftRules, type QuickMode } from './draft'
+import { CRAZY_SURPRISE_CHANCE, DIFFICULTY_RESPINS, LEGENDS_RATING, QUICK_MODES, difficultyOf, modesOf, withDifficulty, type DraftRules, type QuickMode } from './draft'
 import { FORMATIONS } from './formations'
 import { Rng } from './rng'
 
@@ -19,7 +19,7 @@ export const MODE_CARDS: readonly ModeCard[] = ['crazy', 'hard', 'underdog', 'le
 export const SPEEDRUN_SECONDS = 20
 
 export const MODE_INFO: Record<ModeCard, { icon: string; title: string; line: string }> = {
-  crazy: { icon: '🌀', title: 'Crazy', line: 'A twist every spin, a random formation, surprises' },
+  crazy: { icon: '🌀', title: 'Crazy', line: `A twist every spin, a random formation, a ${Math.round(CRAZY_SURPRISE_CHANCE * 100)}% surprise after each pick` },
   hard: { icon: '💀', title: 'Hard', line: `${DIFFICULTY_RESPINS.hard} re-spins, ratings hidden` },
   underdog: { icon: '🐶', title: 'Underdog', line: 'Only bottom-half sides' },
   legends: { icon: '👑', title: 'Legends', line: `Only sides with an ${LEGENDS_RATING}+ player` },

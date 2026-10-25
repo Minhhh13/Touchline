@@ -48,6 +48,9 @@ function play(settings: GameSettings) {
   return { key: historyKey(d.history), lineup: d.lineup, result: g.quickResult }
 }
 
+/** The spins each date's Daily lands on, as `historyKey` (ENGINE_VERSION '4'); re-baseline only with an engine bump. */
+const PINNED_KEYS: Record<string, string> = { 'daily-2026-10-25': 'ez08n9yv8i', 'daily-2026-12-31': '259rqyo5r6p', 'daily-2027-03-07': '9y7ck5om5c', 'daily-2027-06-15': 'a1y6wvzob3' }
+
 const DATES = ['daily-2026-10-25', 'daily-2026-12-31', 'daily-2027-03-07', 'daily-2027-06-15']
 
 describe('the Daily is pinned to its original rules', () => {
@@ -67,6 +70,7 @@ describe('the Daily is pinned to its original rules', () => {
   })
 
   it('plays every date exactly as the pre-38-0 Daily: the same spins, the same XI, the same season', () => {
+    const keys: Record<string, string> = {}
     for (const seed of DATES) {
       const today = dailyGameSettings(u, seed, 'Pinned XI')
       const before: GameSettings = { ...today, rules: PRE_38_0_DAILY_RULES }
@@ -75,6 +79,9 @@ describe('the Daily is pinned to its original rules', () => {
       expect(a.key, seed).toBe(b.key)
       expect(a.lineup, seed).toEqual(b.lineup)
       expect(a.result, seed).toEqual(b.result)
+      keys[seed] = a.key
     }
+    // Pinned literally, so a change to the draft engine itself (not only to the rules) shows up here too
+    expect(keys).toEqual(PINNED_KEYS)
   })
 })
