@@ -4,21 +4,23 @@ import type { LoadedUniverse } from '@engine/universe'
 import { ratingsModeOf } from '@engine/draft'
 import { primeLookup } from '@engine/prime'
 import { boostedPlayer } from '@engine/upgrader'
+import { draftBoost } from '@engine/powerups'
 
 /**
  * Player lookup that sees game-created players (dynasty progression, free agents) first. Under the
  * Prime ratings rule every real player-season comes back at its player's career-best overall and
  * attributes in the draft's wheel leagues (`src/engine/prime.ts`), so the draft list, team strength
  * and the quick season all rate him there; game-created players are never re-rated. The Player Upgrader's result
- * (`game.draft.upgrade`, kept with a quick game's draft) moves that one player's rating on top, as an override.
+ * (`game.draft.upgrade`, kept with a quick game's draft) moves that one player's rating on top, as an override, and so does the Captain's armband power-up (`draftBoost`).
  */
 export function playerLookup(game: Game, u: LoadedUniverse): (id: string) => PlayerSeason | undefined {
   const base = basicLookup(game, u)
-  const up = game.draft?.upgrade
-  if (!up || !up.delta) return base
+  const d = game.draft
+  if (!d || (!d.upgrade?.delta && !d.powerUps?.length)) return base
   return (id: string) => {
     const p = base(id)
-    return p && id === up.id ? boostedPlayer(p, up.delta) : p
+    const delta = p ? draftBoost(d, id) : 0
+    return p && delta ? boostedPlayer(p, delta) : p
   }
 }
 

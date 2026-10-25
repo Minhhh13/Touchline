@@ -4,6 +4,8 @@ import type { PlayerSeason } from '@engine/types'
 import { UPGRADE_BOOSTS, upgradeChance, upgradeGain, upgradeLoss, type UpgradeBoost } from '@engine/upgrader'
 import type { Tier } from '@game/logic/rarity'
 import { Modal, Pos } from './bits'
+import { POWER_UP_INFO } from '@engine/powerups'
+import { PowerUpButton } from './PowerUpButton'
 
 /** The dial's win arc takes a rarity colour by how big the gamble is. */
 const BOOST_TIER: Record<UpgradeBoost, Tier> = { 2: 'purple', 5: 'pink', 10: 'red' }
@@ -39,7 +41,7 @@ function Dial({ chance, tier, roll, spinning }: { chance: number; tier: Tier; ro
  * exact chance on a dial before confirming. The gamble itself is the store's (`upgradePlayer`); this only shows the
  * odds the engine uses (`upgradeChance`) and spins the needle onto the roll the engine made.
  */
-export function Upgrader({ players, ratingOf, available, result, hideRatings, onConfirm }: { players: PlayerSeason[]; ratingOf: (id: string) => number; available: boolean; result: DraftUpgrade | null | undefined; hideRatings: boolean; onConfirm: (id: string, boost: UpgradeBoost) => void }) {
+export function Upgrader({ players, ratingOf, available, result, hideRatings, onConfirm, tray, lockedId }: { players: PlayerSeason[]; ratingOf: (id: string) => number; available: boolean; result: DraftUpgrade | null | undefined; hideRatings: boolean; onConfirm: (id: string, boost: UpgradeBoost) => void; /** In the power-up tray: a tray button instead of a panel. */ tray?: boolean; /** The player under the Lock power-up, whose loss costs nothing. */ lockedId?: string | null }) {
   const [open, setOpen] = useState(false)
   const [chosen, setChosen] = useState<string | null>(null)
   const [boost, setBoost] = useState<UpgradeBoost>(5)
@@ -61,13 +63,18 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
   const chance = pick ? upgradeChance(base, boost) : 0
   const resultPlayer = result ? players.find((p) => p.id === result.id) : undefined
   const done = !!result && (shown || !open)
+  const locked = !!pick && pick === lockedId
+  const summary = result ? (done ? `${resultPlayer?.name ?? 'Your player'}: ${result.won ? `won, +${result.delta}` : result.locked ? 'lost, the lock held' : `lost, ${result.delta}`} (${result.chance}% chance)` : 'The dial is spinning…') : 'Once per draft: gamble +2, +5 or +10 on a drafted player.'
 
   return (
-    <div className="panel tight upg-panel" data-testid="upgrader">
+    <div className={tray ? 'pu-upgrader' : 'panel tight upg-panel'} data-testid="upgrader">
+      {tray ? (
+        <PowerUpButton icon={POWER_UP_INFO.upgrader.icon} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? (result.won ? `Won +${result.delta}` : result.locked ? 'Lock held' : `Lost ${result.delta}`) : 'Spinning…') : available ? 'Ready' : 'Draft a player'} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
+      ) : (
       <div className="row between">
         <div>
           <b>⬆️ Player Upgrader</b>
-          <div className="small muted">{result ? (done ? `${resultPlayer?.name ?? 'Your player'}: ${result.won ? `won, +${result.delta}` : `lost, ${result.delta}`} (${result.chance}% chance)` : 'The dial is spinning…') : 'Once per draft: gamble +2, +5 or +10 on a drafted player.'}</div>
+          <div className="small muted">{summary}</div>
         </div>
         {!result && (
           <button className="btn sm primary" disabled={!available} onClick={() => setOpen(true)} data-testid="upgrader-open" title={available ? undefined : 'Draft a player first'}>
@@ -75,6 +82,7 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
           </button>
         )}
       </div>
+      )}
       <Modal open={open} onClose={() => !rolling && setOpen(false)} title="Player Upgrader" sheet testId="upgrader-sheet">
         <div className="col" style={{ gap: 12 }}>
           {!result && (
@@ -108,15 +116,15 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
                     Win ({chance}%): {hideRatings ? `+${upgradeGain(base, boost)}` : `${base} → ${base + upgradeGain(base, boost)}`}
                   </span>
                   <span>
-                    Lose ({100 - chance}%): {hideRatings ? `-${upgradeLoss(boost)}` : `${base} → ${base - upgradeLoss(boost)}`}
+                    Lose ({100 - chance}%): {locked ? '🔒 locked, no change' : hideRatings ? `-${upgradeLoss(boost)}` : `${base} → ${base - upgradeLoss(boost)}`}
                   </span>
                 </div>
               )}
               {result && shown && (
                 <div className={`upg-result ${result.won ? 'won' : 'lost'}`} data-testid="upgrader-result">
-                  <b>{result.won ? 'Upgraded!' : 'Downgraded'}</b>
+                  <b>{result.won ? 'Upgraded!' : result.locked ? 'The lock held' : 'Downgraded'}</b>
                   <span>
-                    {resultPlayer?.name ?? 'Your player'} {result.delta > 0 ? `+${result.delta}` : result.delta}
+                    {resultPlayer?.name ?? 'Your player'} {result.locked ? 'keeps his rating' : result.delta > 0 ? `+${result.delta}` : result.delta}
                   </span>
                 </div>
               )}

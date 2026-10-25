@@ -5,6 +5,8 @@ import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setup
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
+import { POWER_UPS, POWER_UPS_ICON, POWER_UP_INFO } from '@engine/powerups'
+import { InfoTip } from '../components/PowerUpButton'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
@@ -84,6 +86,8 @@ export function Setup() {
   const [benchPicks, setBenchPicks] = useState(5)
   // Quick Draft modes (Crazy, Underdog, Legends, Speedrun); the Hard card is the difficulty above
   const [modes, setModes] = useState<Array<QuickMode | 'upgrader'>>([])
+  // Quick Draft power-ups: the tray of six one-use power-ups on the draft screen
+  const [powerUps, setPowerUps] = useState(false)
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
   const [leagueSeason, setLeagueSeason] = useState(() => {
@@ -124,7 +128,7 @@ export function Setup() {
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, modes: isManage ? [] : modes })
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, modes: isManage ? [] : modes, powerUps: !isManage && powerUps })
   const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason }
   const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
@@ -304,6 +308,22 @@ export function Setup() {
               <span className="small muted">{cardsOn.length ? `${cardsOn.length} on` : 'Mix and match, or none'}</span>
             </div>
             <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} onToggle={toggleMode} />
+            <div className="row between wrap pu-setup">
+              <label className="toggle" data-testid="power-ups-toggle">
+                <input type="checkbox" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
+                {POWER_UPS_ICON} Power-ups
+              </label>
+              <InfoTip label="Power-ups" text="Six one-use power-ups in a tray on the draft: Upgrader, Re-roll season, Peek, Swap, Captain's armband and Lock. Odds are always shown first; in-game only." testId="power-ups-info" />
+            </div>
+            {powerUps && (
+              <div className="pill-list" data-testid="power-ups-list">
+                {POWER_UPS.map((k) => (
+                  <span key={k} className="chip" title={POWER_UP_INFO[k].line}>
+                    {POWER_UP_INFO[k].icon} {POWER_UP_INFO[k].title}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -77,8 +77,10 @@ export function upgradePlayer(u: LoadedUniverse, d: DraftState, id: string, boos
   const roll = rng.fork(`${id}:${boost}`).int(0, 99)
   d.upgradeRng = rng.getState()
   const won = roll < chance
-  const delta = won ? upgradeGain(rating, boost) : -upgradeLoss(boost)
-  const out: DraftUpgrade = { id, boost, chance, roll, won, delta }
+  // The Lock power-up (`./powerups`): a loss on the locked player costs nothing
+  const locked = !won && !!d.powerUps?.some((x) => x.kind === 'lock' && x.id === id)
+  const delta = won ? upgradeGain(rating, boost) : locked ? 0 : -upgradeLoss(boost)
+  const out: DraftUpgrade = { id, boost, chance, roll, won, delta, ...(locked ? { locked } : {}) }
   d.upgrade = out
   return out
 }

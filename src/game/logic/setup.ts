@@ -3,6 +3,7 @@ import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { benchPlaces, difficultyOf, DIFFICULTY_RESPINS, draftModeOf, modesOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_INFO, crazyFormation, withModes } from '@engine/modes'
+import { POWER_UPS_ICON } from '@engine/powerups'
 import { dailySettings } from './daily'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -57,6 +58,8 @@ export interface SetupChoices {
   benchPicks?: number
   /** Quick Draft mode cards other than Hard (Crazy, Underdog, Legends, Speedrun, Gamble, the Upgrader); Hard is `difficulty`. None when absent. */
   modes?: Array<QuickMode | 'upgrader'>
+  /** Quick Draft power-ups (the tray of six on the draft screen); off when absent. */
+  powerUps?: boolean
 }
 
 /**
@@ -93,7 +96,8 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
   }
   // The mode flags (and Crazy's twists); Hard is already the difficulty, so it rides along unchanged
-  return c.modes?.length ? withModes(rules, [...(hard ? (['hard'] as const) : []), ...c.modes]) : rules
+  const moded = c.modes?.length ? withModes(rules, [...(hard ? (['hard'] as const) : []), ...c.modes]) : rules
+  return c.powerUps ? { ...moded, powerUps: true } : moded
 }
 
 /**
@@ -117,6 +121,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
     ...modesOf(r).map((m) => `${MODE_INFO[m].icon} ${MODE_INFO[m].title}`),
     ...(r.upgrader ? [`${MODE_INFO.upgrader.icon} ${MODE_INFO.upgrader.title}`] : []),
+    ...(r.powerUps ? [`${POWER_UPS_ICON} Power-ups`] : []),
   ]
 }
 
@@ -182,6 +187,7 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   if (!!r.twists !== twistsDefault && !modesOf(r).includes('crazy')) parts.push(r.twists ? 'twists' : 'no twists')
   for (const m of modesOf(r)) parts.push(`${MODE_INFO[m].title.toLowerCase()} mode`)
   if (r.upgrader) parts.push('the Player Upgrader')
+  if (r.powerUps) parts.push('power-ups')
   if (manage) {
     parts.push(`squad of ${r.squadSize}`)
     if (!s.jobSecurity) parts.push('no sack')

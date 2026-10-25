@@ -6,6 +6,9 @@ import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrad
 import { tierOdds } from '@game/logic/odds'
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
+import { PowerUpTray } from '../components/PowerUps'
+import { POWER_UPS_ICON, powerUpsOn } from '@engine/powerups'
+import { powerUpLog } from '@game/logic/powerups'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
@@ -106,6 +109,8 @@ export function Draft() {
   const selected = selectedPlayer ? get(selectedPlayer) : undefined
   const selectedEligible = selected ? eligibleSlots(d, selected).map((s) => s.id) : []
   const isDynastySummer = game.settings.mode === 'dynasty' && game.year > 1
+  // The power-ups used, newest first, above the spins in the draft log
+  const puLog = powerUpLog(d, (id) => get(id)?.name ?? 'your player', seasonLabel).sort((a, b) => b.at - a.at)
 
   const nation = d.rules.onlyNation
   const nationLabel = nation ? `${flag(u, nation)} ${nationName(u, nation)}` : ''
@@ -160,13 +165,18 @@ export function Draft() {
             {tags.map((t) => `${t} · `).join('')}
             {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
           </div>
-          {modeCards.length > 0 && (modeCards.length > 1 || modeCards[0] !== 'hard') && (
+          {((modeCards.length > 0 && (modeCards.length > 1 || modeCards[0] !== 'hard')) || powerUpsOn(d)) && (
             <div className="pill-list" data-testid="draft-modes" style={{ marginTop: 6 }}>
               {modeCards.map((c) => (
                 <span key={c} className="chip" title={MODE_INFO[c].line}>
                   {MODE_INFO[c].icon} {MODE_INFO[c].title}
                 </span>
               ))}
+              {powerUpsOn(d) && (
+                <span className="chip" title="Six one-use power-ups in the tray under the reel">
+                  {POWER_UPS_ICON} Power-ups
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -259,7 +269,8 @@ export function Draft() {
               </button>
             )}
           </div>
-          {upgraderOn(d.rules) && d.upgradeRng && (
+          {powerUpsOn(d) && <PowerUpTray u={u} d={d} get={get} hideRatings={hiddenAll} busy={spinning} onRerolled={() => setSelectedPlayer(null)} />}
+          {!powerUpsOn(d) && upgraderOn(d.rules) && d.upgradeRng && (
             <Upgrader
               players={upgradeCandidates(d).flatMap((id) => get(id) ?? [])}
               ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0}
@@ -279,12 +290,22 @@ export function Draft() {
               ))}
             </div>
           </div>
-          {d.history.length > 0 && (
+          {(d.history.length > 0 || puLog.length > 0) && (
             <div className="panel tight">
               <div className="small muted" style={{ marginBottom: 6 }}>
                 Draft log
               </div>
               <div className="col" style={{ gap: 4, maxHeight: 220, overflow: 'auto' }}>
+                {puLog.length > 0 && (
+                  <div className="col pu-log" data-testid="power-up-log" style={{ gap: 2 }}>
+                    {puLog.map((l, i) => (
+                      <div key={i} className="row small" style={{ gap: 8 }}>
+                        <span aria-hidden="true">{l.icon}</span>
+                        <span>{l.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {[...d.history].reverse().map((h, i) => {
                   const p = h.pickedId ? get(h.pickedId) : undefined
                   return (

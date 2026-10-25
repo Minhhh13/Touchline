@@ -69,6 +69,11 @@ export interface DraftRules {
    * first (`src/engine/upgrader.ts`). Also on with the `gamble` mode. Off when absent.
    */
   upgrader?: boolean
+  /**
+   * Power-ups (`src/engine/powerups.ts`): a tray of six one-use power-ups on the draft screen (the Player Upgrader,
+   * Re-roll season, Peek, Swap, Captain's armband and Lock). Quick Draft only, never the Daily. Off when absent.
+   */
+  powerUps?: boolean
 }
 
 /** The mode flags a set of draft rules may carry (Hard is the difficulty). */
@@ -91,7 +96,7 @@ export function hasMode(rules: DraftRules, mode: QuickMode): boolean {
 
 /** Whether a draft has the Player Upgrader: the power-up on its own or with Gamble mode. */
 export function upgraderOn(rules: DraftRules): boolean {
-  return !!rules.upgrader || hasMode(rules, 'gamble')
+  return !!rules.upgrader || !!rules.powerUps || hasMode(rules, 'gamble')
 }
 
 /**
@@ -215,6 +220,26 @@ export interface DraftState {
   upgradeRng?: RngState
   /** The Player Upgrader's one gamble, once made: who, the boost, the chance shown, the roll and the change to his rating. */
   upgrade?: DraftUpgrade | null
+  /** Power-ups: the stream Re-roll season draws from, seeded from the game seed by `newDraft`. Absent without power-ups. */
+  powerRng?: RngState
+  /** Power-ups: each one used, in the order used (the Upgrader's gamble is `upgrade`). Absent or empty when none. */
+  powerUps?: PowerUpUse[]
+}
+
+/**
+ * One power-up used (`src/engine/powerups.ts`). `at` is the draft history row it belongs to: the row of the spin a
+ * re-roll changed, the row of the spin a peek looked at or a swap came before (the history length when it was used).
+ */
+export type PowerUpUse =
+  | { kind: 'reroll'; at: number; clubId: string; from: number; to: number; options: number }
+  | { kind: 'peek'; at: number; season: number }
+  | { kind: 'swap'; at: number; from: string; to: string }
+  | { kind: 'armband'; at: number; id: string }
+  | { kind: 'lock'; at: number; id: string }
+
+/** Peek: whether a peek is showing, pinned to the next spin (no spin showing, none made since it was used). */
+export function peekActive(d: DraftState): boolean {
+  return !d.current && !!d.powerUps?.some((x) => x.kind === 'peek' && x.at === d.history.length && d.spins === x.at)
 }
 
 /** One Player Upgrader gamble (`src/engine/upgrader.ts`): `delta` is `+boost` on a win, minus half the boost (rounded up) on a loss. */
@@ -228,6 +253,8 @@ export interface DraftUpgrade {
   roll: number
   won: boolean
   delta: number
+  /** A loss on a player under the Lock power-up: the rating stays, `delta` is 0. */
+  locked?: boolean
 }
 
 /**
@@ -239,6 +266,7 @@ export function newDraft(formation: Formation, rules: DraftRules, seed?: string)
   if (hasMode(rules, 'crazy') && seed !== undefined) d.crazyRng = new Rng(`${seed}:crazy-surprises`).getState()
   if (hasMode(rules, 'gamble') && seed !== undefined) d.gambleRng = new Rng(`${seed}:gamble-icons`).getState()
   if (upgraderOn(rules) && seed !== undefined) d.upgradeRng = new Rng(`${seed}:upgrader`).getState()
+  if (rules.powerUps && seed !== undefined) d.powerRng = new Rng(`${seed}:powerups`).getState()
   return d
 }
 
@@ -506,6 +534,7 @@ export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): vo
   if (d.current) throw new Error('Pick a player for the slot you chose first')
   const forced = forcedSlotOf(d)
   if (forced) throw new Error(`A Crazy surprise: this pick fills ${forced.position}`)
+  if (peekActive(d) && d.target !== slotId) throw new Error('You peeked at the spin for the slot you chose: spin for it')
   const slot = openSlots(d).find((s) => s.id === slotId)
   if (!slot) throw new Error('That slot is not open')
   if (!slotSpinnable(u, d, slot)) throw new Error(`No club left on the wheel can fill ${slot.position}`)

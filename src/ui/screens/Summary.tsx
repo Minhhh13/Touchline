@@ -3,6 +3,7 @@ import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
 import { TIER_LABEL, USER_TEAM, computeTable } from '@engine/season'
 import { shareText } from '@engine/awards'
+import { powerUpsShareLine } from '@game/logic/powerups'
 import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
 import { Pitch } from '../components/Pitch'
@@ -62,6 +63,8 @@ export function Summary() {
   const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES).filter((t) => !(modeLine && t === 'Hard'))
   if (modeLine) extraLines.push(modeLine)
   if (tags.length) extraLines.push(tags.join(' · '))
+  const powerLine = powerUpsShareLine(game.draft)
+  if (powerLine) extraLines.push(powerLine)
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)

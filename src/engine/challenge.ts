@@ -17,12 +17,13 @@ import type { DraftRules, DraftState } from './draft'
 import { DIFFICULTIES, DRAFT_MODES, QUICK_BENCH_MAX, QUICK_MODES, QUICK_RULES, RATINGS_MODES, canCloseBench, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type QuickMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
-import type { DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Tempo, Width } from './types'
+import type { ClubSeason, DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Tempo, Width } from './types'
 import type { LoadedUniverse } from './universe'
 import { FORMATIONS } from './formations'
 import { FIT_ORDER, type Fit } from './positions'
 import { isIcons } from './icons'
 import { isUpgradeBoost } from './upgrader'
+import { rerollSeason, swapSlots, usePeek } from './powerups'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
@@ -112,6 +113,31 @@ export interface ChallengePayload {
    * The roll is the draft's own stream's, so a replay reproduces the outcome. Absent otherwise (and on older links).
    */
   g?: [row: number, boost: number]
+  /**
+   * The power-ups used, in order, when any were (`./powerups`): `['r', row]` re-rolled the season of that row's spin,
+   * `['p', row]` peeked before it, `['s', row, from, to]` swapped two slots before it (row = the number of rows when the
+   * draft ended for a swap after the last spin), `['a', row]` and `['l', row]` gave the armband and the lock to that
+   * row's pick. Absent otherwise (and on older links).
+   */
+  w?: ChallengePowerUp[]
+}
+
+export type ChallengePowerUp = ['r', number] | ['p', number] | ['s', number, string, string] | ['a', number] | ['l', number]
+
+/** Whether a `w` block is well formed: known kinds, each once, rows inside the link's `rowCount` rows. */
+export function isChallengePowerUps(w: unknown, rowCount: number): w is ChallengePowerUp[] {
+  if (!Array.isArray(w) || w.length > 5) return false
+  const kinds = new Set<string>()
+  for (const x of w) {
+    if (!Array.isArray(x) || !isString(x[0]) || kinds.has(x[0]) || !isInt(x[1]) || x[1] < 0) return false
+    kinds.add(x[0])
+    if (x[0] === 's') {
+      if (x.length !== 4 || x[1] > rowCount || !isString(x[2]) || !isString(x[3])) return false
+    } else if (x[0] === 'r' || x[0] === 'p' || x[0] === 'a' || x[0] === 'l') {
+      if (x.length !== 2 || x[1] >= rowCount) return false
+    } else return false
+  }
+  return true
 }
 
 const TIERS: readonly SeasonTier[] = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED']
@@ -221,6 +247,7 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   // A list of known mode flags, each once (Hard travels as the difficulty)
   modes: (v) => Array.isArray(v) && v.length <= QUICK_MODES.length && v.every((m) => QUICK_MODES.includes(m as QuickMode)) && new Set(v).size === v.length,
   upgrader: isBool,
+  powerUps: isBool,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
@@ -277,6 +304,7 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
   if (o.x !== undefined && !isChallengeSeason(o.x)) throw new Error('Not a Touchline challenge link')
+  if (o.w !== undefined && !isChallengePowerUps(o.w, o.p.length)) throw new Error('Not a Touchline challenge link')
   if (o.g !== undefined && !(Array.isArray(o.g) && o.g.length === 2 && isInt(o.g[0]) && o.g[0] >= 0 && o.g[0] < o.p.length && isUpgradeBoost(o.g[1]))) throw new Error('Not a Touchline challenge link')
   return {
     v: 1,
@@ -289,6 +317,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     k: o.k,
     ...(o.x !== undefined ? { x: o.x as ChallengeSeason } : {}),
     ...(o.g !== undefined ? { g: o.g as [number, number] } : {}),
+    ...(o.w !== undefined ? { w: o.w as ChallengePowerUp[] } : {}),
   }
 }
 
@@ -310,17 +339,35 @@ export interface ReplayedPick {
  */
 export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: ChallengePayload): ReplayedPick[] {
   const out: ReplayedPick[] = []
+  const w = c.w ?? []
+  // A swap made before this row's spin (or after the last one), as the challenger made it
+  const swapAt = (row: number) => {
+    for (const x of w) if (x[0] === 's' && x[1] === row) swapSlots(u, d, x[2], x[3])
+  }
   for (let i = 0; i < c.p.length; i++) {
     const [playerId, slotId] = c.p[i]
     const n = i + 1
     if (isComplete(d)) throw new Error(`Spin ${n} came after the squad was complete`)
+    try {
+      swapAt(i)
+    } catch (e) {
+      throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
+    }
     // Position First: every spin of the XI fills the slot its row names, chosen before the spin as the player did
     if (positionFirst(d)) {
       if (!slotId || !openSlots(d).some((s) => s.id === slotId)) throw new Error(`Spin ${n}: no open slot ${slotId ?? ''} to fill`.trim())
       d.target = slotId
     }
     if (!canSpin(u, d)) throw new Error(`Spin ${n}: the wheel had run dry`)
-    const cs = spin(u, d, rng)
+    // Power-ups: a peek before the spin (it draws nothing), a season re-roll after it (from the draft's own stream)
+    let cs: ClubSeason
+    try {
+      if (w.some((x) => x[0] === 'p' && x[1] === i)) usePeek(u, d, rng.getState())
+      cs = spin(u, d, rng)
+      if (w.some((x) => x[0] === 'r' && x[1] === i)) cs = rerollSeason(u, d)
+    } catch (e) {
+      throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
+    }
     if (playerId === null) {
       d.respinsLeft = Math.max(0, d.respinsLeft - 1)
       d.history.push({ clubId: cs.clubId, season: cs.season, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}), ...(d.target ? { target: d.target } : {}) })
@@ -339,6 +386,7 @@ export function replayDraft(u: LoadedUniverse, d: DraftState, rng: Rng, c: Chall
     }
     out.push({ clubId: cs.clubId, season: cs.season, id, slotId })
   }
+  swapAt(c.p.length)
   // A Quick Draft with a bench may stop once the XI is full, bench places to spare
   if (canCloseBench(d)) d.benchClosed = true
   if (!isComplete(d) && !(picksMade(d) >= 11 && !canSpin(u, d))) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
