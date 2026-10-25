@@ -90,7 +90,7 @@
   --info: var(--accent);
   --gold: #f5c542;
   --gold-text: #f5c542;
-  --draw: #a3adbf;
+  --draw: var(--gold);
   --on-status: #07102e;
   --good-soft: color-mix(in srgb, var(--good) 14%, transparent);
   --warn-soft: color-mix(in srgb, var(--warn) 14%, transparent);
@@ -232,7 +232,7 @@
   --warn: #b03a0a;
   --bad: #b91c1c;
   --gold-text: #805a00;
-  --draw: #5f6b80;
+  --draw: var(--gold-text);
   --on-status: #ffffff;
   --good-soft: color-mix(in srgb, var(--good) 10%, transparent);
   --warn-soft: color-mix(in srgb, var(--warn) 10%, transparent);
@@ -3261,9 +3261,6 @@ table.tbl.contracts .btn.sm {
 .record .d {
   color: var(--draw);
 }
-:root[data-theme='light'] .record .d {
-  color: var(--text-3);
-}
 .record .l {
   color: var(--bad);
 }
@@ -4704,11 +4701,12 @@ table.tbl.contracts .btn.sm {
   color: #0b1410;
 }
 .gbg-badge.W {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--good);
+  color: var(--on-status);
 }
 .gbg-badge.D {
-  background: var(--gold);
+  background: var(--draw);
+  color: var(--on-status);
 }
 .gbg-badge.L {
   background: var(--danger);
@@ -4797,14 +4795,11 @@ table.tbl.contracts .btn.sm {
   color: var(--text-3);
 }
 .tally-box.w .tally-num {
-  color: var(--accent);
+  color: var(--good);
 }
+/* Draws are amber in both themes: --draw is the gold in Floodlit and the text-strength amber in Daylight */
 .tally-box.d .tally-num {
-  color: var(--gold);
-}
-/* The gold token is the dark theme's: on a white box the drawn count needs a deeper amber to read */
-:root[data-theme='light'] .tally-box.d .tally-num {
-  color: #a77b00;
+  color: var(--draw);
 }
 .tally-box.l .tally-num {
   color: var(--danger);

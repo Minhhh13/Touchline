@@ -663,7 +663,7 @@ export const BRAND_COLOURS = {
   warn: '#fb923c',
   bad: '#f87171',
   gold: '#f5c542',
-  draw: '#a3adbf',
+  draw: '#f5c542',
   pitch: '#1d7a3f',
   pitch2: '#1a6f39',
   pitchLine: 'rgba(255, 255, 255, 0.5)',
