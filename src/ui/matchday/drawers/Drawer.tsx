@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, type KeyboardEvent as ReactKeyboardEvent, typ
 
 const FOCUSABLE = 'button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export function Drawer({ title, sub, onClose, children, foot, wide = false }: { title: string; sub?: ReactNode; onClose: () => void; children: ReactNode; foot?: ReactNode; wide?: boolean }) {
+export function Drawer({ title, sub, onClose, children, foot, wide = false, className = '' }: { title: string; sub?: ReactNode; onClose: () => void; children: ReactNode; foot?: ReactNode; wide?: boolean; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const id = useId()
   const closeRef = useRef(onClose)
@@ -46,7 +46,7 @@ export function Drawer({ title, sub, onClose, children, foot, wide = false }: { 
   }
   return (
     <div className="md-drawer-back" onClick={onClose}>
-      <div ref={ref} className={`md-drawer ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onClick={(e) => e.stopPropagation()} onKeyDown={trap}>
+      <div ref={ref} className={`md-drawer ${wide ? 'wide' : ''} ${className}`} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onClick={(e) => e.stopPropagation()} onKeyDown={trap}>
         <header className="md-drawer-head">
           <div>
             <h3 id={id}>{title}</h3>
