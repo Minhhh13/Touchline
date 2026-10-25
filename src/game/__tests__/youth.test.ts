@@ -49,7 +49,7 @@ describe('youth intake', () => {
     const out = signYouth(g, u, pick)
     expect(out.ok).toBe(true)
     expect(Object.keys(g.squad).length).toBe(before + 1)
-    expect(g.contracts[pick]).toEqual({ years: 3 })
+    expect(g.contracts[pick]).toEqual({ years: 3, status: 'prospect' })
     expect(g.finances.budget).toBe(budget)
     expect(g.youthIntake!.chosen).toBe(pick)
     expect(signYouth(g, u, g.youthIntake!.candidates[1]).ok).toBe(false)

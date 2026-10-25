@@ -2,7 +2,7 @@ import type { Game, LiveMatch } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { beginMatch, finishMatch, simulateMatch, type FullMatchResult, type MatchTeamInput, type SecondHalfOptions, type TeamTalk } from '@engine/match'
-import { aiTeamInput, applyMatchToState, benchMoraleDrift, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
+import { aiTeamInput, applyMatchToState, computeTable, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
 import { openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
@@ -17,6 +17,7 @@ import { getFormation } from '@engine/formations'
 import { autoPickLineup } from '@engine/ratings'
 import type { SquadPlayer, Tactics } from '@engine/types'
 import { earnsPointsRecord } from './records'
+import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
   game.season!.news.unshift({ matchweek: game.season!.matchweek, ...item })
@@ -78,6 +79,7 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
       continue
     }
     applyMatchToState(s, st, starters.has(st.playerSeasonId), res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result)
+    recordMinutes(game, s, st.playerSeasonId, st.minutes)
     if (st.injured && s.injury) {
       // A good physio gets him back sooner
       const physio = staffTier(game.staff, 'physio')
@@ -105,6 +107,13 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
   }
   game.nextMatchBoost = undefined
   game.markTarget = undefined
+}
+
+/** Minutes this week: a second match in the same week (a cup tie) adds to the week's entry rather than opening another. */
+function recordMinutes(game: Game, s: SquadPlayer, id: string, minutes: number): void {
+  const recent = (s.recentMinutes ??= [])
+  if (game.weekPlayed.includes(id) && recent.length) recent[recent.length - 1] += minutes
+  else recent.push(minutes)
 }
 
 function applyResultToAi(game: Game, teamId: string, res: FullMatchResult, isHome: boolean): void {
@@ -140,13 +149,22 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
   const assistant = staffTier(game.staff, 'assistant')
   const captain = game.captainId ? get(game.captainId) : undefined
   const leader = !!captain && game.squad[captain.id] && captain.traits.professionalism >= 0.6 && captain.attributes.mentality >= 72
+  // A week the side played is a week of minutes on offer; a bye week records nothing
+  const weekHadMatch = game.weekPlayed.length > 0
   for (const [id, s] of Object.entries(game.squad)) {
     const p = get(id)
     if (!p) continue
     recoverWeek(s, p, played.has(id), t.recovery + physio * 2)
     s.sharpness = Math.max(20, Math.min(100, s.sharpness + t.sharpness + coach))
     s.familiarity = Math.min(100, s.familiarity + t.familiarity + assistant)
-    benchMoraleDrift(s, p, game.consecutiveMissed[id] ?? 0)
+    if (weekHadMatch) {
+      const recent = (s.recentMinutes ??= [])
+      if (!played.has(id)) recent.push(0)
+      if (recent.length > RECENT_WEEKS) recent.splice(0, recent.length - RECENT_WEEKS)
+    }
+    // Playing time against his squad status moves morale, instead of a flat bench penalty
+    const share = minutesShare(s.recentMinutes ?? [])
+    if (share !== null) statusMoraleDrift(s, p, statusOf(game, id), share)
     // A respected captain keeps heads up
     if (leader && id !== captain.id && s.morale < 70) s.morale = Math.min(70, s.morale + (s.morale < 50 ? 2 : 1))
   }
@@ -157,6 +175,16 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
     }
   }
   game.weekPlayed = []
+}
+
+/** A player's squad status; rotation for contracts written before statuses existed. */
+export function statusOf(game: Game, id: string): SquadStatus {
+  return game.contracts[id]?.status ?? 'rotation'
+}
+
+/** Minutes played over the last `weeks` recorded matchweeks as a share of what was on offer, or null with nothing recorded. */
+export function recentShare(s: SquadPlayer, weeks = RECENT_WEEKS): number | null {
+  return minutesShare((s.recentMinutes ?? []).slice(-weeks))
 }
 
 function trainingInjuries(game: Game, u: LoadedUniverse, rng: Rng): void {
@@ -576,10 +604,19 @@ export function eventContext(game: Game, u: LoadedUniverse, rng: Rng, table?: Re
     isDynasty,
     lastResult,
     matchweek: season.matchweek,
-    expiring: squadPlayers(game, u).filter((x) => (game.contracts[x.p.id]?.years ?? 1) <= 1 && !game.contracts[x.p.id]?.renewed && !game.contracts[x.p.id]?.declined && !game.contracts[x.p.id]?.loan),
+    expiring: squadPlayers(game, u)
+      .filter((x) => (game.contracts[x.p.id]?.years ?? 1) <= 1 && !game.contracts[x.p.id]?.renewed && !game.contracts[x.p.id]?.declined && !game.contracts[x.p.id]?.loan)
+      .map((x) => ({ ...x, status: statusOf(game, x.p.id) })),
     recentForm: row.form,
     beatRival,
-    squad: squadPlayers(game, u).map((x) => ({ p: x.p, s: x.s, consecutiveMissed: game.consecutiveMissed[x.p.id] ?? 0 })),
+    squad: squadPlayers(game, u).map((x) => {
+      const status = statusOf(game, x.p.id)
+      const recent = x.s.recentMinutes ?? []
+      // Short of his status by more than a quarter of the minutes over the last three recorded matchweeks
+      const lastThree = recentShare(x.s, 3)
+      const shortOfMinutes = recent.length >= 3 && lastThree !== null && lastThree < EXPECTED_SHARE[status] - 0.25
+      return { p: x.p, s: x.s, consecutiveMissed: game.consecutiveMissed[x.p.id] ?? 0, status, share: recentShare(x.s), shortOfMinutes }
+    }),
     unbeaten: row.lost === 0,
     wins: row.won,
     losses: row.lost,
@@ -616,9 +653,10 @@ export function applyEventChoice(game: Game, u: LoadedUniverse, choiceId: string
     if (c) {
       c.renewed = true
       c.years = Math.max(c.years, 1)
+      if (out.renewContract.status) c.status = out.renewContract.status
     }
     const p = playerLookup(game, u)(out.renewContract.playerSeasonId)
-    if (p) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * 1.2) }
+    if (p && out.renewContract.wageRise !== 1) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * out.renewContract.wageRise) }
   }
   if (out.declineContract) {
     const c = game.contracts[out.declineContract]

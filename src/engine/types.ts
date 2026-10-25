@@ -205,6 +205,8 @@ export interface SquadPlayer {
   familiarity: number
   /** Recent match ratings (most recent last), used for form. */
   recentRatings: number[]
+  /** Minutes played in each of the last six matchweeks (most recent last), league and cup together; absent on older saves. */
+  recentMinutes?: number[]
   injury: Injury | null
   /** Matches remaining of a suspension. */
   suspension: number

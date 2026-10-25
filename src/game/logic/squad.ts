@@ -6,6 +6,7 @@ import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { retargetRoles } from '@engine/tactics'
 import { isAvailable, playerLookup, squadPlayers } from './players'
 import type { Lineup } from '@engine/types'
+import { STATUS_RANK, WAGE_MULT, type SquadStatus } from '@engine/status'
 
 /** Fill the lineup with the best available players; keeps existing valid picks when `keep` is true. */
 export function autoPick(game: Game, u: LoadedUniverse, keep = false): void {
@@ -101,4 +102,22 @@ export function teamStrength(game: Game, u: LoadedUniverse) {
 /** Weekly wage bill in GBP thousands: players plus backroom staff. */
 export function squadWages(game: Game, u: LoadedUniverse): number {
   return squadPlayers(game, u).reduce((s, x) => s + x.p.wage, 0) + staffWages(game.staff)
+}
+
+/**
+ * Change a player's squad status from the Club tab. A promotion lifts his
+ * morale 6 and his wage by the ratio of the two status multipliers; a demotion
+ * costs 6 morale and leaves the wage where it is (contracts do not go down).
+ */
+export function setSquadStatus(game: Game, u: LoadedUniverse, playerSeasonId: string, status: SquadStatus): void {
+  const c = game.contracts[playerSeasonId]
+  const s = game.squad[playerSeasonId]
+  const p = playerLookup(game, u)(playerSeasonId)
+  if (!c || !s || !p) return
+  const from = c.status ?? 'rotation'
+  if (from === status) return
+  c.status = status
+  const up = STATUS_RANK[status] > STATUS_RANK[from]
+  s.morale = Math.max(10, Math.min(100, s.morale + (up ? 6 : -6)))
+  if (up && !c.loan) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * (WAGE_MULT[status] / WAGE_MULT[from])) }
 }

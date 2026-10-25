@@ -9,7 +9,9 @@ import { nextOpponent, upcomingCupTie } from '@game/logic/week'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
 import { canCover, ratingAt } from '@engine/positions'
 import { teamStrength, lineupProblems } from '@game/logic/squad'
-import { SQUAD_CAP } from '@game/logic/marketOps'
+import { SQUAD_CAP, suggestedStatus } from '@game/logic/marketOps'
+import { recentShare, statusOf } from '@game/logic/week'
+import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
@@ -567,6 +569,7 @@ function MarketTab() {
   const { universe: u, game } = store
   const [bids, setBids] = useState<Record<string, number>>({})
   const [years, setYears] = useState<Record<string, number>>({})
+  const [statuses, setStatuses] = useState<Record<string, SquadStatus>>({})
   const [exchange, setExchange] = useState<Record<string, string>>({})
   const [filter, setFilter] = useState<'all' | Position>('all')
   const [msg, setMsg] = useState<string | null>(null)
@@ -707,7 +710,7 @@ function MarketTab() {
                     <button
                       className="btn sm primary"
                       onClick={() => {
-                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], exchangeId: exchange[l.playerSeasonId] || undefined })
+                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], status: statuses[l.playerSeasonId], exchangeId: exchange[l.playerSeasonId] || undefined })
                         setMsg(out.message)
                       }}
                     >
@@ -720,6 +723,13 @@ function MarketTab() {
                       {[1, 2, 3, 4].filter((y) => y <= (p.age >= 33 ? 2 : 4)).map((y) => (
                         <option key={y} value={y}>
                           {y}-year deal
+                        </option>
+                      ))}
+                    </select>
+                    <select className="input" data-testid="bid-status" value={statuses[l.playerSeasonId] ?? suggestedStatus(game, u, p)} onChange={(e) => setStatuses({ ...statuses, [l.playerSeasonId]: e.target.value as SquadStatus })} title="Squad status offered: his wage demand follows it, and he refuses a role beneath his standing in your squad">
+                      {STATUSES.map((st) => (
+                        <option key={st} value={st}>
+                          {STATUS_LABEL[st]} · {wage(Math.round(p.wage * WAGE_MULT[st]))}
                         </option>
                       ))}
                     </select>
@@ -924,12 +934,17 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <th>Player</th>
               <th className="num">Age</th>
               <th className="num">Years</th>
+              <th>Status</th>
+              <th className="num">Minutes</th>
               <th className="num">Morale</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {squad.map((x) => (
+            {squad.map((x) => {
+              const share = recentShare(x.s)
+              const status = statusOf(game, x.p.id)
+              return (
               <tr key={x.p.id}>
                 <td>
                   <span className="row" style={{ gap: 6 }}>
@@ -938,6 +953,18 @@ function ClubTab({ table }: { table: TableRow[] }) {
                 </td>
                 <td className="num">{x.p.age}</td>
                 <td className="num">{game.contracts[x.p.id]?.years ?? 1}</td>
+                <td>
+                  <select className="input" data-testid="status-select" style={{ minWidth: 118 }} value={status} onChange={(e) => store.setStatus(x.p.id, e.target.value as SquadStatus)} title="Squad status: a promotion lifts morale 6 and his wage with it; a demotion costs 6 morale">
+                    {STATUSES.map((st) => (
+                      <option key={st} value={st}>
+                        {STATUS_LABEL[st]}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="num" title={`Share of the available minutes over the last six matchweeks; ${STATUS_LABEL[status].toLowerCase()} expects ${Math.round(EXPECTED_SHARE[status] * 100)}%`}>
+                  {share === null ? '–' : <span style={share < EXPECTED_SHARE[status] - 0.15 ? { color: 'var(--danger)' } : undefined}>{Math.round(share * 100)}%</span>}
+                </td>
                 <td className="num">{moraleWord(x.s.morale)}</td>
                 <td>
                   <button className="btn sm ghost danger" onClick={() => confirm(`Release ${x.p.name}? No fee is received.`) && store.release(x.p.id)}>
@@ -945,9 +972,11 @@ function ClubTab({ table }: { table: TableRow[] }) {
                   </button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
+        <p className="help">Key players expect 85% of the minutes, first team 65%, rotation 35%, backup 15%, prospects 10%. Fall more than 15 points short over the last six matchweeks and morale drifts down each week, up to 5; play someone more than he expects and it drifts up a little.</p>
       </div>
       {game.careerStats && Object.keys(game.careerStats).length > 0 && (
         <div className="panel">
@@ -1138,6 +1167,14 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
               )}
               <dt>Contract</dt>
               <dd>{game.contracts[p.id]?.loan ? 'On loan until the summer' : `${game.contracts[p.id]?.years ?? 1} season(s)`}</dd>
+              <dt>Status</dt>
+              <dd data-testid="player-status">
+                {STATUS_LABEL[statusOf(game, p.id)]}
+                {(() => {
+                  const share = recentShare(s)
+                  return share === null ? ' · no minutes recorded yet' : ` · ${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`
+                })()}
+              </dd>
             </div>
           </div>
         )}

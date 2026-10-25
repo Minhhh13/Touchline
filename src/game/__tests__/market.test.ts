@@ -56,7 +56,7 @@ describe('transfer market depth', () => {
     const out = loanFor(g, u, loan.playerSeasonId)
     expect(out.accepted).toBe(true)
     expect(Object.keys(g.squad).length).toBe(before + 1)
-    expect(g.contracts[loan.playerSeasonId]).toEqual({ years: 1, loan: true })
+    expect(g.contracts[loan.playerSeasonId]).toEqual({ years: 1, loan: true, status: 'rotation' })
     expect(g.finances.budget).toBeCloseTo(200 - loan.loanFee!, 1)
     // He goes home in the summer
     while (g.phase !== 'summary') playMatchweek(g, u, true)

@@ -10,7 +10,8 @@ import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
 import { buildYouthIntake } from './youth'
 import { pickObjectives, OBJECTIVE_REWARD } from '@engine/objectives'
-import { playerLookup } from './players'
+import { playerLookup, squadPlayers } from './players'
+import { defaultStatuses } from '@engine/status'
 
 export function createGame(settings: GameSettings): Game {
   const rng = new Rng(settings.seed)
@@ -144,6 +145,12 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   }
   // The draft order constrained who went where; start the season with the strongest eleven.
   autoPick(game, u, false)
+  // Every contract carries a squad status: by rank for anyone who has none yet (drafted players, older saves)
+  const statuses = defaultStatuses(squadPlayers(game, u).map((x) => ({ id: x.p.id, overall: x.p.overall, age: x.p.age })), new Set(Object.values(game.lineup)))
+  for (const id of Object.keys(game.squad)) {
+    const c = (game.contracts[id] ??= { years: 1 })
+    c.status ??= statuses[id] ?? 'rotation'
+  }
   game.rngState = rng.getState()
   void playerLookup
 }

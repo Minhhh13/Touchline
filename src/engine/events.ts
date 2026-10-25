@@ -5,6 +5,7 @@
  */
 import type { PlayerSeason, SquadPlayer } from './types'
 import type { Rng } from './rng'
+import { EXPECTED_SHARE, STATUS_LABEL, STATUS_RANK, type SquadStatus } from './status'
 
 export interface EventChoice {
   id: string
@@ -27,11 +28,21 @@ export interface EventContext {
   rng: Rng
   matchweek: number
   /** Players whose contracts end this season and have not yet been offered a renewal. */
-  expiring: Array<{ p: PlayerSeason; s: SquadPlayer }>
+  expiring: Array<{ p: PlayerSeason; s: SquadPlayer; status?: SquadStatus }>
   recentForm: Array<'W' | 'D' | 'L'>
   /** Did the last match beat a rival? */
   beatRival: boolean
-  squad: Array<{ p: PlayerSeason; s: SquadPlayer; consecutiveMissed: number }>
+  squad: Array<{
+    p: PlayerSeason
+    s: SquadPlayer
+    consecutiveMissed: number
+    /** Squad status on his contract (rotation when the game predates statuses). */
+    status?: SquadStatus
+    /** Share of the available minutes he has played over the last six matchweeks, null before any was recorded. */
+    share?: number | null
+    /** Short of his status's expected share by more than 0.25 over the last three matchweeks. */
+    shortOfMinutes?: boolean
+  }>
   unbeaten: boolean
   wins: number
   losses: number
@@ -61,8 +72,8 @@ export interface EventOutcome {
   releasePlayer?: string
   /** Set captain. */
   captain?: string
-  /** Renew the player's contract (dynasty). */
-  renewContract?: { playerSeasonId: string; fee: number }
+  /** Renew the player's contract (dynasty): on this status, with wages multiplied by `wageRise`. */
+  renewContract?: { playerSeasonId: string; fee: number; status?: SquadStatus; wageRise: number }
   /** Player declines renewal and will leave at season end. */
   declineContract?: string
   /** Mark a player as available for transfer. */
@@ -75,22 +86,27 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
   const { rng, squad } = ctx
   const candidates: Array<{ weight: number; make: () => GameEvent | null }> = []
 
-  // A star wants minutes
-  const benched = squad.filter((x) => x.consecutiveMissed >= 3 && x.p.overall >= 78 && !x.s.injury)
+  // A star wants minutes: a benched 78+, or a key or first-team player well short of the football his status promised
+  const shortChanged = squad.filter((x) => x.shortOfMinutes && (x.status === 'key' || x.status === 'first-team') && !x.s.injury)
+  const benched = squad.filter((x) => (x.consecutiveMissed >= 3 && x.p.overall >= 78 && !x.s.injury) || shortChanged.includes(x))
   if (benched.length) {
     candidates.push({
-      weight: 3,
+      weight: shortChanged.length ? 6 : 3,
       make: () => {
         const x = rng.pick(benched)
+        const status = x.status ?? 'rotation'
+        const pct = x.share === null || x.share === undefined ? null : Math.round(x.share * 100)
+        const statusLine = shortChanged.includes(x) && pct !== null ? ` He signed as ${STATUS_LABEL[status].toLowerCase().replace('key player', 'a key player')} and has had ${pct}% of the minutes; he expected ${Math.round(EXPECTED_SHARE[status] * 100)}%.` : ''
         return {
           id: 'wants-minutes',
           title: `${x.p.name} wants to talk`,
-          body: `${x.p.name} has knocked on your door. He has not started in ${x.consecutiveMissed} matches and feels he deserves a place in the side.`,
+          body: `${x.p.name} has knocked on your door. ${x.consecutiveMissed > 0 ? `He has not played in ${x.consecutiveMissed} match${x.consecutiveMissed === 1 ? '' : 'es'} and feels` : 'He feels'} he deserves a place in the side.${statusLine}`,
           playerSeasonId: x.p.id,
           choices: [
             { id: 'promise', label: 'Promise him a start', hint: 'Morale up now. Break it and it hurts.' },
             { id: 'earn', label: 'Tell him to earn it', hint: 'He may sulk, or he may respond.' },
             { id: 'listen', label: 'Hear him out, promise nothing', hint: 'Small, safe gain.' },
+            { id: 'list', label: 'Tell him he can leave', hint: 'He goes on the transfer list; offers will come. He settles while he waits.' },
           ],
         }
       },
@@ -283,13 +299,15 @@ export function rollEvent(ctx: EventContext): GameEvent | null {
       make: () => {
         const x = rng.pick(ctx.expiring)
         const fee = Math.max(0.5, Math.round(x.p.value * 0.08 * 10) / 10)
+        const upper = renewalStatus(x.status)
         return {
           id: 'contract',
           title: `${x.p.name}'s contract is running down`,
-          body: `${x.p.name} (${x.p.age}) is out of contract in the summer. His agent wants a new deal: a £${fee}M signing-on fee and wages up 20%.`,
+          body: `${x.p.name} (${x.p.age}) is out of contract in the summer. His agent wants a new deal: a £${fee}M signing-on fee, and the terms depend on the role you promise him.`,
           playerSeasonId: x.p.id,
           choices: [
-            { id: 'renew', label: `Renew (£${fee}M, +20% wages)`, hint: 'Keeps him for the dynasty. Morale up.' },
+            { id: 'renew', label: `Renew as ${upper === 'key' ? 'a key player' : 'first team'} (£${fee}M, +10% wages)`, hint: 'Keeps him for the dynasty. Morale up.' },
+            { id: 'renew-rotation', label: `Renew as rotation (£${fee}M, no rise)`, hint: isSenior(x.status) ? 'A lesser role: he may refuse, and he will not love it if he accepts.' : 'He signs happily on his current money.' },
             { id: 'let-go', label: 'Let him run it down', hint: 'He leaves in the summer. Morale dips now.' },
           ],
         }
@@ -386,6 +404,7 @@ export function resolveEvent(ev: GameEvent, choiceId: string, ctx: EventContext)
         const responds = rng.chance(0.4 + (player?.p.traits.professionalism ?? 0.5) * 0.4)
         return responds ? { text: 'He takes it on the chin and trains like a demon.', moraleDelta: [{ playerSeasonId: p!, delta: 4 }], conditionDelta: [{ playerSeasonId: p!, delta: 3 }] } : { text: 'He storms out. The squad noticed.', moraleDelta: [{ playerSeasonId: p!, delta: -10 }], teamMoraleDelta: -1 }
       }
+      if (choiceId === 'list') return { text: 'He is told he can go. He is on the list and, oddly, calmer for it.', moraleDelta: [{ playerSeasonId: p!, delta: 6 }], transferList: p }
       return { text: 'A civil chat. He appreciates being heard.', moraleDelta: [{ playerSeasonId: p!, delta: 4 }] }
     case 'press-win': {
       if (choiceId === 'praise-star' && p) {
@@ -437,7 +456,15 @@ export function resolveEvent(ev: GameEvent, choiceId: string, ctx: EventContext)
     case 'contract': {
       const player = ctx.squad.find((x) => x.p.id === p)
       const fee = Math.max(0.5, Math.round((player?.p.value ?? 5) * 0.08 * 10) / 10)
-      if (choiceId === 'renew') return { text: `${player?.p.name} signs on for the long term.`, moraleDelta: [{ playerSeasonId: p!, delta: 10 }], budgetDelta: -fee, renewContract: { playerSeasonId: p!, fee } }
+      if (choiceId === 'renew') return { text: `${player?.p.name} signs on for the long term.`, moraleDelta: [{ playerSeasonId: p!, delta: 10 }], budgetDelta: -fee, renewContract: { playerSeasonId: p!, fee, status: renewalStatus(player?.status), wageRise: 1.1 } }
+      if (choiceId === 'renew-rotation') {
+        if (isSenior(player?.status)) {
+          // A key or first-team player offered a lesser role: professionals swallow it more often
+          if (!rng.chance(0.3 + (player?.p.traits.professionalism ?? 0.5) * 0.5)) return { text: 'He will not accept a lesser role. He sees out his contract and moves on.', moraleDelta: [{ playerSeasonId: p!, delta: -8 }], declineContract: p }
+          return { text: 'He signs, through gritted teeth, as a rotation player.', moraleDelta: [{ playerSeasonId: p!, delta: -6 }], budgetDelta: -fee, renewContract: { playerSeasonId: p!, fee, status: 'rotation', wageRise: 1 } }
+        }
+        return { text: `${player?.p.name} is glad to stay on the same money.`, moraleDelta: [{ playerSeasonId: p!, delta: 8 }], budgetDelta: -fee, renewContract: { playerSeasonId: p!, fee, status: 'rotation', wageRise: 1 } }
+      }
       return { text: 'He will see out the season and move on.', moraleDelta: [{ playerSeasonId: p!, delta: -8 }], declineContract: p }
     }
     case 'wantaway':
@@ -460,6 +487,15 @@ export function resolveEvent(ev: GameEvent, choiceId: string, ctx: EventContext)
       return { text: 'The squad hits the town. Spirits high, legs heavy.', teamMoraleDelta: 6, conditionDelta: ctx.squad.map((x) => ({ playerSeasonId: x.p.id, delta: -6 })) }
   }
   return { text: 'Nothing happens.' }
+}
+
+/** The better renewal offer keeps a key player key and makes anyone else first team. */
+function renewalStatus(status: SquadStatus | undefined): SquadStatus {
+  return status === 'key' ? 'key' : 'first-team'
+}
+
+function isSenior(status: SquadStatus | undefined): boolean {
+  return !!status && STATUS_RANK[status] >= STATUS_RANK['first-team']
 }
 
 export function ordinal(n: number): string {

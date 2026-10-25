@@ -10,6 +10,7 @@ import type { SeasonAwards } from '@engine/awards'
 import type { Lineup, PlayerSeason, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
 import type { DraftRules } from '@engine/draft'
 import type { ChallengeClaim } from '@engine/challenge'
+import type { SquadStatus } from '@engine/status'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty'
 export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
@@ -65,6 +66,8 @@ export interface Contract {
   listed?: boolean
   /** On loan for this season only: he goes back to his club in the summer. */
   loan?: boolean
+  /** Squad status: how much football he expects (section 10 of the design doc); rotation when absent. */
+  status?: SquadStatus
 }
 
 export interface SeasonRecord {

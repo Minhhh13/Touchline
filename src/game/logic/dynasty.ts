@@ -9,6 +9,7 @@ import { playerLookup, squadPlayers } from './players'
 import { autoPickLineup } from '@engine/ratings'
 import { releasePlayer } from './marketOps'
 import { openWindow } from '@engine/market'
+import { WAGE_MULT } from '@engine/status'
 
 /**
  * Age a player-season by one year. Young players grow towards an estimated
@@ -100,17 +101,19 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
       continue
     }
     if (contract.renewed) {
-      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : 3 }
+      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : 3, status: contract.status }
     } else if (contract.years - 1 <= 0) {
       // Contract up: a declined renewal, poor morale or plain bad luck means he walks
       if (contract.declined || s.morale < 50 || rng.chance(0.25)) {
         report.expired.push(p.name)
         continue
       }
-      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : rng.int(2, 3) }
+      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : rng.int(2, 3), status: contract.status }
     } else {
-      newContracts[aged.id] = { years: contract.years - 1, listed: contract.listed }
+      newContracts[aged.id] = { years: contract.years - 1, listed: contract.listed, status: contract.status }
     }
+    // Ageing recomputes the wage from the new value; the status premium he signed on stays
+    if (contract.status) aged.wage = Math.round(aged.wage * WAGE_MULT[contract.status])
     game.customPlayers[aged.id] = aged
     if (aged.overall > p.overall + 1) report.improved.push({ name: p.name, from: p.overall, to: aged.overall })
     if (aged.overall < p.overall - 1) report.declined.push({ name: p.name, from: p.overall, to: aged.overall })

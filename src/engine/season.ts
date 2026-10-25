@@ -375,14 +375,6 @@ export function applyMatchToState(state: SquadPlayer, stats: { minutes: number; 
   state.morale = clamp(state.morale + resultDelta + perfDelta, 10, 100)
 }
 
-/** Players who did not feature lose morale, stars faster; rotation keeps the squad happy. */
-export function benchMoraleDrift(state: SquadPlayer, player: PlayerSeason, consecutiveMissed: number): void {
-  if (consecutiveMissed < 2) return
-  const star = player.overall >= 84 ? 1.6 : player.overall >= 78 ? 1.2 : 0.8
-  const prof = 1.3 - player.traits.professionalism * 0.6
-  state.morale = clamp(state.morale - 3 * star * prof, 10, 100)
-}
-
 export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, matchweeks = 38): SeasonTier {
   const row = table.find((r) => r.teamId === teamId)!
   const pos = positionOf(table, teamId)

@@ -13,7 +13,8 @@ import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { applyEventChoice, closeLiveMatch, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
-import { assignPlayer, autoPick, setFormation } from './logic/squad'
+import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
+import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
 import { talkTo, type TalkKind } from './logic/talks'
 import { signYouth } from './logic/youth'
@@ -111,6 +112,7 @@ interface Store {
   setTeamTalk: (t: TeamTalk) => void
   setTraining: (t: TrainingFocus) => void
   setCaptain: (id: string) => void
+  setStatus: (playerSeasonId: string, status: SquadStatus) => void
 
   resolveEvent: (choiceId: string) => void
   bid: (listingId: string, amount: number, opts?: BidOptions) => { accepted: boolean; message: string }
@@ -431,6 +433,7 @@ export const useStore = create<Store>()(
         setTeamTalk: (t) => mutate((g) => void (g.teamTalk = t)),
         setTraining: (t) => mutate((g) => void (g.training = t)),
         setCaptain: (id) => mutate((g) => void (g.captainId = id)),
+        setStatus: (id, status) => mutate((g, u) => setSquadStatus(g, u, id, status)),
 
         resolveEvent: (choiceId) => mutate((g, u) => applyEventChoice(g, u, choiceId)),
         bid: (listingId, amount, opts) => {

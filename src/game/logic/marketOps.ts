@@ -6,6 +6,7 @@ import { staffTier } from '@engine/staff'
 import { newSquadPlayer, type AiClub } from '@engine/season'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, squadWages } from './squad'
+import { naturalStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from '@engine/status'
 
 export const SQUAD_CAP = 23
 
@@ -29,6 +30,18 @@ export interface BidOptions {
   exchangeId?: string
   /** Contract length in seasons (1-4). */
   years?: number
+  /** Squad status offered; his natural rank in our squad when omitted. */
+  status?: SquadStatus
+}
+
+/** Overalls of the squad a signing measures himself against, developed ratings included. */
+export function squadOveralls(game: Game, u: LoadedUniverse): number[] {
+  return squadPlayers(game, u).map((x) => x.p.overall).sort((a, b) => b - a)
+}
+
+/** The status the market offers by default: where he would rank in our squad. */
+export function suggestedStatus(game: Game, u: LoadedUniverse, p: { overall: number; age: number }): SquadStatus {
+  return naturalStatus(p, squadOveralls(game, u))
 }
 
 export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount: number, opts: BidOptions = {}): { accepted: boolean; message: string } {
@@ -39,13 +52,18 @@ export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount:
   if (opts.exchangeId && !exchange) return { accepted: false, message: 'That player is not in your squad.' }
   if (!exchange && Object.keys(game.squad).length >= SQUAD_CAP) return { accepted: false, message: `Squad is full (${SQUAD_CAP}). Sell someone first.` }
   const rng = Rng.fromState(game.rngState)
-  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange)
+  const target = u.index[listing.playerSeasonId]
+  // The player he would replace in part-exchange is not part of the squad he measures himself against
+  const overalls = squadOveralls(game, u)
+  if (exchange) overalls.splice(overalls.indexOf(exchange.p.overall), 1)
+  const status = opts.status ?? (target ? naturalStatus(target, overalls) : 'rotation')
+  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls })
   if (out.accepted) {
     if (exchange) {
       releasePlayer(game, u, exchange.p.id)
       if (game.season) game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: `${exchange.p.name} leaves in part-exchange`, body: `Valued at £${out.credit ?? 0}M in the deal for ${u.index[listing.playerSeasonId]?.name ?? 'a new signing'}.` })
     }
-    signListing(game, u, listing, amount, { years: clampYears(opts.years, u.index[listing.playerSeasonId]?.age ?? 27) })
+    signListing(game, u, listing, amount, { years: clampYears(opts.years, target?.age ?? 27), status })
   }
   game.rngState = rng.getState()
   return out
@@ -64,7 +82,7 @@ export function loanFor(game: Game, u: LoadedUniverse, listingId: string): { acc
   if (Object.keys(game.squad).length >= SQUAD_CAP) return { accepted: false, message: `Squad is full (${SQUAD_CAP}). Sell someone first.` }
   const rng = Rng.fromState(game.rngState)
   const out = signOnLoan(marketContext(game, u, rng, 1), game.window, listing, game.finances, squadWages(game, u))
-  if (out.accepted) signListing(game, u, listing, listing.loanFee ?? 0, { years: 1, loan: true })
+  if (out.accepted) signListing(game, u, listing, listing.loanFee ?? 0, { years: 1, loan: true, status: 'rotation' })
   game.rngState = rng.getState()
   return out
 }
@@ -80,14 +98,17 @@ export function enquireFor(game: Game, u: LoadedUniverse, playerSeasonId: string
   return { ok: !!out.listing, message: out.message }
 }
 
-function signListing(game: Game, u: LoadedUniverse, listing: Listing, amount: number, terms: { years: number; loan?: boolean }): void {
+function signListing(game: Game, u: LoadedUniverse, listing: Listing, amount: number, terms: { years: number; loan?: boolean; status: SquadStatus }): void {
   const get = playerLookup(game, u)
   const p = get(listing.playerSeasonId)
   if (!p) return
   game.finances.budget = Math.round((game.finances.budget - amount) * 10) / 10
   game.finances.spent += amount
   game.squad[p.id] = newSquadPlayer(p.id, { familiarity: 20, sharpness: 65 })
-  game.contracts[p.id] = terms.loan ? { years: 1, loan: true } : { years: terms.years }
+  game.contracts[p.id] = terms.loan ? { years: 1, loan: true, status: terms.status } : { years: terms.years, status: terms.status }
+  // A permanent signing's wage follows the status he signed on; a loanee is paid what his club pays him
+  const mult = terms.loan ? 1 : WAGE_MULT[terms.status]
+  if (mult !== 1) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * mult) }
   if (!game.bench.includes(p.id)) game.bench.push(p.id)
   // He leaves the league club that held him this season, and the wheel can no longer deal him again
   leaveAiSquads(game, u, p.playerId)
@@ -95,7 +116,7 @@ function signListing(game: Game, u: LoadedUniverse, listing: Listing, amount: nu
   if (!terms.loan && amount < listing.opening * 0.7 && !game.unlocked.includes('dealmaker')) game.unlocked.push('dealmaker')
   if (game.season) {
     const from = `${u.clubById[p.clubId]?.name ?? p.clubId} (${p.season}-${String((p.season + 1) % 100).padStart(2, '0')})`
-    game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: terms.loan ? `${p.name} joins on loan` : `${p.name} signs`, body: terms.loan ? `Season-long loan from ${from}, £${amount}M fee. He returns in the summer.` : `£${amount}M from ${from}. Contract: ${terms.years} year${terms.years > 1 ? 's' : ''}.` })
+    game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: terms.loan ? `${p.name} joins on loan` : `${p.name} signs`, body: terms.loan ? `Season-long loan from ${from}, £${amount}M fee. He returns in the summer.` : `£${amount}M from ${from}. Contract: ${terms.years} year${terms.years > 1 ? 's' : ''} as ${STATUS_LABEL[terms.status].toLowerCase()}.` })
   }
 }
 

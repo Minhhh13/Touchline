@@ -6,6 +6,7 @@
 import type { PlayerSeason, Position, SquadPlayer } from './types'
 import type { Rng } from './rng'
 import type { LoadedUniverse } from './universe'
+import { acceptsStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from './status'
 
 export interface Listing {
   playerSeasonId: string
@@ -326,27 +327,43 @@ export interface BidOutcome {
   counter?: number
   /** Value the selling club credited for a part-exchange player. */
   credit?: number
+  /** The lowest squad status the player would sign on, when he refused the one offered. */
+  counterStatus?: SquadStatus
+  /** Weekly wage he signs on (the listed wage times the status multiplier), set on acceptance. */
+  wage?: number
+}
+
+/** The squad status offered to a signing, and the buyer's squad overalls he measures himself against. */
+export interface StatusTerms {
+  status: SquadStatus
+  squadOveralls: number[]
 }
 
 /**
  * Make a bid for a listed player, optionally with one of our players in
  * part-exchange. Clubs accept at or near asking; low-balls annoy them.
  */
-export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount: number, finances: Finances, wageCommitment: number, exchange?: Exchange): BidOutcome {
+export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount: number, finances: Finances, wageCommitment: number, exchange?: Exchange, terms?: StatusTerms): BidOutcome {
   const { rng, u } = ctx
   const p = u.index[listing.playerSeasonId]
   if (!p) return { accepted: false, message: 'Player not found.' }
   if (listing.status === 'gone' || listing.status === 'signed') return { accepted: false, message: `${p.name} is no longer available.` }
   if (ctx.ownedPlayerIds.has(p.playerId)) return { accepted: false, message: `${p.name} is already in your squad.` }
   if (amount > finances.budget) return { accepted: false, message: `You cannot afford £${amount}M. Budget: £${roundM(finances.budget)}M.` }
+  // The role on offer: he refuses one beneath his standing in our squad, and his wage demand follows it
+  if (terms) {
+    const answer = acceptsStatus(p, terms.squadOveralls, terms.status)
+    if (!answer.ok) return { accepted: false, message: answer.reason ?? `${p.name} will not sign as ${STATUS_LABEL[terms.status].toLowerCase()}.`, counterStatus: answer.counter }
+  }
+  const wage = Math.round(p.wage * (terms ? WAGE_MULT[terms.status] : 1))
   let credit = 0
   if (exchange) {
     const x = exchangeCredit(ctx, p, exchange)
     if (!x.credit) return { accepted: false, message: x.reason ?? `They do not want ${exchange.p.name}.` }
     credit = x.credit
   }
-  const wagesAfter = wageCommitment - (exchange?.p.wage ?? 0) + p.wage
-  if (wagesAfter > finances.wageCap) return { accepted: false, message: `${p.name}'s wages (£${p.wage}k/wk) would break the wage cap (£${finances.wageCap}k/wk).` }
+  const wagesAfter = wageCommitment - (exchange?.p.wage ?? 0) + wage
+  if (wagesAfter > finances.wageCap) return { accepted: false, message: `${p.name}'s wages (£${wage}k/wk${terms && wage !== p.wage ? ` as ${STATUS_LABEL[terms.status].toLowerCase()}` : ''}) would break the wage cap (£${finances.wageCap}k/wk).` }
   const total = amount + credit
   const ratio = total / listing.asking
   const dealText = exchange ? `£${amount}M plus ${exchange.p.name}` : `£${amount}M`
@@ -357,7 +374,7 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
     listing.response = 'Accepted'
     listing.exchangeId = exchange?.p.id
     w.log.unshift(`Deal done: ${p.name} signs for ${dealText}.`)
-    return { accepted: true, message: `${u.clubById[p.clubId]?.shortName ?? 'The club'} accept. ${p.name} is yours for ${dealText}.`, credit }
+    return { accepted: true, message: `${u.clubById[p.clubId]?.shortName ?? 'The club'} accept. ${p.name} is yours for ${dealText}.`, credit, wage }
   }
   if (ratio >= 0.85) {
     const chance = (ratio - 0.85) / 0.12 * 0.7 + (listing.suitors === 0 ? 0.15 : 0)
@@ -366,7 +383,7 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
       listing.response = 'Accepted'
       listing.exchangeId = exchange?.p.id
       w.log.unshift(`Deal done: ${p.name} signs for ${dealText} after negotiation.`)
-      return { accepted: true, message: `They take it. ${p.name} signs for ${dealText}.`, credit }
+      return { accepted: true, message: `They take it. ${p.name} signs for ${dealText}.`, credit, wage }
     }
     const counter = roundM(listing.asking * rng.float(0.94, 1.0))
     listing.asking = counter

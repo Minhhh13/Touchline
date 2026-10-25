@@ -353,10 +353,29 @@ When the last match of the season is played live, the match screen keeps the fin
 | Sharpness | +12 for a start, +6 for a substitute appearance, −6 for a week without a match (floor 30), −10 on return from injury (floor 40), plus the weekly training delta (clamped 20 to 100) |
 | Familiarity | +4 for a start, +2 as a sub, plus the training delta; −12 for everyone on a formation change mid-season |
 | Morale after a match | +5 win, 0 draw, −5 defeat, plus `(match rating − 6.8) × 2`, clamped 10 to 100 |
-| Bench morale | From the second consecutive match missed: `−3 × star × (1.3 − 0.6 × professionalism)` per week, star being 1.6 at 84+, 1.2 at 78+, else 0.8 |
+| Playing-time morale | Weekly drift against the squad status (next section): short of the expected share by more than 0.15, `(gap + 0.15) × 12 × (1.3 − 0.6 × professionalism)`; above it by more than 0.15, `(gap − 0.15) × 4`; clamped ±5 a week. This replaced the flat bench penalty |
 | Promises | A promised start kept: +5; broken: −16 and an inbox item |
 | Suspensions | Every fifth yellow card: one match. Red card: three matches if the match rating was under 5.5, otherwise two. Served one match at a time while he sits out |
 | Injuries | Countdown one week per matchweek; cup weeks do not count extra |
+
+### Squad status and playing time
+
+`src/engine/status.ts`. Every contract carries a status, and a player's morale follows the minutes he gets against what the status promised.
+
+| Status | Expected share of minutes | Wage multiplier on signing |
+| --- | --- | --- |
+| Key player | 0.85 | ×1.25 |
+| First team | 0.65 | ×1.10 |
+| Rotation | 0.35 | ×1.00 |
+| Backup | 0.15 | ×0.90 |
+| Prospect | 0.10 | ×0.80 |
+
+- **Defaults.** When a season begins (`beginSeason`, after the opening eleven is auto-picked) every contract without a status gets one by rank in the squad: the top four by overall are key players, the next seven first team, the next six rotation, the rest backup; anyone aged 21 or under who rates below the squad median is a prospect. A player outside the opening eleven starts one step lower than his rank says (a second striker rated fourth in the squad is first team, not a key player), because the shape, not his rating, decides how much he can play. A contract written before statuses existed reads as rotation.
+- **Minutes.** `SquadPlayer.recentMinutes` keeps the last six matchweeks for the user's squad only (AI clubs do not track it). League and cup minutes in the same week add to one entry, so a two-match week can exceed 90; a week without an appearance records 0; a bye week records nothing. The share is `min(1, total / (90 × weeks recorded))`.
+- **Drift.** In the weekly recovery, with at least one week recorded: `gap = share − expected`. Below −0.15 the player loses `(gap + 0.15) × 12 × (1.3 − 0.6 × professionalism)` morale; above +0.15 he gains `(gap − 0.15) × 4`; the weekly change is clamped to ±5. A key player who does not play loses 5 a week; a backup who starts every match gains 2.8; a rotation player on anything from 20 to 50 per cent is left alone. The flat bench penalty this replaced is gone, not stacked under it. On seed `status-flow` (Burnley 2025-26, 4-3-3, 20 auto-managed weeks) the mean squad morale is 94.7 against 92.2 before; the drain now lands on the one 85-rated striker stuck behind a 90 rather than on whoever last missed two matches.
+- **Events.** The wants-to-talk event also fires for a key or first-team player whose share over the last three recorded matchweeks is more than 0.25 under his expectation, at weight 6 instead of 3, with the shortfall spelled out in the text and a fourth choice, "tell him he can leave": +6 morale and the transfer list. The contract event now offers three answers: renew as first team (a key player stays key) on +10 per cent wages (+10 morale), renew as rotation on the same money (+8 morale for a rotation or lower player; a key or first-team player refuses with probability `0.7 − 0.5 × professionalism` and runs his contract down, otherwise signs at −6), or let him go.
+- **Market.** A bid carries a status (the market suggests the one his rating would earn in your squad). The player refuses rotation or lower when he would be among your four best, backup or lower when he is at or above your median, and prospect past the age of 21; the refusal names the lowest status he would take (`counterStatus`). His wage is the listed wage times the multiplier, and the wage-cap check uses that figure. A signing's wage is written into `customPlayers`, the pattern renewals already used; loans keep the parent club's wage and sign as rotation. The Club tab changes a status at any time: a promotion is +6 morale and the wage scaled by the ratio of the two multipliers, a demotion −6 morale with the wage kept.
+- **Dynasty and academy.** Statuses travel through the summer in all three contract branches; after ageing recomputes the wage from the new value the status multiplier is applied again. Academy signings arrive as prospects.
 
 ### Training
 
@@ -452,7 +471,8 @@ Rolled from a weighted deck when conditions are met (`src/engine/events.ts`). Th
 
 | Event | Trigger | Choices and effects |
 | --- | --- | --- |
-| A star wants to talk | A player rated 78+ has missed 3+ matches | Promise a start (+12 morale, promise tracked); tell him to earn it (40% + 0.4 × professionalism: +4 morale, +3 condition; else −10 and team −1); hear him out (+4) |
+| A star wants to talk | A player rated 78+ has missed 3+ matches, or a key or first-team player is 0.25 under his expected share of minutes over the last three matchweeks (weight 6 instead of 3) | Promise a start (+12 morale, promise tracked); tell him to earn it (40% + 0.4 × professionalism: +4 morale, +3 condition; else −10 and team −1); hear him out (+4); tell him he can leave (+6, transfer-listed) |
+| Contract running down | Matchweek ≥ 24, a contract in its last season not yet answered | Renew as first team or key (+10% wages, +10 morale, signing-on fee 8% of value); renew as rotation (same money: +8 for a rotation or lower player, a senior player refuses with probability 0.7 − 0.5 × professionalism, else −6); let him go (−8, leaves in the summer) |
 | Press: can you go unbeaten? | Unbeaten, matchweek ≥ 10, 8+ wins | Embrace (team +5); one game at a time (nothing); laugh it off (team −2, confidence +1) |
 | Training-ground bust-up | Squad ≥ 14, 50% | Fine both (−5 each, team +2); back one (+6 / −9); ignore (50%: team +1 or team −4) |
 | Derby week | Next opponent is a rival | Feed the fire (attack +5% next match, team +2); treat it normally (defence +4% next match) |
@@ -514,7 +534,7 @@ Prices round to the nearest £1M above 20, £0.5M above 5, else £0.1M.
 
 **Approaches.** Any player in the loaded database can be approached from the market tab (or the shortlist). The club quotes asking × premium by his standing in their squad: ×1.6 for a top-three player, ×1.4 top eight, ×1.25 top fourteen, else ×1.1, tagged Unsolicited approach; one of their top three rated 86+ is refused outright 30 per cent of the time (50 if they won the league). Approached players never sign elsewhere, and fringe ones may be loaned.
 
-**Bidding.** You must have the fee in the budget and room under the wage cap, and fewer than 23 players. Contract length is your choice (one to four years; two at most for a 33-year-old). At 97 per cent of asking or more: accepted. Between 85 and 97: accepted with probability `(ratio − 0.85) / 0.12 × 0.7` (+0.15 if nobody else is interested), otherwise a counter at 94 to 100 per cent of asking. Below 85: laughed out, asking +5 per cent, tagged Annoyed. Signings join the bench at familiarity 20, sharpness 65 on a three-year deal (one year at 32+). Signing for under 70 per cent of the opening price unlocks Dealmaker.
+**Bidding.** You must have the fee in the budget and room under the wage cap, and fewer than 23 players. Contract length is your choice (one to four years; two at most for a 33-year-old), and so is the squad status he signs on, which sets his wage demand and which he may refuse (section 10, Squad status and playing time). At 97 per cent of asking or more: accepted. Between 85 and 97: accepted with probability `(ratio − 0.85) / 0.12 × 0.7` (+0.15 if nobody else is interested), otherwise a counter at 94 to 100 per cent of asking. Below 85: laughed out, asking +5 per cent, tagged Annoyed. Signings join the bench at familiarity 20, sharpness 65 on a three-year deal (one year at 32+). Signing for under 70 per cent of the opening price unlocks Dealmaker.
 
 ## 12. Awards, tiers, achievements and the share text
 
@@ -601,7 +621,7 @@ This exists in code. `GameSettings.difficulty` is `'calibrated'` (default) or `'
    Physical attributes lead: at 30+ pace takes an extra −1.6, physical −0.8, dribbling −0.6; at 22 and under pace +0.8, physical +0.4, dribbling +0.3. Passing gains +0.6 and mentality +1.0 at 30+ (+0.3 otherwise). Goalkeeping gains +0.5 until 33, then −0.5. Each attribute also gets N(0, 0.6) noise and is clamped 1 to 99. Overall is recomputed from the primary position weights; value is `0.25 × 1.21^(overall − 60)` times an age factor (1.3 at ≤ 21, 1.15 to 26, 1.0 to 29, 0.72 to 31, 0.45 to 33, else 0.25); wage is `5 × value^0.85`.
 
 2. **Retirements.** From 34: 30 per cent; from 36: 60; from 37: 90.
-3. **Contracts** lose a year. At zero a player leaves if morale is under 50 or on a 25 per cent roll, otherwise renews for two to three years (one at 32+). Drafted players start on one to three years, signings on three.
+3. **Contracts** lose a year. At zero a player leaves if morale is under 50 or on a 25 per cent roll, otherwise renews for two to three years (one at 32+). Drafted players start on one to three years, signings on three. The squad status carries over, and the wage the new player-season computes from its value is multiplied by the status again.
 4. State resets to condition 95, sharpness 60, morale at least 50, familiarity +10, no injury or cards.
 5. **Bonus spins** `min(6, 2 + players lost)`. A summer draft opens with squad size = remaining squad + bonus spins and one re-spin. The surviving squad is seeded into it, best eleven on the pitch and the rest on the bench, so every bonus spin adds depth wherever the wheel lands; existing players are marked taken so the uniqueness rule holds.
 6. **League.** The league season advances by one real year (after 2026-27 it wraps to 2008-09). You keep the same host club if it was in that division, otherwise a random club from that season. Budget and achievements carry over, the wage cap is recomputed for the new squad, and a new board target is set.

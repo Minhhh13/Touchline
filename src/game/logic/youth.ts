@@ -59,7 +59,7 @@ export function signYouth(game: Game, u: LoadedUniverse, playerSeasonId: string 
   if (squadPlayers(game, u).some((x) => x.p.playerId === p.playerId)) return { ok: false, message: `${p.name} is already in your squad.` }
   if (Object.keys(game.squad).length >= 23) return { ok: false, message: 'Squad is full (23). Make room first.' }
   game.squad[p.id] = newSquadPlayer(p.id, { familiarity: 30, sharpness: 60 })
-  game.contracts[p.id] = { years: 3 }
+  game.contracts[p.id] = { years: 3, status: 'prospect' }
   if (!game.bench.includes(p.id)) game.bench.push(p.id)
   intake.chosen = p.id
   if (game.season) game.season.news.unshift({ matchweek: 0, kind: 'transfer', title: `${p.name} promoted from the academy`, body: `${p.age}-year-old ${p.positions[0]} joins the first-team squad on a three-year deal.` })
