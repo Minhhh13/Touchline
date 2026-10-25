@@ -118,7 +118,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     if (aged.overall > p.overall + 1) report.improved.push({ name: p.name, from: p.overall, to: aged.overall })
     if (aged.overall < p.overall - 1) report.declined.push({ name: p.name, from: p.overall, to: aged.overall })
     idMap[id] = aged.id
-    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 } }
+    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], recentMinutes: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 } }
   }
   game.squad = newSquad
   game.contracts = newContracts

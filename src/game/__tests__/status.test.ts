@@ -7,7 +7,7 @@ import { Rng } from '@engine/rng'
 import { acceptsStatus, defaultStatuses, EXPECTED_SHARE, minutesShare, naturalStatus, RECENT_WEEKS, STATUS_RANK, statusMoraleDrift, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { newSquadPlayer } from '@engine/season'
 import { placeBid, type Listing, type Window } from '@engine/market'
-import { bidFor } from '../logic/marketOps'
+import { bidFor, suggestedStatus } from '../logic/marketOps'
 import { setSquadStatus, squadWages } from '../logic/squad'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { playerLookup, squadPlayers } from '../logic/players'
@@ -186,6 +186,30 @@ describe('squad status and playing time', () => {
     }
   })
 
+  it('suggests the status against the squad without the part-exchange player, and the bid carries exactly that status', () => {
+    const g = newGame(u, { seed: 'status-exchange' })
+    while (g.season!.matchweek < 19) playMatchweek(g, u, true)
+    expect(g.window?.kind).toBe('january')
+    g.finances.budget = 999
+    g.finances.wageCap = 99999
+    const squad = squadPlayers(g, u).sort((a, b) => b.p.overall - a.p.overall)
+    // Our fourth best goes the other way: a target rated between our fourth and fifth best is fifth with him in the squad, fourth without him
+    const fourth = squad[3]
+    const listing = g.window!.listings.find((l) => {
+      const p = u.index[l.playerSeasonId]
+      return l.status === 'available' && p.age > 21 && p.overall <= fourth.p.overall && p.overall > squad[4].p.overall
+    })
+    expect(listing).toBeDefined()
+    if (!listing) return
+    const target = u.index[listing.playerSeasonId]
+    expect(suggestedStatus(g, u, target)).toBe('first-team')
+    expect(suggestedStatus(g, u, target, fourth.p.id)).toBe('key')
+    const out = bidFor(g, u, listing.playerSeasonId, listing.asking, { exchangeId: fourth.p.id })
+    expect(out.accepted).toBe(true)
+    expect(g.contracts[target.id].status).toBe('key')
+    expect(playerLookup(g, u)(target.id)!.wage).toBe(Math.round(target.wage * WAGE_MULT.key))
+  })
+
   it('records minutes per matchweek, cup minutes in the same week, and keeps six weeks', () => {
     const g = newGame(u, { seed: 'status-minutes' })
     for (let w = 1; w <= 8; w++) {
@@ -301,6 +325,8 @@ describe('squad status and playing time', () => {
     }
     expect(agedKey || agedRot).toBeTruthy()
     for (const c of Object.values(g.contracts)) expect(c.status).toBeDefined()
+    // Last season's minutes do not follow him into the new one, like his ratings and his stats
+    for (const s of Object.values(g.squad)) expect(s.recentMinutes).toEqual([])
     // The academy signs prospects
     autoDraft(u, g.draft!, Rng.fromState(g.rngState))
     beginSeason(g, u)

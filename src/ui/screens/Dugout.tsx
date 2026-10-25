@@ -685,6 +685,8 @@ function MarketTab() {
             const p = get(l.playerSeasonId)
             if (!p) return null
             const bid = bids[l.playerSeasonId] ?? l.asking
+            // The status shown is the one the bid carries, measured against the squad without the part-exchange player
+            const offered = statuses[l.playerSeasonId] ?? suggestedStatus(game, u, p, exchange[l.playerSeasonId] || undefined)
             return (
               <div key={l.playerSeasonId} className="listing">
                 <div>
@@ -710,7 +712,7 @@ function MarketTab() {
                     <button
                       className="btn sm primary"
                       onClick={() => {
-                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], status: statuses[l.playerSeasonId], exchangeId: exchange[l.playerSeasonId] || undefined })
+                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], status: offered, exchangeId: exchange[l.playerSeasonId] || undefined })
                         setMsg(out.message)
                       }}
                     >
@@ -726,7 +728,7 @@ function MarketTab() {
                         </option>
                       ))}
                     </select>
-                    <select className="input" data-testid="bid-status" value={statuses[l.playerSeasonId] ?? suggestedStatus(game, u, p)} onChange={(e) => setStatuses({ ...statuses, [l.playerSeasonId]: e.target.value as SquadStatus })} title="Squad status offered: his wage demand follows it, and he refuses a role beneath his standing in your squad">
+                    <select className="input" data-testid="bid-status" value={offered} onChange={(e) => setStatuses({ ...statuses, [l.playerSeasonId]: e.target.value as SquadStatus })} title="Squad status offered: his wage demand follows it, and he refuses a role beneath his standing in your squad">
                       {STATUSES.map((st) => (
                         <option key={st} value={st}>
                           {STATUS_LABEL[st]} · {wage(Math.round(p.wage * WAGE_MULT[st]))}

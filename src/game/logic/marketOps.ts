@@ -34,14 +34,21 @@ export interface BidOptions {
   status?: SquadStatus
 }
 
-/** Overalls of the squad a signing measures himself against, developed ratings included. */
-export function squadOveralls(game: Game, u: LoadedUniverse): number[] {
-  return squadPlayers(game, u).map((x) => x.p.overall).sort((a, b) => b - a)
+/**
+ * Overalls of the squad a signing measures himself against, developed ratings
+ * included. A player going the other way in part-exchange is not part of that
+ * squad, so he is left out when `excludeId` names him.
+ */
+export function squadOveralls(game: Game, u: LoadedUniverse, excludeId?: string): number[] {
+  return squadPlayers(game, u)
+    .filter((x) => x.p.id !== excludeId)
+    .map((x) => x.p.overall)
+    .sort((a, b) => b - a)
 }
 
-/** The status the market offers by default: where he would rank in our squad. */
-export function suggestedStatus(game: Game, u: LoadedUniverse, p: { overall: number; age: number }): SquadStatus {
-  return naturalStatus(p, squadOveralls(game, u))
+/** The status the market offers by default: where he would rank in our squad (without the part-exchange player, when there is one). */
+export function suggestedStatus(game: Game, u: LoadedUniverse, p: { overall: number; age: number }, excludeId?: string): SquadStatus {
+  return naturalStatus(p, squadOveralls(game, u, excludeId))
 }
 
 export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount: number, opts: BidOptions = {}): { accepted: boolean; message: string } {
@@ -54,8 +61,7 @@ export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount:
   const rng = Rng.fromState(game.rngState)
   const target = u.index[listing.playerSeasonId]
   // The player he would replace in part-exchange is not part of the squad he measures himself against
-  const overalls = squadOveralls(game, u)
-  if (exchange) overalls.splice(overalls.indexOf(exchange.p.overall), 1)
+  const overalls = squadOveralls(game, u, exchange?.p.id)
   const status = opts.status ?? (target ? naturalStatus(target, overalls) : 'rotation')
   const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls })
   if (out.accepted) {
