@@ -15,7 +15,8 @@ import { isComplete, wheelPool, type DraftRules, type DraftState } from '@engine
 import type { H2HDraft } from '@engine/h2h'
 import type { ClubSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { tierTable, type Tier, type TierTable } from './rarity'
+import { ICONS_CLUB, ICONS_SEASON, isIcons } from '@engine/icons'
+import { tierTable, type DisplayTier, type TierTable } from './rarity'
 
 /** Cards in one strip, and the index the drawn club-season sits at. */
 export const REEL_CARDS = 70
@@ -41,13 +42,14 @@ export interface ReelCard {
   league: string | null
   colour: string
   secondary: string
-  tier: Tier
+  /** The club-season's tier; `icons` only on the Icons card of a Gamble draft's Icons spin. */
+  tier: DisplayTier
   /** Whether the wheel could stop here on this spin; the others are dimmed. */
   lit: boolean
 }
 
 export interface ReelDeal {
-  /** The drawn season. */
+  /** The drawn season; `ICONS_SEASON` on an Icons spin (the strip then runs through a season of the pool for show). */
   season: number
   /** Season drum labels top to bottom; `drum[DRUM_LAND]` is the drawn season. */
   drum: number[]
@@ -124,23 +126,28 @@ export function drumSeasons(pool: readonly ClubSeason[], season: number): number
  */
 export function dealReel(u: LoadedUniverse, opts: { leagues: readonly string[]; pool: readonly ClubSeason[]; target: { clubId: string; season: number } }, random: () => number): ReelDeal {
   const { leagues, pool, target } = opts
-  const season = target.season
+  // An Icons spin: the strip runs through a season of the pool (drawn by the cosmetic source) and lands on the Icons card
+  const icons = isIcons(target)
+  const poolSeasons = drumSeasons(pool, pool[0]?.season ?? u.lastSeason)
+  const season = icons ? poolSeasons[Math.min(poolSeasons.length - 1, Math.floor(random() * poolSeasons.length))] : target.season
   const leagueIds = new Set(leagues)
   const tiers = tierTable(u, leagues)
   const multi = leagueIds.size > 1
   const lit = new Set(pool.filter((cs) => cs.season === season).map((cs) => `${cs.clubId}@${cs.season}`))
-  const targetKey = `${target.clubId}@${season}`
+  const targetKey = icons ? `${ICONS_CLUB}@${ICONS_SEASON}` : `${target.clubId}@${season}`
   lit.add(targetKey)
 
   const seasonSet = u.clubSeasons.filter((cs) => cs.season === season && leagueIds.has(cs.leagueId))
   const card = (clubId: string, leagueId: string) => reelCard(u, tiers, clubId, season, leagueId, multi, lit.has(`${clubId}@${season}`))
   const candidates = seasonSet.map((cs) => card(cs.clubId, cs.leagueId))
-  let targetCard = candidates.find((c) => c.key === targetKey)
+  let targetCard = icons ? iconsCard() : candidates.find((c) => c.key === targetKey)
   if (!targetCard) {
     // A drawn club-season outside the league set (never from a real spin) still lands
     targetCard = card(target.clubId, u.clubSeasonByKey[targetKey]?.leagueId ?? u.clubById[target.clubId]?.leagueId ?? '')
     candidates.push(targetCard)
   }
+  // A season with no clubs in the league set (never from a real spin) still deals a strip
+  if (!candidates.length) candidates.push(targetCard)
 
   // Fillers come from a bag of shuffled rounds of the season's clubs, dealt outwards from the landing card so
   // each new card only has to differ from the one beside it already dealt: no card twice in a row (unless the
@@ -163,8 +170,14 @@ export function dealReel(u: LoadedUniverse, opts: { leagues: readonly string[]; 
   const at = seasons.indexOf(season)
   const m = seasons.length
   const drum = Array.from({ length: DRUM_LABELS }, (_, i) => seasons[(((at - (DRUM_LAND - i)) % m) + m) % m])
+  if (icons) drum[DRUM_LAND] = ICONS_SEASON
   const jitter = (random() * 2 - 1) * REEL_JITTER
-  return { season, drum, cards, land: REEL_LAND, jitter, target: targetCard }
+  return { season: icons ? ICONS_SEASON : season, drum, cards, land: REEL_LAND, jitter, target: targetCard }
+}
+
+/** The Icons card: a gold star on the Icons colour (the card's look is the `icons` tier's, in styles.css). */
+function iconsCard(): ReelCard {
+  return { key: `${ICONS_CLUB}@${ICONS_SEASON}`, clubId: ICONS_CLUB, season: ICONS_SEASON, leagueId: ICONS_CLUB, code: '★', league: null, colour: '', secondary: '', tier: 'icons', lit: true }
 }
 
 /** Cards on the still strip between spins: each club the next spin could land on once, at its latest season in the pool, by code. */

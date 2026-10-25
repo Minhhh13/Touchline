@@ -5,7 +5,7 @@ import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Pro
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
-import { canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
+import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
@@ -26,6 +26,8 @@ import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
+import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
+import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
 import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
@@ -116,6 +118,16 @@ interface Store {
   chooseSlot: (slotId: string) => void
   pickPlayer: (playerSeasonId: string, slotId: string | 'bench') => void
   autoDraftRest: () => void
+  /** Speedrun: the pick clock ran out, so the assistant spins if need be and makes this one pick (`assistantTurn`). */
+  speedrunPick: () => void
+  /** The Player Upgrader: gamble a drafted player's rating up by `boost` (2, 5 or 10) at the odds shown; once per draft. */
+  upgradePlayer: (playerSeasonId: string, boost: number) => void
+  /** Power-ups (`src/engine/powerups.ts`), each once per draft: re-roll the showing spin's season, peek at the next spin, swap two slots, the armband, the lock. */
+  rerollSeason: () => void
+  peekSpin: () => void
+  swapSlots: (from: string, to: string) => void
+  giveArmband: (playerSeasonId: string) => void
+  lockPlayer: (playerSeasonId: string) => void
   finishDraft: () => void
   /** Quick Draft with managers: pick the manager by id once the draft is done, up to kick-off (`src/game/logic/managers.ts`). */
   pickManager: (id: string) => void
@@ -261,6 +273,16 @@ export const useStore = create<Store>()(
           set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
         }
       }
+      /** A power-up on the draft: only while drafting; a refusal (used, not possible now) is a toast and changes nothing. */
+      const powerUp = (fn: (game: Game, u: LoadedUniverse) => void) =>
+        mutate((g, u) => {
+          if (!g.draft || g.phase !== 'draft') return
+          try {
+            fn(g, u)
+          } catch (e) {
+            set({ toast: e instanceof Error ? e.message : String(e) })
+          }
+        })
       /** League loads run one after another so two callers never overwrite each other's universe. */
       let pendingLoad: Promise<unknown> = Promise.resolve()
       /**
@@ -482,10 +504,31 @@ export const useStore = create<Store>()(
             // A pending spin is discarded with its twist, but it consumed the RNG, so it stays in the history
             // as a skipped row (a challenge replay needs every spin) and the assistant's first `canSpin` sees the plain wheel
             // Position First keeps the slot being filled, so the assistant fills it next and a replay can set it again
-            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: g.draft.target! } : {}) })
+            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: targetSlot(g.draft)!.id } : {}) })
             g.draft.current = null
             g.draft.twist = null
             autoDraft(u, g.draft, rng)
+            g.rngState = rng.getState()
+          }),
+        upgradePlayer: (id, boost) =>
+          mutate((g, u) => {
+            if (!g.draft || g.phase !== 'draft') return
+            try {
+              draftUpgrade(u, g.draft, id, boost)
+            } catch (e) {
+              set({ toast: e instanceof Error ? e.message : String(e) })
+            }
+          }),
+        rerollSeason: () => powerUp((g, u) => void draftReroll(u, g.draft!)),
+        peekSpin: () => powerUp((g, u) => void draftPeek(u, g.draft!, g.rngState)),
+        swapSlots: (from, to) => powerUp((g, u) => draftSwap(u, g.draft!, from, to)),
+        giveArmband: (id) => powerUp((g) => draftArmband(g.draft!, id)),
+        lockPlayer: (id) => powerUp((g) => draftLock(g.draft!, id)),
+        speedrunPick: () =>
+          mutate((g, u) => {
+            if (!g.draft) return
+            const rng = Rng.fromState(g.rngState)
+            assistantTurn(u, g.draft, rng)
             g.rngState = rng.getState()
           }),
         finishDraft: () => {
