@@ -4,6 +4,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import { DRUM_LAND, dealReel, idleCards, type ReelCard, type ReelDeal } from '@game/logic/reel'
 import { TIER_INFO, tierName, type Tier } from '@game/logic/rarity'
 import { clubName, seasonLabel, textColourFor } from '../format'
+import { NeonFlow } from './Art'
 
 /** Stage 1: the season drum rolls for DRUM_MS; the strip starts at SEASON_MS. */
 export const DRUM_MS = 850
@@ -109,6 +110,7 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
         </div>
       </div>
       <div className="reel-window" aria-hidden="true">
+        <NeonFlow className="reel-accent" />
         <div className="reel-marker" />
         <div className="reel-strip">
           {cards.map((c) => (
@@ -251,6 +253,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
         </div>
       </div>
       <div className="reel-window" ref={windowRef} aria-hidden="true">
+        <NeonFlow className="reel-accent" />
         <div className="reel-marker" />
         <div className="reel-strip" ref={stripRef}>
           {deal.cards.map((c, i) => (

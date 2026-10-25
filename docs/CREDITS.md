@@ -33,24 +33,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Photos
-
-All from [Unsplash](https://unsplash.com), under the [Unsplash License](https://unsplash.com/license): free to use for commercial and non-commercial purposes, no permission needed, attribution appreciated but not required. The licence does not allow selling the photos unaltered or using them to build a competing photo service; we do neither.
-
-Rules for adding a photo (also in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), section 7): Unsplash License or Pexels License only (never Unsplash+, iStock or anything paid), no identifiable players or faces, no club crests, no kits with sponsors, no readable stadium or sponsor branding. Download the original outside the repo, write an optimised WebP of at most about 180 KB into `public/img/` with ffmpeg (for example `ffmpeg -i in.jpg -vf scale=1600:-2 -quality 72 out.webp`), and add a row below.
-
-| File in `public/img/` | Where | Title | Author | Source | Licence |
-|---|---|---|---|---|---|
-| `hero-floodlit-1600.webp`, `hero-floodlit-800.webp` | Home hero (the 800 px crop on phones) | A green soccer field illuminated by bright stadium lights at night | Jonathan Petersson ([@grizzlybear](https://unsplash.com/@grizzlybear)) | https://unsplash.com/photos/ARU18GpF6QQ | Unsplash License |
-| `mode-quick.webp` | Quick Draft card | A white line on a green grassy field | Riccardo Bernucci ([@new_ra](https://unsplash.com/@new_ra)) | https://unsplash.com/photos/GQpbLTe6us4 | Unsplash License |
-| `mode-daily.webp` | Daily Challenge card | White and blue soccer goal net | Michal Balog ([@mikbutcher](https://unsplash.com/@mikbutcher)) | https://unsplash.com/photos/white-and-blue-soccer-goal-net-MRgJfWsmjnM | Unsplash License |
-| `mode-season.webp` | Season card (rotated to landscape) | Bird's-eye view photography of green soccer field with lights | Izuddin Helmi Adnan ([@izuddinhelmi](https://unsplash.com/@izuddinhelmi)) | https://unsplash.com/photos/birds-eye-view-photography-of-green-soccer-field-with-lights-K5ChxJaheKI | Unsplash License |
-| `mode-dynasty.webp` | Dynasty card | A crowd of people at a sporting event | Christopher Le ([@chrislevn07](https://unsplash.com/@chrislevn07)) | https://unsplash.com/photos/a-crowd-of-people-at-a-sporting-event-O6TPMlE_Gq8 | Unsplash License |
-
-Each was cropped to the card's shape and re-encoded; nothing else was changed.
-
 ## Icons
 
 [Lucide](https://lucide.dev) through the `lucide-react` package (pinned in `package.json`), under the [ISC License](https://github.com/lucide-icons/lucide/blob/main/LICENSE). Parts of Lucide derive from Feather icons (MIT). The licence text ships inside the package.
 
-The TouchLine mark and the wordmark are our own (`src/ui/brand.ts`).
+The TouchLine mark and the wordmark are our own (`src/ui/brand.ts`), and so are the Home illustrations and the neon art (`src/ui/components/Art.tsx`): drawn for TouchLine, no photos or downloaded art.
