@@ -154,7 +154,7 @@ describe('wheel twists', () => {
     // Eleven spins without re-spins means spins 3, 6 and 9 twist: 600 twist spins, all four kinds among them
     expect(seen.golden + seen.basement + seen.blind + seen.decade).toBe(600)
     for (const t of Object.keys(seen) as Twist[]) expect(seen[t], t).toBeGreaterThan(50)
-  })
+  }, 30000) // 2,200 spins, each a pass over every club-season: a deliberate sweep, not a 5-second unit test
 
   it('keeps the pool non-empty before every spin when drafted by hand, twists included', () => {
     for (let i = 0; i < 20; i++) {

@@ -87,9 +87,9 @@ export function twistDecade(d: DraftState): number | null {
   return null
 }
 
-/** Whether a club-season passes the twist on the current spin. */
-function twistAllows(u: LoadedUniverse, d: DraftState, cs: ClubSeason): boolean {
-  switch (d.twist) {
+/** Whether a club-season passes a twist. */
+function twistAllows(u: LoadedUniverse, d: DraftState, twist: Twist | null | undefined, cs: ClubSeason): boolean {
+  switch (twist) {
     case 'golden':
       return cs.champions
     case 'basement': {
@@ -140,22 +140,34 @@ export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'
   return openSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
 }
 
-/** The club-seasons the wheel may land on right now. */
-export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
+/**
+ * The club-seasons the era, club, nation and league rules admit that still hold
+ * someone usable: the expensive pass (every `canUse` check), independent of the twist.
+ */
+function rulesPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
   const r = d.rules
-  const base = u.clubSeasons.filter((cs) => {
+  return u.clubSeasons.filter((cs) => {
     if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
     if (r.toSeason !== undefined && cs.season > r.toSeason) return false
     if (r.onlyClub && cs.clubId !== r.onlyClub) return false
     if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
-    if (!twistAllows(u, d, cs)) return false
     return cs.squad.some((p) => canUse(d, p))
   })
-  if (!r.uniqueClubSeasons) return base
+}
+
+/** Narrow a rules pool by a twist, then by the one-club-season-once rule. */
+function narrowPool(u: LoadedUniverse, d: DraftState, twist: Twist | null | undefined, base: ClubSeason[]): ClubSeason[] {
+  const allowed = twist ? base.filter((cs) => twistAllows(u, d, twist, cs)) : base
+  if (!d.rules.uniqueClubSeasons) return allowed
   // Each club-season once, but when a narrow wheel (one club, a short era) has used them all,
   // the wheel reopens rather than stopping the draft with slots still to fill
-  const fresh = base.filter((cs) => !d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`))
-  return fresh.length ? fresh : base
+  const fresh = allowed.filter((cs) => !d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`))
+  return fresh.length ? fresh : allowed
+}
+
+/** The club-seasons the wheel may land on right now, the twist on the current spin applied. */
+export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
+  return narrowPool(u, d, d.twist, rulesPool(u, d))
 }
 
 /**
@@ -175,14 +187,17 @@ export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
  * chooses the twist among those whose wheel is not empty, so a league without
  * tables never gets a golden or basement spin, and the wheel is then filtered
  * by it. A blind spin is always possible, so a twist spin always has a twist.
+ * The candidate check narrows one rules pool four times rather than rebuilding it.
  */
 export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
   d.twist = null
+  // One expensive pass; each twist's wheel is that pool narrowed, exactly what `wheelPool` would return with the twist set
+  const base = rulesPool(u, d)
   if (nextSpinTwisted(d)) {
-    const candidates = TWISTS.filter((twist) => wheelPool(u, { ...d, twist }).length > 0)
+    const candidates = TWISTS.filter((twist) => narrowPool(u, d, twist, base).length > 0)
     if (candidates.length) d.twist = rng.pick(candidates)
   }
-  const pool = wheelPool(u, d)
+  const pool = narrowPool(u, d, d.twist, base)
   if (!pool.length) throw new Error('Nothing left on the wheel')
   const seasons = [...new Set(pool.map((cs) => cs.season))]
   const season = rng.pick(seasons)
