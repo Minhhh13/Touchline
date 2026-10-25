@@ -32,7 +32,7 @@ These files conflict constantly. Before touching one, check open PRs and say so 
 
 | File | Why it conflicts | How to stay out of trouble |
 | --- | --- | --- |
-| `src/ui/styles.css` | One global stylesheet; the redesign rewrites its tokens | Add new rules in a new section at the end; do not reformat |
+| `src/ui/styles.css` | One global stylesheet; tokens and components follow `docs/DESIGN_SYSTEM.md` | Use the tokens; add new rules in a new section at the end; do not reformat |
 | `src/game/store.ts` | Every feature adds an action | Add actions at the end of their group; keep logic in `src/game/logic` |
 | `src/game/types.ts` | Every feature adds a save field | Append optional fields with a doc comment; never reorder |
 | `src/ui/screens/Dugout.tsx` | The season hub; 1,200+ lines of long JSX lines | Put new tabs and panels in their own file under `screens/` |

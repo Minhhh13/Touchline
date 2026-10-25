@@ -121,7 +121,7 @@ export function Dugout() {
           <div className="stat" style={{ minWidth: 150 }}>
             <span className="label">Board confidence</span>
             <div className="conf">
-              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--accent)' : season.confidence > 30 ? 'var(--gold)' : 'var(--danger)'} thick />
+              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--good)' : season.confidence > 30 ? 'var(--meter-mid)' : 'var(--danger)'} thick />
               <span className="small">{Math.round(season.confidence)}</span>
             </div>
             <span className="small muted">target {ordinal(season.boardTarget)}</span>
@@ -214,7 +214,7 @@ export function Dugout() {
 
       {tab === 'squad' && <Tip id="dugout-first">The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
-        <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--accent)' }}>
+        <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--primary)' }}>
           <div className="panel-head">
             <h3>🎓 Youth intake</h3>
             <span className="small muted">Real academy prospects. Sign one for nothing on a three-year deal, or pass.</span>
@@ -240,7 +240,7 @@ export function Dugout() {
               <h3>Squad · {squad.length}/{SQUAD_CAP}</h3>
               <div className="row">
                 <span className="small muted">Tap a slot to choose who plays there. Tap a player for details.</span>
-                <button type="button" className={`chip key-chip ${showKey ? 'good' : ''}`} aria-pressed={showKey} onClick={toggleKey} data-testid="key-toggle" title="Label the bars and the pitch markers">
+                <button type="button" className={`chip key-chip ${showKey ? 'info' : ''}`} aria-pressed={showKey} onClick={toggleKey} data-testid="key-toggle" title="Label the bars and the pitch markers">
                   Key
                 </button>
                 <button type="button" className={`btn sm ${showStamina ? '' : 'ghost'}`} aria-pressed={showStamina} data-testid="toggle-stamina" title="Show each player's stamina in the list" onClick={() => setShowStamina((v) => writeSquadColumn(!v))}>
@@ -277,7 +277,7 @@ export function Dugout() {
                         </span>
                       </>
                     }
-                    right={starting ? <span className="chip good">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Unused</span>}
+                    right={starting ? <span className="chip info">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Unused</span>}
                   />
                 )
               })}
@@ -313,7 +313,7 @@ export function Dugout() {
                       <span className="depth-names">
                         {cover.length === 0 && <span className="chip bad">Nobody</span>}
                         {cover.map((x) => (
-                          <button key={x.p.id} type="button" className={`chip ${inXI.has(x.p.id) ? 'good' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
+                          <button key={x.p.id} type="button" className={`chip ${inXI.has(x.p.id) ? 'info' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
                             {x.p.name.split(' ').slice(-1)[0]} {x.r}
                           </button>
                         ))}
@@ -439,7 +439,7 @@ function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
       extra={
         <>
           {fitChip}
-          <span className={`chip ${o.where.kind === 'starting' ? 'good' : 'muted'}`}>{whereaboutsLabel(o.where)}</span>
+          <span className={`chip ${o.where.kind === 'starting' ? 'info' : 'muted'}`}>{whereaboutsLabel(o.where)}</span>
           {o.unavailable && <span className="chip bad">{o.unavailable === 'injured' ? 'Injured' : 'Suspended'}</span>}
         </>
       }
@@ -1272,14 +1272,14 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
               <span style={{ width: 90 }} className="small">
                 Sharpness
               </span>
-              <Bar value={s.sharpness} colour="#c9a0ff" />
+              <Bar value={s.sharpness} colour="var(--meter-sharpness)" />
               <span className="mono small">{s.sharpness}</span>
             </div>
             <div className="row" style={{ gap: 8 }}>
               <span style={{ width: 90 }} className="small">
                 Familiarity
               </span>
-              <Bar value={s.familiarity} colour="var(--gold)" />
+              <Bar value={s.familiarity} colour="var(--meter-mid)" />
               <span className="mono small">{s.familiarity}</span>
             </div>
             <div className="kv" style={{ marginTop: 6 }}>

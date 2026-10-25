@@ -15,6 +15,7 @@ import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/diges
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
+import { Logo } from './components/Logo'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
@@ -72,10 +73,7 @@ export function App() {
       <div className="app">
         <div className="page" style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
           <div className="col" style={{ alignItems: 'center' }}>
-            <div className="brand">
-              <span className="mark">T</span>
-              <span className="name">Touchline</span>
-            </div>
+            <Logo size="lg" />
             <div className="muted small">Loading eleven thousand player-seasons…</div>
           </div>
         </div>
@@ -100,8 +98,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand" onClick={() => go('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && go('home')}>
-          <span className="mark">T</span>
-          <span className="name">Touchline</span>
+          <Logo size={30} />
         </div>
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>
@@ -170,7 +167,7 @@ export function App() {
   )
 }
 
-const CONFIDENCE_COLOUR = (c: number) => (c > 60 ? 'var(--accent)' : c > 30 ? 'var(--gold)' : 'var(--danger)')
+const CONFIDENCE_COLOUR = (c: number) => (c > 60 ? 'var(--good)' : c > 30 ? 'var(--meter-mid)' : 'var(--danger)')
 
 /** "While you were away": results, the table move, the board, and what the assistant did in your name. */
 function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => void }) {

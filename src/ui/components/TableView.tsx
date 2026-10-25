@@ -29,7 +29,7 @@ export function TableView({ rows, teamName, compact, highlightTop }: { rows: Tab
               <td>{i + 1}</td>
               <td>
                 <span className="row" style={{ gap: 8 }}>
-                  {me ? <span className="badge" style={{ width: 22, height: 22, background: 'var(--accent)', color: 'var(--accent-ink)', fontSize: 9 }}>YOU</span> : <ClubBadge clubId={r.teamId} size={22} />}
+                  {me ? <span className="badge" style={{ width: 22, height: 22, background: 'var(--primary)', color: 'var(--on-primary)', fontSize: 9 }}>YOU</span> : <ClubBadge clubId={r.teamId} size={22} />}
                   {name}
                 </span>
               </td>
