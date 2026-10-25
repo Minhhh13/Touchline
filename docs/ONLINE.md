@@ -43,7 +43,7 @@ The game stays offline-first and unchanged. `src/online` loads only when the bui
 
 ## 4. Database (Phase 1)
 
-Applied in this order (file names carry the version the project recorded once applied). State on 2026-10-25: `online_core` applied (version `20261025092919`); the others (including `keepalive`) pending, because the Supabase connector asked the owner to confirm the second migration and the question went unanswered. Apply them in file order with the connector's `apply_migration` (or `supabase link --project-ref yvqpmyqomkwtudxmkeou && supabase db push`), rename each local file to the version the project records (`list_migrations`), then run both advisors.
+Applied in this order (file names carry the version the project recorded once applied). State on 2026-10-25 13:30 UTC: `online_core` applied (version `20261025092919`); then, by an agent's mistake, only the first half of `cloud_saves` (version `20261025132651`: the `saves` bucket, its four Storage policies, `private.save_object_count(uuid)` and the `cloud_saves` table, with no RLS or grants for about 18 seconds while empty) and a lock-down `cloud_saves_lockdown` (version `20261025132709`: RLS on, every client grant revoked, `authenticated` reads its own rows only). Everything else pending: no `cloud_profile`, no writer functions, so the client's sync cannot work yet. Before anything else, follow "Repair the cloud_saves history" in section 7. Apply them in file order with the connector's `apply_migration` (or `supabase link --project-ref yvqpmyqomkwtudxmkeou && supabase db push`), rename each local file to the version the project records (`list_migrations`), then run both advisors.
 
 1. `online_core`: the `private` schema, helpers, rate limits, the data-pack registry and its private `packs` bucket, `profiles` (one display name per account, unique ignoring case, and an optional `country`, both readable only by the owner).
 2. `cloud_saves`: the private `saves` bucket with owner-folder policies and a 16-object cap, `cloud_saves` (compare-and-set rows with one previous copy), `cloud_profile`, and the client writers `save_claim`, `save_delete`, `save_orphans`, `cloud_delete_all`, `profile_put`.
@@ -128,6 +128,14 @@ Recorded with their dates as they are done.
 
 ## 7. Runbooks
 
+### Repair the cloud_saves history (once, before the next migration)
+
+The project records `20261025132651 cloud_saves` (the first half of the file) and `20261025132709 cloud_saves_lockdown`, which match no file in `supabase/migrations`. `20261025093002_cloud_saves.sql` is re-runnable over that state (every policy is dropped before it is created; `npm run sql:test` and a stand-in run of exactly the live state then every file both pass), so:
+
+- CLI: `supabase link --project-ref yvqpmyqomkwtudxmkeou`, then `supabase migration repair --status reverted 20261025132651 20261025132709` (this only edits the history table), then `supabase db push`, which applies `cloud_saves` in full and every later file.
+- Connector: `apply_migration` with the whole of `20261025093002_cloud_saves.sql`, then each later file in order, renaming each local file to the version the project records. The two stray rows stay in the history; note them here.
+- Either way, run both advisors after, and check with `list_migrations` that `cloud_profile` and `public.save_claim` exist.
+
 ### Release order
 1. Migrations (connector `apply_migration` or `supabase db push`), then both advisors. 2. The Edge Function. 3. Merge the client PR to `main`; Render deploys after CI. 4. Smoke on the live site. 5. A `docs/HANDOVER.md` change-log line.
 
@@ -162,7 +170,7 @@ State on 2026-10-25. Built and tested in code: everything below marked "code". E
 | # | Step | Who | State |
 | --- | --- | --- | --- |
 | 1 | Privacy and fair play page (issue #19): what is stored, where, retention, deletion, leaderboard rules, data credits; linked from Home, How it works and the sign-in panel | code | done (`src/ui/screens/Privacy.tsx`; figures pinned by `retention.test.ts`) |
-| 2 | Apply migrations 2 to 9 (section 4) in file order, rename each local file to the recorded version, then both advisors clean | owner (approve the connector's question) or `supabase db push` | pending: the connector's confirmation question timed out a fourth time on 2026-10-25 for `cloud_saves`; only `online_core` is applied |
+| 2 | Apply migrations 2 to 10 (section 4) in file order, rename each local file to the recorded version, then both advisors clean | owner (approve the connector's question) or `supabase db push` | pending: the connector's confirmation question timed out again on 2026-10-25 for `cloud_saves`; applied: `online_core`, half of `cloud_saves` and its lock-down (repair first, section 7); migration 10 `storage_size_accounting` is new |
 | 3 | Vault secrets for the keep-alive (section 3) and the repository variables `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | owner | pending (after 2) |
 | 4 | Auth providers, OTP expiry 900 s, both email templates, URL configuration (section 5c, 2 to 4) | owner | partly done by the owner (SMTP, Confirm email, Site URL, redirects); Google client, templates and OTP expiry to confirm |
 | 5 | Deploy `touchline-e4` (`npm run deploy:function -- --stage-only`, then the connector's `deploy_edge_function` with `deploy-files.json`, or the CLI); secret `TOUCHLINE_SITE_URL=https://touchline.quest` | agent after 2, with the owner's approval | pending (needs the board migrations) |

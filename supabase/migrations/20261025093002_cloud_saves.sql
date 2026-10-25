@@ -4,6 +4,9 @@
 -- JSON). public.cloud_saves holds one compare-and-set row per (user, slot) pointing at the current object and
 -- at exactly one previous copy. Clients read their own rows and objects; every row write goes through
 -- save_claim / save_delete / profile_put, which check the revision under a row lock.
+-- Re-runnable (every policy is dropped before it is created): on 2026-10-25 the project received the first half of
+-- this file as migration 20261025132651 `cloud_saves` plus a lock-down (20261025132709 `cloud_saves_lockdown`), so
+-- the whole file must apply over that state (docs/ONLINE.md, "Repair the cloud_saves history").
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('saves', 'saves', false, 8388608, array['application/gzip', 'application/octet-stream'])
@@ -25,9 +28,11 @@ $$;
 revoke execute on function private.save_object_count(uuid) from public, anon;
 grant execute on function private.save_object_count(uuid) to authenticated, service_role;
 
+drop policy if exists "saves: owners read their own objects" on storage.objects;
 create policy "saves: owners read their own objects" on storage.objects for select to authenticated
 using (bucket_id = 'saves' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
+drop policy if exists "saves: owners upload into their own slots" on storage.objects;
 create policy "saves: owners upload into their own slots" on storage.objects for insert to authenticated
 with check (
   bucket_id = 'saves'
@@ -36,10 +41,12 @@ with check (
   and (select private.save_object_count((select auth.uid()))) < 16
 );
 
+drop policy if exists "saves: owners delete their own objects" on storage.objects;
 create policy "saves: owners delete their own objects" on storage.objects for delete to authenticated
 using (bucket_id = 'saves' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
 -- No update policy: objects are immutable (every upload gets a new name), so upsert and move are refused.
+drop policy if exists "saves: no guest uploads" on storage.objects;
 create policy "saves: no guest uploads" on storage.objects as restrictive for insert to authenticated
 with check (bucket_id <> 'saves' or not (select private.is_anonymous()));
 
@@ -77,6 +84,7 @@ alter table public.cloud_saves enable row level security;
 revoke all on public.cloud_saves from public, anon, authenticated;
 grant select on public.cloud_saves to authenticated;
 grant select, insert, update, delete on public.cloud_saves to service_role;
+drop policy if exists cloud_saves_select_own on public.cloud_saves;
 create policy cloud_saves_select_own on public.cloud_saves for select to authenticated
 using (user_id = (select auth.uid()));
 
@@ -94,6 +102,7 @@ alter table public.cloud_profile enable row level security;
 revoke all on public.cloud_profile from public, anon, authenticated;
 grant select on public.cloud_profile to authenticated;
 grant select, insert, update, delete on public.cloud_profile to service_role;
+drop policy if exists cloud_profile_select_own on public.cloud_profile;
 create policy cloud_profile_select_own on public.cloud_profile for select to authenticated
 using (user_id = (select auth.uid()));
 
