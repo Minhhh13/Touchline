@@ -2,6 +2,7 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
+import { LogoMark, Wordmark } from '../components/Logo'
 
 export function Home() {
   const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
@@ -27,7 +28,10 @@ export function Home() {
   return (
     <div className="page">
       <section className="hero">
-        <h1>Touchline</h1>
+        <LogoMark size={72} />
+        <h1>
+          <Wordmark />
+        </h1>
         <div className="tag">Spin the wheel. Draft the XI. Manage the season.</div>
         <p className="muted small" style={{ marginTop: 10 }}>
           {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}

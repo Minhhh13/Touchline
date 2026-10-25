@@ -45,7 +45,8 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - `screens/` Home, Setup, Draft, Dugout (season hub), MatchScreen, Summary, H2H, Explore, ProfileScreen, HowTo, StatsTab, OppositionReport.
   - `components/` CaseReel (the draft's case-opening reel), GameByGame, Pitch (+ PitchLegend), LivePitch and MatchCharts (the live 2D pitch, momentum, xG race, shot map), AttributePanel, PlayerRow, TableView, MatchTicker, TwistCard, bits (Rating, Modal, Tabs, Toast, Tip...), leagueSegments.
   - `match/` pure helpers for the match visuals (`pitchGeometry.ts`, `possession.ts`, `charts.ts`, `clockStore.ts`).
-  - `styles.css` one global stylesheet with tokens on `:root`; `format.ts` display helpers; `shareCard.ts` canvas PNG.
+  - `styles.css` one global stylesheet: design tokens on `:root` (Floodlit, dark) and `[data-theme='light']` (Daylight), then every shared component; `brand.ts` (`APP_NAME`, the mark's geometry, `BRAND_COLOURS` for canvas drawing) and `components/Logo.tsx`; `format.ts` display helpers (`tierName`, `conditionColour`, `fitRingColour`); `shareCard.ts` canvas PNGs (the result card and the match card).
+  - The look is specified in `docs/DESIGN_SYSTEM.md`: use its tokens and components, no raw colours (the pitch's fixed whites and club kit colours excepted).
 - `src/main.tsx` React root; registers `public/sw.js` on production builds only.
 - `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`. Committed; they are also the test fixtures.
 - `scripts/import/` offline data pipeline (`build.mjs`, `download.mjs`, `config.mjs`, `leagues.mjs`, club tables, `nations*.{mjs,json}`, `enrich-nations.mjs`).
@@ -95,7 +96,8 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - Persist only what must survive reload; per-viewer UI conveniences get their own `localStorage` key inside try/catch.
 - New draft rules need an entry in `RULE_CHECKS` (`src/engine/challenge.ts`); the type forces it.
 - New fields holding player-season ids must be remapped in `advanceToNextSeason` (dynasty) and cleared in `releasePlayer`.
-- Write the product name as TouchLine in new text. Existing strings still say "Touchline"; leave mass renames to the redesign branch.
+- Write the product name as TouchLine (`APP_NAME`); the default team name "Touchline XI" and lower-case slugs (`touchline-save-v1`, file names) stay as they are. Titles and buttons in sentence case; tiers through `tierName()`.
+- Colours: `--good` for good outcomes, `--primary` for actions and selection, `--accent` for highlights and info, `--meter-mid` (never `--gold`) for the middle band of a bar, `.chip.info` for a state such as "in the XI".
 
 ## Adding a feature end to end
 
@@ -140,7 +142,8 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 1. `npm run build` and `npx vite preview --port 4173 --strictPort` in the background.
 2. A `.cjs` script outside the repo: launch chromium, collect `pageerror` and console errors, `localStorage.clear()`, then drive Home -> Quick Draft -> Setup -> Spin/Auto-complete -> Summary, and Season -> a live match through 45' and 70'. Screenshot at 1280 and 390 wide.
 3. Read state with `JSON.parse(localStorage.getItem('touchline-save-v1')).state.game`.
-4. Fail on any page error. Use `data-testid` selectors (`daily-card`, `cta`, `half-time-panel`, `late-panel`, `challenge-friend`...).
+4. Sim 5 and Sim to end open the "while you were away" digest over the dugout: close it with `[data-testid="digest-close"]` before the next click.
+5. Fail on any page error. Use `data-testid` selectors (`daily-card`, `cta`, `half-time-panel`, `late-panel`, `challenge-friend`...).
 
 ## Gotchas
 
@@ -166,7 +169,6 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 On GitHub today: `main` (PR #1 merged), the working branch `claude/youthful-mccarthy-a57idu` (draft PR #2 into `main`) and `claude/touchline-preview`. The feature branches below are not on GitHub until they are pushed; ask the owner before overlapping them.
 
 - `integration` (local): the working branch merged with `reel-ui`, `fm-depth`, `match-visuals` and `redesign`; it is what the working branch becomes once pushed.
-- `redesign`: blue palette, TouchLine logo (styles.css tokens, App brand, manifest, shareCard).
 - `replica-setup`: 38-0 style setup (difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets); expected to rewrite Setup.tsx and add `DraftRules` fields.
 - `matchday`: a Football Manager style match-day dashboard; expected to rebuild the live view in MatchScreen.tsx.
 - Planned: online layer on Supabase (accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms) and casual modes.

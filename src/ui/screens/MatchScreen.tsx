@@ -7,6 +7,7 @@ import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay
 import { kitColour } from '../match/pitchGeometry'
 import { xgSeries } from '../match/charts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
+import { BRAND_COLOURS } from '../brand'
 import { clubName, clubShort, minuteLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { currentScore, onPitch, SHOUTS, type Appearance, type FullMatchResult, type LivePlayer, type Shout, type TeamSnapshot, type TeamTalk } from '@engine/match'
@@ -22,8 +23,9 @@ function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, a
   const clubOf = (teamId: string) => u.clubById[teamId === USER_TEAM ? hostClubId : teamId.replace(/^friendly-/, '')]
   const h = clubOf(homeTeamId)
   const a = clubOf(awayTeamId)
-  const home = kitColour(h?.colours, a?.colours.primary ?? '#888888', '#3ddc84')
-  const away = kitColour(a?.colours, home, '#5ec2ff')
+  // A club without colours wears the accent blue at home and near-white away (hex, as kitColour compares them)
+  const home = kitColour(h?.colours, a?.colours.primary ?? BRAND_COLOURS.draw, BRAND_COLOURS.accent)
+  const away = kitColour(a?.colours, home, BRAND_COLOURS.text)
   return { home, away }
 }
 
@@ -225,7 +227,7 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
         visuals={<MatchVisuals home={sideFromSnapshot(mp.home, mp.hLive, kit.home)} away={sideFromSnapshot(mp.away, mp.aLive, kit.away)} events={mp.events} momentum={mp.momentum ?? []} xg={{ home: mp.lamH, away: mp.lamA }} from={atBreak ? 0 : 46} to={clock} seed={`${live.opponentId}-${live.ctx.matchweek}-${live.kind}`} getPlayer={get} />}
       />
       {atStop && (
-        <div className="panel" style={{ borderColor: 'var(--accent)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
+        <div className="panel" style={{ borderColor: 'var(--primary)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
           <div className="panel-head">
             <h2>{atBreak ? 'Half time' : '70 minutes'}: {stateLabel}</h2>
             <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
@@ -383,7 +385,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
       showToast('Could not render the match card.')
     }
   }
-  const ratingBar = (s: PlayerMatchStats) => <Bar value={s.rating - 4.5} max={5.5} colour={s.rating >= 7.5 ? 'var(--accent)' : s.rating < 6 ? 'var(--danger)' : 'var(--text-3)'} />
+  const ratingBar = (s: PlayerMatchStats) => <Bar value={s.rating - 4.5} max={5.5} colour={s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : 'var(--text-3)'} />
   return (
     <div className="grid two">
       <div className="col">
@@ -531,7 +533,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
                       <td className="num">{s.minutes}</td>
                       <td className="num">{s.goals}</td>
                       <td className="num">{s.assists}</td>
-                      <td className="num rating-cell" style={{ fontWeight: 700, color: s.rating >= 7.5 ? 'var(--accent)' : s.rating < 6 ? 'var(--danger)' : undefined }}>
+                      <td className="num rating-cell" style={{ fontWeight: 700, color: s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : undefined }}>
                         {s.rating.toFixed(1)}
                         {ratingBar(s)}
                       </td>

@@ -52,7 +52,7 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
           <div className="small muted" style={{ marginBottom: 6 }}>Rating by season (peak season highlighted)</div>
           <div className="row" style={{ gap: 3, alignItems: 'flex-end', height: 70 }}>
             {seasons.map((p) => (
-              <div key={p.id} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: p === best ? 'var(--gold)' : 'var(--accent)', borderRadius: 3, opacity: p === best ? 1 : 0.75 }} />
+              <div key={p.id} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: p === best ? 'var(--meter-mid)' : 'var(--accent)', borderRadius: 3, opacity: p === best ? 1 : 0.75 }} />
             ))}
           </div>
           <div className="row between small muted" style={{ marginTop: 4 }}>

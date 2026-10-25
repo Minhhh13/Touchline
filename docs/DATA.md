@@ -1,6 +1,6 @@
-# Touchline: data
+# TouchLine: data
 
-Touchline ships with a static database of English top-flight player-seasons built from public datasets by `scripts/import/build.mjs`. The browser loads two JSON files from `public/data/england/` and never calls a server. This document describes what is in those files, where it came from, how it was derived and how to rebuild it.
+TouchLine ships with a static database of English top-flight player-seasons built from public datasets by `scripts/import/build.mjs`. The browser loads two JSON files from `public/data/england/` and never calls a server. This document describes what is in those files, where it came from, how it was derived and how to rebuild it.
 
 ## 1. Outputs
 
@@ -162,7 +162,7 @@ The Vitest suite (`npm test`) loads the generated files and checks: every season
 
 ## 7. Legal
 
-Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively to identify real teams and seasons. No official crests, logos, kits or likenesses are used; badges are generated from approximate colours and letter codes. Player ratings are an independent interpretation derived from publicly available datasets and may differ from any official source. The datasets above are credited to their authors and used under the licences they were published with; the openfootball results are public domain; Wikidata content is CC0. Please respect the terms of each source if you redistribute the generated files.
+TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively to identify real teams and seasons. No official crests, logos, kits or likenesses are used; badges are generated from approximate colours and letter codes. Player ratings are an independent interpretation derived from publicly available datasets and may differ from any official source. The datasets above are credited to their authors and used under the licences they were published with; the openfootball results are public domain; Wikidata content is CC0. Please respect the terms of each source if you redistribute the generated files.
 
 
 ## Leagues (added later)

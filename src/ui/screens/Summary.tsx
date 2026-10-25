@@ -11,10 +11,11 @@ import type { Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, flag, money, nationName, ordinal, seasonLabel } from '../format'
+import { clubName, flag, money, nationName, ordinal, seasonLabel, tierName } from '../format'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
+import { APP_NAME } from '../brand'
 import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
@@ -79,7 +80,7 @@ export function Summary() {
     bootName: q ? get(q.topScorer?.playerSeasonId ?? '')?.name : game.awards?.goldenBoot?.name,
     bootGoals: q ? q.topScorer?.goals : game.awards?.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
     extraLines: extraLines.length ? extraLines : undefined,
-  })
+  }, APP_NAME)
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text)
@@ -165,7 +166,7 @@ export function Summary() {
           </div>
         ) : (
           <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-            {TIER_LABEL[tier]}
+            {tierName(tier)}
           </div>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
@@ -199,10 +200,10 @@ export function Summary() {
         {!replay.playing && (
         <div className="blocks" aria-hidden="true">
           {Array.from({ length: record.won }, (_, i) => (
-            <span key={`w${i}`} style={{ background: 'var(--accent)' }} />
+            <span key={`w${i}`} style={{ background: 'var(--good)' }} />
           ))}
           {Array.from({ length: record.drawn }, (_, i) => (
-            <span key={`d${i}`} style={{ background: '#cfd8d2' }} />
+            <span key={`d${i}`} style={{ background: 'var(--draw)' }} />
           ))}
           {Array.from({ length: record.lost }, (_, i) => (
             <span key={`l${i}`} style={{ background: 'var(--danger)' }} />
@@ -350,14 +351,14 @@ export function Summary() {
       {game.jobOffers.length > 0 && (
         <div className="panel" style={{ marginTop: 14, borderColor: 'var(--gold)' }}>
           <div className="panel-head">
-            <h3 style={{ color: 'var(--gold)' }}>Job offers</h3>
+            <h3 style={{ color: 'var(--gold-text)' }}>Job offers</h3>
             <span className="small muted">Your work has been noticed. Stay, or take your squad somewhere new next season.</span>
           </div>
           <div className="grid three">
             {game.jobOffers.map((o, i) => {
               const chosen = game.pendingMove?.clubId === o.clubId
               return (
-                <div key={o.clubId} className="card" style={chosen ? { borderColor: 'var(--accent)' } : undefined}>
+                <div key={o.clubId} className="card" style={chosen ? { borderColor: 'var(--primary)' } : undefined}>
                   <div className="row" style={{ gap: 10 }}>
                     <ClubBadge clubId={o.clubId} size={40} />
                     <div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Position } from '@engine/types'
 import { POSITION_GROUP } from '@engine/positions'
 import { ratingBand, textColourFor } from '../format'
@@ -106,6 +107,90 @@ export function Toast() {
     <div className="toast" role="status">
       {toast}
     </div>
+  )
+}
+
+/**
+ * An "i" button that shows a sentence or two of help: the place for the
+ * explanation that would otherwise be a paragraph under a control. A mouse
+ * opens it on hover, a tap toggles it, keyboard focus opens it; Escape, a tap
+ * elsewhere, scrolling or leaving with the mouse closes it. The tip is portalled
+ * to <body> with fixed positioning and clamped to the viewport, so it is never
+ * clipped by a scrolling list and never widens the page. Keep the text short
+ * and plain; no links or buttons inside.
+ */
+export function Info({ children, label = 'More information' }: { children: ReactNode; label?: string }) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ left: number; top: number; below: boolean } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const tipRef = useRef<HTMLSpanElement>(null)
+  // How the last press arrived: a mouse click keeps the tip open, a tap or a key toggles it
+  const pointer = useRef('keyboard')
+  const id = useId()
+  useLayoutEffect(() => {
+    if (!open) return
+    const btn = btnRef.current
+    const tip = tipRef.current
+    if (!btn || !tip) return
+    const r = btn.getBoundingClientRect()
+    const gap = 8
+    const vw = document.documentElement.clientWidth
+    const left = Math.max(gap, Math.min(vw - gap - tip.offsetWidth, r.left + r.width / 2 - tip.offsetWidth / 2))
+    const below = r.top - tip.offsetHeight - gap < gap
+    setPos({ left, top: below ? r.bottom + gap : r.top - tip.offsetHeight - gap, below })
+    const close = () => setOpen(false)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
+    // A tap anywhere else closes it; iOS never focuses a tapped button, so blur alone is not enough
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target instanceof Node) || !btn.contains(e.target)) close()
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown, true)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onDown, true)
+    }
+  }, [open])
+  return (
+    <span className="info">
+      <button
+        ref={btnRef}
+        type="button"
+        className="info-btn"
+        aria-label={label}
+        aria-expanded={open}
+        aria-describedby={open ? id : undefined}
+        onPointerDown={(e) => {
+          pointer.current = e.pointerType
+        }}
+        onKeyDown={() => {
+          pointer.current = 'keyboard'
+        }}
+        onClick={() => setOpen((o) => (pointer.current === 'mouse' ? true : !o))}
+        onPointerEnter={(e) => e.pointerType === 'mouse' && setOpen(true)}
+        onPointerLeave={(e) => e.pointerType === 'mouse' && setOpen(false)}
+        onFocus={(e) => e.currentTarget.matches(':focus-visible') && setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+          <circle cx="8" cy="4" r="1.6" fill="currentColor" />
+          <rect x="6.7" y="6.9" width="2.6" height="7" rx="1.3" fill="currentColor" />
+        </svg>
+      </button>
+      {open &&
+        createPortal(
+          <span ref={tipRef} id={id} role="tooltip" className={`info-tip ${pos?.below ? 'below' : ''}`} style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }}>
+            {children}
+          </span>,
+          document.body,
+        )}
+    </span>
   )
 }
 

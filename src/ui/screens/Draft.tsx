@@ -237,7 +237,7 @@ export function Draft() {
           )}
           {current && spinning && !revealed && (
             <div className="row">
-              <span className="badge" style={{ width: 44, height: 44, background: '#2a3a31', color: '#fff', fontSize: 18 }}>?</span>
+              <span className="badge" style={{ width: 44, height: 44, background: 'var(--raised)', color: 'var(--text)', fontSize: 18 }}>?</span>
               <div>
                 <h2 style={{ fontSize: 26 }}>Opening…</h2>
                 <div className="muted small">The reel is landing on a club and a season.</div>

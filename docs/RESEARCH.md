@@ -1,6 +1,6 @@
-# Touchline: research
+# TouchLine: research
 
-Why Touchline exists, which two games it borrows from, what each does well, and what we chose to take and to leave. Figures quoted for 38-0 and 38-0-0 are as the sites claimed them when this research was done (October 2026).
+Why TouchLine exists, which two games it borrows from, what each does well, and what we chose to take and to leave. Figures quoted for 38-0 and 38-0-0 are as the sites claimed them when this research was done (October 2026).
 
 ## 1. 38-0
 
@@ -61,7 +61,7 @@ Why Touchline exists, which two games it borrows from, what each does well, and 
 
 ## 3. Comparison
 
-| Dimension | 38-0 | Football Manager | Touchline |
+| Dimension | 38-0 | Football Manager | TouchLine |
 | --- | --- | --- | --- |
 | Core loop length | Eleven spins and picks, then one click | A match day or an in-game week per step, for hours | Eleven to twenty-two spins, then one matchweek per click (Quick: one click) |
 | Luck vs skill | Luck-heavy; skill is slot planning and eligibility | Skill-heavy; variance is slow and smoothed | Luck in the draft, skill in management; variance scaled by squad consistency |
@@ -82,7 +82,7 @@ Why Touchline exists, which two games it borrows from, what each does well, and 
 
 38-0's genius is a fast, luck-tinged, shareable draft loop with nostalgia at its heart. FM's genius is ownership and consequences over time. They are not opposites; one is a way to acquire players and the other is what you do with them.
 
-Touchline keeps the wheel-draft as the only way you acquire players (cross-era legends, one human once, no dead spins) and then makes you actually manage them:
+TouchLine keeps the wheel-draft as the only way you acquire players (cross-era legends, one human once, no dead spins) and then makes you actually manage them:
 
 - a 38-match season played week by week, with roles and team instructions whose effects are printed in the match report;
 - condition and rotation, injuries and suspensions;
@@ -129,7 +129,7 @@ Quick Draft and Daily Challenge keep the pure 38-0 loop for people who want five
 - **Ads and ad-funded re-spins.** Re-spins are a fixed budget per draft. There is no monetisation.
 - **A 3D match engine or highlights.** The match is a ticker and a report. Depth goes into the numbers, not the rendering.
 - **Licensing.** No crests, kits or likenesses. Badges are generated from colours and letter codes; names are used descriptively.
-- **FM's full scope.** No scouting ranges, individual training, youth intake, loans, staff, press conferences as a system, or FFP. Each system in Touchline has one decision and one bounded, explained effect.
+- **FM's full scope.** No scouting ranges, individual training, youth intake, loans, staff, press conferences as a system, or FFP. Each system in TouchLine has one decision and one bounded, explained effect.
 - **Separate in- and out-of-possession shapes.** One shape with roles; the instructions carry the rest.
 - **A backend.** Saves live in `localStorage`; the daily challenge is shared by seed, not by server. Online leaderboards and multiplayer are roadmap items.
 - **1992-2008 squads.** The open datasets we rely on start at 2008-09. Earlier seasons are a roadmap item, not a promise.

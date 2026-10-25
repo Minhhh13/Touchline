@@ -62,7 +62,7 @@ function attr(label: string, value: number): ReactNode {
   return (
     <div key={label} className="row attr-row">
       <span className="small attr-label">{label}</span>
-      <Bar value={value} colour={value >= 80 ? 'var(--accent)' : value >= 65 ? 'var(--gold)' : 'var(--text-3)'} />
+      <Bar value={value} colour={value >= 80 ? 'var(--good)' : value >= 65 ? 'var(--meter-mid)' : 'var(--text-3)'} />
       <span className="mono small attr-value">{value}</span>
     </div>
   )
@@ -74,7 +74,7 @@ function trait(label: string, value: number): ReactNode {
   return (
     <div key={label} className="row attr-row" title={`${label}: ${word.toLowerCase()}`}>
       <span className="small attr-label">{label}</span>
-      <Bar value={Math.round(value * 100)} colour={value >= 0.7 ? 'var(--accent)' : value >= 0.45 ? 'var(--gold)' : 'var(--text-3)'} />
+      <Bar value={Math.round(value * 100)} colour={value >= 0.7 ? 'var(--good)' : value >= 0.45 ? 'var(--meter-mid)' : 'var(--text-3)'} />
       <span className="small muted attr-word">{word}</span>
     </div>
   )

@@ -38,7 +38,7 @@ Each item lives on its own branch until it is merged into the working branch and
 | Case-opening reel instead of the wheel; game-by-game quick season | `reel-ui` | Merged into `integration` (local), with the working branch |
 | Football Manager depth attributes (stamina, strength, aggression, jumping, work rate) through data, engine and UI | `fm-depth` | Merged into `integration` (local); data packs format 3, ENGINE_VERSION `'4'` |
 | Live match visuals: 2D pitch, momentum, shot map, xG race | `match-visuals` | Merged into `integration` (local) |
-| Redesign: blue palette, a proper TouchLine logo, cleaner Setup | `redesign` | In progress |
+| Redesign: blue palette, a proper TouchLine logo, the design system (`docs/DESIGN_SYSTEM.md`) | `redesign` | Foundation merged into `integration` (local), with the later screens moved to its tokens; the screen-by-screen pass and the cleaner Setup are still to do |
 | 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
 | "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch (live site); merged into `integration` |
 | Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch; merged into `integration` |
@@ -114,7 +114,8 @@ Both sites are static sites in the Render project **TouchLine**. That Render wor
 - No player data before 2008-09; Ligue 1, the Eredivisie and the Primeira Liga have no real tables (no record books there).
 - About 230 players have an unknown nationality.
 - Values and wages are our own model, not real figures.
-- The product name is TouchLine, but many screens, the manifest and the share card still say "Touchline" until the redesign lands.
+- The default team name is still "Touchline XI" (set in the game logic and pinned by tests).
+- In the Daylight theme a side in white kit draws near-white momentum bars and xG line on the light chart panel; the match-day dashboard work is rebuilding that view.
 - Theme "Auto" always shows the dark theme.
 - Some docs are partly stale (README's Node version, player-season count and roadmap line; DATA.md's England-only intro and totals; RESEARCH.md section 7).
 - Saves are per browser; clearing site data loses them unless exported from the Record page (cloud saves will fix this).
@@ -143,3 +144,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · Coach marks and the Key shipped on the working branch: seven first-time tips saved on the profile (`seenTips`), Show tips again on the Record page, and a Key chip that labels the state bars and draws a pitch legend; an injured or suspended player's red ring now wins over the fit colour on the pitch.
 - 2026-10-25 · owner's agent · Slot picker shipped on the working branch: tapping a Dugout pitch slot opens a sheet of everyone who can cover it (the same `canCover`/`isAvailable` line auto-pick and `lineupProblems` use; `ACCOMPLISHED_FACTOR` replaces the literal 0.86), replacing the two-tap swap; Draft slot chips, the phone scroll to the landed squad, and the squad list's Out chip renamed Unused.
 - 2026-10-25 · owner's agent · Working branch merged into `integration` (with `reel-ui`, `fm-depth`, `match-visuals`): the Draft keeps the case-opening reel and gains the slot chips; the Dugout squad panel carries both the Key chip and the Stamina column toggle, the slot sheet replaces the two-tap swap and the player card uses the attribute panel; coach marks sit on the live match and report. No seeded test moved. `tsconfig.app.tsbuildinfo` untracked.
+- 2026-10-25 · owner's agent · `redesign` merged into `integration`: blue tokens in both themes, the TouchLine logo and icons, mixed-case headings and the `Info` tooltip, now also covering the screens that arrived after it (the reel window and placeholder badge, game by game, the attribute panel, the pitch frame and the scoreboard flash, the match card, the digest's confidence bar, coach marks, the Inbox badge and the slot sheet, which now uses the shared phone bottom sheet). Starter, Key and depth-chart chips are `.chip.info`; the tier banner uses `tierName()`. No behaviour change; no seeded test moved.
