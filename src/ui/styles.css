@@ -1436,6 +1436,32 @@ table.tbl tr.clickable:hover {
 .formations.with-blurbs .fthumb {
   width: 46px;
 }
+/* On a phone the Tactics tab keeps two tiles a row (as before the pictures), the blurb under the picture and name, so the panel is not eight full-width rows tall */
+@media (max-width: 640px) {
+  .formations.with-blurbs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .formations.with-blurbs button {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 4px 8px;
+    padding: 8px;
+  }
+  .formations.with-blurbs .fthumb {
+    width: 44px;
+  }
+  .formations.with-blurbs .ftext {
+    display: contents;
+  }
+  .formations.with-blurbs .fname {
+    font-size: 18px;
+    align-self: center;
+  }
+  .formations.with-blurbs .fblurb {
+    grid-column: 1 / -1;
+  }
+}
 .fthumb-grass {
   fill: var(--pitch-2);
 }
