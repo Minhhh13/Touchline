@@ -9,7 +9,7 @@ import { USER_TEAM } from '@engine/season'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE, rolesFor } from '@engine/roles'
 import { squadPlayers } from '../logic/players'
-import { BRIEFING_CAP, BRIEFING_CONDITION, BRIEFING_SHARPNESS, briefingHeadline, objectiveRisk, suggestedCaptain, weeklyBriefing, YELLOWS_PER_BAN } from '../logic/briefing'
+import { BRIEFING_CAP, BRIEFING_CONDITION, BRIEFING_SHARPNESS, briefingHeadline, LEADER_MENTALITY, objectiveRisk, suggestedCaptain, weeklyBriefing, YELLOWS_PER_BAN } from '../logic/briefing'
 import type { Game, GameSettings } from '../types'
 import type { Fixture } from '@engine/types'
 
@@ -63,6 +63,16 @@ describe("the assistant's briefing", () => {
     expect(captain.action?.op).toBe('player')
     expect(captain.action?.playerId).toBe(suggestedCaptain(g, u))
     expect(g.squad[captain.action!.playerId!]).toBeDefined()
+    // The suggestion follows the engine's leadership modifier, pivoted at 75 mentality, with a starter's bonus of 10
+    const xi = new Set(Object.values(g.lineup))
+    const lead = (x: ReturnType<typeof squadPlayers>[number]) => (x.p.attributes.mentality - LEADER_MENTALITY) * (0.6 + 0.8 * x.p.traits.professionalism) + (xi.has(x.p.id) ? 10 : 0)
+    const ranked = squadPlayers(g, u).sort((a, b) => lead(b) - lead(a))
+    expect(captain.action?.playerId).toBe(ranked[0].p.id)
+    expect(ranked[0].p.attributes.mentality).toBeGreaterThan(LEADER_MENTALITY)
+    // A very professional man under 75 mentality drags the side down in the engine, so the steadier head above 75 is suggested over him
+    const [benchA, benchB] = g.bench.map((id) => squadPlayers(g, u).find((x) => x.p.id === id)!)
+    const twoMan: Game = { ...g, lineup: {}, squad: { a: benchA.s, b: benchB.s }, customPlayers: { a: { ...benchA.p, id: 'a', attributes: { ...benchA.p.attributes, mentality: 70 }, traits: { ...benchA.p.traits, professionalism: 1 } }, b: { ...benchB.p, id: 'b', attributes: { ...benchB.p.attributes, mentality: 78 }, traits: { ...benchB.p.traits, professionalism: 0 } } } }
+    expect(suggestedCaptain(twoMan, u)).toBe('b')
     expect(items.find((i) => i.id === 'staff')?.text).toMatch(/^Hire staff: £\d+k a week of wage room, a senior physio costs £15k$/)
 
     g.friendliesPlayed = 3
@@ -139,6 +149,15 @@ describe("the assistant's briefing", () => {
     expect(items.length).toBe(BRIEFING_CAP)
     expect(items.some((i) => i.level === 'ok')).toBe(false)
     expect(briefingHeadline(items)?.id).toBe('event')
+    // A seventh candidate, an objective already gone, is the one the cap drops
+    g.season!.objectives = [{ id: 'rivals', label: 'Do not lose to a rival' }]
+    const derby = g.season!.fixtures.find((f) => f.homeTeamId === USER_TEAM && u.clubById[g.season!.hostClubId]!.rivals.includes(f.awayTeamId))!
+    score(derby, 0, 1)
+    expect(objectiveRisk(g.season!.objectives[0], g, u)).toBe('Lost a derby: the unbeaten-against-rivals objective is gone')
+    const capped = weeklyBriefing(g, u)
+    expect(ids(capped)).toEqual(ids(items))
+    expect(capped.length).toBe(BRIEFING_CAP)
+    g.season!.objectives = []
 
     // Deadline day is called out; three or more lineup problems collapse into one line
     g.window.day = g.window.days - 1

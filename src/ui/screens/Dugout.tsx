@@ -710,7 +710,7 @@ function MarketTab() {
       <div className="panel">
         <div className="panel-head">
           <h3>
-            {w.kind === 'summer' ? 'Summer' : 'January'} window · day {w.day}/{w.days}
+            {w.kind === 'summer' ? 'Summer' : 'January'} window · day {w.day + 1}/{w.days}
             {w.day >= w.days - 1 ? ' · deadline day' : ''}
           </h3>
           <div className="row wrap">
