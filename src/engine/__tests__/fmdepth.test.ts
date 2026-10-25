@@ -5,7 +5,7 @@ import { loadTestUniverse } from './helpers'
 import { Rng } from '../rng'
 import { aerialBonus, aerialOf, beginMatch, lateFade, simulateMatch, teamInputFromPool, type MatchTeamInput } from '../match'
 import { tacticalModifiers, tacticsForStyle } from '../tactics'
-import { buildLeague, type MetaFile, type PlayersFile } from '../universe'
+import { buildLeague, isClassic, type MetaFile, type PlayersFile } from '../universe'
 import { aggressionCardFactor, DEPTH_KEYS, deriveAggression, deriveJumping, deriveStamina, deriveStrength, deriveWorkRate, familiarityGainFactor, fatigueInjuryFactor, injuryRiskLevel, legs, mismatchFactor, staminaCostFactor, withDepth, workRateEdge } from '../depth'
 import { computeTeamStrength } from '../ratings'
 import { ENGINE_VERSION } from '../version'
@@ -174,7 +174,8 @@ describe('depth helpers', () => {
 
 describe('depth in the match engine', () => {
   const u = loadTestUniverse()
-  const all = Object.values(u.index)
+  // the standard seasons' players: the pins below predate the classic pack, which is opt-in
+  const all = Object.values(u.index).filter((p) => !isClassic(u, p))
   const elite = bestXIpool(all, 86, 99)
   const mid = bestXIpool(all, 72, 76)
   const low = withAttr(mid, { stamina: 35 })

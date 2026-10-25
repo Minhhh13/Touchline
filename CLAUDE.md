@@ -49,8 +49,9 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - `styles.css` one global stylesheet: design tokens on `:root` (Floodlit, dark) and `[data-theme='light']` (Daylight), then every shared component; `brand.ts` (`APP_NAME`, the mark's geometry, `BRAND_COLOURS` for canvas drawing) and `components/Logo.tsx`; `format.ts` display helpers (`tierName`, `conditionColour`, `fitRingColour`); `shareCard.ts` canvas PNGs (the result card and the match card).
   - The look is specified in `docs/DESIGN_SYSTEM.md`: use its tokens and components, no raw colours (the pitch's fixed whites and club kit colours excepted).
 - `src/main.tsx` React root; registers `public/sw.js` on production builds only.
-- `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`. Committed; they are also the test fixtures.
+- `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`, and `england/players-classic.json` (the classic seasons 1992-93 to 2007-08, same columns, loaded only when `leagues.json` gives the league a `classicFrom`). Committed; they are also the test fixtures.
 - `scripts/import/` offline data pipeline (`build.mjs`, `download.mjs`, `config.mjs` (`openfootballSeasons`, `openfootballPath`: England's results from 1992-93, `archive/1990s/` before 2000-01), `leagues.mjs` (`openfootball.from`, `openfootball.clubs` per season), club tables, `nations*.{mjs,json}`, `enrich-nations.mjs`, `historic/overrides.mjs`: cited points deductions, clubs placed last and void titles applied after `buildTable`).
+- `scripts/import/historic/` the classic seasons: `config.mjs` (seasons, the club articles, User-Agent, pauses), `cache.mjs` (the only network code: Special:Export, api.php pageprops, Wikidata Special:Export, cached under `$DATA_CACHE/historic`), `fetch.mjs` (network step, by hand), `parse-season.mjs` and `people.mjs` (wikitext and entity parsing, pure), `facts.mjs` (cache -> committed `facts-england.json`), `check.mjs` (facts checks, no network), `ratings.mjs` + `ratings-coef.json` (the estimated-rating model and its calibration), `attributes.mjs` + `templates.json`, `index.mjs` (`loadHistoric`, called by `build.mjs`), `validate-ratings.mjs` (held-out and feel checks, by hand).
 - `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences), `RESEARCH.md`, `HANDOVER.md`.
 - `.github/workflows/ci.yml` npm ci, typecheck, test, build on Node 22 for every push and PR.
 
@@ -68,6 +69,7 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
   - The cache directory is `DATA_CACHE` if set, otherwise `.cache/datasets` (gitignored) (`scripts/import/config.mjs`). `ensureDatasets()` (`download.mjs`) downloads only what is missing there: several large Kaggle archives (EA FC 24/25/26/27 ratings, the European Soccer Database sqlite), unpacked with `unzip`, plus openfootball results files. Needs `unzip` on PATH and Node >= 22.13 for `node:sqlite`.
   - Writes `public/data/**` with a new `generatedAt` stamp (today's date) and prints per-season counts, unknown nations and warnings.
   - Nationality enrichment (optional, network): after a build, `node scripts/import/enrich-nations.mjs` reads the built packs, queries Wikidata and writes `scripts/import/nations-override.json`; then rebuild so `build.mjs` applies it.
+  - Classic seasons (optional, network, slow: Wikimedia rate-limits hard): `node scripts/import/historic/fetch.mjs [--step seasons|players|wikidata]` fills `$DATA_CACHE/historic`; `node scripts/import/historic/facts.mjs` writes `scripts/import/historic/facts-england.json`; `node scripts/import/historic/check.mjs [--rerun]` checks it; then rebuild. `build.mjs` reads only the committed facts, never the network. `node scripts/import/historic/validate-ratings.mjs` runs the rating checks (needs the ESD cache and `$DATA_CACHE/historic/esd-wikidata.json`).
   - If the build runs out of memory, raise the heap with `NODE_OPTIONS=--max-old-space-size=4096`.
 
 Before every push: `npm run typecheck && npm test && npm run build`, plus the Playwright smokes for UI changes.
@@ -87,6 +89,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 11. **Playwright smokes stay green** for UI changes (see below). Prefer `data-testid` selectors.
 12. **The UI decides nothing.** Screens call store actions; logic lives in `src/game/logic` or `src/engine` where it can be tested.
 13. **Offline-first.** The game must work logged out and offline. Online features degrade to local-only when `VITE_SUPABASE_*` are missing.
+14. **Classic seasons are opt-in and last.** Classic club-seasons (`cs.classic`, 1992-93 to 2007-08) sit after every standard one in `u.clubSeasons` (`buildLeague`, `mergeUniverses`) and only enter a pool when the game opts in: `rulesPool` needs `DraftRules.classic`, every all-season pool (market, friendlies, youth, nation cover, search) goes through `poolClubSeasons(u, classic)` or `isClassic`, and season-scoped ones (Continental Cup, job offers, the dynasty's next season) take them only in a classic league season. The Daily filters them out. A new all-season consumer of `u.clubSeasons` or `u.index` must do the same, or every seed moves (`classicGate.test.ts` pins the Daily and 200 drafts).
 
 ## Conventions
 
@@ -163,7 +166,7 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 - `signYouth` hardcodes 23 instead of `SQUAD_CAP`; change both.
 - `finishSeason` parses `awards.goldenBoot.value` as `"<n> goals"`; changing award strings breaks achievements.
 - France, the Netherlands and Portugal have no tables (no record book, flat wheel weight).
-- England's `historicTables` run 1992-93 to 2007-08; the first three have 22 clubs and 42 games, so anything that assumes 20 clubs or 38 games per historic season is wrong. A table row's `points` is net of `deduction`; `u.voidTitles` lists seasons with no champion (none shipped today).
+- England's classic seasons (1992-93 to 2007-08) are in `meta.seasons` with `classic: true`, `ratingsSource: 'estimated'` and `appsSource` (share of club-seasons with a real appearances table); `historicTables` no longer holds them; the first three have 22 clubs and 42 games, so anything that assumes 20 clubs or 38 games per historic season is wrong. A table row's `points` is net of `deduction`; `u.voidTitles` lists seasons with no champion (none shipped today).
 - The data stamp is a date, so two rebuilds on one day share `generatedAt`: a challenge link made on the first reads as verified on the second even when the packs changed.
 - Some docs are stale (README: "Node 20 or later", the 69,118 player-season count (69,155 today) and the roadmap line listing Portugal and the Netherlands as future; DATA.md: the England-only intro and totals, and the note that `.cache` is not in `.gitignore`; RESEARCH section 7 lists youth intake, loans, staff and press conferences as not taken). Fix what you touch.
 

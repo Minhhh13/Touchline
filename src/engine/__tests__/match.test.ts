@@ -4,6 +4,7 @@ import { Rng } from '../rng'
 import { advanceMatch, beginMatch, currentScore, finishMatch, onPitch, simulateMatch, teamInputFromPool, type MatchInProgress, type MatchTeamInput } from '../match'
 import { tacticsForStyle } from '../tactics'
 import type { PlayerSeason } from '../types'
+import { isClassic } from '../universe'
 
 /** Best distinct players per position within an overall band, so every slot has a natural fit. */
 function bestXIpool(all: PlayerSeason[], minOverall: number, maxOverall: number): PlayerSeason[] {
@@ -26,7 +27,8 @@ function bestXIpool(all: PlayerSeason[], minOverall: number, maxOverall: number)
 
 describe('match engine', () => {
   const u = loadTestUniverse()
-  const all = Object.values(u.index)
+  // the standard seasons' players: the pins below predate the classic pack, which is opt-in
+  const all = Object.values(u.index).filter((p) => !isClassic(u, p))
   const elite = bestXIpool(all, 86, 99)
   const mid = bestXIpool(all, 72, 76)
   const weak = bestXIpool(all, 62, 66)

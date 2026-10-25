@@ -24,6 +24,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - A real player can be drafted once, whichever club or season you catch him in.
 - Eight formations, position eligibility (a wing-back covers full-back, a wide midfielder covers the wing), era filters, one-club mode, hard mode (ratings hidden), re-spins and shareable seeds.
 - **One-Nation Draft**: pick a nationality at setup and every pick, signing and academy prospect must share it. Only nations with twice the cover for every position in your shape are offered (71 of the 161 known nations in the data for a 4-3-3 across all seven leagues, 26 from England alone); the wheel never lands on a squad without an eligible player, approaches for anyone else are refused by the board, and a wheel that runs dry lets you start with the eleven you have. Win the league for the International achievement.
+- **Classic seasons (1992-93 to 2007-08)**: the Premier League's sixteen seasons before the EA data, with their real squads and real tables (8,903 player-seasons, from Wikipedia and Wikidata facts) and TouchLine's estimated ratings. Opt-in: the wheel only lands on them under the `classic` draft rule, so the Daily, challenge links and saves are untouched; the Setup control to choose them is still to come.
 - **Wheel twists**: every third spin of a quick draft or the Daily is a twist spin. Golden: the wheel only stops on champions. Basement: only the bottom three of their league that season. Blind: ratings hidden until you have picked. Decade: the wheel stays in the decade of your last pick. The wheel decides which, never offers a twist its pool cannot serve (leagues without tables get only blind and decade spins), and a toggle at setup turns twists on for a Season or off for a quick draft.
 - **Ghost drafts**: after any quick draft, "Challenge a friend" copies a link (`#c=...`, about 600 characters for eleven picks) that carries the seed, the shape, the league, the host club, the rules, every spin's pick and your result. Whoever opens it drafts the same wheel with your pick shown on every spin ("Last time here: K. De Bruyne"), plays the same season and gets a head-to-head summary with both XIs and a verdict line in the share text. The link is replayed pick by pick on arrival, so a claim is marked verified, could not be verified, or unverified when it was built on other data or another engine version; "Run it back" sets your own result as the ghost, and the Record page marks the best run on each wheel.
 - Seven leagues: the Premier League, La Liga, Serie A, the Bundesliga, Ligue 1, the Eredivisie and the Primeira Liga, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all seven.
@@ -93,7 +94,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 
 ## Getting started
 
-Requires Node 20 or later (Node 22.13 or later to rebuild the data).
+Requires Node 22.13 or later (`package.json` engines; CI uses Node 22).
 
 ```bash
 git clone https://github.com/Minhhh13/Touchline.git
@@ -106,7 +107,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand. To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand, plus 8,903 classic Premier League player-seasons of 1992-93 to 2007-08 in `public/data/england/players-classic.json` (1.2 MB). To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
 
 ```bash
 node scripts/import/build.mjs
@@ -168,7 +169,7 @@ docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.m
 
 ## Data and credits
 
-Ratings and squads are built from public datasets: Stefano Leone's EA Sports FC 24 complete player dataset (CC0), nyagami's FC 25 database (Apache 2.0), justdhia's FC 26 ratings (CC0), mikedpad's FC 27 ratings (unofficial non-commercial snapshot), Hugo Mathien's European Soccer Database (ODbL), openfootball/england results from 1992-93 (public domain), Wikidata (CC0), and points deductions checked against Wikipedia season articles. A player's rating for a season comes from the edition published after it, so it reflects how he actually played. Values and wages are our own model. Full detail, method and limits are in [docs/DATA.md](docs/DATA.md).
+Ratings and squads are built from public datasets: Stefano Leone's EA Sports FC 24 complete player dataset (CC0), nyagami's FC 25 database (Apache 2.0), justdhia's FC 26 ratings (CC0), mikedpad's FC 27 ratings (unofficial non-commercial snapshot), Hugo Mathien's European Soccer Database (ODbL), openfootball/england results from 1992-93 (public domain), Wikidata (CC0), and points deductions checked against Wikipedia season articles. The classic seasons' squads, appearances and goals are facts from English Wikipedia club-season and player articles (CC BY-SA 4.0, no text reproduced) and Wikidata. A player's rating for a season comes from the edition published after it, so it reflects how he actually played; classic-season ratings are TouchLine's estimates (docs/DATA.md section 8). Values and wages are our own model. Full detail, method and limits are in [docs/DATA.md](docs/DATA.md).
 
 Design documents:
 
@@ -179,7 +180,7 @@ Design documents:
 
 ## Roadmap
 
-- Seasons before 2008-09 (needs a ratings source for the 1990s and 2000s)
+- Classic seasons in Setup (the era control) with an "estimated ratings" label in Explore, the Draft and the share card; classic seasons for the other leagues
 - Online leaderboards for the daily challenge
 - A group stage for the Continental Cup
 - Youth intake and player development targets in Dynasty

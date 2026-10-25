@@ -29,11 +29,12 @@ function quickDraftSpins(u: LoadedUniverse, leagues: string[], seed: string): st
 
 describe('universe data', () => {
   const u = loadTestUniverse()
-  it('covers every season from 2008-09 with 20 clubs each', () => {
-    const seasons = [...new Set(u.clubSeasons.map((cs) => cs.season))].sort()
+  it('covers every standard season from 2008-09 with 20 clubs each', () => {
+    const standard = u.clubSeasons.filter((cs) => !cs.classic)
+    const seasons = [...new Set(standard.map((cs) => cs.season))].sort()
     expect(seasons[0]).toBe(2008)
     expect(seasons.length).toBeGreaterThanOrEqual(19)
-    for (const s of seasons) expect(u.clubSeasons.filter((cs) => cs.season === s).length).toBe(20)
+    for (const s of seasons) expect(standard.filter((cs) => cs.season === s).length).toBe(20)
   })
   it('has thousands of valid player-seasons', () => {
     const all = Object.values(u.index)
@@ -158,8 +159,10 @@ describe('Premier League tables 1992-93 to 2007-08', () => {
       expect(t.reduce((a, r) => a + r.won + r.drawn + r.lost, 0) / 2).toBe(clubs * (clubs - 1))
       expect(t.reduce((a, r) => a + r.goalsFor, 0)).toBe(t.reduce((a, r) => a + r.goalsAgainst, 0))
       expect(t.map((r) => r.position)).toEqual(Array.from({ length: clubs }, (_, i) => i + 1))
-      // no players for these seasons yet, so nothing on the wheel
-      expect(u.clubSeasons.some((cs) => cs.season === s)).toBe(false)
+      // these are classic seasons: on the wheel only for rules that opt in
+      const css = u.clubSeasons.filter((cs) => cs.season === s)
+      expect(css.length).toBe(clubs)
+      expect(css.every((cs) => cs.classic && cs.estimated)).toBe(true)
     }
   })
   it('resolves every one of the 40 clubs and gets the champions right', () => {

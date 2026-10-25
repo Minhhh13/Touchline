@@ -16,7 +16,7 @@ Compact array rows in the order given by `COLUMNS` in `build.mjs`:
 
 | Column | Meaning |
 | --- | --- |
-| `id` | Stable player id across seasons. `s<sofifa id>` when known, `e<European Soccer DB id>` for 2008-14 players without one, `n<hash>` as a last resort. |
+| `id` | Stable player id across seasons. `s<sofifa id>` when known, `e<European Soccer DB id>` for 2008-14 players without one, `w<Wikidata id>` for a classic-season player the EA data never met (section 8), `n<hash>` as a last resort. |
 | `season` | Season start year (2015 means 2015-16). |
 | `club` | Club id from the master list (`arsenal`, `leicester-city`, ...). |
 | `name` | Short display name, e.g. `J. Vardy`. |
@@ -34,13 +34,18 @@ Compact array rows in the order given by `COLUMNS` in `build.mjs`:
 
 The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with id `${id}@${season}@${club}`, so a player who moved mid-season appears once per club.
 
+### `public/data/england/players-classic.json` (1.16 MB)
+
+The classic seasons, 1992-93 to 2007-08 (section 8): the same `{ version, generatedAt, columns, rows }` and the same 29 columns as `players.json`, kept in its own file so `players.json` keeps its rows and order. The browser loads it only for a league whose `leagues.json` entry has `classicFrom` (England, 1992), and a failed fetch loads the standard seasons alone.
+
 ### `public/data/<league>/meta.json` (about 80 KB)
 
 - `league`: `{ id: "england", name: "English Top Flight", shortName: "England" }`.
 - `clubs`: the 51 clubs that appear in any squad or table, with name, short name, three-letter code, city, nickname, founding year, approximate kit colours, an AI playing style and a rivals list (from `scripts/import/clubs-england.mjs`, which holds 58 clubs; only the used ones are emitted). Oldham Athletic, Swindon Town and Barnsley were appended for the 1992-98 tables (club ids are permanent, so new clubs go at the end).
 - `nations`: code to `{ name, flag }` for the 117 codes present.
 - `seasons`: for each season with player data, the clubs in it, whether the real table is complete, and the table (position, played, won, drawn, lost, goals for and against, points). A row carries `deduction` when the league took points off the club (`pts` is already net of it); a season carries `titleVoid: true` when its title was stripped and not re-awarded (nobody is champion). Both are optional; `titleVoid` is absent from every season shipped today, and the deductions are the ones listed below.
-- `historicTables`: tables for seasons without player data (England 1992-93 to 2007-08). `historicTitleVoid` (optional, absent today) lists those whose title was void.
+- Classic seasons (England 1992-93 to 2007-08) are `seasons` entries after every standard one, with `classic: true`, `ratingsSource: 'estimated'` and `appsSource` (the share of the season's club-seasons whose appearances come from a validated table, 0.36 to 1). `ratingsSource` is `'ea'` when missing.
+- `historicTables`: tables for seasons with no player data at all (none in England now; the field stays for the other leagues' later classic phases). `historicTitleVoid` (optional, absent today) lists those whose title was void.
 - `sources`: the credit and licence lines shown in the How it works screen.
 
 ## 2. Coverage
@@ -53,7 +58,7 @@ The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with 
 | 2025-26 | 540 | FC 27 (borrowed) | FC 26 dataset |
 | 2026-27 | 612 | FC 27 (current edition, no later one yet) | FC 27 dataset, clubs filtered to the 2026-27 table |
 
-Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 51 clubs, 19 seasons (2008-09 to 2026-27)**, plus 16 complete Premier League tables without player data (1992-93 to 2007-08: 22 clubs and 462 matches until 1994-95, 20 and 380 since; 40 distinct clubs). The 2026-27 table is partial (five matches played per club at build time) and is flagged `complete: false`; the engine treats that season as "in progress" and awards no Champion accolade for it. Overall ratings range from 46 to 91.
+Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 51 clubs, 19 seasons (2008-09 to 2026-27)**, plus the classic seasons: **8,903 player-seasons, 2,582 players, 16 seasons (1992-93 to 2007-08)** with complete Premier League tables (22 clubs and 462 matches until 1994-95, 20 and 380 since; 40 distinct clubs) and estimated ratings (section 8). The 2026-27 table is partial (five matches played per club at build time) and is flagged `complete: false`; the engine treats that season as "in progress" and awards no Champion accolade for it. Overall ratings range from 46 to 91.
 
 ## 3. Sources
 
@@ -66,7 +71,8 @@ Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 51
 | European Soccer Database (Kaggle) | Hugo Mathien | ODbL | 2008-09 to 2013-14: Premier League line-ups with pitch coordinates, player attributes over time, birthdays and heights. |
 | openfootball/england (GitHub) | openfootball | CC0 / public domain | Results text files, 1992-93 to 2026-27 (`archive/1990s/<season>/` before 2000-01), parsed into league tables. |
 | English Wikipedia season articles | Wikipedia contributors | CC BY-SA 4.0 (facts only, no text reproduced) | Points deductions and stripped titles in `scripts/import/historic/overrides.mjs`, one cited article per entry. |
-| Wikidata | Wikimedia | CC0 | Nationalities for players the EA data never covered, via `scripts/import/enrich-nations.mjs` (see section 6). |
+| Wikidata | Wikimedia | CC0 | Nationalities for players the EA data never covered, via `scripts/import/enrich-nations.mjs` (see section 6). Classic seasons: the id of every player, birth date, height, positions, nationality, club and national-team spells with appearances, caps, sitelink count and FIFA id. |
+| English Wikipedia club-season and player articles | Wikipedia contributors | CC BY-SA 4.0 (facts only, no text reproduced) | Classic seasons: who was in each squad, league appearances (starts and substitute appearances), league goals and their dates, dated transfers, the infobox position and height. Only facts are kept, in `scripts/import/historic/facts-england.json`. |
 
 Download URLs and file names are in `scripts/import/config.mjs`. Kaggle datasets are fetched through the unauthenticated download redirect and unpacked with `unzip`.
 
@@ -155,7 +161,7 @@ The Vitest suite (`npm test`) loads the generated files and checks: every season
 
 ## 6. Known limits
 
-- No player data before 2008-09. 38-0 covers 1992-93 onwards; the Premier League tables go back to 1992-93, and squads with estimated ratings for 1992-93 to 2007-08 are in progress (`classic-seasons`).
+- Classic seasons (1992-93 to 2007-08) cover the Premier League only, and their ratings are estimates (section 8). Other leagues start in 2008-09.
 - 2008-14 positions are inferred from line-up coordinates and may list a player where he was fielded rather than where he was best.
 - Nationality is unknown for 228 players (505 rows), mostly 2008-14; the Wikidata enrichment has not yet been run into the committed override file.
 - The 2026-27 season uses the current edition's ratings (there is no later one), and its table is partial until the season ends.
@@ -183,3 +189,55 @@ The builder now produces one data pack per league under `public/data/<league>/` 
 | Primeira Liga (portugal) | 8,595 | 3,387 | 39 | 2008-09 to 2026-27 |
 
 69,155 player-seasons in all (the format 3 rebuild of 2026-10-25; Serie A and the Eredivisie gained a few rows from the cached dataset snapshots). The packs run from 1.09 MB (Eredivisie) to 1.46 MB (Premier League), about 13 per cent more than format 2 for the five integer columns. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results files exist for Ligue 1, the Eredivisie or the Primeira Liga, so those club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. A club with only 8 to 11 rows in an edition (Telstar in FC 26, for instance), or any club in that season's results table with fewer than 12 rows, is topped up with its own players from the adjacent season rather than dropped, so every shipped league season keeps its real entrants; the engine still handles odd counts with bye weeks. Only seasons the player data covers are built: a historic table on its own never becomes a playable season. Leagues without result tables mark their newest season as in progress and every earlier one as complete. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.
+
+## 8. Classic seasons (1992-93 to 2007-08): estimated ratings
+
+The Premier League's sixteen seasons before the EA data starts ship with real squads, real tables and **ratings TouchLine estimates**, because no openly licensed rating source exists for them. They are opt-in in the game (`docs/GAME_DESIGN.md`, section 5).
+
+### Pipeline: fetch once, commit facts, build offline
+
+```
+node scripts/import/historic/fetch.mjs     # network, by hand: fills $DATA_CACHE/historic (resumable)
+node scripts/import/historic/facts.mjs     # cache -> scripts/import/historic/facts-england.json (committed)
+node scripts/import/historic/check.mjs     # facts checks, no network (--rerun: rebuild from the cache, byte-identical)
+node scripts/import/build.mjs              # reads the committed facts; writes players-classic.json
+node scripts/import/historic/validate-ratings.mjs   # accuracy and feel checks, by hand
+```
+
+`fetch.mjs` reads the 326 club-season articles ("1992–93 Manchester United F.C. season", an A.F.C./F.C. variant tried when the first is not an article), every player they link (4,222 titles), and the Wikidata entity of every player (3,773) and of every club, national team, country and position in their claims (3,686). Wikipedia's api.php is rate-limited much harder than the rest of the site from a shared address, so page text comes through Special:Export (25 pages a request), Wikidata entities through Wikidata's Special:Export (40 a request), and the Wikidata id of a page from api.php pageprops when it answers, otherwise Wikidata's Special:ItemByTitle one title at a time. Requests are serial, 2 to 4 s apart per host with the User-Agent in `historic/config.mjs`, and a refused request is retried after 15 s growing to a minute. A cold run took about three hours on 2026-10-25; a warm one makes no request. The research prototype's 1,294 title-to-id pairs seeded the id step (`$DATA_CACHE/historic/seed-ids.json`). `build.mjs` and CI never touch the network: the committed facts file (about 3 MB, one club-season per line) is the input of record.
+
+### Squads and appearances (`facts.mjs`, `parse-season.mjs`)
+
+- **Validated appearances table** (231 of 326 club-seasons: 46 of 106 in 1992-93 to 1996-97, 41% of clubs in 1992-93, 75% in 1999-2000, 75-100% from 2000-01): a table in the article (`{{Efs player}}` rows, a wikitable, or `{{football season player stats}}`) whose league columns pass both checks: appearances add up to 10.8x to (11 + substitutes allowed)x the games, nobody above the games played, and goals within 5 of the club's goals for (own goals are nobody's). Cells read as "30 (2)" are 30 starts and 2 off the bench, or 32 appearances of which 2 off the bench when the table counts them so; a column further right costs as much as a goal off the target, so league columns win over cup ones. A table with appearances but no goals column counts when the article's league results lines give every goal.
+- **Otherwise the squad list** (`{{Fs player}}`, or a hand-made squad table with a position on most rows), gated by a Wikidata P54 club spell that overlaps the season (or an infobox spell), with the league scorers the list misses. Appearances come from the spell's league appearances per season, cut for players who left or arrived (a dated transfer row, the first or last goal at either club, or the year a spell ends), then scaled so the club total is 12x the games; starts are scaled to 11x the games. Goals come from the results lines when they add up, else the spell's scoring rate scaled to the club's goals.
+- Every shipped row has a Wikidata id and a birth date; a birth date that gives an age outside 15-42 means the link found a namesake and the row is dropped (one: Oliver Bernard 2004-05). A club-season holds at most 30 men (lowest share out first) and two keepers: a club whose first choice played every game gets its listed reserve, and seven club-seasons with no listed reserve borrow the club's keeper of the season before (Leeds United 1994-95, 1997-98, 1999-2000, 2001-02 and 2002-03, Liverpool 2000-01, Middlesbrough 2002-03). Squads run from 20 to 30.
+- Positions: the infobox position and the article's "played as a ..." phrase, then Wikidata P413, then a heuristic that makes the shortest generic defenders full-backs and midfielders wingers until a squad has its share; sides follow the ESD foot where known. Nationality: the contemporary code on the squad template (91.6% of rows), then Wikidata P1532 and P27; 13 rows are `UNK`.
+
+### Ids
+
+A classic player keeps the id he has in the standard packs when one can be proved: the European Soccer Database player with the same birth date and a shared name token gives `s<FIFA id>` (or `e<ESD id>`), a Wikidata FIFA id (P1469) found in the sofifa index gives `s<id>`; anyone else is `w<Wikidata id>`. A tie between two ESD candidates is never guessed (one case). Today: 724 players on `s` ids (2,645 rows), 1,858 on `w` ids, so Explore careers join up across 2007-08 and 2008-09 for everyone the ESD rated.
+
+### Ratings (`ratings.mjs`, `ratings-coef.json`)
+
+```
+ovr = c0 + c1 share + c2 share^2 + c3 ln(min(startRank, 30)) + c4 GD/g + c5 rankFrac + c6 share x PPG
+      + c7 G/g + c8 (age - 27) + c9 (age - 27)^2 + c10 ln(1 + sitelinks) + c11 notMatched + c12 ln(1 + caps) + c13 international that season
+```
+
+fitted per position group (GK, DEF, MID, FWD) with ridge regression on the ESD's England 2008-09 to 2013-14 EA ratings. Held out (fitted on 2008-12, rated 2012-14): MAE 2.40, Spearman 0.780, within-team Spearman 0.684. A player with a later EA rating within six seasons (the ESD snapshots run from February 2007, so 2000-01 onwards; 2,131 rows) uses the PWB variant, which adds that rating projected back season by season with the ESD-fitted age curve `x(age - 1) = x + a(age) + b(age)(x - 65)`.
+
+Then, per season (`CALIBRATION`):
+
+- **Star adjustment.** With the team terms (c4-c6) at full weight the prototype gave 9 of 1992-93's top 15 to Manchester United and rated Beckham 90 in 1999-2000. A club's three best men by the model keep the team terms; below them the terms fade out over 2 rating points, so a champion's regulars stop outranking everyone else's stars; at a weak club the negative team terms spare its three best and weigh on the rest. The order inside a club never changes. (A capped prominence term from caps and sitelinks is implemented but off: it pushed champions above 89.)
+- **Spread.** Model-only rows are stretched 1.2 around their season and position group's mean and moved 0.3 down; rows rated through a later EA rating 0.95 (they already have EA's spread).
+
+Results (`validate-ratings.mjs`, 2026-10-25): in every classic season no club holds more than 6 of the top 15 (at most 6, from 9 before the adjustment), the champion's three best average 85.3 to 89.0, the bottom club's best is 74 to 78, and no attribute is above 94 under an 85 overall. The 1999-2000 ratings against the same men's first ESD rating projected back seven seasons: n 101, MAE 3.10, bias +1.35, Spearman 0.76. The star adjustment is deliberately unlike EA: applied to the held-out 2012-14 rows it costs accuracy (MAE 2.69, Spearman 0.73), because EA does rate a modern champion's regulars highly; in the classic inputs the same lift is an artefact of retrospective fame (sitelinks) and full seasons for a champion's regulars.
+
+Known biases: the 1990s absolute level is a convention anchored on the 2008-13 EA scale; midfielders' order inside a club is the weakest part of the model; 60 of the 106 club-seasons of 1992-93 to 1996-97 have estimated appearances; feet are mostly guessed before 2007 (2,448 of 8,903 rows have an ESD foot; the rest draw from the 2014+ left-foot share by position); a player who moved mid-season appears for both clubs.
+
+Attributes: a player with a later ESD profile keeps its shape shifted by the overall gap; anyone else gets the per-position templates (`templates.json`, fitted on the 2008-13 rows) plus deterministic noise from his id; every attribute is clamped to the 2008-13 England range for his primary position and to 94 under an 85 overall. Traits, value and wage use the standard packs' formulas, so a classic Beckham costs what a modern player of his rating does.
+
+Determinism: two builds on the same cache give byte-identical `players-classic.json` and `meta.json` (checked 2026-10-25), and `check.mjs --rerun` rebuilds the committed facts byte for byte.
+
+Not used: the Kaggle "Premier League Player Statistics 1992/93-2022/23" set (labelled CC0, upstream unstated; the owner chose to keep it off), football-data.co.uk (its terms exclude this use), Transfermarkt, sofifa or fifaindex scrapes, engsoccerdata and StatsBomb (validation only, not shipped).
+
