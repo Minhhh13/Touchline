@@ -6,6 +6,7 @@ import type { PlayStyle, Tactics } from './types'
 import { DEFAULT_ROLE, getRole } from './roles'
 import type { SlotEvaluation } from './ratings'
 import { getFormation } from './formations'
+import { workRateEdge } from './depth'
 
 export interface TacticalModifiers {
   /** Multiplier on own expected goals. */
@@ -87,15 +88,24 @@ export function tacticalModifiers(ours: Tactics, ourSlots: SlotEvaluation[], the
     notes.push('Defensive mentality: fewer chances both ways')
   }
 
-  // Pressing
-  const ourStamina = avg(ourSlots.filter((s) => s.position !== 'GK').map((s) => s.player.attributes.physical))
+  // Pressing: how hard the outfield players run (work rate), how much they want the ball
+  // (aggression) and how long their legs last (stamina) decide how well a press works
+  const outfield = ourSlots.filter((s) => s.position !== 'GK')
+  const ourStamina = avg(outfield.map((s) => s.player.attributes.stamina))
+  const ourAggression = avg(outfield.map((s) => s.player.attributes.aggression))
+  const wr = workRateEdge(avg(outfield.map((s) => s.player.attributes.workRate)))
   const theirComposure = avg(theirSlots.filter((s) => s.position !== 'GK').map((s) => s.player.attributes.mentality))
   if (ours.pressing === 'high') {
     const edge = clamp((78 - theirComposure) / 100, -0.06, 0.08)
-    attack *= 1.05 + edge
-    defence *= 1.03 - edge * 0.5
-    fatigue += ourStamina >= 78 ? 4 : 7
+    // Aggression adds up to ±1.5 points of bite; work rate ±2.5 (attack) and ∓1.25 (defence)
+    const bite = clamp((ourAggression - 60) / 1000, -0.015, 0.015)
+    attack *= 1.05 + edge + bite + 0.1 * wr
+    defence *= 1.03 - edge * 0.5 - 0.05 * wr
+    // Fatigue: 7 points a match for a side whose stamina averages 60 or less, 4 at 80 or more
+    fatigue += 7 - 3 * clamp((ourStamina - 60) / 20, 0, 1)
     notes.push(edge > 0.02 ? 'High press is rattling a nervy opponent' : edge < -0.02 ? 'High press is being played through by a composed side' : 'High press: more turnovers, more space behind')
+    if (wr > 0.12) notes.push('A hard-working side makes the press stick')
+    else if (wr < -0.08) notes.push('Low work rate: the press is half-hearted')
   } else if (ours.pressing === 'low') {
     attack *= 0.96
     defence *= 0.95
@@ -103,11 +113,12 @@ export function tacticalModifiers(ours: Tactics, ourSlots: SlotEvaluation[], the
     notes.push('Low block: compact and patient')
   }
 
-  // Tempo
+  // Tempo: quick counters need runners, so work rate moves the fast tempo's edge by up to ±2 points
   if (ours.tempo === 'fast') {
-    attack *= 1.04
+    attack *= 1.04 + 0.08 * wr
     defence *= 1.03
     fatigue += 2
+    if (wr < -0.08) notes.push('Low work rate: the counters run out of runners')
   } else if (ours.tempo === 'slow') {
     attack *= 0.97
     defence *= 0.96

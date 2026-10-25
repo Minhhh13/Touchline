@@ -99,12 +99,20 @@ describe('match engine', () => {
     }
   })
 
-  // Pinned on the two-half engine before the 70th-minute window was built: 2,000 seeded
-  // matches over the same rotation of sides and styles (seed 'window-baseline').
-  const BASELINE = { goals: 3.982, cards: 2.449, injuries: 0.3745 }
+  // Pinned over 2,000 seeded matches on the same rotation of sides and styles (seed
+  // 'window-baseline'). History: the two-half engine measured 3.982 goals, 2.449 cards and
+  // 0.3745 injuries a match; the three-segment engine 4.027, 2.446 and 0.3755 (within 3%).
+  // The depth engine (ENGINE_VERSION 4) re-pins at 4.122, 2.812 and 0.3935: cards rose by
+  // 15% because every card scales by 0.7 + 0.6 × aggression / 100 and outfield aggression
+  // averages about 68 (a factor near 1.11, applied to the second yellow and the straight
+  // red too); goals rose 2.4% on the three-segment figure, about half a per cent of it
+  // from the aerial set-piece term and the rest a different random stream (1.5σ at this
+  // sample size); injuries use the same formula when no live state is passed, so their
+  // 4.8% is stream noise (1.3σ). A later change that moves any of these by 3% is noticed.
+  const BASELINE = { goals: 4.122, cards: 2.812, injuries: 0.3935 }
   const TOLERANCE = 0.03
 
-  it('keeps goal, card and injury means within 3% of the two-half engine over 2,000 seeded matches', () => {
+  it('keeps goal, card and injury means within 3% of the depth engine\'s pinned values over 2,000 seeded matches', () => {
     const pools = [elite, mid, weak]
     const styles = ['balanced', 'press', 'counter', 'defensive'] as const
     const rng = new Rng('window-baseline')

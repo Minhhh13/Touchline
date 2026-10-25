@@ -19,7 +19,8 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos } from '../components/bits'
-import { clubName, clubShort, conditionColour, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
+import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
+import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
 import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { StatsTab } from './StatsTab'
@@ -33,6 +34,7 @@ export function Dugout() {
   const [tab, setTab] = useState<Tab>('squad')
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [playerModal, setPlayerModal] = useState<string | null>(null)
+  const [showStamina, setShowStamina] = useState<boolean>(() => readSquadColumn())
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
@@ -217,6 +219,9 @@ export function Dugout() {
               <h3>Squad · {squad.length}/{SQUAD_CAP}</h3>
               <div className="row">
                 <span className="small muted">{selectedSlot ? `Pick a player for ${formation.slots.find((s) => s.id === selectedSlot)?.position}` : 'Click a slot, then a player. Click a player for details.'}</span>
+                <button type="button" className={`btn sm ${showStamina ? '' : 'ghost'}`} aria-pressed={showStamina} data-testid="toggle-stamina" title="Show each player's stamina in the list" onClick={() => setShowStamina((v) => writeSquadColumn(!v))}>
+                  {SQUAD_COLUMNS[0].label}
+                </button>
                 <button className="btn sm" onClick={() => store.autoPick()}>
                   Auto-pick
                 </button>
@@ -238,6 +243,11 @@ export function Dugout() {
                     extra={
                       <>
                         {game.captainId === p.id && <span className="chip gold">©</span>}
+                        {showStamina && (
+                          <span className={`chip ${p.attributes.stamina >= 75 ? 'good' : p.attributes.stamina < 55 ? 'warn' : ''}`} data-testid="stamina-col" title={`Stamina ${p.attributes.stamina}: how long his legs last`}>
+                            {SQUAD_COLUMNS[0].short} {p.attributes.stamina}
+                          </span>
+                        )}
                         <span className="muted">
                           {s.seasonStats.apps} apps · {s.seasonStats.goals}g {s.seasonStats.assists}a · {avg}
                         </span>
@@ -1078,7 +1088,6 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
   const s = game.squad[id]
   if (!p) return null
   const formation = getFormation(game.tactics.formationId)
-  const attrs = p.attributes
   return (
     <Modal open onClose={onClose} title={p.name}>
       <div className="row wrap" style={{ marginBottom: 10 }}>
@@ -1101,29 +1110,10 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
           </span>
         )}
       </div>
-      <div className="grid two">
-        <div className="col" style={{ gap: 6 }}>
-          {(['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical', 'mentality', 'goalkeeping'] as const).map((k) => (
-            <div key={k} className="row" style={{ gap: 8 }}>
-              <span style={{ width: 90, textTransform: 'capitalize' }} className="small">
-                {k}
-              </span>
-              <Bar value={attrs[k]} colour={attrs[k] >= 80 ? 'var(--accent)' : attrs[k] >= 65 ? 'var(--gold)' : 'var(--text-3)'} />
-              <span className="mono small" style={{ width: 24, textAlign: 'right' }}>
-                {attrs[k]}
-              </span>
-            </div>
-          ))}
-        </div>
+      <AttributePanel p={p} state={s} />
+      <div className="grid two" style={{ marginTop: 12 }}>
         {s && (
           <div className="col" style={{ gap: 6 }}>
-            <div className="row" style={{ gap: 8 }}>
-              <span style={{ width: 90 }} className="small">
-                Condition
-              </span>
-              <Bar value={s.condition} colour={conditionColour(s.condition)} />
-              <span className="mono small">{s.condition}</span>
-            </div>
             <div className="row" style={{ gap: 8 }}>
               <span style={{ width: 90 }} className="small">
                 Morale
@@ -1220,4 +1210,22 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
       )}
     </Modal>
   )
+}
+
+/** Per-browser convenience: whether the squad list shows the stamina column. */
+const SQUAD_COLUMN_KEY = 'touchline.squad.stamina'
+function readSquadColumn(): boolean {
+  try {
+    return localStorage.getItem(SQUAD_COLUMN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+function writeSquadColumn(on: boolean): boolean {
+  try {
+    localStorage.setItem(SQUAD_COLUMN_KEY, on ? '1' : '0')
+  } catch {
+    // Private windows and blocked storage: the toggle still works for this visit
+  }
+  return on
 }
