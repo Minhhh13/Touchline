@@ -60,6 +60,7 @@ export function countsAsLeagueSeason(mode: Mode): boolean {
     case 'daily':
     case 'season':
     case 'dynasty':
+    case 'weekly':
       return true
     case 'arena':
       return false
@@ -101,9 +102,10 @@ function addOnce(list: string[], id: string | undefined): string[] {
 
 /**
  * Credit one finished game. Called once per result (the leaderboard's id
- * dedupe), `newDaily` when the result filed a daily day for the first time.
+ * dedupe), `newDaily` when the result filed a daily day for the first time,
+ * `newWeekly` a Weekly Challenge week.
  */
-export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: boolean } = {}): Cabinet {
+export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: boolean; newWeekly?: boolean } = {}): Cabinet {
   const rec = finishedRecord(game)
   if (!rec) return cabinet
   const mode = game.settings.mode
@@ -112,6 +114,7 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
   c.recent = [...(c.recent ?? []).filter((id) => id !== resultId(game)), resultId(game)].slice(-RECENT_RESULTS)
   c.byMode[mode] = (c.byMode[mode] ?? 0) + 1
   if (opts.newDaily) c.dailies += 1
+  if (opts.newWeekly) c.weeklies += 1
   if (!countsAsLeagueSeason(mode)) return c
   const title = isTitle(rec.position, rec.tier)
   const cup = !!last?.cupWon
@@ -134,14 +137,16 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
 /**
  * Credit one finished arena run, on the arena's own shelves: cups by size,
  * Gauntlet runs, best climb and completions, and a giant killed for every win on Realistic over a side whose real team
- * strength is 85 or more. Never a league title or a season cup.
+ * strength is 85 or more, and a Daily Arena day (`newArenaDaily`) the first time a day's run is filed. Never a league
+ * title or a season cup.
  */
-export function creditArena(cabinet: Cabinet, game: Game): Cabinet {
+export function creditArena(cabinet: Cabinet, game: Game, opts: { newArenaDaily?: boolean } = {}): Cabinet {
   const a = game.arena
   if (!a?.over) return cabinet
   const c = normaliseCabinet(cabinet)
   c.recent = [...(c.recent ?? []).filter((id) => id !== resultId(game)), resultId(game)].slice(-RECENT_RESULTS)
   c.byMode.arena = (c.byMode.arena ?? 0) + 1
+  if (opts.newArenaDaily) c.arenaDailies += 1
   if (a.format === 'cup') {
     c.cups.runs += 1
     if (a.won) {
@@ -257,6 +262,7 @@ export function boardGroup(mode: Mode): Exclude<BoardFilter, 'all' | 'budget'> |
   switch (mode) {
     case 'quick':
     case 'daily':
+    case 'weekly':
       return 'quick'
     case 'season':
       return 'season'

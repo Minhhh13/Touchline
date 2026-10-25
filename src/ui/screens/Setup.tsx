@@ -3,12 +3,13 @@ import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings } from '@game/types'
 import { dailyGameSettings, dailySettings, defaultHostClub, shortNameFor, summariseSetup } from '@game/logic/setup'
 import { MODE_TITLE } from '@game/logic/modes'
+import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
 import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel, type EraRange } from '@engine/nations'
-import { randomSeed } from '@engine/rng'
+import { randomSeed, weeklySeed } from '@engine/rng'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
@@ -96,6 +97,13 @@ export function Setup() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [u])
+  // The week's challenge plays in the week's league (all seven on a European Nights week): load them on arrival
+  useEffect(() => {
+    if (u && mode === 'weekly') {
+      const plan = weeklyPlan(u, weeklySeed())
+      void ensureLeagues([plan.leagueId, ...plan.wheelLeagues])
+    }
+  }, [u, mode, ensureLeagues])
 
   const seasons = useMemo(() => (u ? [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
@@ -144,11 +152,15 @@ export function Setup() {
 
   // The daily puzzle and a challenge link fix everything but the team name and the picks: formation, league, host club,
   // season, difficulty and (for a challenge) the wheel rules and the seed are not the player's to choose.
-  const fixed = ((): { kind: 'daily' | 'challenge'; season: number; host: string; formationId: string; leagueId: string; wheelLeagues: string[]; difficulty: 'calibrated' | 'realistic'; rules: DraftRules | null; seed: string } | null => {
+  const weekPlan = mode === 'weekly' ? weeklyPlan(u, weeklySeed()) : null
+  const week = weekPlan ? weeklySettings(u, weekPlan.seed) : null
+  const fixed = ((): { kind: 'daily' | 'challenge' | 'weekly'; season: number; host: string; formationId: string; leagueId: string; wheelLeagues: string[]; difficulty: 'calibrated' | 'realistic'; rules: DraftRules | null; seed: string } | null => {
     if (pendingChallenge) {
       const c = pendingChallenge.payload
       return { kind: 'challenge', season: c.s.ls, host: c.s.h, formationId: c.s.f, leagueId: c.s.l, wheelLeagues: c.s.wl, difficulty: c.s.d, rules: rulesFromPayload(c), seed: c.s.seed }
     }
+    // The week's challenge is fixed before its packs load; it starts once they are in
+    if (weekPlan) return { kind: 'weekly', season: week?.season ?? 0, host: week?.host ?? '', formationId: weekPlan.formationId, leagueId: weekPlan.leagueId, wheelLeagues: weekPlan.wheelLeagues, difficulty: week?.difficulty ?? 'calibrated', rules: null, seed: weekPlan.seed }
     if (!isDaily) return null
     const d = dailySettings(u, todaysDailySeed())
     return { kind: 'daily', season: d.season, host: d.host, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty, rules: null, seed: d.seed }
@@ -160,6 +172,8 @@ export function Setup() {
   const buildSettings = (preview: boolean): GameSettings => {
     const name = teamName.trim() || 'Touchline XI'
     if (fixed?.kind === 'daily') return dailyGameSettings(u, fixed.seed, name)
+    const weekly = fixed?.kind === 'weekly' ? weeklyGameSettings(u, fixed.seed, name) : null
+    if (weekly) return weekly
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
@@ -184,7 +198,7 @@ export function Setup() {
   }
   const start = () => startGame(buildSettings(false))
   const summary = summariseSetup(u, buildSettings(true))
-  const ready = fixed ? fixedReady : leagueReady
+  const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady
 
   return (
     <div className="page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
@@ -205,6 +219,11 @@ export function Setup() {
             {fixed?.kind === 'daily' && (
               <div className="notice" data-testid="daily-notice">
                 Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {fixed.seed}.
+              </div>
+            )}
+            {fixed?.kind === 'weekly' && weekPlan && (
+              <div className="notice" data-testid="weekly-notice">
+                This week's challenge, {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{weekPlan.formationId}</b> from the same wheel{week ? <>, as <b>{u.clubById[week.host]?.name ?? week.host}</b> in the <b>{u.available.find((l) => l.id === week.leagueId)?.name}</b> {seasonLabel(week.season)}, {week.difficulty} difficulty</> : ' (loading the league…)'}. It ends on Sunday (UTC).
               </div>
             )}
             {fixed?.kind === 'challenge' && challenge && (

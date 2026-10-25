@@ -5,7 +5,7 @@ import { TIER_LABEL } from '@engine/season'
 import { badgeStates, topBadges } from '@engine/badges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { LeaderboardEntry } from '@game/types'
-import { MODE_TITLE, arenaFormatLabel } from '@game/logic/modes'
+import { MODE_TITLE, arenaFormatLabel, isQuickLike } from '@game/logic/modes'
 import { arenaClubName } from '@game/logic/arena'
 import { arenaTierLabel } from '@engine/knockout'
 import { capTotal } from '@game/logic/cap'
@@ -43,7 +43,7 @@ export function ProfileScreen() {
   // Quick and Daily runs on the same wheel (seed) sit together: the table is already best-first, so a seed's first row
   // is its best. Season and Dynasty entries share one seed across their years, which is not the same wheel twice.
   const runsBySeed = new Map<string, LeaderboardEntry[]>()
-  for (const e of profile.leaderboard) if (e.mode === 'quick' || e.mode === 'daily') runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
+  for (const e of profile.leaderboard) if (isQuickLike(e.mode)) runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
   const fileRef = useRef<HTMLInputElement>(null)
   // Trophy Room: leagues won in come from the titled hosts' leagues, the loaded clubs first, then the packs' club lists
   const cabinet = normaliseCabinet(profile.cabinet ?? {})

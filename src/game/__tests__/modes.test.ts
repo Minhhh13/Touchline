@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { QUICK_RULES } from '@engine/draft'
-import { arenaFormatLabel, finishDraftLabel, isQuickLike, MODE_TITLE, modeLabel, shareCardFooter, yearLabel, type LabelledGame, type ModeLabelStyle } from '../logic/modes'
+import { arenaFormatLabel, finishDraftLabel, isQuickLike, isSharedPuzzle, MODE_TITLE, modeLabel, shareCardFooter, yearLabel, type LabelledGame, type ModeLabelStyle } from '../logic/modes'
 import { createGame } from '../logic/setup'
 import type { Mode } from '../types'
 
@@ -13,7 +13,7 @@ function game(mode: Mode, year = 1, seed = 'K7Q2-MX9A'): LabelledGame {
 
 describe('mode labels', () => {
   it('gives every mode a title, a label in every style and a finish button', () => {
-    expect(MODES).toEqual(['quick', 'daily', 'season', 'dynasty', 'arena'])
+    expect(MODES).toEqual(['quick', 'daily', 'season', 'dynasty', 'arena', 'weekly'])
     for (const mode of MODES) {
       expect(MODE_TITLE[mode].length, mode).toBeGreaterThan(0)
       for (const style of STYLES) expect(modeLabel(game(mode, 2), style).length, `${mode} ${style}`).toBeGreaterThan(0)
@@ -23,7 +23,7 @@ describe('mode labels', () => {
   })
 
   it('keeps the four existing modes worded byte for byte as the screens had them', () => {
-    expect(MODE_TITLE).toEqual({ quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena' })
+    expect(MODE_TITLE).toEqual({ quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly Challenge' })
     const daily = game('daily', 1, 'daily-2026-10-25')
     const dynasty = game('dynasty', 2)
     // Home's active and parked rows
@@ -58,8 +58,19 @@ describe('mode labels', () => {
     expect(yearLabel(final)).toBeNull()
   })
 
-  it('treats quick and daily as quick-like and the managed modes as not', () => {
-    expect(MODES.filter(isQuickLike)).toEqual(['quick', 'daily'])
+  it('treats quick, daily and weekly as quick-like and the managed modes as not', () => {
+    expect(MODES.filter(isQuickLike)).toEqual(['quick', 'daily', 'weekly'])
+    expect(MODES.filter(isSharedPuzzle)).toEqual(['daily', 'weekly'])
+  })
+
+  it('names the Weekly by its week and theme, and the Daily Arena by its day', () => {
+    const weekly: LabelledGame = { year: 1, settings: { mode: 'weekly', seed: 'weekly-2026-W44', weekly: { theme: 'teammate-chain' } } }
+    expect(STYLES.map((st) => modeLabel(weekly, st))).toEqual(['Weekly · Teammate chain', 'Weekly 2026-W44 · Teammate chain', 'Weekly 2026-W44 · Teammate chain'])
+    expect(shareCardFooter(weekly)).toBe('Weekly challenge 2026-W44')
+    expect(finishDraftLabel(weekly)).toBe('Simulate the season')
+    const arena: LabelledGame = { year: 1, settings: { mode: 'arena', seed: 'arena-2026-10-25', arena: { format: 'cup', size: 16, field: 'wheel', daily: true } } }
+    expect(STYLES.map((st) => modeLabel(arena, st))).toEqual(['Daily Arena · The Cup · 16 clubs', 'Daily Arena · The Cup · 16 clubs', 'Daily Arena 2026-10-25 · The Cup · 16 clubs'])
+    expect(shareCardFooter(arena)).toBe('Daily Arena 2026-10-25')
   })
 
   it('reads a real game', () => {

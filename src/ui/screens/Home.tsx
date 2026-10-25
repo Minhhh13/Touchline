@@ -2,11 +2,16 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { modeLabel } from '@game/logic/modes'
 import { arenaStatus } from '@game/logic/arena'
+import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
+import { weeklyPlan, weeklySettings } from '@game/logic/weekly'
+import { weeklyThemeName } from '@game/logic/weeklyThemes'
+import { TIER_LABEL } from '@engine/season'
+import { arenaDailySeed, weeklySeed } from '@engine/rng'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 
 export function Home() {
-  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues, openArenaSetup } = useStore()
+  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues, openArenaSetup, startWeekly, loadingLeagues } = useStore()
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const players = u ? u.available.reduce((s, l) => s + l.players, 0) : 0
   const clubCount = u ? u.available.reduce((s, l) => s + l.clubs, 0) : 0
@@ -26,6 +31,36 @@ export function Home() {
     if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
     startGame(dailyGameSettings(u, todaysDailySeed()))
   }
+  // The Daily Arena: today's run continues wherever it is (active or parked); any other unfinished arena run is only dropped on a yes
+  const arenaSeed = arenaDailySeed()
+  const arenaToday = dailyArenaSettings(arenaSeed)
+  const arenaDone = profile.arenaDaily?.results[arenaSeed]
+  const isTodaysArena = (g: typeof game) => !!g && !!g.settings.arena?.daily && g.settings.seed === arenaSeed && g.phase !== 'summary'
+  const arenaUnderWay = isTodaysArena(game) ? 'active' : isTodaysArena(parked.arena) ? 'parked' : null
+  const playArenaDaily = () => {
+    if (!u || !dailyReady) return
+    if (arenaUnderWay === 'active') return go('game')
+    if (arenaUnderWay === 'parked') return resumeGame('arena')
+    const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
+    if (open && !confirm(`Start today's arena? Your current ${modeLabel(open, 'short')} run (${open.settings.teamName}) will be abandoned.`)) return
+    startGame(dailyArenaGameSettings(u, arenaSeed))
+  }
+  // The Weekly Challenge: the week's packs load when it starts; the card names the season once its league is in
+  const weekSeed = weeklySeed()
+  const weekPlan = u ? weeklyPlan(u, weekSeed) : null
+  const week = u && weekPlan && loadedLeagues.includes(weekPlan.leagueId) ? weeklySettings(u, weekSeed) : null
+  const weekDone = profile.weekly?.results[weekSeed]
+  const isThisWeek = (g: typeof game) => !!g && g.settings.mode === 'weekly' && g.settings.seed === weekSeed && g.phase !== 'summary'
+  const weekUnderWay = isThisWeek(game) ? 'active' : isThisWeek(parked.quick) ? 'parked' : null
+  const playWeekly = () => {
+    if (!u) return
+    if (weekUnderWay === 'active') return go('game')
+    if (weekUnderWay === 'parked') return resumeGame('quick')
+    const open = [game, parked.quick].find((g) => g && slotOf(g) === 'quick' && g.phase !== 'summary')
+    if (open && !confirm(`Start this week's challenge? Your current ${modeLabel(open, 'short')} (${open.settings.teamName}) will be abandoned.`)) return
+    void startWeekly(weekSeed)
+  }
+  const leagueName = (id: string) => u?.available.find((l) => l.id === id)?.name ?? id
   return (
     <div className="page">
       <section className="hero">
@@ -81,13 +116,11 @@ export function Home() {
           </div>
         </div>
       ))}
-      <div className="modes">
-        <button className="mode-card" onClick={() => go('setup', 'quick')}>
-          <span className="icon">🎡</span>
-          <h3>Quick Draft</h3>
-          <p>The 38-0 classic. Spin for a club and season, draft one player, repeat eleven times, simulate the season instantly.</p>
-          <span className="foot">5 minutes · shareable result</span>
-        </button>
+      <div className="row between wrap" style={{ marginBottom: 8 }}>
+        <h2>Today and this week</h2>
+        <span className="small muted">The same puzzles for everyone, with streaks. Days and weeks run on UTC.</span>
+      </div>
+      <div className="modes three" data-testid="today-row" style={{ marginBottom: 18 }}>
         <div className="mode-card daily" data-testid="daily-card">
           <button type="button" className="mode-card-body" onClick={() => go('setup', 'daily')} title="Open the full setup to name your team">
             <span className="icon">📅</span>
@@ -107,6 +140,46 @@ export function Home() {
             {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
           </button>
         </div>
+        <div className="mode-card daily" data-testid="arena-daily-card">
+          <button type="button" className="mode-card-body" onClick={playArenaDaily} title="Play today's arena">
+            <span className="icon">🏟️</span>
+            <h3>Daily Arena</h3>
+            <p>
+              Everyone climbs the same ladder or faces the same draw today. Today: <b>{u ? dailyArenaLine(u, arenaToday) : arenaToday.format}</b>, a <b>{arenaToday.formationId}</b>.
+            </p>
+            <span className="foot" data-testid="arena-daily-foot">{arenaDone ? `Played: ${arenaDone.label} · streak ${profile.arenaDaily?.streak ?? 1}` : profile.arenaDaily?.streak ? `Streak ${profile.arenaDaily.streak}` : 'The Gauntlet and the Cup in turn'}</span>
+          </button>
+          <button type="button" className="btn primary block" disabled={!dailyReady} onClick={playArenaDaily} data-testid="arena-daily-play">
+            {!dailyReady ? 'Loading…' : arenaUnderWay ? "Continue today's arena" : arenaDone ? 'Play it again' : "Play today's arena"}
+          </button>
+        </div>
+        <div className="mode-card daily" data-testid="weekly-card">
+          <button type="button" className="mode-card-body" onClick={() => go('setup', 'weekly')} title="Open the setup to name your team">
+            <span className="icon">🗓️</span>
+            <h3>Weekly Challenge</h3>
+            <p>
+              One themed wheel a week, for everyone.{' '}
+              {weekPlan && (
+                <>
+                  <b style={{ whiteSpace: 'nowrap' }}>{weekPlan.week}</b> · <b>{weeklyThemeName(weekPlan.theme)}</b> in {leagueName(weekPlan.leagueId)}
+                  {week ? ` ${seasonLabel(week.season)}` : ''} · ends Sunday
+                </>
+              )}
+            </p>
+            <span className="foot" data-testid="weekly-foot">{weekDone ? `Played: ${weekDone.points} pts, ${TIER_LABEL[weekDone.tier]} · streak ${profile.weekly?.streak ?? 1}` : profile.weekly?.streak ? `Streak ${profile.weekly.streak}` : 'New theme every Monday'} · tap to name your team</span>
+          </button>
+          <button type="button" className="btn primary block" disabled={!u || loadingLeagues} onClick={playWeekly} data-testid="weekly-play">
+            {loadingLeagues ? 'Loading…' : weekUnderWay ? "Continue this week's" : weekDone ? 'Play it again' : "Play this week's"}
+          </button>
+        </div>
+      </div>
+      <div className="modes three">
+        <button className="mode-card" onClick={() => go('setup', 'quick')}>
+          <span className="icon">🎡</span>
+          <h3>Quick Draft</h3>
+          <p>The 38-0 classic. Spin for a club and season, draft one player, repeat eleven times, simulate the season instantly.</p>
+          <span className="foot">5 minutes · shareable result</span>
+        </button>
         <button className="mode-card" onClick={() => go('setup', 'season')}>
           <span className="icon">📋</span>
           <h3>Season</h3>

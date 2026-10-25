@@ -14,6 +14,7 @@ import { newSquadPlayer, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
 import { runQuickSeason } from '../logic/quick'
 import { storyForGame } from '../logic/story'
+import { modeLabel } from '../logic/modes'
 import type { Game, GameSettings } from '../types'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
@@ -129,6 +130,7 @@ describe('audit fixes: season and squad', () => {
     delete old.teammateChain
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
+    delete oldSettings.weekly
     old.settings = oldSettings
     const n = normaliseGame(old as unknown as Game)!
     expect(n.weekPlayed).toEqual([])
@@ -144,6 +146,9 @@ describe('audit fixes: season and squad', () => {
     expect(n.settings.rules.chain).toBeUndefined()
     expect(chainOfGame(n)).toBeNull()
     expect(n.settings.wheelLeagues).toEqual(['england'])
+    // No weekly theme before the Weekly Challenge: the mode's label stands alone
+    expect(n.settings.weekly).toBeUndefined()
+    expect(modeLabel(n, 'short')).toBe('Season')
     expect(n.squad).toBe(g.squad)
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()

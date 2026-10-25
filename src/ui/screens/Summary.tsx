@@ -16,7 +16,7 @@ import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
-import { modeLabel, shareCardFooter } from '@game/logic/modes'
+import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
@@ -87,7 +87,7 @@ export function Summary() {
     leagueSeason: game.settings.leagueSeason,
     hostClubName: clubName(u, game.settings.hostClubId),
     mode: modeLabel(game, 'share'),
-    seed: game.settings.mode === 'daily' ? undefined : game.settings.seed,
+    seed: isSharedPuzzle(game.settings.mode) ? undefined : game.settings.seed,
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
     bootName: q ? get(q.topScorer?.playerSeasonId ?? '')?.name : game.awards?.goldenBoot?.name,
     bootGoals: q ? q.topScorer?.goals : game.awards?.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
@@ -236,7 +236,7 @@ export function Summary() {
             Download share card
           </button>
           {!isManage && (
-            <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: game.settings.mode === 'daily' ? game.settings.seed : randomSeed() })} disabled={game.settings.mode === 'daily'}>
+            <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: isSharedPuzzle(game.settings.mode) ? game.settings.seed : randomSeed() })} disabled={isSharedPuzzle(game.settings.mode)}>
               Draft again
             </button>
           )}

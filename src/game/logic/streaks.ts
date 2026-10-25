@@ -4,6 +4,7 @@
  * the caller passes the calendar in (`previousOf`, `fallbackYesterday`, the
  * day it is now), so nothing here reads the clock.
  */
+import type { StreakResults } from '../types'
 
 /** A streak and the last day (a seed such as `daily-2026-10-25`) that counted towards it. */
 export interface StreakBook {
@@ -30,4 +31,18 @@ export function advanceStreak(book: StreakBook, seedDay: string, previousOf: (s:
   if (book.last === seedDay) return { streak: book.streak, last: seedDay }
   const yesterday = previousOf(seedDay) ?? fallbackYesterday
   return { streak: book.last === yesterday ? book.streak + 1 : 1, last: seedDay }
+}
+
+/**
+ * File one result in a streak book with results (the Daily Arena's, the
+ * Weekly's): under the seed's own day or week (`streakDay`), the first result
+ * of that day only, growing the streak through `advanceStreak`. `filed` is
+ * false when that day already had a result, and the book is then unchanged.
+ */
+export function fileStreakResult<R>(book: StreakResults<R> | undefined, seed: string, result: R, previousOf: (s: string) => string | null, today: string, yesterday: string): { book: StreakResults<R>; day: string; filed: boolean } {
+  const current: StreakResults<R> = book ?? { streak: 0, last: null, results: {} }
+  const day = streakDay(seed, previousOf, today)
+  if (current.results[day]) return { book: current, day, filed: false }
+  const next = advanceStreak({ streak: current.streak, last: current.last }, day, previousOf, yesterday)
+  return { book: { ...next, results: { ...current.results, [day]: result } }, day, filed: true }
 }

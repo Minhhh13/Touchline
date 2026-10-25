@@ -1004,6 +1004,12 @@ table.tbl tr.clickable:hover {
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
+@media (min-width: 901px) {
+  /* Home's rows of three: Today and this week, then the three mode cards */
+  .modes.three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 @media (max-width: 900px) {
   .modes {
     grid-template-columns: repeat(2, 1fr);

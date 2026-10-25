@@ -4,7 +4,7 @@ import { produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
-import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
+import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
 import { canSpin, isComplete, picksMade, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { LiveChanges, TeamTalk } from '@engine/match'
@@ -14,7 +14,9 @@ import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { isQuickLike } from './logic/modes'
 import { capOfGame } from './logic/cap'
-import { advanceStreak, streakDay } from './logic/streaks'
+import { advanceStreak, fileStreakResult, streakDay } from './logic/streaks'
+import { dailyArenaResult } from './logic/arenaDaily'
+import { weeklyGameSettings, weeklyPlan } from './logic/weekly'
 import { alreadyCredited, creditArena, creditGame, creditH2H, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
@@ -96,6 +98,8 @@ interface Store {
   openChallenge: (encoded: string) => Promise<boolean>
 
   startGame: (settings: GameSettings) => void
+  /** The week's challenge: load its packs, then start it with this team name. Resolves false when the packs could not load. */
+  startWeekly: (seed: string, teamName?: string) => Promise<boolean>
   abandonGame: () => void
   /** Swap a parked game back in, parking the current one. */
   resumeGame: (slot: string) => void
@@ -326,6 +330,17 @@ export const useStore = create<Store>()(
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
           set({ game, parked: next, screen: 'game', pendingChallenge: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+        },
+        startWeekly: async (seed, teamName) => {
+          const u0 = get().universe
+          if (!u0) return false
+          const plan = weeklyPlan(u0, seed)
+          if (!(await get().ensureLeagues([...new Set([plan.leagueId, ...plan.wheelLeagues])]))) return false
+          const u = get().universe
+          const settings = u ? weeklyGameSettings(u, seed, teamName) : null
+          if (!settings) return false
+          get().startGame(settings)
+          return true
         },
         abandonGame: () => set({ game: null, screen: 'home', offseason: null }),
         resumeGame: (slot) => {
@@ -618,7 +633,17 @@ export const useStore = create<Store>()(
           if (game.arena) {
             const run = arenaRunEntry(game, new Date().toISOString().slice(0, 10))
             if (!run || alreadyCredited(profile, run.id) || profile.arenaRuns?.some((e) => e.id === run.id)) return
-            set({ profile: { ...profile, arenaRuns: sortArenaRuns([...(profile.arenaRuns ?? []), run]), cabinet: creditArena(profile.cabinet ?? rebuildCabinet(profile), game) } })
+            // The Daily Arena: the first run filed for its day counts towards its own streak, never the Daily's
+            let arenaDaily = profile.arenaDaily
+            let newArenaDaily = false
+            const arenaAchievements = { ...profile.achievements }
+            if (game.settings.arena?.daily && game.arena) {
+              const filed = fileStreakResult(profile.arenaDaily, game.settings.seed, dailyArenaResult(game.arena), previousArenaDailySeed, arenaDailySeed(), arenaDailySeed(new Date(Date.now() - 86400000)))
+              arenaDaily = filed.book
+              newArenaDaily = filed.filed
+              if (arenaDaily.streak >= 7 && !arenaAchievements['arena-regular']) arenaAchievements['arena-regular'] = new Date().toISOString().slice(0, 10)
+            }
+            set({ profile: { ...profile, arenaRuns: sortArenaRuns([...(profile.arenaRuns ?? []), run]), cabinet: creditArena(profile.cabinet ?? rebuildCabinet(profile), game, { newArenaDaily }), achievements: arenaAchievements, ...(arenaDaily ? { arenaDaily } : {}) } })
             return
           }
           const rec = finishedRecord(game)
@@ -663,11 +688,20 @@ export const useStore = create<Store>()(
               newDaily = true
             }
           }
+          // The Weekly Challenge: its own book, filed under the seed's week; it never touches the Daily's results
+          let weekly = profile.weekly
+          let newWeekly = false
+          if (game.settings.mode === 'weekly') {
+            const filed = fileStreakResult(profile.weekly, game.settings.seed, { points: rec.points, tier: rec.tier }, previousWeeklySeed, weeklySeed(), weeklySeed(new Date(Date.now() - 7 * 86400000)))
+            weekly = filed.book
+            newWeekly = filed.filed
+          }
           const achievements = { ...profile.achievements }
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
+          if (weekly && weekly.streak >= 4 && !achievements['weekly-streak-4']) achievements['weekly-streak-4'] = new Date().toISOString().slice(0, 10)
           // Trophy Room: the cabinet takes the credit, `trophies` mirrors its five counts for older builds
-          const cabinet = creditGame(profile.cabinet ?? rebuildCabinet(profile), game, { newDaily })
-          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies: trophiesOf(cabinet), cabinet, seasonsSimulated: profile.seasonsSimulated + 1 } })
+          const cabinet = creditGame(profile.cabinet ?? rebuildCabinet(profile), game, { newDaily, newWeekly })
+          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies: trophiesOf(cabinet), cabinet, seasonsSimulated: profile.seasonsSimulated + 1, ...(weekly ? { weekly } : {}) } })
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
@@ -751,9 +785,9 @@ export function todaysDailySeed(): string {
   return dailySeed()
 }
 
-/** Save slot of a game: quick drafts and dailies share one, season, dynasty and the arena (every format) have their own. */
+/** Save slot of a game: quick drafts, dailies and weeklies share one, season, dynasty and the arena (every format, the Daily Arena too) have their own. */
 export function slotOf(game: Game): string {
-  return game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'quick' : game.settings.mode
+  return isQuickLike(game.settings.mode) ? 'quick' : game.settings.mode
 }
 
 /** A manager's own decision while an arena run is under way: the run no longer counts as the assistant's (challenge verification reads it). */

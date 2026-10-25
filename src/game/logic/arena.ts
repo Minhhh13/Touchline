@@ -891,12 +891,15 @@ function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
   const get = playerLookup(game, u)
   const motmId = a.log[a.log.length - 1]?.motmId
   const s = game.settings
+  // The Daily Arena names its day in the mode line, so it prints no seed line (the day is the seed), as the Daily does
+  const day = s.arena?.daily ? `Daily Arena ${s.seed.replace('arena-', '')} · ` : ''
+  const seed = s.arena?.daily ? undefined : s.seed
   if (isBigCup(a)) {
     // The Cup: a line per tie, the winner when you went out before the final (a lost final names him already), and the final's man of the match when you reached it
     const inFinal = a.log.length === cupRoundCount(a.size ?? 2)
     const winner = cupWinnerName(game, u)
     return {
-      mode: `${arenaFormatLabel(s.arena)} · ${fieldLabel(s.arena)}`,
+      mode: `${day}${arenaFormatLabel(s.arena)} · ${fieldLabel(s.arena)}`,
       teamName: s.teamName,
       formationName: getFormation(game.tactics.formationId).name,
       wheel: wheelName(u, s),
@@ -905,11 +908,11 @@ function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
       steps: a.log.map((x, i) => ({ code: arenaStepInfo({ ...a, step: i }).code, gf: x.gf, ga: x.ga, opponent: arenaClubName(u, x.opponent), ...(x.pens ? { pens: { us: x.pens.us, them: x.pens.them } } : {}) })),
       ...(!a.won && !inFinal && winner ? { lines: [`🏆 Won by ${winner}`] } : {}),
       ...(inFinal && motmId ? { motm: get(motmId)?.name ?? motmId, motmLabel: 'Final MOTM' } : {}),
-      seed: s.seed,
+      seed,
     }
   }
   return {
-    mode: arenaFormatLabel(s.arena),
+    mode: `${day}${arenaFormatLabel(s.arena)}`,
     teamName: s.teamName,
     formationName: getFormation(game.tactics.formationId).name,
     wheel: wheelName(u, s),
@@ -917,7 +920,7 @@ function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
     icon: a.format === 'gauntlet' ? (a.won ? '🏔️' : '🪜') : a.won ? '🏆' : '🥈',
     steps: a.log.map((x, i) => ({ code: arenaStepInfo({ ...a, step: i }).code, gf: x.gf, ga: x.ga, opponent: arenaClubName(u, x.opponent), ...(x.pens ? { pens: { us: x.pens.us, them: x.pens.them } } : {}) })),
     ...(a.format === 'gauntlet' ? { strip: a.log.map(rungMark).join(''), lines: gauntletLines(game, u) } : motmId ? { motm: get(motmId)?.name ?? motmId } : {}),
-    seed: s.seed,
+    seed,
   }
 }
 

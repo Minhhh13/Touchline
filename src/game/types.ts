@@ -15,8 +15,9 @@ import type { AiClub } from '@engine/season'
 import type { ArenaField, ArenaTier } from '@engine/knockout'
 import type { GauntletLadder } from '@engine/gauntlet'
 import type { CupBracket } from '@engine/cup'
+import type { WeeklyThemeId } from './logic/weeklyThemes'
 
-export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena'
+export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena' | 'weekly'
 export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
 
 export interface GameSettings {
@@ -44,6 +45,8 @@ export interface GameSettings {
   challenge?: ChallengeSettings
   /** The arena format of a mode `arena` game (absent for every other mode). */
   arena?: ArenaSettings
+  /** The Weekly Challenge's theme, on a mode `weekly` game (absent for every other mode). */
+  weekly?: { theme: WeeklyThemeId }
 }
 
 /** Which arena format a game plays, and the field its opponents come from. */
@@ -406,6 +409,18 @@ export interface Profile {
   cabinet?: Cabinet
   /** Finished arena runs, best first within each format (at most 50); absent before the arena. */
   arenaRuns?: ArenaRunEntry[]
+  /** The Daily Arena's streak and one result per day (keyed by `arena-YYYY-MM-DD`); absent until the first one. */
+  arenaDaily?: StreakResults<{ format: 'cup' | 'gauntlet'; score: number; label: string }>
+  /** The Weekly Challenge's streak and one result per week (keyed by `weekly-YYYY-Www`); absent until the first one. */
+  weekly?: StreakResults<{ points: number; tier: SeasonTier }>
+}
+
+/** A streak (`advanceStreak`) with the first result filed for each day or week it counted. */
+export interface StreakResults<R> {
+  streak: number
+  /** The last day or week (its seed) that counted. */
+  last: string | null
+  results: Record<string, R>
 }
 
 /**

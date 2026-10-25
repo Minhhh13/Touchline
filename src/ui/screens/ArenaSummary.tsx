@@ -4,11 +4,12 @@ import { arenaShareText, arenaStepMark } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { clubIdOfKey } from '@engine/knockout'
 import { randomSeed } from '@engine/rng'
+import { arenaAgainSettings } from '@game/logic/arenaDaily'
 import { USER_TEAM } from '@engine/season'
 import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark } from '@game/logic/arena'
 import { cupRoundCount, cupRoundName } from '@engine/cup'
 import { Bracket } from '../components/Bracket'
-import { arenaFormatLabel, shareCardFooter } from '@game/logic/modes'
+import { modeLabel, shareCardFooter } from '@game/logic/modes'
 import { playerLookup } from '@game/logic/players'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge } from '../components/bits'
@@ -65,7 +66,7 @@ export function ArenaSummary() {
     try {
       const url = renderShareCard({
         title: game.settings.teamName,
-        subtitle: `${arenaFormatLabel(game.settings.arena)} · ${input?.wheel ?? ''}`,
+        subtitle: `${modeLabel(game, 'short')} · ${input?.wheel ?? ''}`,
         tier: a.won ? 'CHAMPIONS' : 'MID_TABLE',
         row: { won: a.log.filter((s) => s.gf > s.ga).length, drawn: a.log.filter((s) => s.gf === s.ga).length, lost: a.log.filter((s) => s.gf < s.ga).length, points: 0 },
         position: a.won ? 1 : 2,
@@ -87,7 +88,7 @@ export function ArenaSummary() {
     <div className="page">
       <div className="tier-banner" data-testid="arena-banner">
         <div className="muted small">
-          {game.settings.teamName} · {arenaFormatLabel(game.settings.arena)}
+          {game.settings.teamName} · {modeLabel(game, 'short')}
         </div>
         <div className={`tier ${a.won ? 'CHAMPIONS' : ''}`} data-testid="tier">
           {a.won ? (gauntlet ? '🏔️ ' : '🏆 ') : gauntlet ? '🪜 ' : ''}
@@ -110,7 +111,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={card} data-testid="arena-card">
             Download share card
           </button>
-          <button className="btn" onClick={() => startGame({ ...game.settings, seed: randomSeed() })} data-testid="arena-again">
+          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again">
             Play again
           </button>
           <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')}>
