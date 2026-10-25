@@ -5,7 +5,7 @@
  */
 import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/types'
 import type { SeasonTier } from '@engine/types'
-import { BRAND_COLOURS as C, MARK, WORDMARK } from './brand'
+import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, pennantPath } from './brand'
 import { tierName } from './format'
 
 export interface ShareCardInput {
@@ -163,56 +163,71 @@ export function renderShareCard(input: ShareCardInput): string {
   ctx.font = font(22, 400, BODY)
   ctx.textAlign = 'center'
   ctx.fillText(input.footer, W / 2, H - 132)
-  drawLockup(ctx, W / 2, H - 70, 56)
+  drawLockup(ctx, W / 2, H - 72, 76)
   return canvas.toDataURL('image/png')
 }
 
-/** The mark and the two-tone wordmark, centred on (cx, cy), the mark `size` px tall. */
-function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
-  ctx.font = `700 ${Math.round(size * 0.82)}px ${DISPLAY}`
+/**
+ * The open lockup of brand.ts (LOCKUP), `h` px tall and centred on (cx, cy):
+ * the corner flag standing on a short touchline, the flat ball resting on it,
+ * and the two-tone name standing on the same ground (no line under the name).
+ */
+function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
+  const u = h / LOCKUP.grid
+  ctx.font = `700 ${LOCKUP.name.size * u}px ${DISPLAY}`
   const [touch, line] = WORDMARK
   const wTouch = ctx.measureText(touch).width
   const wLine = ctx.measureText(line).width
-  const gap = size * 0.3
-  const total = size + gap + wTouch + wLine
-  const left = cx - total / 2
-  drawMark(ctx, left, cy - size / 2, size)
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = C.text
-  ctx.fillText(touch, left + size + gap, cy + size * 0.04)
-  ctx.fillStyle = C.accent
-  ctx.fillText(line, left + size + gap + wTouch, cy + size * 0.04)
-  ctx.textBaseline = 'alphabetic'
-}
-
-/** The mark of brand.ts at (x, y), `size` px square: the gradient tile, white lines and ball, the pentagon cut back to the tile. */
-function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
-  const grid = MARK.grid
+  const width = LOCKUP.name.left * u + wTouch + wLine
   ctx.save()
-  ctx.translate(x, y)
-  ctx.scale(size / grid, size / grid)
-  const tile = ctx.createLinearGradient(0, 0, grid, grid)
-  tile.addColorStop(0, MARK.gradient[0])
-  tile.addColorStop(1, MARK.gradient[1])
-  ctx.fillStyle = tile
-  roundRect(ctx, 0, 0, grid, grid, MARK.tileRadius)
-  ctx.fill()
-  ctx.strokeStyle = '#ffffff'
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  ctx.lineWidth = MARK.lineWidth
-  ctx.stroke(new Path2D(MARK.lines))
-  ctx.lineWidth = MARK.arcWidth
-  ctx.stroke(new Path2D(MARK.arc))
+  ctx.translate(cx - width / 2, cy - h / 2)
+  // The short touchline, from the pole's left edge to a little past the ball
+  const rule = LOCKUP.rule
   ctx.fillStyle = '#ffffff'
-  ctx.beginPath()
-  ctx.arc(MARK.ball.cx, MARK.ball.cy, MARK.ball.r, 0, Math.PI * 2)
+  roundRect(ctx, rule.left * u, rule.y * u, rule.length * u, rule.w * u, (rule.w / 2) * u)
   ctx.fill()
-  if (size >= MARK.detailFrom) {
-    ctx.fillStyle = tile
-    ctx.fill(new Path2D(MARK.pentagon))
-  }
+  // The ball (the flat tier: a white disc with a soft grey edge and the black panels)
+  const b = LOCKUP.ball
+  const bx = b.cx * u
+  const by = (rule.y - b.r) * u
+  const br = b.r * u
+  const shade = ctx.createRadialGradient(bx - br * 0.3, by - br * 0.35, 0, bx - br * 0.3, by - br * 0.35, br * 1.45)
+  shade.addColorStop(0.55, '#ffffff')
+  shade.addColorStop(1, BALL_EDGE.dark)
+  ctx.fillStyle = shade
+  ctx.beginPath()
+  ctx.arc(bx, by, br, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.save()
+  ctx.clip()
+  ctx.fillStyle = MARK.panel
+  for (const p of ballPanels(bx, by, br)) if (p.type === 'pent') ctx.fill(new Path2D(p.d))
+  ctx.restore()
+  // The flag: the pennant with its fold (at rest), then the pole standing on the line
+  ctx.save()
+  ctx.scale(u, u)
+  const P = LOCKUP.pennant
+  const fold = ctx.createLinearGradient(P.x, 0, P.tipX, 0)
+  for (const [o, c] of MARK.fold) fold.addColorStop(o, c)
+  ctx.fillStyle = fold
+  ctx.fill(new Path2D(pennantPath(P)))
+  const pole = LOCKUP.pole
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = pole.w
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(pole.x, pole.y1)
+  ctx.lineTo(pole.x, pole.y2)
+  ctx.stroke()
+  ctx.restore()
+  // The name, its baseline where the stylesheet puts it
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  const baseline = LOCKUP.name.baseline * u
+  ctx.fillStyle = C.text
+  ctx.fillText(touch, LOCKUP.name.left * u, baseline)
+  ctx.fillStyle = C.accent
+  ctx.fillText(line, LOCKUP.name.left * u + wTouch, baseline)
   ctx.restore()
 }
 

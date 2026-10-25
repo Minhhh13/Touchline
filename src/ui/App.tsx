@@ -15,7 +15,7 @@ import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/diges
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
-import { Logo } from './components/Logo'
+import { Lockup, Logo } from './components/Logo'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
@@ -98,7 +98,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand" onClick={() => go('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && go('home')}>
-          <Logo size={30} />
+          <Lockup height={40} animate="hover" />
         </div>
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>

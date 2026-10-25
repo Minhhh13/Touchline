@@ -2,7 +2,7 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
-import { LogoMark, Wordmark } from '../components/Logo'
+import { Lockup } from '../components/Logo'
 
 export function Home() {
   const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
@@ -28,9 +28,8 @@ export function Home() {
   return (
     <div className="page">
       <section className="hero">
-        <LogoMark size={72} />
         <h1>
-          <Wordmark />
+          <Lockup height={104} animate="load" />
         </h1>
         <div className="tag">Spin the wheel. Draft the XI. Manage the season.</div>
         <p className="muted small" style={{ marginTop: 10 }}>
