@@ -9,8 +9,10 @@ import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
+import { poolClubSeasons } from '@engine/universe'
+import { classicFromFor, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
 import { ordinal, seasonLabel } from '../format'
-import { ClubBadge, Segmented } from '../components/bits'
+import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
 import { LeagueFlag, NationFlag } from '../components/Flag'
 import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
@@ -79,6 +81,8 @@ export function Setup() {
   const [ratingsMode, setRatingsMode] = useState<RatingsMode>('season')
   const [eraPreset, setEraPreset] = useState<EraPreset>('all')
   const [customEra, setCustomEra] = useState<[number, number] | null>(null)
+  // Classic seasons (1992-93 to 2007-08, estimated ratings): off unless asked for, never on the Daily
+  const [classicOn, setClassicOn] = useState(false)
   const [onlyClub, setOnlyClub] = useState('')
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
@@ -111,32 +115,36 @@ export function Setup() {
     return () => ro.disconnect()
   }, [u])
 
-  const seasons = useMemo(() => (u ? [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
+  // Classic league seasons are listed too, tagged: their rivals' ratings are estimated
+  const seasonChoices = useMemo(() => (u ? leagueSeasonChoices(u, leagueId) : []), [u, leagueId])
+  const seasons = useMemo(() => seasonChoices.map((s) => s.season), [seasonChoices])
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, effectiveSeason])
   const wheelLeagues = useMemo(() => (europe && u ? u.available.map((l) => l.id) : [leagueId]), [europe, leagueId, u])
-  // The era slider runs over the seasons the wheel leagues hold
-  const eraStops = useMemo(() => (u ? wheelSeasons(u, wheelLeagues) : []), [u, wheelLeagues])
+  const classicFrom = u ? classicFromFor(u, wheelLeagues) : undefined
+  const classic = !isDaily && classicOn && classicFrom !== undefined
+  // The era slider runs over the seasons the wheel leagues hold (classic ones only when the Classic toggle is on)
+  const eraStops = useMemo(() => (u ? wheelSeasons(u, wheelLeagues, classic) : []), [u, wheelLeagues, classic])
   const first = eraStops[0] ?? u?.firstSeason ?? 2008
   const last = eraStops[eraStops.length - 1] ?? u?.lastSeason ?? 2026
   const [eraFrom, eraTo] = eraPreset === 'custom' && customEra ? customEra : eraHandles(eraPreset === 'custom' ? 'all' : eraPreset, first, last)
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks })
-  const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason }
-  const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason])
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, classic })
+  const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason, classic: chosen.classic }
+  const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
   const allClubs = useMemo(() => {
     if (!u) return []
     const lo = eraRange.fromSeason ?? first
     const hi = eraRange.toSeason ?? last
-    const inEra = new Set(u.clubSeasons.filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
+    const inEra = new Set(poolClubSeasons(u, eraRange.classic).filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
     return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
-  }, [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, first, last])
+  }, [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, first, last])
   // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era.
   // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
-  const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, formationId])
+  const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, formationId])
   const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   // The club handed over by default sits nearest tenth in that season's real table, so the board's ask is reachable
@@ -246,8 +254,9 @@ export function Setup() {
                 {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
                 {fixed.rules?.twists ? ', twists on' : ', no twists'}
                 {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
+                {fixed.rules?.classic ? ', classic seasons (estimated ratings)' : ''}
                 {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
-                {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(fixed.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
+                {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(eraFirstSeason(u, fixed.rules))} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
                 <div className="small" style={{ marginTop: 6 }}>
                   {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
                   {challenge.verified === 'unverified' && `Unverified: built on different data (${challenge.reason}). You can still play the same wheel.`}
@@ -331,8 +340,25 @@ export function Setup() {
           <div className="panel col" data-testid="era">
             <div className="row between wrap">
               <h3>Era</h3>
-              <span className="chip" data-testid="era-count">
-                {eraLine?.label}
+              <span className="row wrap" style={{ gap: 'var(--space-2)' }}>
+                {classicFrom !== undefined && (
+                  <label className="toggle era-classic" title="Real squads and tables; no official ratings exist, so these are TouchLine's estimates.">
+                    <input
+                      type="checkbox"
+                      checked={classic}
+                      data-testid="era-classic"
+                      onChange={(e) => {
+                        setClassicOn(e.target.checked)
+                        setEraPreset(e.target.checked ? 'custom' : 'all')
+                        setCustomEra(e.target.checked ? [classicFrom, u.firstSeason - 1] : null)
+                      }}
+                    />
+                    Classic {seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)} <EstimatedChip compact />
+                  </label>
+                )}
+                <span className="chip" data-testid="era-count">
+                  {eraLine?.label}
+                </span>
               </span>
             </div>
             <Segmented value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: 'Custom' }] : [])]} />
@@ -412,9 +438,9 @@ export function Setup() {
                 <label className="field">
                   League season to play in
                   <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
-                    {seasons.map((s) => (
+                    {seasonChoices.map(({ season: s, classic: est }) => (
                       <option key={s} value={s}>
-                        {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}
+                        {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}{est ? '(estimated ratings)' : ''}
                       </option>
                     ))}
                   </select>

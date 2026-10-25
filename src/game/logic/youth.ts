@@ -4,7 +4,7 @@
  * replaced. Sign one for nothing, on a three-year deal, or pass.
  */
 import type { Game } from '../types'
-import type { LoadedUniverse } from '@engine/universe'
+import { poolClubSeasons, type LoadedUniverse } from '@engine/universe'
 import type { Rng } from '@engine/rng'
 import type { PlayerSeason } from '@engine/types'
 import { newSquadPlayer } from '@engine/season'
@@ -38,10 +38,11 @@ export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): strin
   }
   // The club's own graduates first: youngsters from any of the host club's real seasons
   const host = game.settings.hostClubId
-  const homegrown = u.clubSeasons.filter((cs) => cs.clubId === host).flatMap((cs) => cs.squad).filter(young)
+  const pool = poolClubSeasons(u, game.settings.rules.classic)
+  const homegrown = pool.filter((cs) => cs.clubId === host).flatMap((cs) => cs.squad).filter(young)
   const picks = pickFrom(homegrown, 2)
   if (picks.length < INTAKE_SIZE) {
-    const leagueWide = u.clubSeasons.filter((cs) => game.settings.wheelLeagues.includes(cs.leagueId)).flatMap((cs) => cs.squad).filter(young)
+    const leagueWide = pool.filter((cs) => game.settings.wheelLeagues.includes(cs.leagueId)).flatMap((cs) => cs.squad).filter(young)
     picks.push(...pickFrom(leagueWide, INTAKE_SIZE - picks.length))
   }
   return picks.map((p) => p.id)

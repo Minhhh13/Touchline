@@ -314,6 +314,7 @@ Pills of 12 px semibold for short facts.
 | `.chip.warn` | Attention | "Bidding war", "can cover CB" |
 | `.chip.bad` | A problem | "🩹 3w", "Sacked", "✗ Missed" |
 | `.chip.gold` | Trophies, records, the captain | "🏆", "📜 League record", "©" |
+| `.chip.estimated` | A number that is TouchLine's estimate (classic seasons), dashed border in `--text-2`; only through `EstimatedChip` | "Estimated ratings", "est." |
 
 At most three chips on a row; a chip is never a button unless it is in a chip group like the depth chart. `.chip.good` is not a selection colour: the XI's position chips in the squad list become `.chip.info` in the screen pass.
 
@@ -342,7 +343,7 @@ For two to five mutually exclusive options with labels of one or two words. The 
 - `.field` (a `label` or a `div`) stacks the label (13 px, 600, `--text-2`), the control, and at most one `.help` caption.
 - Native checkboxes, radios and sliders take `--primary` through `accent-color` on `body`.
 - `.input` and `select.input` are full width, 40 px, on `--field-bg` with the 3:1 `--field-border`; focus shows the `--focus` ring.
-- `.toggle` is a checkbox row; checked toggles take the selection pattern. The label is one line of six words or fewer.
+- `.toggle` is a checkbox row; checked toggles take the selection pattern. The label is one line of six words or fewer. `.toggle.era-classic` is the compact form for a panel head row (2 px by 10 px padding, 13 px text, no minimum height): the Setup Era panel's Classic toggle.
 - Two fields side by side only on desktop (`.grid.two`); on a phone everything stacks.
 
 ### Info and captions: the rule for explanatory text

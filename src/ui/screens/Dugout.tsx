@@ -31,6 +31,7 @@ import { LeagueFlag } from '../components/Flag'
 import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
 import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
+import { isClassic } from '@engine/universe'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 
@@ -821,7 +822,7 @@ function MarketTab() {
     const owned = new Set(Object.keys(game.squad).map((id) => (game.customPlayers[id] ?? u.index[id])?.playerId))
     const { fromSeason, toSeason } = game.settings.rules
     return Object.values(u.index)
-      .filter((p) => p.name.toLowerCase().includes(q) && !owned.has(p.playerId) && game.settings.wheelLeagues.includes(u.clubById[p.clubId]?.leagueId ?? '') && (fromSeason === undefined || p.season >= fromSeason) && (toSeason === undefined || p.season <= toSeason))
+      .filter((p) => p.name.toLowerCase().includes(q) && !owned.has(p.playerId) && game.settings.wheelLeagues.includes(u.clubById[p.clubId]?.leagueId ?? '') && (fromSeason === undefined || p.season >= fromSeason) && (toSeason === undefined || p.season <= toSeason) && (!!game.settings.rules.classic || !isClassic(u, p)))
       .sort((a, b) => b.overall - a.overall)
       .slice(0, 14)
   }, [u, game, query])

@@ -4,7 +4,7 @@
  */
 import type { Formation, PlayerSeason, Position } from './types'
 import { canCover, type Fit } from './positions'
-import type { LoadedUniverse } from './universe'
+import { isClassic, type LoadedUniverse } from './universe'
 
 /** Nationality code the data uses for a player whose nation is not known; never a valid draft nation. */
 export const UNKNOWN_NATION = 'UNK'
@@ -31,6 +31,8 @@ export interface NationCover extends NationDepth {
 export interface EraRange {
   fromSeason?: number
   toSeason?: number
+  /** Count classic seasons' players too (`DraftRules.classic`). */
+  classic?: boolean
 }
 
 /**
@@ -51,6 +53,7 @@ export function nationCover(u: LoadedUniverse, leagues: string[], era: EraRange,
     if (p.nationality === UNKNOWN_NATION || !p.nationality) return false
     if (era.fromSeason !== undefined && p.season < era.fromSeason) return false
     if (era.toSeason !== undefined && p.season > era.toSeason) return false
+    if (!era.classic && isClassic(u, p)) return false
     const league = u.clubById[p.clubId]?.leagueId
     return !!league && leagueSet.has(league)
   }

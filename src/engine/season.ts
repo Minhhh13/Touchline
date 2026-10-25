@@ -6,7 +6,7 @@
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import { familiarityGainFactor } from './depth'
 import type { Rng } from './rng'
-import type { LoadedUniverse } from './universe'
+import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
@@ -294,18 +294,20 @@ export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng
 export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15): Record<string, AiClub> {
   const others = u.leagues.filter((l) => l.id !== leagueId)
   const picked: ClubSeason[] = []
+  // Classic club-seasons only enter the field of a classic league season
+  const pool = poolClubSeasons(u, isClassicSeason(u, leagueId, leagueSeason))
   for (const league of others) {
-    const seasons = [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))]
+    const seasons = [...new Set(pool.filter((cs) => cs.leagueId === league.id).map((cs) => cs.season))]
     if (!seasons.length) continue
     const season = seasons.includes(leagueSeason) ? leagueSeason : seasons.sort((a, b) => Math.abs(a - leagueSeason) - Math.abs(b - leagueSeason))[0]
-    const field = u.clubSeasons.filter((cs) => cs.leagueId === league.id && cs.season === season && cs.clubId !== hostClubId).sort((a, b) => (a.position || 99) - (b.position || 99) || avgTop(b) - avgTop(a))
+    const field = pool.filter((cs) => cs.leagueId === league.id && cs.season === season && cs.clubId !== hostClubId).sort((a, b) => (a.position || 99) - (b.position || 99) || avgTop(b) - avgTop(a))
     // Four per league keeps the field spread; the remainder is filled by strength below.
     picked.push(...field.slice(0, 4))
   }
   // Top up with the strongest remaining clubs if fewer than four leagues are loaded
   if (picked.length < n) {
     const have = new Set(picked.map((cs) => `${cs.clubId}@${cs.season}`))
-    const rest = u.clubSeasons.filter((cs) => cs.leagueId !== leagueId && cs.clubId !== hostClubId && !have.has(`${cs.clubId}@${cs.season}`) && Math.abs(cs.season - leagueSeason) <= 1).sort((a, b) => avgTop(b) - avgTop(a))
+    const rest = pool.filter((cs) => cs.leagueId !== leagueId && cs.clubId !== hostClubId && !have.has(`${cs.clubId}@${cs.season}`) && Math.abs(cs.season - leagueSeason) <= 1).sort((a, b) => avgTop(b) - avgTop(a))
     const seen = new Set(picked.map((cs) => cs.clubId))
     for (const cs of rest) {
       if (picked.length >= n) break
