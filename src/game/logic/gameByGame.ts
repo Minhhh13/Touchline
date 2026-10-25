@@ -1,5 +1,6 @@
 import type { Fixture, MatchEvent } from '@engine/types'
 import { computeTable, positionOf } from '@engine/season'
+import { ordinal } from '@engine/universe'
 import type { QuickGameResult, QuickScorer } from '../types'
 
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
@@ -190,4 +191,25 @@ export function europeLine(e: { reached: 'R16' | 'QF' | 'SF' | 'F' | 'W' } | und
 
 export function europeRoundLabel(r: 'R16' | 'QF' | 'SF' | 'F' | 'W'): string {
   return EURO_ROUND[r]
+}
+
+/** The points the season would end on at the rate so far: points per game times the games in the season, rounded. */
+export function pointsPace(t: Pick<RunningTotals, 'played' | 'points'>, totalGames: number): number {
+  return t.played > 0 ? Math.round((t.points / t.played) * totalGames) : 0
+}
+
+/**
+ * The one line of the January halfway panel: where the side is on course to finish (its place now) and the points
+ * pace, with what that place means at either end of the table. `teams` is the size of the league.
+ */
+export function paceLine(t: RunningTotals, totalGames: number, teams: number): string {
+  if (t.played === 0) return 'No games played yet.'
+  const n = pointsPace(t, totalGames)
+  // "an 88-point pace", "an 11-point pace", "a 58-point pace"
+  const pace = `${String(n).startsWith('8') || n === 11 || n === 18 ? 'an' : 'a'} ${n}`
+  const place = ordinal(t.position)
+  if (t.position === 1) return `Top at the turn and on course for the title, at ${pace}-point pace.`
+  if (t.position <= 4) return `On course for ${place}, inside the top four, at ${pace}-point pace.`
+  if (t.position > teams - 3) return `On course for ${place}, in the bottom three, at ${pace}-point pace: the drop if nothing changes.`
+  return `On course for ${place}, at ${pace}-point pace.`
 }

@@ -2525,3 +2525,125 @@ table.tbl tr.clickable:hover {
     grid-template-columns: 26px 20px minmax(0, 1fr) auto auto 28px;
   }
 }
+
+/* ------------------------------------------------- squad complete (pre-season odds) and the January halfway panel */
+.sc-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sc-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+.sc-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.squad-complete,
+.january-panel {
+  border-color: var(--line-2);
+  gap: 14px;
+}
+.sc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.sc-big {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.sc-big-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 6px 10px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.sc-big-num {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.sc-chances,
+.sc-units {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sc-chance,
+.sc-unit {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.sc-chance b,
+.sc-unit b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sc-chance.bad .bar > span {
+  background: var(--danger);
+}
+.sc-unit.overall {
+  font-weight: 700;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.sc-unit .bar > span {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+}
+.sc-working {
+  padding: 18px 0;
+  text-align: center;
+}
+.sc-go {
+  width: 100%;
+}
+.jw-boxes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.jw-boxes .tally-box.wdl .tally-num {
+  letter-spacing: 0.02em;
+}
+.jw-pace {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-2);
+}
+.jw-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .sc-grid,
+  .jw-choice {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sc-chance,
+  .sc-unit {
+    grid-template-columns: 100px minmax(0, 1fr) 48px;
+  }
+  .sc-big-num {
+    font-size: 34px;
+  }
+}

@@ -3,7 +3,7 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame } from '../logic/setup'
 import { runQuickSeason } from '../logic/quick'
 import { runH2HSeason, H2H_IDS } from '../logic/h2h'
-import { bestWin, bestWinLine, countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, outcomeOf, recordUserGames, scorersLabel, shortName } from '../logic/gameByGame'
+import { bestWin, bestWinLine, countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, outcomeOf, paceLine, pointsPace, recordUserGames, scorersLabel, shortName } from '../logic/gameByGame'
 import { autoDraft, isComplete, newDraft, QUICK_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { ENGINE_VERSION } from '@engine/version'
@@ -262,5 +262,24 @@ describe('the season list, newest first', () => {
       expect(v).toBeLessThanOrEqual(6)
       last = v
     }
+  })
+})
+
+describe('the January pace line', () => {
+  const totals = (position: number, played: number, points: number) => ({ played, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points, position })
+  it('projects the points over the whole season at the rate so far', () => {
+    expect(pointsPace(totals(10, 19, 25), 38)).toBe(50)
+    expect(pointsPace(totals(10, 18, 20), 36)).toBe(40)
+    expect(pointsPace(totals(0, 0, 0), 38)).toBe(0)
+  })
+  it('names the place the side is on course for and what it means at either end', () => {
+    expect(paceLine(totals(1, 19, 45), 38, 20)).toBe('Top at the turn and on course for the title, at a 90-point pace.')
+    expect(paceLine(totals(3, 19, 36), 38, 20)).toContain('3rd, inside the top four')
+    expect(paceLine(totals(10, 19, 25), 38, 20)).toBe('On course for 10th, at a 50-point pace.')
+    expect(paceLine(totals(20, 19, 6), 38, 20)).toContain('20th, in the bottom three')
+    expect(paceLine(totals(17, 19, 20), 38, 20)).not.toContain('bottom three')
+    expect(paceLine(totals(18, 17, 12), 34, 18)).toContain('bottom three')
+    expect(paceLine(totals(1, 19, 44), 38, 20)).toContain('at an 88-point pace')
+    expect(paceLine(totals(20, 19, 9), 38, 20)).toContain('at an 18-point pace')
   })
 })

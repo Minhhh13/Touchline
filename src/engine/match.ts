@@ -239,40 +239,13 @@ export function beginMatch(opts: MatchOptions): MatchInProgress {
   const importance = opts.importance ?? 1
   const neutral = !!opts.neutral
 
-  const hs = withOffset(computeTeamStrength(home.tactics, home.lineup, home.getPlayer, home.getState), home.ratingOffset ?? 0)
-  const as = withOffset(computeTeamStrength(away.tactics, away.lineup, away.getPlayer, away.getState), away.ratingOffset ?? 0)
-  const hm = tacticalModifiers(home.tactics, hs.slots, away.tactics, as.slots)
-  const am = tacticalModifiers(away.tactics, as.slots, home.tactics, hs.slots)
-  const hLive = buildLive(hs.slots)
-  const aLive = buildLive(as.slots)
-  applyMarking(home, aLive, hm, away.getPlayer)
-  applyMarking(away, hLive, am, home.getPlayer)
+  const { hs, as, hm, am, hLive, aLive } = prepareSides(home, away)
   const hTalk = scaleTalk(teamTalkEffect(rng, home.teamTalk ?? 'none', hs.overall, as.overall, hLive, home.getPlayer), home.talkSkill)
   const aTalk = scaleTalk(teamTalkEffect(rng, away.teamTalk ?? 'none', as.overall, hs.overall, aLive, away.getPlayer), away.talkSkill)
 
-  const cons = (live: LivePlayer[], get: MatchTeamInput['getPlayer']) => avg(live.map((p) => get(p.psId)?.traits.consistency ?? 0.5))
-  const sigma = (c: number) => 0.06 + 0.12 * (1 - c)
-  const hVar = Math.exp(rng.gaussian(0, sigma(cons(hLive, home.getPlayer))))
-  const aVar = Math.exp(rng.gaussian(0, sigma(cons(aLive, away.getPlayer))))
-
-  const snap = (t: MatchTeamInput, strength: TeamStrength, modifiers: TacticalModifiers, talkText: string, variance: number, boost: { attack: number; defence: number } | undefined): TeamSnapshot => ({
-    teamId: t.teamId,
-    teamName: t.teamName,
-    shortName: t.shortName,
-    tactics: t.tactics,
-    lineup: t.lineup,
-    bench: t.bench,
-    ratingOffset: t.ratingOffset ?? 0,
-    teamTalk: t.teamTalk ?? 'none',
-    captainId: t.captainId,
-    talkSkill: t.talkSkill,
-    markTarget: t.markTarget,
-    strength: strip(strength),
-    modifiers,
-    talkText,
-    variance,
-    boost: boost ?? { attack: 1, defence: 1 },
-  })
+  const hVar = Math.exp(rng.gaussian(0, varianceSigma(hLive, home.getPlayer)))
+  const aVar = Math.exp(rng.gaussian(0, varianceSigma(aLive, away.getPlayer)))
+  const snap = snapshotOf
   const mp: MatchInProgress = {
     home: snap(home, hs, hm, hTalk.text, hVar * hTalk.factor, opts.boosts?.home),
     away: snap(away, as, am, aTalk.text, aVar * aTalk.factor, opts.boosts?.away),
@@ -546,11 +519,71 @@ export function onPitch(mp: MatchInProgress, side: 'home' | 'away'): LivePlayer[
 // ---------------------------------------------------------------------------
 // Internals
 
+/** Both sides' strengths, tactical modifiers and players as a match starts, marking applied. No RNG. */
+function prepareSides(home: MatchTeamInput, away: MatchTeamInput) {
+  const hs = withOffset(computeTeamStrength(home.tactics, home.lineup, home.getPlayer, home.getState), home.ratingOffset ?? 0)
+  const as = withOffset(computeTeamStrength(away.tactics, away.lineup, away.getPlayer, away.getState), away.ratingOffset ?? 0)
+  const hm = tacticalModifiers(home.tactics, hs.slots, away.tactics, as.slots)
+  const am = tacticalModifiers(away.tactics, as.slots, home.tactics, hs.slots)
+  const hLive = buildLive(hs.slots)
+  const aLive = buildLive(as.slots)
+  applyMarking(home, aLive, hm, away.getPlayer)
+  applyMarking(away, hLive, am, home.getPlayer)
+  return { hs, as, hm, am, hLive, aLive }
+}
+
+/** The spread of a side's "any given Saturday" variance: 0.06 for the most consistent XI up to 0.18. */
+function varianceSigma(live: LivePlayer[], get: MatchTeamInput['getPlayer']): number {
+  const c = avg(live.map((p) => get(p.psId)?.traits.consistency ?? 0.5))
+  return 0.06 + 0.12 * (1 - c)
+}
+
+function snapshotOf(t: MatchTeamInput, strength: TeamStrength, modifiers: TacticalModifiers, talkText: string, variance: number, boost: { attack: number; defence: number } | undefined): TeamSnapshot {
+  return {
+    teamId: t.teamId,
+    teamName: t.teamName,
+    shortName: t.shortName,
+    tactics: t.tactics,
+    lineup: t.lineup,
+    bench: t.bench,
+    ratingOffset: t.ratingOffset ?? 0,
+    teamTalk: t.teamTalk ?? 'none',
+    captainId: t.captainId,
+    talkSkill: t.talkSkill,
+    markTarget: t.markTarget,
+    strength: strip(strength),
+    modifiers,
+    talkText,
+    variance,
+    boost: boost ?? { attack: 1, defence: 1 },
+  }
+}
+
+/** What a pairing is expected to produce before a ball is kicked: each side's expected goals and variance spread. */
+export interface PairingExpectation {
+  lamH: number
+  lamA: number
+  sigmaH: number
+  sigmaA: number
+}
+
+/**
+ * The expected goals of a match between two sides at full strength, with no variance and no team talk: the
+ * deterministic part of `beginMatch`. The pre-season odds sample seasons from these numbers instead of playing every
+ * match through the engine. Pure: it draws nothing.
+ */
+export function pairingExpectation(home: MatchTeamInput, away: MatchTeamInput, neutral = false): PairingExpectation {
+  const { hs, as, hm, am, hLive, aLive } = prepareSides(home, away)
+  const mp = { home: snapshotOf(home, hs, hm, '', 1, undefined), away: snapshotOf(away, as, am, '', 1, undefined), hLive, aLive, neutral, importance: 1 }
+  const { lamH, lamA } = expectedGoals(mp, home, away)
+  return { lamH, lamA, sigmaH: varianceSigma(hLive, home.getPlayer), sigmaA: varianceSigma(aLive, away.getPlayer) }
+}
+
 function inputFromSnapshot(s: TeamSnapshot, l: TeamLookups): MatchTeamInput {
   return { teamId: s.teamId, teamName: s.teamName, shortName: s.shortName, tactics: s.tactics, lineup: s.lineup, bench: s.bench, getPlayer: l.getPlayer, getState: l.getState, teamTalk: s.teamTalk, ratingOffset: s.ratingOffset, captainId: s.captainId, talkSkill: s.talkSkill, markTarget: s.markTarget }
 }
 
-function expectedGoals(mp: MatchInProgress, home: MatchTeamInput, away: MatchTeamInput, hsOverride?: TeamStrength, asOverride?: TeamStrength): { lamH: number; lamA: number } {
+function expectedGoals(mp: Pick<MatchInProgress, 'home' | 'away' | 'hLive' | 'aLive' | 'neutral' | 'importance'>, home: MatchTeamInput, away: MatchTeamInput, hsOverride?: TeamStrength, asOverride?: TeamStrength): { lamH: number; lamA: number } {
   const hs = hsOverride ?? mp.home.strength
   const as = asOverride ?? mp.away.strength
   const hm = mp.home.modifiers
