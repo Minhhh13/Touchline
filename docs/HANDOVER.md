@@ -35,7 +35,7 @@ Each item lives on its own branch until it is merged into the working branch and
 | Football Manager depth attributes (stamina, strength, aggression, jumping, work rate) through data, engine and UI | `fm-depth` | In progress; rebuilds the data packs, ENGINE_VERSION `'4'`; on the preview site |
 | Live match visuals: 2D pitch, momentum, shot map, xG race | `match-visuals` | In progress |
 | Redesign: blue palette, a proper TouchLine logo, cleaner Setup | `redesign` | In progress |
-| 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets | `replica-setup` | In progress |
+| 38-0 style setup: difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets and slider, formation pitch preview; Position First on the Draft screen | `replica-setup` (main merged in) | Rules and setup screen built; the quick-season January window and tactics step still to come |
 | "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch (live site) |
 | Coach marks, slot picker | working branch `claude/youthful-mccarthy-a57idu` | In progress |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
@@ -134,3 +134,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 
 - 2026-10-25 · owner's agent · Handover written: CLAUDE.md, AGENTS.md, CONTRIBUTING.md, this page, a pull-request template, and roadmap issues #3 to #20 with area, size and status labels.
 - 2026-10-25 · owner's agent · "While you were away" digest shipped on the working branch; the preview site (`claude/touchline-preview`) carries the case-opening reel, the game-by-game quick season and the Football Manager depth attributes merged together (`ENGINE_VERSION` `'4'` there).
+- 2026-10-25 · owner's agent · `replica-setup`: merged `main` in (the Daily's `dailySettings` now lives in `src/game/logic/daily.ts` with `DAILY_RULES`, re-exported from `setup.ts`); the Setup screen follows 38-0's order (formation grid with pitch preview, Difficulty, Show ratings, Draft mode, Player ratings, Era chips and a two-handle slider, an Advanced fold) through the pure `setupRules`; the Draft screen reads "Spin for CB" under Position First and highlights who fits. Not pushed yet.

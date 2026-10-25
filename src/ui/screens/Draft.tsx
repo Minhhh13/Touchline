@@ -66,6 +66,7 @@ export function Draft() {
   const hide = ratingsHidden(d.rules) || twist === 'blind'
   const hiddenAll = ratingsHidden(d.rules)
   const choosing = positionFirst(d) && !d.current && !isComplete(d)
+  // Position First: the slot this spin fills, kept until the pick; the list lights up whoever can play there
   const target = targetSlot(d)
   const tags = rulesTags(d.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES)
   const complete = isComplete(d)
@@ -178,7 +179,7 @@ export function Draft() {
                   </div>
                 )}
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
-                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing && !target ? 'Choose a slot' : made === 0 ? 'Spin the wheel' : 'Spin again'}
+                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 ? 'Spin the wheel' : 'Spin again'}
                 </button>
                 <div className="row between">
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
@@ -298,6 +299,7 @@ export function Draft() {
                         p={p}
                         dim={!ok}
                         selected={selectedPlayer === p.id}
+                        highlight={!!target && ok}
                         hideRatings={hide}
                         onClick={() => onPick(p)}
                         extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}

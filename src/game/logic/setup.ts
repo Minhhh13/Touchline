@@ -1,7 +1,7 @@
 import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { newDraft, QUICK_RULES, SEASON_RULES } from '@engine/draft'
+import { difficultyOf, draftModeOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
 import { dailySettings } from './daily'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -33,6 +33,70 @@ export function defaultHostClub(u: LoadedUniverse, leagueId: string, season: num
     if (!best || d < Math.abs(best.position - DEFAULT_HOST_POSITION) || (d === Math.abs(best.position - DEFAULT_HOST_POSITION) && r.position < best.position)) best = { clubId: r.clubId, position: r.position }
   }
   return best?.clubId ?? clubsInLeague[Math.floor(clubsInLeague.length / 2)] ?? ''
+}
+
+/** What the setup screen's cards, slider and toggles hold, before they become `DraftRules`. */
+export interface SetupChoices {
+  difficulty: DraftDifficulty
+  /** The Show ratings card; ignored on hard, which always hides them. */
+  showRatings: boolean
+  draftMode: DraftMode
+  ratings: RatingsMode
+  /** The era slider's two handles (season start years, either way round) over the wheel's seasons `first` to `last`. */
+  eraFrom: number
+  eraTo: number
+  first: number
+  last: number
+  twists: boolean
+  /** The wheel leagues: the league played in, or all of them for European Nights. */
+  leagues: string[]
+  onlyClub?: string
+  onlyNation?: string
+}
+
+/**
+ * The draft rules a setup screen starts with: the mode's base rules (`QUICK_RULES`, or `SEASON_RULES` with the squad
+ * size) at the chosen difficulty (`withDifficulty`: its re-spins, hard mode in step), ratings shown unless the card
+ * says off or the difficulty is hard, the draft mode, the ratings mode and the era. The era handles are ordered and
+ * clamped to the wheel's seasons, and a handle at either end of the slider writes no bound, so a full slider is the
+ * All-time wheel (no `fromSeason` / `toSeason`) and a range that runs to the newest season leaves `toSeason` out,
+ * exactly as the presets do. Pure: the same choices give the same rules on every device.
+ */
+export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
+  const lo = Math.max(c.first, Math.min(c.eraFrom, c.eraTo))
+  const hi = Math.min(c.last, Math.max(c.eraFrom, c.eraTo))
+  const hard = c.difficulty === 'hard'
+  return {
+    ...withDifficulty(base, c.difficulty),
+    showRatings: hard ? false : c.showRatings,
+    draftMode: c.draftMode,
+    ratings: c.ratings,
+    fromSeason: lo > c.first ? Math.min(lo, c.last) : undefined,
+    toSeason: hi < c.last ? Math.max(hi, c.first) : undefined,
+    onlyClub: c.onlyClub,
+    onlyNation: c.onlyNation,
+    twists: c.twists,
+    leagues: c.leagues,
+  }
+}
+
+/**
+ * The draft rules in plain words, one short item each, for a fixed wheel (the Daily, a challenge link) where the
+ * cards are not the player's to change: `['Normal: 1 re-spin', 'Ratings on', 'Squad First', 'Season ratings',
+ * 'All-time', 'Twists on']`.
+ */
+export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
+  const diff = difficultyOf(r)
+  const name = diff === 'easy' ? 'Easy' : diff === 'hard' ? 'Hard' : 'Normal'
+  const respins = r.respins
+  return [
+    `${name}: ${respins === 0 ? 'no re-spins' : `${respins} re-spin${respins === 1 ? '' : 's'}`}`,
+    ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on',
+    draftModeOf(r) === 'position' ? 'Position First' : 'Squad First',
+    ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
+    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
+    r.twists ? 'Twists on' : 'No twists',
+  ]
 }
 
 /** The 2 to 3 letter code shown on the scoreboard, from the initials of the team name. */
@@ -68,11 +132,14 @@ export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'T
   }
 }
 
+/** How `rulesTags` labels read inside the summary line. */
+const TAG_WORDS: Record<string, string> = { Easy: 'easy mode', Normal: 'normal mode', Hard: 'hard mode', Blind: 'blind', 'Prime ratings': 'prime ratings', 'Season ratings': 'season ratings' }
+
 /**
  * One line stating every choice a game will start with, so the ones folded away under More options are still read:
  * "Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
- * the defaults (European Nights, era, one club or nation, hard mode, twists changed from the mode's default, squad
- * size, job security, Europe).
+ * the defaults (European Nights, era, one club or nation, the difficulty, blind, Position First or prime ratings when
+ * they differ from the mode's defaults, twists changed from the mode's default, squad size, job security, Europe).
  */
 export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
@@ -82,8 +149,9 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) parts.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
-  if (r.hardMode) parts.push('hard mode')
   const manage = s.mode === 'season' || s.mode === 'dynasty'
+  // The 38-0 options, only where they differ from the mode's defaults: `hard mode`, `easy mode`, `blind`, `Position First`, `prime ratings`
+  for (const t of rulesTags(r, manage ? SEASON_RULES : QUICK_RULES)) parts.push(TAG_WORDS[t] ?? t)
   // Twists are on by default for a quick draft and off for a managed season: only a change from that is worth a word
   const twistsDefault = !!(manage ? SEASON_RULES.twists : QUICK_RULES.twists)
   if (!!r.twists !== twistsDefault) parts.push(r.twists ? 'twists' : 'no twists')

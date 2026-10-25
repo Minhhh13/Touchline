@@ -45,9 +45,25 @@ export interface EraCount {
   caption: string
 }
 
+/** Every season the wheel leagues hold, ascending: the stops of the setup screen's era slider. */
+export function wheelSeasons(u: LoadedUniverse, leagues: string[]): number[] {
+  return [...new Set(u.clubSeasons.filter((cs) => leagues.includes(cs.leagueId)).map((cs) => cs.season))].sort((a, b) => a - b)
+}
+
+/**
+ * Where a preset puts the era slider's two handles over the wheel's seasons `[first, last]`:
+ * All-time spans them all, a preset starts at its year (or the first season, when that is later)
+ * and runs to the last. A preset that starts after the last season pins both handles to it.
+ */
+export function eraHandles(preset: Exclude<EraPreset, 'custom'>, first: number, last: number): [number, number] {
+  if (preset === 'all') return [first, last]
+  const from = Math.min(last, Math.max(first, ERA_PRESETS.find((p) => p.id === preset)?.from ?? first))
+  return [from, last]
+}
+
 /** How many of the wheel leagues' seasons an era admits, for the setup line "N of M seasons". */
 export function eraCount(u: LoadedUniverse, leagues: string[], range: EraRange): EraCount {
-  const all = [...new Set(u.clubSeasons.filter((cs) => leagues.includes(cs.leagueId)).map((cs) => cs.season))].sort((a, b) => a - b)
+  const all = wheelSeasons(u, leagues)
   const inside = all.filter((s) => (range.fromSeason === undefined || s >= range.fromSeason) && (range.toSeason === undefined || s <= range.toSeason))
   const caption = inside.length ? (inside.length === 1 ? seasonLabel(inside[0]) : `${seasonLabel(inside[0])} to ${seasonLabel(inside[inside.length - 1])}`) : 'No seasons'
   return { n: inside.length, m: all.length, label: `${inside.length} of ${all.length} season${all.length === 1 ? '' : 's'}`, caption }
