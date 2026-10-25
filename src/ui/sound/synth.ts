@@ -1,4 +1,4 @@
-import type { Tier } from '@game/logic/rarity'
+import type { DisplayTier, Tier } from '@game/logic/rarity'
 import { soundOn, subscribeSound } from './prefs'
 
 /*
@@ -172,9 +172,11 @@ export function playPop(at: number): AudioScheduledSourceNode | null {
 /**
  * The reveal, scaled by rarity: blue a plain chime; purple and pink a brighter two-note chime
  * (pink higher and brighter); red a rising arpeggio; gold an arpeggio into a held sting chord with a
- * shimmer of high pings on top. `reduced` (prefers-reduced-motion) drops the shimmer.
+ * shimmer of high pings on top; the Icons card (Gamble mode's rare spin) plays gold's. `reduced`
+ * (prefers-reduced-motion) drops the shimmer.
  */
-export function playLanding(tier: Tier, reduced = false): void {
+export function playLanding(display: DisplayTier, reduced = false): void {
+  const tier: Tier = display === 'icons' ? 'gold' : display
   const a = liveAudio()
   if (!a) return
   const { c, out } = a

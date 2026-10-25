@@ -161,10 +161,12 @@ describe('sound without Web Audio', () => {
     expect(liveAudio()).toBeNull()
     expect(playTick(0, 1)).toBeNull()
     for (const t of TIERS) expect(() => playLanding(t)).not.toThrow()
+    expect(() => playLanding('icons')).not.toThrow()
     const s = strip(68, 328, 0)
     const run = startReelSound({ slide: null, geometry: s.geometry, timing: { position: () => 0, duration: SPIN_MS }, popAt: 850, reduced: false })
     expect(() => {
       run.land('gold')
+      run.land('icons')
       run.stop()
     }).not.toThrow()
   })

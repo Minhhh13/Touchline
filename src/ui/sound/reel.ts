@@ -1,4 +1,4 @@
-import type { Tier } from '@game/logic/rarity'
+import type { DisplayTier } from '@game/logic/rarity'
 import { tickTimes, type TickGeometry, type TickTiming } from './schedule'
 import { liveAudio, playLanding, playPop, playTick, playWhoosh, stopAll } from './synth'
 
@@ -11,7 +11,7 @@ export const MIN_TICK_GAP_MS = 15
 
 export interface ReelSound {
   /** The strip landed (or the run was skipped): cut what is still to come and play the reveal. */
-  land(tier: Tier): void
+  land(tier: DisplayTier): void
   /** The run is gone (unmounted or replaced): silence what is still to come. */
   stop(): void
 }
