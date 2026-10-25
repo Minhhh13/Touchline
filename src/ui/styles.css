@@ -315,6 +315,11 @@ p {
   --tl-glint-edge: rgba(147, 197, 253, 0.95);
   --tl-glint-core: #ffffff;
   --tl-dim: rgba(0, 0, 0, 0.68);
+  /* The name's top-lit "Touch" and the deeper blue of "Line" (each end clears 4.5:1 on the page) */
+  --tl-touch-top: #ffffff;
+  --tl-touch-bottom: #c9d5e8;
+  --tl-line-top: #9ccaff;
+  --tl-line-bottom: #4b8df8;
   --tl-dur: 1.2s;
   --tl-delay: 0s;
   /* One easing for the shine, the line and the ball, so they move as one */
@@ -326,13 +331,17 @@ p {
   vertical-align: middle;
   box-sizing: border-box;
   height: var(--h);
-  padding: 0 0 0 calc(47.5 * var(--u));
+  padding: 0 0 0 calc(53.5 * var(--u));
   line-height: 0;
   text-align: left;
 }
 :root[data-theme='light'] .tl-lockup {
   --tl-ink: var(--text);
   --tl-ball-ring: var(--text);
+  --tl-touch-top: #2d3d5e;
+  --tl-touch-bottom: #0d1526;
+  --tl-line-top: #2563eb;
+  --tl-line-bottom: #1e3a8a;
   --tl-glint-edge: #bfdbfe;
   --tl-glint-core: #ffffff;
 }
@@ -340,8 +349,8 @@ p {
 .tl-rule {
   position: absolute;
   left: calc(7.5 * var(--u));
-  width: calc(36 * var(--u));
-  top: calc(52 * var(--u));
+  width: calc(37 * var(--u));
+  top: calc(51 * var(--u));
   height: calc(2 * var(--u));
   border-radius: calc(1 * var(--u));
   background: var(--tl-ink);
@@ -350,9 +359,9 @@ p {
 .tl-ball {
   position: absolute;
   left: calc(16.5 * var(--u));
-  top: calc(29 * var(--u));
-  width: calc(23 * var(--u));
-  height: calc(23 * var(--u));
+  top: calc(27 * var(--u));
+  width: calc(24 * var(--u));
+  height: calc(24 * var(--u));
   overflow: visible;
 }
 .tl-flag {
@@ -366,12 +375,13 @@ p {
 .tl-name {
   position: relative;
   display: block;
-  margin-top: calc(12 * var(--u));
+  margin-top: calc(5.85 * var(--u));
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: calc(44.3 * var(--u));
+  font-size: calc(50 * var(--u));
   line-height: 1;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.012em;
+  font-kerning: normal;
   white-space: nowrap;
   color: var(--text);
   /* The wipe: letters behind the glint at full strength, ahead of it a little dimmer; at rest all full */
@@ -384,8 +394,28 @@ p {
   -webkit-mask-position: 0 0;
   mask-position: 0 0;
 }
+/* Each half of the name carries its own top-lit gradient, clipped to the letters */
+.tl-touch,
+.tl-name .wordmark-line {
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.tl-touch {
+  color: var(--text);
+  background-image: linear-gradient(180deg, var(--tl-touch-top) 22%, var(--tl-touch-bottom) 92%);
+}
 .tl-name .wordmark-line {
   color: var(--accent);
+  margin-left: 0.01em;
+  background-image: linear-gradient(180deg, var(--tl-line-top) 22%, var(--tl-line-bottom) 92%);
+}
+@media (forced-colors: active) {
+  .tl-touch,
+  .tl-name .wordmark-line {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
 }
 /* The glint: the name again, clipped to the letters, carrying a narrow diagonal band that is off the text at rest */
 .tl-shine {
@@ -483,10 +513,10 @@ p {
     transform: scaleX(1);
   }
 }
-/* The ball fades in clear of the pole and rolls 5u along the line to its spot: rotation = distance / radius (5 / 11.5 rad) */
+/* The ball fades in clear of the pole and rolls 5u along the line to its spot: rotation = distance / radius (5 / 12 rad) */
 @keyframes tl-roll {
   from {
-    transform: translateX(calc(-5 * var(--u))) rotate(-24.9deg);
+    transform: translateX(calc(-5 * var(--u))) rotate(-23.9deg);
     opacity: 0;
   }
   35% {

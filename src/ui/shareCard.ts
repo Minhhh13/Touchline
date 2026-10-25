@@ -5,7 +5,7 @@
  */
 import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/types'
 import type { SeasonTier } from '@engine/types'
-import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, pennantPath } from './brand'
+import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, clothStops, pennantPath } from './brand'
 import { tierName } from './format'
 
 export interface ShareCardInput {
@@ -203,12 +203,12 @@ function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: nu
   ctx.fillStyle = MARK.panel
   for (const p of ballPanels(bx, by, br)) if (p.type === 'pent') ctx.fill(new Path2D(p.d))
   ctx.restore()
-  // The flag: the pennant with its fold (at rest), then the pole standing on the line
+  // The flag: the pennant with its folds (at rest), then the pole standing on the line and its finial
   ctx.save()
   ctx.scale(u, u)
   const P = LOCKUP.pennant
-  const fold = ctx.createLinearGradient(P.x, 0, P.tipX, 0)
-  for (const [o, c] of MARK.fold) fold.addColorStop(o, c)
+  const fold = ctx.createLinearGradient(P.x, P.top, P.tipX, P.tipY + (P.tipX - P.x) * 0.3)
+  for (const [o, c] of clothStops(P, 0, MARK.cloth.strength.lockup)) fold.addColorStop(o, c)
   ctx.fillStyle = fold
   ctx.fill(new Path2D(pennantPath(P)))
   const pole = LOCKUP.pole
@@ -219,6 +219,10 @@ function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: nu
   ctx.moveTo(pole.x, pole.y1)
   ctx.lineTo(pole.x, pole.y2)
   ctx.stroke()
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.arc(pole.x, LOCKUP.finial.cy, LOCKUP.finial.r, 0, Math.PI * 2)
+  ctx.fill()
   ctx.restore()
   // The name, its baseline where the stylesheet puts it
   ctx.textAlign = 'left'
