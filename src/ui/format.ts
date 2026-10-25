@@ -1,13 +1,11 @@
 import type { LoadedUniverse } from '@engine/universe'
 import type { Fit } from '@engine/positions'
 import type { SeasonTier } from '@engine/types'
-import { TIER_LABEL } from '@engine/season'
+import { tierLabel } from '@engine/season'
 
-/** A tier for display in sentence case ("Title race", "38-0: The perfect season"); the engine's labels are capitals. */
-export function tierName(tier: SeasonTier): string {
-  const lower = TIER_LABEL[tier].toLowerCase()
-  const i = lower.search(/[a-z]/)
-  return i < 0 ? lower : lower.slice(0, i) + lower[i].toUpperCase() + lower.slice(i + 1)
+/** A season tier for display ("Champions", "Top 4"); with the position, 3rd or 4th reads as Top 4. */
+export function tierName(tier: SeasonTier, position?: number): string {
+  return tierLabel(tier, position)
 }
 
 export function seasonLabel(season: number): string {

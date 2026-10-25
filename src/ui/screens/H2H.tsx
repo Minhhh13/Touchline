@@ -7,7 +7,6 @@ import { randomSeed } from '@engine/rng'
 import { poolClubSeasons } from '@engine/universe'
 import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
-import { TIER_LABEL } from '@engine/season'
 import { H2H_IDS } from '@game/logic/h2h'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
@@ -359,7 +358,7 @@ function H2HSummary() {
   const m = h2h.managers
   const text = [
     `${APP_NAME} · Head-to-head · ${seasonLabel(h2h.leagueSeason)}`,
-    ...([0, 1] as const).map((i) => `${m[i].name}: ${TIER_LABEL[r.tiers[i]]} · ${r.rows[i].won}W ${r.rows[i].drawn}D ${r.rows[i].lost}L · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
+    ...([0, 1] as const).map((i) => `${m[i].name}: ${tierName(r.tiers[i], r.positions[i])} · ${r.rows[i].won}-${r.rows[i].drawn}-${r.rows[i].lost} · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
     `Derbies: ${r.derbies.map((dby) => `${m[dby.homeIdx].shortName} ${dby.homeGoals}-${dby.awayGoals} ${m[dby.homeIdx === 0 ? 1 : 0].shortName}`).join(', ')}`,
     r.winner === null ? 'Dead heat.' : `${m[r.winner].name} wins.`,
     `Seed ${h2h.seed}`,
@@ -414,7 +413,7 @@ function H2HSummary() {
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" aria-label="Winner" />}
               </div>
-              <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierName(r.tiers[i])}</span>
+              <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierName(r.tiers[i], r.positions[i])}</span>
               <div className="record">
                 <span className="w">{r.rows[i].won}W</span>
                 <span className="d">{r.rows[i].drawn}D</span>

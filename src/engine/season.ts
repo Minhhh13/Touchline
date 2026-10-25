@@ -6,7 +6,7 @@
 import type { Fixture, Lineup, MatchResult, PlayerSeason, SquadPlayer, TableRow, Tactics, SeasonTier, ClubSeason } from './types'
 import { familiarityGainFactor } from './depth'
 import type { Rng } from './rng'
-import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from './universe'
+import { isClassicSeason, ordinal, poolClubSeasons, type LoadedUniverse } from './universe'
 import type { Objective } from './objectives'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk } from './match'
 import { tacticsForStyle, formationForStyle } from './tactics'
@@ -396,15 +396,53 @@ export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, m
   return 'RELEGATED'
 }
 
+/**
+ * The season tiers as plain outcomes. The ids are saved (game, history, challenge links, daily results) and never
+ * change; only the words do. EUROPEAN covers 3rd to 6th: `tierLabel` splits it into Top 4 and Top 6
+ * when the position is known, and this table carries the wider name for where it is not.
+ */
 export const TIER_LABEL: Record<SeasonTier, string> = {
-  PERFECT: '38-0: THE PERFECT SEASON',
-  INVINCIBLE: 'INVINCIBLES',
-  CHAMPIONS: 'CHAMPIONS',
-  TITLE_RACE: 'TITLE RACE',
-  EUROPEAN: 'EUROPEAN NIGHTS',
-  MID_TABLE: 'MID-TABLE',
-  RELEGATION_BATTLE: 'RELEGATION BATTLE',
-  RELEGATED: 'RELEGATED',
+  PERFECT: 'Perfect season',
+  INVINCIBLE: 'Invincibles',
+  CHAMPIONS: 'Champions',
+  TITLE_RACE: 'Title race',
+  EUROPEAN: 'Top 6',
+  MID_TABLE: 'Mid-table',
+  RELEGATION_BATTLE: 'Relegation battle',
+  RELEGATED: 'Relegated',
+}
+
+/** The tier's headline, with the position when it is known: a 3rd or 4th place reads as "Top 4". */
+export function tierLabel(tier: SeasonTier, position?: number): string {
+  if (tier === 'EUROPEAN' && position !== undefined && position >= 1 && position <= 4) return 'Top 4'
+  return TIER_LABEL[tier]
+}
+
+/**
+ * One short line under the headline saying what the tier means. `teams` is the size of the league (20 by default),
+ * `sacked` a managed season cut short.
+ */
+export function tierBlurb(tier: SeasonTier, position: number, teams = 20, sacked = false): string {
+  const place = `${ordinal(position)} of ${teams}`
+  if (sacked) return `Sacked at ${place}.`
+  switch (tier) {
+    case 'PERFECT':
+      return 'Every game won.'
+    case 'INVINCIBLE':
+      return 'Champions without a defeat.'
+    case 'CHAMPIONS':
+      return 'Top of the table.'
+    case 'TITLE_RACE':
+      return 'Runners-up, just short.'
+    case 'EUROPEAN':
+      return `${place}, ${position <= 4 ? 'a top-four' : 'a top-six'} side.`
+    case 'MID_TABLE':
+      return `${place}, safe.`
+    case 'RELEGATION_BATTLE':
+      return `${place}, survived.`
+    case 'RELEGATED':
+      return `${place}, down a division.`
+  }
 }
 
 /**
@@ -489,6 +527,17 @@ export function shootout(rng: Rng, homeMentality: number, awayMentality: number)
     if (rng.chance(pA)) a++
   }
   return { home: h, away: a }
+}
+
+/** Extra time is thirty minutes, a third of a match, played by tired legs at 85% of the ninety minutes' rate. */
+export const EXTRA_TIME_RATE = 0.85 / 3
+
+/**
+ * Extra time after a level ninety minutes: each side's goals are Poisson draws from its expected goals over the match
+ * times `EXTRA_TIME_RATE`, home first. Two draws, nothing else.
+ */
+export function extraTime(rng: Rng, xg: { home: number; away: number }): { home: number; away: number } {
+  return { home: rng.poisson(Math.max(0, xg.home) * EXTRA_TIME_RATE), away: rng.poisson(Math.max(0, xg.away) * EXTRA_TIME_RATE) }
 }
 
 export function clubSeasonFor(u: LoadedUniverse, clubId: string, season: number): ClubSeason | undefined {

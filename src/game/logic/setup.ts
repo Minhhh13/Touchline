@@ -55,6 +55,8 @@ export interface SetupChoices {
   onlyNation?: string
   /** Quick Draft bench places (0 to 5); none when absent or 0. */
   benchPicks?: number
+  /** Quick Draft managers on or off; the base rules' value when absent. */
+  managers?: boolean
   /** The Classic toggle: the wheel may land on 1992-93 to 2007-08 (estimated ratings), and `first` is then the first classic season. */
   classic?: boolean
 }
@@ -83,6 +85,7 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     twists: c.twists,
     leagues: c.leagues,
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
+    ...(c.managers !== undefined ? { managers: c.managers } : {}),
     ...(c.classic ? { classic: true } : {}),
   }
 }
@@ -104,6 +107,7 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
     r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
     r.twists ? 'Twists on' : 'No twists',
     ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
+    ...(r.managers ? ['Manager pick'] : []),
   ]
 }
 
@@ -147,14 +151,16 @@ const TAG_WORDS: Record<string, string> = { Easy: 'easy mode', Normal: 'normal m
 
 /**
  * One line stating every choice a game will start with, so the ones folded away under More options are still read:
- * "Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
+ * "Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed K7Q2-MX9A" (a managed season adds "as Brentford"), then anything off
  * the defaults (European Nights, era, one club or nation, the difficulty, blind, Position First or prime ratings when
  * they differ from the mode's defaults, twists changed from the mode's default, squad size, job security, Europe; for a
  * quick draft no January window, or a Continental Cup run).
  */
 export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
-  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
+  // A quick draft's XI is the user's own team: only a managed season takes a club's place, so only it says "as"
+  const host = s.mode === 'season' || s.mode === 'dynasty' ? `as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ` : ''
+  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
   const r = s.rules
   if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
@@ -172,10 +178,11 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
     if (!s.jobSecurity) parts.push('no sack')
     if (s.continental) parts.push('Continental Cup')
   } else {
-    // The quick season's options: the January window is on by default, the Continental Cup run off
+    // The quick season's options: the January window is on by default (the cups are offered after every league season)
     if (s.january === false) parts.push('no January window')
     if (benchPlaces(r)) parts.push(`bench of up to ${benchPlaces(r)}`)
-    if (s.continental) parts.push('Continental Cup run')
+    // A manager pick is on by default for a Quick Draft (off in the Daily, which this line never describes)
+    if (s.mode === 'quick' && !r.managers) parts.push('no manager')
   }
   return parts.join(', ')
 }
