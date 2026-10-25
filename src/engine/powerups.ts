@@ -21,10 +21,10 @@ import { canCover } from './positions'
 import type { ClubSeason } from './types'
 import type { LoadedUniverse } from './universe'
 import { isIcons, ICONS_SEASON } from './icons'
-import { isComplete, peekActive, spin, wheelPool, canSpin, positionFirst, targetSlot, type DraftState, type PowerUpUse } from './draft'
+import { isComplete, peekActive, spin, wheelPool, canSpin, positionFirst, targetSlot, upgraderAvailable, type DraftState, type LockerKind, type PowerUpUse } from './draft'
 import { upgradeCandidates } from './upgrader'
 
-export type PowerUp = 'upgrader' | 'reroll' | 'peek' | 'swap' | 'armband' | 'lock'
+export type PowerUp = LockerKind
 /** The tray's order. */
 export const POWER_UPS: readonly PowerUp[] = ['upgrader', 'reroll', 'peek', 'swap', 'armband', 'lock']
 /** The tray's own icon, for the setup toggle, the draft header and the share text. */
@@ -46,6 +46,40 @@ export function powerUpsOn(d: DraftState): boolean {
   return !!d.rules.powerUps
 }
 
+/** Whether a draft has this power-up: the whole tray, or this one unpacked from the locker. */
+export function hasPowerUp(d: DraftState, kind: PowerUp): boolean {
+  if (kind === 'upgrader') return upgraderAvailable(d)
+  return !!d.rules.powerUps || !!d.locker?.includes(kind)
+}
+
+/** Whether a draft shows power-up buttons at all: the tray, or anything unpacked from the locker. */
+export function trayKinds(d: DraftState): PowerUp[] {
+  if (d.rules.powerUps) return [...POWER_UPS]
+  return POWER_UPS.filter((k) => d.locker?.includes(k))
+}
+
+/**
+ * Whether a power-up may be unpacked from the locker into this draft: a draft without the tray, that kind not already
+ * in it (Gamble's Upgrader counts), the squad not yet complete. The locker's count is the caller's to check.
+ */
+export function canUnpack(d: DraftState, kind: PowerUp): boolean {
+  return !d.rules.powerUps && !hasPowerUp(d, kind) && !isComplete(d)
+}
+
+/**
+ * Unpack a power-up from the locker into this draft: from now on it works exactly as the tray's. Re-roll season and the
+ * Upgrader get the very streams `newDraft` seeds a tray draft with (`${seed}:powerups`, `${seed}:upgrader`), derived from
+ * the game seed alone, so when in the draft it is unpacked never matters and a challenge replay unpacks it up front.
+ * Draws nothing.
+ */
+export function unpackPowerUp(d: DraftState, kind: PowerUp, seed: string): void {
+  if (d.rules.powerUps) throw new Error('This draft has the whole tray already')
+  if (hasPowerUp(d, kind)) throw new Error(`${POWER_UP_INFO[kind].title} is in this draft already`)
+  ;(d.locker ??= []).push(kind)
+  if (kind === 'reroll' && !d.powerRng) d.powerRng = new Rng(`${seed}:powerups`).getState()
+  if (kind === 'upgrader' && !d.upgradeRng) d.upgradeRng = new Rng(`${seed}:upgrader`).getState()
+}
+
 function uses(d: DraftState): PowerUpUse[] {
   return d.powerUps ?? []
 }
@@ -61,7 +95,7 @@ function record(d: DraftState, use: PowerUpUse): void {
 }
 
 function need(d: DraftState, kind: Exclude<PowerUp, 'upgrader'>): void {
-  if (!powerUpsOn(d)) throw new Error('This draft has no power-ups')
+  if (!hasPowerUp(d, kind)) throw new Error('This draft has no power-ups')
   if (powerUpUsed(d, kind)) throw new Error(`${POWER_UP_INFO[kind].title} has been used`)
 }
 
@@ -94,7 +128,7 @@ export function rerollOptions(u: LoadedUniverse, d: DraftState): ClubSeason[] {
 }
 
 export function canReroll(u: LoadedUniverse, d: DraftState): boolean {
-  return powerUpsOn(d) && !!d.powerRng && !powerUpUsed(d, 'reroll') && rerollOptions(u, d).length > 0
+  return hasPowerUp(d, 'reroll') && !!d.powerRng && !powerUpUsed(d, 'reroll') && rerollOptions(u, d).length > 0
 }
 
 /** Re-roll the showing spin's season: one draw from the power-up stream, forked by the spin; the spin count is unchanged. */
@@ -127,7 +161,7 @@ export function peekNext(u: LoadedUniverse, d: DraftState, main: RngState): { cl
 }
 
 export function canPeek(u: LoadedUniverse, d: DraftState): boolean {
-  return powerUpsOn(d) && !powerUpUsed(d, 'peek') && !d.current && !isComplete(d) && !(positionFirst(d) && !targetSlot(d)) && canSpin(u, d)
+  return hasPowerUp(d, 'peek') && !powerUpUsed(d, 'peek') && !d.current && !isComplete(d) && !(positionFirst(d) && !targetSlot(d)) && canSpin(u, d)
 }
 
 /** Peek: record the season the next spin lands on (`ICONS_SEASON` for an Icons spin). No draw from any stream. */
@@ -166,7 +200,7 @@ export function swapTargets(u: LoadedUniverse, d: DraftState, from: string): str
 
 /** Whether a swap could be made now: unused, between spins, no peek pinned, and some starter has somewhere to go. */
 export function canSwap(u: LoadedUniverse, d: DraftState): boolean {
-  if (!powerUpsOn(d) || powerUpUsed(d, 'swap') || d.current || peekActive(d)) return false
+  if (!hasPowerUp(d, 'swap') || powerUpUsed(d, 'swap') || d.current || peekActive(d)) return false
   return Object.keys(d.lineup).some((s) => swapTargets(u, d, s).length > 0)
 }
 
@@ -190,7 +224,7 @@ export function swapSlots(u: LoadedUniverse, d: DraftState, from: string, to: st
 // ------------------------------------------------------------------ Captain's armband and Lock
 
 export function canArmband(d: DraftState): boolean {
-  return powerUpsOn(d) && !powerUpUsed(d, 'armband') && upgradeCandidates(d).length > 0
+  return hasPowerUp(d, 'armband') && !powerUpUsed(d, 'armband') && upgradeCandidates(d).length > 0
 }
 
 /** The Captain's armband: +`ARMBAND_BOOST` to one drafted player for the season. No RNG. */
@@ -201,7 +235,7 @@ export function giveArmband(d: DraftState, id: string): void {
 }
 
 export function canLock(d: DraftState): boolean {
-  return powerUpsOn(d) && !powerUpUsed(d, 'lock') && !d.upgrade && upgradeCandidates(d).length > 0
+  return hasPowerUp(d, 'lock') && !powerUpUsed(d, 'lock') && !d.upgrade && upgradeCandidates(d).length > 0
 }
 
 /** Lock: an Upgrader loss on this drafted player costs nothing. Before the Upgrader is used. No RNG. */

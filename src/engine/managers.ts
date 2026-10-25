@@ -177,3 +177,57 @@ export const MANAGER_STYLE_HELP: Record<ManagerStyle, string> = {
   youth: 'Gets the best from young legs: the more of the XI aged 23 or under, the bigger the lift.',
   balanced: 'A steady lift at both ends. More with a balanced mentality.',
 }
+
+// ------------------------------------------------------------------ The manager spin
+
+/** Reels in the manager spin: three managers land side by side and the user picks one. */
+export const MANAGER_SPIN_REELS = 3
+/** The label the manager spin forks the game's stream with (`Rng.fork`), on a copy: the game's own stream never moves. */
+export const MANAGER_SPIN_FORK = 'manager-spin'
+
+/** What the manager spin's wheel is built from: the club-seasons a set of draft rules admits (leagues, era, classic, one club). */
+export interface ManagerWheelRules {
+  leagues?: readonly string[]
+  fromSeason?: number
+  toSeason?: number
+  classic?: boolean
+  onlyClub?: string
+}
+
+/**
+ * Every real manager on a draft's wheel, once per club-season he managed there: the club-seasons of the rules' leagues,
+ * era and club (classic ones only when the rules allow them), in the universe's order, each club-season's managers
+ * longest in charge first. Pure; every entry is equally likely on a reel.
+ */
+export function managerWheel(clubSeasons: ReadonlyArray<{ clubId: string; season: number; leagueId: string; classic?: boolean }>, r: ManagerWheelRules): Manager[] {
+  const leagues = r.leagues?.length ? new Set(r.leagues) : null
+  const out: Manager[] = []
+  for (const cs of clubSeasons) {
+    if (leagues && !leagues.has(cs.leagueId)) continue
+    if (cs.classic && !r.classic) continue
+    if (r.fromSeason !== undefined && cs.season < r.fromSeason) continue
+    if (r.toSeason !== undefined && cs.season > r.toSeason) continue
+    if (r.onlyClub && cs.clubId !== r.onlyClub) continue
+    out.push(...managersOf(cs.clubId, cs.season))
+  }
+  return out
+}
+
+/**
+ * The manager spin: `MANAGER_SPIN_REELS` different managers, each reel one uniform draw from the wheel (`managerWheel`)
+ * among the men not already landed; archetypes of styles not yet landed fill any reel the wheel cannot (a one-club wheel
+ * with few managers). The draws come from `rng` alone, in reel order.
+ */
+export function spinManagers(wheel: readonly Manager[], rng: { int(min: number, max: number): number }): Manager[] {
+  const out: Manager[] = []
+  for (let reel = 0; reel < MANAGER_SPIN_REELS; reel++) {
+    const left = wheel.filter((m) => !out.some((x) => x.id === m.id))
+    if (left.length) {
+      out.push({ ...left[rng.int(0, left.length - 1)] })
+      continue
+    }
+    const arch = ARCHETYPES.find((a) => !out.some((x) => x.style === a.style || x.id === a.id))
+    if (arch) out.push({ ...arch })
+  }
+  return out
+}
