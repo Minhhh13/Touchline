@@ -38,6 +38,8 @@ export interface PossessionInput {
   home: PlacedPlayer[]
   away: PlacedPlayer[]
   seed: string
+  /** Where the ball stands when the stretch begins (absent: the centre spot), so a path can carry on from where the last one left it. */
+  start?: { x: number; y: number; side: Side; holder?: string }
 }
 
 const SHOT_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', 'chance', 'save'])
@@ -76,9 +78,9 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
   const keeper = (side: Side, minute: number) => squad(side, minute).find((p) => p.position === 'GK')
   const goalLine = (side: Side) => (side === 'home' ? 100 : 0)
 
-  let pos: PitchPoint = { x: 50, y: 50 }
-  let side: Side = from <= 1 ? 'home' : 'away'
-  let holder: string | undefined
+  let pos: PitchPoint = input.start ? { x: input.start.x, y: input.start.y } : { x: 50, y: 50 }
+  let side: Side = input.start ? input.start.side : from <= 1 ? 'home' : 'away'
+  let holder: string | undefined = input.start?.holder
 
   /** Pass to a team-mate: nearer men more likely, forward passes favoured, and pulled towards `goal` when given. */
   const passTo = (s: Side, minute: number, t: number, goal?: PitchPoint) => {
