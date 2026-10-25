@@ -21,9 +21,10 @@ function exportSave(): void {
 export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast } = useStore()
   const unlocked = Object.keys(profile.achievements).length
-  // Runs on the same wheel (seed) sit together: the table is already best-first, so a seed's first row is its best
+  // Quick and Daily runs on the same wheel (seed) sit together: the table is already best-first, so a seed's first row
+  // is its best. Season and Dynasty entries share one seed across their years, which is not the same wheel twice.
   const runsBySeed = new Map<string, LeaderboardEntry[]>()
-  for (const e of profile.leaderboard) runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
+  for (const e of profile.leaderboard) if (e.mode === 'quick' || e.mode === 'daily') runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
   const fileRef = useRef<HTMLInputElement>(null)
   const importSave = async (file: File) => {
     try {

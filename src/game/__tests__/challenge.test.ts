@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, canUse, eligibleSlots, isComplete, pick, QUICK_RULES, respin, spin } from '@engine/draft'
-import { CHALLENGE_NAME_MAX, cleanName, decodeChallenge, encodeChallenge, historyKey, rulesDiff, rulesFromPayload, type ChallengePayload } from '@engine/challenge'
+import { CHALLENGE_NAME_MAX, cleanName, decodeChallenge, encodeChallenge, historyKey, isRulesDiff, rulesDiff, rulesFromPayload, type ChallengePayload } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { challengeFromGame, challengeLink, challengeSettings, replayChallenge, settingsFromChallenge, verdictLine } from '../logic/challenge'
 import { createGame } from '../logic/setup'
@@ -79,6 +79,44 @@ describe('challenge links', () => {
     expect(() => decodeChallenge(b64([1, 2, 3]))).toThrow('Not a Touchline challenge link')
     expect(() => decodeChallenge(b64({ v: 2 }))).toThrow('newer version')
     expect(cleanName('a\u0000b\u001fc  d\u007f')).toBe('abc d')
+  })
+
+  it('checks the rules diff key by key, so a link cannot smuggle a rule the game does not offer', () => {
+    const g = autoGame({ seed: 'GHOST-RULES' })
+    const c = challengeFromGame(g, u, 'Minh')!
+    const withRules = (r: unknown) => Buffer.from(JSON.stringify({ ...c, s: { ...c.s, r } })).toString('base64url')
+    expect(decodeChallenge(withRules({ fromSeason: 2014, respins: 0, minFit: 'natural', twists: false })).s.r).toEqual({ fromSeason: 2014, respins: 0, minFit: 'natural', twists: false })
+    for (const bad of [{ squadSize: 0 }, { squadSize: 1000 }, { squadSize: 11.5 }, { respins: -1 }, { minFit: 'superb' }, { hardMode: 'yes' }, { leagues: ['england'] }, { bogus: 1 }, { fromSeason: '2014' }, [], null, 'x']) {
+      expect(() => decodeChallenge(withRules(bad)), JSON.stringify(bad)).toThrow('Not a Touchline challenge link')
+    }
+    expect(isRulesDiff(rulesDiff({ ...QUICK_RULES, squadSize: 18, respins: 3, fromSeason: 2000, toSeason: 2010, onlyClub: 'burnley', onlyNation: 'ENG', minFit: 'awkward', hardMode: true, uniqueClubSeasons: false, twists: false }))).toBe(true)
+    // A non-integer league season is not one the data has
+    expect(() => decodeChallenge(Buffer.from(JSON.stringify({ ...c, s: { ...c.s, ls: 2025.5 } })).toString('base64url'))).toThrow('Not a Touchline challenge link')
+  })
+
+  it('opens a link only for a league and a host club-season this build has', async () => {
+    const g = autoGame({ seed: 'GHOST-OPEN' })
+    const c = challengeFromGame(g, u, 'Minh')!
+    useStore.setState({ universe: u, loadedLeagues: ['england'], toast: null, pendingChallenge: null, screen: 'home' })
+    const { openChallenge } = useStore.getState()
+    expect(await openChallenge('garbage!')).toBe(false)
+    expect(useStore.getState().toast).toBe('Not a Touchline challenge link')
+    expect(await openChallenge(encodeChallenge({ ...c, s: { ...c.s, l: 'mars', wl: ['mars'] } }))).toBe(false)
+    expect(useStore.getState().toast).toContain('mars')
+    expect(await openChallenge(encodeChallenge({ ...c, s: { ...c.s, h: 'nowhere' } }))).toBe(false)
+    expect(useStore.getState().toast).toContain('nowhere 2025')
+    expect(await openChallenge(encodeChallenge({ ...c, s: { ...c.s, ls: 1850 } }))).toBe(false)
+    expect(useStore.getState().pendingChallenge).toBeNull()
+    expect(await openChallenge(`#c=${encodeChallenge(c)}`)).toBe(true)
+    const st = useStore.getState()
+    expect(st.screen).toBe('setup')
+    expect(st.setupMode).toBe('quick')
+    expect(st.pendingChallenge?.challenge.verified).toBe('yes')
+    expect(st.pendingChallenge?.payload.s.seed).toBe('GHOST-OPEN')
+    // Any navigation drops it
+    st.go('home')
+    expect(useStore.getState().pendingChallenge).toBeNull()
+    useStore.setState({ universe: null, loadedLeagues: [], toast: null })
   })
 
   it('replays an auto-drafted game and verifies the claim', () => {

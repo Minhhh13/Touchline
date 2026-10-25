@@ -278,6 +278,12 @@ export const useStore = create<Store>()(
           if (!(await get().ensureLeagues(needs))) return false
           const u = get().universe
           if (!u) return false
+          // The host must have played that league season, or the quick season would run against the wrong clubs
+          const host = u.clubSeasonByKey[`${payload.s.h}@${payload.s.ls}`]
+          if (!host || host.leagueId !== payload.s.l) {
+            set({ toast: `This challenge names a club season this build does not have (${payload.s.h} ${payload.s.ls}).` })
+            return false
+          }
           const outcome = replayChallenge(u, payload)
           set({ pendingChallenge: { payload, challenge: challengeSettings(payload, outcome) }, screen: 'setup', setupMode: 'quick' })
           return true

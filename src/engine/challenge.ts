@@ -20,6 +20,7 @@ import { hashString } from './rng'
 import type { SeasonTier } from './types'
 import type { LoadedUniverse } from './universe'
 import { FORMATIONS } from './formations'
+import { FIT_ORDER, type Fit } from './positions'
 
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
@@ -125,6 +126,34 @@ export function encodeChallenge(c: ChallengePayload): string {
 
 const isString = (x: unknown): x is string => typeof x === 'string'
 const isNumber = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
+const isInt = (x: unknown): x is number => Number.isInteger(x)
+const isBool = (x: unknown): x is boolean => typeof x === 'boolean'
+
+/** Smallest and largest squad a draft rule may ask for: a quick XI up to a season squad. */
+export const CHALLENGE_SQUAD_RANGE: readonly [number, number] = [11, 18]
+/** Most re-spins a link may grant. */
+export const CHALLENGE_RESPINS_MAX = 10
+
+/** What each draft rule may hold when it travels in a link; `leagues` never does (it is `wl`). */
+const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
+  squadSize: (v) => isInt(v) && v >= CHALLENGE_SQUAD_RANGE[0] && v <= CHALLENGE_SQUAD_RANGE[1],
+  respins: (v) => isInt(v) && v >= 0 && v <= CHALLENGE_RESPINS_MAX,
+  fromSeason: isInt,
+  toSeason: isInt,
+  onlyClub: isString,
+  onlyNation: isString,
+  leagues: () => false,
+  minFit: (v) => FIT_ORDER.includes(v as Fit),
+  hardMode: isBool,
+  uniqueClubSeasons: isBool,
+  twists: isBool,
+}
+
+/** Whether an object is a rules diff made only of known rules holding sensible values. */
+export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return false
+  return Object.entries(r).every(([key, value]) => Object.prototype.hasOwnProperty.call(RULE_CHECKS, key) && RULE_CHECKS[key as keyof DraftRules](value))
+}
 
 /** Decode a `#c=` fragment; throws with a readable reason when it is not a challenge. */
 export function decodeChallenge(text: string): ChallengePayload {
@@ -144,11 +173,11 @@ export function decodeChallenge(text: string): ChallengePayload {
   const c = o.c as Record<string, unknown> | undefined
   if (!s || typeof s !== 'object' || !c || typeof c !== 'object') throw new Error('Not a Touchline challenge link')
   if (!isString(o.data) || !isString(o.engine) || !isString(o.name) || !isString(o.k)) throw new Error('Not a Touchline challenge link')
-  if (!isString(s.seed) || !isString(s.f) || !isString(s.l) || !isString(s.h) || !isNumber(s.ls)) throw new Error('Not a Touchline challenge link')
+  if (!isString(s.seed) || !isString(s.f) || !isString(s.l) || !isString(s.h) || !isInt(s.ls)) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(s.wl) || !s.wl.every(isString) || !s.wl.length) throw new Error('Not a Touchline challenge link')
   if (s.d !== 'calibrated' && s.d !== 'realistic') throw new Error('Not a Touchline challenge link')
   if (!FORMATIONS.some((f) => f.id === s.f)) throw new Error('Not a Touchline challenge link')
-  if (!s.r || typeof s.r !== 'object') throw new Error('Not a Touchline challenge link')
+  if (!isRulesDiff(s.r)) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
   return {
@@ -156,7 +185,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     data: o.data,
     engine: o.engine,
     name: cleanName(o.name),
-    s: { seed: s.seed, f: s.f, l: s.l, wl: s.wl, h: s.h, ls: s.ls, d: s.d, r: s.r as Partial<DraftRules> },
+    s: { seed: s.seed, f: s.f, l: s.l, wl: s.wl, h: s.h, ls: s.ls, d: s.d, r: s.r },
     p: o.p as ChallengePick[],
     c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
     k: o.k,
