@@ -71,7 +71,7 @@ export function PlannerTab({ onPlayer }: { onPlayer: (id: string) => void }) {
             <h3 className="icon-title">
               <FileSignature size={18} aria-hidden="true" /> Contracts
             </h3>
-            <Info label="About contracts">Years include this season. Expiring players leave in the summer unless they renew (the renewal comes as a decision in the Inbox); loans go back. Change a status on the Club tab.</Info>
+            <Info label="About contracts">Years include this season. Expiring players leave in the summer unless they renew: open contract talks from a player's card any time, or answer the renewal decision in the Inbox; loans go back. Change a status on the Club tab.</Info>
           </span>
           <span className="small muted">
             {contracts.expiring} expiring · {wage(contracts.wagesLeaving)} off

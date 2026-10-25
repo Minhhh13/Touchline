@@ -9671,3 +9671,131 @@ table.tbl.contracts-overview .link-btn.name {
     min-width: 44px;
   }
 }
+
+/* ------------------------------------------------------------------ recruitment: scouting, contract talks, the board, the data hub */
+.good-text {
+  color: var(--good);
+}
+.bad-text {
+  color: var(--bad);
+}
+/* A rating the club can only see as a range ("62–70"): the badge widens and the figures shrink to fit */
+.rating.range {
+  min-width: 44px;
+  font-size: 11.5px;
+  letter-spacing: -0.02em;
+  padding: 0 4px;
+}
+.rating.range.lg {
+  min-width: 64px;
+  font-size: 16px;
+}
+.prow.ranged {
+  grid-template-columns: 46px 1fr auto;
+}
+.range-bar {
+  position: relative;
+}
+.range-bar > .range-span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  opacity: 0.85;
+  transform: none;
+}
+.attr-value.range-value {
+  width: 44px;
+}
+.recruit-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.recruit-form .field {
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+.recruit-form .input.sm,
+.talks-form .input.sm {
+  width: 100%;
+}
+.knowledge-list {
+  display: flex;
+  flex-direction: column;
+}
+.knowledge-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(40px, 1fr) 26px auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 0;
+  border-bottom: var(--border);
+  font-size: var(--fs-sm);
+}
+.knowledge-row .mono {
+  text-align: right;
+}
+.report-note {
+  display: block;
+  max-width: 100%;
+}
+.talks-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.talks-form .field {
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+.request-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border);
+}
+.request-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.wage-slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border);
+}
+.wage-slider input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+table.tbl.contracts .btn.icon-only {
+  padding: 4px 6px;
+}
+table.tbl.hub td.name {
+  max-width: 140px;
+}
+/* The Club tab and the Stats tab: three boxes side by side on a desktop; the widest content gets the widest column */
+@media (min-width: 1100px) {
+  .grid.three.club-grid3 {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.85fr) minmax(0, 1.5fr);
+  }
+  .grid.three.stats-grid {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1.2fr);
+  }
+  .grid.three.market-closed {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+  .app.shell .grid.fill > .col {
+    padding-right: 2px;
+  }
+}
+@media (max-width: 720px) {
+  .talks-grid {
+    grid-template-columns: 1fr;
+  }
+}
