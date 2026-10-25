@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Position } from '@engine/types'
 import { POSITION_GROUP } from '@engine/positions'
 import { ratingBand, textColourFor } from '../format'
 import { useStore } from '@game/store'
+import { tipSeen, type TipId } from '@game/logic/tips'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -62,7 +63,8 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
   )
 }
 
-export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose?: () => void; title?: string; children: ReactNode; wide?: boolean }) {
+/** A dialog; `sheet` makes it a bottom sheet on a phone (<= 720px wide) and an ordinary centred modal on wider screens. */
+export function Modal({ open, onClose, title, children, wide, sheet, testId }: { open: boolean; onClose?: () => void; title?: string; children: ReactNode; wide?: boolean; sheet?: boolean; testId?: string }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -73,8 +75,8 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   }, [open, onClose])
   if (!open) return null
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal" style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+    <div className={`modal-back ${sheet ? 'sheet-back' : ''}`} onClick={onClose}>
+      <div className={`modal ${sheet ? 'sheet' : ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
         {title && (
           <div className="panel-head">
             <h2>{title}</h2>
@@ -129,15 +131,62 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
   )
 }
 
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: string; alert?: boolean }>; value: T; onChange: (t: T) => void }) {
+/** Tab strip; `alert` draws a dot, `badge` a count (which takes the dot's place when both are set). */
+export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: string; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void }) {
   return (
     <div className="tabs" role="tablist">
       {tabs.map((t) => (
         <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)}>
           {t.label}
-          {t.alert && <span className="dot" />}
+          {t.badge ? (
+            <span className="tab-badge" data-testid={`badge-${t.id}`} aria-label={`${t.badge} new`}>
+              {t.badge > 99 ? '99+' : t.badge}
+            </span>
+          ) : (
+            t.alert && <span className="dot" />
+          )}
         </button>
       ))}
     </div>
   )
+}
+
+/**
+ * A coach mark: a short callout inline in the page flow, shown until its 'Got it'
+ * is pressed (remembered on the profile). Never an overlay, never blocks a button.
+ */
+export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
+  const seen = useStore((s) => tipSeen(s.profile, id))
+  const dismiss = useStore((s) => s.dismissTip)
+  if (seen) return null
+  return (
+    <div className="tip" role="note" data-testid={`tip-${id}`}>
+      <span className="tip-text">{children}</span>
+      <button type="button" className="btn sm" onClick={() => dismiss(id)}>
+        Got it
+      </button>
+    </div>
+  )
+}
+
+/** An on/off preference kept per viewer in localStorage; blocked storage reads as off and still toggles for the visit. */
+export function useViewerFlag(key: string): [boolean, () => void] {
+  const [on, setOn] = useState(() => {
+    try {
+      return localStorage.getItem(key) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggle = useCallback(() => {
+    setOn((v) => {
+      try {
+        localStorage.setItem(key, v ? '0' : '1')
+      } catch {
+        // Storage blocked: the toggle still works for this visit
+      }
+      return !v
+    })
+  }, [key])
+  return [on, toggle]
 }

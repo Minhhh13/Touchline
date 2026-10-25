@@ -152,6 +152,10 @@ export interface Game {
   /** This pre-season's academy candidates (dynasty); chosen is null when passed. */
   youthIntake?: { year: number; candidates: string[]; chosen?: string | null }
   nextMatchBoost?: { attack?: number; defence?: number }
+  /** Inbox items ever posted this season (the feed itself is capped), kept by `postNews`; absent on older saves. */
+  newsTotal?: number
+  /** `newsTotal` when the Inbox was last opened: items above it are unread. Absent on older saves, which counts as everything read. */
+  newsSeen?: number
   /** A match paused at half time, waiting for the manager. */
   live: LiveMatch | null
   /** The final match was played live: the season closes when the manager leaves the match screen. */
@@ -274,4 +278,6 @@ export interface Profile {
   managerName: string
   /** Trophy cabinet across every game played in this browser. */
   trophies?: { league: number; cup: number; continental: number; doubles: number; trebles: number }
+  /** Coach marks dismissed, tip id to the ISO date it was dismissed; missing on older saves (every tip unseen). */
+  seenTips?: Record<string, string>
 }

@@ -69,6 +69,9 @@ export const WRONG_GROUP_GK_FACTOR = 0.35
 
 export type Fit = 'natural' | 'accomplished' | 'awkward' | 'unsuited'
 
+/** The lowest position factor that still counts as accomplished cover (`canCover`'s default and auto-pick's first pass). */
+export const ACCOMPLISHED_FACTOR = 0.86
+
 /** Multiplier applied to a player's rating when playing `position`. */
 export function positionFactor(player: Pick<PlayerSeason, 'positions'>, position: Position): number {
   if (player.positions.includes(position)) return 1
@@ -87,7 +90,7 @@ export function positionFactor(player: Pick<PlayerSeason, 'positions'>, position
 export function describeFit(player: Pick<PlayerSeason, 'positions'>, position: Position): Fit {
   const f = positionFactor(player, position)
   if (f >= 1) return 'natural'
-  if (f >= 0.86) return 'accomplished'
+  if (f >= ACCOMPLISHED_FACTOR) return 'accomplished'
   if (f >= 0.75) return 'awkward'
   return 'unsuited'
 }

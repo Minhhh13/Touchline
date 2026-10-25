@@ -1,4 +1,5 @@
 import type { LoadedUniverse } from '@engine/universe'
+import type { Fit } from '@engine/positions'
 
 export function seasonLabel(season: number): string {
   return `${season}-${String((season + 1) % 100).padStart(2, '0')}`
@@ -48,6 +49,19 @@ export function conditionColour(v: number): string {
   if (v >= 70) return 'var(--gold)'
   if (v >= 55) return 'var(--warn)'
   return 'var(--danger)'
+}
+/** Pitch disc ring for an out-of-position player: amber for accomplished (acc.), red for awkward or worse (awk.). */
+export const FIT_AMBER = 'rgba(245,197,66,0.9)'
+export const FIT_RED = 'rgba(239,83,80,0.9)'
+
+/**
+ * The inline ring colour a pitch disc takes from the player's fit, or undefined to leave the disc's own class border.
+ * The fit colour is the lowest priority: an injured or suspended player (`warn`) keeps the red ring, and a selected or
+ * eligible slot (`highlighted`) keeps its gold or green highlight.
+ */
+export function fitRingColour(fit: Fit, { warn, highlighted }: { warn: boolean; highlighted: boolean }): string | undefined {
+  if (fit === 'natural' || warn || highlighted) return undefined
+  return fit === 'accomplished' ? FIT_AMBER : FIT_RED
 }
 export function moraleWord(v: number): string {
   if (v >= 85) return 'Superb'

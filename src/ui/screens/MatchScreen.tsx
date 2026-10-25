@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { MatchTicker } from '../components/MatchTicker'
-import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs } from '../components/bits'
+import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs, Tip } from '../components/bits'
 import type { PitchSide } from '../components/LivePitch'
 import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay, XgRace } from '../components/MatchCharts'
 import { kitColour } from '../match/pitchGeometry'
@@ -230,6 +230,7 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
             <h2>{atBreak ? 'Half time' : '70 minutes'}: {stateLabel}</h2>
             <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
           </div>
+          {atBreak && <Tip id="halftime-first">A talk, four instructions and up to three substitutions; No changes plays on.</Tip>}
           <div className="grid two">
             <div className="col">
               {atBreak ? (
@@ -480,6 +481,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
             </tbody>
           </table>
         </div>
+        <Tip id="report-first">xG is the chances each side created; the notes are the exact modifiers your instructions produced.</Tip>
         <div className="panel">
           <h3>Tactical notes</h3>
           <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>

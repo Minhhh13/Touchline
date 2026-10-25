@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation, FORMATIONS } from '@engine/formations'
@@ -16,10 +16,12 @@ import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
-import { Pitch } from '../components/Pitch'
+import { newsTotal, unseenNews } from '@game/logic/news'
+import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
+import { Pitch, PitchLegend } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
-import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos } from '../components/bits'
+import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos, Tip, useViewerFlag } from '../components/bits'
 import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
 import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
 import type { Position, TableRow } from '@engine/types'
@@ -29,12 +31,17 @@ import { OppositionReport } from './OppositionReport'
 
 type Tab = DugoutTab
 
+/** Whether this viewer keeps the Key on (bar labels and the pitch legend). */
+const KEY_FLAG = 'touchline-squad-key'
+
 export function Dugout() {
   const store = useStore()
   const { universe: u, game } = store
   const [tab, setTab] = useState<Tab>('squad')
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  // The slot whose picker sheet is open: tapping a slot opens it, on every screen size
+  const [sheetSlot, setSheetSlot] = useState<string | null>(null)
   const [playerModal, setPlayerModal] = useState<string | null>(null)
+  const [showKey, toggleKey] = useViewerFlag(KEY_FLAG)
   // On a phone the action bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
@@ -46,6 +53,17 @@ export function Dugout() {
     return () => ro.disconnect()
   }, [game?.phase, game?.season?.matchweek, game?.season?.sacked])
   const [showStamina, setShowStamina] = useState<boolean>(() => readSquadColumn())
+  // Opening the Inbox marks everything read, but the divider keeps the unread count as it stood when the tab
+  // opened (or when items arrived while it was open), so the reader can see where the new items end
+  const unseen = game ? unseenNews(game) : 0
+  const posted = game ? newsTotal(game) : 0
+  const [dividerAt, setDividerAt] = useState(0)
+  useEffect(() => {
+    if (tab !== 'inbox') return
+    setDividerAt(unseen)
+    store.markNewsSeen()
+    // `posted` is the trigger: a batch arriving while the tab is open moves the divider to the new batch
+  }, [tab, posted])
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
@@ -70,28 +88,8 @@ export function Dugout() {
     if (a.tab) setTab(a.tab)
   }
 
-  const onSlotClick = (slotId: string) => {
-    if (selectedSlot === slotId) {
-      setSelectedSlot(null)
-      return
-    }
-    if (selectedSlot) {
-      // swap two slots
-      const a = game.lineup[selectedSlot]
-      const b = game.lineup[slotId]
-      if (a) store.assign(a, slotId)
-      if (b && a) store.assign(b, selectedSlot)
-      setSelectedSlot(null)
-      return
-    }
-    setSelectedSlot(slotId)
-  }
-  const onPlayerClick = (id: string) => {
-    if (selectedSlot) {
-      store.assign(id, selectedSlot)
-      setSelectedSlot(null)
-    } else setPlayerModal(id)
-  }
+  const onSlotClick = (slotId: string) => setSheetSlot(slotId)
+  const onPlayerClick = (id: string) => setPlayerModal(id)
 
   const inXI = new Set(Object.values(game.lineup))
   const sortedSquad = [...squad].sort((a, b) => {
@@ -209,11 +207,12 @@ export function Dugout() {
           ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
-          { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent },
+          { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
           { id: 'club', label: 'Club' },
         ]}
       />
 
+      {tab === 'squad' && <Tip id="dugout-first">The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
         <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--accent)' }}>
           <div className="panel-head">
@@ -240,7 +239,10 @@ export function Dugout() {
             <div className="panel-head">
               <h3>Squad · {squad.length}/{SQUAD_CAP}</h3>
               <div className="row">
-                <span className="small muted">{selectedSlot ? `Pick a player for ${formation.slots.find((s) => s.id === selectedSlot)?.position}` : 'Click a slot, then a player. Click a player for details.'}</span>
+                <span className="small muted">Tap a slot to choose who plays there. Tap a player for details.</span>
+                <button type="button" className={`chip key-chip ${showKey ? 'good' : ''}`} aria-pressed={showKey} onClick={toggleKey} data-testid="key-toggle" title="Label the bars and the pitch markers">
+                  Key
+                </button>
                 <button type="button" className={`btn sm ${showStamina ? '' : 'ghost'}`} aria-pressed={showStamina} data-testid="toggle-stamina" title="Show each player's stamina in the list" onClick={() => setShowStamina((v) => writeSquadColumn(!v))}>
                   {SQUAD_COLUMNS[0].label}
                 </button>
@@ -259,8 +261,8 @@ export function Dugout() {
                     key={p.id}
                     p={p}
                     state={s}
+                    showLabels={showKey}
                     onClick={() => onPlayerClick(p.id)}
-                    selected={!!selectedSlot && starting && slot?.id === selectedSlot}
                     showClub
                     extra={
                       <>
@@ -275,7 +277,7 @@ export function Dugout() {
                         </span>
                       </>
                     }
-                    right={starting ? <span className="chip good">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Out</span>}
+                    right={starting ? <span className="chip good">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Unused</span>}
                   />
                 )
               })}
@@ -289,7 +291,8 @@ export function Dugout() {
                   GK {strength.goalkeeping.toFixed(0)} · DEF {strength.defence.toFixed(0)} · MID {strength.midfield.toFixed(0)} · ATT {strength.attack.toFixed(0)}
                 </span>
               </div>
-              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={selectedSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
+              {showKey && <PitchLegend />}
               {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 6 }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.join(', ')}</div>}
             </div>
             <div className="panel">
@@ -386,17 +389,32 @@ export function Dugout() {
       {tab === 'market' && <MarketTab />}
       {tab === 'inbox' && (
         <div className="panel">
-          <h3>Inbox</h3>
+          <div className="panel-head">
+            <h3>Inbox</h3>
+            {dividerAt > 0 && (
+              <span className="small muted" data-testid="inbox-new-count">
+                {Math.min(dividerAt, season.news.length)} new since your last visit
+              </span>
+            )}
+          </div>
           <div className="news">
             {season.news.map((n, i) => (
-              <div key={i} className="item">
-                <span>{{ result: '⚽', injury: '🩹', suspension: '🟥', board: '🏛', transfer: '💷', award: '🏆', event: '💬', cup: '🏟', training: '🏃', info: 'ℹ️' }[n.kind]}</span>
-                <span>
-                  <div className="t">{n.title}</div>
-                  <div className="b">{n.body}</div>
-                </span>
-                <span className="small muted">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
-              </div>
+              <Fragment key={i}>
+                <div className={`item ${i < dividerAt ? 'new' : ''}`}>
+                  <span>{{ result: '⚽', injury: '🩹', suspension: '🟥', board: '🏛', transfer: '💷', award: '🏆', event: '💬', cup: '🏟', training: '🏃', info: 'ℹ️' }[n.kind]}</span>
+                  <span>
+                    <div className="t">{n.title}</div>
+                    <div className="b">{n.body}</div>
+                  </span>
+                  <span className="small muted">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
+                </div>
+                {/* The divider sits under the last unread item, when anything older is still in the feed */}
+                {i === dividerAt - 1 && i < season.news.length - 1 && (
+                  <div className="divider" data-testid="inbox-divider">
+                    <span>New above · seen before below</span>
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
         </div>
@@ -404,7 +422,83 @@ export function Dugout() {
       {tab === 'club' && <ClubTab table={table} />}
 
       <PlayerModal id={playerModal} onClose={() => setPlayerModal(null)} />
+      <SlotSheet slotId={sheetSlot} onClose={() => setSheetSlot(null)} />
     </div>
+  )
+}
+
+/** One row of the slot picker: the player rated in the slot, his fit, the disc number and where he is now. */
+function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
+  const fitChip = o.fit === 'natural' ? <span className="chip good">fits</span> : o.fit === 'accomplished' ? <span className="chip warn">acc.</span> : <span className="chip bad">awk.</span>
+  return (
+    <PlayerRow
+      p={o.p}
+      state={o.s}
+      dim={!!o.unavailable}
+      onClick={o.unavailable ? undefined : onPick}
+      extra={
+        <>
+          {fitChip}
+          <span className={`chip ${o.where.kind === 'starting' ? 'good' : 'muted'}`}>{whereaboutsLabel(o.where)}</span>
+          {o.unavailable && <span className="chip bad">{o.unavailable === 'injured' ? 'Injured' : 'Suspended'}</span>}
+        </>
+      }
+      right={
+        <span className="slot-disc" title="The number on his pitch disc in this slot">
+          {o.disc}
+        </span>
+      }
+    />
+  )
+}
+
+/** The slot picker: a bottom sheet on a phone, a modal elsewhere. Tapping a row puts him in the slot (swapping with whoever is there). */
+function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => void }) {
+  const store = useStore()
+  const { universe: u, game } = store
+  if (!u || !game || !slotId) return null
+  const sheet = slotSheet(game, u, slotId)
+  if (!sheet) return null
+  const pick = (id: string, to: string | 'bench' = slotId) => {
+    store.playInSlot(id, to)
+    onClose()
+  }
+  const role = getRole(game.tactics.roles[slotId] ?? DEFAULT_ROLE[sheet.slot.position]).name
+  return (
+    <Modal open sheet onClose={onClose} title={`Pick your ${sheet.label}`} testId="slot-sheet">
+      <div className="small muted" style={{ marginBottom: 8 }}>
+        {role} · sorted by rating in the position; the number on the right is what his disc would show.
+      </div>
+      {sheet.occupant ? (
+        <div className="sheet-occupant">
+          <SlotOptionRow o={sheet.occupant} />
+          <button className="btn sm" data-testid="sheet-to-bench" onClick={() => pick(sheet.occupant!.p.id, 'bench')}>
+            To bench
+          </button>
+        </div>
+      ) : (
+        <div className="notice" style={{ marginBottom: 8 }}>
+          Nobody is in this slot.
+        </div>
+      )}
+      <h3 className="sheet-group">Can play {sheet.slot.position} · {sheet.cover.length}</h3>
+      <div className="plist" data-testid="sheet-cover">
+        {sheet.cover.length === 0 && <div className="muted small">Nobody else in the squad is a natural or accomplished {sheet.slot.position}. Look out of position below.</div>}
+        {sheet.cover.map((o) => (
+          <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+        ))}
+      </div>
+      {sheet.outOfPosition.length > 0 && (
+        <details className="sheet-out" data-testid="sheet-out">
+          <summary>Out of position · {sheet.outOfPosition.length}</summary>
+          <div className="plist">
+            {sheet.outOfPosition.map((o) => (
+              <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+            ))}
+          </div>
+        </details>
+      )}
+    </Modal>
   )
 }
 
@@ -444,112 +538,115 @@ function TacticsTab() {
   const t = game.tactics
   const strength = teamStrength(game, u)
   return (
-    <div className="grid dugout">
-      <div className="col">
-        <div className="panel">
-          <h3>Formation</h3>
-          <div className="formations">
-            {FORMATIONS.map((f) => (
-              <button key={f.id} className={f.id === t.formationId ? 'active' : ''} onClick={() => store.setFormation(f.id)}>
-                <div className="fname">{f.name}</div>
-                <div className="fblurb">{f.blurb}</div>
-              </button>
-            ))}
+    <>
+      <Tip id="tactics-first">A role moves a player's quality between units; rating in role is what the engine uses, and the team rating updates as you change it.</Tip>
+      <div className="grid dugout">
+        <div className="col">
+          <div className="panel">
+            <h3>Formation</h3>
+            <div className="formations">
+              {FORMATIONS.map((f) => (
+                <button key={f.id} className={f.id === t.formationId ? 'active' : ''} onClick={() => store.setFormation(f.id)}>
+                  <div className="fname">{f.name}</div>
+                  <div className="fblurb">{f.blurb}</div>
+                </button>
+              ))}
+            </div>
+            <p className="help">Changing shape mid-season knocks tactical familiarity back a little.</p>
           </div>
-          <p className="help">Changing shape mid-season knocks tactical familiarity back a little.</p>
-        </div>
-        <div className="panel col">
-          <h3>Team instructions</h3>
-          <Instruction label="Mentality" help={MENTALITY_HELP[t.mentality]}>
-            <Segmented value={t.mentality} onChange={(v) => store.setTactics({ mentality: v })} options={[{ value: 'defensive', label: 'Defensive' }, { value: 'balanced', label: 'Balanced' }, { value: 'attacking', label: 'Attacking' }]} />
-          </Instruction>
-          <Instruction label="Pressing" help={PRESSING_HELP[t.pressing]}>
-            <Segmented value={t.pressing} onChange={(v) => store.setTactics({ pressing: v })} options={[{ value: 'low', label: 'Low block' }, { value: 'mid', label: 'Mid' }, { value: 'high', label: 'High press' }]} />
-          </Instruction>
-          <Instruction label="Tempo" help={TEMPO_HELP[t.tempo]}>
-            <Segmented value={t.tempo} onChange={(v) => store.setTactics({ tempo: v })} options={[{ value: 'slow', label: 'Slow' }, { value: 'standard', label: 'Standard' }, { value: 'fast', label: 'Fast' }]} />
-          </Instruction>
-          <Instruction label="Width" help={WIDTH_HELP[t.width]}>
-            <Segmented value={t.width} onChange={(v) => store.setTactics({ width: v })} options={[{ value: 'narrow', label: 'Narrow' }, { value: 'standard', label: 'Standard' }, { value: 'wide', label: 'Wide' }]} />
-          </Instruction>
-          <Instruction label="Defensive line" help={LINE_HELP[t.defensiveLine]}>
-            <Segmented value={t.defensiveLine} onChange={(v) => store.setTactics({ defensiveLine: v })} options={[{ value: 'deep', label: 'Deep' }, { value: 'standard', label: 'Standard' }, { value: 'high', label: 'High' }]} />
-          </Instruction>
-          <Instruction label="Passing" help={PASSING_HELP[t.passing]}>
-            <Segmented value={t.passing} onChange={(v) => store.setTactics({ passing: v })} options={[{ value: 'short', label: 'Short' }, { value: 'mixed', label: 'Mixed' }, { value: 'direct', label: 'Direct' }]} />
-          </Instruction>
-        </div>
-        <div className="panel col">
-          <h3>Training this week</h3>
-          <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: TRAINING_LABEL[k] }))} />
-          <p className="help">{TRAINING[game.training].blurb}</p>
-        </div>
-        <div className="panel col">
-          <h3>Set pieces</h3>
-          {(
-            [
-              { key: 'penalties', label: 'Penalties', attr: (p: { attributes: { shooting: number; mentality: number } }) => Math.round((p.attributes.shooting + p.attributes.mentality) / 2), hint: 'Takes every penalty while he is on the pitch.' },
-              { key: 'freeKicks', label: 'Free kicks', attr: (p: { attributes: { shooting: number } }) => p.attributes.shooting, hint: 'A specialist adds chances from dead balls.' },
-              { key: 'corners', label: 'Corners', attr: (p: { attributes: { passing: number } }) => p.attributes.passing, hint: 'A good delivery adds chances; a poor one costs them.' },
-            ] as const
-          ).map((sp) => {
-            const xi = Object.values(game.lineup)
-              .map((id) => get(id))
-              .filter((p): p is NonNullable<typeof p> => !!p && p.positions[0] !== 'GK')
-              .sort((a, b) => sp.attr(b) - sp.attr(a))
-            const current = t.setPieces?.[sp.key] ?? ''
-            return (
-              <Instruction key={sp.key} label={sp.label} help={sp.hint}>
-                <select className="input" value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
-                  <option value="">Auto: best on the pitch</option>
-                  {xi.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({sp.attr(p)})
-                    </option>
-                  ))}
-                </select>
-              </Instruction>
-            )
-          })}
-        </div>
-      </div>
-      <div className="col">
-        <div className="panel">
-          <div className="panel-head">
-            <h3>Roles</h3>
-            <span className="small muted">Team {strength.overall.toFixed(1)}</span>
+          <div className="panel col">
+            <h3>Team instructions</h3>
+            <Instruction label="Mentality" help={MENTALITY_HELP[t.mentality]}>
+              <Segmented value={t.mentality} onChange={(v) => store.setTactics({ mentality: v })} options={[{ value: 'defensive', label: 'Defensive' }, { value: 'balanced', label: 'Balanced' }, { value: 'attacking', label: 'Attacking' }]} />
+            </Instruction>
+            <Instruction label="Pressing" help={PRESSING_HELP[t.pressing]}>
+              <Segmented value={t.pressing} onChange={(v) => store.setTactics({ pressing: v })} options={[{ value: 'low', label: 'Low block' }, { value: 'mid', label: 'Mid' }, { value: 'high', label: 'High press' }]} />
+            </Instruction>
+            <Instruction label="Tempo" help={TEMPO_HELP[t.tempo]}>
+              <Segmented value={t.tempo} onChange={(v) => store.setTactics({ tempo: v })} options={[{ value: 'slow', label: 'Slow' }, { value: 'standard', label: 'Standard' }, { value: 'fast', label: 'Fast' }]} />
+            </Instruction>
+            <Instruction label="Width" help={WIDTH_HELP[t.width]}>
+              <Segmented value={t.width} onChange={(v) => store.setTactics({ width: v })} options={[{ value: 'narrow', label: 'Narrow' }, { value: 'standard', label: 'Standard' }, { value: 'wide', label: 'Wide' }]} />
+            </Instruction>
+            <Instruction label="Defensive line" help={LINE_HELP[t.defensiveLine]}>
+              <Segmented value={t.defensiveLine} onChange={(v) => store.setTactics({ defensiveLine: v })} options={[{ value: 'deep', label: 'Deep' }, { value: 'standard', label: 'Standard' }, { value: 'high', label: 'High' }]} />
+            </Instruction>
+            <Instruction label="Passing" help={PASSING_HELP[t.passing]}>
+              <Segmented value={t.passing} onChange={(v) => store.setTactics({ passing: v })} options={[{ value: 'short', label: 'Short' }, { value: 'mixed', label: 'Mixed' }, { value: 'direct', label: 'Direct' }]} />
+            </Instruction>
           </div>
-          <div className="col" style={{ gap: 8 }}>
-            {formation.slots.map((slot) => {
-              const id = game.lineup[slot.id]
-              const p = id ? get(id) : undefined
-              const roleId = t.roles[slot.id] ?? DEFAULT_ROLE[slot.position]
-              const role = getRole(roleId)
-              const ev = strength.slots.find((s) => s.slotId === slot.id)
+          <div className="panel col">
+            <h3>Training this week</h3>
+            <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: TRAINING_LABEL[k] }))} />
+            <p className="help">{TRAINING[game.training].blurb}</p>
+          </div>
+          <div className="panel col">
+            <h3>Set pieces</h3>
+            {(
+              [
+                { key: 'penalties', label: 'Penalties', attr: (p: { attributes: { shooting: number; mentality: number } }) => Math.round((p.attributes.shooting + p.attributes.mentality) / 2), hint: 'Takes every penalty while he is on the pitch.' },
+                { key: 'freeKicks', label: 'Free kicks', attr: (p: { attributes: { shooting: number } }) => p.attributes.shooting, hint: 'A specialist adds chances from dead balls.' },
+                { key: 'corners', label: 'Corners', attr: (p: { attributes: { passing: number } }) => p.attributes.passing, hint: 'A good delivery adds chances; a poor one costs them.' },
+              ] as const
+            ).map((sp) => {
+              const xi = Object.values(game.lineup)
+                .map((id) => get(id))
+                .filter((p): p is NonNullable<typeof p> => !!p && p.positions[0] !== 'GK')
+                .sort((a, b) => sp.attr(b) - sp.attr(a))
+              const current = t.setPieces?.[sp.key] ?? ''
               return (
-                <div key={slot.id} className="card">
-                  <div className="row between wrap">
-                    <span className="row" style={{ gap: 8 }}>
-                      <Pos p={slot.position} />
-                      <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">empty</span>}</span>
-                      {ev && <span className="small muted">rating in role {ev.effective.toFixed(0)}</span>}
-                    </span>
-                    <select className="input" style={{ width: 'auto', padding: '4px 8px' }} value={roleId} onChange={(e) => store.setRole(slot.id, e.target.value)}>
-                      {rolesFor(slot.position).map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="help">{role.blurb}</div>
-                </div>
+                <Instruction key={sp.key} label={sp.label} help={sp.hint}>
+                  <select className="input" value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
+                    <option value="">Auto: best on the pitch</option>
+                    {xi.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({sp.attr(p)})
+                      </option>
+                    ))}
+                  </select>
+                </Instruction>
               )
             })}
           </div>
         </div>
+        <div className="col">
+          <div className="panel">
+            <div className="panel-head">
+              <h3>Roles</h3>
+              <span className="small muted">Team {strength.overall.toFixed(1)}</span>
+            </div>
+            <div className="col" style={{ gap: 8 }}>
+              {formation.slots.map((slot) => {
+                const id = game.lineup[slot.id]
+                const p = id ? get(id) : undefined
+                const roleId = t.roles[slot.id] ?? DEFAULT_ROLE[slot.position]
+                const role = getRole(roleId)
+                const ev = strength.slots.find((s) => s.slotId === slot.id)
+                return (
+                  <div key={slot.id} className="card">
+                    <div className="row between wrap">
+                      <span className="row" style={{ gap: 8 }}>
+                        <Pos p={slot.position} />
+                        <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">empty</span>}</span>
+                        {ev && <span className="small muted">rating in role {ev.effective.toFixed(0)}</span>}
+                      </span>
+                      <select className="input" style={{ width: 'auto', padding: '4px 8px' }} value={roleId} onChange={(e) => store.setRole(slot.id, e.target.value)}>
+                        {rolesFor(slot.position).map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="help">{role.blurb}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -732,6 +829,7 @@ function MarketTab() {
           </div>
         </div>
         {msg && <div className="notice" style={{ marginBottom: 8 }}>{msg}</div>}
+        <Tip id="market-first">Bids near the asking price are accepted, bids well under it annoy the club and raise the price; the asking price shows what it was on day one.</Tip>
         <div className="segmented" style={{ marginBottom: 8 }}>
           {(['all', 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const).map((p) => (
             <button key={p} className={filter === p ? 'active' : ''} onClick={() => setFilter(p)}>
@@ -1113,7 +1211,7 @@ function EventCard() {
       </div>
       <div className="row wrap" style={{ marginTop: 8 }}>
         {ev.choices.map((c) => (
-          <button key={c.id} className="btn" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
+          <button key={c.id} className="btn event-choice" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
               <span>{c.label}</span>
               <span className="small muted" style={{ fontWeight: 400 }}>

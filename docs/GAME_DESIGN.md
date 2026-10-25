@@ -57,6 +57,24 @@ The default host club is `defaultHostClub`: the club whose position in `u.tables
 
 The Daily's fixed settings are `dailySettings(u, seed)`: the digits of `daily-YYYY-MM-DD` form `n`; the season is the complete English seasons in ascending order at `n mod count`, the host club is that season's club ids sorted at `(7n) mod count`, and the formation is `['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '4-4-2-diamond']` at `(3n) mod 5`; the league is England, the wheel England only, the difficulty calibrated. This is the mapping the setup screen always used, now pinned by a test (`daily-2026-10-25` is a 4-3-3 as Swansea City in 2017-18), so a deploy never changes everyone's puzzle. `dailyGameSettings` builds the full `GameSettings` from it, which is what the Home screen's Daily card sends to `startGame` from its **Play today's puzzle** button; the card's body still opens the full setup for a custom team name, and both paths produce identical settings apart from the name. If today's Daily is already under way the button reads **Continue today's puzzle** and reopens it, and when an unfinished Quick Draft or Daily sits in the shared save slot the button asks before dropping it.
 
+### Coach marks and the Key
+
+Seven coach marks (`TIP_IDS` in `src/game/logic/tips.ts`; seven is the ceiling) explain a screen or mechanic the first time it is met. Each is a `Tip` (`src/ui/components/bits.tsx`): a `.tip` callout inline in the page flow, with an accent left border, one or two sentences and a **Got it** button. It is never an overlay and never disables a button, so a player who ignores it loses nothing. Got it calls `store.dismissTip(id)`, which records the ISO date in `profile.seenTips[id]` (an optional save field persisted with the profile; an older save has none, so every tip is unseen, and a second dismissal keeps the first date). The seven, in the order a new manager meets them:
+
+| id | where | text |
+| --- | --- | --- |
+| `draft-first-reveal` | above the landed squad, while the XI is being filled | Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft. |
+| `draft-bench` | under the needs panel once the XI is full (and the wheel has not run dry) | Bench picks can be anyone un-drafted; cover every position, injuries will come. |
+| `dugout-first` | top of the Squad tab | The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one. |
+| `tactics-first` | top of the Tactics tab | A role moves a player's quality between units; rating in role is what the engine uses, and the team rating updates as you change it. |
+| `halftime-first` | inside the half-time panel (not at the 70th minute) | A talk, four instructions and up to three substitutions; No changes plays on. |
+| `report-first` | above the match report's tactical notes | xG is the chances each side created; the notes are the exact modifiers your instructions produced. |
+| `market-first` | above the window's listings | Bids near the asking price are accepted, bids well under it annoy the club and raise the price; the asking price shows what it was on day one. |
+
+The copy stays qualitative so it cannot drift when the engine is tuned. **Show tips again** in the Manager panel of the Record screen (`store.resetTips`, which empties `seenTips`) brings all seven back, and the panel says how many of the seven are dismissed.
+
+The Squad panel's header carries a **Key** chip. On, it prints `Cond`, `Mor` and `Shp` under every player's three state bars (`PlayerRow`'s `showLabels`) and a one-line legend under the pitch (`PitchLegend`): the disc is his rating in that slot; a white ring is natural, amber `acc.` is accomplished (position factor 0.86 or more, a small cost), red `awk.` is awkward or worse (below 0.86, a big cost), and a red ring is also injured or suspended. The pitch now draws its rings from `describeFit` in `src/engine/positions.ts`, the same bands as before, so the legend and the discs cannot disagree. The fit colour is the lowest-priority ring (`fitRingColour` in `src/ui/format.ts`): an injured or suspended player shows the red ring wherever he plays, and the selected (gold) and eligible (green) highlights also win over it, while the `acc.` or `awk.` label under the disc still names the fit. The Key is a per-viewer convenience, kept in `localStorage['touchline-squad-key']` (`'1'` on) inside try/catch; blocked storage reads as off and the chip still works for the visit.
+
 ## 4. Formations
 
 Eight shapes, each with eleven slots carrying a position and pitch coordinates (`src/engine/formations.ts`):
@@ -233,6 +251,19 @@ Starting state: drafted players begin at condition 96, morale 70, sharpness 70, 
 6. **Overall** is `(0.18 GK + 0.30 DEF + 0.26 MID + 0.26 ATT) × (0.96 + 0.04 × balance)`.
 
 `autoPickLineup` fills the hardest slots first (GK, then by scarcity of natural players), in two passes (fit ≥ 0.86, then anything), scoring `roleRating × condition × sharpness`, and benches the next nine by overall. It drives AI clubs, the Auto-pick button, the start of each season (the strongest eleven regardless of where the draft put people) and lineup repair before kick-off.
+
+### The slot picker
+
+The Dugout has one way to change the XI: tap a pitch slot and a picker opens (`SlotSheet` in `src/ui/screens/Dugout.tsx`, built on `Modal` with `sheet`: on screens of 720px or narrower a bottom sheet docked to the bottom edge, 80vh at most, rounded 16px at the top and sliding up in 0.22 s unless reduced motion is set; wider, an ordinary centred modal). It replaced the old two-tap swap (tap a slot, then a player or a second slot) on every screen size; tapping a player in the squad list or the depth chart now always opens his details. Its contents come from the pure `slotSheet(game, u, slotId)` (`src/game/logic/slotSheet.ts`):
+
+- **On top**, the man in the slot with a **To bench** button, or a note that the slot is empty.
+- **Can play there**: every other squad player with `canCover(p, position, 'accomplished')`, a position factor of at least `ACCOMPLISHED_FACTOR` (0.86), which is exactly the line `autoPickLineup` draws for its first pass (the literal 0.86 there and in `describeFit` is now that one constant). Sorted by `ratingAt(p, position)` (attributes weighted for the position, times the fit factor), each row has the state bars, a fit chip (fits, acc.), his whereabouts (`Starting at CM`, `Bench`, `Unused`) and on the right the number his disc would show there, `discRating` = `round(overall × positionFactor)`, the same function the pitch now uses.
+- **Out of position**, folded by default: everyone else (awkward or unsuited, the pitch's awk.), with the penalised numbers.
+- Injured or suspended men (`isAvailable` false, the filter auto-pick applies and the two cases `lineupProblems` reports) are dimmed and cannot be tapped, so the sheet never offers a man the pre-match check would then refuse.
+
+Tapping a row calls `store.playInSlot(id, slotId)`: `assignPlayer` as before (a man from the bench or unused pushes the occupant to the bench; a man starting elsewhere swaps slots with him, which is the old two-tap swap), then a toast worded by `assignmentNote` from the lineup as it stood: `Saka in at RW, Bowen to the bench`, `Grealish in at RW, Salah to LW`, `Saka in at RW` into an empty slot, `Saka to the bench, RW is empty` from To bench. Names are surnames with their particles (`De Bruyne`, `van Dijk`); a position the shape repeats reads `left CB`, `right CB` or `left`, `centre`, `right` for three (`slotLabel`). The squad list's chip for a man neither starting nor on the bench now reads **Unused** rather than Out, so it is not read as injured.
+
+In the Draft, a player with more than one eligible open slot no longer shows a "Choose a slot on the pitch" notice: the notice carries one chip per slot from `draftSlotChoices(d, p)`, which is exactly `eligibleSlots(d, p)`, reading `left CM 77 · fits` or `RW 73 · can cover` (`round(ratingAt)` in that position, `?` under hard mode or a blind spin), and tapping one makes the pick; the eligible slots on the pitch still pulse as a second way in. On screens of 720px or narrower the squad panel scrolls into view (`scrollIntoView`, smooth, to the top) each time a spin is revealed, since the stacked columns put it under the wheel.
 
 ## 8. The match engine
 
@@ -543,7 +574,18 @@ Rolled from a weighted deck when conditions are met (`src/engine/events.ts`). Th
 
 ### Inbox
 
-A rolling feed of up to 120 items: results, injuries, suspensions, board, transfers, awards, events, cup, info.
+A rolling feed of up to `NEWS_CAP` (120) items, newest first: results, injuries, suspensions, board, transfers, awards, events, cup, training, info. Every item goes through `postNews` (`src/game/logic/news.ts`), which trims the feed to the cap and counts the item in `game.newsTotal`, the number of items ever posted this season (an optional save field; an older save starts it from the feed's length). `game.newsSeen` (optional) is `newsTotal` when the Inbox tab was last opened; `beginSeason` sets `newsTotal` to the opening items and `newsSeen` to 0, so a new season's opening news is unread, and a save without `newsSeen` counts as everything read. The unread count is `newsTotal − newsSeen`, measured on the counter rather than the feed's length because the feed stops growing at the cap. The Inbox tab shows that count as a badge (`99+` above 99; it takes the place of the pending-event dot). Opening the tab writes `newsSeen` (only when something is unread or the field is missing, so a visit to a read inbox never rewrites the save), marks the unread rows, says `n new since your last visit`, and draws a divider under the last new item when older items follow it; a batch that arrives while the tab is open (a sim run from it) moves the marking to that batch.
+
+### While you were away
+
+Sim 5 and Sim to end (`store.simWeeks`) end on a digest of the run, a transient store field (`digest`, never saved) shown as a modal over the dugout. Before the mutation the store takes `digestSnapshot(game)`: plain numbers read from the saved state, never an Immer draft (the last matchweek played, `newsTotal`, the league position from `computeTable`, board confidence). After the loop `buildDigest(before, game)` (`src/game/logic/digest.ts`, pure and RNG-free) collects:
+
+- the results: every league fixture of yours with `matchweek` in (from, to], then every cup and continental tie of yours with a result and `afterMatchweek` in that range, labelled by round, a level tie with its penalty score; sorted by matchweek with the league match before the midweek tie. League results are W, D or L; a knockout tie is W when you went through and L when you went out;
+- the position before and after, the league points of those weeks only, and confidence before and after;
+- the new inbox items, `news.slice(0, newsTotal − before.newsTotal)`, flagged `truncated` when more were posted than the 120-item feed still holds, split by kind into injuries, suspensions, transfers and development (the training reports);
+- the decisions: when the assistant resolves a pending event during a managed week (it takes the second option, as before) `playMatchweek` first posts an `event` item titled `Assistant decided: <event title>` with the chosen option's label as its body, so the choice is on record in the Inbox; the digest lists each one with the outcome text from the event's own item, the nearest event item of the same title above the record and short of that week's result (a training setback may sit between them).
+
+The modal is titled `Matchweeks 12 to 16` (`Matchweek 16` for a single week). It shows a strip of result chips (opponent badge, score, H or A, dashed for a cup or Europe tie, green for W and red for L), `3W 2D 0L · 9th to 6th, 11 points from 5 league matches` (`Still 6th` when unchanged, and `6th in the table` for a run from pre-season, when the table before it is only an order of clubs on no points), two confidence bars (before, then after), the groups `Decided for you`, Injuries, Suspensions, Transfers and Development at most `DIGEST_GROUP_CAP` (8) lines each with `and N more in the Inbox`, a line when the run was quiet, the Inbox's unread count, read live from the game exactly as the tab badge counts it (this run's items plus any left unread before it; `Nothing unread` when the run was simulated with the Inbox open, which marks the batch read as it lands) and a `To the dugout` button (Escape closes it too). Starting or resuming another game clears it. There is no digest when nothing was played, or when the run ended the season: the season summary covers that. A sacking ends the season too, so a run that ends in the sack goes to the summary without a digest.
 
 ## 11. The transfer market
 

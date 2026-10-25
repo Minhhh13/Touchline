@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, wheelPool } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
@@ -7,9 +7,10 @@ import { CaseReel } from '../components/CaseReel'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, Pos, Rating } from '../components/bits'
+import { ClubBadge, Pos, Rating, Tip } from '../components/bits'
 import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
+import { draftSlotChoices } from '@game/logic/slotSheet'
 import { leagueSegments } from '../components/leagueSegments'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
@@ -56,6 +57,13 @@ export function Draft() {
       setSelectedPlayer(null)
     }
   }, [d?.current?.clubId, d?.current?.season, d?.spins])
+
+  // On a phone the columns stack, so the landed squad would sit under the wheel: bring it on screen when it is revealed
+  const squadRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!revealed || typeof window === 'undefined' || !window.matchMedia?.('(max-width: 720px)').matches) return
+    squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [revealed])
 
   if (!u || !game || !d) return null
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
@@ -187,6 +195,7 @@ export function Draft() {
                 <Pos key={p} p={p} />
               ))}
             </div>
+            {!fillingStarters && !complete && !dry && <Tip id="draft-bench">Bench picks can be anyone un-drafted; cover every position, injuries will come.</Tip>}
           </div>
           {d.history.length > 0 && (
             <div className="panel tight">
@@ -217,7 +226,7 @@ export function Draft() {
         </div>
 
         {/* Squad list column */}
-        <div className="panel col">
+        <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
           {!current && (
             <div className="col" style={{ alignItems: 'center', padding: '40px 10px', textAlign: 'center' }}>
               <div style={{ fontSize: 40 }}>🎡</div>
@@ -259,12 +268,24 @@ export function Draft() {
               {!revealed && spinning && <div className="notice">The reel is running…</div>}
               {revealed && twist === 'blind' && <div className="notice">Blind pick: ratings stay hidden until you have chosen. Positions and ages are still shown.</div>}
               {revealed && selected && (
-                <div className="notice">
-                  Choose a slot for <b>{selected.name}</b> on the pitch, or{' '}
-                  <button className="btn sm" onClick={() => setSelectedPlayer(null)}>
-                    cancel
-                  </button>
+                <div className="notice slot-choices" data-testid="slot-choices">
+                  <div>
+                    Where does <b>{selected.name}</b> play? Tap a slot here or on the pitch.
+                  </div>
+                  <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
+                    {draftSlotChoices(d, selected).map((c) => (
+                      <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)}>
+                        <b>{c.label}</b> {hide ? '?' : c.rating} · {c.fit}
+                      </button>
+                    ))}
+                    <button type="button" className="btn sm ghost" onClick={() => setSelectedPlayer(null)}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
+              )}
+              {revealed && fillingStarters && (
+                <Tip id="draft-first-reveal">Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist" style={{ maxHeight: 560, overflow: 'auto' }}>

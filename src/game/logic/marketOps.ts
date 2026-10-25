@@ -7,6 +7,7 @@ import { newSquadPlayer, type AiClub } from '@engine/season'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, squadWages } from './squad'
 import { naturalStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from '@engine/status'
+import { postNews } from './news'
 
 export const SQUAD_CAP = 23
 
@@ -67,7 +68,7 @@ export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount:
   if (out.accepted) {
     if (exchange) {
       releasePlayer(game, u, exchange.p.id)
-      if (game.season) game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: `${exchange.p.name} leaves in part-exchange`, body: `Valued at £${out.credit ?? 0}M in the deal for ${u.index[listing.playerSeasonId]?.name ?? 'a new signing'}.` })
+      if (game.season) postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: `${exchange.p.name} leaves in part-exchange`, body: `Valued at £${out.credit ?? 0}M in the deal for ${u.index[listing.playerSeasonId]?.name ?? 'a new signing'}.` })
     }
     signListing(game, u, listing, amount, { years: clampYears(opts.years, target?.age ?? 27), status })
   }
@@ -122,7 +123,7 @@ function signListing(game: Game, u: LoadedUniverse, listing: Listing, amount: nu
   if (!terms.loan && amount < listing.opening * 0.7 && !game.unlocked.includes('dealmaker')) game.unlocked.push('dealmaker')
   if (game.season) {
     const from = `${u.clubById[p.clubId]?.name ?? p.clubId} (${p.season}-${String((p.season + 1) % 100).padStart(2, '0')})`
-    game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: terms.loan ? `${p.name} joins on loan` : `${p.name} signs`, body: terms.loan ? `Season-long loan from ${from}, £${amount}M fee. He returns in the summer.` : `£${amount}M from ${from}. Contract: ${terms.years} year${terms.years > 1 ? 's' : ''} as ${STATUS_LABEL[terms.status].toLowerCase()}.` })
+    postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: terms.loan ? `${p.name} joins on loan` : `${p.name} signs`, body: terms.loan ? `Season-long loan from ${from}, £${amount}M fee. He returns in the summer.` : `£${amount}M from ${from}. Contract: ${terms.years} year${terms.years > 1 ? 's' : ''} as ${STATUS_LABEL[terms.status].toLowerCase()}.` })
   }
 }
 
@@ -146,7 +147,7 @@ export function acceptOffer(game: Game, u: LoadedUniverse, index: number): void 
   releasePlayer(game, u, offer.playerSeasonId)
   applyAiSignings(game, u, [{ playerSeasonId: offer.playerSeasonId, clubId: offer.fromClubId, fee: offer.amount }])
   log(game, `${p?.name ?? 'Player'} sold to ${u.clubById[offer.fromClubId]?.name ?? 'a rival'} for £${offer.amount}M.`)
-  if (game.season) game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: `${p?.name} sold`, body: `£${offer.amount}M from ${u.clubById[offer.fromClubId]?.name ?? 'a rival'}.` })
+  if (game.season) postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: `${p?.name} sold`, body: `£${offer.amount}M from ${u.clubById[offer.fromClubId]?.name ?? 'a rival'}.` })
   // Any other open offers for the same player are void
   for (const o of game.window.offers) if (o !== offer && o.playerSeasonId === offer.playerSeasonId && o.status === 'open') o.status = 'withdrawn'
 }
@@ -226,7 +227,7 @@ export function advanceDay(game: Game, u: LoadedUniverse): void {
   const rng = Rng.fromState(game.rngState)
   tickWindow(game, u, rng)
   if (game.window.day >= game.window.days) {
-    game.season.news.unshift({ matchweek: game.season.matchweek, kind: 'transfer', title: 'Window closed', body: `The ${game.window.kind === 'summer' ? 'summer' : 'January'} window has shut.` })
+    postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: 'Window closed', body: `The ${game.window.kind === 'summer' ? 'summer' : 'January'} window has shut.` })
     game.window = null
   }
   game.rngState = rng.getState()

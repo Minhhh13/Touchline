@@ -340,6 +340,12 @@ p {
   text-decoration: none;
   white-space: nowrap;
 }
+/* A decision's choice carries its hint under the label, so it wraps rather than running past a phone's edge */
+.btn.event-choice {
+  white-space: normal;
+  max-width: 100%;
+  text-align: left;
+}
 .btn:hover {
   border-color: var(--accent);
 }
@@ -647,6 +653,68 @@ label.field {
 }
 .state-bars .bar {
   height: 5px;
+}
+.state-labels span {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Coach marks: inline in the page flow, never an overlay */
+.tip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  font-size: 13.5px;
+  color: var(--text);
+}
+.key-chip {
+  cursor: pointer;
+  font-family: inherit;
+}
+.col > .tip {
+  margin-bottom: 0;
+}
+.pill-list + .tip {
+  margin: 8px 0 0;
+}
+.tip .tip-text {
+  flex: 1;
+  min-width: 0;
+}
+.tip .btn {
+  flex-shrink: 0;
+}
+
+/* The pitch key: what the disc number and its rings mean */
+.pitch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.pitch-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pitch-legend .ring {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: rgba(8, 20, 14, 0.85);
 }
 
 /* ------------------------------------------------------------------ pitch */
@@ -1279,6 +1347,69 @@ table.tbl tr.clickable:hover {
 .news .item .b {
   color: var(--text-2);
   font-size: 13px;
+}
+.news .item.new {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.news .divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.news .divider::before,
+.news .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.tabs button .tab-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ------------------------------------------------------------------ while you were away */
+.digest {
+  gap: 12px;
+}
+.digest-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.digest-results .chip {
+  padding: 3px 8px 3px 4px;
+  font-size: 13px;
+}
+.digest-results .chip.cup {
+  border-style: dashed;
+}
+.digest-conf {
+  display: grid;
+  gap: 4px;
+}
+.digest-group ul {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+  font-size: 13.5px;
 }
 .kv {
   display: grid;
@@ -2026,4 +2157,73 @@ table.tbl tr.clickable:hover {
     animation: none;
     transition: none;
   }
+}
+
+/* ------------------------------------------------------------ slot picker */
+/* A bottom sheet on a phone, an ordinary centred modal on wider screens */
+@media (max-width: 720px) {
+  .modal-back.sheet-back {
+    padding: 0;
+  }
+  .modal.sheet {
+    align-self: end;
+    width: 100%;
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+    padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
+    animation: sheet-up 0.22s ease-out;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal.sheet {
+    animation: none;
+  }
+}
+.sheet-occupant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.sheet-occupant .prow {
+  cursor: default;
+  border-color: var(--accent);
+}
+.sheet-group {
+  font-size: 15px;
+  margin: 10px 0 6px;
+}
+.sheet-out {
+  margin-top: 10px;
+}
+.sheet-out summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 6px 0;
+  color: var(--text-2);
+}
+.slot-disc {
+  min-width: 34px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+.slot-chip {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
 }

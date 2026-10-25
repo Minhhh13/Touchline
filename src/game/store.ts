@@ -14,6 +14,7 @@ import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
+import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
 import { talkTo, type TalkKind } from './logic/talks'
@@ -27,6 +28,9 @@ import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
+import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
+import { newsTotal } from './logic/news'
+import { withTipSeen, type TipId } from './logic/tips'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -68,6 +72,8 @@ interface Store {
   profile: Profile
   toast: string | null
   offseason: OffseasonReport | null
+  /** What happened over the matchweeks just simulated (Sim 5, Sim to end); transient, never saved. */
+  digest: SimDigest | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
   matchView: 'ticker' | 'report'
   /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
@@ -103,11 +109,16 @@ interface Store {
   simWeeks: (n: number) => void
   closeMatch: () => void
   setMatchView: (v: 'ticker' | 'report') => void
+  dismissDigest: () => void
+  /** The Inbox was opened: everything posted so far counts as read. */
+  markNewsSeen: () => void
 
   setTactics: (t: Partial<Tactics>) => void
   setRole: (slotId: string, roleId: string) => void
   setFormation: (id: string) => void
   assign: (playerSeasonId: string, slotId: string | 'bench') => void
+  /** The slot picker's tap: assign, then toast what moved ('Saka in at RW, Bowen to the bench'). */
+  playInSlot: (playerSeasonId: string, slotId: string | 'bench') => void
   autoPick: () => void
   setTeamTalk: (t: TeamTalk) => void
   setTraining: (t: TrainingFocus) => void
@@ -141,6 +152,10 @@ interface Store {
   recordResult: () => void
   setManagerName: (name: string) => void
   setTheme: (t: Profile['theme']) => void
+  /** A coach mark's 'Got it': it never shows again on this profile. */
+  dismissTip: (id: TipId) => void
+  /** 'Show tips again' on the Record screen: every coach mark shows once more. */
+  resetTips: () => void
 }
 
 const defaultProfile: Profile = {
@@ -203,6 +218,7 @@ export const useStore = create<Store>()(
         profile: defaultProfile,
         toast: null,
         offseason: null,
+        digest: null,
         matchView: 'ticker',
         pendingChallenge: null,
 
@@ -298,9 +314,9 @@ export const useStore = create<Store>()(
           // Park a game of a different kind rather than losing it; a finished one is dropped.
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
-          set({ game, parked: next, screen: 'game', pendingChallenge: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          set({ game, parked: next, screen: 'game', pendingChallenge: null, digest: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
-        abandonGame: () => set({ game: null, screen: 'home', offseason: null }),
+        abandonGame: () => set({ game: null, screen: 'home', offseason: null, digest: null }),
         resumeGame: (slot) => {
           const { game: current, parked } = get()
           const target = parked[slot]
@@ -313,7 +329,7 @@ export const useStore = create<Store>()(
           void get()
             .ensureLeagues(ids)
             .then((ok) => {
-              if (ok) set({ game: target, parked: next, screen: 'game' })
+              if (ok) set({ game: target, parked: next, screen: 'game', digest: null })
             })
         },
         discardParked: (slot) => {
@@ -400,6 +416,8 @@ export const useStore = create<Store>()(
           }
         },
         simWeeks: (n) => {
+          // Plain numbers from the saved game, read before the mutation so the digest compares before with after
+          const before = digestSnapshot(get().game)
           mutate((g, u) => {
             if (g.phase === 'preseason') startSeasonProper(g)
             for (let i = 0; i < n; i++) {
@@ -408,8 +426,11 @@ export const useStore = create<Store>()(
               if (g.phase === 'match') g.phase = 'week'
             }
           })
-          set({ matchView: 'report' })
-          if (get().game?.phase === 'summary') {
+          const after = get().game
+          // The season summary covers a run that ended the season, so no digest then
+          const digest = before && after && after.phase !== 'summary' ? buildDigest(before, after) : null
+          set({ matchView: 'report', digest })
+          if (after?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
           }
@@ -424,11 +445,26 @@ export const useStore = create<Store>()(
           }
         },
         setMatchView: (v) => set({ matchView: v }),
+        dismissDigest: () => set({ digest: null }),
+        markNewsSeen: () => {
+          const { game } = get()
+          // Only when something is unread or the field is missing, so a visit to a read inbox never rewrites the save
+          if (!game?.season || (game.newsSeen !== undefined && game.newsSeen >= newsTotal(game))) return
+          mutate((g) => void (g.newsSeen = newsTotal(g)))
+        },
 
         setTactics: (t) => mutate((g) => void Object.assign(g.tactics, t)),
         setRole: (slotId, roleId) => mutate((g) => void (g.tactics.roles[slotId] = roleId)),
         setFormation: (id) => mutate((g, u) => setFormation(g, u, id)),
         assign: (id, slot) => mutate((g, u) => assignPlayer(g, u, id, slot)),
+        playInSlot: (id, slot) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          // Worded from the lineup as it stands, before the swap runs
+          const note = assignmentNote(game, universe, id, slot)
+          mutate((g, u) => assignPlayer(g, u, id, slot))
+          if (note) set({ toast: note })
+        },
         autoPick: () => mutate((g, u) => autoPick(g, u, false)),
         setTeamTalk: (t) => mutate((g) => void (g.teamTalk = t)),
         setTraining: (t) => mutate((g) => void (g.training = t)),
@@ -603,6 +639,12 @@ export const useStore = create<Store>()(
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
         setTheme: (theme) => set({ profile: { ...get().profile, theme } }),
+        dismissTip: (id) => {
+          const { profile } = get()
+          const next = withTipSeen(profile, id, new Date().toISOString().slice(0, 10))
+          if (next !== profile) set({ profile: next })
+        },
+        resetTips: () => set({ profile: { ...get().profile, seenTips: {} } }),
       }
     },
     {
