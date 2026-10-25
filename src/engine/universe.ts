@@ -314,10 +314,6 @@ export function clubName(u: LoadedUniverse, clubId: string): string {
   return u.clubById[clubId]?.name ?? clubId
 }
 
-export function flagOf(u: LoadedUniverse, nation: string): string {
-  return u.nations[nation]?.flag ?? '🏳️'
-}
-
 /** Club-seasons of one league in one season (the 18 or 20 clubs of that campaign). */
 export function leagueSeasonClubs(u: LoadedUniverse, leagueId: string, season: number): ClubSeason[] {
   return u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season)

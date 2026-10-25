@@ -34,7 +34,7 @@ export function Home() {
           {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
         </p>
         {u && (
-          <div className="row wrap" style={{ gap: 8, marginTop: 8, justifyContent: 'center' }} aria-label="Leagues">
+          <div className="row wrap" style={{ gap: 8, marginTop: 8, justifyContent: 'center' }} role="group" aria-label="Leagues">
             {u.available.map((l) => (
               <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
             ))}

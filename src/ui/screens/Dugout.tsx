@@ -586,7 +586,7 @@ function CupTab({ comp }: { comp: Competition }) {
         <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
           {field.map((c) => (
             <span key={c.id} className="chip row" style={{ gap: 4 }} title={u.leagues.find((l) => l.id === u.clubById[c.id]?.leagueId)?.name}>
-              <LeagueFlag leagueId={u.clubById[c.id]?.leagueId ?? ''} size={16} /> <ClubBadge clubId={c.id} size={16} /> {c.shortName}
+              <LeagueFlag leagueId={u.clubById[c.id]?.leagueId ?? ''} label={u.leagues.find((l) => l.id === u.clubById[c.id]?.leagueId)?.name} size={16} /> <ClubBadge clubId={c.id} size={16} /> {c.shortName}
             </span>
           ))}
         </div>

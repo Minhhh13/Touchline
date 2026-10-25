@@ -93,7 +93,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - Style: 2 spaces, LF, no semicolons, single quotes, long single-line JSX is normal. Do not reflow existing lines (it creates huge conflicts).
 - Hooks above early returns in new components (Dugout, Summary and Explore currently break this; hoist when you touch them).
 - Display names and numbers go through `src/ui/format.ts` (money in millions, wages in thousands per week).
-- Flags are drawn, never emoji (Windows shows emoji flags as letter pairs): render `NationFlag`/`LeagueFlag` from `src/ui/components/Flag.tsx` (`leagueId="europe"` is the EU flag), never a nation's `.flag` string or `flag()`. Pass `label` only when no name is printed beside the flag.
+- Flags are drawn, never emoji (Windows shows emoji flags as letter pairs): render `NationFlag`/`LeagueFlag` from `src/ui/components/Flag.tsx` (`leagueId="europe"` is the EU flag), never a nation's `.flag` string (the emoji helpers `flag()` in format.ts and `flagOf` in universe.ts are gone). Pass `label` only when no name is printed beside the flag.
 - No real crests, kits, logos or photos: club identity is colours plus a code (`ClubBadge`).
 - Persist only what must survive reload; per-viewer UI conveniences get their own `localStorage` key inside try/catch.
 - New draft rules need an entry in `RULE_CHECKS` (`src/engine/challenge.ts`); the type forces it.

@@ -20,10 +20,13 @@ import { isAvailable } from '@game/logic/players'
 
 /** The competition's flag before a match heading: the league's, or the EU flag on a European night; none for a friendly. */
 function CompetitionFlag({ ctx, leagueId }: { ctx: MatchContext; leagueId?: string }) {
+  const u = useStore((s) => s.universe)
   if (ctx.roundLabel === 'Friendly' || !leagueId) return null
+  // The heading names European Nights itself; a league or cup heading ("Matchweek 12") does not name the league, so the flag does
+  const label = ctx.competition === 'continental' ? undefined : u?.leagues.find((l) => l.id === leagueId)?.name
   return (
     <>
-      <LeagueFlag leagueId={ctx.competition === 'continental' ? 'europe' : leagueId} size={24} />{' '}
+      <LeagueFlag leagueId={ctx.competition === 'continental' ? 'europe' : leagueId} label={label} size={24} />{' '}
     </>
   )
 }

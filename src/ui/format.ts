@@ -19,10 +19,6 @@ export function wage(k: number): string {
   if (k >= 1000) return `£${(k / 1000).toFixed(2)}M/wk`
   return `£${Math.round(k)}k/wk`
 }
-/** @deprecated The data's emoji flag: never render it (Windows draws two letters); use NationFlag in components/Flag.tsx. */
-export function flag(u: LoadedUniverse | null, nation: string): string {
-  return u?.nations[nation]?.flag ?? '🏳️'
-}
 /** The drawn flag for a nation without one (public/flags/unknown.svg, our own). */
 export const FALLBACK_FLAG = 'unknown'
 /** Nations whose emoji in the data is a stand-in: Northern Ireland carries the UK flag. */
