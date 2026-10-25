@@ -1,10 +1,13 @@
 /**
- * The paused match at one of its two stops, in place of the widget row: at
- * half time a talk, instructions and up to three substitutions; at 70 a shout,
- * instructions and the rest of the five. Moved from the old match screen with
- * its texts and test ids.
+ * The paused match at one of its two stops, as a pop-up centred over the
+ * dashboard (phone included): at half time a talk, instructions and up to
+ * three substitutions; at 70 a shout, instructions and the rest of the five.
+ * Play on with the changes, No changes, the assistant's calls, Finish the
+ * match (these changes, then the assistant takes any later stop) or Full sim
+ * (these changes, then straight to the report). Minimised, it waits as a
+ * "Decisions" pill; the match stays paused until a choice is made.
  */
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useStore } from '@game/store'
 import { playerLookup, isAvailable } from '@game/logic/players'
 import { currentScore, onPitch, SHOUTS, type LiveChanges, type Shout, type TeamTalk } from '@engine/match'
@@ -12,13 +15,28 @@ import type { Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import type { LiveMatch } from '@game/types'
 import { Pos, Rating, Segmented, Tip } from '../components/bits'
+import { DecisionSheet } from '../components/DecisionSheet'
 import { draftChanges, type StopDraft } from './controls'
 import { BallIcon, CardIcon } from './icons'
 
-export function StopPanel({ live, onPlay, draft, setDraft }: { live: LiveMatch; onPlay: (changes: LiveChanges) => void; draft: StopDraft; setDraft: (d: StopDraft) => void }) {
+export interface StopActions {
+  /** Play on to the next stop (or the whistle) with these changes. */
+  onPlay: (changes: LiveChanges) => void
+  /** The assistant's talk or shout and changes for this stop. */
+  onAssistant: () => void
+  /** These changes now; the assistant takes any later stop and the match plays to the whistle. */
+  onFinish: (changes: LiveChanges) => void
+  /** These changes now, then straight to full time and the report. */
+  onFullSim: (changes: LiveChanges) => void
+}
+
+export function StopPanel({ live, actions, draft, setDraft }: { live: LiveMatch; actions: StopActions; draft: StopDraft; setDraft: (d: StopDraft) => void }) {
   const store = useStore()
   const { universe: u, game } = store
   const [subbingOff, setSubbingOff] = useState<string | null>(null)
+  const [open, setOpen] = useState(true)
+  const minimise = useCallback(() => setOpen(false), [])
+  const { onPlay } = actions
   // The pending changes live in the dashboard, so the top bar's drawers edit the same ones
   const { talk, shout, tactics, subs } = draft
   const setTalk = (v: TeamTalk) => setDraft({ ...draft, talk: v })
@@ -44,21 +62,30 @@ export function StopPanel({ live, onPlay, draft, setDraft }: { live: LiveMatch; 
   const subbedOn = new Set(subs.map((s) => s.on))
   const subbedOff = new Set(subs.map((s) => s.off))
   const benchOptions = game.bench.filter((id) => !appeared.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
-  const play = () => onPlay(draftChanges(draft, atBreak ? 45 : 70))
+  const changes = draftChanges(draft, atBreak ? 45 : 70)
+  const play = () => onPlay(changes)
   const stateLabel = us > them ? `ahead ${us}-${them}` : us < them ? `behind ${us}-${them}` : `level ${us}-${them}`
+  const stopName = atBreak ? 'half time' : '70 minutes'
+  if (!open)
+    return (
+      <button className="btn primary decisions-pill" onClick={() => setOpen(true)} data-testid="decisions-pill">
+        Decisions · {stopName}
+      </button>
+    )
   return (
-    <div className="panel md-stop" data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
-      <div className="panel-head">
-        <h2>
-          {atBreak ? 'Half time' : '70 minutes'}: {stateLabel}
-        </h2>
-        <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
-        <div className="md-stop-actions">
-          <button className="btn primary big" onClick={play} data-testid="play-on">
+    <DecisionSheet
+      open
+      title={`${atBreak ? 'Half time' : '70 minutes'}: ${stateLabel}`}
+      subtitle={atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}
+      onMinimise={minimise}
+      testId={atBreak ? 'half-time-panel' : 'late-panel'}
+      actions={
+        <>
+          <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus>
             {atBreak ? 'Play on to 70 minutes' : 'Play to the whistle'}
           </button>
           <button
-            className="btn ghost"
+            className="btn"
             onClick={() => {
               setDraft({ ...draft, tactics: null, subs: [] })
               onPlay(atBreak ? { talk: 'none' } : {})
@@ -67,8 +94,18 @@ export function StopPanel({ live, onPlay, draft, setDraft }: { live: LiveMatch; 
           >
             No changes
           </button>
-        </div>
-      </div>
+          <button className="btn" onClick={actions.onAssistant} data-testid="assistant-decide" title="The assistant's talk or shout and changes for this stop">
+            Let the assistant decide
+          </button>
+          <button className="btn" onClick={() => actions.onFinish(changes)} data-testid="finish-match" title="Your changes now; the assistant takes any later call and the match plays to the whistle">
+            Finish the match
+          </button>
+          <button className="btn ghost" onClick={() => actions.onFullSim(changes)} data-testid="full-sim" title="Your changes now, then straight to full time and the report">
+            Full sim
+          </button>
+        </>
+      }
+    >
       {atBreak && <Tip id="halftime-first">A talk, four instructions and up to three substitutions; No changes plays on.</Tip>}
       <div className="md-stop-grid">
         <div className="col">
@@ -195,6 +232,6 @@ export function StopPanel({ live, onPlay, draft, setDraft }: { live: LiveMatch; 
           )}
         </div>
       </div>
-    </div>
+    </DecisionSheet>
   )
 }

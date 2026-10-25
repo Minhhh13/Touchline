@@ -33,6 +33,7 @@ import { challengeSettings, replayChallenge } from './logic/challenge'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
+import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -84,6 +85,8 @@ interface Store {
   digest: SimDigest | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
   matchView: 'ticker' | 'report'
+  /** Transient: the live match plays on through its stops with the assistant making the calls (Auto-play, "Finish the match", "Auto from here"). Never saved. */
+  liveAuto: boolean
   /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
   pendingChallenge: { payload: ChallengePayload; challenge: ChallengeSettings } | null
   /** The quick season being revealed game by game from game `from` (transient, never saved): a reload goes straight to the result. */
@@ -129,6 +132,16 @@ interface Store {
   interveneLive: (change: Omit<InPlayChange, 'side'>) => InPlayOutcome | null
   /** Close a match held to the whistle: the report and the rest of the week. */
   completeLive: () => void
+  /** Play on from the stop with the assistant's calls (`assistantCall`); `hold` as for `advanceLive`. */
+  assistantAdvance: (hold?: boolean) => void
+  /** Play the live match to the whistle now (with `changes` at this stop when given), the assistant taking every remaining call; the report is shown. */
+  finishLiveNow: (changes?: LiveChanges) => void
+  /** Turn the assistant on or off for the stops still to come in this match. */
+  setLiveAuto: (on: boolean) => void
+  /** On to the live match that follows (a cup tie after the league match): the assistant is back to the saved preference, whatever was asked for the last match. */
+  nextLiveMatch: () => void
+  /** The remembered way to play a match (Season and Dynasty). */
+  setMatchPlay: (mode: MatchPlayMode) => void
   simToEnd: () => void
   simWeeks: (n: number) => void
   closeMatch: () => void
@@ -298,6 +311,7 @@ export const useStore = create<Store>()(
         offseason: null,
         digest: null,
         matchView: 'ticker',
+        liveAuto: false,
         pendingChallenge: null,
         playback: null,
 
@@ -394,7 +408,7 @@ export const useStore = create<Store>()(
           // Park a game of a different kind rather than losing it; a finished one is dropped.
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
-          set({ game, parked: next, screen: 'game', pendingChallenge: null, digest: null, playback: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          set({ game, parked: next, screen: 'game', liveAuto: false, pendingChallenge: null, digest: null, playback: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
         abandonGame: () => {
           settleQuickSeason()
@@ -413,7 +427,8 @@ export const useStore = create<Store>()(
           void get()
             .ensureLeagues(ids)
             .then((ok) => {
-              if (ok) set({ game: target, parked: next, screen: 'game', digest: null, playback: null })
+              // The assistant takes a resumed match's stops only under its own Auto-play, never because the last game had him on
+              if (ok) set({ game: target, parked: next, screen: 'game', digest: null, playback: null, liveAuto: assistantTakesStops(target) })
             })
         },
         discardParked: (slot) => {
@@ -539,7 +554,7 @@ export const useStore = create<Store>()(
 
         playFriendly: () => {
           mutate((g, u) => playFriendly(g, u))
-          set({ matchView: 'ticker' })
+          set({ matchView: 'ticker', liveAuto: false })
         },
         advanceLive: (opts, hold = false) => {
           mutate((g, u) => advanceLiveMatch(g, u, opts, false, hold))
@@ -563,12 +578,32 @@ export const useStore = create<Store>()(
           }
         },
         startSeason: () => mutate((g) => startSeasonProper(g)),
+        assistantAdvance: (hold = false) => {
+          mutate((g, u) => advanceWithAssistant(g, u, hold))
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        finishLiveNow: (changes) => {
+          mutate((g, u) => finishWithAssistant(g, u, changes))
+          set({ matchView: 'report' })
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        setLiveAuto: (on) => set({ liveAuto: on }),
+        nextLiveMatch: () => set({ liveAuto: assistantTakesStops(get().game), matchView: 'ticker' }),
+        setMatchPlay: (mode) => mutate((g) => void (g.settings.matchPlay = mode)),
         playWeek: () => {
+          const g0 = get().game
+          const mode = g0 ? matchPlayOf(g0) : 'watch'
           mutate((g, u) => {
             if (g.phase === 'preseason') startSeasonProper(g)
-            playMatchweek(g, u, false)
+            playMatchweekAs(g, u, mode)
           })
-          set({ matchView: 'ticker' })
+          set({ matchView: mode === 'sim' ? 'report' : 'ticker', liveAuto: mode === 'auto' })
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
@@ -856,7 +891,9 @@ export const useStore = create<Store>()(
           if (n) parked[slot] = n
         }
         const game = normaliseGame(p.game)
-        return { ...current, ...p, game, parked, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
+        // A match reloaded mid-way under Auto-play carries on with the assistant at the stops
+        const liveAuto = assistantTakesStops(game)
+        return { ...current, ...p, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },
   ),

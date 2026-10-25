@@ -261,8 +261,8 @@ function WhatSigningInAdds() {
 }
 
 /**
- * The Account screen (screen `account`, opened from the top bar's sign-in entry and from Profile): three boxed panels
- * side by side on one screen with no page scroll on a desktop, each scrolling inside itself; stacked on a phone.
+ * The Account screen (screen `account`, opened from the top bar's sign-in entry and from Profile): a shell screen of
+ * three boxed panels side by side with no page scroll on a desktop, each scrolling inside itself; stacked on a phone.
  * Signed out: sign in, what an account adds, and the online record placeholder. Signed in: who you are with the name
  * and flag on the boards, the cloud saves, and your posted runs and short links.
  */
@@ -276,9 +276,14 @@ export function AccountScreen() {
     if (configured && !started) void api.startOnline()
   }, [configured, started])
   return (
-    <div className="page fit account-page" data-testid="account-panel">
-      <div className="fit-head row between wrap">
-        <h1>Account</h1>
+    <div className="page account-page" data-testid="account-panel">
+      <div className="screen-head">
+        <div className="screen-title">
+          <h1>Account</h1>
+          <div className="screen-meta">
+            <span>{session ? (account?.displayName ?? session.maskedEmail ?? 'Signed in') : 'Optional: every mode works signed out'}</span>
+          </div>
+        </div>
         <button className="btn ghost" onClick={() => go('profile')}>
           ← Profile
         </button>
@@ -288,7 +293,8 @@ export function AccountScreen() {
           <p className="help">Online features are not available in this build. Everything you play is saved in this browser.</p>
         </div>
       ) : (
-        <div className="fit-grid three">
+        <div className="screen-body fill">
+        <div className="grid three account-grid">
           <section className="panel fit-panel" data-testid="account-identity">
             <div className="panel-head">
               <h3>{session ? 'Signed in' : 'Sign in'}</h3>
@@ -314,6 +320,7 @@ export function AccountScreen() {
           </section>
           {session ? <CloudPanel /> : <WhatSigningInAdds />}
           <OnlineRecord />
+        </div>
         </div>
       )}
     </div>

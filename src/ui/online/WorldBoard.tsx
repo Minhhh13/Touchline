@@ -268,8 +268,8 @@ const BOARDS: Array<{ id: Tab; label: string; meta: string }> = [
 
 /**
  * The world leaderboard (screen `world`): today's Daily, this week's challenge, all-time Daily totals, a country
- * filter on each. Two boxed panels side by side on one screen with no page scroll on a desktop (the board scrolls
- * inside its panel, your own row pinned at its foot); stacked on a phone.
+ * filter on each. A shell screen: two boxed panels side by side with no page scroll on a desktop (the board scrolls
+ * inside its panel under a sticky header, your own row pinned at its foot); stacked on a phone.
  */
 export function WorldBoard() {
   const go = useStore((s) => s.go)
@@ -288,9 +288,14 @@ export function WorldBoard() {
     if (configured) void api.startOnline()
   }, [configured])
   return (
-    <div className="page fit world-page">
-      <div className="fit-head row between wrap">
-        <h1>World leaderboard</h1>
+    <div className="page world-page">
+      <div className="screen-head">
+        <div className="screen-title">
+          <h1>World leaderboard</h1>
+          <div className="screen-meta">
+            <span>Every score replayed by the server from the picks</span>
+          </div>
+        </div>
         <button className="btn ghost" onClick={() => go('home')}>
           ← Home
         </button>
@@ -300,7 +305,8 @@ export function WorldBoard() {
           <p className="muted">Online features are not available in this build. Your own results are on the Profile page.</p>
         </div>
       ) : (
-        <div className="fit-grid world-grid">
+        <div className="screen-body fill">
+        <div className="grid world-grid">
           <aside className="panel fit-panel" data-testid="world-side">
             <div className="panel-head">
               <h3>Boards</h3>
@@ -345,6 +351,7 @@ export function WorldBoard() {
           {tab === 'daily' && <RankedTable kind="daily" boardKey={day} country={country} title={day === today ? "Today's Daily" : `Daily of ${day}`} />}
           {tab === 'weekly' && <RankedTable kind="weekly" boardKey={week} country={country} title={week === thisWeek ? "This week's challenge" : `Week ${week}`} />}
           {tab === 'alltime' && <AlltimeTable country={country} order={order} />}
+        </div>
         </div>
       )}
     </div>

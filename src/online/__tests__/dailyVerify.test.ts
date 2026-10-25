@@ -69,17 +69,15 @@ function expectRanked(v: Verdict, g: Game) {
   return v.entry
 }
 
-// The Daily's rules are `DAILY_RULES` (src/game/logic/daily.ts): one re-spin since the 38-0 setup reached main. The
-// online layer was built on two (an owner decision of 2026-10-25 on that branch); main's live Daily wins, since
-// changing it mid-day would change the puzzle for everyone (CLAUDE.md invariant 4). The suite follows DAILY_RULES.
+// The verifier replays whatever `DAILY_RULES` (src/game/logic/daily.ts) says, never a literal: the owner's decision
+// is two re-spins (restored with dailyPin.test.ts on another branch), and this suite follows whichever value lands.
 describe('the Daily the verifier replays is DAILY_RULES', () => {
   it('pins the Daily rules', () => {
     const s = dailyGameSettings(u, SEED)
     expect(s.rules).toEqual(DAILY_RULES)
-    expect(s.rules.respins).toBe(1)
     expect(s.rules.squadSize).toBe(11)
     expect(s.rules.twists).toBe(true)
-    expect(maxDraftRows(createGame(s).draft!)).toBe(13)
+    expect(maxDraftRows(createGame(s).draft!)).toBe(11 + DAILY_RULES.respins + 1)
   })
 })
 

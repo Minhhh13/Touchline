@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useStore } from '@game/store'
 import { Home } from './screens/Home'
 import { Setup } from './screens/Setup'
@@ -13,14 +13,18 @@ import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
 import { Privacy } from './screens/Privacy'
-import { Bar, ClubBadge, Modal, Toast } from './components/bits'
+import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
-import { Bandage, Banknote, BookOpen, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { withViewTransition } from './motion'
+import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+
+/** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
+export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
 import { WorldBoard } from './online/WorldBoard'
 import { AccountChip } from './online/AccountChip'
 import { AccountScreen } from './online/AccountPanel'
@@ -28,9 +32,39 @@ import { parseGameHash } from '../online/core/codes'
 import { onlineAvailable, resolveShort } from '../online/api'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
+  // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
+  const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
+  // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back
+  const flipTheme = () => withViewTransition(() => setTheme(toggledTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')))
+  const [barHidden, toggleBar] = useViewerFlag(TOPBAR_HIDDEN_KEY)
+  // Focus follows the control that replaces the one just pressed (the toggle and the restore pill sit in the same spot)
+  const barToggled = useRef(false)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const restoreRef = useRef<HTMLButtonElement>(null)
+  const flipBar = () => {
+    barToggled.current = true
+    toggleBar()
+  }
+  useEffect(() => {
+    if (!barToggled.current) return
+    barToggled.current = false
+    ;(barHidden ? restoreRef : toggleRef).current?.focus()
+  }, [barHidden])
+  // The \ key folds and restores the bar, except while typing
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '\\' || e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      e.preventDefault()
+      flipBar()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   useEffect(() => {
     void loadData()
@@ -59,8 +93,9 @@ export function App() {
     return () => window.removeEventListener('hashchange', open)
   }, [universe, openChallenge])
 
-  // Auto follows the device live (useResolvedTheme listens to prefers-color-scheme); the browser bar takes the page colour
-  useEffect(() => {
+  // Auto follows the device live (useResolvedTheme listens to prefers-color-scheme); the browser bar takes the page colour.
+  // A layout effect, so the attribute changes in the same commit as the switch (the theme's View Transition captures it)
+  useLayoutEffect(() => {
     const root = document.documentElement
     root.setAttribute('data-theme', theme)
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
@@ -69,6 +104,13 @@ export function App() {
   useEffect(() => {
     rememberThemePreference(profile.theme)
   }, [profile.theme])
+
+  // A new screen opens at its top, not where the last one was left (the summary is long; Explore used to open half-way down)
+  const phase = game?.phase
+  const h2hStage = !h2h ? 'setup' : h2h.result ? 'result' : 'draft'
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [screen, phase, h2hStage])
 
   if (loadError) {
     return (
@@ -93,10 +135,18 @@ export function App() {
   if (!universe || loading) {
     return (
       <div className="app">
-        <div className="page" style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
-          <div className="col" style={{ alignItems: 'center' }}>
+        <div className="page loading-screen" aria-busy="true">
+          <div className="skeleton loading-hero">
             <Logo size="lg" />
-            <div className="muted small">Loading the player database…</div>
+            <div className="muted small" role="status">
+              Loading the player database…
+            </div>
+          </div>
+          <div className="loading-cards" aria-hidden="true">
+            <div className="skeleton" />
+            <div className="skeleton" />
+            <div className="skeleton" />
+            <div className="skeleton" />
           </div>
         </div>
       </div>
@@ -104,12 +154,19 @@ export function App() {
   }
 
   let body: React.ReactNode
+  // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
+  // Setup, the kick-off step, the season playback and the match day keep their own layouts
+  let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto' || screen === 'world' || screen === 'account'
   if (screen === 'game' && game) {
+    shell = game.phase !== 'kickoff' && game.phase !== 'january' && game.phase !== 'match'
     if (game.phase === 'draft') body = <Draft />
     else if (game.phase === 'kickoff') body = <KickOff />
     // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
     // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
-    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
+    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) {
+      shell = false
+      body = <SeasonPlayback key={game.phase} />
+    }
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = <Summary />
     else body = <Dugout />
@@ -124,57 +181,66 @@ export function App() {
   else body = <Home />
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand" onClick={() => go('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && go('home')}>
+    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`}>
+      <header className="topbar" inert={barHidden} aria-hidden={barHidden || undefined}>
+        <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
         <nav>
-          <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>
+          <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
             <House size={16} />
             <span className="nav-label">Home</span>
           </button>
           {game && (
-            <button className={screen === 'game' ? 'active' : ''} onClick={() => go('game')}>
+            <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
               <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : 'Dugout'}</span>
             </button>
           )}
-          <button className={screen === 'h2h' ? 'active' : ''} onClick={() => go('h2h')}>
+          <button className={screen === 'h2h' ? 'active' : ''} onClick={() => nav('h2h')}>
             <Swords size={16} />
             <span className="nav-label">Head-to-head</span>
           </button>
-          <button className={screen === 'explore' ? 'active' : ''} onClick={() => go('explore')}>
+          <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
             <Search size={16} />
             <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
           </button>
           {onlineAvailable() && (
-            <button className={screen === 'world' ? 'active' : ''} onClick={() => go('world')} data-testid="nav-world">
+            <button className={screen === 'world' ? 'active' : ''} onClick={() => nav('world')} data-testid="nav-world">
               <Globe size={16} />
               <span className="nav-label">World</span>
             </button>
           )}
-          <button className={screen === 'profile' ? 'active' : ''} onClick={() => go('profile')}>
+          <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
           </button>
-          <button className={screen === 'howto' ? 'active' : ''} onClick={() => go('howto')}>
+          <button className={screen === 'howto' ? 'active' : ''} onClick={() => nav('howto')}>
             <BookOpen size={16} />
             <span className="nav-label">How it works</span>
           </button>
         </nav>
-        {onlineAvailable() && <AccountChip active={screen === 'account'} onOpen={() => go('account')} />}
+        {onlineAvailable() && <AccountChip active={screen === 'account'} onOpen={() => nav('account')} />}
         <button
           type="button"
           className="theme-switch"
-          onClick={() => setTheme(toggledTheme(theme))}
+          onClick={flipTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           data-testid="theme-switch"
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
+        <button type="button" className="theme-switch topbar-toggle" onClick={flipBar} aria-label="Hide top bar" aria-keyshortcuts={'\\'} title={'Hide top bar (\\)'} data-testid="topbar-toggle" ref={toggleRef}>
+          <ChevronUp size={18} />
+        </button>
       </header>
+      {barHidden && (
+        <button type="button" className="topbar-restore" onClick={flipBar} aria-label="Show top bar" aria-keyshortcuts={'\\'} title={'Show top bar (\\)'} data-testid="topbar-restore" ref={restoreRef}>
+          <ChevronDown size={16} aria-hidden="true" />
+          <span>Show top bar</span>
+        </button>
+      )}
       {body}
       <Toast />
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">

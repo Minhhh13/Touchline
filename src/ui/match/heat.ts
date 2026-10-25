@@ -119,6 +119,8 @@ export function passNetwork(mpath: MatchPath, side: Side, upTo: number): PassNet
   let prev: { holder?: string; side: Side; epoch: number } | null = null
   for (const k of mpath.path) {
     if (k.t >= upTo + 1) break
+    // A carry keeps the ball at the feet of the man who received it: the chain goes on
+    if (k.kind === 'carry' && prev && k.holder === prev.holder && k.side === prev.side) continue
     if (k.kind !== 'pass') {
       prev = null
       continue

@@ -55,7 +55,7 @@ export function weeklyIsOpen(key: string, now: Date): boolean {
 /**
  * The week's fixed settings: an England wheel, a complete English season, a host club and a shape, each chosen by
  * the week key's hash (the Daily's date digits would make neighbouring weeks too alike), the Daily's rules and season
- * options (one re-spin, twists, the January window, no Continental Cup run), calibrated. Only the team name is the player's.
+ * options (the Daily's re-spins, twists, the January window, no Continental Cup run), calibrated. Only the team name is the player's.
  */
 export function weeklyGameSettings(u: LoadedUniverse, key: string, teamName = 'Touchline XI'): GameSettings {
   const n = hashString(weeklySeed(key))

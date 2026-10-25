@@ -59,9 +59,9 @@ describe('the Daily puzzle', () => {
     expect(dailyGameSettings(u, 'daily-2026-10-25', '   ').teamName).toBe('Touchline XI')
   })
 
-  it('keeps the Daily at the one re-spin of DAILY_RULES (the live Daily since the 38-0 setup; a change would change everyone\'s puzzle and the ranked boards)', () => {
-    expect(dailyGameSettings(u, 'daily-2026-10-25').rules.respins).toBe(1)
-    expect(dailyGameSettings(u, 'daily-2027-03-14').rules.respins).toBe(1)
+  it('gives the Daily exactly the re-spins of DAILY_RULES, the value the ranked verifier replays (the owner\'s decision is two; dailyPin.test.ts pins the number)', () => {
+    expect(dailyGameSettings(u, 'daily-2026-10-25').rules.respins).toBe(DAILY_RULES.respins)
+    expect(dailyGameSettings(u, 'daily-2027-03-14').rules.respins).toBe(DAILY_RULES.respins)
   })
 
   it('derives the scoreboard code from the initials, or the first letters of a one-word name', () => {
