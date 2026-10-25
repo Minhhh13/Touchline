@@ -217,14 +217,17 @@ export function Dugout() {
                 </button>
               ))}
             </div>
-            <div className="btns">
+            {/* On a narrow phone the labels shorten (`.lbl-short`) and the buttons wrap rather than clip */}
+            <div className={`btns ${preseason && game.friendliesPlayed < 3 ? 'four' : ''}`}>
               {preseason && game.friendliesPlayed < 3 && (
                 <button className="btn" onClick={() => store.playFriendly()}>
-                  Play friendly
+                  <span className="lbl-long">Play friendly</span>
+                  <span className="lbl-short">Friendly</span>
                 </button>
               )}
               <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent} data-testid="play-week">
-                {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
+                <span className="lbl-long">{preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
+                <span className="lbl-short">{preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
