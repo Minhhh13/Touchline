@@ -4328,6 +4328,8 @@ table.tbl.contracts .btn.sm {
   }
   .goal-burst .confetti {
     display: none;
+  }
+}
 /* Quick-season highlights: a Highlights button on each game, the reel in a modal (a bottom sheet on a phone) */
 .gbg.with-hl .gbg-game {
   grid-template-columns: 44px 22px minmax(0, 1fr) auto auto 42px 30px;
