@@ -521,7 +521,12 @@ export const useStore = create<Store>()(
             g.teamTalk = t
             byHand(g)
           }),
-        setTraining: (t) => mutate((g) => void (g.training = t)),
+        setTraining: (t) =>
+          mutate((g) => {
+            // The arena's hub offers the focus too: a change shapes the next match and the recovery, so it is the manager's
+            if (g.training !== t) byHand(g)
+            g.training = t
+          }),
         setCaptain: (id) =>
           mutate((g) => {
             g.captainId = id

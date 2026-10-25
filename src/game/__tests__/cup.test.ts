@@ -461,6 +461,21 @@ describe('the Cup: saves and the store', () => {
     expect(p.cabinet!.cup).toBe(before.cabinet?.cup ?? 0)
     expect(p.cabinet!.league).toBe(before.cabinet?.league ?? 0)
   })
+
+  it('a training focus changed on the hub makes the run the manager’s, as every other decision does', () => {
+    useStore.setState({ universe: u, loadedLeagues: u.available.map((l) => l.id), game: null, parked: {} })
+    useStore.getState().openArenaSetup('cup')
+    useStore.getState().startGame(cupGameSettings(u, choices('store-training'), 'CXI'))
+    useStore.getState().autoDraftRest()
+    useStore.getState().finishDraft()
+    const g = () => useStore.getState().game!
+    expect(g().training).toBe('balanced')
+    useStore.getState().setTraining('balanced')
+    expect(g().arena!.handManaged).toBe(false)
+    useStore.getState().setTraining('fitness')
+    expect(g().training).toBe('fitness')
+    expect(g().arena!.handManaged).toBe(true)
+  })
 })
 
 describe('the Cup: balance guard (300 assistant runs, England wheel unless stated)', () => {
