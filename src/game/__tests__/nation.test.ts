@@ -99,5 +99,5 @@ describe('one-nation draft through a game', () => {
     const lines = text.split('\n')
     expect(lines.at(-2)).toBe('One nation: 🇧🇷 Brazil')
     expect(lines.at(-1)).toBe('Seed ABCD-EFGH')
-  })
+  }, 30000) // six drafted quick seasons: 3 to 6 s in a parallel run, over the 5-second default
 })

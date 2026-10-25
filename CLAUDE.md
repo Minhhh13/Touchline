@@ -39,7 +39,7 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
 - `src/game/` the save and the game rules on top of the engine.
   - `types.ts` the persisted `Game`, `GameSettings`, `Profile`, `LiveMatch`, `QuickResult`.
   - `store.ts` Zustand store `useStore`, `SAVE_KEY = 'touchline-save-v1'`, persist `version: 1`, `partialize`, `merge` -> `normaliseGame`, the `mutate(fn)` Immer helper, every UI action.
-  - `logic/setup.ts` `createGame`, `beginSeason`, Daily mapping (frozen); `quick.ts` `runQuickSeason`; `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
+  - `logic/setup.ts` `createGame`, `beginSeason`, Daily mapping (frozen); `quick.ts` `runQuickSeason`; `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `slotSheet.ts` (the Dugout slot picker and Draft slot chips, pure); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
 - `src/ui/` React screens, no game decisions.
   - `App.tsx` screen switch on `screen` + `game.phase` (no router), challenge hash `#c=`, theme, toast.
   - `screens/` Home, Setup, Draft, Dugout (season hub), MatchScreen, Summary, H2H, Explore, ProfileScreen, HowTo, StatsTab, OppositionReport.
@@ -57,7 +57,7 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
 
 - `npm ci` install exactly from the lockfile.
 - `npm run dev` Vite dev server (no service worker in dev).
-- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 166 tests); `npx vitest run src/engine` or `src/game` for one area.
+- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 174 tests); `npx vitest run src/engine` or `src/game` for one area.
 - `npm run typecheck` `tsc -b --noEmit`. `npm run lint` is the same command; there is no ESLint or Prettier.
 - `npm run build` `tsc -b && vite build` into `dist/` (what Render runs).
 - `npx vite preview --port 4173 --strictPort` serve `dist/` for Playwright smokes and service-worker checks.
@@ -170,5 +170,5 @@ On GitHub today: `main` (PR #1 merged), the working branch `claude/youthful-mcca
 - `match-visuals`: live 2D pitch, momentum, shot map, xG race (MatchScreen, MatchTicker).
 - `redesign`: blue palette, TouchLine logo (styles.css tokens, App brand, manifest, shareCard).
 - `replica-setup`: 38-0 style setup (difficulty tiers, ratings toggle, squad-first vs position-first, season vs prime ratings, era presets); expected to rewrite Setup.tsx and add `DraftRules` fields.
-- Working branch: "while you were away" digest, coach marks, slot picker.
+- Working branch: "while you were away" digest, coach marks, slot picker (all shipped there).
 - Planned: online layer on Supabase (accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms) and casual modes.

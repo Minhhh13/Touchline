@@ -1,5 +1,6 @@
 import type { Formation, PlayerSeason, SquadPlayer } from '@engine/types'
-import { describeFit, positionFactor } from '@engine/positions'
+import { describeFit } from '@engine/positions'
+import { discRating } from '@game/logic/slotSheet'
 import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
 
 export interface PitchProps {
@@ -34,8 +35,8 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const st = id && getState ? getState(id) : undefined
         const eligible = eligibleSlots?.includes(slot.id)
         const warn = !!(st && (st.injury || st.suspension > 0))
-        const pf = p ? positionFactor(p, slot.position) : 1
-        const eff = p ? Math.round(p.overall * pf) : 0
+        // The slot picker lists the same number (discRating), so the sheet and the disc agree
+        const eff = p ? discRating(p, slot.position) : 0
         // Accomplished is a small out-of-position cost (amber, acc.); awkward or worse a big one (red, awk.)
         const fit = p ? describeFit(p, slot.position) : 'natural'
         // The fit colour gives way to the injured/suspended red ring and the selected/eligible highlights; the label still names the fit

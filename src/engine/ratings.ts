@@ -4,7 +4,7 @@
  * roles, condition, morale and familiarity meet 38-0's "balance matters".
  */
 import type { Formation, Lineup, PlayerSeason, Position, SquadPlayer, Tactics, TeamStrength } from './types'
-import { positionFactor } from './positions'
+import { ACCOMPLISHED_FACTOR, positionFactor } from './positions'
 import { DEFAULT_ROLE, getRole, type Role } from './roles'
 import { getFormation } from './formations'
 
@@ -207,8 +207,8 @@ export function autoPickLineup(
     if (b.position === 'GK') return 1
     return na - nb
   })
-  // Two passes: first natural/accomplished fits, then anything.
-  for (const pass of [0.86, 0]) {
+  // Two passes: first natural/accomplished fits (the same line as canCover), then anything.
+  for (const pass of [ACCOMPLISHED_FACTOR, 0]) {
     for (const slot of slots) {
       if (lineup[slot.id]) continue
       const role = getRole(tactics.roles[slot.id] ?? DEFAULT_ROLE[slot.position])

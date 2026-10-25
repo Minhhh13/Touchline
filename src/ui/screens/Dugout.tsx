@@ -17,6 +17,7 @@ import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/st
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
 import { newsTotal, unseenNews } from '@game/logic/news'
+import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { Pitch, PitchLegend } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -36,7 +37,8 @@ export function Dugout() {
   const store = useStore()
   const { universe: u, game } = store
   const [tab, setTab] = useState<Tab>('squad')
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  // The slot whose picker sheet is open: tapping a slot opens it, on every screen size
+  const [sheetSlot, setSheetSlot] = useState<string | null>(null)
   const [playerModal, setPlayerModal] = useState<string | null>(null)
   const [showKey, toggleKey] = useViewerFlag(KEY_FLAG)
   // On a phone the action bar is fixed over the page, so the page's bottom padding follows the bar's measured height
@@ -84,28 +86,8 @@ export function Dugout() {
     if (a.tab) setTab(a.tab)
   }
 
-  const onSlotClick = (slotId: string) => {
-    if (selectedSlot === slotId) {
-      setSelectedSlot(null)
-      return
-    }
-    if (selectedSlot) {
-      // swap two slots
-      const a = game.lineup[selectedSlot]
-      const b = game.lineup[slotId]
-      if (a) store.assign(a, slotId)
-      if (b && a) store.assign(b, selectedSlot)
-      setSelectedSlot(null)
-      return
-    }
-    setSelectedSlot(slotId)
-  }
-  const onPlayerClick = (id: string) => {
-    if (selectedSlot) {
-      store.assign(id, selectedSlot)
-      setSelectedSlot(null)
-    } else setPlayerModal(id)
-  }
+  const onSlotClick = (slotId: string) => setSheetSlot(slotId)
+  const onPlayerClick = (id: string) => setPlayerModal(id)
 
   const inXI = new Set(Object.values(game.lineup))
   const sortedSquad = [...squad].sort((a, b) => {
@@ -255,7 +237,7 @@ export function Dugout() {
             <div className="panel-head">
               <h3>Squad · {squad.length}/{SQUAD_CAP}</h3>
               <div className="row">
-                <span className="small muted">{selectedSlot ? `Pick a player for ${formation.slots.find((s) => s.id === selectedSlot)?.position}` : 'Click a slot, then a player. Click a player for details.'}</span>
+                <span className="small muted">Tap a slot to choose who plays there. Tap a player for details.</span>
                 <button type="button" className={`chip key-chip ${showKey ? 'good' : ''}`} aria-pressed={showKey} onClick={toggleKey} data-testid="key-toggle" title="Label the bars and the pitch markers">
                   Key
                 </button>
@@ -276,7 +258,6 @@ export function Dugout() {
                     state={s}
                     showLabels={showKey}
                     onClick={() => onPlayerClick(p.id)}
-                    selected={!!selectedSlot && starting && slot?.id === selectedSlot}
                     showClub
                     extra={
                       <>
@@ -286,7 +267,7 @@ export function Dugout() {
                         </span>
                       </>
                     }
-                    right={starting ? <span className="chip good">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Out</span>}
+                    right={starting ? <span className="chip good">{slot?.position}</span> : game.bench.includes(p.id) ? <span className="chip">Bench</span> : <span className="chip muted">Unused</span>}
                   />
                 )
               })}
@@ -300,7 +281,7 @@ export function Dugout() {
                   GK {strength.goalkeeping.toFixed(0)} · DEF {strength.defence.toFixed(0)} · MID {strength.midfield.toFixed(0)} · ATT {strength.attack.toFixed(0)}
                 </span>
               </div>
-              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={selectedSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
               {showKey && <PitchLegend />}
               {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 6 }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.join(', ')}</div>}
             </div>
@@ -431,7 +412,83 @@ export function Dugout() {
       {tab === 'club' && <ClubTab table={table} />}
 
       <PlayerModal id={playerModal} onClose={() => setPlayerModal(null)} />
+      <SlotSheet slotId={sheetSlot} onClose={() => setSheetSlot(null)} />
     </div>
+  )
+}
+
+/** One row of the slot picker: the player rated in the slot, his fit, the disc number and where he is now. */
+function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
+  const fitChip = o.fit === 'natural' ? <span className="chip good">fits</span> : o.fit === 'accomplished' ? <span className="chip warn">acc.</span> : <span className="chip bad">awk.</span>
+  return (
+    <PlayerRow
+      p={o.p}
+      state={o.s}
+      dim={!!o.unavailable}
+      onClick={o.unavailable ? undefined : onPick}
+      extra={
+        <>
+          {fitChip}
+          <span className={`chip ${o.where.kind === 'starting' ? 'good' : 'muted'}`}>{whereaboutsLabel(o.where)}</span>
+          {o.unavailable && <span className="chip bad">{o.unavailable === 'injured' ? 'Injured' : 'Suspended'}</span>}
+        </>
+      }
+      right={
+        <span className="slot-disc" title="The number on his pitch disc in this slot">
+          {o.disc}
+        </span>
+      }
+    />
+  )
+}
+
+/** The slot picker: a bottom sheet on a phone, a modal elsewhere. Tapping a row puts him in the slot (swapping with whoever is there). */
+function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => void }) {
+  const store = useStore()
+  const { universe: u, game } = store
+  if (!u || !game || !slotId) return null
+  const sheet = slotSheet(game, u, slotId)
+  if (!sheet) return null
+  const pick = (id: string, to: string | 'bench' = slotId) => {
+    store.playInSlot(id, to)
+    onClose()
+  }
+  const role = getRole(game.tactics.roles[slotId] ?? DEFAULT_ROLE[sheet.slot.position]).name
+  return (
+    <Modal open sheet onClose={onClose} title={`Pick your ${sheet.label}`} testId="slot-sheet">
+      <div className="small muted" style={{ marginBottom: 8 }}>
+        {role} · sorted by rating in the position; the number on the right is what his disc would show.
+      </div>
+      {sheet.occupant ? (
+        <div className="sheet-occupant">
+          <SlotOptionRow o={sheet.occupant} />
+          <button className="btn sm" data-testid="sheet-to-bench" onClick={() => pick(sheet.occupant!.p.id, 'bench')}>
+            To bench
+          </button>
+        </div>
+      ) : (
+        <div className="notice" style={{ marginBottom: 8 }}>
+          Nobody is in this slot.
+        </div>
+      )}
+      <h3 className="sheet-group">Can play {sheet.slot.position} · {sheet.cover.length}</h3>
+      <div className="plist" data-testid="sheet-cover">
+        {sheet.cover.length === 0 && <div className="muted small">Nobody else in the squad is a natural or accomplished {sheet.slot.position}. Look out of position below.</div>}
+        {sheet.cover.map((o) => (
+          <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+        ))}
+      </div>
+      {sheet.outOfPosition.length > 0 && (
+        <details className="sheet-out" data-testid="sheet-out">
+          <summary>Out of position · {sheet.outOfPosition.length}</summary>
+          <div className="plist">
+            {sheet.outOfPosition.map((o) => (
+              <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+            ))}
+          </div>
+        </details>
+      )}
+    </Modal>
   )
 }
 
