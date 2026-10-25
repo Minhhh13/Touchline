@@ -1,6 +1,7 @@
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { modeLabel } from '@game/logic/modes'
+import { arenaStatus } from '@game/logic/arena'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 
@@ -44,7 +45,7 @@ export function Home() {
                 {game.settings.teamName} · {modeLabel(game, 'short')}
               </div>
               <div className="small muted">
-                {game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
+                {game.arena ? arenaStatus(game) : game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
               </div>
             </div>
           </div>
@@ -67,7 +68,7 @@ export function Home() {
               <div style={{ fontWeight: 700 }}>
                 {g.settings.teamName} · {modeLabel(g, 'short')} (parked)
               </div>
-              <div className="small muted">{g.phase === 'draft' ? 'Drafting' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
+              <div className="small muted">{g.arena ? arenaStatus(g) : g.phase === 'draft' ? 'Drafting' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
             </div>
           </div>
           <div className="row">
@@ -117,6 +118,19 @@ export function Home() {
           <h3>Dynasty</h3>
           <p>Season mode that never ends. Players age, contracts expire, summer windows open and the league moves on a year at a time.</p>
           <span className="foot">Multi-season career</span>
+        </button>
+      </div>
+
+      <div className="row between wrap" style={{ marginTop: 18, marginBottom: 8 }}>
+        <h2>Arena</h2>
+        <span className="small muted">One sitting, real club-seasons, no season attached.</span>
+      </div>
+      <div className="modes" data-testid="arena-row">
+        <button className="mode-card" onClick={() => go('setup', 'arena')} data-testid="arena-final-card">
+          <span className="icon">🏟️</span>
+          <h3>Cup Final</h3>
+          <p>Draft sixteen, then one final against a real giant: pick the side, make the changes at half time and the 70th minute, and choose the penalty takers if it goes to a shoot-out.</p>
+          <span className="foot">8 minutes · one match, one trophy</span>
         </button>
       </div>
 

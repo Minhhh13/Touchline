@@ -5,7 +5,9 @@ import { TIER_LABEL } from '@engine/season'
 import { badgeStates, topBadges } from '@engine/badges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { LeaderboardEntry } from '@game/types'
-import { MODE_TITLE } from '@game/logic/modes'
+import { MODE_TITLE, arenaFormatLabel } from '@game/logic/modes'
+import { arenaClubName } from '@game/logic/arena'
+import { ARENA_TIER_LABEL } from '@engine/knockout'
 import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
@@ -141,6 +143,8 @@ export function ProfileScreen() {
                   ['💎', '38-0s', cabinet.perfect],
                   ['🛡️', 'Invincibles', cabinet.invincible],
                   ['💯', 'Centurions', cabinet.centurions],
+                  // The arena's own shelf: never in the league and cup totals
+                  ['🏟️', 'Arena cups', cabinet.cups.won],
                 ] as const
               ).map(([icon, label, n]) => (
                 <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
@@ -262,6 +266,41 @@ export function ProfileScreen() {
               })}
             </tbody>
           </table>
+        </div>
+        <div className="panel" data-testid="best-runs">
+          <h3>Best runs</h3>
+          {!profile.arenaRuns?.length && <div className="muted small">No arena runs yet. Try the Cup Final from Home.</div>}
+          {!!profile.arenaRuns?.length && (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th>Format</th>
+                  <th>Result</th>
+                  <th className="num">GF-GA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profile.arenaRuns.map((e) => (
+                  <tr key={e.id}>
+                    <td>
+                      <span className="row wrap" style={{ gap: 6 }}>
+                        {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} {e.teamName}
+                      </span>
+                      <div className="small muted">
+                        {e.last && u ? `${e.fellTo ? 'Lost to' : 'Beat'} ${arenaClubName(u, e.last)}` : e.date} · seed {e.seed}
+                      </div>
+                    </td>
+                    <td>{arenaFormatLabel(e)}</td>
+                    <td>{ARENA_TIER_LABEL[e.tier]}</td>
+                    <td className="num">
+                      {e.goalsFor}-{e.goalsAgainst}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

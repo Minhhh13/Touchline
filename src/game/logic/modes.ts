@@ -21,7 +21,7 @@ export type ModeLabelStyle = 'short' | 'heading' | 'share'
 export type LabelledGame = Pick<Game, 'year'> & { settings: Pick<Game['settings'], 'mode' | 'seed'> & Partial<Pick<Game['settings'], 'arena'>> }
 
 /** An arena format's name: `Cup Final`, `The Gauntlet`, `The Cup · 16 clubs`. */
-export function arenaFormatLabel(a: ArenaSettings | undefined): string {
+export function arenaFormatLabel(a: (Pick<ArenaSettings, 'format'> & { size?: number }) | undefined): string {
   if (a?.format === 'gauntlet') return 'The Gauntlet'
   const size = a?.size ?? 2
   return size === 2 ? 'Cup Final' : `The Cup · ${size} clubs`

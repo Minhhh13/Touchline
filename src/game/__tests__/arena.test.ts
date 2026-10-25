@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame } from '../logic/setup'
 import { normaliseGame } from '../logic/save'
-import { advanceArenaMatch, arenaRecovery, arenaRunEntry, beginArena, closeArenaMatch, finalGameSettings, nextArenaOpponent, playArenaStep, resolveArenaStep, stepWon, takePenalties, type ArenaChoices } from '../logic/arena'
+import { advanceArenaMatch, arenaRecovery, arenaShareInput, arenaRunEntry, beginArena, closeArenaMatch, finalGameSettings, nextArenaOpponent, playArenaStep, resolveArenaStep, stepWon, takePenalties, type ArenaChoices } from '../logic/arena'
 import { playerLookup } from '../logic/players'
 import { setFormation } from '../logic/squad'
 import { autoDraft } from '@engine/draft'
@@ -199,6 +199,18 @@ describe('arena: the one-off final', () => {
   it('writes a share text in the arena format', () => {
     const text = arenaShareText({ mode: 'Cup Final', teamName: 'Touchline XI', formationName: '4-3-3', wheel: 'Premier League wheel', banner: 'WINNERS', icon: '🏆', steps: [{ code: 'F', gf: 1, ga: 1, opponent: 'Manchester City 2017-18', pens: { us: 4, them: 3 } }], motm: 'Kevin De Bruyne', seed: 'K7Q2-MX9A' })
     expect(text).toBe(['TouchLine · Cup Final', 'Touchline XI · 4-3-3 · Premier League wheel', '🏆 WINNERS', 'F 🟨 1-1 Manchester City 2017-18 (4-3 pens)', '⭐ MOTM: K. De Bruyne', 'Seed K7Q2-MX9A'].join('\n'))
+  })
+
+  it("tells a finished run's share text: the format, the side, the banner, the final and the seed", () => {
+    const g = finalGame('arena-share')
+    playArenaStep(g, u, false)
+    const row = g.arena!.log[0]
+    const lines = arenaShareText(arenaShareInput(g, u)!).split('\n')
+    expect(lines[0]).toBe('TouchLine · Cup Final')
+    expect(lines[1]).toBe('Arena XI · 4-3-3 · Premier League wheel')
+    expect(lines[2]).toBe(g.arena!.won ? '🏆 WINNERS' : '🥈 RUNNERS-UP')
+    expect(lines[3]).toMatch(new RegExp(`^F (🟩|🟨|🟥) ${row.gf}-${row.ga} .+ \\d{4}-\\d{2}`))
+    expect(lines[lines.length - 1]).toBe('Seed arena-share')
   })
 
   it('wins more often against calibrated giants than against the real ones (100 assistant finals each)', () => {

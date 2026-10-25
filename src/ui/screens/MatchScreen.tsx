@@ -16,6 +16,8 @@ import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import { isAvailable } from '@game/logic/players'
+import { arenaStepInfo } from '@game/logic/arena'
+import { ShootoutPanel } from '../components/ShootoutPanel'
 
 /** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
 function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, awayTeamId: string): { home: string; away: string } {
@@ -106,8 +108,15 @@ export function MatchScreen() {
   const outcome = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat'
   const seasonOver = game.phase === 'summary' || !!game.seasonEnding
   const cupNext = !!game.live && holdLive
-  const continueLabel = seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
+  // The arena: penalties first, then the run's summary or its next match
+  const arena = game.arena
+  const continueLabel = arena ? (arena.pending ? 'Penalties first' : arena.over ? 'Run summary →' : `Next: ${arenaStepInfo(arena).label} →`) : seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
   const onContinue = () => {
+    if (arena) {
+      setResumeFrom(0)
+      closeMatch()
+      return
+    }
     if (seasonOver) {
       // The final whistle has gone; closing the match closes the season
       if (game.seasonEnding) closeMatch()
@@ -147,12 +156,13 @@ export function MatchScreen() {
               </button>
             </div>
           )}
-          <button className="btn primary" onClick={onContinue}>
+          <button className="btn primary" onClick={onContinue} disabled={!!arena?.pending} data-testid="match-continue">
             {continueLabel}
           </button>
         </div>
       </div>
 
+      {arena && <ShootoutPanel />}
       <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
 
       {matchView === 'ticker' && (

@@ -15,7 +15,8 @@ import { getFormation } from '@engine/formations'
 import { advanceMatch, beginMatch, finishMatch, onPitch, type FullMatchResult, type LiveChanges, type MatchInProgress, type MatchOptions, type MatchTeamInput, type SecondHalfOptions, type TeamLookups } from '@engine/match'
 import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, userTeamInput, type AiClub } from '@engine/season'
 import { TRAINING } from '@engine/training'
-import { arenaClub, clubIdOfKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
+import { ARENA_TIER_LABEL, arenaClub, clubIdOfKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
+import type { ArenaShareInput } from '@engine/awards'
 import type { ClubSeason } from '@engine/types'
 import { playerLookup } from './players'
 import { autoPick, lineupProblems } from './squad'
@@ -107,12 +108,17 @@ export function finalGameSettings(u: LoadedUniverse, c: ArenaChoices, shortName:
   }
 }
 
+/** The wheel in a few words, for the share text: `Premier League wheel`, `European Nights wheel`. */
+export function wheelName(u: LoadedUniverse, s: Pick<GameSettings, 'wheelLeagues' | 'leagueId'>): string {
+  return s.wheelLeagues.length > 1 ? 'European Nights wheel' : `${u.available.find((l) => l.id === s.wheelLeagues[0])?.name ?? s.wheelLeagues[0] ?? s.leagueId} wheel`
+}
+
 const FIELD_WORDS: Record<ArenaField, string> = { giants: 'against the giants', champions: 'against a champion', wheel: 'against the wheel', decade: 'against a decade', europe: "against this season's Europe" }
 
 /** One line stating every choice an arena game starts with, for the line above Start. */
 export function summariseArena(u: LoadedUniverse, s: GameSettings): string {
   const field = s.arena?.field ?? 'giants'
-  const wheel = s.wheelLeagues.length > 1 ? `European Nights wheel of ${s.wheelLeagues.length} leagues` : `${u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId} wheel`
+  const wheel = s.wheelLeagues.length > 1 ? `European Nights wheel of ${s.wheelLeagues.length} leagues` : wheelName(u, s)
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${arenaFormatLabel(s.arena)} ${FIELD_WORDS[field]}, ${wheel}, ${s.difficulty}, seed ${s.seed}`]
   const r = s.rules
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
@@ -533,3 +539,22 @@ export function arenaStatus(game: Game): string {
   return `${arenaStepInfo(a).label} next`
 }
 
+/** Everything the arena's share text prints, for a finished run (`arenaShareText`). */
+export function arenaShareInput(game: Game, u: LoadedUniverse): ArenaShareInput | null {
+  const a = game.arena
+  if (!a?.over) return null
+  const get = playerLookup(game, u)
+  const motmId = a.log[a.log.length - 1]?.motmId
+  const s = game.settings
+  return {
+    mode: arenaFormatLabel(s.arena),
+    teamName: s.teamName,
+    formationName: getFormation(game.tactics.formationId).name,
+    wheel: wheelName(u, s),
+    banner: ARENA_TIER_LABEL[arenaTier(a)],
+    icon: a.won ? '🏆' : '🥈',
+    steps: a.log.map((x, i) => ({ code: arenaStepInfo({ ...a, step: i }).code, gf: x.gf, ga: x.ga, opponent: arenaClubName(u, x.opponent), ...(x.pens ? { pens: { us: x.pens.us, them: x.pens.them } } : {}) })),
+    ...(motmId ? { motm: get(motmId)?.name ?? motmId } : {}),
+    seed: s.seed,
+  }
+}

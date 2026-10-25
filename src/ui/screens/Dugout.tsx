@@ -448,7 +448,7 @@ function BriefingList({ items, onAction }: { items: BriefingItem[]; onAction: (a
   )
 }
 
-function TacticsTab() {
+export function TacticsTab() {
   const store = useStore()
   const { universe: u, game } = store
   if (!u || !game) return null
