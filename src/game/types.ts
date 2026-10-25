@@ -204,6 +204,26 @@ export interface JobOffer {
   budgetBonus: number
 }
 
+/** One goal the user's side scored in a quick-season game. An opponent's own goal carries the name "OG" and no player id. */
+export interface QuickScorer {
+  name: string
+  minute: number
+  playerSeasonId?: string
+}
+
+/** One of the user's games in a quick season, in the order they were played. */
+export interface QuickGameResult {
+  matchweek: number
+  opponentId: string
+  home: boolean
+  gf: number
+  ga: number
+  /** The user's goalscorers, ordered by minute. */
+  scorers: QuickScorer[]
+  /** The user's league position after this matchweek. */
+  position: number
+}
+
 export interface QuickResult {
   points: number
   won: number
@@ -217,6 +237,8 @@ export interface QuickResult {
   topScorer?: { playerSeasonId: string; goals: number }
   pots?: { playerSeasonId: string; rating: number }
   strength: { overall: number; goalkeeping: number; defence: number; midfield: number; attack: number; balance: number; chemistry: number }
+  /** Every game of the season, game by game (absent on saves written before it was recorded). */
+  results?: QuickGameResult[]
 }
 
 export interface LeaderboardEntry {

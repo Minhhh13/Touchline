@@ -6,13 +6,14 @@ import { h2hComplete, h2hEligibleSlots, h2hUsable } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
 import { TIER_LABEL } from '@engine/season'
 import { H2H_IDS } from '@game/logic/h2h'
-import { Wheel } from '../components/Wheel'
+import { CaseReel } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { leagueSegments } from '../components/leagueSegments'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
+import { GameByGame } from '../components/GameByGame'
 
 export function H2HSetup() {
   const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
@@ -204,7 +205,7 @@ export function H2HScreen() {
       <div className="grid draft">
         <div className="col">
           <div className="panel col">
-            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            <CaseReel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
@@ -239,7 +240,16 @@ export function H2HScreen() {
               <h3>{complete ? 'Both squads complete' : `Spin: ${h2h.managers[d.first].name} picks first`}</h3>
             </div>
           )}
-          {current && (
+          {current && spinning && !revealed && (
+            <div className="row">
+              <span className="badge" style={{ width: 44, height: 44, background: '#2a3a31', color: '#fff', fontSize: 18 }}>?</span>
+              <div>
+                <h2 style={{ fontSize: 26 }}>Opening…</h2>
+                <div className="muted small">The reel is landing on a club and a season.</div>
+              </div>
+            </div>
+          )}
+          {current && (!spinning || revealed) && (
             <>
               <div className="row">
                 <ClubBadge clubId={current.clubId} size={44} />
@@ -408,6 +418,9 @@ function H2HSummary() {
                 </div>
               )}
             </div>
+          ))}
+          {r.results?.map((games, i) => (
+            <GameByGame key={i} results={games} title={`${m[i].name}, game by game`} compact opponent={(id) => (id === H2H_IDS[0] ? { clubId: m[0].hostClubId, name: m[0].name } : id === H2H_IDS[1] ? { clubId: m[1].hostClubId, name: m[1].name } : { clubId: id, name: clubName(u, id) })} />
           ))}
         </div>
         <div className="col">

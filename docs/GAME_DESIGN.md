@@ -623,6 +623,16 @@ Line two names the host club and season; line three is the tier plus "+ CUP" whe
 - **Achievement.** `record-points` ("Record Books") unlocks in both `finishSeason` and `runQuickSeason` through `earnsPointsRecord` (`src/game/logic/records.ts`): Realistic difficulty, not sacked, `won + drawn + lost` equal to the season's matchweeks, and an outright points record in a league with a record book. Calibrated hundred-point seasons stay benchmarks.
 - **Dynasty history** gains a "Real champions" column from each `SeasonRecord`'s `leagueId` and `leagueSeason`, a dash where no complete table exists.
 
+### Season, game by game
+
+`src/game/logic/gameByGame.ts`. The quick season has always played all 380 fixtures with the real match engine; `recordUserGames` now keeps the user's 38 (34 in an 18-club league) as `QuickResult.results`, one `QuickGameResult` per matchweek in the order they were played: `matchweek`, `opponentId`, `home`, `gf`, `ga`, the user's `scorers` (every `goal`, `penalty` or `own_goal` event on the user's side, ordered by minute, with the player-season id and name; an opponent's own goal is credited as "OG" with no id) and `position`, the user's league place after that matchweek.
+
+- **Pure bookkeeping.** It runs after the fixture loop over fixtures that already carry their results, so it draws no random numbers: the final table, the RNG state and the top scorer of seed `game-by-game` (Burnley 2025-26, 4-3-3, auto-drafted) are pinned in a test against the values the engine produced before the recording existed (Arsenal 80 points, the user second on 79 with 24W 7D 7L and 87-44). The position is computed once per matchweek, not per fixture: 38 calls to `computeTable` over at most 380 fixtures.
+- **The field is optional** and read with `?? []`, so a save or a leaderboard entry written before it existed still opens; nothing about the replay is stored.
+- **The panel.** "Season, game by game" sits directly under the tier banner on the summary of a quick draft or the Daily: a strip with P W D L GF GA, points and position, then one row per game with the opponent's badge, "v Arsenal (H)" or "at Arsenal", the score as `gf-ga`, a W, D or L chip, the position after the game and the scorers as "Haaland 12', 67' · OG 80'" (minutes grouped per scorer in order of his first goal, initials dropped). The row is a grid of 44 / 22 / 1fr / auto / auto / 42 px with the scorers on a second line, so it holds at 390 px wide.
+- **The replay** (`useSeasonReplay`) is UI state only. Everything is shown on arrival; "Play the season" empties the list and reveals one game every `REPLAY_STEP_MS = 220` ms (8.4 s for 38 games), the strip and the position update as games land, the banner shows "Season in play…" with the running strip in place of the tier and record, and the tier pops in after the last game. "Skip" shows the rest at once; `prefers-reduced-motion` offers no replay button and animates nothing. The head-to-head result shows both managers' lists (`H2HResult.results`, the two derbies against the other manager included) without the replay.
+- **Share text.** `bestWinLine` adds `Best win: 5-0 v Chelsea (MW 23)` (or `3-0 at Chelsea`) to `extraLines`: the widest margin, then the most goals scored, then the earliest matchweek; a season without a win adds nothing.
+
 **Profile** (local only): best 50 seasons by points then fewest defeats, daily streak and per-day results, games started, seasons simulated, manager name, theme (Auto, Floodlit, Daylight).
 
 ## 13. Difficulty calibration
@@ -669,7 +679,7 @@ Every `LoadedUniverse` carries `generatedAt`, the `YYYY-MM-DD` stamp of the data
 
 ### Offline
 
-`public/sw.js` is registered on production builds relative to the deploy path. The shell (`index.html`, the manifest) is served network-first and cached as a fallback; hashed assets, icons and league packs are cached on first use and served cache-first. A new build changes the asset names, so it is picked up on the next online visit; stale assets stay in the single cache until its version string is bumped.
+The site is hosted as a Render static site (build `npm ci && npm run build`, publish `dist`, auto-deployed from the repository); the GitHub Pages workflow was retired when the repository went private. `public/sw.js` is registered on production builds relative to the deploy path. The shell (`index.html`, the manifest) is served network-first and cached as a fallback; hashed assets, icons and league packs are cached on first use and served cache-first. A new build changes the asset names, so it is picked up on the next online visit; stale assets stay in the single cache until its version string is bumped.
 
 ## 16. Roadmap
 
