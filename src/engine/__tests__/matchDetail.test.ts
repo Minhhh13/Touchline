@@ -123,6 +123,21 @@ describe('match detail: shot positions and momentum', () => {
     expect({ goals, chances, state: rng.getState() }).toEqual(PINNED)
   })
 
+  it('a match paused before the detail existed still finishes with eighteen bins, the missing ones at the base share', () => {
+    const split = sides(4)
+    const mp: MatchInProgress = beginMatch({ rng: new Rng('detail-old-save'), ...split })
+    // An older save: no momentum and no positions on the first half
+    delete mp.momentum
+    for (const e of mp.events) delete e.position
+    const old = JSON.parse(JSON.stringify(mp)) as MatchInProgress
+    const r = finishMatch(old, split)
+    expect(r.momentum).toHaveLength(MOMENTUM_BINS)
+    const firstHalf = r.momentum!.slice(0, 9)
+    expect(new Set(firstHalf).size).toBe(1)
+    for (const e of r.events) if (SHOTS.has(e.type) && e.minute <= 45) expect(e.position).toBeUndefined()
+    for (const e of r.events) if (SHOTS.has(e.type) && e.minute > 45) expect(e.position).toBeDefined()
+  })
+
   it('bins the clock into eighteen five-minute slices, stoppage time in the last', () => {
     expect(binOf(1)).toBe(0)
     expect(binOf(5)).toBe(0)

@@ -81,9 +81,11 @@ export function momentumBins(rng: Rng, input: MomentumInput): number[] {
   const { lamH, lamA, events, from, to, previous } = input
   const base = lamH + lamA > 0 ? lamH / (lamH + lamA) : 0.5
   const tilt = lean(input.homeTactics) - lean(input.awayTactics)
-  const out = previous.slice()
   const first = binOf(from)
   const last = binOf(to)
+  // A match paused before the detail existed has no earlier bins: they read as the sides' base share
+  const out = previous.slice(0, first)
+  while (out.length < first) out.push(Math.round(clamp(base, 0.08, 0.92) * 1000) / 1000)
   for (let b = first; b <= last; b++) {
     const start = b * 5 + 1
     const end = b === MOMENTUM_BINS - 1 ? 99 : b * 5 + 5
