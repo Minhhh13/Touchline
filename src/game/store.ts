@@ -5,7 +5,7 @@ import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Pro
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
-import { canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
+import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
@@ -16,6 +16,7 @@ import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { pickManager } from './logic/managers'
 import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
+import { isSuperLeague } from './logic/superLeague'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import { assignmentNote } from './logic/slotSheet'
@@ -26,6 +27,8 @@ import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, type OffseasonReport } from './logic/dynasty'
 import { ACHIEVEMENTS } from '@engine/awards'
+import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
+import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
 import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
@@ -116,6 +119,16 @@ interface Store {
   chooseSlot: (slotId: string) => void
   pickPlayer: (playerSeasonId: string, slotId: string | 'bench') => void
   autoDraftRest: () => void
+  /** Speedrun: the pick clock ran out, so the assistant spins if need be and makes this one pick (`assistantTurn`). */
+  speedrunPick: () => void
+  /** The Player Upgrader: gamble a drafted player's rating up by `boost` (2, 5 or 10) at the odds shown; once per draft. */
+  upgradePlayer: (playerSeasonId: string, boost: number) => void
+  /** Power-ups (`src/engine/powerups.ts`), each once per draft: re-roll the showing spin's season, peek at the next spin, swap two slots, the armband, the lock. */
+  rerollSeason: () => void
+  peekSpin: () => void
+  swapSlots: (from: string, to: string) => void
+  giveArmband: (playerSeasonId: string) => void
+  lockPlayer: (playerSeasonId: string) => void
   finishDraft: () => void
   /** Quick Draft with managers: pick the manager by id once the draft is done, up to kick-off (`src/game/logic/managers.ts`). */
   pickManager: (id: string) => void
@@ -261,6 +274,16 @@ export const useStore = create<Store>()(
           set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
         }
       }
+      /** A power-up on the draft: only while drafting; a refusal (used, not possible now) is a toast and changes nothing. */
+      const powerUp = (fn: (game: Game, u: LoadedUniverse) => void) =>
+        mutate((g, u) => {
+          if (!g.draft || g.phase !== 'draft') return
+          try {
+            fn(g, u)
+          } catch (e) {
+            set({ toast: e instanceof Error ? e.message : String(e) })
+          }
+        })
       /** League loads run one after another so two callers never overwrite each other's universe. */
       let pendingLoad: Promise<unknown> = Promise.resolve()
       /**
@@ -376,8 +399,8 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
             return false
           }
-          // A challenger who played the Continental Cup needs every league loaded for the replay to check it
-          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(payload.c.eu ? (get().universe?.available ?? []).map((l) => l.id) : [])])]
+          // A challenger who played the Continental Cup or the Super League needs every league loaded for the replay to check it
+          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(payload.c.eu || payload.s.r.superLeague ? (get().universe?.available ?? []).map((l) => l.id) : [])])]
           const known = (get().universe?.available ?? []).map((l) => l.id)
           const unknown = needs.filter((id) => !known.includes(id))
           if (unknown.length) {
@@ -482,10 +505,31 @@ export const useStore = create<Store>()(
             // A pending spin is discarded with its twist, but it consumed the RNG, so it stays in the history
             // as a skipped row (a challenge replay needs every spin) and the assistant's first `canSpin` sees the plain wheel
             // Position First keeps the slot being filled, so the assistant fills it next and a replay can set it again
-            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: g.draft.target! } : {}) })
+            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: targetSlot(g.draft)!.id } : {}) })
             g.draft.current = null
             g.draft.twist = null
             autoDraft(u, g.draft, rng)
+            g.rngState = rng.getState()
+          }),
+        upgradePlayer: (id, boost) =>
+          mutate((g, u) => {
+            if (!g.draft || g.phase !== 'draft') return
+            try {
+              draftUpgrade(u, g.draft, id, boost)
+            } catch (e) {
+              set({ toast: e instanceof Error ? e.message : String(e) })
+            }
+          }),
+        rerollSeason: () => powerUp((g, u) => void draftReroll(u, g.draft!)),
+        peekSpin: () => powerUp((g, u) => void draftPeek(u, g.draft!, g.rngState)),
+        swapSlots: (from, to) => powerUp((g, u) => draftSwap(u, g.draft!, from, to)),
+        giveArmband: (id) => powerUp((g) => draftArmband(g.draft!, id)),
+        lockPlayer: (id) => powerUp((g) => draftLock(g.draft!, id)),
+        speedrunPick: () =>
+          mutate((g, u) => {
+            if (!g.draft) return
+            const rng = Rng.fromState(g.rngState)
+            assistantTurn(u, g.draft, rng)
             g.rngState = rng.getState()
           }),
         finishDraft: () => {
@@ -796,6 +840,7 @@ export const useStore = create<Store>()(
             xi: Object.values(game.lineup),
             nation: game.settings.rules.onlyNation,
             ...(game.settings.challenge ? { challenge: { name: game.settings.challenge.name, points: game.settings.challenge.claim.pts } } : {}),
+            ...(isSuperLeague(game.settings) ? { superLeague: true as const } : {}),
           }
           if (profile.leaderboard.some((e) => e.id === entry.id)) return
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)
@@ -954,9 +999,9 @@ export function wipeSave(): void {
   localStorage.removeItem(SAVE_KEY)
 }
 
-/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup. */
+/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup or the Super League. */
 function leaguesFor(game: Game, allLeagues: string[]): string[] {
-  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup
+  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup || game.settings.rules?.superLeague
   return [...new Set([game.settings.leagueId ?? DEFAULT_LEAGUE, ...(game.settings.wheelLeagues ?? []), ...(wantsAll ? allLeagues : [])])]
 }
 

@@ -1143,6 +1143,22 @@ label.field,
   background: var(--primary-soft);
   border-color: color-mix(in srgb, var(--primary) 40%, transparent);
 }
+/* The Super League: its mark where a league flag sits (SuperLeagueMark in components/Flag.tsx) and its chip in Setup */
+.super-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  vertical-align: middle;
+  color: var(--accent);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.chip.super {
+  color: var(--accent);
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
 /* The info button and its tooltip (Info in components/bits.tsx) */
 .info {
   display: inline-flex;
@@ -1556,6 +1572,14 @@ label.field,
   --tier-pink-ink: #000;
   --tier-purple-ink: #fff;
   --tier-blue-ink: #000;
+  /* Gamble mode's Icons spin, above gold: an aqua-white card with a gold star (ink 11:1) */
+  --tier-icons: #3ff0dc;
+  --tier-icons-ink: #000;
+  --tier-icons-deep: #0a2c3a;
+}
+[data-tier='icons'] {
+  --tier: var(--tier-icons);
+  --tier-ink: var(--tier-icons-ink);
 }
 [data-tier='gold'] {
   --tier: var(--tier-gold);
@@ -1921,6 +1945,259 @@ label.field,
   border-radius: 50%;
   background: var(--tier);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 6px color-mix(in srgb, var(--tier) 60%, transparent);
+}
+
+/* The Icons card: a gold star on the Icons colour, with a shimmer and a star burst when it lands */
+.reel-card[data-tier='icons'] {
+  background: radial-gradient(circle at 50% 40%, var(--tier-icons) 0%, var(--tier-icons-deep) 78%);
+  color: var(--tier-gold);
+  overflow: hidden;
+}
+.reel-card[data-tier='icons'] .code {
+  font-size: 1.9em;
+  text-shadow: 0 0 10px var(--tier-gold), 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.reel-card.landed[data-tier='icons'] {
+  box-shadow: inset 0 0 0 3px var(--tier-gold), 0 0 0 3px var(--tier-icons), 0 0 36px var(--tier-icons);
+}
+.reel-card.landed[data-tier='icons']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.75) 50%, transparent 75%);
+  transform: translateX(-130%);
+  animation: reel-shimmer 0.9s ease-in-out 0.15s infinite both;
+  pointer-events: none;
+}
+.icons-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.icons-burst span {
+  position: absolute;
+  left: -8px;
+  top: -10px;
+  font-size: 16px;
+  color: var(--tier-gold);
+  text-shadow: 0 0 8px var(--tier-gold);
+  animation: icons-burst 1.1s cubic-bezier(0.15, 0.8, 0.3, 1) both;
+  --a: calc(var(--i) * 30deg);
+}
+@keyframes icons-burst {
+  0% {
+    transform: rotate(var(--a)) translateY(0) scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--a)) translateY(-90px) scale(1.1);
+    opacity: 0;
+  }
+}
+.icons-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--tier-icons) 0%, var(--tier-icons-deep) 80%);
+  color: var(--tier-gold);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--tier-gold);
+}
+
+/* The odds panel by the reel: the next spin's chance of each tier, as a bar and tier-coloured percentages */
+.spin-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-2);
+}
+.spin-odds-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.spin-odds-head .lbl {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.spin-odds-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-3);
+}
+.spin-odds-bar span {
+  flex-basis: 0;
+  min-width: 3px;
+  background: var(--tier);
+}
+.spin-odds-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12.5px;
+}
+.spin-odds-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-2);
+}
+.spin-odds-item i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--tier);
+}
+.spin-odds-item b {
+  color: var(--tier);
+  font-variant-numeric: tabular-nums;
+}
+.spin-odds-item.zero {
+  opacity: 0.45;
+}
+:root[data-theme='light'] .spin-odds-item b {
+  color: var(--text);
+}
+
+/* The Player Upgrader: a sheet with the drafted players, the boost, and a dial in the rarity colours */
+.upg-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+.upg-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.upg-player .nm {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upg-player.on {
+  border-color: var(--primary, var(--accent));
+  box-shadow: 0 0 0 2px var(--primary, var(--accent));
+}
+.upg-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.upg-dial {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  flex: none;
+}
+.upg-dial svg {
+  width: 100%;
+  height: 100%;
+}
+.upg-track {
+  fill: none;
+  stroke: var(--bg-3);
+  stroke-width: 12;
+}
+.upg-win {
+  fill: none;
+  stroke: var(--tier);
+  stroke-width: 12;
+  filter: drop-shadow(0 0 4px var(--tier));
+}
+.upg-needle {
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 4px;
+  width: 4px;
+  height: 62px;
+  border-radius: 2px;
+  background: var(--text);
+  transform-origin: 2px 62px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.15, 0.75, 0.2, 1);
+}
+.upg-centre {
+  position: absolute;
+  inset: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--panel);
+  font-size: 11px;
+  color: var(--text-2);
+}
+.upg-centre b {
+  font-size: 22px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.upg-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: var(--radius-s);
+  font-size: 14px;
+}
+.upg-result b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-transform: uppercase;
+}
+.upg-result.won {
+  background: color-mix(in srgb, var(--good, var(--accent)) 18%, transparent);
+  color: var(--good, var(--accent));
+}
+.upg-result.lost {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel-card.landed[data-tier='icons']::before,
+  .icons-burst span {
+    animation: none;
+  }
+  .icons-burst {
+    display: none;
+  }
+  .upg-needle {
+    transition-duration: 0ms !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3343,7 +3620,15 @@ table.tbl.contracts .btn.sm {
   font-family: var(--font-display);
   font-size: 17px;
   line-height: 1.1;
-  overflow-wrap: anywhere;
+}
+/* On a small tile the numbers never break at a hyphen and a word after them ("Diamond") takes its own, smaller line */
+.formations:not(.with-blurbs) .fname {
+  white-space: nowrap;
+}
+.formations:not(.with-blurbs) .fname-sub {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
 }
 .formations.with-blurbs .fname {
   font-size: 20px;
@@ -3591,6 +3876,297 @@ table.tbl.contracts .btn.sm {
   max-width: 760px;
   margin: 0 auto;
 }
+/* The setup screen itself: numbered steps in two boxes, as 38-0 reads. Left: 1 formation, 2 name, 3 league.
+   Right: 4 the rules, 5 Spin. Side by side from 1000px; below that the boxes stack, so the steps run 1 to 5 */
+.page.setup-page {
+  max-width: 1480px;
+}
+.setup-flow.setup-wide {
+  max-width: none;
+}
+.setup-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.setup-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.setup-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.setup-step + .setup-step {
+  border-top: var(--border);
+  padding-top: var(--space-3);
+}
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--fs-h3);
+}
+.step-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1;
+}
+.setup-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.setup-name .setup-name-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Step 2's title names the field; the label stays for screen readers */
+.setup-name .field-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.setup-formation-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.setup-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+/* The 38-0 options: two to a row from 640px, the bench and the era across it */
+.setup-rules {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.setup-rules .setup-opt + .setup-opt {
+  margin-top: 0;
+}
+.setup-more {
+  gap: var(--space-3);
+}
+.setup-replace {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.setup-replace b {
+  color: var(--text);
+}
+.setup-squad input[type='range'] {
+  width: 100%;
+}
+.setup-era-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.setup-era-head .chip {
+  margin-left: auto;
+}
+@media (min-width: 640px) {
+  .setup-rules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-4);
+  }
+  .setup-rules .setup-wide-opt {
+    grid-column: 1 / -1;
+  }
+}
+/* On a phone Spin is the fixed bar at the bottom: the summary and the button say enough without the step title */
+@media (max-width: 720px) {
+  .setup-start .step-head {
+    display: none;
+  }
+}
+@media (min-width: 1000px) {
+  .setup-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+  /* Step 1: the tiles two to a row beside the chosen shape's pitch */
+  .setup-formation-body {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .setup-formation-body > .formations {
+    flex: 1 1 55%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+  .setup-formation-body > .setup-preview {
+    flex: 1 1 45%;
+  }
+  .setup-formation .formations button {
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 6px;
+    text-align: left;
+  }
+  .setup-formation .fthumb {
+    width: 30px;
+  }
+  .setup-formation .pitch-mini {
+    width: min(240px, 100%);
+  }
+  /* Steps 2 and 5: the title beside the field or the summary */
+  .setup-team {
+    flex-direction: row;
+    align-items: center;
+  }
+  .setup-team .setup-name {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .setup-start {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  .setup-start > .btn {
+    grid-column: 1 / -1;
+  }
+  .setup-page .setup-opt h3 {
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+  }
+  /* Compact choice cards: the title only, its line kept as the tooltip and for screen readers */
+  .setup-page .choice-card {
+    position: relative;
+    align-items: center;
+    padding: 6px 10px;
+    text-align: center;
+  }
+  .setup-page .choice-card .ctitle {
+    font-size: 15px;
+  }
+  .setup-page .choice-card .cline {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .setup-page .setup-rules .setup-wide-opt[data-testid='bench-option'] {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+  /* The fold's title says enough here, and the summary by Spin states every choice */
+  .setup-more-help {
+    display: none;
+  }
+}
+/* A desktop window: the whole setup fits the screen with no page scroll. The page fills the height under the top bar;
+   the left box gives step 1's pitch what height is left, and in the right box the rules scroll inside themselves
+   when More options is open while Spin stays at the bottom */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .app:has(> .setup-page) {
+    height: 100%;
+  }
+  .page.setup-page {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+  }
+  .setup-page h1 {
+    font-size: var(--fs-h2);
+  }
+  .setup-page .setup-flow {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .setup-page .setup-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .setup-page .setup-box {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .setup-page .setup-box > .setup-step {
+    flex: none;
+  }
+  .setup-page .setup-box > .setup-formation {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .setup-page .setup-formation-body {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .setup-page .setup-box > .setup-step:has(.setup-rules) {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .setup-page .setup-box > .setup-start {
+    margin-top: auto;
+  }
+  .setup-formation .setup-preview {
+    min-height: 0;
+  }
+  .setup-formation .pitch-mini {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .setup-formation .pitch-mini .pitch-wrap {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    max-height: 420px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot {
+    width: 32px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot .disc {
+    width: 24px;
+    height: 24px;
+    font-size: 9px;
+  }
+}
 .setup-sub {
   margin: 4px 0 0;
 }
@@ -3650,6 +4226,59 @@ table.tbl.contracts .btn.sm {
 .choice-card .cline {
   font-size: 12px;
   color: var(--text-3);
+}
+/* The Quick Draft's Modes row: toggle cards, several on at once */
+.qmode-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .qmode-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.qmode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.qmode .micon {
+  font-size: 26px;
+  line-height: 1.1;
+  filter: grayscale(0.7);
+  opacity: 0.8;
+}
+.qmode.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel-2));
+  transform: translateY(-1px);
+}
+.qmode.active .micon {
+  filter: none;
+  opacity: 1;
+}
+.qmode .ctitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+.qmode .cline {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.speedrun-clock.low {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 .pitch-mini {
   width: min(240px, 100%);
@@ -7421,4 +8050,946 @@ table.tbl.match-stats th {
 /* The bench panel shares the narrow third box with the chart: the pitch above the bench, not beside it */
 .page.fit .bench-grid {
   grid-template-columns: minmax(0, 1fr);
+}
+
+
+/* Power-ups: the tray of six one-use power-ups on a Quick Draft, their Info tips and the re-roll odds */
+.pu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.pu-head {
+  gap: 2px 8px;
+}
+.pu-head b {
+  white-space: nowrap;
+}
+.pu-upgrader {
+  display: contents;
+}
+.pu-item {
+  position: relative;
+  min-width: 0;
+}
+.pu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 78px;
+  padding: 8px 6px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-s);
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.pu-btn:hover:not(:disabled) {
+  border-color: var(--primary, var(--accent));
+  transform: translateY(-1px);
+}
+.pu-btn:focus-visible {
+  outline: 2px solid var(--primary, var(--accent));
+  outline-offset: 2px;
+}
+.pu-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.pu-item.used .pu-btn {
+  opacity: 0.7;
+  border-style: dashed;
+}
+.pu-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.pu-title {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.pu-status {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pu-item.used .pu-status {
+  color: var(--accent);
+}
+.pu-item .qinfo {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+}
+.qinfo {
+  position: relative;
+  display: inline-flex;
+}
+.qinfo-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text-2);
+  font: italic 700 11px/16px Georgia, serif;
+  cursor: help;
+}
+.qinfo-btn:focus-visible {
+  outline: 2px solid var(--primary, var(--accent));
+  outline-offset: 1px;
+}
+.qinfo-bubble {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: -4px;
+  width: max-content;
+  max-width: min(240px, 70vw);
+  padding: 8px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.35;
+  text-align: left;
+}
+.pu-setup {
+  margin-top: 4px;
+  align-items: center;
+}
+.pu-odds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pu-odd {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-2);
+  font-size: 13px;
+}
+.pu-odd b {
+  margin-left: 4px;
+  color: var(--accent);
+}
+.pu-log {
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 420px) {
+  .pu-btn {
+    min-height: 70px;
+  }
+  .pu-icon {
+    font-size: 20px;
+  }
+}
+
+/* ------------------------------------------------------------------ setup pass: pictures, chips and icon cards, few words */
+.setup-flow.wide {
+  max-width: 960px;
+}
+.setup-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+.setup-head h3 {
+  margin: 0;
+}
+.setup-head-right {
+  margin-left: auto;
+}
+.pu-card:has(input:focus-visible) {
+  outline: 2px solid var(--primary, var(--accent));
+  outline-offset: 1px;
+}
+/* The team name with Clear and Randomise beside it */
+.setup-flow div.field.team-field,
+.team-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.team-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.team-row .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .name-btn-label {
+    display: none;
+  }
+  .name-btn {
+    min-width: 40px;
+    justify-content: center;
+    font-size: 15px;
+  }
+}
+/* Option cards with an icon */
+.choice-card .cicon {
+  font-size: 18px;
+  line-height: 1.1;
+}
+.toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+.toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.setup-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+/* The Power-ups switch as a card in the Modes style */
+.pu-setup {
+  display: flex;
+  gap: 8px;
+}
+.qmode.pu-card {
+  flex: 1 1 auto;
+  flex-direction: row;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 10px;
+  padding: 8px 12px;
+}
+.qmode.pu-card .micon {
+  font-size: 22px;
+}
+.qmode.pu-card .cline {
+  margin-left: auto;
+}
+/* The chips above Start: everything the game will start with */
+.setup-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 640px) {
+  .setup-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .setup-chips::-webkit-scrollbar {
+    display: none;
+  }
+}
+/* Mode cards: one clamped line on a wide screen, the icon and name alone on a phone (the Info tip has the rest) */
+.qmode:not(.pu-card) .cline {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 520px) {
+  .qmode:not(.pu-card) .cline {
+    display: none;
+  }
+  .qmode-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .qmode:not(.pu-card) {
+    padding: 8px 4px;
+  }
+  .qmode:not(.pu-card) .ctitle {
+    font-size: 15px;
+  }
+  .qmode:not(.pu-card) .micon {
+    font-size: 22px;
+  }
+}
+/* The setup's two boxes on a desktop, with quick-modes' Modes row, icon cards and name dice folded in: everything compact so
+   the five steps fit one screen. The Modes row is one line of eight (seven modes and Power-ups), icon over name; the option
+   cards put their icon beside the title; step 2's title names the field */
+@media (min-width: 1000px) {
+  .step-head {
+    white-space: nowrap;
+  }
+  /* Modes: the label and its Info tip beside the row of eight */
+  .setup-modes {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .setup-modes .setup-head-right {
+    display: none;
+  }
+  .setup-modes .setup-head h3 {
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+  }
+  .setup-modes-row {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .setup-modes-row .qmode-row,
+  .setup-modes-row .pu-setup {
+    display: contents;
+  }
+  .setup-modes-row .pu-setup .qinfo {
+    display: none;
+  }
+  .setup-page .qmode,
+  .setup-page .qmode.pu-card {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+    padding: 5px 4px;
+    min-width: 0;
+    transform: none;
+  }
+  .setup-page .qmode .micon,
+  .setup-page .qmode.pu-card .micon {
+    font-size: 16px;
+  }
+  .setup-page .qmode .ctitle {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .setup-page .qmode .cline,
+  .setup-page .qmode:not(.pu-card) .cline {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .setup-page .choice-card {
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+  }
+  .setup-page .choice-card .cicon {
+    font-size: 15px;
+  }
+  .setup-page .choice-card .ctitle {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .setup-page .qinfo-btn {
+    width: 18px;
+    height: 18px;
+    min-width: 0;
+    min-height: 0;
+  }
+  .setup-name .team-field > label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .setup-name .team-field {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+@media (min-width: 1000px) and (min-height: 600px) {
+  .setup-page .setup-box {
+    gap: var(--space-2);
+  }
+  .setup-page .setup-step + .setup-step {
+    padding-top: var(--space-2);
+  }
+  .setup-page .step-head {
+    font-size: var(--fs-base);
+  }
+  .setup-page .step-num {
+    width: 22px;
+    height: 22px;
+    font-size: var(--fs-meta);
+  }
+  .setup-page .setup-start .btn.primary.big {
+    min-height: 46px;
+  }
+  .setup-page .setup-formation .formations {
+    gap: 6px;
+  }
+  .setup-page [data-testid='era-caption'] {
+    font-size: var(--fs-meta);
+  }
+}
+/* A short desktop window (800px tall or less): the era's years are the count chip's tooltip, so the fold stays in view */
+@media (min-width: 1000px) and (min-height: 600px) and (max-height: 800px) {
+  .setup-page [data-testid='era-caption'] {
+    display: none;
+  }
+  .setup-page .setup-rules {
+    row-gap: var(--space-2);
+  }
+  .setup-page .era-classic {
+    padding-block: 2px;
+  }
+}
+/* On a desktop the Modes label gives its room to the eight cards (its Info tip stays, and step 4 names the box), so no
+   mode name is cut; below 1200px the cards take two rows of four */
+@media (min-width: 1000px) {
+  .setup-modes {
+    gap: var(--space-2);
+  }
+  .setup-modes .setup-head h3 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .setup-modes-row {
+    grid-template-columns: repeat(8, minmax(0, auto));
+    justify-content: space-between;
+  }
+}
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .setup-modes-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+}
+/* The draft's power-up tray and spin odds, compact and boxed beside the reel: icon and name on one line per power-up,
+   its status under it, the odds' legend in small type */
+@media (min-width: 721px) {
+  .pu-tray .pu-head {
+    margin-bottom: var(--space-1) !important;
+  }
+  .pu-tray .pu-head .small.muted {
+    display: none;
+  }
+  .pu-tray .pu-btn {
+    min-height: 0;
+    padding: 6px 4px;
+    gap: 0;
+  }
+  .pu-tray .pu-icon {
+    font-size: 16px;
+  }
+  .pu-tray .pu-title {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .pu-tray .pu-status {
+    font-size: 10px;
+  }
+  .spin-odds {
+    gap: var(--space-1);
+    padding: 6px 8px;
+  }
+  .spin-odds-list {
+    gap: 2px 10px;
+    font-size: var(--fs-xs);
+  }
+}
+/* The draft on a desktop: the power-up tray is one row of six over the landed squad (whose list is the box that scrolls),
+   the reel's column keeps the reel, the odds and Spin in view, and its draft log takes the height left and scrolls */
+@media (min-width: 1100px) {
+  .draft-squad > .pu-tray {
+    flex: none;
+    padding: var(--space-2);
+    background: var(--panel-2);
+  }
+  .draft-squad > .pu-tray .pu-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .app.shell .grid.draft > .col:first-child {
+    display: flex;
+    flex-direction: column;
+  }
+  .app.shell .grid.draft > .col:first-child > .panel {
+    flex: none;
+  }
+  .app.shell .grid.draft > .col:first-child > .panel:has(.draft-log) {
+    flex: 1 1 auto;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .app.shell .grid.draft > .col:first-child .draft-log {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .app.shell .grid.draft .pitch-wrap {
+    --shell-chrome: 400px;
+  }
+  .app.shell.bar-hidden .grid.draft .pitch-wrap {
+    --shell-chrome: 300px;
+  }
+}
+/* A short desktop window: the reel's box tightens (smaller season figure, gaps and Spin) so "Still need" stays in view */
+@media (min-width: 1100px) and (max-height: 800px) {
+  .app.shell .grid.draft > .col:first-child > .panel:first-child {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  .app.shell .grid.draft .reel-hub .year {
+    font-size: 26px;
+  }
+  .app.shell .grid.draft .spin-btn {
+    min-height: 46px;
+    font-size: 20px;
+  }
+  .app.shell .grid.draft > .col:first-child {
+    gap: var(--space-2);
+  }
+  .app.shell .grid.draft > .col:first-child > .panel.tight {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+/* Head-to-head setup on a desktop fits one screen: the two managers and the league side by side as three boxes (Start
+   under the league), each formation tile small with its picture beside the name, the how-it-works steps as titles only */
+@media (min-width: 1100px) {
+  .app.shell .screen-body:has(.h2h-league) > .steps li .small {
+    display: none;
+  }
+  .app.shell .screen-body:has(.h2h-league) > .steps li {
+    padding-block: var(--space-2);
+  }
+  .app.shell .screen-body:has(.h2h-league) > .grid.two {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .app.shell .screen-body:has(.h2h-league) > .grid.two > .panel:not(.h2h-league) {
+    grid-row: 1 / span 2;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-league {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  /* The league box: the league and Draft from across it, then season, difficulty, hard mode and seed two to a row */
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2) var(--space-3);
+    align-items: end;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col {
+    display: contents;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:first-child > * {
+    grid-column: 1 / -1;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-start {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-start .btn {
+    width: 100%;
+  }
+  .app.shell .screen-body:has(.h2h-league) .formations {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .app.shell .screen-body:has(.h2h-league) .formations button {
+    padding: 4px;
+    gap: 2px;
+  }
+  .app.shell .screen-body:has(.h2h-league) .fthumb {
+    width: 26px;
+  }
+  .app.shell .screen-body:has(.h2h-league) .formations .fname {
+    font-size: var(--fs-sm);
+  }
+  .app.shell .screen-body:has(.h2h-league) .formation-field > .help {
+    display: none;
+  }
+  .app.shell .screen-body:has(.h2h-league) .team-field > label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+/* A short desktop window: Head-to-head's how-it-works row folds away (How it works has the same steps) */
+@media (min-width: 1100px) and (max-height: 800px) {
+  .app.shell .screen-body:has(.h2h-league) > .steps {
+    display: none;
+  }
+}
+/* Step 3's season picker: a compact select ("2025-26 ▾") on the step's title line, so it costs no height */
+.step-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.step-head-row .season-pick {
+  width: auto;
+  min-width: 120px;
+  min-height: 34px;
+  padding-block: 4px;
+  flex: none;
+}
+/* Step 4 on a desktop: the Manager cards and the Bench share a row (the bench's help line is its tooltip) */
+@media (min-width: 1000px) {
+  .setup-page .setup-rules [data-testid='bench-option'] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .setup-page .setup-rules [data-testid='bench-option'] > .setup-line {
+    display: none;
+  }
+  .setup-page .setup-rules [data-testid='bench-option'] .segmented {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+.setup-goal b {
+  color: var(--text);
+}
+/* A short desktop window: step 4's cards and segmented buttons a little slimmer, so the fold stays in view */
+@media (min-width: 1000px) and (min-height: 600px) and (max-height: 800px) {
+  .setup-page .setup-rules .choice-card {
+    padding-block: 4px;
+  }
+  .setup-page .setup-rules .segmented button {
+    min-height: 28px;
+    padding-block: 3px;
+  }
+  .setup-page .setup-rules .setup-opt {
+    gap: 4px;
+  }
+}
+/* Whatever scrolls into view (the Advanced fold, a landed squad) stops below the top bar's measured height, one row or
+   two (--topbar-h, set by App from a ResizeObserver); the shell itself can never be scrolled by a script (Safari) */
+html {
+  scroll-padding-top: calc(var(--topbar-h, 64px) + var(--space-2));
+}
+[data-testid='more-options'],
+.draft-squad {
+  scroll-margin-top: calc(var(--topbar-h, 64px) + var(--space-2));
+}
+@media (min-width: 1100px) {
+  .app.shell {
+    overflow: clip;
+  }
+}
+.draft-ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--primary-soft);
+  text-align: center;
+}
+.draft-ready b {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+}
+/* Slot chips (M10): the fit reads from the coloured border and tint; the text is the body colour, so it passes 4.5:1 */
+.slot-chip.warn,
+.slot-chip.good {
+  color: var(--text);
+}
+.slot-chip.warn {
+  border-color: var(--warn);
+}
+.slot-chip.good {
+  border-color: var(--good);
+}
+/* Head-to-head setup on a phone (M13): the four rule cards fold to one compact strip of titles, so the managers start above the fold */
+@media (max-width: 720px) {
+  .screen-body:has(.h2h-league) > .steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+  .screen-body:has(.h2h-league) > .steps li {
+    padding: var(--space-1) var(--space-2);
+  }
+  .screen-body:has(.h2h-league) > .steps li .small,
+  .screen-body:has(.h2h-league) > .steps .step-icon {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ squad views: the Dressing room and the Planner */
+/* Three boxes side by side on a desktop, each scrolling inside itself; two across on a tablet, stacked on a phone */
+@media (max-width: 1099px) {
+  .grid.three.squad-views {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 720px) {
+  .grid.three.squad-views {
+    grid-template-columns: 1fr;
+  }
+}
+@media (min-width: 1100px) {
+  .app.shell .tab-body:has(> .grid.fill) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .app.shell .tab-body > .grid.fill {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+.room-tier + .room-tier {
+  margin-top: var(--space-3);
+}
+.room-tier > .eyebrow,
+.med-out > .eyebrow {
+  margin-bottom: var(--space-1);
+}
+.room-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px var(--space-2);
+  border: 0;
+  border-bottom: var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.room-row:hover {
+  background: var(--bg-3);
+}
+.room-row .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.room-row .who b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-row .chip {
+  flex-shrink: 0;
+}
+.atmos {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.atmos-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.atmos .bar {
+  flex: 1;
+}
+.atmos-lines {
+  margin: var(--space-2) 0 0;
+  padding-left: 18px;
+}
+.room-sub {
+  margin: var(--space-4) 0 var(--space-2);
+}
+.room-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.room-group {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+}
+.room-group .link-btn {
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.room-group .link-btn:hover {
+  color: var(--accent);
+}
+.mood-lines {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mood-lines li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+.mood-lines .mw {
+  color: var(--text-3);
+  font-size: var(--fs-meta);
+}
+.mood-lines .delta {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.delta.up {
+  color: var(--good);
+}
+.delta.down {
+  color: var(--bad);
+}
+.plan-rows {
+  display: flex;
+  flex-direction: column;
+}
+.plan-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-2) 0;
+  border-bottom: var(--border);
+}
+.plan-row.spare {
+  opacity: 0.72;
+}
+.plan-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.plan-names .chip {
+  cursor: pointer;
+  border: 0;
+  font-family: inherit;
+}
+.plan-names .chip.dim {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.plan-row .next-in {
+  color: var(--text);
+  font-weight: 600;
+}
+table.tbl.contracts-overview td .chip {
+  margin-left: 6px;
+}
+table.tbl.contracts-overview .link-btn.name {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-weight: 600;
+}
+.league-awards {
+  display: flex;
+  flex-direction: column;
+}
+.league-award {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 0;
+  border-bottom: var(--border);
+}
+.league-award > svg {
+  color: var(--gold-text);
+}
+.league-award .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.league-award .chip {
+  max-width: 150px;
+}
+.tots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.news-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: 6px;
+}
+/* The contracts overview fits its box: fixed columns, the name and role cut with an ellipsis */
+table.tbl.contracts-overview {
+  table-layout: fixed;
+  width: 100%;
+}
+table.tbl.contracts-overview th:nth-child(2),
+table.tbl.contracts-overview td:nth-child(2) {
+  width: 40px;
+}
+table.tbl.contracts-overview th:nth-child(3),
+table.tbl.contracts-overview td:nth-child(3) {
+  width: 54px;
+}
+table.tbl.contracts-overview th:nth-child(4),
+table.tbl.contracts-overview td:nth-child(4) {
+  width: 82px;
+}
+table.tbl.contracts-overview th:nth-child(5),
+table.tbl.contracts-overview td:nth-child(5) {
+  width: 86px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+table.tbl.contracts-overview .link-btn.name {
+  max-width: 100%;
 }

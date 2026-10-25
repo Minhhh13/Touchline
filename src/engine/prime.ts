@@ -90,3 +90,8 @@ export function primeLookup(u: LoadedUniverse, id: string, leagues?: readonly st
   const p = u.index[id]
   return p ? primed(u, p, leagues, classic) : undefined
 }
+
+/** Every player's prime player-season over the given leagues (every league when omitted), one per player, in no set order. */
+export function primeSeasons(u: LoadedUniverse, leagues?: readonly string[]): PlayerSeason[] {
+  return [...cacheFor(u, leagues).best.values()]
+}

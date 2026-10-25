@@ -10,6 +10,7 @@ import { autoPickLineup } from '@engine/ratings'
 import { releasePlayer } from './marketOps'
 import { openWindow } from '@engine/market'
 import { WAGE_MULT } from '@engine/status'
+import { logMorale } from './happiness'
 
 /**
  * Age a player-season by one year. Young players grow towards an estimated
@@ -127,7 +128,9 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     if (aged.overall > p.overall + 1) report.improved.push({ name: p.name, from: p.overall, to: aged.overall })
     if (aged.overall < p.overall - 1) report.declined.push({ name: p.name, from: p.overall, to: aged.overall })
     idMap[id] = aged.id
-    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], recentMinutes: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 } }
+    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], recentMinutes: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 }, moraleLog: undefined }
+    // A new season starts a new happiness log; the summer lift is its first line
+    logMorale(newSquad[aged.id], 0, s.morale, 'summer')
   }
   game.squad = newSquad
   game.contracts = newContracts

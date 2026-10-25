@@ -34,6 +34,11 @@ import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
+import { DressingRoomTab } from './DressingRoomTab'
+import { PlannerTab } from './PlannerTab'
+import { InboxActions } from '../components/InboxActions'
+import { HappinessCard } from '../components/Happiness'
+import { personalityOf } from '@game/logic/personality'
 
 type Tab = DugoutTab
 
@@ -235,6 +240,8 @@ export function Dugout() {
         tabs={[
           { id: 'squad', label: 'Squad' },
           { id: 'tactics', label: 'Tactics' },
+          { id: 'dressing', label: 'Dressing room' },
+          { id: 'planner', label: 'Planner' },
           { id: 'fixtures', label: 'Fixtures' },
           { id: 'table', label: 'Table' },
           { id: 'cup', label: 'Cup' },
@@ -406,6 +413,8 @@ export function Dugout() {
       )}
 
       {tab === 'tactics' && <TacticsTab />}
+      {tab === 'dressing' && <DressingRoomTab onPlayer={onPlayerClick} />}
+      {tab === 'planner' && <PlannerTab onPlayer={onPlayerClick} />}
 
       {tab === 'fixtures' && (
         <div className="panel">
@@ -476,6 +485,7 @@ export function Dugout() {
                   <span>
                     <div className="t">{n.title}</div>
                     <div className="b">{n.body}</div>
+                    <InboxActions item={n} game={game} onAction={act} />
                   </span>
                   <span className="news-mw">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
                 </div>
@@ -1380,6 +1390,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
           ))}
         </span>
         <span className="chip">{p.age} years</span>
+        <span className="chip" title={personalityOf(p).blurb} data-testid="personality">{personalityOf(p).label}</span>
         <span className="chip">
           {clubName(u, p.clubId)} {seasonLabel(p.season)}
         </span>
@@ -1403,7 +1414,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
             <div className="meter-row">
               <span className="small">Morale</span>
               <Bar value={s.morale} colour="var(--info)" />
-              <span className="mono small">{s.morale}</span>
+              <span className="mono small">{Math.round(s.morale)}</span>
             </div>
             <div className="meter-row">
               <span className="small">Sharpness</span>
@@ -1450,6 +1461,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
             </div>
           </div>
         )}
+        {s && <HappinessCard s={s} />}
       </div>
       {s && (
         <div className="row wrap" style={{ marginTop: 'var(--space-4)', gap: 'var(--space-2)' }}>

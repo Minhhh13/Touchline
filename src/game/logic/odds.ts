@@ -2,10 +2,11 @@ import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng, type RngState } from '@engine/rng'
 import { pairingExpectation, type MatchTeamInput } from '@engine/match'
-import { aiRatingOffset, aiTeamInput, buildAiClubs, USER_TEAM } from '@engine/season'
+import { aiTeamInput, USER_TEAM } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
 import { playerLookup } from './players'
 import { quickUserInput, quickXI } from './quick'
+import { quickLeague } from './superLeague'
 
 /** How many seasons the pre-season odds sample. */
 export const ODDS_SEASONS = 2000
@@ -70,8 +71,7 @@ export function oddsLeague(game: Game, u: LoadedUniverse): OddsLeague {
   const s = game.settings
   const get = playerLookup(game, u)
   const { lineup, bench } = quickXI(game, u)
-  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
-  const offset = aiRatingOffset(u, ai, s.difficulty ?? 'calibrated')
+  const { ai, offset } = quickLeague(u, s)
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const inputs: MatchTeamInput[] = ids.map((id) => (id === USER_TEAM ? quickUserInput(game, lineup, bench, game.tactics, game.captainId, get) : aiTeamInput(u, ai[id], offset)))
   const pairings: OddsPairing[] = []

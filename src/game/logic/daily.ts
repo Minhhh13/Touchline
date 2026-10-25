@@ -6,14 +6,17 @@ export const DAILY_FORMATIONS: readonly string[] = ['4-3-3', '4-4-2', '4-2-3-1',
 
 /**
  * The Daily's draft rules, written out in full (nothing spread from `QUICK_RULES` or the difficulty
- * table) so a later change to the quick defaults can never make two players' Dailies differ: normal
- * difficulty (1 re-spin), ratings shown, Squad First, season ratings, no manager, twists on, all-time, every club
- * and nationality, the Premier League wheel. A new rule must be added here; a test checks that every
- * key of `QUICK_RULES` is.
+ * table) so a later change to the quick defaults can never make two players' Dailies differ. They are
+ * the Daily's original rules, from before the 38-0 options: 2 re-spins (the owner kept 2 when Normal
+ * went to 1), ratings shown, Squad First, season ratings, no manager, twists on, all-time, every club and
+ * nationality, the Premier League wheel, and no modes. `difficulty: 'normal'` only labels the
+ * draft; the re-spin budget is the 2 written here, not the difficulty's. A new rule must be added
+ * here; a test checks that every key of `QUICK_RULES` is, and a pinned test replays the Daily
+ * against the pre-38-0 rules for several dates.
  */
 export const DAILY_RULES: DraftRules = {
   squadSize: 11,
-  respins: 1,
+  respins: 2,
   difficulty: 'normal',
   hardMode: false,
   minFit: 'accomplished',
@@ -28,6 +31,7 @@ export const DAILY_RULES: DraftRules = {
   onlyClub: undefined,
   onlyNation: undefined,
   leagues: ['england'],
+  modes: undefined,
 }
 
 export interface DailySettings {
