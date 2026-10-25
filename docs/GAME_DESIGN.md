@@ -57,6 +57,24 @@ The default host club is `defaultHostClub`: the club whose position in `u.tables
 
 The Daily's fixed settings are `dailySettings(u, seed)`: the digits of `daily-YYYY-MM-DD` form `n`; the season is the complete English seasons in ascending order at `n mod count`, the host club is that season's club ids sorted at `(7n) mod count`, and the formation is `['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '4-4-2-diamond']` at `(3n) mod 5`; the league is England, the wheel England only, the difficulty calibrated. This is the mapping the setup screen always used, now pinned by a test (`daily-2026-10-25` is a 4-3-3 as Swansea City in 2017-18), so a deploy never changes everyone's puzzle. `dailyGameSettings` builds the full `GameSettings` from it, which is what the Home screen's Daily card sends to `startGame` from its **Play today's puzzle** button; the card's body still opens the full setup for a custom team name, and both paths produce identical settings apart from the name. If today's Daily is already under way the button reads **Continue today's puzzle** and reopens it, and when an unfinished Quick Draft or Daily sits in the shared save slot the button asks before dropping it.
 
+### Coach marks and the Key
+
+Seven coach marks (`TIP_IDS` in `src/game/logic/tips.ts`; seven is the ceiling) explain a screen or mechanic the first time it is met. Each is a `Tip` (`src/ui/components/bits.tsx`): a `.tip` callout inline in the page flow, with an accent left border, one or two sentences and a **Got it** button. It is never an overlay and never disables a button, so a player who ignores it loses nothing. Got it calls `store.dismissTip(id)`, which records the ISO date in `profile.seenTips[id]` (an optional save field persisted with the profile; an older save has none, so every tip is unseen, and a second dismissal keeps the first date). The seven, in the order a new manager meets them:
+
+| id | where | text |
+| --- | --- | --- |
+| `draft-first-reveal` | above the landed squad, while the XI is being filled | Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft. |
+| `draft-bench` | under the needs panel once the XI is full (and the wheel has not run dry) | Bench picks can be anyone un-drafted; cover every position, injuries will come. |
+| `dugout-first` | top of the Squad tab | The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one. |
+| `tactics-first` | top of the Tactics tab | A role moves a player's quality between units; rating in role is what the engine uses, and the team rating updates as you change it. |
+| `halftime-first` | inside the half-time panel (not at the 70th minute) | A talk, four instructions and up to three substitutions; No changes plays on. |
+| `report-first` | above the match report's tactical notes | xG is the chances each side created; the notes are the exact modifiers your instructions produced. |
+| `market-first` | above the window's listings | Bids near the asking price are accepted, bids well under it annoy the club and raise the price; the asking price shows what it was on day one. |
+
+The copy stays qualitative so it cannot drift when the engine is tuned. **Show tips again** in the Manager panel of the Record screen (`store.resetTips`, which empties `seenTips`) brings all seven back, and the panel says how many of the seven are dismissed.
+
+The Squad panel's header carries a **Key** chip. On, it prints `Cond`, `Mor` and `Shp` under every player's three state bars (`PlayerRow`'s `showLabels`) and a one-line legend under the pitch (`PitchLegend`): the disc is his rating in that slot; a white ring is natural, amber `acc.` is accomplished (position factor 0.86 or more, a small cost), red `awk.` is awkward or worse (below 0.86, a big cost), and a red ring is also injured or suspended. The pitch now draws its rings from `describeFit` in `src/engine/positions.ts`, the same bands as before, so the legend and the discs cannot disagree. The fit colour is the lowest-priority ring (`fitRingColour` in `src/ui/format.ts`): an injured or suspended player shows the red ring wherever he plays, and the selected (gold) and eligible (green) highlights also win over it, while the `acc.` or `awk.` label under the disc still names the fit. The Key is a per-viewer convenience, kept in `localStorage['touchline-squad-key']` (`'1'` on) inside try/catch; blocked storage reads as off and the chip still works for the visit.
+
 ## 4. Formations
 
 Eight shapes, each with eleven slots carrying a position and pitch coordinates (`src/engine/formations.ts`):

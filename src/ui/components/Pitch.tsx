@@ -1,5 +1,6 @@
 import type { Formation, PlayerSeason, SquadPlayer } from '@engine/types'
-import { positionFactor } from '@engine/positions'
+import { describeFit, positionFactor } from '@engine/positions'
+import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
 
 export interface PitchProps {
   formation: Formation
@@ -35,19 +36,44 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const warn = !!(st && (st.injury || st.suspension > 0))
         const pf = p ? positionFactor(p, slot.position) : 1
         const eff = p ? Math.round(p.overall * pf) : 0
+        // Accomplished is a small out-of-position cost (amber, acc.); awkward or worse a big one (red, awk.)
+        const fit = p ? describeFit(p, slot.position) : 'natural'
+        // The fit colour gives way to the injured/suspended red ring and the selected/eligible highlights; the label still names the fit
+        const ring = p ? fitRingColour(fit, { warn, highlighted: !!eligible || selectedSlot === slot.id }) : undefined
         // y is from own goal (bottom) to opposition goal (top)
         const left = `${slot.x}%`
         const top = `${100 - slot.y}%`
         return (
           <div key={slot.id} className="slot" style={{ left, top }} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
-            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={p && pf < 1 ? { borderColor: pf >= 0.86 ? 'rgba(245,197,66,0.9)' : 'rgba(239,83,80,0.9)' } : undefined}>
+            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={ring ? { borderColor: ring } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
             </div>
             <div className="label">{p ? p.name : ''}</div>
-            {p && <div className="sub">{showRoles?.[slot.id] ?? slot.position}{pf < 1 ? ' ·' : ''}{pf < 1 ? (pf >= 0.86 ? ' acc.' : ' awk.') : ''}</div>}
+            {p && <div className="sub">{showRoles?.[slot.id] ?? slot.position}{fit !== 'natural' ? (fit === 'accomplished' ? ' · acc.' : ' · awk.') : ''}</div>}
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/** The one-line key under the pitch (the Key toggle): what the disc number and its ring colours mean. */
+export function PitchLegend() {
+  return (
+    <div className="pitch-legend" data-testid="pitch-legend">
+      <span>Disc: rating in that slot</span>
+      <span>
+        <i className="ring" /> natural
+      </span>
+      <span>
+        <i className="ring" style={{ borderColor: FIT_AMBER }} /> acc. small cost
+      </span>
+      <span>
+        <i className="ring" style={{ borderColor: FIT_RED }} /> awk. big cost
+      </span>
+      <span>
+        <i className="ring" style={{ borderColor: 'var(--danger)' }} /> injured or suspended
+      </span>
     </div>
   )
 }

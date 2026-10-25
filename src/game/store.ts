@@ -29,6 +29,7 @@ import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
+import { withTipSeen, type TipId } from './logic/tips'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -148,6 +149,10 @@ interface Store {
   recordResult: () => void
   setManagerName: (name: string) => void
   setTheme: (t: Profile['theme']) => void
+  /** A coach mark's 'Got it': it never shows again on this profile. */
+  dismissTip: (id: TipId) => void
+  /** 'Show tips again' on the Record screen: every coach mark shows once more. */
+  resetTips: () => void
 }
 
 const defaultProfile: Profile = {
@@ -623,6 +628,12 @@ export const useStore = create<Store>()(
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
         setTheme: (theme) => set({ profile: { ...get().profile, theme } }),
+        dismissTip: (id) => {
+          const { profile } = get()
+          const next = withTipSeen(profile, id, new Date().toISOString().slice(0, 10))
+          if (next !== profile) set({ profile: next })
+        },
+        resetTips: () => set({ profile: { ...get().profile, seenTips: {} } }),
       }
     },
     {

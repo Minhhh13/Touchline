@@ -5,6 +5,7 @@ import { TIER_LABEL } from '@engine/season'
 import type { LeaderboardEntry } from '@game/types'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
+import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 
 function exportSave(): void {
   const raw = localStorage.getItem(SAVE_KEY)
@@ -19,7 +20,8 @@ function exportSave(): void {
 }
 
 export function ProfileScreen() {
-  const { profile, universe: u, go, setManagerName, setTheme, showToast } = useStore()
+  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
+  const tipsSeen = tipsSeenCount(profile)
   const unlocked = Object.keys(profile.achievements).length
   // Quick and Daily runs on the same wheel (seed) sit together: the table is already best-first, so a seed's first row
   // is its best. Season and Dynasty entries share one seed across their years, which is not the same wheel twice.
@@ -74,6 +76,22 @@ export function ProfileScreen() {
               <dd>
                 {unlocked} / {ACHIEVEMENTS.length}
               </dd>
+            </div>
+            <div className="row wrap">
+              <button
+                className="btn sm"
+                data-testid="reset-tips"
+                disabled={tipsSeen === 0}
+                onClick={() => {
+                  resetTips()
+                  showToast('The coach marks will show again where they first appeared.')
+                }}
+              >
+                Show tips again
+              </button>
+              <span className="small muted">
+                {tipsSeen} of {TIP_IDS.length} tips dismissed
+              </span>
             </div>
           </div>
           <div className="panel">
