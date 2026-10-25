@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Check, GraduationCap, Globe, Medal, MessageSquare, Star, TrendingDown, TrendingUp, Trophy, X } from 'lucide-react'
+import { Check, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, Trophy, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation } from '@engine/formations'
@@ -11,7 +11,8 @@ import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
 import { canCover, ratingAt } from '@engine/positions'
 import { teamStrength } from '@game/logic/squad'
-import { SQUAD_CAP, suggestedStatus } from '@game/logic/marketOps'
+import { SELL_ON_OPTIONS, SQUAD_CAP, sellOnValue, suggestedStatus } from '@game/logic/marketOps'
+import { canFullScout, focusActive, maskedView } from '@game/logic/scouting'
 import { recentShare, statusOf } from '@game/logic/week'
 import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
@@ -30,7 +31,7 @@ import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
 import { LeagueFlag } from '../components/Flag'
 import { roleCode } from '../match/shirts'
 import { clubName, clubShort, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
-import type { Position, TableRow } from '@engine/types'
+import type { PlayerSeason, Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
 import { StatsTab } from './StatsTab'
@@ -40,6 +41,9 @@ import { PlannerTab } from './PlannerTab'
 import { InboxActions } from '../components/InboxActions'
 import { HappinessCard } from '../components/Happiness'
 import { personalityOf } from '@game/logic/personality'
+import { RecruitmentPanel, ScoutModal, ScoutReportsPanel } from './Recruitment'
+import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_BUDGET, SHIFT_LIMIT, SHIFT_WAGE, wageRoom } from '@game/logic/board'
+import { ContractCard, ContractTalks } from '../components/ContractTalks'
 
 type Tab = DugoutTab
 
@@ -501,10 +505,10 @@ export function Dugout() {
           </div>
         </div>
       )}
-      {tab === 'club' && <ClubTab table={table} />}
+      {tab === 'club' && <ClubTab table={table} onPlayer={onPlayerClick} />}
       </div>
 
-      <PlayerModal id={playerModal} onClose={() => setPlayerModal(null)} />
+      <PlayerModal key={playerModal ?? 'none'} id={playerModal} onClose={() => setPlayerModal(null)} />
       <SlotSheet slotId={sheetSlot} onClose={() => setSheetSlot(null)} />
     </div>
   )
@@ -861,9 +865,12 @@ function MarketTab() {
   const [years, setYears] = useState<Record<string, number>>({})
   const [statuses, setStatuses] = useState<Record<string, SquadStatus>>({})
   const [exchange, setExchange] = useState<Record<string, string>>({})
+  const [sellOn, setSellOn] = useState<Record<string, number>>({})
   const [filter, setFilter] = useState<'all' | Position>('all')
   const [msg, setMsg] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [scoutId, setScoutId] = useState<string | null>(null)
+  const [approach, setApproach] = useState(false)
   const results = useMemo(() => {
     if (!u || !game) return []
     const q = query.trim().toLowerCase()
@@ -880,13 +887,18 @@ function MarketTab() {
   const w = game.window
   const squad = squadPlayers(game, u)
   const scout = staffTier(game.staff, 'scout')
+  // What the club can see of a player outside the squad: a range until he is scouted (none for anyone known exactly)
+  const rangeOf = (p: PlayerSeason) => {
+    const v = maskedView(game, u, p)
+    return v.exact ? undefined : v.overall
+  }
   const shortlisted = store.shortlist.map((id) => u.index[id]).filter((p): p is NonNullable<typeof p> => !!p)
   const shortlistPanel = shortlisted.length > 0 && (
     <div className="panel">
       <div className="panel-head">
         <span className="head-title">
           <h3>Shortlist</h3>
-          <Info label="About the shortlist">Players you starred in Explore. {w ? 'Tap one to approach his club.' : 'Approach them when a window opens; tap one to remove it.'}</Info>
+          <Info label="About the shortlist">Players you starred in Explore or from a scout report. Tap one for his report: scout him, enquire when a window is open, or take him off the list.</Info>
         </span>
         <span className="chip">{shortlisted.length}</span>
       </div>
@@ -898,21 +910,13 @@ function MarketTab() {
               key={p.id}
               p={p}
               showClub
-              onClick={
-                w
-                  ? () => {
-                      const out = store.enquire(p.id)
-                      setMsg(out.message)
-                    }
-                  : () => store.toggleShortlist(p.id)
-              }
+              range={rangeOf(p)}
+              onClick={() => setScoutId(p.id)}
               right={
                 <span className="btn sm">
-                  {w ? (
-                    listed ? (listed.status === 'signed' ? 'Signed' : listed.status === 'gone' ? 'Gone' : money(listed.asking)) : 'Enquire'
-                  ) : (
+                  {w && listed ? (listed.status === 'signed' ? 'Signed' : listed.status === 'gone' ? 'Gone' : money(listed.asking)) : (
                     <>
-                      <Star size={14} aria-hidden="true" /> Remove
+                      <Star size={14} aria-hidden="true" /> Report
                     </>
                   )}
                 </span>
@@ -923,42 +927,52 @@ function MarketTab() {
       </div>
     </div>
   )
+  const scoutModal = <ScoutModal id={scoutId} onClose={() => setScoutId(null)} />
   if (!w) {
     return (
-      <div className="panel">
-        <h3>Transfer market</h3>
-        <div className="notice" style={{ marginBottom: 'var(--space-4)' }}>
-          Window closed: January opens at the halfway point.{' '}
-          <Info label="About transfer windows">The January window runs for seven market days, three per matchweek. In Dynasty mode a longer summer window opens between seasons.</Info>
+      <div className="grid three fill squad-views market-closed" data-testid="market-closed">
+        <div className="col">
+          <RecruitmentPanel onMessage={setMsg} />
+          {msg && <div className="notice">{msg}</div>}
         </div>
-        {shortlistPanel}
-        <h4 style={{ margin: 'var(--space-4) 0 var(--space-2)' }}>Squad values</h4>
-        <div className="tbl-wrap"><table className="tbl">
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th className="num">Value</th>
-              <th className="num">Wage</th>
-              <th className="num">Contract</th>
-            </tr>
-          </thead>
-          <tbody>
-            {squad
-              .sort((a, b) => b.p.value - a.p.value)
-              .map((x) => (
-                <tr key={x.p.id}>
-                  <td>
-                    <span className="row" style={{ gap: 6 }}>
-                      <Rating value={x.p.overall} /> {x.p.name}
-                    </span>
-                  </td>
-                  <td className="num">{money(x.p.value)}</td>
-                  <td className="num">{wage(x.p.wage)}</td>
-                  <td className="num">{game.contracts[x.p.id]?.loan ? 'Loan' : `${game.contracts[x.p.id]?.years ?? 1}y`}</td>
+        <ScoutReportsPanel onOpen={setScoutId} />
+        <div className="col">
+          <div className="notice">
+            Window closed: January opens at the halfway point.{' '}
+            <Info label="About transfer windows">The January window runs for seven market days, three per matchweek. In Dynasty mode a longer summer window opens between seasons.</Info>
+          </div>
+          {shortlistPanel}
+          <div className="panel">
+            <h3>Squad values</h3>
+            <div className="tbl-wrap"><table className="tbl">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th className="num">Value</th>
+                  <th className="num">Wage</th>
+                  <th className="num">Contract</th>
                 </tr>
-              ))}
-          </tbody>
-        </table></div>
+              </thead>
+              <tbody>
+                {squad
+                  .sort((a, b) => b.p.value - a.p.value)
+                  .map((x) => (
+                    <tr key={x.p.id}>
+                      <td>
+                        <span className="row" style={{ gap: 6 }}>
+                          <Rating value={x.p.overall} /> <span className="name one-line" title={x.p.name}>{x.p.name}</span>
+                        </span>
+                      </td>
+                      <td className="num">{money(x.p.value)}</td>
+                      <td className="num">{wage(x.p.wage)}</td>
+                      <td className="num">{game.contracts[x.p.id]?.loan ? 'Loan' : `${game.contracts[x.p.id]?.years ?? 1}y`}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+        {scoutModal}
       </div>
     )
   }
@@ -999,13 +1013,18 @@ function MarketTab() {
             return (
               <div key={l.playerSeasonId} className="listing">
                 <div>
-                  <PlayerRow p={p} showClub right={<span className="small muted">{wage(p.wage)}</span>} />
+                  <PlayerRow p={p} showClub range={rangeOf(p)} onClick={() => setScoutId(p.id)} right={<span className="small muted">{wage(p.wage)}</span>} />
                   <div className="tags">
                     {l.tags.map((t) => (
                       <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' || t === 'Scouted' ? 'good' : ''}`}>
                         {t}
                       </span>
                     ))}
+                    {rangeOf(p) && (
+                      <button type="button" className="chip-btn" data-testid="listing-scout" disabled={!canFullScout(game)} title={canFullScout(game) ? 'Full scout: reveal him exactly (one a market day)' : 'Your scout has watched someone today'} onClick={() => setMsg(store.scoutPlayer(p.id).message)}>
+                        Scout
+                      </button>
+                    )}
                     {scout > 0 &&
                       traitTags(p.traits).map((t) => (
                         <span key={t} className="chip" style={{ borderStyle: 'dashed' }} title="Scouting report">
@@ -1021,7 +1040,7 @@ function MarketTab() {
                     <button
                       className="btn sm primary"
                       onClick={() => {
-                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], status: offered, exchangeId: exchange[l.playerSeasonId] || undefined })
+                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], status: offered, exchangeId: exchange[l.playerSeasonId] || undefined, sellOn: sellOn[l.playerSeasonId] || undefined })
                         setMsg(out.message)
                       }}
                     >
@@ -1055,6 +1074,13 @@ function MarketTab() {
                           </option>
                         ))}
                     </select>
+                    <select className="input" value={sellOn[l.playerSeasonId] ?? 0} onChange={(e) => setSellOn({ ...sellOn, [l.playerSeasonId]: Number(e.target.value) })} title="Offer the selling club a share of his next sale: worth something to them now, paid when you sell him on" data-testid="bid-sell-on">
+                      {SELL_ON_OPTIONS.map((pct) => (
+                        <option key={pct} value={pct}>
+                          {pct ? `${Math.round(pct * 100)}% sell-on (+${money(sellOnValue(p, pct))})` : 'No sell-on'}
+                        </option>
+                      ))}
+                    </select>
                     {l.loanFee !== undefined && (
                       <button className="btn sm" onClick={() => setMsg(store.loan(l.playerSeasonId).message)} title="Season-long loan: small fee, full wages, back to his club in the summer">
                         Loan for {money(l.loanFee)}
@@ -1075,32 +1101,44 @@ function MarketTab() {
         </div>
       </div>
       <div className="col">
+        <RecruitmentPanel onMessage={setMsg} />
+        {(game.scoutReports ?? []).length > 0 && <ScoutReportsPanel onOpen={setScoutId} />}
         <div className="panel">
           <div className="panel-head">
             <span className="head-title">
               <h3>Approach any player</h3>
               <Info label="About approaches">Not on the market? Ask anyway. Clubs quote a premium for players they wanted to keep and refuse outright for their stars.</Info>
             </span>
+            {focusActive(game.recruitFocus) && (
+              <button type="button" className="btn sm" aria-expanded={approach} onClick={() => setApproach((v) => !v)} data-testid="approach-toggle">
+                {approach ? 'Hide' : 'Search'}
+              </button>
+            )}
           </div>
-          <input className="input" aria-label="Search players" placeholder="Search every player…" value={query} onChange={(e) => setQuery(e.target.value)} />
-          {results.length > 0 && (
-            <div className="plist lined scroll-list" style={{ marginTop: 'var(--space-2)' }}>
-              {results.map((p) => (
-                <PlayerRow
-                  key={p.id}
-                  p={p}
-                  showClub
-                  onClick={() => {
-                    const out = store.enquire(p.id)
-                    setMsg(out.message)
-                    if (out.ok) setQuery('')
-                  }}
-                  right={<span className="btn sm">Enquire</span>}
-                />
-              ))}
-            </div>
+          {(approach || !focusActive(game.recruitFocus)) && (
+            <>
+              <input className="input" aria-label="Search players" placeholder="Search every player…" value={query} onChange={(e) => setQuery(e.target.value)} />
+              {results.length > 0 && (
+                <div className="plist lined scroll-list" style={{ marginTop: 'var(--space-2)' }}>
+                  {results.map((p) => (
+                    <PlayerRow
+                      key={p.id}
+                      p={p}
+                      showClub
+                      range={rangeOf(p)}
+                      onClick={() => {
+                        const out = store.enquire(p.id)
+                        setMsg(out.message)
+                        if (out.ok) setQuery('')
+                      }}
+                      right={<span className="btn sm">Enquire</span>}
+                    />
+                  ))}
+                </div>
+              )}
+              {query.trim().length >= 2 && results.length === 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>No one by that name in this game's leagues and eras.</div>}
+            </>
           )}
-          {query.trim().length >= 2 && results.length === 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>No one by that name in this game's leagues and eras.</div>}
         </div>
         {shortlistPanel}
         <div className="panel">
@@ -1142,13 +1180,15 @@ function MarketTab() {
           </div>
         </div>
       </div>
+      {scoutModal}
     </div>
   )
 }
 
-function ClubTab({ table }: { table: TableRow[] }) {
+function ClubTab({ table, onPlayer }: { table: TableRow[]; onPlayer: (id: string) => void }) {
   const store = useStore()
   const { universe: u, game } = store
+  const [clubMsg, setClubMsg] = useState<string | null>(null)
   if (!u || !game?.season) return null
   const season = game.season
   const squad = squadPlayers(game, u)
@@ -1156,7 +1196,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
   const wages = playerWages + staffWages(game.staff)
   const host = u.clubById[season.hostClubId]
   return (
-    <div className="grid two club-grid">
+    <div className="grid three fill squad-views club-grid3" data-testid="club-tab">
+      <div className="col">
       <div className="panel">
         <h3>Board</h3>
         <div className="kv tight">
@@ -1208,6 +1249,10 @@ function ClubTab({ table }: { table: TableRow[] }) {
           </>
         )}
       </div>
+      <BoardRequests onMessage={setClubMsg} />
+      {clubMsg && <div className="notice">{clubMsg}</div>}
+      </div>
+      <div className="col">
       <div className="panel">
         <div className="panel-head">
           <span className="head-title">
@@ -1227,8 +1272,9 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dt>Spent on fees</dt>
           <dd>{money(game.finances.spent)}</dd>
           <dt>Wages paid</dt>
-          <dd>{money(game.finances.wagesPaid)}</dd>
+          <dd>{money(game.finances.wagesPaid)}{game.finances.bonusesPaid ? ` (bonuses ${money(game.finances.bonusesPaid)})` : ''}</dd>
         </div>
+        <WageSlider onMessage={setClubMsg} />
       </div>
       <div className="panel">
         <div className="panel-head">
@@ -1261,6 +1307,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
           })}
         </div>
       </div>
+      </div>
+      <div className="col">
       <div className="panel">
         <div className="panel-head">
           <span className="head-title">
@@ -1275,7 +1323,7 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <th className="num">Age</th>
               <th className="num">Years</th>
               <th>Status</th>
-              <th className="num">Minutes</th>
+              <th className="num" title="Share of the minutes over the last six matchweeks">Mins</th>
               <th>Morale</th>
               <th className="end" aria-label="Release" title="Release" />
             </tr>
@@ -1288,11 +1336,15 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <tr key={x.p.id}>
                 <td>
                   <span className="row" style={{ gap: 6 }}>
-                    <Rating value={x.p.overall} /> <span className="name" title={x.p.name}>{x.p.name}</span>
+                    <Rating value={x.p.overall} />{' '}
+                    <button type="button" className="link-btn name" title={`${x.p.name}: details and contract talks`} onClick={() => onPlayer(x.p.id)} data-testid="contract-name">
+                      {x.p.name}
+                    </button>
+                    {game.contracts[x.p.id]?.shopped && <span className="chip warn" title="His agent is finding a buyer">Shopped</span>}
                   </span>
                 </td>
                 <td className="num">{x.p.age}</td>
-                <td className="num">{game.contracts[x.p.id]?.years ?? 1}</td>
+                <td className="num" title={game.contracts[x.p.id]?.clauses?.release ? `Release clause £${game.contracts[x.p.id]!.clauses!.release}M` : undefined}>{game.contracts[x.p.id]?.years ?? 1}{game.contracts[x.p.id]?.clauses?.release ? '*' : ''}</td>
                 <td>
                   <select className="input sm" data-testid="status-select" value={status} onChange={(e) => store.setStatus(x.p.id, e.target.value as SquadStatus)} title="Squad status: a promotion lifts morale 6 and his wage with it; a demotion costs 6 morale">
                     {STATUSES.map((st) => (
@@ -1307,8 +1359,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
                 </td>
                 <td>{moraleWord(x.s.morale)}</td>
                 <td className="end">
-                  <button className="btn sm ghost danger" onClick={() => confirm(`Release ${x.p.name}? No fee is received.`) && store.release(x.p.id)}>
-                    Release
+                  <button className="btn sm ghost danger icon-only" aria-label={`Release ${x.p.name}`} title="Release: no fee is received" onClick={() => confirm(`Release ${x.p.name}? No fee is received.`) && store.release(x.p.id)}>
+                    <UserMinus size={14} aria-hidden="true" />
                   </button>
                 </td>
               </tr>
@@ -1367,6 +1419,93 @@ function ClubTab({ table }: { table: TableRow[] }) {
             ))}
         </div>
       </div>
+      </div>
+    </div>
+  )
+}
+
+/** The board requests box: what can be asked, the condition the board checks, and when the next ask is possible. */
+function BoardRequests({ onMessage }: { onMessage: (m: string) => void }) {
+  const store = useStore()
+  const { universe: u, game } = store
+  if (!u || !game?.season) return null
+  const season = game.season
+  const wait = nextRequestAt(game)
+  const confident = season.confidence >= REQUEST_CONFIDENCE
+  return (
+    <div className="panel" data-testid="board-requests">
+      <div className="panel-head">
+        <span className="head-title">
+          <h3 className="icon-title">
+            <Landmark size={18} aria-hidden="true" /> Requests
+          </h3>
+          <Info label="About board requests">The board grants a request when its confidence is {REQUEST_CONFIDENCE} or more and the condition holds; no dice. A refusal costs 2 confidence. One request every {REQUEST_GAP} matchweeks.</Info>
+        </span>
+        <span className={`chip ${confident ? 'good' : 'warn'}`}>Confidence {Math.round(season.confidence)}</span>
+      </div>
+      <div className="col" style={{ gap: 'var(--space-2)' }}>
+        {requestOptions(game, u).map((o) => (
+          <div key={o.kind} className="request-row" data-testid={`request-${o.kind}`}>
+            <span className="col" style={{ gap: 0, minWidth: 0 }}>
+              <b>{o.label}</b>
+              <span className="small muted">{o.ask}</span>
+              <span className={`small ${o.conditionMet ? 'good-text' : 'muted'}`}>
+                {o.conditionMet ? '✓' : '✗'} {o.condition}
+              </span>
+            </span>
+            <button className="btn sm" disabled={wait !== null} onClick={() => onMessage(store.boardRequest(o.kind).message)} title={wait !== null ? `Next request after matchweek ${wait - 1}` : confident && o.conditionMet ? 'The board will grant this' : 'The board will refuse this: −2 confidence'}>
+              Ask
+            </button>
+          </div>
+        ))}
+      </div>
+      {wait !== null && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Next request after matchweek {wait - 1}.</div>}
+      {(season.requests ?? []).length > 0 && (
+        <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>
+          This season: {season.requests!.map((r) => `${r.kind} ${r.accepted ? 'granted' : 'refused'} (MW ${r.mw})`).join(', ')}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The wage-to-transfer slider: each step moves £10k a week of wage cap against £2M of budget. */
+function WageSlider({ onMessage }: { onMessage: (m: string) => void }) {
+  const store = useStore()
+  const { universe: u, game } = store
+  if (!u || !game) return null
+  const net = game.finances.wageShift ?? 0
+  const move = (target: number) => {
+    let cur = net
+    while (cur !== target) {
+      const dir = target > cur ? 1 : -1
+      const out = store.shiftWages(dir)
+      if (!out.ok) {
+        onMessage(out.message)
+        return
+      }
+      cur += dir
+    }
+  }
+  return (
+    <div className="wage-slider" data-testid="wage-slider">
+      <div className="row between" style={{ gap: 'var(--space-2)' }}>
+        <span className="head-title">
+          <b className="small">Wages ⇄ transfers</b>
+          <Info label="About the slider">Slide right to turn £{SHIFT_WAGE}k a week of wage room into £{SHIFT_BUDGET}M of transfer budget; slide left to turn budget back into wage room. Up to {SHIFT_LIMIT} steps either way a season, within the room under the cap.</Info>
+        </span>
+        <span className="small mono">{net === 0 ? 'Level' : net > 0 ? `+${money(net * SHIFT_BUDGET)} budget` : `+${wage(-net * SHIFT_WAGE)} wages`}</span>
+      </div>
+      <div className="row" style={{ gap: 'var(--space-2)' }}>
+        <button type="button" className="btn sm ghost" aria-label="Budget into wages" onClick={() => move(net - 1)}>
+          −
+        </button>
+        <input type="range" min={-SHIFT_LIMIT} max={SHIFT_LIMIT} step={1} value={net} aria-label="Wage to transfer balance" onChange={(e) => move(Number(e.target.value))} data-testid="wage-range" />
+        <button type="button" className="btn sm ghost" aria-label="Wages into budget" onClick={() => move(net + 1)} data-testid="wage-to-budget">
+          +
+        </button>
+      </div>
+      <div className="small muted">Wage room {wage(Math.max(0, wageRoom(game, u)))}</div>
     </div>
   )
 }
@@ -1413,12 +1552,20 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
   const store = useStore()
   const { universe: u, game } = store
   const [talkMsg, setTalkMsg] = useState<string | null>(null)
+  const [talks, setTalks] = useState(false)
   if (!u || !game || !id) return null
   const get = playerLookup(game, u)
   const p = get(id)
   const s = game.squad[id]
   if (!p) return null
   const formation = getFormation(game.tactics.formationId)
+  if (talks && s) {
+    return (
+      <Modal open onClose={onClose} title={`Contract talks: ${p.name}`} wide testId="talks-modal">
+        <ContractTalks id={id} onBack={() => setTalks(false)} />
+      </Modal>
+    )
+  }
   return (
     <Modal open onClose={onClose} title={p.name}>
       <div className="player-head">
@@ -1520,26 +1667,29 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
         </div>
       )}
       {s && game.season && (
-        <div className="card" style={{ marginTop: 'var(--space-4)' }}>
-          <div className="row between wrap" style={{ gap: 'var(--space-2)' }}>
-            <span className="head-title">
-              <b>Have a word</b>
-              <Info label="About conversations">One conversation a week. Hover a choice for how he is likely to take it.</Info>
-            </span>
-            <span className="small muted">Morale {moraleWord(s.morale)}</span>
-          </div>
-          {game.talks?.[p.id] === game.season.matchweek ? (
-            <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>You spoke to him this week.</div>
-          ) : (
-            <div className="row wrap" style={{ marginTop: 'var(--space-2)', gap: 'var(--space-2)' }}>
-              {(Object.keys(TALK_LABEL) as TalkKind[]).map((k) => (
-                <button key={k} className="btn sm" title={TALK_LABEL[k].hint} onClick={() => setTalkMsg(store.talk(p.id, k).message)}>
-                  {TALK_LABEL[k].label}
-                </button>
-              ))}
+        <div className="grid two" style={{ marginTop: 'var(--space-4)' }}>
+          <div className="card">
+            <div className="row between wrap" style={{ gap: 'var(--space-2)' }}>
+              <span className="head-title">
+                <b>Have a word</b>
+                <Info label="About conversations">One conversation a week. Hover a choice for how he is likely to take it.</Info>
+              </span>
+              <span className="small muted">Morale {moraleWord(s.morale)}</span>
             </div>
-          )}
-          {talkMsg && <div className="notice" style={{ marginTop: 'var(--space-2)' }}>{talkMsg}</div>}
+            {game.talks?.[p.id] === game.season.matchweek ? (
+              <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>You spoke to him this week.</div>
+            ) : (
+              <div className="row wrap" style={{ marginTop: 'var(--space-2)', gap: 'var(--space-2)' }}>
+                {(Object.keys(TALK_LABEL) as TalkKind[]).map((k) => (
+                  <button key={k} className="btn sm" title={TALK_LABEL[k].hint} onClick={() => setTalkMsg(store.talk(p.id, k).message)}>
+                    {TALK_LABEL[k].label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {talkMsg && <div className="notice" style={{ marginTop: 'var(--space-2)' }}>{talkMsg}</div>}
+          </div>
+          <ContractCard id={p.id} onTalks={() => setTalks(true)} />
         </div>
       )}
     </Modal>

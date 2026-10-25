@@ -82,6 +82,8 @@ export interface SeasonState {
   /** Secondary asks from the board, judged at the end of the season. */
   objectives?: Objective[]
   sacked: boolean
+  /** Requests made to the board this season (`src/game/logic/board.ts`); absent until the first. */
+  requests?: Array<{ kind: 'budget' | 'staff' | 'youth'; mw: number; accepted: boolean }>
 }
 
 export interface NewsItem {

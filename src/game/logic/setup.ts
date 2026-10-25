@@ -419,6 +419,9 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     // New season: the wage cap follows the squad again, the budget carries over.
     const fresh = startingFinances(u, s.hostClubId, s.leagueSeason, squadWages(game, u))
     game.finances = { ...game.finances, wageCap: fresh.wageCap, income: 0, spent: 0, wagesPaid: 0 }
+    // The slider and the bonuses are per season: a new cap starts level
+    delete game.finances.wageShift
+    delete game.finances.bonusesPaid
   }
   game.friendliesPlayed = 0
   game.phase = 'preseason'
