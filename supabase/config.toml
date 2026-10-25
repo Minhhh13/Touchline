@@ -1,0 +1,29 @@
+# Supabase CLI configuration for local development (`supabase start`). The hosted project is
+# yvqpmyqomkwtudxmkeou (ap-southeast-2); link it with `supabase link --project-ref yvqpmyqomkwtudxmkeou`.
+project_id = "touchline"
+
+[api]
+enabled = true
+port = 54321
+# Never expose `private`: its tables are reached only through the public functions.
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/**", "http://localhost:4173/**"]
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+otp_expiry = 900
+
+[storage]
+enabled = true

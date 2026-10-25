@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -b --noEmit",
-    "check:dist-keys": "node scripts/online/check-dist-keys.mjs dist"
+    "check:dist-keys": "node scripts/online/check-dist-keys.mjs dist",
+    "sql:test": "bash scripts/online/sql/run-local.sh"
   },
   "dependencies": {
     "immer": "^11.2.9",
