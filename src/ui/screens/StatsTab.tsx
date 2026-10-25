@@ -3,6 +3,7 @@ import { useStore } from '@game/store'
 import { USER_TEAM } from '@engine/season'
 import { playerLookup } from '@game/logic/players'
 import { ClubBadge, Rating } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 import type { SquadPlayer } from '@engine/types'
 
 type Stat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
@@ -105,7 +106,7 @@ export function StatsTab() {
       )}
     <div className="panel">
       <div className="panel-head">
-        <h3>League statistics</h3>
+        <h3><LeagueFlag leagueId={game.season.leagueId} label={u.leagues.find((l) => l.id === game.season?.leagueId)?.name} /> League statistics</h3>
         <div className="segmented">
           {(
             [

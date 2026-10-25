@@ -10,6 +10,7 @@ import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, n
 import { randomSeed } from '@engine/rng'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
+import { LeagueFlag, NationFlag } from '../components/Flag'
 import { clubName } from '../format'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
@@ -222,7 +223,7 @@ export function Setup() {
             {!fixed && (
               <div className="field">
                 League
-                <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: l.name, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
+                <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
                 <span className="help">{loadingLeagues ? 'Loading league data…' : 'Where your side plays. Each league has its own real clubs and seasons.'}</span>
               </div>
             )}
@@ -306,7 +307,7 @@ export function Setup() {
                   <h3 style={{ marginTop: 6 }}>Wheel rules</h3>
                   <div className="field">
                     Draft from
-                    <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: `${u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only` }, { value: 'europe', label: `European Nights: all ${u.available.length} leagues` }]} />
+                    <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> European Nights: all {u.available.length} leagues</> }]} />
                     <span className="help">{wheelScope === 'europe' ? `The wheel and the market draw from ${listNames(u.available.map((l) => l.country))}.` : 'The wheel and the market stay inside one league.'}</span>
                   </div>
                   <div className="field">
@@ -379,7 +380,7 @@ export function Setup() {
                     </select>
                     <span className="help">
                       {onlyNation && nations.some((n) => n.nation === onlyNation)
-                        ? `Every pick, signing and academy prospect must come from ${nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.`
+                        ? <><NationFlag nation={onlyNation} named /> Every pick, signing and academy prospect must come from {nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.</>
                         : `${nations.length} nations have at least ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}, in the leagues and era chosen.`}
                     </span>
                   </label>
