@@ -28,6 +28,8 @@ export interface ManagerHand {
   shoutsOpen: boolean
   subsLeft: number
   windowsLeft: number
+  /** In play, a change was already made at this minute: its stoppage is open, and more changes now spend no new one. */
+  windowOpen: boolean
   /** How many more substitutions this window or stop can take. */
   subCap: number
   /** Substitutions waiting for the stop. */
@@ -108,6 +110,8 @@ export function useManagerHand(o: {
   }
 
   const snap = mp ? (side === 'home' ? mp.home : mp.away) : null
+  // The engine's own test for an open window (a manager's change at this minute, half time aside)
+  const windowOpen = !!mp && where.kind === 'now' && minute !== 45 && (side === 'home' ? mp.hSubs : mp.aSubs).some((s) => s.minute === minute && (s.reason === 'manager' || s.reason === '70th minute'))
   return {
     landing: where,
     editable: canEdit(where),
@@ -119,6 +123,7 @@ export function useManagerHand(o: {
     shoutsOpen: shoutsOpen(minute, where),
     subsLeft: control?.subsLeft ?? 0,
     windowsLeft: control?.windowsLeft ?? 0,
+    windowOpen,
     subCap,
     pendingSubs,
     onPitch: men.map((p) => p.psId).filter((id) => !pendingOff.has(id)),

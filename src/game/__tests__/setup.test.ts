@@ -120,7 +120,7 @@ describe('the choice summary line', () => {
   it('names twists only when they differ from the default of the mode', () => {
     expect(summariseSetup(u, { ...base, rules: { ...base.rules, twists: false } })).toBe('Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed K7Q2-MX9A, no twists')
     expect(SEASON_RULES.twists).toBe(false)
-    expect(summariseSetup(u, { ...base, mode: 'season', jobSecurity: true, rules: { ...SEASON_RULES, twists: true, leagues: ['england'] } })).toBe('Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed K7Q2-MX9A, twists, squad of 18')
+    expect(summariseSetup(u, { ...base, mode: 'season', jobSecurity: true, rules: { ...SEASON_RULES, twists: true, leagues: ['england'] } })).toBe('Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A, twists, squad of 18')
     // The Daily always plays with twists, which is the quick default, so its line stays short
     expect(summariseSetup(u, dailyGameSettings(u, 'daily-2026-10-25'))).toBe('Touchline XI, 4-3-3, in the Premier League 2017-18, calibrated, seed daily-2026-10-25')
   })
@@ -135,9 +135,9 @@ describe('the choice summary line', () => {
       jobSecurity: false,
       continental: true,
     })
-    expect(line).toBe('Touchline XI, 4-3-3, Premier League 2025-26, realistic, seed K7Q2-MX9A, European Nights wheel of 2 leagues, 2014-15 to 2019-20, Arsenal only, hard mode, twists, squad of 20, no sack, Continental Cup')
+    expect(line).toBe('Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, realistic, seed K7Q2-MX9A, European Nights wheel of 2 leagues, 2014-15 to 2019-20, Arsenal only, hard mode, twists, squad of 20, no sack, Continental Cup')
     const quiet = summariseSetup(u, { ...base, mode: 'season', rules: { ...SEASON_RULES, leagues: ['england'] }, jobSecurity: true })
-    expect(quiet).toBe('Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed K7Q2-MX9A, squad of 18')
+    expect(quiet).toBe('Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A, squad of 18')
   })
 })
 

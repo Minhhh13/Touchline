@@ -186,6 +186,6 @@ describe('the summary line above Start', () => {
     expect(summariseSetup(u, settings(setupRules(QUICK_RULES, choices({ difficulty: 'hard', showRatings: false }))))).toBe('Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed SETUP-38, hard mode')
     // A managed season defaults to Easy, so Normal is the change there
     const season: GameSettings = { ...settings(setupRules({ ...SEASON_RULES, squadSize: 18 }, choices({ difficulty: 'normal', twists: false }))), mode: 'season', jobSecurity: true }
-    expect(summariseSetup(u, season)).toBe('Touchline XI, 4-3-3, Premier League 2025-26, calibrated, seed SETUP-38, normal mode, squad of 18')
+    expect(summariseSetup(u, season)).toBe('Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed SETUP-38, normal mode, squad of 18')
   })
 })

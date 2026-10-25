@@ -19,7 +19,7 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
 import { TWIST_ICON } from '../components/icons'
-import { clubName, nationName, ordinal, seasonLabel } from '../format'
+import { clubName, nationName, ordinal, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
 import { eraFirstSeason } from '@game/logic/era'
@@ -91,7 +91,7 @@ export function Draft() {
   const squadRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!revealed || typeof window === 'undefined' || !window.matchMedia?.('(max-width: 720px)').matches) return
-    squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [revealed])
 
   if (!u || !game || !d) return null
@@ -180,7 +180,7 @@ export function Draft() {
           <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The draft'}</h1>
           <div className="screen-meta">
             <span>
-              {game.settings.teamName} · {game.settings.formationId}
+              {game.settings.teamName} · {formationName(game.settings.formationId)}
             </span>
             {challenge && <span className="chip info">vs {challenge.name} · {challenge.claim.pts} pts</span>}
             {d.rules.onlyClub && <span className="chip">{clubName(u, d.rules.onlyClub)} only</span>}
@@ -252,7 +252,15 @@ export function Draft() {
         <div className="col">
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} every={hasMode(d.rules, 'crazy')} coming={d.current ? null : d.forcedTwist ?? null} />}
-            <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} onSettled={() => setSettled(d.current)} />
+            {/* Once every pick is made the reel has nothing left to spin: a "Squad ready" line takes its place (U15) */}
+            {complete && !d.current ? (
+              <div className="draft-ready" data-testid="draft-ready">
+                <span className="eyebrow">Squad ready</span>
+                <b>{picksMade(d)} picks made</b>
+              </div>
+            ) : (
+              <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} onSettled={() => setSettled(d.current)} />
+            )}
             {oddsLabel && !complete && !dry && !spinning && <SpinOdds odds={odds} label={oddsLabel} />}
             {ghost && challenge && revealed && (
               <div className="chip info ghost-chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`}>
@@ -319,17 +327,20 @@ export function Draft() {
               </button>
             )}
           </div>
-          <div className="panel tight">
-            <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
-              {fillingStarters ? 'Still need' : complete ? 'Squad complete' : `Bench · ${total - made} more pick${total - made === 1 ? '' : 's'}${places ? ', optional' : ''}`}
+          {/* Nothing left to need once the squad is complete ("Squad ready" says so above) */}
+          {!complete && (
+            <div className="panel tight">
+              <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
+                {fillingStarters ? 'Still need' : `Bench · ${total - made} more pick${total - made === 1 ? '' : 's'}${places ? ', optional' : ''}`}
+              </div>
+              <div className="pill-list">
+                {needs.map((p) => (
+                  <Pos key={p} p={p} />
+                ))}
+              </div>
+              {!fillingStarters && !dry && <Tip id="draft-bench">Bench picks can be anyone un-drafted; cover every position, injuries will come.</Tip>}
             </div>
-            <div className="pill-list">
-              {needs.map((p) => (
-                <Pos key={p} p={p} />
-              ))}
-            </div>
-            {!fillingStarters && !complete && !dry && <Tip id="draft-bench">Bench picks can be anyone un-drafted; cover every position, injuries will come.</Tip>}
-          </div>
+          )}
           {(d.history.length > 0 || puLog.length > 0) && (
             <div className="panel tight">
               <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
@@ -520,7 +531,7 @@ export function Draft() {
         <div className="col draft-pitch">
           <div className="panel">
             <div className="panel-head">
-              <h3>{game.settings.formationId}</h3>
+              <h3>{formationName(game.settings.formationId)}</h3>
               <span className={`chip ${Object.keys(d.lineup).length === 11 ? 'good' : ''}`}>{Object.keys(d.lineup).length}/11 starters</span>
             </div>
             <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hide} />

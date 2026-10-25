@@ -9,12 +9,11 @@ import { POWER_UPS, POWER_UPS_ICON, POWER_UP_INFO } from '@engine/powerups'
 import { InfoTip } from '../components/PowerUpButton'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
-import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
 import { poolClubSeasons } from '@engine/universe'
 import { classicFromFor, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
-import { ordinal, seasonLabel } from '../format'
+import { formationName, ordinal, seasonLabel, tierName } from '../format'
 import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
 import { LeagueFlag, NationFlag } from '../components/Flag'
 import { Pitch } from '../components/Pitch'
@@ -353,12 +352,12 @@ export function Setup() {
                 <StepHead n={3} title={fixed.kind === 'daily' ? "Today's rules" : 'The rules'} />
                 {fixed?.kind === 'daily' && (
                   <div className="notice" data-testid="daily-notice">
-                    Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, in the <b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
+                    Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in the <b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
                   </div>
                 )}
                 {fixed?.kind === 'challenge' && challenge && (
                   <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
-                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts in the {leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
+                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts in the {leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}, {formationName(fixed.formationId)} ({tierName(challenge.claim.t)}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
                     Same seed, same wheel, {fixed.difficulty} difficulty
                     {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
                     {fixed.rules?.twists ? ', twists on' : ', no twists'}

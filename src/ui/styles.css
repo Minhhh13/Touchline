@@ -59,11 +59,26 @@
   --art-grass: #0f3a63;
   --art-grass-2: #0c3157;
   --art-paper: #f1f4ff;
-  /* On the hero art: fixed in both themes, because the hero is always the night scene */
+  /* The Home hero's own art tokens (HeroArt reads them through --art-* on .hero): the night ground in Floodlit, a pale dusk in Daylight */
+  --hero-sky-1: #13297a;
+  --hero-sky-2: #050c2a;
+  --hero-ink: #030820;
+  --hero-body: #142a70;
+  --hero-body-2: #20398c;
+  --hero-light: #eaf6ff;
+  --hero-grass: #0c3a63;
+  --hero-grass-2: #0a3157;
+  --hero-paper: #f1f4ff;
+  --hero-cyan: #38d9f5;
+  --hero-magenta: #e070ff;
+  --hero-neon-strength: 0.9;
+  /* The colour of the hero's scrim (and its background while the art loads) */
+  --hero-shade: var(--navy);
+  /* Text on the hero art */
   --on-photo: #ffffff;
   --on-photo-2: rgba(255, 255, 255, 0.82);
   --photo-accent: #5ee3fb;
-  --photo-scrim: color-mix(in srgb, var(--navy) 88%, transparent);
+  --photo-scrim: color-mix(in srgb, var(--hero-shade) 88%, transparent);
   /* Status */
   --good: #34d399;
   --warn: #fb923c;
@@ -102,6 +117,9 @@
   --pitch-disc-empty: rgba(7, 16, 46, 0.5);
   --pitch-highlight: #5ee3fb;
   --pitch-bad: #f87171;
+  /* The substitution board's fit glows on the grass: natural, can cover (out of position is --pitch-bad) */
+  --pitch-fit: #34d399;
+  --pitch-cover: #f5c542;
   /* Type */
   --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
@@ -188,6 +206,23 @@
   --art-grass: #aedcea;
   --art-grass-2: #9bd2e3;
   --art-paper: #ffffff;
+  /* The Home hero in Daylight: a pale lavender-to-pink sky with the stadium in mid-tone navy and violet line work, dark text on it */
+  --hero-sky-1: #d9dcf8;
+  --hero-sky-2: #f5ebfb;
+  --hero-ink: #48509e;
+  --hero-body: #ccd0f4;
+  --hero-body-2: #b4b5ec;
+  --hero-light: #ffffff;
+  --hero-grass: #b0dce8;
+  --hero-grass-2: #a0d1e1;
+  --hero-paper: #ffffff;
+  --hero-cyan: #0890b4;
+  --hero-magenta: #b84ae0;
+  --hero-neon-strength: 0.6;
+  --hero-shade: #f3f1fd;
+  --on-photo: #0a1b51;
+  --on-photo-2: #313e78;
+  --photo-accent: #223bc8;
   --good: #056a4c;
   --warn: #b03a0a;
   --bad: #b91c1c;
@@ -395,16 +430,6 @@ p {
   --tl-line-bottom: #1e2f8a;
   --tl-glint-edge: #c7d2fe;
   --tl-glint-core: #ffffff;
-}
-/* The Home hero is always the night-navy banner, so its lockup keeps the Floodlit colours in both themes */
-:root[data-theme='light'] .hero .tl-lockup {
-  --tl-ink: #ffffff;
-  --tl-ball-ring: transparent;
-  --tl-touch-top: #ffffff;
-  --tl-touch-bottom: #c9d5e8;
-  --tl-line-top: #9ccaff;
-  --tl-line-bottom: #4b8df8;
-  --tl-glint-edge: rgba(165, 243, 252, 0.95);
 }
 /* The short touchline under the flag and the ball; its top edge is the name's baseline */
 .tl-rule {
@@ -2400,14 +2425,14 @@ table.tbl.contracts .btn.sm {
 }
 
 /* ------------------------------------------------------------------ hero / home */
-/* The hero is our night-ground drawing (HeroArt in components/Art.tsx) under a navy scrim; text on it uses the fixed --on-photo tokens, so it reads the same in both themes */
+/* The hero is our ground drawing (HeroArt in components/Art.tsx) under a scrim: the night scene in Floodlit, a pale one in Daylight; text on it uses the --on-photo tokens */
 .hero {
   position: relative;
   isolation: isolate;
   overflow: hidden;
   border-radius: var(--radius);
   border: var(--border);
-  background: var(--navy);
+  background: var(--hero-shade);
   min-height: 340px;
   display: flex;
   align-items: flex-end;
@@ -2435,34 +2460,22 @@ table.tbl.contracts .btn.sm {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(90deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 62%, transparent) 42%, color-mix(in srgb, var(--navy) 6%, transparent) 78%), linear-gradient(0deg, color-mix(in srgb, var(--navy) 60%, transparent) 0%, transparent 50%);
+  background: linear-gradient(90deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--hero-shade) 62%, transparent) 42%, color-mix(in srgb, var(--hero-shade) 6%, transparent) 78%), linear-gradient(0deg, color-mix(in srgb, var(--hero-shade) 60%, transparent) 0%, transparent 50%);
 }
-/* The hero is always the night scene; Daylight turns it to a softer dusk */
+/* The hero's drawing reads the --hero-* tokens: the night scene in Floodlit, the pale one in Daylight */
 .hero {
-  --art-sky-1: #13297a;
-  --art-sky-2: #050c2a;
-  --art-ink: #030820;
-  --art-body: #142a70;
-  --art-body-2: #20398c;
-  --art-light: #eaf6ff;
-  --art-grass: #0c3a63;
-  --art-grass-2: #0a3157;
-  --art-paper: #f1f4ff;
-  --cyan: #38d9f5;
-  --magenta: #e070ff;
-  --neon-strength: 0.9;
-}
-:root[data-theme='light'] .hero {
-  --art-sky-1: #2b3f9e;
-  --art-sky-2: #101d5c;
-  --art-ink: #060f42;
-  --art-body: #20368f;
-  --art-body-2: #2e49a8;
-  --art-grass: #164c7c;
-  --art-grass-2: #13426e;
-  --cyan: #5ee3fb;
-  --magenta: #e58bff;
-  --neon-strength: 0.72;
+  --art-sky-1: var(--hero-sky-1);
+  --art-sky-2: var(--hero-sky-2);
+  --art-ink: var(--hero-ink);
+  --art-body: var(--hero-body);
+  --art-body-2: var(--hero-body-2);
+  --art-light: var(--hero-light);
+  --art-grass: var(--hero-grass);
+  --art-grass-2: var(--hero-grass-2);
+  --art-paper: var(--hero-paper);
+  --cyan: var(--hero-cyan);
+  --magenta: var(--hero-magenta);
+  --neon-strength: var(--hero-neon-strength);
 }
 .hero-content {
   padding: var(--space-6) 40px;
@@ -2476,8 +2489,8 @@ table.tbl.contracts .btn.sm {
 .hero h1 .tl-lockup {
   --tl-delay: 0.15s;
 }
-/* The lockup on the hero art uses the fixed photo tokens in both themes, like the rest of the hero text */
-:root .hero h1 .tl-lockup {
+/* On the night hero the lockup takes the photo tokens; on Daylight's pale hero it keeps the normal Daylight colours */
+:root:not([data-theme='light']) .hero h1 .tl-lockup {
   --tl-ink: var(--on-photo);
   --tl-ball-ring: transparent;
 }
@@ -2852,7 +2865,11 @@ table.tbl.contracts .btn.sm {
     object-position: 50% 75%;
   }
   .hero::before {
-    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 72%, transparent) 62%, color-mix(in srgb, var(--navy) 25%, transparent) 100%);
+    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--hero-shade) 72%, transparent) 62%, color-mix(in srgb, var(--hero-shade) 25%, transparent) 100%);
+  }
+  /* On a phone the lockup sits over the goal and a floodlight, so Daylight's pale scrim stays denser to the top */
+  :root[data-theme='light'] .hero::before {
+    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--hero-shade) 80%, transparent) 62%, color-mix(in srgb, var(--hero-shade) 62%, transparent) 100%);
   }
   .hero-content {
     padding: var(--space-5) var(--space-4);
@@ -8625,4 +8642,71 @@ table.tbl.match-stats th {
 }
 .setup-goal b {
   color: var(--text);
+}
+/* A short desktop window: step 4's cards and segmented buttons a little slimmer, so the fold stays in view */
+@media (min-width: 1000px) and (min-height: 600px) and (max-height: 800px) {
+  .setup-page .setup-rules .choice-card {
+    padding-block: 4px;
+  }
+  .setup-page .setup-rules .segmented button {
+    min-height: 28px;
+    padding-block: 3px;
+  }
+  .setup-page .setup-rules .setup-opt {
+    gap: 4px;
+  }
+}
+/* Whatever scrolls into view (the Advanced fold, a landed squad) stops below the top bar's measured height, one row or
+   two (--topbar-h, set by App from a ResizeObserver); the shell itself can never be scrolled by a script (Safari) */
+html {
+  scroll-padding-top: calc(var(--topbar-h, 64px) + var(--space-2));
+}
+[data-testid='more-options'],
+.draft-squad {
+  scroll-margin-top: calc(var(--topbar-h, 64px) + var(--space-2));
+}
+@media (min-width: 1100px) {
+  .app.shell {
+    overflow: clip;
+  }
+}
+.draft-ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--primary-soft);
+  text-align: center;
+}
+.draft-ready b {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+}
+/* Slot chips (M10): the fit reads from the coloured border and tint; the text is the body colour, so it passes 4.5:1 */
+.slot-chip.warn,
+.slot-chip.good {
+  color: var(--text);
+}
+.slot-chip.warn {
+  border-color: var(--warn);
+}
+.slot-chip.good {
+  border-color: var(--good);
+}
+/* Head-to-head setup on a phone (M13): the four rule cards fold to one compact strip of titles, so the managers start above the fold */
+@media (max-width: 720px) {
+  .screen-body:has(.h2h-league) > .steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+  .screen-body:has(.h2h-league) > .steps li {
+    padding: var(--space-1) var(--space-2);
+  }
+  .screen-body:has(.h2h-league) > .steps li .small,
+  .screen-body:has(.h2h-league) > .steps .step-icon {
+    display: none;
+  }
 }

@@ -15,6 +15,7 @@ import { feedFromLive, feedFromResult, scoreAt, type MatchFeed } from '@engine/m
 import { statsSeries, xgStory } from '@engine/matchStats'
 import { liveCondition, ratingsAt } from '@engine/liveRatings'
 import { getFormation } from '@engine/formations'
+import { ratingsHidden } from '@engine/draft'
 import { USER_TEAM } from '@engine/season'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
@@ -202,7 +203,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
       }
     : undefined
   const top = <TopBar feed={feed} clock={clock} minute={minute} home={home} away={away} label={label} control={control} hand={hand} playback={playback} />
-  const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} /> : null
+  const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} hideRatings={ratingsHidden(game.settings.rules)} /> : null
   const pitch = (
     <LivePitch
       home={{ name: home.name, shortName: home.code, colour: home.colour, tactics: feed.home.tactics, appearances: feed.home.appearances }}
@@ -237,7 +238,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
           The assistant is making the {stopAt === 45 ? 'half-time' : '70th-minute'} calls…
         </div>
       ) : (
-        <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} />
+        <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingsHidden(game.settings.rules) }} />
       )
     ) : null
   const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} hand={hand} name={getName} condition={condition} />
