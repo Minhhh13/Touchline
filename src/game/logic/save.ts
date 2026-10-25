@@ -1,4 +1,4 @@
-import type { Game, GameSettings } from '../types'
+import type { Game, GameSettings, Profile, QuickBests } from '../types'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
@@ -94,4 +94,15 @@ function withMoraleLogs(squad: Record<string, SquadPlayer>): Record<string, Squa
     out[id] = Array.isArray(log) ? { ...rest, moraleLog: log.slice(-MORALE_LOG_CAP) } : rest
   }
   return changed ? out : squad
+}
+
+/**
+ * A profile from any build: the defaults under whatever was saved, and the Quick Draft bests (added with the 38-0
+ * chase) filled in, so a profile written before them reads as no perfect seasons and no run yet.
+ */
+export function normaliseProfile(p: Partial<Profile> | null | undefined, defaults: Profile): Profile {
+  const saved = p && typeof p === 'object' ? p : {}
+  const b: QuickBests = saved.quickBests && typeof saved.quickBests === 'object' ? saved.quickBests : {}
+  const quickBests: QuickBests = { perfectSeasons: b.perfectSeasons ?? 0, longestPerfectRun: b.longestPerfectRun ?? 0, ...(b.bestRecord ? { bestRecord: b.bestRecord } : {}) }
+  return { ...defaults, ...saved, quickBests }
 }

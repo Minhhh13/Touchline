@@ -7,12 +7,12 @@ import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
-import { normaliseGame } from '../logic/save'
+import { normaliseGame, normaliseProfile } from '../logic/save'
 import { matchPlayOf } from '../logic/assistant'
 import { rollEvent } from '@engine/events'
 import { newSquadPlayer, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
-import type { Game, GameSettings } from '../types'
+import type { Game, GameSettings, Profile } from '../types'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
   return {
@@ -137,8 +137,19 @@ describe('audit fixes: season and squad', () => {
     expect(n.settings.matchPlay).toBeUndefined()
     expect(matchPlayOf(n)).toBe('watch')
     expect(n.squad).toBe(g.squad)
+    // No Quick Draft manager on a save from before managers: optional, left absent, and no rule switches them on
+    expect(n.manager).toBeUndefined()
+    expect(n.settings.rules.managers).toBeUndefined()
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
+    // A quick result saved before the live table has no rounds; a January window before it, no first-half rounds
+    expect(n.quickResult?.rounds).toBeUndefined()
+    // A profile saved before the 38-0 chase reads as no perfect seasons and no run yet
+    const oldProfile: Partial<Profile> = { achievements: {}, leaderboard: [], dailyStreak: 2, lastDailyDate: null, dailyResults: {}, gamesPlayed: 3, seasonsSimulated: 3, theme: 'dark', managerName: 'Old' }
+    const p = normaliseProfile(oldProfile, { ...oldProfile, theme: 'auto', managerName: '' } as Profile)
+    expect(p.quickBests).toEqual({ perfectSeasons: 0, longestPerfectRun: 0 })
+    expect(p.theme).toBe('dark')
+    expect(p.dailyStreak).toBe(2)
   })
 
   it('a save from before the happiness log and the Inbox player links loads and plays', () => {

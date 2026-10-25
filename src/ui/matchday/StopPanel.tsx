@@ -6,18 +6,26 @@
  * match (these changes, then the assistant takes any later stop) or Full sim
  * (these changes, then straight to the report). Minimised, it waits as a
  * "Decisions" pill; the match stays paused until a choice is made.
+ *
+ * "Make a change" turns the pop-up into the substitution board (the top bar's
+ * own `SubBoard`): drag, tap or key a substitute onto a starter, then "Make
+ * changes" sends the staged list through the hand's `submit` into the stop's
+ * pending changes, exactly as the top bar's substitutions sheet does, and the
+ * pop-up comes back with them listed (each with Undo).
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
-import { playerLookup, isAvailable } from '@game/logic/players'
-import { currentScore, onPitch, SHOUTS, type LiveChanges, type Shout, type TeamTalk } from '@engine/match'
-import type { Tactics } from '@engine/types'
+import { currentScore, SHOUTS, type LiveChanges, type Shout, type TeamTalk } from '@engine/match'
+import type { PlayerSeason, SquadPlayer, Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import type { LiveMatch } from '@game/types'
-import { Pos, Rating, Segmented, Tip } from '../components/bits'
+import { Segmented, Tip } from '../components/bits'
 import { DecisionSheet } from '../components/DecisionSheet'
-import { draftChanges, type StopDraft } from './controls'
-import { BallIcon, CardIcon } from './icons'
+import { draftChanges, stopSubCap, type StopDraft, type Sub } from './controls'
+import { SubBoard } from './drawers/SubBoard'
+import { boardRoom } from './subBoard'
+import type { SideView } from './types'
+import type { ManagerHand } from './useManagerHand'
 
 export interface StopActions {
   /** Play on to the next stop (or the whistle) with these changes. */
@@ -30,12 +38,39 @@ export interface StopActions {
   onFullSim: (changes: LiveChanges) => void
 }
 
-export function StopPanel({ live, actions, draft, setDraft }: { live: LiveMatch; actions: StopActions; draft: StopDraft; setDraft: (d: StopDraft) => void }) {
+/** What the substitution board needs, the same as the top bar's substitutions sheet. */
+export interface StopBoardProps {
+  hand: ManagerHand
+  view: SideView
+  get: (id: string) => PlayerSeason | undefined
+  squad: Record<string, SquadPlayer>
+  condition: (psId: string) => number | null
+  hideRatings: boolean
+}
+
+export function StopPanel({ live, actions, draft, setDraft, board }: { live: LiveMatch; actions: StopActions; draft: StopDraft; setDraft: (d: StopDraft) => void; board: StopBoardProps }) {
   const store = useStore()
   const { universe: u, game } = store
-  const [subbingOff, setSubbingOff] = useState<string | null>(null)
   const [open, setOpen] = useState(true)
-  const minimise = useCallback(() => setOpen(false), [])
+  // The board in the pop-up, and what it has staged (sent to the stop's pending changes on "Make changes")
+  const [boarding, setBoarding] = useState(false)
+  const [queue, setQueue] = useState<Sub[]>([])
+  const boardingRef = useRef(false)
+  boardingRef.current = boarding
+  const closeBoard = useCallback(() => {
+    setBoarding(false)
+    setQueue([])
+  }, [])
+  // Escape or the close button: back from the board to the pop-up first, then minimise (one stable callback, so the sheet keeps its focus)
+  const minimise = useCallback(() => (boardingRef.current ? closeBoard() : setOpen(false)), [closeBoard])
+  const sheetFocus = useRef<'board' | 'back' | null>(null)
+  useEffect(() => {
+    const want = sheetFocus.current
+    if (!want) return
+    sheetFocus.current = null
+    const el = want === 'board' ? document.querySelector<HTMLElement>('[data-testid="sub-board"] .sub-bench-card:not([disabled])') : document.querySelector<HTMLElement>('[data-testid="stop-make-change"]:not([disabled])') ?? document.querySelector<HTMLElement>('[data-testid="play-on"]')
+    el?.focus({ preventScroll: true })
+  }, [boarding])
   const { onPlay } = actions
   // The pending changes live in the dashboard, so the top bar's drawers edit the same ones
   const { talk, shout, tactics, subs } = draft
@@ -47,21 +82,19 @@ export function StopPanel({ live, actions, draft, setDraft }: { live: LiveMatch;
   const mp = live.mp
   const clock = mp.clock ?? 45
   const atBreak = clock === 45
-  const get = playerLookup(game, u)
-  const side: 'home' | 'away' = live.userIsHome ? 'home' : 'away'
+  const get = board.get
   const scoreNow = currentScore(mp)
   const us = live.userIsHome ? scoreNow.home : scoreNow.away
   const them = live.userIsHome ? scoreNow.away : scoreNow.home
   const t = tactics ?? game.tactics
-  const pitch = onPitch(mp, side)
-  /** Everyone who has been on the pitch for us, including the men already taken off: none can come back on. */
-  const appeared = live.userIsHome ? mp.hLive : mp.aLive
   const made = (live.userIsHome ? mp.hSubs : mp.aSubs).length
   // Three changes at the break; whatever is left of the five at 70
-  const subCap = atBreak ? Math.min(3, 5 - made) : 5 - made
-  const subbedOn = new Set(subs.map((s) => s.on))
-  const subbedOff = new Set(subs.map((s) => s.off))
-  const benchOptions = game.bench.filter((id) => !appeared.some((p) => p.psId === id) && !subbedOn.has(id) && isAvailable(game.squad[id]))
+  const subCap = stopSubCap(atBreak ? 45 : 70, made)
+  const openBoard = () => {
+    sheetFocus.current = 'board'
+    setQueue([])
+    setBoarding(true)
+  }
   const changes = draftChanges(draft, atBreak ? 45 : 70)
   const play = () => onPlay(changes)
   const stateLabel = us > them ? `ahead ${us}-${them}` : us < them ? `behind ${us}-${them}` : `level ${us}-${them}`
@@ -72,6 +105,47 @@ export function StopPanel({ live, actions, draft, setDraft }: { live: LiveMatch;
         Decisions · {stopName}
       </button>
     )
+  if (boarding) {
+    const { hand } = board
+    // The stop's room less what is already pending (the hand counts it), as the top bar's sheet does
+    const room = boardRoom({ subCap: hand.subCap, landing: hand.landing.kind, windowsLeft: hand.windowsLeft, windowOpen: hand.windowOpen })
+    const confirm = () => {
+      if (!queue.length) return
+      sheetFocus.current = 'back'
+      if (hand.submit({ substitutions: queue })) closeBoard()
+    }
+    return (
+      <DecisionSheet
+        open
+        title={`Substitutions at ${atBreak ? 'half time' : '70 minutes'}`}
+        subtitle={`${subs.length + queue.length}/${subCap} changes · ${atBreak ? 'changes at the break spend no stoppage' : 'made together when you play on'}`}
+        onMinimise={minimise}
+        testId={atBreak ? 'half-time-panel' : 'late-panel'}
+        actions={
+          <>
+            <button className="btn primary" onClick={confirm} disabled={queue.length === 0} data-testid="sub-confirm">
+              {queue.length > 1 ? `Make ${queue.length} changes` : 'Make changes'}
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                sheetFocus.current = 'back'
+                closeBoard()
+              }}
+              data-testid="stop-board-back"
+            >
+              Back
+            </button>
+          </>
+        }
+      >
+        <div className="md-stop-board">
+          <SubBoard hand={hand} view={board.view} get={board.get} squad={board.squad} condition={board.condition} selected={null} queue={queue} setQueue={setQueue} room={room} disabled={!hand.editable} hideRatings={board.hideRatings} />
+          {room <= 0 && queue.length === 0 && <p className="small muted">No more changes at this stop.</p>}
+        </div>
+      </DecisionSheet>
+    )
+  }
   return (
     <DecisionSheet
       open
@@ -148,88 +222,27 @@ export function StopPanel({ live, actions, draft, setDraft }: { live: LiveMatch;
             <Segmented value={t.tempo} onChange={(v) => setTactics({ ...t, tempo: v })} options={[{ value: 'slow', label: 'Slow' }, { value: 'standard', label: 'Standard' }, { value: 'fast', label: 'Fast' }]} />
           </div>
         </div>
-        <div className="col">
+        <div className="col md-stop-subs">
           <div className="row between">
             <span style={{ fontWeight: 600 }}>
               Substitutions ({subs.length}/{subCap}
               {atBreak ? ' at the break' : ' left'})
             </span>
-            {subbingOff && (
-              <button className="btn sm" onClick={() => setSubbingOff(null)}>
-                Cancel
-              </button>
-            )}
           </div>
-          {subbingOff ? (
-            <div className="plist">
-              <div className="small muted">Bring on for {get(subbingOff)?.name}:</div>
-              {benchOptions.map((id) => {
-                const p = get(id)
-                if (!p) return null
-                return (
-                  <button
-                    key={id}
-                    className="prow"
-                    onClick={() => {
-                      setSubs([...subs, { off: subbingOff, on: id }])
-                      setSubbingOff(null)
-                    }}
-                  >
-                    <Rating value={p.overall} />
-                    <span className="name">
-                      {p.name}{' '}
-                      {p.positions.map((x) => (
-                        <Pos key={x} p={x} />
-                      ))}
-                      <span className="muted small">condition {game.squad[id]?.condition}</span>
-                    </span>
-                    <span className="btn sm primary">On</span>
-                  </button>
-                )
-              })}
-              {benchOptions.length === 0 && <div className="muted small">Nobody available on the bench.</div>}
-            </div>
-          ) : (
-            <div className="plist">
-              {pitch
-                .filter((p) => !subbedOff.has(p.psId))
-                .map((p) => {
-                  const ps = get(p.psId)
-                  const sub = subs.find((s) => s.on === p.psId)
-                  return (
-                    <div key={p.psId} className="prow" style={{ cursor: 'default' }}>
-                      {ps ? <Rating value={ps.overall} /> : <span />}
-                      <span className="name">
-                        <Pos p={p.position} /> {ps?.name}
-                        {p.yellow && <CardIcon />}
-                        {p.goals > 0 && (
-                          <span className="md-goals">
-                            <BallIcon />
-                            {p.goals > 1 ? p.goals : ''}
-                          </span>
-                        )}
-                        {p.onAt > 0 && !sub && <span className="chip">on {p.onAt}'</span>}
-                        {sub && <span className="chip good">on at {clock}'</span>}
-                        <span className="muted small">cond {game.squad[p.psId]?.condition ?? '–'}</span>
-                      </span>
-                      {subs.length < subCap && !sub && (
-                        <button className="btn sm" onClick={() => setSubbingOff(p.psId)}>
-                          Off
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
-              {subs.map((s) => (
-                <div key={s.on} className="small muted">
-                  {get(s.on)?.name} replaces {get(s.off)?.name}{' '}
-                  <button className="btn sm ghost" onClick={() => setSubs(subs.filter((x) => x !== s))}>
-                    undo
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="plist">
+            {subs.map((s) => (
+              <div key={s.on} className="small" data-testid="stop-sub">
+                <b>{get(s.on)?.name}</b> on for {get(s.off)?.name}{' '}
+                <button className="btn sm ghost" onClick={() => setSubs(subs.filter((x) => x !== s))} data-testid="stop-sub-undo">
+                  Undo
+                </button>
+              </div>
+            ))}
+            {subs.length === 0 && <div className="small muted">{atBreak ? 'No changes yet. Changes at the break spend no stoppage.' : 'No changes yet.'}</div>}
+          </div>
+          <button className="btn sm primary" onClick={openBoard} disabled={subs.length >= subCap} data-testid="stop-make-change">
+            {subs.length >= subCap ? 'No more changes at this stop' : 'Make a change'}
+          </button>
         </div>
       </div>
     </DecisionSheet>

@@ -11,9 +11,12 @@ import type { Game, GameSettings } from '../types'
 
 /**
  * The "See your squad" batch (dressing room, happiness, medical, planner, personalities, league awards, inbox
- * actions) is views and bookkeeping only: it must not move a single seeded outcome. These hashes were captured on
- * origin/main at 2bfa023, before the batch, and every later build must reproduce them. A change that is meant to
- * move them belongs with an ENGINE_VERSION bump (CLAUDE.md invariant 2), which re-baselines this file.
+ * actions) is views and bookkeeping only: it must not move a single seeded outcome. The Season hash was captured on
+ * origin/main at 2bfa023, before the batch. The Quick Draft and Daily hashes were re-captured on origin/main at
+ * 35e4ae7 (plain main and this batch merged onto it agree): #39 turned the Quick Draft manager on in `QUICK_RULES`
+ * (a style boost on expected goals, section 12 "Managers") and added `quickResult.rounds`; the Daily's results did
+ * not move, only that field. Every later build must reproduce them. A change that is meant to move them belongs with
+ * an ENGINE_VERSION bump (CLAUDE.md invariant 2) or, like #39, a documented new default, and re-baselines this file.
  */
 
 const u = loadTestUniverse(['england'])
@@ -66,8 +69,8 @@ function quickPin(s: GameSettings): string {
 }
 
 const SEASON_BASELINE = 'dbe2f750e506032cd097088e9014c4833d3321040e9bc488d5e918b6d4291970'
-const QUICK_BASELINE = '6fe7747e5294eb31e31c4da3f92dd8a052bc9bcc61af995387c220b2ce1f3e73'
-const DAILY_BASELINE = '1f08c186a95019b00f8a9003347bbacc9e22d8aabb5a9bf910792ed6e3b1fab5'
+const QUICK_BASELINE = '0961a4547306881091862f7c8feb7caa4d07e1b50c968edf25c13b22c5712a2c'
+const DAILY_BASELINE = '48e5541ce2e880b360c1f9013e40545b2a04ab72650f35371005c7f3895b73a2'
 
 describe('the See your squad batch moves no seeded outcome', () => {
   it('plays three seeded Seasons to the same table, stream, finances and squad states', () => {

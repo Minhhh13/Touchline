@@ -53,9 +53,9 @@ describe('challenge links', () => {
     const g = autoGame({ rules: { ...QUICK_RULES, leagues: ['england'], fromSeason: 2014, hardMode: true, onlyClub: undefined } })
     const c = challengeFromGame(g, u, '  Minh\u0007 the Gaffer with a very long name  ')!
     expect(c).not.toBeNull()
-    expect(c.s.r).toEqual({ difficulty: 'hard', fromSeason: 2014, hardMode: true })
-    // The difficulty is always written, so a link from before difficulties is told apart
-    expect(rulesDiff(QUICK_RULES)).toEqual({ difficulty: 'normal' })
+    expect(c.s.r).toEqual({ difficulty: 'hard', managers: true, fromSeason: 2014, hardMode: true })
+    // The difficulty and the manager rule are always written, so a link from before either is told apart
+    expect(rulesDiff(QUICK_RULES)).toEqual({ difficulty: 'normal', managers: true })
     const encoded = encodeChallenge(c)
     expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/)
     // Real player ids and a rules diff keep an eleven-pick link well under a thousand characters

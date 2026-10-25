@@ -143,18 +143,16 @@ export function App() {
 
   let body: React.ReactNode
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
-  // Setup, the kick-off step, the season playback and the match day keep their own layouts
+  // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
+  // Setup and the match day keep their own layouts
   let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto'
   if (screen === 'game' && game) {
-    shell = game.phase !== 'kickoff' && game.phase !== 'january' && game.phase !== 'match'
+    shell = game.phase !== 'match'
     if (game.phase === 'draft') body = <Draft />
     else if (game.phase === 'kickoff') body = <KickOff />
     // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
     // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
-    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) {
-      shell = false
-      body = <SeasonPlayback key={game.phase} />
-    }
+    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = <Summary />
     else body = <Dugout />

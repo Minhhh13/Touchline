@@ -238,7 +238,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
           The assistant is making the {stopAt === 45 ? 'half-time' : '70th-minute'} calls…
         </div>
       ) : (
-        <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} />
+        <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingsHidden(game.settings.rules) }} />
       )
     ) : null
   const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} hand={hand} name={getName} condition={condition} />

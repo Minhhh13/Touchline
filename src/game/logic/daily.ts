@@ -7,7 +7,7 @@ export const DAILY_FORMATIONS: readonly string[] = ['4-3-3', '4-4-2', '4-2-3-1',
 /**
  * The Daily's draft rules, written out in full (nothing spread from `QUICK_RULES` or the difficulty
  * table) so a later change to the quick defaults can never make two players' Dailies differ: normal
- * difficulty (1 re-spin), ratings shown, Squad First, season ratings, twists on, all-time, every club
+ * difficulty (1 re-spin), ratings shown, Squad First, season ratings, no manager, twists on, all-time, every club
  * and nationality, the Premier League wheel. A new rule must be added here; a test checks that every
  * key of `QUICK_RULES` is.
  */
@@ -22,6 +22,7 @@ export const DAILY_RULES: DraftRules = {
   showRatings: true,
   draftMode: 'squad',
   ratings: 'season',
+  managers: false,
   fromSeason: undefined,
   toSeason: undefined,
   onlyClub: undefined,
