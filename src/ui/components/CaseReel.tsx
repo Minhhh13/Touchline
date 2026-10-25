@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Volume2, VolumeX } from 'lucide-react'
 import type { ClubSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DRUM_LAND, dealReel, idleCards, type ReelCard, type ReelDeal } from '@game/logic/reel'
@@ -7,18 +8,19 @@ import { ICONS_SEASON } from '@engine/icons'
 import { clubName, seasonLabel, textColourFor } from '../format'
 import { NeonFlow } from './Art'
 import { EstimatedChip } from './bits'
+import { startReelSound, type ReelSound } from '../sound/reel'
+import { armAudio, unlockAudio } from '../sound/synth'
+import { useSoundOn } from '../sound/prefs'
+import { FULL_TIMING, OVERSHOOT, QUICK_TIMING, reelKeyframes, reelPosition, type ReelTiming } from '../reelCurve'
+import { quickSpinPref, usePref } from '../viewerPrefs'
 
-/** Stage 1: the season drum rolls for DRUM_MS; the strip starts at SEASON_MS. */
-export const DRUM_MS = 850
-export const SEASON_MS = 1000
 /**
- * Stage 2: the strip slides for STRIP_MS and decelerates the whole way: about 51% of the
- * distance at a quarter of the time, 78% at half, and the last card still crossing the
- * marker in the final half second. Change the curve and the measurements in
+ * The timing lives in src/ui/reelCurve.ts: the season drum (DRUM_MS), the strip's start (SEASON_MS), its
+ * slide with the overshoot and ease back (SPIN_MS, on STRIP_CURVE) and the reveal (SETTLE_MS, after a short
+ * hold at rest). Quick spin and every re-spin run QUICK_TIMING. Change the curve and the measurements in
  * docs/GAME_DESIGN.md together.
  */
-export const STRIP_MS = 4300
-const STRIP_EASE = 'cubic-bezier(0.25, 0.75, 0.75, 1)'
+export { DRUM_MS, SEASON_MS, SPIN_MS, SETTLE_MS } from '../reelCurve'
 const DRUM_EASE = 'cubic-bezier(0.2, 0.7, 0.25, 1)'
 /** Reduced motion: no slide; the season shows at once and the landed card this long after. */
 export const REDUCED_MS = 500
@@ -49,6 +51,16 @@ function prefersReducedMotion(): boolean {
   } catch {
     return false
   }
+}
+
+/** Sound on or off, beside the reel; the same setting as Profile's. Turning it on is a gesture, so it unlocks the audio too. */
+export function SoundToggle() {
+  const [on, setOn] = useSoundOn()
+  return (
+    <button type="button" className="reel-sound" data-testid="sound-toggle" aria-pressed={on} aria-label={on ? 'Sound on: mute the reel' : 'Sound off: turn the reel sound on'} title={on ? 'Mute' : 'Sound on'} onClick={(e) => { e.stopPropagation(); setOn(!on); if (!on) unlockAudio() }}>
+      {on ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
+    </button>
+  )
 }
 
 /** "Gold · Elite" as a chip in its tier colour. */
@@ -96,9 +108,21 @@ export function CaseReel(props: CaseReelProps) {
   // What the live region says, tagged with the run that said it, so a new run never repeats the last one's line
   const [said, setSaid] = useState({ run: '', text: '' })
   const announce = useCallback((text: string) => setSaid((s) => (s.run === runKey && s.text === text ? s : { run: runKey, text })), [runKey])
+  // The Spin click (or key) is the gesture that creates the audio context, so listen before it lands
+  useEffect(armAudio, [])
+  // A re-spin replaces one drawn club-season with another, with no idle reel between: it runs quick, as does every run with Quick spin on
+  const [quickSpin] = usePref(quickSpinPref)
+  const lastRun = useRef('')
+  const respin = useRef({ run: '', quick: false })
+  if (runKey && respin.current.run !== runKey) respin.current = { run: runKey, quick: lastRun.current !== '' }
+  useEffect(() => {
+    lastRun.current = runKey
+  }, [runKey])
+  const timing = quickSpin || (runKey && respin.current.quick) ? QUICK_TIMING : FULL_TIMING
   return (
     <div className="wheel-wrap reel-wrap" data-testid="case-reel">
-      {target ? <ReelRun key={runKey} {...props} target={target} announce={announce} /> : <IdleReel u={props.u} leagues={props.leagues} pool={props.pool} />}
+      <SoundToggle />
+      {target ? <ReelRun key={runKey} {...props} target={target} announce={announce} timing={timing} /> : <IdleReel u={props.u} leagues={props.leagues} pool={props.pool} />}
       {/* One live region for every run: the season once, then the club and its tier once, never the passing cards */}
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="reel-live">
         {target && said.run === runKey ? said.text : ''}
@@ -134,10 +158,12 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   )
 }
 
-function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void }) {
+function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce, estimated, timing: runTiming }: CaseReelProps & { target: { clubId: string; season: number }; announce: (text: string) => void; timing: ReelTiming }) {
   // Dealt once per run; Math.random only shuffles cosmetic filler cards and the stop jitter, never the game
   const [deal] = useState<ReelDeal>(() => dealReel(u, { leagues, pool, target }, Math.random))
   const [reduced] = useState(prefersReducedMotion)
+  // Fixed for the run: turning Quick spin on mid-run changes the next one
+  const [timing] = useState(runTiming)
   const [stage, setStage] = useState<Stage>('season')
   const rootRef = useRef<HTMLDivElement>(null)
   const windowRef = useRef<HTMLDivElement>(null)
@@ -159,11 +185,29 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
     let alive = true
     const landCard = strip.children[deal.land] as HTMLElement | undefined
     // Where the strip stops, from the current layout: the landing card's centre (plus the jitter) under the marker
-    const stripEnd = () => {
+    const stripOffset = () => {
       const w = landCard?.offsetWidth ?? 0
-      const offset = landCard ? landCard.offsetLeft + w / 2 - win.clientWidth / 2 + deal.jitter * w : 0
-      return `translate3d(${(-offset).toFixed(1)}px, 0, 0)`
+      return landCard ? landCard.offsetLeft + w / 2 - win.clientWidth / 2 + deal.jitter * w : 0
     }
+    const stripEnd = () => `translate3d(${(-stripOffset()).toFixed(1)}px, 0, 0)`
+    // The slide: one curve past the stop point by a fraction of a card and back onto it
+    const overshoot = () => OVERSHOOT * (landCard?.offsetWidth ?? 0)
+    const frames = () => reelKeyframes(stripOffset(), overshoot(), timing)
+    // The ticks: every card boundary (the middle of each gap) that crosses the marker, either way, timed on the same curve
+    const soundOf = (anim: Animation | null): ReelSound => {
+      const cards = Array.from(strip.children, (el) => el as HTMLElement)
+      const gap = cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft - cards[0].offsetWidth : 0
+      const distance = stripOffset()
+      const over = overshoot()
+      return startReelSound({
+        slide: anim,
+        geometry: { boundaries: cards.map((c) => c.offsetLeft - gap / 2), marker: win.clientWidth / 2 },
+        timing: { position: (ms) => reelPosition(ms, distance, over, timing), duration: timing.spin, bounce: timing.bounce, delay: timing.season },
+        popAt: anim ? timing.drum : 0,
+        reduced,
+      })
+    }
+    let sound: ReelSound | null = null
     const label = drum.children[DRUM_LAND] as HTMLElement | undefined
     const drumTo = `translate3d(0, ${-(label?.offsetTop ?? 0)}px, 0)`
     let stripTo = stripEnd()
@@ -176,16 +220,17 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
       const next = stripEnd()
       if (next === stripTo) return
       stripTo = next
-      if (slide?.effect instanceof KeyframeEffect) slide.effect.setKeyframes([{ transform: 'translate3d(0, 0, 0)' }, { transform: stripTo }])
+      if (slide?.effect instanceof KeyframeEffect) slide.effect.setKeyframes(frames())
       if (done) strip.style.transform = stripTo
     }) : null
     observer?.observe(win)
     if (landCard) observer?.observe(landCard)
     const land = () => {
-      if (!alive) return
+      if (!alive || done) return
       done = true
       drum.style.transform = drumTo
       strip.style.transform = stripTo
+      sound?.land(deal.target.tier)
       setStage('landed')
       if (!settled.current) {
         settled.current = true
@@ -194,6 +239,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
     }
     if (reduced || typeof strip.animate !== 'function') {
       drum.style.transform = drumTo
+      sound = soundOf(null)
       const t = window.setTimeout(land, reduced ? REDUCED_MS : 0)
       skipRef.current = () => {
         window.clearTimeout(t)
@@ -202,21 +248,34 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
       return () => {
         alive = false
         window.clearTimeout(t)
+        sound?.stop()
         observer?.disconnect()
         skipRef.current = () => undefined
       }
     }
-    const roll = drum.animate([{ transform: 'translate3d(0, 0, 0)' }, { transform: drumTo }], { duration: DRUM_MS, easing: DRUM_EASE, fill: 'both' })
-    const run = strip.animate([{ transform: 'translate3d(0, 0, 0)' }, { transform: stripTo }], { duration: STRIP_MS, delay: SEASON_MS, easing: STRIP_EASE, fill: 'both' })
+    const roll = drum.animate([{ transform: 'translate3d(0, 0, 0)' }, { transform: drumTo }], { duration: timing.drum, easing: DRUM_EASE, fill: 'both' })
+    const run = strip.animate(frames(), { duration: timing.spin, delay: timing.season, easing: 'linear', fill: 'both' })
     slide = run
+    sound = soundOf(run)
     roll.finished.then(() => alive && setStage((s) => (s === 'season' ? 'strip' : s)), () => undefined)
-    run.finished.then(land, () => undefined)
+    // At rest, a short hold, then the reveal; a skip lands at once
+    let hold = 0
+    let skipped = false
+    run.finished.then(() => {
+      if (skipped) land()
+      else hold = window.setTimeout(land, timing.hold)
+    }, () => undefined)
     skipRef.current = () => {
+      skipped = true
+      window.clearTimeout(hold)
       roll.finish()
       run.finish()
+      if (run.playState === 'finished' && !done) land()
     }
     return () => {
       alive = false
+      window.clearTimeout(hold)
+      sound?.stop()
       observer?.disconnect()
       roll.cancel()
       run.cancel()

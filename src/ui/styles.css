@@ -1558,7 +1558,7 @@ label.field,
  * The wheel as a case opening, season first: a season drum stops on the drawn season, then a strip of that
  * season's clubs slides under the marker and lands on the drawn club. Every card carries its rarity tier in
  * Counter-Strike case colours (src/game/logic/rarity.ts). The tier colours are defined here once; anything else
- * reads the theme tokens with a fallback. Timings live in CaseReel.tsx (DRUM_MS, SEASON_MS, STRIP_MS).
+ * reads the theme tokens with a fallback. Timings live in src/ui/reelCurve.ts (FULL_TIMING, QUICK_TIMING; the slide is keyframed from reelPosition).
  */
 :root {
   --tier-gold: #e4ae39;
@@ -1611,6 +1611,38 @@ label.field,
 .reel-run {
   --card: 68px;
   --gap: 6px;
+}
+/* The sound toggle, top right of the reel beside the season */
+/* The season row keeps the toggle's width clear on the right, and the season never wraps, so it never runs under the toggle */
+.reel-wrap > .reel-run .reel-season {
+  padding-right: 34px;
+}
+.reel-wrap > .reel-run .reel-drum-window {
+  flex: none;
+  white-space: nowrap;
+}
+.reel-sound {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  border: var(--border);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--dur-1) ease, color var(--dur-1) ease;
+}
+.reel-sound:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.reel-sound[aria-pressed='false'] {
+  color: var(--text-3);
 }
 @container (min-width: 420px) {
   .reel-run {

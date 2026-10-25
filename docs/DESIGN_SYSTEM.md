@@ -577,7 +577,7 @@ The owner asked for "some site animation" and "some nice touchup". Motion here i
 
 ### Rules
 
-1. **150 to 400 ms**, on the tokens. The exceptions are named: the reel and the wheel (their timing is part of the draft, see CLAUDE.md), the live match pitch, the hero art's settle (`hero-in`) and the travelling neon light (`neon-run`, 7 s, the only loop; ambient, nothing waits on them), the lockup's own load and hover animation (section 2), the loading sweep (a 1.4 s loop, only while the packs load) and the celebration (0.9 s, once per result).
+1. **150 to 400 ms**, on the tokens. The exceptions are named: the reel and the wheel (their timing is part of the draft: about 7.2 s to the reveal, 2.7 s on a quick spin or a re-spin, `src/ui/reelCurve.ts`; see CLAUDE.md), the live match pitch, the hero art's settle (`hero-in`) and the travelling neon light (`neon-run`, 7 s, the only loop; ambient, nothing waits on them), the lockup's own load and hover animation (section 2), the loading sweep (a 1.4 s loop, only while the packs load) and the celebration (0.9 s, once per result).
 2. **Transform and opacity only.** No animated width, height, top or left, so nothing reflows. Bars grow with `scaleX`, the tab ink moves with `translate` and `scaleX`, the toast keeps its centring `translate` in every frame. The one width transition left is a bar's value changing in place (an old rule, on one small element).
 3. **Once.** Entrances run when something mounts and never loop. Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`.
 4. **Never block.** Nothing the player or a smoke script waits for is hidden behind an animation; buttons work while things are still rising. Count-ups mark themselves with `data-counting` while they climb.
@@ -623,4 +623,27 @@ How to build one: give the screen a head that stays, then a `.screen-body.fill` 
 **Hiding the top bar.** A round button the size and style of the theme switch sits right beside it (`.topbar-toggle`, `data-testid="topbar-toggle"`, a chevron up, `aria-label` "Hide top bar"). Pressed, the bar slides up out of the way (`topbar-out`, `--dur-2`) and the screen takes the freed height; a pill takes the same top-right corner (`.topbar-restore`, `data-testid="topbar-restore"`, a chevron down and "Show top bar"), and focus moves to it. The pill brings the bar back (`topbar-in`) and focus returns to the toggle. The `\` key does either, except while typing in a field. The choice is per viewer in `localStorage` under `touchline-topbar-hidden` (inside try/catch, through `useViewerFlag`); the hidden bar is `inert` and `aria-hidden`. A shell screen's head keeps 150 px clear on the right while the bar is hidden, so the pill never covers a control. Under reduced motion neither the bar nor the pill animates.
 
 **Naming the side.** Headers show the team name only, with the league flag and season as a chip where it helps; no header says "as <club>". The user's side wears a `TeamBadge` (its short name on `--primary`), never the badge of the club whose place it took. The replaced club appears only in Setup and on the Club tab ("You replace").
+
+## 14. Sound
+
+The case reel has sound, in the spirit of a Counter-Strike case opening but none of its audio: every sound is synthesised in the browser with the Web Audio API (oscillators, gain envelopes and a burst of white noise), so no audio file ships and no recording is copied. The code is `src/ui/sound/`: `schedule.ts` (pure: the bezier and the tick times), `synth.ts` (the context, the master gain and the voices), `reel.ts` (one reel run's sound), `prefs.ts` (the setting).
+
+| Moment | Sound | How |
+|---|---|---|
+| A card crossing the marker | A short tick, pitch varied by about 8 % either way | 40 ms of white noise through a band-pass at about 3.2 kHz. The tick times come from the strip's own position function (`reelPosition`) and the measured card boundaries (`tickTimes`), in both directions, so the overshoot's return ticks too (or, when it crosses no boundary, one settle tick halfway back); each frame reads the slide's `currentTime` and puts the next ticks on the audio clock 60 ms ahead, so they are dense at the start (capped at one per 15 ms, a rattle rather than a buzz) and sparse at the end, and stop on a skip |
+| The season drum | A whoosh as it rolls and a soft pop as it stops on the season | Noise through a band-pass sweeping 320 Hz to 2.4 kHz; a sine dropping 540 to 190 Hz |
+| The reveal | Every landing sound below plays at the reveal: the strip at rest, then the 400 ms hold (150 ms on a quick spin), then the glow and the sound together | `land()` in `CaseReel.tsx` calls `ReelSound.land` |
+| Landing: blue | A plain chime | One sine note, E5, with a quiet bell overtone |
+| Landing: purple, pink | A brighter two-note chime | Purple D5 then A5 (sine), pink F5 then C6 (triangle) |
+| Landing: red | A rising arpeggio | C5 E5 G5 C6, 75 ms apart |
+| Landing: gold | A shimmer and a sting, with the card's existing light sweep | A quick G arpeggio into a held G major chord over a low thump, and eight high pings on top |
+
+Rules:
+
+1. **Quiet.** One master gain at 0.35 (`MASTER_GAIN`); no sound is louder than a click.
+2. **After a gesture.** The context is created or resumed only inside a pointer or key gesture (capture-phase listeners from `armAudio`), so the Spin click is the one that unlocks it; nothing plays before.
+3. **On by default, the viewer's choice.** The speaker button beside the reel (`sound-toggle`, Lucide `Volume2` / `VolumeX`) and Sound in Profile (`sound-on` / `sound-off`) are the same setting, kept per device in `localStorage` under `touchline-sound` (not in the save). Off creates no context and plays nothing.
+4. **Reduced motion keeps sound.** There is no slide, so no ticks; the season and landing sounds play, without the gold shimmer.
+5. **Silent without Web Audio.** No `AudioContext` (tests, headless runs, old browsers) means every call is a no-op.
+6. **Presentation only.** `Math.random` here varies a tick's pitch and fills the noise buffer; nothing reads or writes the game's RNG or state.
 

@@ -24,8 +24,8 @@ export const REEL_LAND = 60
 /** Labels on the season drum, and the index of the drawn season (one more label sits below it, so the drum never runs off its end). */
 export const DRUM_LABELS = 22
 export const DRUM_LAND = 20
-/** The near-miss jitter: the strip stops up to this fraction of a card either side of the card's centre. */
-export const REEL_JITTER = 1 / 3
+/** The near-miss jitter: the strip stops up to this fraction of a card either side of the card's centre, so the marker can rest near an edge. Cosmetic (Math.random in the UI). */
+export const REEL_JITTER = 0.45
 
 /** Three-letter league codes for the small tag on a card when the draft spans several leagues. */
 const LEAGUE_CODES: Record<string, string> = { england: 'ENG', spain: 'ESP', italy: 'ITA', germany: 'GER', france: 'FRA', netherlands: 'NED', portugal: 'POR' }
