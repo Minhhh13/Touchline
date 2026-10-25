@@ -134,6 +134,15 @@
   --control-h: 40px;
   --control-h-sm: 30px;
   --control-h-lg: 52px;
+  /* Motion (DESIGN_SYSTEM.md section 12): four durations, three curves; DURATION in motion.ts mirrors the numbers */
+  --dur-1: 150ms;
+  --dur-2: 220ms;
+  --dur-3: 320ms;
+  --dur-4: 400ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  --stagger: 60ms;
 }
 :root[data-theme='light'] {
   color-scheme: light;
@@ -596,6 +605,10 @@ p {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--dur-1) ease, color var(--dur-1) ease, border-color var(--dur-1) ease, transform var(--dur-1) var(--ease-out);
+}
+.topbar nav button:active {
+  transform: scale(0.96);
 }
 .topbar nav button:hover {
   background: var(--bg-3);
@@ -653,14 +666,23 @@ p {
   background: transparent;
   color: var(--text-2);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.3s ease;
+  transition: background var(--dur-1) ease, color var(--dur-1) ease, transform var(--dur-3) var(--ease-spring);
 }
 .theme-switch:hover {
   background: var(--bg-3);
   color: var(--text);
 }
 .theme-switch:active {
-  transform: rotate(30deg);
+  transform: rotate(30deg) scale(0.92);
+}
+.theme-switch svg {
+  animation: switch-in var(--dur-3) var(--ease-spring);
+}
+@keyframes switch-in {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
 }
 .page {
   width: 100%;
@@ -849,7 +871,7 @@ p {
   color: var(--text);
   cursor: pointer;
   font-weight: 600;
-  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: transform var(--dur-1) var(--ease-out), background var(--dur-1) ease, border-color var(--dur-1) ease, color var(--dur-1) ease;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -863,8 +885,10 @@ p {
 .btn:hover {
   border-color: var(--primary);
 }
-.btn:active {
-  transform: translateY(1px);
+.btn:active:not(:disabled) {
+  /* The press-down: a little lower and smaller while held */
+  transform: translateY(1px) scale(0.97);
+  transition-duration: 60ms;
 }
 .btn:disabled {
   opacity: 0.45;
@@ -1216,7 +1240,15 @@ label.field,
   height: 100%;
   border-radius: 3px;
   background: var(--primary);
-  transition: width 0.3s ease;
+  transition: width var(--dur-3) var(--ease-out);
+  /* Grows from zero when it first appears (transform only); later value changes slide the width */
+  transform-origin: left center;
+  animation: bar-grow var(--dur-4) var(--ease-out) backwards;
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
 }
 .bar.thick {
   height: 10px;
@@ -1966,6 +1998,7 @@ table.tbl.contracts .btn.sm {
 
 /* ------------------------------------------------------------------ tabs */
 .tabs {
+  position: relative;
   display: flex;
   gap: var(--space-1);
   flex-wrap: wrap;
@@ -1991,6 +2024,27 @@ table.tbl.contracts .btn.sm {
 .tabs button.active {
   color: var(--text);
   box-shadow: inset 0 -2px 0 var(--primary);
+}
+.tabs button {
+  transition: color var(--dur-1) ease;
+}
+/* Once Tabs has measured the active tab, one 2px ink bar slides between tabs (a 1px bar moved and stretched: transform only) and replaces the per-tab underline */
+.tabs.has-ink button.active {
+  box-shadow: none;
+}
+.tabs-ink {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 1px;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.tabs-ink.ready {
+  transition: transform var(--dur-3) var(--ease-out);
 }
 .tabs button .dot {
   width: 8px;
@@ -2196,13 +2250,13 @@ table.tbl.contracts .btn.sm {
   color: var(--on-photo-2);
 }
 .hero-content > * {
-  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation: rise var(--dur-4) var(--ease-out) backwards;
 }
 .hero-content > :nth-child(2) {
-  animation-delay: 0.08s;
+  animation-delay: calc(var(--stagger) * 1.5);
 }
 .hero-content > :nth-child(3) {
-  animation-delay: 0.16s;
+  animation-delay: calc(var(--stagger) * 3);
 }
 .resume-card {
   margin-bottom: var(--space-3);
@@ -2241,24 +2295,30 @@ table.tbl.contracts .btn.sm {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-1) ease, box-shadow var(--dur-2) ease;
 }
+/* The four cards enter one after another, after the hero text */
 .modes > * {
-  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation: rise var(--dur-4) var(--ease-out) backwards;
+  animation-delay: calc(var(--stagger) * 2);
 }
 .modes > :nth-child(2) {
-  animation-delay: 0.06s;
+  animation-delay: calc(var(--stagger) * 3);
 }
 .modes > :nth-child(3) {
-  animation-delay: 0.12s;
+  animation-delay: calc(var(--stagger) * 4);
 }
 .modes > :nth-child(4) {
-  animation-delay: 0.18s;
+  animation-delay: calc(var(--stagger) * 5);
 }
 .mode-card:hover {
   transform: translateY(-3px);
   border-color: var(--primary);
   box-shadow: var(--shadow);
+}
+.mode-card:not(.daily):active {
+  transform: translateY(-1px) scale(0.985);
+  transition-duration: 60ms;
 }
 /* The picture on top, its icon badge sitting on the edge between picture and text */
 .mode-art {
@@ -2357,10 +2417,10 @@ table.tbl.contracts .btn.sm {
   background: var(--raised);
   color: var(--text);
   font-weight: 600;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--dur-1) ease, border-color var(--dur-1) ease;
 }
 .mode-go svg {
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-2) var(--ease-out);
 }
 .mode-card:hover .mode-go {
   border-color: var(--primary);
@@ -2392,7 +2452,7 @@ table.tbl.contracts .btn.sm {
 }
 .mode-card-body .mode-text {
   padding-bottom: var(--space-3);
-  transition: background 0.15s ease;
+  transition: background var(--dur-1) ease;
 }
 .mode-card.daily > .btn {
   /* block buttons are 100% wide; inside the card the margins must come out of that width */
@@ -2408,7 +2468,17 @@ table.tbl.contracts .btn.sm {
   margin-top: var(--space-4);
 }
 .home-tiles > * {
-  animation: rise 0.5s 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation: rise var(--dur-4) var(--ease-out) backwards;
+  animation-delay: calc(var(--stagger) * 5);
+}
+.home-tiles > :nth-child(2) {
+  animation-delay: calc(var(--stagger) * 5.5);
+}
+.home-tiles > :nth-child(3) {
+  animation-delay: calc(var(--stagger) * 6);
+}
+.home-tiles > :nth-child(4) {
+  animation-delay: calc(var(--stagger) * 6.5);
 }
 .home-tile {
   display: flex;
@@ -2421,11 +2491,16 @@ table.tbl.contracts .btn.sm {
   background: var(--panel);
   border: var(--border);
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-1) ease, box-shadow var(--dur-2) ease;
 }
 .home-tile:hover {
   transform: translateY(-2px);
   border-color: var(--primary);
+  box-shadow: var(--shadow);
+}
+.home-tile:active {
+  transform: scale(0.98);
+  transition-duration: 60ms;
 }
 .tile-icon {
   flex: none;
@@ -2531,7 +2606,12 @@ table.tbl.contracts .btn.sm {
 }
 
 /* ------------------------------------------------------------------ motion */
-/* Short entrances only: content rises into place once, hovers lift. Fill mode is backwards so a finished animation never pins a transform over :hover */
+/*
+ * The rules (DESIGN_SYSTEM.md section 12): 150 to 400 ms on the --dur tokens and
+ * --ease curves; transform and opacity only; entrances run once and use
+ * fill-mode backwards, so a finished animation never pins a transform over
+ * :hover; everything here is off under prefers-reduced-motion (the block at the end).
+ */
 @keyframes rise {
   from {
     opacity: 0;
@@ -2542,32 +2622,240 @@ table.tbl.contracts .btn.sm {
     transform: none;
   }
 }
-/* Every screen fades in when it opens; opacity only, since a transform on .page would move its fixed bottom bar */
+/* Every screen fades and rises in when it opens. A screen with a fixed bottom bar only fades: a transform on .page would carry the bar with it */
 @keyframes page-in {
   from {
     opacity: 0;
+    transform: translateY(8px);
   }
-  to {
-    opacity: 1;
+}
+@keyframes page-fade {
+  from {
+    opacity: 0;
   }
 }
 .page {
-  animation: page-in 0.22s ease-out backwards;
+  animation: page-in var(--dur-3) var(--ease-out) backwards;
+}
+.page.has-bottom-bar {
+  animation-name: page-fade;
+}
+/*
+ * View Transitions (withViewTransition in motion.ts, used by the top bar, the Home
+ * cards and the theme switch): the old screen fades out over the live new one,
+ * which runs its own .page entrance above, and the active nav pill slides across.
+ */
+::view-transition-old(root) {
+  animation: vt-out var(--dur-1) var(--ease-in-out) both;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+  }
+}
+/* Not on a phone, where the nav scrolls sideways and the pill would fly across the logo */
+@media (min-width: 721px) {
+  :root.vt .topbar nav button.active {
+    view-transition-name: nav-active;
+  }
+}
+::view-transition-group(nav-active) {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--ease-out);
+}
+/* Loading: a skeleton of the page with a light sweep; the one loop besides the reel and the live match */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-3);
+  border-radius: var(--radius);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 7%, transparent), transparent);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+.loading-screen {
+  display: grid;
+  gap: var(--space-4);
+}
+.loading-hero {
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  background: var(--panel);
+  border: var(--border);
+}
+.loading-hero .logo,
+.loading-hero .muted {
+  position: relative;
+  z-index: 1;
+}
+.loading-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+.loading-cards .skeleton {
+  height: 220px;
+}
+.loading-cards .skeleton:nth-child(2)::after {
+  animation-delay: 0.1s;
+}
+.loading-cards .skeleton:nth-child(3)::after {
+  animation-delay: 0.2s;
+}
+.loading-cards .skeleton:nth-child(4)::after {
+  animation-delay: 0.3s;
+}
+@media (max-width: 900px) {
+  .loading-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .loading-hero {
+    min-height: 220px;
+  }
+  .loading-cards {
+    grid-template-columns: 1fr;
+  }
+  .loading-cards .skeleton {
+    height: 96px;
+  }
+}
+/* Count-ups keep their width while the figures change */
+.count-up {
+  font-variant-numeric: tabular-nums;
+}
+/* The title flare and the perfect season's confetti, centred on the tier name and clipped to the banner */
+.tier-banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.tier-wrap {
+  position: relative;
+}
+.celebrate {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.celebrate .flare {
+  position: absolute;
+  left: -180px;
+  top: -110px;
+  width: 360px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--gold) 55%, transparent), color-mix(in srgb, var(--gold) 18%, transparent) 55%, transparent);
+  opacity: 0;
+  animation: flare 900ms var(--ease-out) 120ms;
+}
+@keyframes flare {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+.celebrate .piece {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w);
+  height: calc(var(--w) * 0.45);
+  border-radius: 1px;
+  opacity: 0;
+  animation: confetti 900ms cubic-bezier(0.15, 0.8, 0.3, 1) var(--delay);
+}
+.celebrate .piece.c0 {
+  background: var(--gold);
+}
+.celebrate .piece.c1 {
+  background: var(--primary);
+}
+.celebrate .piece.c2 {
+  background: var(--accent);
+}
+@keyframes confetti {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(0.4);
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .page,
   .hero-content > *,
   .modes > *,
-  .home-tiles > * {
+  .home-tiles > *,
+  .bar > span,
+  .toast,
+  .toast.leaving,
+  .modal-back::before,
+  .modal,
+  .theme-switch svg,
+  .skeleton::after,
+  .celebrate,
+  .pitch-wrap .slot .disc.eligible {
     animation: none;
   }
+  .celebrate {
+    display: none;
+  }
   .mode-card,
-  .home-tile {
+  .home-tile,
+  .btn,
+  .topbar nav button,
+  .theme-switch,
+  .tabs-ink.ready,
+  .bar > span {
     transition: none;
   }
   .mode-card:hover,
-  .home-tile:hover {
+  .home-tile:hover,
+  .btn:active:not(:disabled),
+  .mode-card:not(.daily):active,
+  .home-tile:active,
+  .topbar nav button:active,
+  .theme-switch:active {
     transform: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 
@@ -2649,17 +2937,54 @@ table.tbl.contracts .btn.sm {
   box-shadow: var(--shadow);
   z-index: 50;
   max-width: 90vw;
+  animation: toast-in var(--dur-3) var(--ease-spring) backwards;
+}
+.toast.leaving {
+  animation: toast-out var(--dur-2) var(--ease-in-out) forwards;
+}
+/* The toast keeps its centring translate in every frame */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px) scale(0.96);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
 }
 .modal-back {
   position: fixed;
   inset: 0;
-  background: var(--scrim);
   display: grid;
   place-items: center;
   z-index: 40;
   padding: var(--space-4);
 }
+/* The scrim fades in on its own layer, so the sheet or dialog above it is never see-through while it arrives */
+.modal-back::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--scrim);
+  animation: scrim-in var(--dur-2) ease-out backwards;
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
 .modal {
+  animation: modal-in var(--dur-2) var(--ease-out) backwards;
   width: min(640px, 100%);
   max-height: 90vh;
   overflow: auto;
@@ -3462,7 +3787,7 @@ table.tbl.contracts .btn.sm {
 }
 .legend-row {
   display: grid;
-  grid-template-columns: 28px 36px 1fr auto auto;
+  grid-template-columns: 28px 36px minmax(0, 1fr) auto auto auto;
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
@@ -3665,7 +3990,7 @@ table.tbl.contracts .btn.sm {
   }
 }
 .tier-banner .tier.pop {
-  animation: tier-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  animation: tier-pop var(--dur-4) var(--ease-spring);
 }
 @keyframes tier-pop {
   from {
@@ -3942,10 +4267,10 @@ table.tbl.contracts .btn.sm {
 }
 
 /* ------------------------------------------------------------ slot picker */
-/* Every modal is a bottom sheet on a phone (see .modal); the slot picker also slides up into place */
+/* Every modal is a bottom sheet on a phone (see .modal), and every sheet slides up into place */
 @media (max-width: 720px) {
-  .modal.sheet {
-    animation: sheet-up 0.22s ease-out;
+  .modal {
+    animation: sheet-up var(--dur-3) var(--ease-out) backwards;
   }
 }
 @keyframes sheet-up {
@@ -3957,7 +4282,7 @@ table.tbl.contracts .btn.sm {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .modal.sheet {
+  .modal {
     animation: none;
   }
 }
@@ -4092,5 +4417,1702 @@ table.tbl.contracts .btn.sm {
 @media (max-width: 520px) {
   .gbg.with-hl .gbg-game {
     grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 34px 28px;
+  }
+}
+
+/* ------------------------------------------------------- draft and dugout */
+/* The screen pass for the Draft and the Dugout (DESIGN_SYSTEM.md section 8): shared pieces first */
+.icon-chip {
+  gap: var(--space-1);
+}
+.icon-chip svg {
+  flex: none;
+}
+.icon-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* A panel title with its Info beside it */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.panel.emphasis {
+  border-color: var(--primary);
+}
+.notice.icon-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+.notice.gold {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+/* A club, or the user's side, with its badge: the name as an h2 and a line of short facts */
+.club-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.club-head h2 {
+  margin: 0;
+  line-height: 1.1;
+}
+.club-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.club-sub > span:not(.chip) + span:not(.chip)::before {
+  content: '·';
+  margin-right: var(--space-2);
+}
+/* Lined player lists: rows divided by a hairline instead of each in its own box */
+.plist.lined {
+  gap: 0;
+}
+.plist.lined > .prow {
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  padding: 10px var(--space-2);
+}
+.plist.lined > * + * {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.plist.lined > .prow:hover {
+  background: var(--bg-3);
+  box-shadow: none;
+}
+.plist.lined > .prow:hover + * {
+  box-shadow: none;
+}
+.plist.lined > .prow.selected {
+  background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.plist.lined > .prow.dim:hover {
+  background: transparent;
+}
+.scroll-list {
+  max-height: 280px;
+  overflow: auto;
+}
+/* Rating badges: tabular figures so a column of them lines up */
+.rating {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+/* The pitch sits on a neutral mat, so the grass reads as a picture inside the panel in both themes */
+.pitch-wrap {
+  border: 5px solid var(--bg-3);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.pitch-wrap .slot .sub {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+/* The Draft */
+.screen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.screen-title {
+  min-width: 0;
+}
+.screen-title h1 {
+  margin: 0 0 var(--space-1);
+}
+.screen-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.screen-meta .mono {
+  font-size: var(--fs-meta);
+}
+.draft-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 240px;
+}
+.draft-count {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.draft-count b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--text);
+}
+.pick-track {
+  display: flex;
+  gap: 3px;
+}
+.pick-track span {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-3);
+}
+.pick-track span.done {
+  background: var(--primary);
+}
+.pick-track span.now {
+  background: color-mix(in srgb, var(--primary) 40%, var(--bg-3));
+}
+.ghost-chip {
+  align-self: center;
+  white-space: normal;
+  text-align: center;
+}
+.draft-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow: auto;
+}
+.draft-log li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 0;
+}
+.draft-log li + li {
+  border-top: var(--border);
+}
+.draft-log .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.draft-log .name {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-log .muted {
+  font-size: var(--fs-sm);
+}
+.draft-log .when {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+}
+.log-twist {
+  display: inline-flex;
+  color: var(--gold-text);
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-3);
+  text-align: center;
+}
+.empty-state h3 {
+  margin: var(--space-2) 0 0;
+}
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--accent);
+}
+.draft-list {
+  max-height: 560px;
+  overflow: auto;
+}
+.twist-card .twist-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 0;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+.twist-card.next .twist-icon {
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+
+/* The Dugout */
+.club-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: var(--space-5);
+}
+.stat-strip .stat {
+  min-width: 0;
+}
+.stat-strip .stat .bar {
+  width: 120px;
+  margin: 4px 0 2px;
+}
+.panel.cta {
+  margin-bottom: var(--space-4);
+  background: radial-gradient(120% 160% at 100% 0, var(--glow), transparent 60%), var(--panel);
+}
+.cta-fixture {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.cta-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+}
+.cta-title .info {
+  vertical-align: 2px;
+}
+.brief .icon,
+.bar-brief .icon {
+  display: inline-grid;
+  place-items: center;
+}
+.unit-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+.unit-strip i {
+  font-style: normal;
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  margin-right: 2px;
+}
+.season-line {
+  color: var(--text-3);
+}
+.fixture-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cup-round {
+  margin-bottom: var(--space-4);
+}
+.cup-round h4 {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.news .item {
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+}
+.news-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+.news-icon.injury {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.news-icon.suspension {
+  background: var(--bad-soft);
+}
+.news-icon.award,
+.news-icon.cup {
+  color: var(--gold-text);
+  background: var(--gold-soft);
+}
+.news-icon.event {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.news-mw {
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+/* Tactics: formations as pictures, instructions as label and control */
+.instructions {
+  display: flex;
+  flex-direction: column;
+}
+.instruction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: 10px 0;
+}
+.instruction + .instruction {
+  border-top: var(--border);
+}
+.instruction-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+}
+.instruction select.input {
+  width: auto;
+  min-width: 200px;
+  max-width: 100%;
+}
+.role-list {
+  display: flex;
+  flex-direction: column;
+}
+.role-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: 10px 0;
+}
+.role-row + .role-row {
+  border-top: var(--border);
+}
+.role-who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.role-name {
+  font-weight: 600;
+}
+.role-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.role-pick select.input {
+  width: auto;
+  min-height: var(--control-h-sm);
+  padding: 4px 8px;
+}
+/* Market and club */
+.segmented.scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+.segmented.scroll::-webkit-scrollbar {
+  display: none;
+}
+.segmented.scroll button {
+  flex: none;
+}
+.listings {
+  max-height: 640px;
+  overflow: auto;
+}
+.market-log {
+  gap: var(--space-1);
+  max-height: 300px;
+  overflow: auto;
+}
+.player-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.meter-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sheet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.sheet-occupant .prow {
+  border-radius: var(--radius-m);
+}
+
+@media (max-width: 1050px) {
+  .draft-progress {
+    width: 100%;
+  }
+}
+/* Phones first: stats two by two, lists without inner scroll, instructions stacked */
+@media (max-width: 720px) {
+  .screen-head {
+    margin-bottom: var(--space-3);
+  }
+  .club-header {
+    gap: var(--space-3);
+  }
+  .stat-strip {
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3) var(--space-4);
+  }
+  .stat-strip .stat .value {
+    font-size: 24px;
+  }
+  .stat-strip .stat .bar {
+    width: 100%;
+  }
+  .draft-list,
+  .listings {
+    max-height: none;
+    overflow: visible;
+  }
+  .cta-title {
+    font-size: 20px;
+  }
+  .instruction {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .instruction select.input {
+    width: 100%;
+  }
+  .plist.lined > .prow {
+    padding: 10px 4px;
+  }
+}
+/* The opposition report folds: open on a desktop, closed on a phone */
+.opposition > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.opposition > summary::-webkit-details-marker {
+  display: none;
+}
+.opposition:not([open]) > summary {
+  margin-bottom: 0;
+}
+.opposition > summary .small {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.fold-chevron {
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.opposition[open] .fold-chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fold-chevron {
+    transition: none;
+  }
+}
+@media (max-width: 720px) {
+  .draft-count b {
+    font-size: 20px;
+  }
+}
+/* The Inbox as a lined list: hairlines between items, the unread ones marked by an accent bar */
+.news {
+  gap: 0;
+}
+.news .item {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px var(--space-2);
+}
+.news .item + .item {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.news .item.new {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.news .item.new + .item {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.news .item.new + .item.new {
+  box-shadow: inset 3px 0 0 var(--accent), inset 0 1px 0 var(--line);
+}
+/* A market listing is already a card: the player row inside it sits flat */
+.listing .prow {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.listing .prow:hover {
+  background: transparent;
+}
+/* A phone shows the price first, then the bid controls with full-width selects */
+@media (max-width: 720px) {
+  .listing > div:last-child {
+    order: -1;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .bidrow select {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+
+/* ------------------------------------------- summary, head-to-head and the rest */
+/* The screen pass for the Summary, Head-to-head, Explore, Profile, How it works and the match report (DESIGN_SYSTEM.md section 8) */
+.page.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.page.summary > .grid {
+  min-width: 0;
+}
+.banner-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.banner-meta .bm-team {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.bm-rest::before {
+  content: '·';
+  margin-right: var(--space-2);
+}
+.banner-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-3);
+}
+.banner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.banner-chips:empty {
+  display: none;
+}
+.banner-chips .chip {
+  white-space: normal;
+}
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.btn svg {
+  flex: none;
+}
+.gold-ic {
+  color: var(--gold-text);
+  flex: none;
+}
+.ic-yellow-card {
+  color: var(--gold);
+  fill: var(--gold);
+}
+.ic-injury {
+  color: var(--bad);
+  flex: none;
+}
+.records-tbl .ahead {
+  margin-top: 2px;
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+}
+.share-card-img {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-m);
+}
+.share-text {
+  white-space: pre-wrap;
+  margin: 0;
+  color: var(--text-2);
+}
+/* A panel that folds, like the opposition report */
+.fold > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+.fold:not([open]) > summary {
+  margin-bottom: 0;
+}
+.fold[open] .fold-chevron {
+  transform: rotate(180deg);
+}
+/* Game by game: hairlines between games, the outcome carried by its chip */
+.gbg-list {
+  gap: 0;
+}
+.gbg-game {
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  padding: var(--space-2) var(--space-1);
+}
+.gbg-game + .gbg-game {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.gbg-game.W,
+.gbg-game.L {
+  border-color: transparent;
+}
+.gbg-game:hover {
+  background: var(--bg-3);
+}
+.gbg-more {
+  margin-top: var(--space-2);
+}
+.gbg-more svg {
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.gbg-more svg.flip {
+  transform: rotate(180deg);
+}
+/* Head-to-head: the rules as four pictures, the two sides of the result */
+.steps {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: var(--panel);
+}
+.steps li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.step-icon,
+.howto-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--accent);
+}
+.field-pic {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.field-pic .fdiagram {
+  flex: none;
+  width: 36px;
+  height: 48px;
+}
+.h2h-start {
+  justify-content: flex-end;
+}
+.h2h-log {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  max-height: 200px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.h2h-log li {
+  padding: var(--space-1) 0;
+}
+.h2h-log li + li {
+  border-top: var(--border);
+}
+.h2h-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  max-width: 760px;
+  margin: var(--space-4) auto 0;
+}
+.h2h-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.h2h-side.won {
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--line));
+}
+.h2h-side .record {
+  font-size: 28px;
+  margin-top: 0;
+}
+.h2h-side .banner-stats {
+  margin-top: 0;
+}
+.h2h-cup {
+  color: var(--gold-text);
+  flex: none;
+}
+/* Explore */
+.explore-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.view-switch {
+  margin-bottom: var(--space-4);
+}
+.view-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.segmented.scroll-x {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.segmented.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+.explore-list {
+  max-height: 620px;
+  overflow: auto;
+}
+.career-tbl {
+  max-height: 420px;
+  overflow: auto;
+}
+.link-btn {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.link-btn:hover {
+  color: var(--accent);
+}
+.search-field {
+  position: relative;
+  display: block;
+}
+.search-field svg {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+}
+.search-field .input {
+  padding-left: 36px;
+}
+.star {
+  display: inline-flex;
+  cursor: pointer;
+}
+/* Profile */
+.profile-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.streak-on {
+  color: var(--warn);
+}
+.cabinet {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.cabinet-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-1);
+  border-radius: var(--radius-m);
+  background: var(--panel-2);
+  border: var(--border);
+  text-align: center;
+}
+.cabinet-slot.empty {
+  opacity: 0.45;
+}
+.cabinet-n {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+}
+.ach .icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+.ach.locked .icon {
+  background: var(--bg-3);
+  color: var(--text-3);
+}
+.ach-lock {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: var(--border);
+  color: var(--text-3);
+}
+.ach-date {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: 2px;
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+}
+/* How it works: short illustrated sections */
+.page.howto {
+  max-width: 1040px;
+}
+.howto-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+.howto-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.howto-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.howto-head h3 {
+  margin: 0 0 var(--space-1);
+}
+.howto-lead {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+.howto-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--space-2);
+}
+.howto-steps li {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  border: var(--border);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.howto-steps b {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: var(--fs-meta);
+}
+.howto-facts,
+.howto-twists {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1) var(--space-3);
+}
+.howto-facts li,
+.howto-twists li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+.howto-facts li + li,
+.howto-twists li + li {
+  border-top: var(--border);
+}
+.howto-facts svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.howto-facts li > span,
+.howto-twists li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.howto-facts b,
+.howto-twists b {
+  color: var(--text);
+}
+.howto-twists .twist-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+.howto-scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.howto-scale .rating {
+  width: 40px;
+}
+.howto-timeline {
+  display: flex;
+  gap: 3px;
+}
+.howto-timeline span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-s);
+  background: var(--primary-soft);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+}
+.howto-timeline small {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.25;
+}
+.howto-credits {
+  margin-top: var(--space-4);
+}
+.howto-credits p {
+  margin: 0;
+}
+.howto-sources {
+  margin: var(--space-3) 0 0;
+  padding-left: 52px;
+}
+/* The match report: goals either side of the minute, notes with a marker */
+.goal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.goal-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 0;
+  font-size: var(--fs-sm);
+}
+.goal-list li + li {
+  border-top: var(--border);
+}
+.goal-list .goal-min {
+  grid-column: 2;
+  grid-row: 1;
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--fs-meta);
+}
+.goal-list li.home .goal-who {
+  grid-column: 1;
+  grid-row: 1;
+  text-align: right;
+}
+.goal-list li.away .goal-who {
+  grid-column: 3;
+  grid-row: 1;
+}
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.notes-list li {
+  position: relative;
+  padding-left: var(--space-4);
+}
+.notes-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.notes-list li.muted::before {
+  background: var(--text-3);
+}
+table.tbl.match-stats th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .howto-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 720px) {
+  .tier-banner .tier {
+    font-size: 40px;
+  }
+  .banner-meta {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .bm-rest::before {
+    content: none;
+  }
+  .banner-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .banner-actions .btn {
+    padding: 8px 10px;
+    font-size: 14px;
+    white-space: normal;
+  }
+  .banner-actions .btn:not(.primary) svg {
+    display: none;
+  }
+  .banner-actions .btn.primary {
+    grid-column: 1 / -1;
+  }
+  .records-tbl .ahead {
+    display: none;
+  }
+  .explore-bar .segmented,
+  .view-switch {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .explore-bar .segmented button,
+  .view-switch button {
+    flex: none;
+  }
+  .explore-squad {
+    scroll-margin-top: 64px;
+  }
+  .report-board .score {
+    white-space: nowrap;
+    font-size: 36px;
+  }
+  .report-board .team {
+    font-size: 15px;
+    line-height: 1.15;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .report-board .clock {
+    white-space: nowrap;
+  }
+  .tbl .hide-phone {
+    display: none;
+  }
+  .h2h-sides {
+    grid-template-columns: 1fr;
+  }
+  .cabinet {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .profile-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .explore-list,
+  .career-tbl {
+    max-height: none;
+  }
+  .howto-sources {
+    padding-left: var(--space-4);
+  }
+}
+@media (max-width: 520px) {
+  .legend-row {
+    grid-template-columns: 22px 36px minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .legend-row > :nth-child(4) {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .legend-row > :nth-child(5) {
+    grid-column: 4;
+    grid-row: 2;
+    text-align: right;
+  }
+  .legend-row > :nth-child(6) {
+    grid-column: 4;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .steps {
+    grid-template-columns: 1fr;
+  }
+  .steps li {
+    padding: var(--space-2) var(--space-3);
+  }
+  .howto-steps li {
+    flex-direction: column;
+    text-align: center;
+    font-size: var(--fs-meta);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gbg-more svg {
+    transition: none;
+  }
+}
+.h2h-league {
+  grid-column: 1 / -1;
+}
+.h2h-start {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+.h2h-start .btn {
+  width: min(420px, 100%);
+}
+.howto-section.wide {
+  grid-column: 1 / -1;
+}
+.howto-facts.tiles {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-2);
+}
+.howto-facts.tiles li {
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--panel-2);
+  border: var(--border);
+}
+.howto-facts.tiles li + li {
+  border-top: var(--border);
+}
+.h2h-derbies .fixture {
+  grid-template-columns: 52px 1fr auto 1fr;
+}
+@media (max-width: 520px) {
+  .howto-facts.tiles {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .howto-facts.tiles li {
+    padding: var(--space-2) 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  .howto-facts.tiles li + li {
+    border-top: var(--border);
+  }
+}
+/* An award: its name and value as a small label over the player's row (a value like "7.66 avg rating at 22" never squeezes the row) */
+.award-item {
+  padding-top: var(--space-2);
+}
+.award-item .prow {
+  border: 0;
+  background: transparent;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+.award-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.award-label.gold {
+  color: var(--gold-text);
+}
+.award-label.good {
+  color: var(--good);
+}
+
+/* ------------------------------------------------------------------ app shell */
+/*
+ * One screen, one panel (DESIGN_SYSTEM.md section 13). On a desktop the shell screens (App.tsx `shell`: Home, the
+ * Draft, the Dugout, the Summary, Head-to-head, Explore, Profile, How it works) are a 100dvh grid: the top bar, then
+ * the screen, which never scrolls the document; a long list scrolls inside its own panel (`.fill` and `.scroll-y`).
+ * Phones, Setup, the kick-off step, the season playback and the match day scroll the page as before.
+ */
+/* The top bar folds away (the toggle beside the theme switch, or the \ key) and the restore pill takes its corner */
+.topbar-toggle {
+  margin-left: calc(var(--space-2) - var(--space-4));
+}
+.topbar-toggle:active {
+  transform: scale(0.92);
+}
+.topbar-toggle svg {
+  animation: none;
+}
+.app.bar-hidden > .topbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  transform: translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
+  animation: topbar-out var(--dur-2) var(--ease-in-out);
+}
+.app:not(.bar-hidden) > .topbar {
+  animation: topbar-in var(--dur-2) var(--ease-out);
+}
+@keyframes topbar-out {
+  from {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes topbar-in {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+.topbar-restore {
+  position: fixed;
+  top: 10px;
+  right: var(--gutter);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 10px;
+  border-radius: var(--radius-pill);
+  border: var(--border-strong);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: restore-in var(--dur-2) var(--ease-out) backwards;
+  animation-delay: var(--dur-1);
+}
+.topbar-restore:hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
+.topbar-restore:active {
+  transform: scale(0.96);
+}
+@keyframes restore-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@media (max-width: 720px) {
+  .topbar-restore {
+    top: 8px;
+    height: 34px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app:not(.bar-hidden) > .topbar,
+  .app.bar-hidden > .topbar,
+  .topbar-restore {
+    animation: none;
+  }
+}
+/* A list that would push the page: it scrolls inside its panel instead */
+.scroll-y {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+@media (min-width: 1100px) {
+  .app.shell {
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .app.shell.bar-hidden {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app.shell > .page {
+    max-width: 1600px;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  /* The bar folded away: the restore pill sits in the top-right corner, so the screen's own head keeps clear of it */
+  .app.shell.bar-hidden > .page {
+    padding-top: var(--space-3);
+  }
+  .app.shell.bar-hidden .screen-head,
+  .app.shell.bar-hidden .club-header {
+    padding-right: 150px;
+  }
+  .app.shell > .page > *,
+  .app.shell .screen-body > * {
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+  .app.shell .screen-head {
+    margin-bottom: 0;
+  }
+  /* The part of a shell screen that takes the rest of the height */
+  .app.shell > .page > .fill,
+  .app.shell .screen-body > .fill {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .app.shell .screen-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    overflow: hidden;
+  }
+  /* Boxes side by side: the last grid of a screen takes the rest of the height and each box scrolls inside itself */
+  .app.shell .screen-body > .grid:last-child,
+  .app.shell .grid.fill {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app.shell .screen-body > .grid:last-child > *,
+  .app.shell .grid.fill > * {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .screen-body > .panel:last-child {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  /* A screen of reading (How it works) scrolls its boxes together inside the body */
+  .app.shell .screen-body.scroll-whole {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .screen-body.scroll-whole > * {
+    flex: none;
+    overflow: visible;
+  }
+  .app.shell .screen-body.scroll-whole > .grid {
+    grid-template-rows: none;
+    align-items: start;
+  }
+  .app.shell .screen-body.scroll-whole > .grid > * {
+    overflow: visible;
+  }
+}
+/* Screen by screen, on the desktop shell */
+@media (min-width: 1100px) {
+  /* The summary (and the head-to-head result): the result box on the left, everything else in a box beside it */
+  .app.shell .page.summary {
+    display: grid;
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-4);
+  }
+  .app.shell .page.summary > .tier-banner {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .app.shell .page.summary > .summary-body,
+  .app.shell .page.summary > .screen-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding-right: 2px;
+  }
+  .app.shell .page.summary > .summary-body > *,
+  .app.shell .page.summary > .screen-body > * {
+    flex-shrink: 0;
+    margin-top: 0;
+  }
+  .app.shell .page.summary > .screen-body > .grid:last-child > * {
+    overflow: visible;
+  }
+  .app.shell .page.summary .banner-actions .btn {
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+  /* The Dugout: the header, the briefing and the tab bar stay; the tab's content scrolls in its own box */
+  .app.shell .tab-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+  }
+  .app.shell .tabs {
+    margin-bottom: 0;
+  }
+  .app.shell .tab-body:has(> .grid.dugout) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    overflow: hidden;
+  }
+  .app.shell .tab-body:has(> .grid.dugout) > * {
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+  .app.shell .tab-body > .grid.dugout {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app.shell .tab-body > .grid.dugout > * {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .tab-body > .grid.dugout > .col {
+    padding-right: 2px;
+  }
+  /* The draft: each column a box that scrolls inside itself; the landed squad's list takes its box's height */
+  .app.shell .grid.draft > .draft-squad {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .app.shell .grid.draft > .draft-squad > .draft-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+  .app.shell .grid.draft .draft-log {
+    max-height: none;
+  }
+  /* A pitch never taller than the box it sits in */
+  .app.shell .grid.draft .pitch-wrap,
+  .app.shell .grid.dugout .pitch-wrap {
+    max-width: max(240px, calc((100dvh - var(--shell-chrome, 300px)) * 0.75));
+    margin-inline: auto;
+  }
+  .app.shell .grid.dugout .pitch-wrap {
+    --shell-chrome: 470px;
+  }
+  .app.shell.bar-hidden .grid.dugout .pitch-wrap {
+    --shell-chrome: 410px;
+  }
+  .app.shell.bar-hidden .grid.draft .pitch-wrap {
+    --shell-chrome: 240px;
+  }
+  /* Home: the hero gives up height first, the mode pictures shorten on a short window */
+  .app.shell .page.home .hero {
+    flex: 1 1 200px;
+    min-height: 170px;
+    margin: 0;
+  }
+  .app.shell .page.home .hero-content {
+    padding: var(--space-5) 40px;
+  }
+  .app.shell .page.home .mode-art {
+    aspect-ratio: auto;
+    height: clamp(72px, calc(100dvh - 620px), 170px);
+  }
+  .app.shell .page.home .resume-card {
+    margin: 0;
+  }
+}
+@media (min-width: 1100px) and (max-height: 820px) {
+  .app.shell .page.home .hero h1 .tl-lockup {
+    --h: 72px;
+  }
+  .app.shell .page.home .hero .tag {
+    margin: var(--space-1) 0;
+  }
+  .app.shell .page.home .mode-text {
+    padding: 24px var(--space-3) var(--space-3);
+  }
+  .app.shell .page.home .mode-card h3 {
+    font-size: 20px;
+  }
+}
+/* A short desktop window: the Dugout's header and briefing tighten so the tab's box keeps its height */
+@media (min-width: 1100px) and (max-height: 820px) {
+  .app.shell .club-header {
+    padding: var(--space-3) var(--space-4);
+  }
+  .app.shell .club-header .badge {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .app.shell .stat-strip .stat .value {
+    font-size: 22px;
+  }
+  .app.shell .panel.cta {
+    padding: var(--space-3) var(--space-4);
+  }
+  .app.shell .screen-head h1 {
+    font-size: 30px;
+  }
+}
+/* The head-to-head result's two sides share the narrow result box on a desktop */
+@media (min-width: 1100px) {
+  .app.shell .page.summary .h2h-sides {
+    gap: var(--space-2);
+  }
+  .app.shell .page.summary .h2h-side {
+    min-width: 0;
+    padding: var(--space-3) var(--space-2);
+  }
+  .app.shell .page.summary .h2h-side .record {
+    font-size: 22px;
+    gap: 8px;
+  }
+  .app.shell .page.summary .h2h-side h3 {
+    font-size: 18px;
   }
 }
