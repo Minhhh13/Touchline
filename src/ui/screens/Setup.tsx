@@ -46,6 +46,8 @@ export function Setup() {
   const [onlyClub, setOnlyClub] = useState('')
   const [onlyNation, setOnlyNation] = useState('')
   const [hardMode, setHardMode] = useState(false)
+  // Twists default on for a quick draft and off for a managed season; null means the default for the mode
+  const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
   const [leagueSeason, setLeagueSeason] = useState(() => {
     if (!u) return 2025
     const complete = u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)
@@ -71,6 +73,7 @@ export function Setup() {
   }, [u, wheelLeagues, from, to])
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
+  const twists = twistsChoice ?? (isManage ? SEASON_RULES.twists ?? false : QUICK_RULES.twists ?? false)
   const eraRange = eraBounds(era, from, to, u?.firstSeason ?? 2008, isDaily)
   // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era.
   // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
@@ -109,7 +112,7 @@ export function Setup() {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = !isDaily && onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = !isDaily && onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
-    const rules: DraftRules = { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode: !isDaily && hardMode, leagues: dailyFixed ? ['england'] : wheelLeagues }
+    const rules: DraftRules = { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode: !isDaily && hardMode, twists: isDaily ? true : twists, leagues: dailyFixed ? ['england'] : wheelLeagues }
     const name = teamName.trim() || 'Touchline XI'
     const short = name
       .split(/\s+/)
@@ -293,6 +296,10 @@ export function Setup() {
               <label className="toggle">
                 <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
                 Hard mode: ratings hidden while drafting
+              </label>
+              <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
+                <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
+                Twists: every third spin is golden, basement, blind or decade
               </label>
               {isManage && (
                 <>

@@ -3,7 +3,8 @@
  *  - spins never land on a club-season that cannot help you (no dead spins);
  *  - a human being can be drafted once, whatever the season;
  *  - squad drafts fill eleven starting slots first, then bench places;
- *  - optional filters: era, one club, one nation, hard mode (ratings hidden in the UI).
+ *  - optional filters: era, one club, one nation, hard mode (ratings hidden in the UI);
+ *  - optional twists: every third spin is a golden, basement, blind or decade spin.
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
 import type { Rng } from './rng'
@@ -31,10 +32,24 @@ export interface DraftRules {
   hardMode: boolean
   /** Prevent the same club-season from appearing twice. */
   uniqueClubSeasons: boolean
+  /** Every third spin carries a twist (section 5 of the design doc). Off when omitted, so older saves are unchanged. */
+  twists?: boolean
 }
 
-export const QUICK_RULES: DraftRules = { squadSize: 11, respins: 2, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true }
-export const SEASON_RULES: DraftRules = { squadSize: 18, respins: 3, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: false }
+/**
+ * A twist narrows one spin of the wheel:
+ *  - golden: only title-winning club-seasons;
+ *  - basement: only the bottom three of their league that season;
+ *  - blind: the wheel is normal but ratings are hidden for the pick;
+ *  - decade: only club-seasons from the decade of your last pick.
+ */
+export type Twist = 'golden' | 'basement' | 'blind' | 'decade'
+export const TWISTS: readonly Twist[] = ['golden', 'basement', 'blind', 'decade']
+/** A twist arrives on every spin whose number is a multiple of this. */
+export const TWIST_EVERY = 3
+
+export const QUICK_RULES: DraftRules = { squadSize: 11, respins: 2, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true, twists: true }
+export const SEASON_RULES: DraftRules = { squadSize: 18, respins: 3, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: false, twists: false }
 
 export interface DraftState {
   rules: DraftRules
@@ -49,11 +64,46 @@ export interface DraftState {
   /** The club-season currently showing, if a spin is pending a pick. */
   current: { clubId: string; season: number } | null
   spins: number
-  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null }>
+  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist }>
+  /** The twist on the spin currently showing; null (or absent, in an older save) when the spin is a plain one. */
+  twist?: Twist | null
 }
 
 export function newDraft(formation: Formation, rules: DraftRules): DraftState {
-  return { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [] }
+  return { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [], twist: null }
+}
+
+/** Whether the next spin of this draft is a twist spin. */
+export function nextSpinTwisted(d: DraftState): boolean {
+  return !!d.rules.twists && (d.spins + 1) % TWIST_EVERY === 0
+}
+
+/** The decade (2010 for 2010-2019) a decade twist is pinned to: that of the last pick, or null before any pick. */
+export function twistDecade(d: DraftState): number | null {
+  for (let i = d.history.length - 1; i >= 0; i--) {
+    const h = d.history[i]
+    if (h.pickedId) return Math.floor(h.season / 10) * 10
+  }
+  return null
+}
+
+/** Whether a club-season passes the twist on the current spin. */
+function twistAllows(u: LoadedUniverse, d: DraftState, cs: ClubSeason): boolean {
+  switch (d.twist) {
+    case 'golden':
+      return cs.champions
+    case 'basement': {
+      // Bottom three of the final table; leagues without tables (position 0) never qualify
+      const clubsThatSeason = u.tables[cs.leagueId]?.[cs.season]?.length ?? 0
+      return cs.position > 0 && clubsThatSeason > 0 && cs.position >= clubsThatSeason - 2
+    }
+    case 'decade': {
+      const decade = twistDecade(d)
+      return decade !== null && Math.floor(cs.season / 10) * 10 === decade
+    }
+    default:
+      return true
+  }
 }
 
 export function openSlots(d: DraftState): Formation['slots'] {
@@ -98,6 +148,7 @@ export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
     if (r.toSeason !== undefined && cs.season > r.toSeason) return false
     if (r.onlyClub && cs.clubId !== r.onlyClub) return false
     if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
+    if (!twistAllows(u, d, cs)) return false
     return cs.squad.some((p) => canUse(d, p))
   })
   if (!r.uniqueClubSeasons) return base
@@ -119,8 +170,18 @@ export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
 /**
  * Spin: pick a club-season uniformly across seasons first, then clubs, so no
  * era dominates just because it has more rows.
+ *
+ * On a twist spin (every third spin when `rules.twists` is on) one extra draw
+ * chooses the twist among those whose wheel is not empty, so a league without
+ * tables never gets a golden or basement spin, and the wheel is then filtered
+ * by it. A blind spin is always possible, so a twist spin always has a twist.
  */
 export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
+  d.twist = null
+  if (nextSpinTwisted(d)) {
+    const candidates = TWISTS.filter((twist) => wheelPool(u, { ...d, twist }).length > 0)
+    if (candidates.length) d.twist = rng.pick(candidates)
+  }
   const pool = wheelPool(u, d)
   if (!pool.length) throw new Error('Nothing left on the wheel')
   const seasons = [...new Set(pool.map((cs) => cs.season))]
@@ -141,7 +202,8 @@ export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
 export function respin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
   if (d.respinsLeft <= 0) throw new Error('No re-spins left')
   d.respinsLeft--
-  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null })
+  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}) })
+  d.twist = null
   return spin(u, d, rng)
 }
 
@@ -166,8 +228,9 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   }
   d.takenPlayers.push(p.playerId)
   d.usedClubSeasons.push(`${d.current.clubId}@${d.current.season}`)
-  d.history.push({ ...d.current, pickedId: p.id, slotId: slotId === 'bench' ? null : slotId })
+  d.history.push({ ...d.current, pickedId: p.id, slotId: slotId === 'bench' ? null : slotId, ...(d.twist ? { twist: d.twist } : {}) })
   d.current = null
+  d.twist = null
 }
 
 /** Best slot suggestion for a player given what is open. */
@@ -198,6 +261,7 @@ export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
     const candidates = cs.squad.filter((p) => canUse(d, p))
     if (!candidates.length) {
       d.current = null
+      d.twist = null
       continue
     }
     // Prefer natural fits for the scarcest open slot, otherwise highest rating.
@@ -217,6 +281,9 @@ export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
       }
     }
     if (best) pick(u, d, best.p.id, best.slot)
-    else d.current = null
+    else {
+      d.current = null
+      d.twist = null
+    }
   }
 }

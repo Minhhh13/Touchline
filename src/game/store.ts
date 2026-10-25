@@ -315,7 +315,9 @@ export const useStore = create<Store>()(
           mutate((g, u) => {
             if (!g.draft) return
             const rng = Rng.fromState(g.rngState)
+            // A pending spin is discarded with its twist, so the assistant's first `canSpin` sees the plain wheel
             g.draft.current = null
+            g.draft.twist = null
             autoDraft(u, g.draft, rng)
             g.rngState = rng.getState()
           }),
@@ -517,7 +519,7 @@ export const useStore = create<Store>()(
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
-          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, leagues: wheelLeagues })
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, leagues: wheelLeagues, twists: false })
           set({ h2h: { managers, leagueId, wheelLeagues, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
         },
         h2hSpin: () => {

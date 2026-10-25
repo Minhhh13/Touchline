@@ -13,7 +13,7 @@ export interface WheelSegment {
  * several times and settles with that segment under the pointer, then the hub
  * reveals the season year after a short "reel" flicker.
  */
-export function Wheel({ segments, targetId, year, onSettled, spinning, spinKey }: { segments: WheelSegment[]; targetId: string | null; year: number | null; onSettled?: () => void; spinning: boolean; spinKey?: number }) {
+export function Wheel({ segments, targetId, year, onSettled, spinning, spinKey, twist }: { segments: WheelSegment[]; targetId: string | null; year: number | null; onSettled?: () => void; spinning: boolean; spinKey?: number; /** Name of the twist on this spin, shown in the hub while the wheel turns. */ twist?: string | null }) {
   const [rotation, setRotation] = useState(0)
   const [reelDone, setReelDone] = useState(false)
   const rotRef = useRef(0)
@@ -86,7 +86,7 @@ export function Wheel({ segments, targetId, year, onSettled, spinning, spinKey }
           </>
         ) : spinning ? (
           <>
-            <span className="lbl">Spinning</span>
+            <span className={`lbl ${twist ? 'twist' : ''}`}>{twist ?? 'Spinning'}</span>
             <span className="year">{1990 + Math.floor(Math.random() * 37)}</span>
           </>
         ) : (

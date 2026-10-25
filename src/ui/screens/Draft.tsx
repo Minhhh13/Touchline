@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, openSlots, picksMade, suggestSlot, wheelPool } from '@engine/draft'
+import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, wheelPool } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { Wheel } from '../components/Wheel'
+import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Pos, Rating } from '../components/bits'
@@ -58,7 +59,9 @@ export function Draft() {
 
   if (!u || !game || !d) return null
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
-  const hide = d.rules.hardMode
+  // A blind spin hides ratings like hard mode does, until the pick is made
+  const twist = d.twist ?? null
+  const hide = d.rules.hardMode || twist === 'blind'
   const complete = isComplete(d)
   const total = d.rules.squadSize
   const made = picksMade(d)
@@ -104,7 +107,8 @@ export function Draft() {
             {game.settings.teamName} · {game.settings.formationId} · {d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
             {nation ? `${nationLabel} only · ` : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
-            {hide ? 'Hard mode · ' : ''}seed {game.settings.seed}
+            {d.rules.hardMode ? 'Hard mode · ' : ''}
+            {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
           </div>
         </div>
         <div className="row">
@@ -119,11 +123,12 @@ export function Draft() {
         </div>
       </div>
 
-      <div className={`grid draft ${hide ? 'hidden-ratings' : ''}`}>
+      <div className={`grid draft ${d.rules.hardMode ? 'hidden-ratings' : ''}`}>
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
-            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} />}
+            <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title.replace(' spin', '') : null} onSettled={() => { setSpinning(false); setRevealed(true) }} />
             {!complete && dry && (
               <div className="notice">
                 The wheel has run dry for {nationLabel || 'this draft'}: no one left to draft.{' '}
@@ -178,8 +183,14 @@ export function Draft() {
                     <div key={i} className="row small" style={{ gap: 8 }}>
                       <ClubBadge clubId={h.clubId} size={20} />
                       <span className="muted">{seasonLabel(h.season)}</span>
+                      {h.twist && (
+                        <span title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
+                          {TWIST_INFO[h.twist].icon}
+                        </span>
+                      )}
                       <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">re-spun</span>}</span>
-                      {p && !hide && <Rating value={p.overall} />}
+                      {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
+                      {p && !d.rules.hardMode && h.twist !== 'blind' && <Rating value={p.overall} />}
                     </div>
                   )
                 })}
@@ -220,6 +231,7 @@ export function Draft() {
                 </div>
               </div>
               {!revealed && spinning && <div className="notice">The wheel is spinning…</div>}
+              {revealed && twist === 'blind' && <div className="notice">Blind pick: ratings stay hidden until you have chosen. Positions and ages are still shown.</div>}
               {revealed && selected && (
                 <div className="notice">
                   Choose a slot for <b>{selected.name}</b> on the pitch, or{' '}

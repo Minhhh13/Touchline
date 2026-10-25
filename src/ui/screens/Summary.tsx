@@ -6,6 +6,8 @@ import { shareText } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
 import { Pitch } from '../components/Pitch'
+import { TWIST_INFO } from '../components/TwistCard'
+import type { Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
@@ -39,6 +41,11 @@ export function Summary() {
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${flag(u, game.settings.rules.onlyNation)} ${nationName(u, game.settings.rules.onlyNation)}`)
+  if (game.settings.rules.twists) {
+    // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)
+    const landed = (game.draft?.history ?? []).flatMap((h): Twist[] => (h.pickedId && h.twist ? [h.twist] : [])).map((t) => TWIST_INFO[t].icon)
+    extraLines.push(landed.length ? `Twists ${landed.join(' ')}` : 'Twists 🎲')
+  }
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
   const text = shareText({

@@ -1284,6 +1284,10 @@ table.tbl tr.clickable:hover {
 .hidden-ratings .rating::after {
   content: '?';
 }
+/* A rating already rendered hidden shows its own "?"; do not stack a second one on it */
+.hidden-ratings .rating.hidden::after {
+  content: none;
+}
 .hidden-ratings .rating > span {
   display: none;
 }
@@ -1416,4 +1420,31 @@ table.tbl tr.clickable:hover {
 .depth-names .chip.dim {
   opacity: 0.45;
   text-decoration: line-through;
+}
+
+/* ------------------------------------------------------------ wheel twists */
+.twist-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--gold) 50%, var(--line));
+  background: color-mix(in srgb, var(--gold) 10%, var(--panel-2));
+}
+.twist-card.next {
+  border-style: dashed;
+  border-color: var(--line);
+  background: var(--panel-2);
+}
+.twist-card .twist-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.twist-card .twist-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.wheel-wrap .hub .lbl.twist {
+  color: var(--gold);
 }
