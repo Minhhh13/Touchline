@@ -192,6 +192,8 @@ describe('the bench in the quick season', { timeout: 300_000 }, () => {
           expect(canPlayFor(g)(playerLookup(g, u)(c.inId)!, slot.position)).toBe(true)
         }
       }
+      // The season covers exactly the games the playback panel says it will: injured in k for w weeks misses k+1 to k+w
+      for (let i = 0; i < games.length; i++) expect(games[i].covers ?? []).toEqual(quickSquadAt(g, u, games, i).covers)
       expect(quickSquadAt(g, u, games, 0).changesLeft).toBe(QUICK_CHANGES)
       expect(g.quickResult!.changes).toBeUndefined()
     }
@@ -328,6 +330,33 @@ describe('the bench in the quick season', { timeout: 300_000 }, () => {
     expect(after.profile.seasonsSimulated).toBe(played + 1)
     expect(after.profile.leaderboard.length).toBe(Math.min(50, boards + 1))
     useStore.setState({ game: null, universe: null, loadedLeagues: [], playback: null })
+  })
+
+  it('records an open season when the manager leaves it for a new game or abandons it', () => {
+    for (const leave of ['start', 'abandon'] as const) {
+      const g = drafted({ seed: `bench-leave-${leave}` }, { benchPicks: 2 })
+      useStore.setState({ universe: u, game: g, loadedLeagues: ['england'], playback: null, toast: null })
+      const s = useStore.getState()
+      const played = s.profile.seasonsSimulated
+      s.kickOff()
+      expect(useStore.getState().game!.quickOpen).toBe(true)
+      if (leave === 'start') useStore.getState().startGame(settings({ seed: 'bench-next' }, { benchPicks: 2 }))
+      else useStore.getState().abandonGame()
+      expect(useStore.getState().profile.seasonsSimulated).toBe(played + 1)
+      expect(useStore.getState().profile.leaderboard.some((e) => e.id.startsWith(g.id))).toBe(true)
+    }
+    useStore.setState({ game: null, universe: null, loadedLeagues: [], playback: null })
+  })
+
+  it('never lists a man on the bench and in the XI when the draft closed short of a full XI', () => {
+    const g = drafted({ seed: 'bench-short' }, { benchPicks: 3 })
+    const d = g.draft!
+    // A one-nation wheel run dry: three slots never filled, the fill takes bench players into them
+    for (const slot of getFormation(g.tactics.formationId).slots.slice(8)) delete d.lineup[slot.id]
+    toKickoff(g, u)
+    const xi = Object.values(g.lineup)
+    expect(new Set(xi).size).toBe(11)
+    expect(g.bench.filter((id) => xi.includes(id))).toEqual([])
   })
 
   it('opens a quick save written before benches with nothing to fill in', () => {

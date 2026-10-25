@@ -194,6 +194,21 @@ export const useStore = create<Store>()(
       }
       /** League loads run one after another so two callers never overwrite each other's universe. */
       let pendingLoad: Promise<unknown> = Promise.resolve()
+      /**
+       * A quick season with a bench is held open while its playback runs; leaving it for another game (or abandoning it)
+       * closes it and records it first, so a season that was played never goes missing from the record.
+       */
+      const settleQuickSeason = () => {
+        const { game } = get()
+        if (!game?.quickOpen || game.phase !== 'summary') return
+        set({
+          game: produce(game, (g) => {
+            closeQuickSeason(g)
+          }),
+        })
+        unlockFromGame()
+        get().recordResult()
+      }
       const unlockFromGame = () => {
         const { game, profile } = get()
         if (!game) return
@@ -313,6 +328,7 @@ export const useStore = create<Store>()(
         },
 
         startGame: (settings) => {
+          settleQuickSeason()
           const game = createGame(settings)
           const { game: current, parked } = get()
           const next = { ...parked }
@@ -321,8 +337,12 @@ export const useStore = create<Store>()(
           delete next[slotOf(game)]
           set({ game, parked: next, screen: 'game', pendingChallenge: null, digest: null, playback: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
-        abandonGame: () => set({ game: null, screen: 'home', offseason: null, digest: null, playback: null }),
+        abandonGame: () => {
+          settleQuickSeason()
+          set({ game: null, screen: 'home', offseason: null, digest: null, playback: null })
+        },
         resumeGame: (slot) => {
+          settleQuickSeason()
           const { game: current, parked } = get()
           const target = parked[slot]
           if (!target) return
@@ -443,11 +463,7 @@ export const useStore = create<Store>()(
           }
         },
         endPlayback: () => {
-          if (get().game?.quickOpen) {
-            mutate((g) => closeQuickSeason(g))
-            unlockFromGame()
-            get().recordResult()
-          }
+          settleQuickSeason()
           set({ playback: null })
         },
         benchChange: (revealed, slotId, inId) => {

@@ -24,11 +24,14 @@ export function quickXI(game: Game, u: LoadedUniverse): { lineup: Lineup; bench:
   const formation = getFormation(game.tactics.formationId)
   const pool = [...Object.values(d.lineup), ...d.bench].map((id) => get(id)!).filter(Boolean)
   const lineup = { ...d.lineup }
-  const bench = [...d.bench]
+  let bench = [...d.bench]
   // If the user never set a lineup (always the case in quick mode), make sure every slot is filled.
   if (Object.keys(lineup).length < formation.slots.length) {
     const auto = autoPickLineup(formation, pool, game.tactics)
     Object.assign(lineup, auto.lineup)
+    // A bench player the fill put into the XI is no longer on the bench (one man never holds two places)
+    const xi = new Set(Object.values(lineup))
+    bench = bench.filter((id) => !xi.has(id))
   }
   return { lineup, bench }
 }
