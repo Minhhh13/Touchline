@@ -5741,3 +5741,27 @@ table.tbl.match-stats th {
     border-top: var(--border);
   }
 }
+/* An award: its name and value as a small label over the player's row (a value like "7.66 avg rating at 22" never squeezes the row) */
+.award-item {
+  padding-top: var(--space-2);
+}
+.award-item .prow {
+  border: 0;
+  background: transparent;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+.award-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.award-label.gold {
+  color: var(--gold-text);
+}
+.award-label.good {
+  color: var(--good);
+}

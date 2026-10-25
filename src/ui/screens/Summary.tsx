@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { Briefcase, Check, ChevronDown, Copy, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
@@ -182,11 +182,19 @@ export function Summary() {
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
-  const awardRow = (psId: string | undefined, chip: ReactNode) => {
+  // An award: its name and value as a small label over the player's row, so a long value never squeezes the row
+  const awardRow = (psId: string | undefined, Icon: LucideIcon, label: string, tone: '' | 'gold' | 'good' = '') => {
     const p = psId ? get(psId) : undefined
-    return p ? <PlayerRow key={psId} p={p} showClub right={chip} /> : null
+    return p ? (
+      <div key={label} className="award-item">
+        <span className={`award-label ${tone}`}>
+          <Icon size={13} aria-hidden="true" /> {label}
+        </span>
+        <PlayerRow p={p} showClub />
+      </div>
+    ) : null
   }
-  const awardChip = (Icon: LucideIcon, text: string, tone: '' | 'gold' | 'good' = '') => (
+  const iconChip = (Icon: LucideIcon, text: string, tone: '' | 'gold' | 'good' = '') => (
     <span className={`chip icon-chip ${tone}`}>
       <Icon size={12} aria-hidden="true" /> {text}
     </span>
@@ -252,9 +260,9 @@ export function Summary() {
           </div>
         )}
         <div className="banner-chips">
-          {!replay.playing && season?.cupWon && awardChip(Trophy, 'Cup winners', 'gold')}
-          {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && awardChip(Globe, 'Continental champions', 'gold')}
-          {season?.continental && !season.continental.won && awardChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
+          {!replay.playing && season?.cupWon && iconChip(Trophy, 'Cup winners', 'gold')}
+          {(season?.continental?.won || (!replay.playing && q?.europe?.reached === 'W')) && iconChip(Globe, 'Continental champions', 'gold')}
+          {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
           {season?.sacked && <span className="chip bad">Sacked</span>}
           {tags.map((t) => (
             <span key={t} className="chip">
@@ -266,7 +274,7 @@ export function Summary() {
               <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)} only
             </span>
           )}
-          {season?.objectives?.length ? awardChip(objectivesMet === season.objectives.length ? Check : Landmark, `Objectives ${objectivesMet}/${season.objectives.length}`, objectivesMet === season.objectives.length ? 'good' : '') : null}
+          {season?.objectives?.length ? iconChip(objectivesMet === season.objectives.length ? Check : Landmark, `Objectives ${objectivesMet}/${season.objectives.length}`, objectivesMet === season.objectives.length ? 'good' : '') : null}
           {!replay.playing && realRow && vsReal && (
             <span className="chip" title={`How the real ${clubName(u, game.settings.hostClubId)} finished that season`}>
               Real {clubShort(u, game.settings.hostClubId)}: {ordinal(realRow.position)}, {realRow.points} pts
@@ -473,7 +481,7 @@ export function Summary() {
                       <td className="num">{m.value}</td>
                       <td style={{ whiteSpace: 'normal' }}>
                         {isRecord ? (
-                          awardChip(ScrollText, 'League record', 'gold')
+                          iconChip(ScrollText, 'League record', 'gold')
                         ) : (
                           <span>
                             {m.rank === 1 ? 'Joint best' : `${ordinal(m.rank)} best`} <span className="muted small">of {m.of + 1}{m.equal > 0 && m.rank > 1 ? ` · level with ${m.equal}` : ''}</span>
@@ -569,18 +577,18 @@ export function Summary() {
           <div className="panel">
             <h3>Awards</h3>
             {q && (
-              <div className="plist lined">
-                {awardRow(q.pots?.playerSeasonId, awardChip(AWARD_ICON.pots, `Player of the season · ${q.pots?.rating}`, 'gold'))}
-                {awardRow(q.topScorer?.playerSeasonId, awardChip(AWARD_ICON.boot, `${q.topScorer?.goals} goals`, 'good'))}
+              <div className="plist lined award-list">
+                {awardRow(q.pots?.playerSeasonId, AWARD_ICON.pots, `Player of the season · ${q.pots?.rating}`, 'gold')}
+                {awardRow(q.topScorer?.playerSeasonId, AWARD_ICON.boot, `Top scorer · ${q.topScorer?.goals} goals`, 'good')}
               </div>
             )}
             {game.awards && (
-              <div className="plist lined">
-                {awardRow(game.awards.playerOfTheSeason?.playerSeasonId, awardChip(AWARD_ICON.pots, `Player of the season · ${game.awards.playerOfTheSeason?.value}`, 'gold'))}
-                {awardRow(game.awards.goldenBoot?.playerSeasonId, awardChip(AWARD_ICON.boot, game.awards.goldenBoot?.value ?? '', 'good'))}
-                {awardRow(game.awards.playmaker?.playerSeasonId, awardChip(AWARD_ICON.playmaker, game.awards.playmaker?.value ?? ''))}
-                {awardRow(game.awards.goldenGlove?.playerSeasonId, awardChip(AWARD_ICON.glove, game.awards.goldenGlove?.value ?? ''))}
-                {awardRow(game.awards.youngPlayer?.playerSeasonId, awardChip(AWARD_ICON.young, game.awards.youngPlayer?.value ?? ''))}
+              <div className="plist lined award-list">
+                {awardRow(game.awards.playerOfTheSeason?.playerSeasonId, AWARD_ICON.pots, `Player of the season · ${game.awards.playerOfTheSeason?.value}`, 'gold')}
+                {awardRow(game.awards.goldenBoot?.playerSeasonId, AWARD_ICON.boot, `Golden boot · ${game.awards.goldenBoot?.value}`, 'good')}
+                {awardRow(game.awards.playmaker?.playerSeasonId, AWARD_ICON.playmaker, `Playmaker · ${game.awards.playmaker?.value}`)}
+                {awardRow(game.awards.goldenGlove?.playerSeasonId, AWARD_ICON.glove, `Golden glove · ${game.awards.goldenGlove?.value}`)}
+                {awardRow(game.awards.youngPlayer?.playerSeasonId, AWARD_ICON.young, `Young player · ${game.awards.youngPlayer?.value}`)}
               </div>
             )}
           </div>
