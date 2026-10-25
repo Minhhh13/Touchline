@@ -11,6 +11,7 @@ import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
 import { Modal, Toast } from './components/bits'
+import { Logo } from './components/Logo'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, abandonGame, openChallenge } = useStore()
@@ -68,10 +69,7 @@ export function App() {
       <div className="app">
         <div className="page" style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
           <div className="col" style={{ alignItems: 'center' }}>
-            <div className="brand">
-              <span className="mark">T</span>
-              <span className="name">Touchline</span>
-            </div>
+            <Logo size="lg" />
             <div className="muted small">Loading eleven thousand player-seasons…</div>
           </div>
         </div>
@@ -96,8 +94,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand" onClick={() => go('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && go('home')}>
-          <span className="mark">T</span>
-          <span className="name">Touchline</span>
+          <Logo size={30} />
         </div>
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>

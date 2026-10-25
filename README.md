@@ -1,4 +1,4 @@
-# Touchline
+# TouchLine
 
 **Spin the wheel. Draft the XI. Manage the season.**
 
@@ -111,6 +111,7 @@ See `docs/DATA.md` for sources, method, cache location (`.cache/datasets` or `DA
 
 ```
 index.html                 Entry page (fonts, favicon, meta)
+public/favicon.svg         The mark; public/icons/ holds the app icons rendered from it
 src/
   main.tsx                 React root
   engine/                  Pure, deterministic game engine (no React, no DOM)
@@ -137,11 +138,13 @@ src/
   ui/
     App.tsx                Shell and routing between screens
     screens/               Home, Setup, Draft, Dugout, MatchScreen, Summary, Explore, Profile, HowTo
-    components/            Wheel, Pitch, PlayerRow, TableView, MatchTicker, bits
-    styles.css             Theme tokens (dark "Floodlit" and light "Daylight")
+    components/            Wheel, Pitch, PlayerRow, TableView, MatchTicker, Logo, bits (with the Info tooltip)
+    brand.ts               The name, the mark's geometry and the canvas colours
+    styles.css             Design tokens (dark "Floodlit" and light "Daylight") and the shared components
 scripts/import/            Data pipeline (build.mjs, download.mjs, parsers, club and nation tables)
+scripts/brand/icons.mjs    Renders the favicon and the app icons from the mark
 public/data/england/       Generated players.json and meta.json
-docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md
+docs/                      RESEARCH.md, GAME_DESIGN.md, DATA.md, DESIGN_SYSTEM.md
 .github/workflows/ci.yml   Typecheck, test and build on Node 22
 ```
 
@@ -162,6 +165,7 @@ Design documents:
 - [docs/RESEARCH.md](docs/RESEARCH.md): 38-0 and Football Manager analysis and the fusion thesis.
 - [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): every system and formula as implemented.
 - [docs/DATA.md](docs/DATA.md): data pipeline, sources and licences.
+- [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md): the logo, the blue palette for both themes, type, spacing and the component rules every screen follows.
 
 ## Roadmap
 
@@ -173,4 +177,4 @@ Design documents:
 
 ## Disclaimer
 
-Touchline is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively; no official crests, logos, kits or likenesses are used. Player ratings are an independent interpretation derived from publicly available data and may differ from any official source. Datasets are credited to their authors and used under their published licences.
+TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively; no official crests, logos, kits or likenesses are used. Player ratings are an independent interpretation derived from publicly available data and may differ from any official source. Datasets are credited to their authors and used under their published licences.

@@ -1,10 +1,12 @@
 /**
  * Render a shareable PNG of a season result on a canvas: tier, record, the XI
- * on a pitch and a footer. Returns a data URL.
+ * on a pitch and the TouchLine lockup. Returns a data URL. The card is always
+ * drawn in the Floodlit colours (brand.ts), whatever the viewer's theme.
  */
 import type { Formation, PlayerSeason, TableRow } from '@engine/types'
-import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
+import { BRAND_COLOURS as C, MARK, WORDMARK } from './brand'
+import { tierName } from './format'
 
 export interface ShareCardInput {
   title: string
@@ -20,23 +22,28 @@ export interface ShareCardInput {
 }
 
 const TIER_COLOUR: Partial<Record<SeasonTier, string>> = {
-  PERFECT: '#f5c542',
-  INVINCIBLE: '#f5c542',
-  CHAMPIONS: '#f5c542',
-  TITLE_RACE: '#3ddc84',
-  EUROPEAN: '#3ddc84',
-  MID_TABLE: '#cfd8d2',
-  RELEGATION_BATTLE: '#f08a3c',
-  RELEGATED: '#ef5350',
+  PERFECT: C.gold,
+  INVINCIBLE: C.gold,
+  CHAMPIONS: C.gold,
+  TITLE_RACE: C.accent,
+  EUROPEAN: C.accent,
+  MID_TABLE: C.text2,
+  RELEGATION_BATTLE: C.warn,
+  RELEGATED: C.bad,
 }
 
+/** The rating scale of styles.css (--rating-*), as solid colours for the disc rings. */
 function ratingColour(v: number): string {
-  if (v >= 85) return '#f5c542'
-  if (v >= 80) return '#3ddc84'
-  if (v >= 75) return '#5fd0b2'
-  if (v >= 70) return '#8ab4c0'
-  return '#9aa8a0'
+  if (v >= 90) return C.rating90
+  if (v >= 85) return C.rating85
+  if (v >= 80) return C.rating80
+  if (v >= 75) return C.rating75
+  if (v >= 70) return C.rating70
+  return C.ratingBase
 }
+
+const DISPLAY = "'Barlow Condensed', 'Arial Narrow', Impact, sans-serif"
+const BODY = "'Inter', system-ui, sans-serif"
 
 export function renderShareCard(input: ShareCardInput): string {
   const W = 1080
@@ -45,35 +52,36 @@ export function renderShareCard(input: ShareCardInput): string {
   canvas.width = W
   canvas.height = H
   const ctx = canvas.getContext('2d')!
-  // background
+  // Background: deep navy with a blue floodlight from the top
   const g = ctx.createLinearGradient(0, 0, 0, H)
-  g.addColorStop(0, '#132019')
-  g.addColorStop(1, '#0b1410')
+  g.addColorStop(0, C.panel)
+  g.addColorStop(1, C.bg)
   ctx.fillStyle = g
   ctx.fillRect(0, 0, W, H)
-  ctx.fillStyle = 'rgba(61,220,132,0.08)'
-  ctx.beginPath()
-  ctx.arc(W / 2, -200, 700, 0, Math.PI * 2)
-  ctx.fill()
+  const glow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 760)
+  glow.addColorStop(0, 'rgba(37, 99, 235, 0.32)')
+  glow.addColorStop(1, 'rgba(37, 99, 235, 0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, W, H)
 
-  const font = (size: number, weight = 700, family = "'Barlow Condensed', 'Arial Narrow', Impact, sans-serif") => `${weight} ${size}px ${family}`
+  const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
   ctx.textAlign = 'center'
-  ctx.fillStyle = '#eef5f0'
-  ctx.font = font(44)
-  ctx.fillText(input.title.toUpperCase(), W / 2, 90)
-  ctx.fillStyle = '#b4c6ba'
-  ctx.font = font(26, 400, "'Inter', system-ui, sans-serif")
-  ctx.fillText(input.subtitle, W / 2, 130)
+  ctx.fillStyle = C.text
+  ctx.font = font(54)
+  ctx.fillText(input.title, W / 2, 92)
+  ctx.fillStyle = C.text2
+  ctx.font = font(26, 400, BODY)
+  ctx.fillText(input.subtitle, W / 2, 134)
 
-  ctx.fillStyle = TIER_COLOUR[input.tier] ?? '#eef5f0'
-  ctx.font = font(84)
-  ctx.fillText(TIER_LABEL[input.tier], W / 2, 225)
+  ctx.fillStyle = TIER_COLOUR[input.tier] ?? C.text
+  ctx.font = font(88)
+  ctx.fillText(tierName(input.tier), W / 2, 232)
 
-  // record
+  // Record: wins, draws, defeats in the status colours
   const rec = [
-    { t: `${input.row.won}W`, c: '#3ddc84' },
-    { t: `${input.row.drawn}D`, c: '#cfd8d2' },
-    { t: `${input.row.lost}L`, c: '#ef5350' },
+    { t: `${input.row.won}W`, c: C.good },
+    { t: `${input.row.drawn}D`, c: C.draw },
+    { t: `${input.row.lost}L`, c: C.bad },
   ]
   ctx.font = font(60)
   const widths = rec.map((r) => ctx.measureText(r.t).width)
@@ -82,28 +90,34 @@ export function renderShareCard(input: ShareCardInput): string {
   for (let i = 0; i < rec.length; i++) {
     ctx.fillStyle = rec[i].c
     ctx.textAlign = 'left'
-    ctx.fillText(rec[i].t, x, 300)
+    ctx.fillText(rec[i].t, x, 306)
     x += widths[i] + gap
   }
   ctx.textAlign = 'center'
-  ctx.fillStyle = '#eef5f0'
-  ctx.font = font(34)
+  ctx.fillStyle = C.text
+  ctx.font = font(30, 600, BODY)
   const ord = (n: number) => n + (['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 > 3 ? 0 : n % 10] ?? 'th')
-  ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 350)
+  ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 354)
 
-  // pitch
+  // The pitch: grass stays green, the frame and lines are neutral
   const px = 90
-  const py = 400
+  const py = 396
   const pw = W - 180
-  const ph = 760
-  ctx.fillStyle = '#1d7a3f'
-  roundRect(ctx, px, py, pw, ph, 18)
+  const ph = 740
+  ctx.fillStyle = C.pitch
+  roundRect(ctx, px, py, pw, ph, 22)
   ctx.fill()
-  ctx.fillStyle = '#1a6f39'
-  for (let i = 0; i < 8; i += 2) {
-    ctx.fillRect(px, py + (ph / 8) * i, pw, ph / 8)
-  }
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+  ctx.save()
+  roundRect(ctx, px, py, pw, ph, 22)
+  ctx.clip()
+  ctx.fillStyle = C.pitch2
+  for (let i = 0; i < 8; i += 2) ctx.fillRect(px, py + (ph / 8) * i, pw, ph / 8)
+  ctx.restore()
+  ctx.strokeStyle = C.navy2
+  ctx.lineWidth = 4
+  roundRect(ctx, px, py, pw, ph, 22)
+  ctx.stroke()
+  ctx.strokeStyle = C.pitchLine
   ctx.lineWidth = 3
   ctx.strokeRect(px + 20, py + 20, pw - 40, ph - 40)
   ctx.beginPath()
@@ -121,11 +135,11 @@ export function renderShareCard(input: ShareCardInput): string {
     const p = id ? input.getPlayer(id) : undefined
     const cx = px + (slot.x / 100) * pw
     const cy = py + ((100 - slot.y) / 100) * ph
-    ctx.fillStyle = 'rgba(8,20,14,0.9)'
+    ctx.fillStyle = C.pitchDisc
     ctx.beginPath()
     ctx.arc(cx, cy - 10, 34, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = p ? ratingColour(p.overall) : 'rgba(255,255,255,0.4)'
+    ctx.strokeStyle = p ? ratingColour(p.overall) : 'rgba(255, 255, 255, 0.4)'
     ctx.lineWidth = 4
     ctx.stroke()
     ctx.fillStyle = '#ffffff'
@@ -133,25 +147,73 @@ export function renderShareCard(input: ShareCardInput): string {
     ctx.textAlign = 'center'
     ctx.fillText(p ? (input.hideRatings ? '?' : String(p.overall)) : slot.position, cx, cy)
     if (p) {
-      ctx.font = font(21, 600, "'Inter', system-ui, sans-serif")
+      ctx.font = font(21, 600, BODY)
       ctx.fillStyle = '#ffffff'
-      ctx.shadowColor = 'rgba(0,0,0,0.9)'
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'
       ctx.shadowBlur = 4
       ctx.fillText(p.name, cx, cy + 48)
       ctx.shadowBlur = 0
-      ctx.fillStyle = 'rgba(255,255,255,0.75)'
-      ctx.font = font(17, 400, "'Inter', system-ui, sans-serif")
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
+      ctx.font = font(17, 400, BODY)
       ctx.fillText(`${p.season}-${String((p.season + 1) % 100).padStart(2, '0')}`, cx, cy + 70)
     }
   }
 
-  ctx.fillStyle = '#7f9587'
-  ctx.font = font(22, 400, "'Inter', system-ui, sans-serif")
-  ctx.fillText(input.footer, W / 2, H - 100)
-  ctx.fillStyle = '#3ddc84'
-  ctx.font = font(34)
-  ctx.fillText('TOUCHLINE', W / 2, H - 50)
+  ctx.fillStyle = C.text3
+  ctx.font = font(22, 400, BODY)
+  ctx.textAlign = 'center'
+  ctx.fillText(input.footer, W / 2, H - 132)
+  drawLockup(ctx, W / 2, H - 70, 56)
   return canvas.toDataURL('image/png')
+}
+
+/** The mark and the two-tone wordmark, centred on (cx, cy), the mark `size` px tall. */
+function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  ctx.font = `700 ${Math.round(size * 0.82)}px ${DISPLAY}`
+  const [touch, line] = WORDMARK
+  const wTouch = ctx.measureText(touch).width
+  const wLine = ctx.measureText(line).width
+  const gap = size * 0.3
+  const total = size + gap + wTouch + wLine
+  const left = cx - total / 2
+  drawMark(ctx, left, cy - size / 2, size)
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = C.text
+  ctx.fillText(touch, left + size + gap, cy + size * 0.04)
+  ctx.fillStyle = C.accent
+  ctx.fillText(line, left + size + gap + wTouch, cy + size * 0.04)
+  ctx.textBaseline = 'alphabetic'
+}
+
+/** The mark of brand.ts at (x, y), `size` px square: the gradient tile, white lines and ball, the pentagon cut back to the tile. */
+function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+  const grid = MARK.grid
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(size / grid, size / grid)
+  const tile = ctx.createLinearGradient(0, 0, grid, grid)
+  tile.addColorStop(0, MARK.gradient[0])
+  tile.addColorStop(1, MARK.gradient[1])
+  ctx.fillStyle = tile
+  roundRect(ctx, 0, 0, grid, grid, MARK.tileRadius)
+  ctx.fill()
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = MARK.lineWidth
+  ctx.stroke(new Path2D(MARK.lines))
+  ctx.lineWidth = MARK.arcWidth
+  ctx.stroke(new Path2D(MARK.arc))
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.arc(MARK.ball.cx, MARK.ball.cy, MARK.ball.r, 0, Math.PI * 2)
+  ctx.fill()
+  if (size >= MARK.detailFrom) {
+    ctx.fillStyle = tile
+    ctx.fill(new Path2D(MARK.pentagon))
+  }
+  ctx.restore()
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

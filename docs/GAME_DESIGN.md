@@ -1,10 +1,10 @@
-# Touchline: game design
+# TouchLine: game design
 
 This document describes the game as implemented in `src/engine` and `src/game`. Every number quoted here is taken from the code at the time of writing; where a system is planned but not built it is listed under Roadmap at the end and nowhere else.
 
 ## 1. Name
 
-**Touchline** is the product name. It is the manager's domain (the one place a manager is allowed to stand), it is short, it is brandable and it is already the repository name, the `<title>`, the brand mark in the top bar and the default team name ("Touchline XI").
+**TouchLine** is the product name, written as one word with a capital L and never in capitals. It is the manager's domain (the one place a manager is allowed to stand), it is short and it is brandable: it is the `<title>`, the manifest name, the wordmark in the top bar and the first line of the share text. The repository, the npm package and the save keys keep the lower-case slug `touchline`, and the default team name is still "Touchline XI". The logo, the palette and the type are in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
 
 Tagline: **Spin the wheel. Draft the XI. Manage the season.**
 
@@ -599,7 +599,7 @@ Prices round to the nearest £1M above 20, £0.5M above 5, else £0.1M.
 **Share text** (`shareText`), copied to the clipboard from the summary screen:
 
 ```
-Touchline · Quick Draft
+TouchLine · Quick Draft
 Touchline XI as Burnley, 2025-26
 CHAMPIONS
 29W 6D 3L · 93 pts · 1st

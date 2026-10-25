@@ -30,7 +30,7 @@ export function ProfileScreen() {
     try {
       const text = await file.text()
       const parsed = JSON.parse(text) as { state?: { profile?: unknown } }
-      if (!parsed || typeof parsed !== 'object' || !parsed.state || typeof parsed.state !== 'object') throw new Error('not a Touchline save')
+      if (!parsed || typeof parsed !== 'object' || !parsed.state || typeof parsed.state !== 'object') throw new Error('not a TouchLine save')
       if (!confirm('Replace everything in this browser with the imported save? This cannot be undone.')) return
       localStorage.setItem(SAVE_KEY, text)
       location.reload()

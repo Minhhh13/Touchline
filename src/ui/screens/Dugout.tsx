@@ -121,7 +121,7 @@ export function Dugout() {
           <div className="stat" style={{ minWidth: 150 }}>
             <span className="label">Board confidence</span>
             <div className="conf">
-              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--accent)' : season.confidence > 30 ? 'var(--gold)' : 'var(--danger)'} thick />
+              <Bar value={season.confidence} colour={season.confidence > 60 ? 'var(--good)' : season.confidence > 30 ? 'var(--gold)' : 'var(--danger)'} thick />
               <span className="small">{Math.round(season.confidence)}</span>
             </div>
             <span className="small muted">target {ordinal(season.boardTarget)}</span>
@@ -213,7 +213,7 @@ export function Dugout() {
       />
 
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
-        <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--accent)' }}>
+        <div className="panel" style={{ marginBottom: 12, borderColor: 'var(--primary)' }}>
           <div className="panel-head">
             <h3>🎓 Youth intake</h3>
             <span className="small muted">Real academy prospects. Sign one for nothing on a three-year deal, or pass.</span>

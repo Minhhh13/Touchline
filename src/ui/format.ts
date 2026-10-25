@@ -1,4 +1,13 @@
 import type { LoadedUniverse } from '@engine/universe'
+import type { SeasonTier } from '@engine/types'
+import { TIER_LABEL } from '@engine/season'
+
+/** A tier for display in sentence case ("Title race", "38-0: The perfect season"); the engine's labels are capitals. */
+export function tierName(tier: SeasonTier): string {
+  const lower = TIER_LABEL[tier].toLowerCase()
+  const i = lower.search(/[a-z]/)
+  return i < 0 ? lower : lower.slice(0, i) + lower[i].toUpperCase() + lower.slice(i + 1)
+}
 
 export function seasonLabel(season: number): string {
   return `${season}-${String((season + 1) % 100).padStart(2, '0')}`
@@ -44,7 +53,7 @@ export function ratingBand(v: number): string {
   return ''
 }
 export function conditionColour(v: number): string {
-  if (v >= 85) return 'var(--accent)'
+  if (v >= 85) return 'var(--good)'
   if (v >= 70) return 'var(--gold)'
   if (v >= 55) return 'var(--warn)'
   return 'var(--danger)'

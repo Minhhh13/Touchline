@@ -34,7 +34,7 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, hideRatings
           <span className="state-bars" title={`Condition ${state.condition} · Morale ${state.morale} · Sharpness ${state.sharpness}`}>
             <Bar value={state.condition} colour={conditionColour(state.condition)} />
             <Bar value={state.morale} colour="var(--info)" />
-            <Bar value={state.sharpness} colour="#c9a0ff" />
+            <Bar value={state.sharpness} colour="var(--meter-sharpness)" />
           </span>
         )}
       </span>

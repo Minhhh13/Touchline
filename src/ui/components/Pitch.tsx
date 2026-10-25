@@ -17,7 +17,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
   return (
     <div className="pitch-wrap" role="group" aria-label="Formation">
       <svg viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true">
-        <g fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2">
+        <g fill="none" style={{ stroke: 'var(--pitch-line)' }} strokeWidth="2">
           <rect x="8" y="8" width="284" height="384" />
           <line x1="8" y1="200" x2="292" y2="200" />
           <circle cx="150" cy="200" r="36" />
@@ -40,7 +40,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const top = `${100 - slot.y}%`
         return (
           <div key={slot.id} className="slot" style={{ left, top }} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
-            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={p && pf < 1 ? { borderColor: pf >= 0.86 ? 'rgba(245,197,66,0.9)' : 'rgba(239,83,80,0.9)' } : undefined}>
+            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={p && pf < 1 ? { borderColor: pf >= 0.86 ? 'var(--gold)' : 'var(--pitch-bad)' } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
             </div>
             <div className="label">{p ? p.name : ''}</div>

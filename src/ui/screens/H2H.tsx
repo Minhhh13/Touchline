@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
+import { APP_NAME } from '../brand'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
 import { h2hComplete, h2hEligibleSlots, h2hUsable } from '@engine/h2h'
@@ -268,7 +269,7 @@ export function H2HScreen() {
         </div>
         <div className="col draft-pitch">
           {([0, 1] as const).map((i) => (
-            <div key={i} className="panel" style={{ borderColor: picking === i ? 'var(--accent)' : undefined }}>
+            <div key={i} className="panel" style={{ borderColor: picking === i ? 'var(--primary)' : undefined }}>
               <div className="panel-head">
                 <h3>
                   {h2h.managers[i].name} · {h2h.managers[i].formationId}
@@ -304,7 +305,7 @@ function H2HSummary() {
   const r = h2h.result
   const m = h2h.managers
   const text = [
-    `Touchline · Head-to-head · ${seasonLabel(h2h.leagueSeason)}`,
+    `${APP_NAME} · Head-to-head · ${seasonLabel(h2h.leagueSeason)}`,
     ...([0, 1] as const).map((i) => `${m[i].name}: ${TIER_LABEL[r.tiers[i]]} · ${r.rows[i].won}W ${r.rows[i].drawn}D ${r.rows[i].lost}L · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
     `Derbies: ${r.derbies.map((dby) => `${m[dby.homeIdx].shortName} ${dby.homeGoals}-${dby.awayGoals} ${m[dby.homeIdx === 0 ? 1 : 0].shortName}`).join(', ')}`,
     r.winner === null ? 'Dead heat.' : `${m[r.winner].name} wins.`,

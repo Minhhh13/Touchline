@@ -169,7 +169,7 @@ function LiveSegment({ homeName, awayName, onPlayed }: { homeName: string; awayN
     <div className="col">
       <MatchTicker events={mp.events} homeName={homeName} awayName={awayName} startClock={atBreak ? 0 : 46} stopAt={clock} onStop={() => setAtStop(true)} />
       {atStop && (
-        <div className="panel" style={{ borderColor: 'var(--accent)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
+        <div className="panel" style={{ borderColor: 'var(--primary)' }} data-testid={atBreak ? 'half-time-panel' : 'late-panel'}>
           <div className="panel-head">
             <h2>{atBreak ? 'Half time' : '70 minutes'}: {stateLabel}</h2>
             <span className="small muted">{atBreak ? 'Make your changes, then play on to the 70th minute.' : 'Twenty minutes left. A shout, a change or two, then play to the whistle.'}</span>
@@ -422,7 +422,7 @@ function Report({ res, ctx, homeName, awayName, outcome, get }: { res: FullMatch
                       <td className="num">{s.minutes}</td>
                       <td className="num">{s.goals}</td>
                       <td className="num">{s.assists}</td>
-                      <td className="num" style={{ fontWeight: 700, color: s.rating >= 7.5 ? 'var(--accent)' : s.rating < 6 ? 'var(--danger)' : undefined }}>
+                      <td className="num" style={{ fontWeight: 700, color: s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : undefined }}>
                         {s.rating.toFixed(1)}
                       </td>
                     </tr>
