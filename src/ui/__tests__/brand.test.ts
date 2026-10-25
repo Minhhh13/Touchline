@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { Lockup } from '../components/Logo'
 import { LOCKUP, MARK, ballPanels, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, type MarkTier } from '../brand'
 
 const TIERS: MarkTier[] = ['full', 'mid', 'tiny']
@@ -57,6 +60,13 @@ describe('the mark', () => {
     expect(centred.length).toBe(1)
   })
 
+  it('draws the real panels on the 16 px ball, so the favicon reads as a ball and not an eye at 32 device px', () => {
+    const svg = markSvgInner('t', { tier: 'tiny' })
+    const pents = ballPanels(0, 0, 1).filter((p) => p.type === 'pent').length
+    expect(svg.match(/<path d="M[^"]*"\/>/g)?.length).toBe(pents)
+    expect(readFileSync(new URL('../../../public/favicon.svg', import.meta.url), 'utf8').trim()).toBe(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">${markSvgInner('tl', { tier: 'tiny' })}</svg>`)
+  })
+
   it('prefixes every id with the instance id, so two marks on a page never share a gradient', () => {
     for (const t of TIERS) {
       for (const variant of ['colour', 'mono', 'inverse'] as const) {
@@ -81,6 +91,14 @@ describe('the lockup', () => {
     for (const [x, y] of points(pennantPath(pennant))) expect(Math.hypot(x - ball.cx, y - cy)).toBeGreaterThan(ball.r + 2.5)
     // the roll starts with the ball wholly behind the pole's centre, where its track begins
     expect(rollFrom + ball.r).toBeLessThan(pole.x)
+  })
+
+  it('carries the name once as text; the glint copy is generated content', () => {
+    const html = renderToStaticMarkup(createElement(Lockup, { animate: 'load' }))
+    expect(html.replace(/<[^>]*>/g, '')).toBe('TouchLine')
+    expect(html).toContain('data-text="TouchLine"')
+    const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
+    expect(css).toContain('.tl-shine::before {\n  content: attr(data-text);')
   })
 
   it('matches the stylesheet', () => {

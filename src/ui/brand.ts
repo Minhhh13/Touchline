@@ -322,7 +322,7 @@ export function ballPanels(cx: number, cy: number, r: number): BallPanel[] {
   })
 }
 
-/** The tiny ball's single patch: a pentagon nudged up and left, so it reads as a ball and not a target. */
+/** The tiny mono and inverse ball's single patch: a pentagon nudged up and left, so it reads as a ball and not a target. */
 export function tinyPatch(cx: number, cy: number, r: number): string {
   return pentagonPath(cx - r * 0.14, cy - r * 0.2, r * 0.52)
 }
@@ -375,7 +375,8 @@ export function ballSvg(id: string, o: BallOptions): { defs: string; body: strin
     }
   }
   if (tier === 'tiny') {
-    return { defs: '', body: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff"/><path d="${patches[0]}" fill="${MARK.panel}"/>${after}` }
+    // The real panels, not the single patch: at 32 device px (a favicon on a high-density screen) one centred patch reads as an eye
+    return { defs: clipDef, body: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff"/><g clip-path="url(#${clip})" fill="${MARK.panel}">${pents.map((p) => `<path d="${p.d}"/>`).join('')}</g>${after}` }
   }
   if (tier === 'mid') {
     return {

@@ -394,6 +394,9 @@ p {
   -webkit-background-clip: text;
   background-clip: text;
 }
+.tl-shine::before {
+  content: attr(data-text);
+}
 .tl-play .tl-name,
 .tl-play .tl-shine,
 .tl-play .tl-rule,

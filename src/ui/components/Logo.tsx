@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
-import { LOCKUP, LOCKUP_FLAG_WIDTH, MARK, WORDMARK, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, type MarkVariant } from '../brand'
+import { APP_NAME, LOCKUP, LOCKUP_FLAG_WIDTH, MARK, WORDMARK, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, type MarkVariant } from '../brand'
 
 /** Named sizes in CSS pixels; any number works too. */
 export const LOGO_SIZES = { sm: 24, md: 32, lg: 48, xl: 96 } as const
@@ -91,9 +91,8 @@ export function Lockup({ height = 64, animate = 'none', className }: { height?: 
       <span className="tl-name">
         {WORDMARK[0]}
         <span className="wordmark-line">{WORDMARK[1]}</span>
-        <span className="tl-shine" aria-hidden="true">
-          {WORDMARK.join('')}
-        </span>
+        {/* The glint's copy of the name is generated content, so the page text, find-in-page and copy see the name once */}
+        <span className="tl-shine" aria-hidden="true" data-text={APP_NAME} />
       </span>
     </span>
   )
