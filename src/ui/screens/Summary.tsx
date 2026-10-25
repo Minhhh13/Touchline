@@ -20,6 +20,8 @@ import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
+import { HighlightsModal } from '../components/Highlights'
+import { canShowHighlights } from '@game/logic/highlights'
 import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 
@@ -27,6 +29,10 @@ export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
   const [copied, setCopied] = useState(false)
   const [link, setLink] = useState<string | null>(null)
+  // The game whose highlights are open, by matchweek
+  const [hlWeek, setHlWeek] = useState<number | null>(null)
+  // Every game of a quick season, game by game; the replay is UI state only
+  const replay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const q = game.quickResult
@@ -40,9 +46,7 @@ export function Summary() {
     if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
     return []
   }, [q, season])
-  // Every game of a quick season, game by game; the replay is UI state only
   const results = q?.results ?? []
-  const replay = useSeasonReplay(results.length)
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
   // Where this season sits against every complete real season of the league with the same number of matches
@@ -261,7 +265,8 @@ export function Summary() {
 
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} />
+          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} onHighlights={canShowHighlights(game) ? (r) => setHlWeek(r.matchweek) : undefined} />
+          {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
         </div>
       )}
 

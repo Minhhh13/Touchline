@@ -324,6 +324,8 @@ export interface QuickResult {
   europe?: QuickEuropeRun
   /** Quick bench: the voluntary changes the season was played with, with the starter each sent to the bench. */
   changes?: Array<QuickChange & { outId: string }>
+  /** The RNG state the season kicked off from, so the highlights of any game can be played again. Absent on older saves. */
+  startRng?: RngState
 }
 
 /** One Continental Cup tie of a quick season's European run, from the user's side. */

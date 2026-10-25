@@ -13,6 +13,8 @@ import type { QuickGameResult } from '@game/types'
 import { Pitch } from '../components/Pitch'
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { GameByGame, GameCard, RunningStrip, useSeasonPlayback } from '../components/GameByGame'
+import { HighlightsModal } from '../components/Highlights'
+import { canShowHighlights } from '@game/logic/highlights'
 import { PlayerRow } from '../components/PlayerRow'
 import { Pos, Segmented } from '../components/bits'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
@@ -30,7 +32,15 @@ export function SeasonPlayback() {
   // A reload during the first half lands on the window; after the season the playback carries on where the window left it
   const from = playback?.from ?? results.length
   const pb = useSeasonPlayback(results.length, from)
+  const [hlWeek, setHlWeek] = useState<number | null>(null)
   if (!u || !game) return null
+  // Watching a game's highlights pauses the playback on the game shown
+  const watch = canShowHighlights(game)
+    ? (r: QuickGameResult) => {
+        pb.pause()
+        setHlWeek(r.matchweek)
+      }
+    : undefined
   const s = game.settings
   const opponent = (id: string) => ({ clubId: id, name: clubName(u, id) })
   const latest = pb.revealed ? results[pb.revealed - 1] : null
@@ -58,7 +68,7 @@ export function SeasonPlayback() {
           )}
         </div>
         <RunningStrip results={results} upTo={pb.revealed} />
-        {latest && !(j && pb.done) && <GameCard r={latest} opponent={opponent(latest.opponentId)} />}
+        {latest && !(j && pb.done) && <GameCard r={latest} opponent={opponent(latest.opponentId)} onHighlights={watch} />}
         {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}
         {quickBenchRule(game) && game.draft && game.draft.bench.length > 0 && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
         {!j && pb.done && (
@@ -69,7 +79,8 @@ export function SeasonPlayback() {
             </button>
           </div>
         )}
-        <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} title="Game by game" />
+        <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} title="Game by game" onHighlights={watch} />
+        {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
       </div>
     </div>
   )

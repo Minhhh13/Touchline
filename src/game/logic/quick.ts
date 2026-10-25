@@ -1,7 +1,8 @@
 import type { Game, JanuaryListing, QuickChange, QuickCover, QuickEuropeRun, QuickEuropeTie, QuickGameResult, QuickJanuary, QuickResult } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { simulateMatch, type MatchTeamInput } from '@engine/match'
+import { simulateMatch, type FullMatchResult, type MatchTeamInput } from '@engine/match'
+import type { RngState } from '@engine/rng'
 import { aiTeamInput, aiRatingOffset, buildAiClubs, buildContinentalClubs, computeTable, continentalRounds, drawFirstRound, drawNextRound, generateFixtures, matchweeksFor, positionOf, seasonTier, shootout, USER_TEAM, type AiClub } from '@engine/season'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
@@ -85,12 +86,23 @@ interface QuickRun {
   out: Record<string, number>
   /** Injuries and covers of the user's game in each matchweek, for the results. */
   notes: Record<number, Pick<QuickGameResult, 'injuries' | 'covers'>>
+  /** Handed each of the user's games as it is played, with the generator's state just before it (the highlights replay). */
+  capture?: (m: ReplayedMatch) => void
+}
+
+/** One of the user's quick-season games as the season played it: both sides' inputs, the result and the RNG state it kicked off from. */
+export interface ReplayedMatch {
+  matchweek: number
+  home: MatchTeamInput
+  away: MatchTeamInput
+  result: FullMatchResult
+  before: RngState
 }
 
 /** The season's set-up from the game's RNG state: the AI clubs, the calibration, the fixtures (the first draws). */
-function startRun(game: Game, u: LoadedUniverse): QuickRun {
+function startRun(game: Game, u: LoadedUniverse, from: RngState = game.quickStartRng ?? game.rngState): QuickRun {
   // A season with a bench re-runs from where it kicked off when a change is made, never from the state it ended on
-  const rng = Rng.fromState(game.quickStartRng ?? game.rngState)
+  const rng = Rng.fromState(from)
   const get = playerLookup(game, u)
   const { lineup, bench } = quickXI(game, u)
   const ai = buildAiClubs(u, game.settings.leagueId, game.settings.leagueSeason, game.settings.hostClubId)
@@ -168,8 +180,10 @@ function playMatchweeks(run: QuickRun, u: LoadedUniverse, game: Game, side: Quic
     }
     const home = userIsHome ? user! : aiTeamInput(u, run.ai[f.homeTeamId], run.offset)
     const away = userIsAway ? user! : aiTeamInput(u, run.ai[f.awayTeamId], run.offset)
+    const before = run.capture && (userIsHome || userIsAway) ? run.rng.getState() : null
     const res = simulateMatch({ rng: run.rng, home, away, detail: 'summary' })
     f.result = res
+    if (before) run.capture!({ matchweek: f.matchweek, home, away, result: res, before })
     if (userIsHome || userIsAway) {
       for (const st of userIsHome ? res.homeStats : res.awayStats) {
         run.goals[st.playerSeasonId] = (run.goals[st.playerSeasonId] ?? 0) + st.goals
@@ -282,7 +296,8 @@ export function kickOff(game: Game, u: LoadedUniverse, skip = false): void {
  * tactics: passing with unchanged tactics gives the very season a run without a window gives.
  */
 export function runQuickSeason(game: Game, u: LoadedUniverse): void {
-  const run = startRun(game, u)
+  const startRng = game.quickStartRng ?? game.rngState
+  const run = startRun(game, u, startRng)
   const { rng, get, matchweeks } = run
   const j = game.quickJanuary && game.quickJanuary.move !== undefined ? game.quickJanuary : null
   const firstTactics = j ? j.firstHalfTactics : game.tactics
@@ -333,6 +348,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     ...(deal ? { january: { kind: deal.kind, inId: deal.playerSeasonId, inName: get(deal.playerSeasonId)?.name ?? deal.playerSeasonId, outId: deal.outId, outName: get(deal.outId)?.name ?? deal.outId, fee: deal.fee, slotId: deal.slotId } } : {}),
     ...(europe ? { europe } : {}),
     ...(run.applied.length ? { changes: run.applied } : {}),
+    startRng: { ...startRng },
   }
   game.quickResult = quick
   game.lineup = run.lineup
@@ -505,4 +521,36 @@ export function closeQuickSeason(game: Game): void {
 /** The games the playback runs over: the first half while the January window is open, else the whole season. */
 export function playbackResults(game: Game): QuickGameResult[] {
   return game.phase === 'january' ? game.quickJanuary?.firstHalf ?? [] : game.quickResult?.results ?? []
+}
+
+/**
+ * The RNG state the quick season on show kicked off from, or null on a save written before it was kept: while the
+ * January window is open the season has not moved the game's state yet.
+ */
+export function quickSeasonStart(game: Game): RngState | null {
+  if (game.phase === 'january') return game.quickStartRng ?? game.rngState
+  return game.quickResult?.startRng ?? game.quickStartRng ?? null
+}
+
+/**
+ * Play the quick season on show again, from where it kicked off, up to the user's game of matchweek `matchweek`, and
+ * hand that game back as it was played: the same sides, tactics, January deal and bench changes, so the same score.
+ * Nothing on `game` changes. Null when the season's start state was not kept or the user had no game that matchweek.
+ */
+export function replayUserMatch(game: Game, u: LoadedUniverse, matchweek: number): ReplayedMatch | null {
+  const start = quickSeasonStart(game)
+  if (!start) return null
+  const run = startRun(game, u, start)
+  let found: ReplayedMatch | null = null
+  run.capture = (m) => {
+    if (m.matchweek === matchweek) found = m
+  }
+  const j = game.quickJanuary
+  // The first half was played with the tactics it kicked off with once a window opened, whatever the window changed
+  const first: QuickSide = j ? { tactics: j.firstHalfTactics, captainId: j.firstHalfCaptainId } : { tactics: game.tactics, captainId: game.captainId }
+  playMatchweeks(run, u, game, first, 1, Math.min(run.half, matchweek))
+  if (found || matchweek <= run.half || game.phase === 'january') return found
+  if (j?.move) run.lineup = { ...run.lineup, [j.move.slotId]: j.move.playerSeasonId }
+  playMatchweeks(run, u, game, { tactics: game.tactics, captainId: game.captainId }, run.half + 1, Math.min(run.matchweeks, matchweek))
+  return found
 }

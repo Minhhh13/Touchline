@@ -108,7 +108,7 @@ export function useSeasonPlayback(total: number, from: number, stopAt = total): 
 }
 
 /** One game of the season, large: the latest result of the playback. */
-export function GameCard({ r, opponent }: { r: QuickGameResult; opponent: Opponent }) {
+export function GameCard({ r, opponent, onHighlights }: { r: QuickGameResult; opponent: Opponent; onHighlights?: (r: QuickGameResult) => void }) {
   const o = outcomeOf(r)
   const scorers = scorersLabel(r.scorers)
   const chip: Record<ReturnType<typeof outcomeOf>, string> = { W: 'chip good', D: 'chip warn', L: 'chip bad' }
@@ -131,6 +131,11 @@ export function GameCard({ r, opponent }: { r: QuickGameResult; opponent: Oppone
         <span className="muted">{scorers || 'No goals for you'}</span>
         <span>{ordinal(r.position)} in the table</span>
       </div>
+      {onHighlights && (
+        <button className="btn sm" onClick={() => onHighlights(r)} data-testid="card-highlights">
+          ▶ Highlights
+        </button>
+      )}
     </div>
   )
 }
@@ -172,7 +177,7 @@ export function RunningStrip({ results, upTo }: { results: QuickGameResult[]; up
   )
 }
 
-export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean }) {
+export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void }) {
   const revealed = replay ? replay.revealed : results.length
   const playing = replay?.playing ?? false
   const lastRef = useRef<HTMLLIElement | null>(null)
@@ -185,7 +190,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
   }, [playing, revealed, compact])
   const outcomeChip: Record<ReturnType<typeof outcomeOf>, string> = { W: 'chip good', D: 'chip warn', L: 'chip bad' }
   return (
-    <div className={`panel gbg ${compact ? 'compact' : ''}`} data-testid="game-by-game">
+    <div className={`panel gbg ${compact ? 'compact' : ''} ${onHighlights ? 'with-hl' : ''}`} data-testid="game-by-game">
       <div className="panel-head">
         <h3>{title}</h3>
         <span className="small muted">{revealed < results.length ? `${revealed} of ${results.length}` : `${results.length} games`}</span>
@@ -222,6 +227,11 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               <span className="gbg-pos" title="League position after this matchweek">
                 {ordinal(r.position)}
               </span>
+              {onHighlights && (
+                <button className="btn sm ghost gbg-hl" onClick={() => onHighlights(r)} title="Highlights" aria-label={`Highlights of matchweek ${r.matchweek}`} data-testid="gbg-highlights">
+                  ▶
+                </button>
+              )}
               {scorers && <span className="gbg-scorers small muted">{scorers}</span>}
             </li>
           )

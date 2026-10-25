@@ -4,7 +4,7 @@ import { MatchTicker } from '../components/MatchTicker'
 import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs } from '../components/bits'
 import type { PitchSide } from '../components/LivePitch'
 import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay, XgRace } from '../components/MatchCharts'
-import { kitColour } from '../match/pitchGeometry'
+import { kitColours } from '../match/pitchGeometry'
 import { xgSeries } from '../match/charts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
 import { clubName, clubShort, minuteLabel } from '../format'
@@ -16,16 +16,6 @@ import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import { isAvailable } from '@game/logic/players'
-
-/** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
-function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, awayTeamId: string): { home: string; away: string } {
-  const clubOf = (teamId: string) => u.clubById[teamId === USER_TEAM ? hostClubId : teamId.replace(/^friendly-/, '')]
-  const h = clubOf(homeTeamId)
-  const a = clubOf(awayTeamId)
-  const home = kitColour(h?.colours, a?.colours.primary ?? '#888888', '#3ddc84')
-  const away = kitColour(a?.colours, home, '#5ec2ff')
-  return { home, away }
-}
 
 function appearancesOf(live: LivePlayer[]): Appearance[] {
   return live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury }))

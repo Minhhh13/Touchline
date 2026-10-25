@@ -62,7 +62,7 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
   )
 }
 
-export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose?: () => void; title?: string; children: ReactNode; wide?: boolean }) {
+export function Modal({ open, onClose, title, children, wide, sheet, testId }: { open: boolean; onClose?: () => void; title?: string; children: ReactNode; wide?: boolean; /** A bottom sheet on a phone. */ sheet?: boolean; testId?: string }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -73,8 +73,8 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   }, [open, onClose])
   if (!open) return null
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal" style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+    <div className={`modal-back ${sheet ? 'sheet-back' : ''}`} onClick={onClose}>
+      <div className={`modal ${sheet ? 'sheet' : ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
         {title && (
           <div className="panel-head">
             <h2>{title}</h2>
