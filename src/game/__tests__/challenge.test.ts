@@ -53,8 +53,9 @@ describe('challenge links', () => {
     const g = autoGame({ rules: { ...QUICK_RULES, leagues: ['england'], fromSeason: 2014, hardMode: true, onlyClub: undefined } })
     const c = challengeFromGame(g, u, '  Minh\u0007 the Gaffer with a very long name  ')!
     expect(c).not.toBeNull()
-    expect(c.s.r).toEqual({ fromSeason: 2014, hardMode: true })
-    expect(rulesDiff(QUICK_RULES)).toEqual({})
+    expect(c.s.r).toEqual({ difficulty: 'hard', fromSeason: 2014, hardMode: true })
+    // The difficulty is always written, so a link from before difficulties is told apart
+    expect(rulesDiff(QUICK_RULES)).toEqual({ difficulty: 'normal' })
     const encoded = encodeChallenge(c)
     expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/)
     // Real player ids and a rules diff keep an eleven-pick link well under a thousand characters
@@ -66,7 +67,7 @@ describe('challenge links', () => {
     expect(back.k).toBe(c.k)
     expect(back.c).toEqual(c.c)
     expect(back.s).toEqual(c.s)
-    expect(rulesFromPayload(back)).toEqual({ ...QUICK_RULES, fromSeason: 2014, hardMode: true, leagues: ['england'] })
+    expect(rulesFromPayload(back)).toEqual({ ...QUICK_RULES, difficulty: 'hard', fromSeason: 2014, hardMode: true, leagues: ['england'] })
     // The fragment form and the bare form both decode
     expect(decodeChallenge(`#c=${encoded}`)).toEqual(back)
     expect(challengeLink(c, 'https://example.test', '/touchline/')).toBe(`https://example.test/touchline/#c=${encoded}`)
@@ -160,7 +161,8 @@ describe('challenge links', () => {
   })
 
   it('replays a draft that used a re-spin', () => {
-    const g = createGame(settings({ seed: 'GHOST-RESPIN' }))
+    // Two re-spins (the budget quick drafts had before difficulties; normal now gives one), which the link carries in its rules diff
+    const g = createGame(settings({ seed: 'GHOST-RESPIN', rules: { ...QUICK_RULES, respins: 2, leagues: ['england'] } }))
     const d = g.draft!
     const rng = Rng.fromState(g.rngState)
     let n = 0
@@ -210,7 +212,7 @@ describe('challenge links', () => {
   it('keeps a spin the assistant discards in the history, so the game still replays', () => {
     const g = createGame(settings({ seed: 'GHOST-SKIP' }))
     useStore.setState({ universe: u, game: g, loadedLeagues: ['england'] })
-    const { spin: storeSpin, autoDraftRest, finishDraft } = useStore.getState()
+    const { spin: storeSpin, autoDraftRest, finishDraft, kickOff } = useStore.getState()
     storeSpin()
     storeSpin() // ignored: a spin is pending
     expect(useStore.getState().game!.draft!.current).not.toBeNull()
@@ -219,6 +221,9 @@ describe('challenge links', () => {
     expect(after.draft!.history[0]).toMatchObject({ pickedId: null, slotId: null, skipped: true })
     expect(after.draft!.history.length).toBe(after.draft!.spins)
     finishDraft()
+    // The draft hands over to the tactics step; kicking off plays the season (no January window on this game)
+    expect(useStore.getState().game!.phase).toBe('kickoff')
+    kickOff()
     const done = useStore.getState().game!
     expect(done.phase).toBe('summary')
     const c = challengeFromGame(done, u, 'Skipper')!

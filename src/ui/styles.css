@@ -1244,6 +1244,10 @@ label.field,
   border-color: var(--primary);
   background: var(--primary-soft);
 }
+.prow.fit {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 .prow.dim {
   opacity: 0.42;
   cursor: default;
@@ -2857,38 +2861,134 @@ table.tbl.contracts .btn.sm {
 }
 .formations {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
   gap: 8px;
 }
-@media (max-width: 640px) {
-  .formations {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.formations.with-blurbs {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }
 .formations button {
-  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
   border-radius: var(--radius-m);
   border: var(--border);
   background: var(--panel-2);
   color: var(--text);
   cursor: pointer;
+  text-align: center;
+  min-width: 0;
+}
+.formations.with-blurbs button {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
   text-align: left;
 }
 .formations button:hover {
   border-color: var(--line-2);
   background: var(--raised);
 }
+.formations button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 .formations button.active {
   border-color: var(--primary);
   background: var(--primary-soft);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.formations .ftext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 .formations .fname {
   font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.formations.with-blurbs .fname {
   font-size: 20px;
 }
 .formations .fblurb {
   font-size: 12px;
   color: var(--text-3);
+}
+/* The mini pitch on each tile: drawn from the formation's slot coordinates (src/game/logic/formationThumb.ts) */
+.fthumb {
+  display: block;
+  width: 52px;
+  height: auto;
+  flex: none;
+}
+.formations.with-blurbs .fthumb {
+  width: 46px;
+}
+/* On a phone the Tactics tab keeps two tiles a row (as before the pictures), the blurb under the picture and name, so the panel is not eight full-width rows tall */
+@media (max-width: 640px) {
+  .formations.with-blurbs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .formations.with-blurbs button {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 4px 8px;
+    padding: 8px;
+  }
+  .formations.with-blurbs .fthumb {
+    width: 44px;
+  }
+  .formations.with-blurbs .ftext {
+    display: contents;
+  }
+  .formations.with-blurbs .fname {
+    font-size: 18px;
+    align-self: center;
+  }
+  .formations.with-blurbs .fblurb {
+    grid-column: 1 / -1;
+  }
+}
+.fthumb-grass {
+  fill: var(--pitch-2);
+}
+.fthumb-lines {
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 0.8;
+}
+.fthumb-dot {
+  fill: #ffffff;
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-width: 0.7;
+}
+.fthumb-dot.g-GK {
+  fill: var(--pos-gk);
+}
+.fthumb-dot.g-DEF {
+  fill: var(--pos-def);
+}
+.fthumb-dot.g-MID {
+  fill: var(--pos-mid);
+}
+.fthumb-dot.g-ATT {
+  fill: var(--pos-att);
+}
+.formations button.active .fthumb-grass {
+  fill: var(--pitch);
+}
+.formation-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
 }
 .achievements {
   display: grid;
@@ -3050,6 +3150,156 @@ table.tbl.contracts .btn.sm {
 }
 .fold-head h3 {
   margin: 0;
+}
+/* The 38-0 setup: one column of option cards, a pitch preview and a two-handle era slider */
+.setup-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.setup-sub {
+  margin: 4px 0 0;
+}
+.setup-flow div.field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.setup-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.setup-opt + .setup-opt {
+  margin-top: 8px;
+}
+.setup-opt h3,
+.setup-line {
+  margin: 0;
+}
+.choice-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.choice-cards.n3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.choice-card.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.choice-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.choice-card .ctitle {
+  font-family: var(--font-display);
+  font-size: 19px;
+}
+.choice-card .cline {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.pitch-mini {
+  width: min(240px, 100%);
+  margin: 4px auto 0;
+}
+.pitch-mini .pitch-wrap .slot {
+  width: 40px;
+  cursor: default;
+}
+.pitch-mini .pitch-wrap .slot .disc {
+  width: 30px;
+  height: 30px;
+  font-size: 10px;
+}
+.season-range {
+  position: relative;
+  height: 28px;
+}
+.season-range .track,
+.season-range .fill {
+  position: absolute;
+  top: 12px;
+  height: 4px;
+  border-radius: 2px;
+}
+.season-range .track {
+  left: 0;
+  right: 0;
+  background: var(--line-2);
+}
+.season-range .fill {
+  background: var(--primary);
+}
+.season-range input[type='range'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.season-range input[type='range']::-webkit-slider-runnable-track {
+  height: 28px;
+  background: none;
+}
+.season-range input[type='range']::-moz-range-track {
+  background: none;
+}
+.season-range input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--panel);
+  cursor: pointer;
+}
+.season-range input[type='range']::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--panel);
+  cursor: pointer;
+}
+.toggle.is-off {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+@media (max-width: 520px) {
+  .choice-cards.n3 .choice-card {
+    padding: 8px;
+  }
+  .choice-card .ctitle {
+    font-size: 17px;
+  }
 }
 .linklike {
   background: none;
@@ -3393,6 +3643,50 @@ table.tbl.contracts .btn.sm {
     transform: none;
   }
 }
+/* The season playback: the latest game, large, and the January window's deals */
+.gbg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: var(--border);
+  background: var(--panel);
+  animation: gbg-in 0.18s ease-out;
+}
+.gbg-card.W {
+  border-color: color-mix(in srgb, var(--good) 45%, var(--line));
+}
+.gbg-card.L {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+}
+.gbg-card-main {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.gbg-card-opp {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.gbg-card-score {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+}
+.jw-deal {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jw-out {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+}
 @media (max-width: 520px) {
   .gbg-game {
     grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 38px;
@@ -3404,6 +3698,7 @@ table.tbl.contracts .btn.sm {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .gbg-card,
   .gbg-game,
   .tier-banner .tier.pop {
     animation: none;
@@ -3670,4 +3965,98 @@ table.tbl.contracts .btn.sm {
   font-family: inherit;
   font-size: 13px;
   padding: 5px 10px;
+}
+/* Quick-season highlights: a Highlights button on each game, the reel in a modal (a bottom sheet on a phone) */
+.gbg.with-hl .gbg-game {
+  grid-template-columns: 44px 22px minmax(0, 1fr) auto auto 42px 30px;
+}
+.gbg-hl {
+  min-width: 30px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.gbg-card [data-testid='card-highlights'] {
+  margin-top: 8px;
+}
+.hl-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.hl-team {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.hl-team.right {
+  text-align: right;
+}
+.hl-goals {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+}
+.hl-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 52px;
+}
+.hl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow: auto;
+}
+.hl-moment {
+  display: grid;
+  grid-template-columns: 40px auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: var(--border);
+  background: var(--panel-2);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.modal .hl-controls {
+  position: sticky;
+  bottom: -20px;
+  margin: 0 -20px -20px;
+  padding: 10px 20px 20px;
+  background: var(--panel);
+  border-top: var(--border);
+}
+.hl-moment-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* On a phone the modal is main's bottom sheet (see .modal); the controls stick to its bottom edge */
+@media (max-width: 720px) {
+  .modal.sheet .hl-controls {
+    bottom: calc(-1 * (var(--space-5) + env(safe-area-inset-bottom)));
+    margin: 0 calc(-1 * var(--gutter)) calc(-1 * (var(--space-5) + env(safe-area-inset-bottom)));
+    padding: 10px var(--gutter) calc(var(--space-5) + env(safe-area-inset-bottom));
+  }
+  .modal.sheet .pitch-svg.portrait {
+    max-height: 50vh;
+    width: auto;
+    margin: 0 auto;
+  }
+}
+@media (max-width: 520px) {
+  .gbg.with-hl .gbg-game {
+    grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 34px 28px;
+  }
 }
