@@ -3,6 +3,7 @@ import { useStore, SAVE_KEY } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
 import type { LeaderboardEntry } from '@game/types'
+import { MODE_TITLE } from '@game/logic/modes'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 
@@ -160,7 +161,7 @@ export function ProfileScreen() {
                     </span>
                     <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>
                   </td>
-                  <td>{e.mode}</td>
+                  <td>{MODE_TITLE[e.mode] ?? e.mode}</td>
                   <td>{seasonLabel(e.leagueSeason)}</td>
                   <td className="num" style={{ fontWeight: 700 }}>
                     {e.points}

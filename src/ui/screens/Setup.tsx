@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
-import type { GameSettings, Mode } from '@game/types'
+import type { GameSettings } from '@game/types'
 import { dailyGameSettings, dailySettings, defaultHostClub, shortNameFor, summariseSetup } from '@game/logic/setup'
+import { MODE_TITLE } from '@game/logic/modes'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
 import { rulesFromPayload } from '@engine/challenge'
@@ -11,8 +12,6 @@ import { randomSeed } from '@engine/rng'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
-
-const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 
 type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
 

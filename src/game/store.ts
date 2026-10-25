@@ -12,6 +12,8 @@ import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
 import { runQuickSeason } from './logic/quick'
+import { isQuickLike } from './logic/modes'
+import { advanceStreak, streakDay } from './logic/streaks'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
@@ -366,7 +368,7 @@ export const useStore = create<Store>()(
             if (!g.draft) return
             // A one-nation wheel that has run dry may close with a full XI short of the squad size
             if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
-            if (g.settings.mode === 'quick' || g.settings.mode === 'daily') runQuickSeason(g, u)
+            if (isQuickLike(g.settings.mode)) runQuickSeason(g, u)
             else beginSeason(g, u)
           })
           const { game } = get()
@@ -536,11 +538,11 @@ export const useStore = create<Store>()(
           const dailyResults = { ...profile.dailyResults }
           if (game.settings.mode === 'daily') {
             // The result belongs to the day the puzzle was set, not the day it was finished
-            const today = previousDailySeed(game.settings.seed) ? game.settings.seed : dailySeed()
+            const today = streakDay(game.settings.seed, previousDailySeed, dailySeed())
             if (!dailyResults[today]) {
-              const yesterday = previousDailySeed(today) ?? dailySeed(new Date(Date.now() - 86400000))
-              dailyStreak = lastDailyDate === yesterday ? dailyStreak + 1 : 1
-              lastDailyDate = today
+              const book = advanceStreak({ streak: dailyStreak, last: lastDailyDate }, today, previousDailySeed, dailySeed(new Date(Date.now() - 86400000)))
+              dailyStreak = book.streak
+              lastDailyDate = book.last
               dailyResults[today] = { points: rec.points, tier: rec.tier }
             }
           }

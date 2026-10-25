@@ -1,5 +1,6 @@
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
+import { modeLabel } from '@game/logic/modes'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 
@@ -40,7 +41,7 @@ export function Home() {
             <ClubBadge clubId={game.settings.hostClubId} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
-                {game.settings.teamName} · {game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : game.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${game.year}`}
+                {game.settings.teamName} · {modeLabel(game, 'short')}
               </div>
               <div className="small muted">
                 {game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
@@ -64,7 +65,7 @@ export function Home() {
             <ClubBadge clubId={g.settings.hostClubId} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
-                {g.settings.teamName} · {g.settings.mode === 'quick' ? 'Quick draft' : g.settings.mode === 'daily' ? 'Daily challenge' : g.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${g.year}`} (parked)
+                {g.settings.teamName} · {modeLabel(g, 'short')} (parked)
               </div>
               <div className="small muted">{g.phase === 'draft' ? 'Drafting' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
             </div>

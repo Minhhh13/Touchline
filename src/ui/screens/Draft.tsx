@@ -10,6 +10,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Pos, Rating } from '../components/bits'
 import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
+import { finishDraftLabel } from '@game/logic/modes'
 import { leagueSegments } from '../components/leagueSegments'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
@@ -154,7 +155,7 @@ export function Draft() {
             )}
             {!complete && dry && !fillingStarters && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'Simulate the season' : isDynastySummer ? 'Into the new season' : `Go to pre-season with ${made}`}
+                {finishDraftLabel(game, made)}
               </button>
             )}
             {!complete && !dry && (
@@ -174,7 +175,7 @@ export function Draft() {
             )}
             {complete && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'Simulate the season' : isDynastySummer ? 'Into the new season' : 'Go to pre-season'}
+                {finishDraftLabel(game)}
               </button>
             )}
           </div>

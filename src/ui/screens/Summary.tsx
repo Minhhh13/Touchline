@@ -16,6 +16,7 @@ import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
+import { modeLabel, shareCardFooter } from '@game/logic/modes'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
@@ -73,7 +74,7 @@ export function Summary() {
     continentalWon: season?.continental?.won ?? false,
     leagueSeason: game.settings.leagueSeason,
     hostClubName: clubName(u, game.settings.hostClubId),
-    mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
+    mode: modeLabel(game, 'share'),
     seed: game.settings.mode === 'daily' ? undefined : game.settings.seed,
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
     bootName: q ? get(q.topScorer?.playerSeasonId ?? '')?.name : game.awards?.goldenBoot?.name,
@@ -144,7 +145,7 @@ export function Summary() {
         formation,
         lineup: game.lineup,
         getPlayer: get,
-        footer: game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`,
+        footer: shareCardFooter(game),
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
@@ -157,7 +158,7 @@ export function Summary() {
     <div className="page">
       <div className="tier-banner">
         <div className="muted small">
-          {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
+          {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {modeLabel(game, 'heading')}
         </div>
         {replay.playing ? (
           <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">

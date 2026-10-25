@@ -36,7 +36,8 @@ export interface ChallengeClaim {
 /** One spin of the challenger's draft: the real player id drafted (`s200458`) and the slot, or nulls for a spin that drafted no one. */
 export type ChallengePick = [playerId: string | null, slotId: string | null]
 
-export interface ChallengePayload {
+/** A quick-draft link as every build since ghost drafts reads it. */
+export interface ChallengePayloadV1 {
   v: 1
   /** `LoadedUniverse.generatedAt` of the data the challenge was built on. */
   data: string
@@ -60,6 +61,29 @@ export interface ChallengePayload {
   /** `historyKey` of the challenger's draft history. */
   k: string
 }
+
+/** What an arena link fixes beside the draft; `isArenaLink` checks it (the arena itself arrives with a later item). */
+export interface ChallengeArena {
+  f: 'gauntlet' | 'cup'
+  n?: number
+  fd?: string
+  dc?: number
+  dl?: string
+}
+
+/**
+ * Version 2: the v1 shape plus `kind` (a quick draft, or an arena run) and the
+ * arena's settings. A quick link travels as v2 only when its rules use a key
+ * v1 builds do not know (`payloadVersionFor`), so an older build says the link
+ * is newer rather than calling it garbage.
+ */
+export interface ChallengePayloadV2 extends Omit<ChallengePayloadV1, 'v'> {
+  v: 2
+  kind: 'quick' | 'arena'
+  arena?: ChallengeArena
+}
+
+export type ChallengePayload = ChallengePayloadV1 | ChallengePayloadV2
 
 const TIERS: readonly SeasonTier[] = ['PERFECT', 'INVINCIBLE', 'CHAMPIONS', 'TITLE_RACE', 'EUROPEAN', 'MID_TABLE', 'RELEGATION_BATTLE', 'RELEGATED']
 
@@ -149,13 +173,48 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   twists: isBool,
 }
 
+/**
+ * The rule keys a v1 link may carry: the `RULE_CHECKS` keys when the v2 gate
+ * landed. Never add to this list (a v1 build would refuse the key); a new rule
+ * goes in `RULE_CHECKS` only, and a link that uses it travels as v2. When
+ * replica-setup merges, its four rules (difficulty, showRatings, draftMode,
+ * ratings) join this list in that merge, because v1 builds with them exist.
+ */
+export const V1_RULE_KEYS: readonly (keyof DraftRules)[] = ['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists']
+
+/** The payload version a link needs: 1 for a quick link whose rules a v1 build knows, 2 otherwise. */
+export function payloadVersionFor(diff: Partial<DraftRules>, kind: 'quick' | 'arena'): 1 | 2 {
+  if (kind !== 'quick') return 2
+  return Object.keys(diff).every((key) => (V1_RULE_KEYS as readonly string[]).includes(key)) ? 1 : 2
+}
+
+/** Whether a link's arena settings describe a run this build can replay; none yet, until the arena links item fills it in. */
+export function isArenaLink(arena: unknown): arena is ChallengeArena {
+  void arena
+  return false
+}
+
+/** Top-level keys a v2 link may carry; anything else is from a newer build. */
+const V2_KEYS: readonly string[] = ['v', 'kind', 'arena', 'data', 'engine', 'name', 's', 'p', 'c', 'k']
+
 /** Whether an object is a rules diff made only of known rules holding sensible values. */
 export function isRulesDiff(r: unknown): r is Partial<DraftRules> {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return false
   return Object.entries(r).every(([key, value]) => Object.prototype.hasOwnProperty.call(RULE_CHECKS, key) && RULE_CHECKS[key as keyof DraftRules](value))
 }
 
-/** Decode a `#c=` fragment; throws with a readable reason when it is not a challenge. */
+/** The reason a link from a later build gives. */
+export const NEWER_LINK = 'This challenge link comes from a newer version of TouchLine'
+/** The reason an arena link gives while this build has no arena to replay it in. */
+export const ARENA_LINK = 'This challenge needs the arena, which this build does not have yet'
+
+/**
+ * Decode a `#c=` fragment; throws with a readable reason when it is not a challenge.
+ * Version 1 reads as it always has (its rules limited to `V1_RULE_KEYS`). Version 2
+ * adds `kind` (quick when missing) and refuses a top-level key it does not know as
+ * coming from a newer build; an arena link is refused until `isArenaLink` accepts it.
+ * Anything above version 2 is from a newer build.
+ */
 export function decodeChallenge(text: string): ChallengePayload {
   let raw: unknown
   try {
@@ -167,8 +226,15 @@ export function decodeChallenge(text: string): ChallengePayload {
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Not a Touchline challenge link')
   const o = raw as Record<string, unknown>
-  if (typeof o.v === 'number' && o.v > 1) throw new Error('This challenge link comes from a newer version of Touchline')
-  if (o.v !== 1) throw new Error('Not a Touchline challenge link')
+  if (typeof o.v === 'number' && o.v > 2) throw new Error(NEWER_LINK)
+  if (o.v !== 1 && o.v !== 2) throw new Error('Not a Touchline challenge link')
+  const kind = o.v === 2 ? (o.kind ?? 'quick') : 'quick'
+  if (o.v === 2) {
+    if (kind !== 'quick' && kind !== 'arena') throw new Error('Not a Touchline challenge link')
+    if (kind === 'arena' && !isArenaLink(o.arena)) throw new Error(ARENA_LINK)
+    if (Object.keys(o).some((key) => !V2_KEYS.includes(key))) throw new Error(NEWER_LINK)
+    if (kind === 'quick' && o.arena !== undefined) throw new Error('Not a Touchline challenge link')
+  }
   const s = o.s as Record<string, unknown> | undefined
   const c = o.c as Record<string, unknown> | undefined
   if (!s || typeof s !== 'object' || !c || typeof c !== 'object') throw new Error('Not a Touchline challenge link')
@@ -178,10 +244,10 @@ export function decodeChallenge(text: string): ChallengePayload {
   if (s.d !== 'calibrated' && s.d !== 'realistic') throw new Error('Not a Touchline challenge link')
   if (!FORMATIONS.some((f) => f.id === s.f)) throw new Error('Not a Touchline challenge link')
   if (!isRulesDiff(s.r)) throw new Error('Not a Touchline challenge link')
+  if (o.v === 1 && !Object.keys(s.r).every((key) => (V1_RULE_KEYS as readonly string[]).includes(key))) throw new Error('Not a Touchline challenge link')
   if (!Array.isArray(o.p) || !o.p.every((row) => Array.isArray(row) && row.length === 2 && (row[0] === null || isString(row[0])) && (row[1] === null || isString(row[1])))) throw new Error('Not a Touchline challenge link')
   if (!isNumber(c.pts) || !isNumber(c.w) || !isNumber(c.d) || !isNumber(c.l) || !TIERS.includes(c.t as SeasonTier)) throw new Error('Not a Touchline challenge link')
-  return {
-    v: 1,
+  const body: Omit<ChallengePayloadV1, 'v'> = {
     data: o.data,
     engine: o.engine,
     name: cleanName(o.name),
@@ -190,6 +256,7 @@ export function decodeChallenge(text: string): ChallengePayload {
     c: { pts: c.pts, w: c.w, d: c.d, l: c.l, t: c.t as SeasonTier },
     k: o.k,
   }
+  return o.v === 1 ? { v: 1, ...body } : { v: 2, kind: 'quick', ...body }
 }
 
 /** One spin of a replayed draft, resolved against the universe it ran on. */

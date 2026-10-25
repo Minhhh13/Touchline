@@ -2,7 +2,7 @@ import type { ChallengeSettings, Game, GameSettings } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { ENGINE_VERSION } from '@engine/version'
-import { encodeChallenge, historyKey, picksFromHistory, replayDraft, rulesDiff, rulesFromPayload, sameClaim, type ChallengeClaim, type ChallengePayload, type ReplayedPick } from '@engine/challenge'
+import { encodeChallenge, historyKey, payloadVersionFor, picksFromHistory, replayDraft, rulesDiff, rulesFromPayload, sameClaim, type ChallengeClaim, type ChallengePayload, type ReplayedPick } from '@engine/challenge'
 import { createGame } from './setup'
 import { runQuickSeason } from './quick'
 import { playerLookup } from './players'
@@ -43,16 +43,18 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
   if (!d || !claim || game.phase !== 'summary') return null
   const get = playerLookup(game, u)
   const s = game.settings
-  return {
-    v: 1,
+  const r = rulesDiff(s.rules)
+  const body = {
     data: u.generatedAt,
     engine: ENGINE_VERSION,
     name,
-    s: { seed: s.seed, f: s.formationId, l: s.leagueId, wl: s.wheelLeagues, h: s.hostClubId, ls: s.leagueSeason, d: s.difficulty ?? 'calibrated', r: rulesDiff(s.rules) },
+    s: { seed: s.seed, f: s.formationId, l: s.leagueId, wl: s.wheelLeagues, h: s.hostClubId, ls: s.leagueSeason, d: s.difficulty ?? 'calibrated', r },
     p: picksFromHistory(d.history, (id) => get(id)?.playerId),
     c: claim,
     k: historyKey(d.history),
   }
+  // A rule a v1 build does not know travels as v2, so that build says "newer version" rather than "not a link"
+  return payloadVersionFor(r, 'quick') === 1 ? { v: 1, ...body } : { v: 2, kind: 'quick', ...body }
 }
 
 export interface ReplayOutcome {

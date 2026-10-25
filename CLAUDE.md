@@ -28,18 +28,18 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
 
 - `src/engine/` pure TypeScript, no React, no DOM (only `universe.ts` uses `fetch`).
   - `rng.ts` xoshiro128** `Rng`, `fork`, `getState`/`fromState`, `dailySeed`, `randomSeed`.
-  - `version.ts` `ENGINE_VERSION` (currently `'3'`).
+  - `version.ts` `ENGINE_VERSION` (currently `'4'` once fm-depth is in; `'3'` before).
   - `types.ts` domain types (Position, Attributes, PlayerSeason, Tactics, MatchEvent...).
   - `universe.ts` pack shapes, `buildLeague`, `mergeUniverses` (leagues.json order), loaders.
   - `positions.ts`, `roles.ts` (34 roles), `ratings.ts` (role rating, live modifiers, chemistry, team strength, `autoPickLineup`), `formations.ts` (8 shapes), `tactics.ts`.
-  - `draft.ts` wheel, `DraftRules`, twists; `h2h.ts` hot-seat draft; `challenge.ts` ghost-draft links (`RULE_CHECKS`).
+  - `draft.ts` wheel, `DraftRules`, twists; `h2h.ts` hot-seat draft; `challenge.ts` ghost-draft links (`RULE_CHECKS`; payload `v: 1 | 2`, `V1_RULE_KEYS`, `payloadVersionFor`, the `isArenaLink` gate).
   - `match.ts` xG engine, three segments 1-45 / 46-70 / 71-90 (`beginMatch`, `advanceMatch`, `finishMatch`, `simulateMatch`).
   - `season.ts` fixtures, table, cups, Continental Cup, recovery, board; `market.ts`; `events.ts`; `status.ts`; `staff.ts`; `training.ts`; `objectives.ts`; `awards.ts`; `records.ts`; `nations.ts`.
   - `__tests__/helpers.ts` `loadTestUniverse(leagues = ['england'])` reads packs from disk.
 - `src/game/` the save and the game rules on top of the engine.
   - `types.ts` the persisted `Game`, `GameSettings`, `Profile`, `LiveMatch`, `QuickResult`.
   - `store.ts` Zustand store `useStore`, `SAVE_KEY = 'touchline-save-v1'`, persist `version: 1`, `partialize`, `merge` -> `normaliseGame`, the `mutate(fn)` Immer helper, every UI action.
-  - `logic/setup.ts` `createGame`, `beginSeason`, Daily mapping (frozen); `quick.ts` `runQuickSeason`; `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `slotSheet.ts` (the Dugout slot picker and Draft slot chips, pure); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
+  - `logic/setup.ts` `createGame`, `beginSeason`, Daily mapping (frozen); `quick.ts` `runQuickSeason`; `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `slotSheet.ts` (the Dugout slot picker and Draft slot chips, pure); `modes.ts` (every mode label: `MODE_TITLE`, `modeLabel`, `shareCardFooter`, `yearLabel`, `finishDraftLabel`, `isQuickLike`, exhaustive over `Mode`); `streaks.ts` (`advanceStreak`, `streakDay`: daily and weekly streak bookkeeping, pure); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `h2h.ts`.
 - `src/ui/` React screens, no game decisions.
   - `App.tsx` screen switch on `screen` + `game.phase` (no router), challenge hash `#c=`, theme, toast.
   - `screens/` Home, Setup, Draft, Dugout (season hub), MatchScreen, Summary, H2H, Explore, ProfileScreen, HowTo, StatsTab, OppositionReport.
@@ -84,6 +84,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 11. **Playwright smokes stay green** for UI changes (see below). Prefer `data-testid` selectors.
 12. **The UI decides nothing.** Screens call store actions; logic lives in `src/game/logic` or `src/engine` where it can be tested.
 13. **Offline-first.** The game must work logged out and offline. Online features degrade to local-only when `VITE_SUPABASE_*` are missing.
+14. **Pins stay green.** `src/engine/__tests__/pins.test.ts` and `src/game/__tests__/pins.test.ts` hold literal outcomes of fixed seeds (the quick wheel, the head-to-head log, the assistant's `flow-test` season). A feature must leave them unchanged; re-baseline them only in the commit that bumps `ENGINE_VERSION` or rebuilds the data, recomputing the literals there.
 
 ## Conventions
 
@@ -92,7 +93,8 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - Display names and numbers go through `src/ui/format.ts` (money in millions, wages in thousands per week).
 - No real crests, kits, logos or photos: club identity is colours plus a code (`ClubBadge`).
 - Persist only what must survive reload; per-viewer UI conveniences get their own `localStorage` key inside try/catch.
-- New draft rules need an entry in `RULE_CHECKS` (`src/engine/challenge.ts`); the type forces it.
+- New draft rules need an entry in `RULE_CHECKS` (`src/engine/challenge.ts`); the type forces it. Never add one to `V1_RULE_KEYS`: a link using it travels as payload v2, so older builds say "newer version".
+- A new `Mode` starts in `src/game/logic/modes.ts` (the compiler then lists every label to word); screens never chain `mode === ...` for labels.
 - New fields holding player-season ids must be remapped in `advanceToNextSeason` (dynasty) and cleared in `releasePlayer`.
 - Write the product name as TouchLine in new text. Existing strings still say "Touchline"; leave mass renames to the redesign branch.
 

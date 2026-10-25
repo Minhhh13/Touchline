@@ -16,6 +16,7 @@ import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
+import { yearLabel } from '@game/logic/modes'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -111,7 +112,7 @@ export function Dugout() {
           <div>
             <h2 style={{ fontSize: 26 }}>{game.settings.teamName}</h2>
             <div className="small muted">
-              as {clubName(u, season.hostClubId)} · {seasonLabel(season.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Year ${game.year} · ` : ''}
+              as {clubName(u, season.hostClubId)} · {seasonLabel(season.leagueSeason)} · {yearLabel(game) ? `${yearLabel(game)} · ` : ''}
               {preseason ? 'Pre-season' : `Matchweek ${season.matchweek} of ${season.matchweeks}`}
             </div>
           </div>

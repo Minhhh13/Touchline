@@ -44,7 +44,7 @@ Each item lives on its own branch until it is merged into the working branch and
 | Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch |
 | Slot picker | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
-| Casual modes | not started in code | Designed |
+| Casual modes (issue #10): item 1 of 12, shared plumbing and guard rails (seed pins, mode labels in `logic/modes.ts`, streaks in `logic/streaks.ts`, the challenge-link v2 gate) | `casual-modes` | In progress: item 1 built |
 
 ## 4. Where things live
 
@@ -141,3 +141,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · "While you were away" digest shipped on the working branch; the preview site (`claude/touchline-preview`) carries the case-opening reel, the game-by-game quick season and the Football Manager depth attributes merged together (`ENGINE_VERSION` `'4'` there).
 - 2026-10-25 · owner's agent · Coach marks and the Key shipped on the working branch: seven first-time tips saved on the profile (`seenTips`), Show tips again on the Record page, and a Key chip that labels the state bars and draws a pitch legend; an injured or suspended player's red ring now wins over the fit colour on the pitch.
 - 2026-10-25 · owner's agent · Slot picker shipped on the working branch: tapping a Dugout pitch slot opens a sheet of everyone who can cover it (the same `canCover`/`isAvailable` line auto-pick and `lineupProblems` use; `ACCOMPLISHED_FACTOR` replaces the literal 0.86), replacing the two-tap swap; Draft slot chips, the phone scroll to the landed squad, and the squad list's Out chip renamed Unused.
+- 2026-10-25 · owner's agent · Casual modes item 1 on `casual-modes`: pins for the quick wheel, the head-to-head draft and the assistant's season (`pins.test.ts` in engine and game, re-baselined only with an `ENGINE_VERSION` bump or a data rebuild); every mode label from `src/game/logic/modes.ts` (the Record page's mode column now reads Quick Draft, Daily Challenge, Season, Dynasty instead of the raw id); the Daily streak through `src/game/logic/streaks.ts`; challenge links gain a version 2 (`kind`, an `arena` gate that refuses for now, "newer version" for an unknown top-level key or v3), today's links still written as v1. No change to any seed.
