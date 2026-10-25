@@ -3,7 +3,9 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
 import { closeLiveMatch, eventContext, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from '../logic/week'
 import { buildYouthIntake } from '../logic/youth'
-import { autoDraft, SEASON_RULES } from '@engine/draft'
+import { autoDraft, peekActive, QUICK_RULES, SEASON_RULES, spinOdds } from '@engine/draft'
+import { canUpgrade } from '@engine/upgrader'
+import { powerUpUsed, powerUpsOn } from '@engine/powerups'
 import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
@@ -165,6 +167,34 @@ describe('audit fixes: season and squad', () => {
     while (n.season!.matchweek < 6) playMatchweek(n, u, true)
     expect(Object.values(n.squad).some((s) => (s.moraleLog?.length ?? 0) > 0)).toBe(true)
   }, 60_000)
+
+  it('a quick draft saved before Gamble mode reads with no Icons, no upgrader and the same lookup', () => {
+    const g = createGame({ mode: 'quick', seed: 'OLD-GAMBLE', formationId: '4-3-3', teamName: 'Old XI', shortName: 'OLD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const old = JSON.parse(JSON.stringify(g)) as Record<string, unknown>
+    const d = old.draft as Record<string, unknown>
+    delete d.gambleRng
+    delete d.upgradeRng
+    delete d.upgrade
+    const n = normaliseGame(old as unknown as Game)!
+    expect(canUpgrade(n.draft!)).toBe(false)
+    expect(spinOdds(u, n.draft!).icons).toBe(0)
+    const id = u.clubSeasons[0].squad[0].id
+    expect(playerLookup(n, u)(id)).toBe(u.index[id])
+  })
+
+  it('a quick draft saved before power-ups reads with no tray, nothing used and the same lookup', () => {
+    const g = createGame({ mode: 'quick', seed: 'OLD-POWER', formationId: '4-3-3', teamName: 'Old XI', shortName: 'OLD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const old = JSON.parse(JSON.stringify(g)) as Record<string, unknown>
+    const d = old.draft as Record<string, unknown>
+    delete d.powerRng
+    delete d.powerUps
+    const n = normaliseGame(old as unknown as Game)!
+    expect(powerUpsOn(n.draft!)).toBe(false)
+    expect(powerUpUsed(n.draft!, 'reroll')).toBe(false)
+    expect(peekActive(n.draft!)).toBe(false)
+    const id = u.clubSeasons[0].squad[0].id
+    expect(playerLookup(n, u)(id)).toBe(u.index[id])
+  })
 
   it('a save from before classic seasons (no `classic` rule) loads and plays without ever meeting one', () => {
     const g = started(u, { seed: 'pre-classic-save', leagueSeason: 2008, hostClubId: 'chelsea' })

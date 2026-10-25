@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { Home } from './screens/Home'
 import { Setup } from './screens/Setup'
@@ -38,6 +38,21 @@ export function App() {
   const barToggled = useRef(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const restoreRef = useRef<HTMLButtonElement>(null)
+  // The top bar's real height (one row or two) as --topbar-h, so whatever scrolls into view stops clear of it (U3, U22)
+  const [topbar, setTopbar] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    const root = document.documentElement
+    if (!topbar || barHidden) {
+      root.style.setProperty('--topbar-h', '0px')
+      return
+    }
+    const set = () => root.style.setProperty('--topbar-h', `${Math.ceil(topbar.getBoundingClientRect().height)}px`)
+    set()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(set)
+    ro.observe(topbar)
+    return () => ro.disconnect()
+  }, [topbar, barHidden])
   const flipBar = () => {
     barToggled.current = true
     toggleBar()
@@ -165,7 +180,7 @@ export function App() {
 
   return (
     <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`}>
-      <header className="topbar" inert={barHidden} aria-hidden={barHidden || undefined}>
+      <header className="topbar" ref={setTopbar} inert={barHidden} aria-hidden={barHidden || undefined}>
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
