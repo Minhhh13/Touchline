@@ -1158,6 +1158,28 @@ label.field,
 .outcome-word {
   font-weight: 700;
 }
+/* A long club name in a fixture or cup row gives way with an ellipsis rather than pushing the row wider */
+.fixture > span {
+  min-width: 0;
+}
+.fixture .fx-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A phone: the club's short name ("Wolves"), the full one in the tooltip */
+.fixture .fx-short {
+  display: none;
+}
+@media (max-width: 520px) {
+  .fixture .fx-name.has-short .fx-full {
+    display: none;
+  }
+  .fixture .fx-name.has-short .fx-short {
+    display: inline;
+  }
+}
 .fixture .sc .pens {
   margin-left: 4px;
   font-family: var(--font-body);
@@ -4540,8 +4562,8 @@ table.tbl.contracts .btn.sm {
 }
 .legend-row {
   display: grid;
-  grid-template-columns: 28px 36px minmax(0, 1.5fr) 32px minmax(0, 0.8fr) minmax(0, 1.3fr) 62px 34px 40px;
-  grid-template-areas: 'n r name age pos club season est star';
+  grid-template-columns: 28px 36px minmax(0, 1.5fr) 32px minmax(0, 0.8fr) minmax(0, 1.3fr) auto 40px;
+  grid-template-areas: 'n r name age pos club season star';
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
@@ -4581,8 +4603,15 @@ table.tbl.contracts .btn.sm {
 .legend-row > .lg-season {
   grid-area: season;
 }
-.legend-row > .lg-est {
-  grid-area: est;
+/* A tablet: the positions give their column to the club */
+@media (max-width: 900px) {
+  .legend-row {
+    grid-template-columns: 28px 36px minmax(0, 1.3fr) 32px minmax(0, 1.3fr) auto 40px;
+    grid-template-areas: 'n r name age club season star';
+  }
+  .legend-row > .lg-pos {
+    display: none;
+  }
 }
 .legend-row > .lg-star {
   grid-area: star;
@@ -4602,7 +4631,7 @@ table.tbl.contracts .btn.sm {
 }
 /* Search covers every league: the league tabs above it step back so they do not read as a filter */
 .explore-bar.all-leagues .segmented {
-  opacity: 0.5;
+  opacity: 0.72;
 }
 .notice {
   padding: 10px var(--space-3);
@@ -6614,10 +6643,18 @@ table.tbl.contracts .btn.sm {
   color: var(--text-3);
 }
 .cabinet-slot > .small {
-  overflow-wrap: break-word;
-  hyphens: auto;
   max-width: 100%;
   line-height: 1.2;
+}
+/* A tablet's narrow slots: the labels drop a size so "Continental" fits whole */
+@media (max-width: 1000px) {
+  .cabinet {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cabinet-slot > .small {
+    font-size: var(--fs-xs);
+    letter-spacing: -0.01em;
+  }
 }
 .cabinet-n {
   font-family: var(--font-display);
@@ -6961,8 +6998,7 @@ table.tbl.match-stats th {
     grid-template-areas: 'n r name age star' 'n r club club season';
     row-gap: 2px;
   }
-  .legend-row > .lg-pos,
-  .legend-row > .lg-est {
+  .legend-row > .lg-pos {
     display: none;
   }
   .legend-row > .lg-season {
@@ -9186,5 +9222,21 @@ table.tbl.contracts-overview .link-btn.name {
 @media (min-width: 2200px) {
   .app.shell > .page.dugout-page {
     max-width: 2000px;
+  }
+}
+
+/* A phone: the fixture and cup rows give the club names the room (a narrower matchweek and score column) */
+@media (max-width: 520px) {
+  .fixture-list .fixture {
+    grid-template-columns: 38px minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 5px;
+    padding: 7px 6px;
+  }
+  .fixture-list .fixture .mw {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+  .fixture-list .fixture .sc {
+    min-width: 44px;
   }
 }

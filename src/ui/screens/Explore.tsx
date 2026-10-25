@@ -334,7 +334,6 @@ export function Explore() {
             <span className="lg-pos">Pos</span>
             <span className="lg-club">Club</span>
             <span className="lg-season">Season</span>
-            <span className="lg-est" />
             <span className="lg-star" title="Shortlist">
               <StarIcon size={14} aria-hidden="true" />
             </span>
@@ -357,8 +356,10 @@ export function Explore() {
               <span className="lg-club row small" style={{ gap: 6 }}>
                 <ClubBadge clubId={p.clubId} size={18} /> <span className="ellipsis">{clubName(u, p.clubId)}</span>
               </span>
-              <span className="lg-season small muted">{seasonLabel(p.season)}</span>
-              <span className="lg-est">{isEstimated(u, p.id) && <EstimatedChip compact />}</span>
+              <span className="lg-season small muted">
+                {seasonLabel(p.season)}
+                {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
+              </span>
               <button type="button" className="lg-star btn sm ghost" onClick={() => toggleShortlist(p.id)} title={shortlist.includes(p.id) ? 'On your shortlist' : 'Shortlist'} aria-label={shortlist.includes(p.id) ? 'Remove from shortlist' : 'Shortlist'} aria-pressed={shortlist.includes(p.id)}>
                 <Star on={shortlist.includes(p.id)} />
               </button>

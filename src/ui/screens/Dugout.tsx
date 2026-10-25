@@ -435,13 +435,13 @@ export function Dugout() {
                   <div key={f.matchweek} className="fixture me">
                     <span className="mw">MW {f.matchweek}</span>
                     <span className="h row" style={{ justifyContent: 'flex-end', gap: 6 }}>
-                      {home ? game.settings.teamName : clubName(u, opp)} {home ? null : <ClubBadge clubId={opp} size={18} />}
+                      {home ? <span className="fx-name">{game.settings.teamName}</span> : <FxName full={clubName(u, opp)} short={clubShort(u, opp)} />} {home ? null : <ClubBadge clubId={opp} size={18} />}
                     </span>
                     <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
                       {r ? `${r.homeGoals} - ${r.awayGoals}` : 'v'}
                     </span>
                     <span className="row" style={{ gap: 6 }}>
-                      {home ? <ClubBadge clubId={opp} size={18} /> : null} {home ? clubName(u, opp) : game.settings.teamName}
+                      {home ? <ClubBadge clubId={opp} size={18} /> : null} {home ? <FxName full={clubName(u, opp)} short={clubShort(u, opp)} /> : <span className="fx-name">{game.settings.teamName}</span>}
                     </span>
                   </div>
                 )
@@ -584,6 +584,16 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
         </details>
       )}
     </Modal>
+  )
+}
+
+/** A club's name in a fixture or cup row: the full name, or on a phone the short one, with the full name in the tooltip. */
+function FxName({ full, short }: { full: string; short: string }) {
+  return (
+    <span className={`fx-name ${short && short !== full ? 'has-short' : ''}`} title={full}>
+      <span className="fx-full">{full}</span>
+      <span className="fx-short">{short}</span>
+    </span>
   )
 }
 
@@ -818,14 +828,14 @@ function CupTab({ comp }: { comp: Competition }) {
                   <div key={i} className={`fixture ${me ? 'me' : ''}`} data-testid="cup-tie">
                     <span className="mw">MW {r.afterMatchweek}</span>
                     <span className="h row" style={{ justifyContent: 'flex-end', gap: 6, fontWeight: t.winnerId === t.homeTeamId ? 700 : 400 }}>
-                      {name(t.homeTeamId)} {t.homeTeamId === USER_TEAM ? null : <ClubBadge clubId={t.homeTeamId} size={18} />}
+                      {t.homeTeamId === USER_TEAM ? <span className="fx-name">{name(t.homeTeamId)}</span> : <FxName full={name(t.homeTeamId)} short={clubShort(u, t.homeTeamId)} />} {t.homeTeamId === USER_TEAM ? null : <ClubBadge clubId={t.homeTeamId} size={18} />}
                     </span>
                     <span className={`sc chip ${me && t.result ? outcomeClass(t.winnerId === USER_TEAM ? 'W' : 'L') : ''}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
                       {t.result ? `${t.result.homeGoals} - ${t.result.awayGoals}` : 'v'}
                       {t.result?.penalties && <span className="pens">{t.result.penalties.home}-{t.result.penalties.away}p</span>}
                     </span>
                     <span className="row" style={{ gap: 6, fontWeight: t.winnerId === t.awayTeamId ? 700 : 400 }}>
-                      {t.awayTeamId === USER_TEAM ? null : <ClubBadge clubId={t.awayTeamId} size={18} />} {name(t.awayTeamId)}
+                      {t.awayTeamId === USER_TEAM ? null : <ClubBadge clubId={t.awayTeamId} size={18} />} {t.awayTeamId === USER_TEAM ? <span className="fx-name">{name(t.awayTeamId)}</span> : <FxName full={name(t.awayTeamId)} short={clubShort(u, t.awayTeamId)} />}
                     </span>
                   </div>
                 )
@@ -1267,9 +1277,7 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <th>Status</th>
               <th className="num">Minutes</th>
               <th>Morale</th>
-              <th className="end">
-                <span className="sr-only">Release</span>
-              </th>
+              <th className="end" aria-label="Release" title="Release" />
             </tr>
           </thead>
           <tbody>
