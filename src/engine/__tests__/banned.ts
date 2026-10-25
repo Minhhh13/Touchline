@@ -2,8 +2,9 @@
  * Real competition, award, game and brand names that must never reach text a
  * player can read (the trademark sweep, docs/DATA.md "Display names"). Player
  * and club names stay real. The data credits are the one exception: they name
- * their sources as the licences require, and they come from the packs'
- * `sources` and `src/ui/credits.ts`, which the source scan skips.
+ * their sources as the licences require; they come from the packs' `sources`
+ * (shown on the How it works page), not from src, so the source scan never
+ * meets them.
  */
 export const BANNED_NAMES: Array<{ name: string; re: RegExp }> = [
   { name: 'Premier League', re: /premier\s+league/i },

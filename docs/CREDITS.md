@@ -4,7 +4,7 @@ TouchLine builds on other people's open work. Each section below credits one sou
 
 ## Flag icons
 
-- **What**: the 4:3 SVG flags in `public/flags/`, one per nation in the data packs plus the EU flag for European Nights and the all-leagues wheel. They are drawn as images because Windows shows emoji flags as two letters.
+- **What**: the 4:3 SVG flags in `public/flags/`, one per nation in the data packs plus the EU flag for European Nights and the All of Europe wheel. They are drawn as images because Windows shows emoji flags as two letters.
 - **Source**: [flag-icons](https://github.com/lipis/flag-icons) 7.6.0 by Panayiotis Lipiridis (lipis), from the npm package `flag-icons@7.6.0`.
 - **Licence**: MIT, notice below. The same notice ships beside the SVGs as `public/flags/LICENSE.txt`, so every copy of the built site carries it.
 - **How they get here**: `scripts/brand/flags.mjs` copies only the flags the packs need (see the comment at its top for how to rerun it). `public/flags/unknown.svg`, the neutral flag shown for an unknown nationality, is TouchLine's own and not part of flag-icons.

@@ -91,7 +91,7 @@ export function Home() {
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
           <span className="icon">🎡</span>
           <h3>Quick Draft</h3>
-          <p>The 38-0 classic. Spin for a club and season, draft one player, repeat eleven times, simulate the season instantly.</p>
+          <p>The classic draft. Spin for a club and season, draft one player, repeat eleven times, simulate the season instantly.</p>
           <span className="foot">5 minutes · shareable result</span>
         </button>
         <div className="mode-card daily" data-testid="daily-card">

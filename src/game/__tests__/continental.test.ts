@@ -52,14 +52,14 @@ describe('Continental Cup', () => {
     beginSeason(g, u)
     expect(g.season!.continental).toBeTruthy()
     expect(g.season!.continental!.ties.length).toBe(8)
-    expect(g.season!.news.some((n) => n.title === 'Continental Cup draw')).toBe(true)
+    expect(g.season!.news.some((n) => n.title === 'European Nights draw')).toBe(true)
     startSeasonProper(g)
     const r16 = continentalRounds(g.season!.matchweeks)[0].afterMatchweek
     while (g.season!.matchweek < r16 - 1) playMatchweek(g, u, true)
     // Header helper points at the European tie this week
     const up = upcomingCupTie(g)
     expect(up?.comp).toBe('continental')
-    expect(up?.label).toBe('Continental round of 16')
+    expect(up?.label).toBe('European Nights round of 16')
     // Play the league match live, then the tie live
     playMatchweek(g, u, false)
     expect(g.live?.kind).toBe('league')

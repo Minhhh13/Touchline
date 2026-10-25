@@ -130,7 +130,7 @@ describe('the choice summary line', () => {
       jobSecurity: false,
       continental: true,
     })
-    expect(line).toBe('Touchline XI, 4-3-3, as Brentford in the English League 2025-26, realistic, seed K7Q2-MX9A, European Nights wheel of 2 leagues, 2014-15 to 2019-20, Arsenal only, hard mode, twists, squad of 20, no sack, Continental Cup')
+    expect(line).toBe('Touchline XI, 4-3-3, as Brentford in the English League 2025-26, realistic, seed K7Q2-MX9A, All of Europe wheel of 2 leagues, 2014-15 to 2019-20, Arsenal only, hard mode, twists, squad of 20, no sack, European Nights')
     const quiet = summariseSetup(u, { ...base, mode: 'season', rules: { ...SEASON_RULES, leagues: ['england'] }, jobSecurity: true })
     expect(quiet).toBe('Touchline XI, 4-3-3, as Brentford in the English League 2025-26, calibrated, seed K7Q2-MX9A, squad of 18')
   })

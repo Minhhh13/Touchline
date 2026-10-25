@@ -1,4 +1,5 @@
 import { useStore } from '@game/store'
+import { LeagueFlag } from '../components/Flag'
 
 export function HowTo() {
   const { go, universe: u } = useStore()
@@ -18,19 +19,19 @@ export function HowTo() {
         </div>
         <div className="panel">
           <h3>Ratings</h3>
-          <p>Ratings come from public datasets of EA Sports FC and FIFA editions and the European Soccer Database, reworked into thirteen attributes: pace, shooting, passing, dribbling, defending, physical, mentality and goalkeeping, plus stamina, strength, aggression, jumping and work rate, which decide how legs last, who wins the duels, who gets booked and how well a press runs. A player's rating for a season is taken from the edition published after it, so it reflects how he actually played that year. Values and wages are our own estimates in today's money. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
+          <p>Ratings come from public community datasets of video-game ratings and the European Soccer Database (credited below), reworked into thirteen attributes: pace, shooting, passing, dribbling, defending, physical, mentality and goalkeeping, plus stamina, strength, aggression, jumping and work rate, which decide how legs last, who wins the duels, who gets booked and how well a press runs. A player's rating for a season is taken from the edition published after it, so it reflects how he actually played that year. Values and wages are our own estimates in today's money. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
         </div>
         <div className="panel">
           <h3>The match engine</h3>
           <p>Each side's eleven is scored by unit: goalkeeping, defence, midfield and attack, with each player's contribution shaped by his role (a wing-back pushes quality forward, an anchor keeps it back), his fit for the position, and his live state: condition, morale, sharpness, familiarity with your system and recent form. Your team instructions then interact with the opponent's: a high line against a quick, direct side is a risk; a high press against a nervy, technical one is a weapon. The two attack-versus-defence comparisons set expected goals for each side, home advantage and a dose of any-given-Saturday variance are added, and goals are drawn from a Poisson distribution. Scorers, assists, cards, injuries, substitutions and chances are then laid out minute by minute.</p>
-          <p>The top of the rating scale is stretched: the difference between a 90 and an 87 is far bigger in football terms than between a 72 and a 69, so an all-time XI should feel like one. A perfect 38-0 is possible with an elite, balanced side and good management. It is meant to be rare.</p>
+          <p>The top of the rating scale is stretched: the difference between a 90 and an 87 is far bigger in football terms than between a 72 and a 69, so an all-time XI should feel like one. A perfect season, every league match won, is possible with an elite, balanced side and good management. It is meant to be rare.</p>
         </div>
         <div className="panel">
           <h3>Season mode</h3>
           <ul>
             <li>Your drafted squad takes one real club's place in a real league season. The other nineteen field their real squads of that year.</li>
             <li>Three pre-season friendlies build sharpness and familiarity. Then 38 matchweeks (34 in an 18-club league) plus a 16-team cup played midweek after matchweeks 6, 14, 24 and 36.</li>
-            <li>Tick the Continental Cup at setup for a second knockout against the fifteen strongest clubs from the other leagues that season, on the free midweeks after matchweeks 10, 19, 29 and 33. In Dynasty mode a top-four finish qualifies you again.</li>
+            <li>Tick <LeagueFlag leagueId="europe" /> European Nights at setup for a second knockout against the fifteen strongest clubs from the other leagues that season, on the free midweeks after matchweeks 10, 19, 29 and 33. In Dynasty mode a top-four finish qualifies you again.</li>
             <li>Condition drops with minutes and recovers weekly; tired players get hurt and play badly. Rotate.</li>
             <li>Five yellow cards is a one-match ban; red cards bring longer ones. Injuries range from a week to a season.</li>
             <li>Morale moves with results, playing time and your handling of dressing-room events. Stars sulk on the bench.</li>
@@ -46,7 +47,7 @@ export function HowTo() {
         </div>
         <div className="panel">
           <h3>Dynasty</h3>
-          <p>At the end of a season your players age a year: the young grow, the old decline, some retire, loans go home and some contracts expire. The league moves on to the next real season, you get bonus spins and a summer window, the academy presents three real prospects, bigger clubs may offer you their job, and a top-four finish earns a Continental Cup place. The Club tab keeps your all-time legends.</p>
+          <p>At the end of a season your players age a year: the young grow, the old decline, some retire, loans go home and some contracts expire. The league moves on to the next real season, you get bonus spins and a summer window, the academy presents three real prospects, bigger clubs may offer you their job, and a top-four finish earns a European Nights place. The Club tab keeps your all-time legends.</p>
         </div>
         <div className="panel" data-testid="credits">
           <h3>Data and credits</h3>

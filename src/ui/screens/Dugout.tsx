@@ -207,7 +207,7 @@ export function Dugout() {
           { id: 'fixtures', label: 'Fixtures' },
           { id: 'table', label: 'Table' },
           { id: 'cup', label: 'Cup' },
-          ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
+          ...(season.continental ? [{ id: 'europe' as const, label: <><LeagueFlag leagueId="europe" /> European Nights</> }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
           { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent },
@@ -577,7 +577,7 @@ function CupTab({ comp }: { comp: Competition }) {
   const field = comp === 'continental' ? Object.values(season.continental?.clubs ?? {}) : []
   return (
     <div className="panel">
-      <h3>{comp === 'cup' ? 'The Cup' : 'Continental Cup'}</h3>
+      <h3>{comp === 'cup' ? 'The Cup' : <><LeagueFlag leagueId="europe" /> European Nights</>}</h3>
       <p className="help">
         {comp === 'cup' ? 'Sixteen clubs, four rounds' : 'You and the fifteen strongest clubs from the other leagues that season, four rounds'} played midweek after matchweeks {rounds.map((r) => r.afterMatchweek).join(', ')}. Drawn ties go to penalties. The final is at a neutral venue.
         {comp === 'continental' ? ' Finish in the top four to qualify again next season.' : ''}
@@ -619,7 +619,7 @@ function CupTab({ comp }: { comp: Competition }) {
         )
       })}
       {eliminated && <div className="notice warn">Knocked out. The remaining rounds are free midweeks for recovery.</div>}
-      {won && <div className="notice">{comp === 'cup' ? '🏆 Cup winners!' : '🌍 Champions of the continent!'}</div>}
+      {won && <div className="notice">{comp === 'cup' ? '🏆 Cup winners!' : <><LeagueFlag leagueId="europe" /> European Nights champions!</>}</div>}
     </div>
   )
 }

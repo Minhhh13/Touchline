@@ -246,10 +246,10 @@ export function cupRounds(matchweeks: number): CupRoundInfo[] {
 export function continentalRounds(matchweeks: number): CupRoundInfo[] {
   const at = (mw38: number) => Math.max(1, Math.min(matchweeks - 1, Math.round((mw38 / 38) * matchweeks)))
   return [
-    { round: 'R16', afterMatchweek: at(10), label: 'Continental round of 16' },
-    { round: 'QF', afterMatchweek: at(19), label: 'Continental quarter-final' },
-    { round: 'SF', afterMatchweek: at(29), label: 'Continental semi-final' },
-    { round: 'F', afterMatchweek: at(33), label: 'Continental final' },
+    { round: 'R16', afterMatchweek: at(10), label: 'European Nights round of 16' },
+    { round: 'QF', afterMatchweek: at(19), label: 'European Nights quarter-final' },
+    { round: 'SF', afterMatchweek: at(29), label: 'European Nights semi-final' },
+    { round: 'F', afterMatchweek: at(33), label: 'European Nights final' },
   ]
 }
 
@@ -395,11 +395,11 @@ export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, m
 }
 
 export const TIER_LABEL: Record<SeasonTier, string> = {
-  PERFECT: '38-0: THE PERFECT SEASON',
+  PERFECT: 'THE PERFECT SEASON',
   INVINCIBLE: 'INVINCIBLES',
   CHAMPIONS: 'CHAMPIONS',
   TITLE_RACE: 'TITLE RACE',
-  EUROPEAN: 'EUROPEAN NIGHTS',
+  EUROPEAN: 'EUROPEAN PLACES',
   MID_TABLE: 'MID-TABLE',
   RELEGATION_BATTLE: 'RELEGATION BATTLE',
   RELEGATED: 'RELEGATED',
@@ -429,8 +429,8 @@ export function updateConfidence(confidence: number, table: TableRow[], teamId: 
 
 export function describeImportance(u: LoadedUniverse, hostClubId: string, opponentClubId: string, table: TableRow[] | null, matchweek: number, cupRound?: CupTie['round'], comp: Competition = 'cup'): { importance: number; label?: string } {
   if (comp === 'continental' && cupRound) {
-    if (cupRound === 'F') return { importance: 1.5, label: 'Continental final' }
-    if (cupRound === 'SF') return { importance: 1.35, label: 'Continental semi-final' }
+    if (cupRound === 'F') return { importance: 1.5, label: 'European Nights final' }
+    if (cupRound === 'SF') return { importance: 1.35, label: 'European Nights semi-final' }
     return { importance: 1.15, label: 'European night' }
   }
   if (cupRound === 'F') return { importance: 1.4, label: 'Cup final' }

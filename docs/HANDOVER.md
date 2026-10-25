@@ -6,7 +6,7 @@ For the people working on TouchLine: what it is, what works today, what is being
 
 A free web football game that fuses the wheel draft of **38-0** with the depth of **Football Manager**. A wheel lands on a real club in a real season, you draft one player from that squad, repeat until your side is built, then either simulate the season instantly or manage it week by week. Your side takes one real club's place in a real league season and plays the other clubs' real squads.
 
-- Seven leagues: Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Eredivisie, Primeira Liga, seasons 2008-09 to 2026-27 (about 69,000 player-seasons).
+- Seven leagues, named by country in the game (English, Spanish, Italian, German, French, Dutch and Portuguese League, each built from that country's top flight; the mapping is in [DATA.md](DATA.md)), seasons 2008-09 to 2026-27 (about 69,000 player-seasons).
 - Runs entirely in the browser, installable and playable offline. Saves live in the browser (`localStorage`). No account needed.
 - Deterministic: one seed always plays out the same way on every device, which is what makes the Daily, challenge links and (soon) online leaderboards fair.
 
@@ -19,13 +19,15 @@ A free web football game that fuses the wheel draft of **38-0** with the depth o
 - **Dynasty**: Season mode that never ends: ageing, contracts, retirements, youth intake, summer draft and summer window.
 - **Head-to-head**: two managers on one device draft from the same spins and play the same season.
 
-**Draft systems**: no dead spins, eight formations, era / one-club / one-nation filters, hard mode (hidden ratings), re-spins, wheel twists every third spin (Golden, Basement, Blind, Decade), European Nights (draft from all seven leagues), ghost-draft challenge links (`#c=...`) verified by replay.
+**Draft systems**: no dead spins, eight formations, era / one-club / one-nation filters, hard mode (hidden ratings), re-spins, wheel twists every third spin (Golden, Basement, Blind, Decade), All of Europe (draft from all seven leagues), ghost-draft challenge links (`#c=...`) verified by replay.
 
-**Management systems**: 34 roles and six team instructions, an xG match engine with live stops at half time and the 70th minute (talks, subs, touchline shouts), condition / sharpness / morale / familiarity, injuries and suspensions, training focus, squad status and playing time, player conversations, captain and set-piece takers, backroom staff, man-marking, press conferences and dressing-room events, the assistant's briefing, a domestic cup and an optional Continental Cup, a transfer market with bids, loans and part-exchange, finances, board objectives, in-season development, awards, 19 achievements, record books against real seasons, a share card, save export / import.
+**Management systems**: 34 roles and six team instructions, an xG match engine with live stops at half time and the 70th minute (talks, subs, touchline shouts), condition / sharpness / morale / familiarity, injuries and suspensions, training focus, squad status and playing time, player conversations, captain and set-piece takers, backroom staff, man-marking, press conferences and dressing-room events, the assistant's briefing, a domestic cup and an optional European Nights midweek knockout (the old Continental Cup), a transfer market with bids, loans and part-exchange, finances, board objectives, in-season development, awards, 19 achievements, record books against real seasons, a share card, save export / import.
 
 **Lineups**: tap a pitch slot in the Dugout for a picker (a bottom sheet on a phone) of everyone who can play there, rated there, with the occupant and To bench on top; in the Draft a player with several open slots shows one chip per slot.
 
 **Help on the page**: seven one-time coach marks (draft reveal, bench picks, Squad and Tactics tabs, half time, match report, market), each gone after Got it and brought back by Show tips again on the Record page; a Key chip on the Squad panel labels the condition, morale and sharpness bars and adds a pitch legend.
+
+**Names and flags**: no real competition, award, game or brand name anywhere a player can read it (a source-scan test enforces it); player and club names stay real. Every nationality and league shows a drawn SVG flag (flag-icons, MIT; [CREDITS.md](CREDITS.md)), European Nights and All of Europe the EU flag, never an emoji.
 
 Full detail with formulas: [GAME_DESIGN.md](GAME_DESIGN.md). Data method: [DATA.md](DATA.md). Design research: [RESEARCH.md](RESEARCH.md).
 
@@ -43,6 +45,7 @@ Each item lives on its own branch until it is merged into the working branch and
 | "While you were away" digest | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch (live site) |
 | Coach marks and the Key | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch |
 | Slot picker | working branch `claude/youthful-mccarthy-a57idu` | Shipped on the working branch |
+| Neutral league and competition names, drawn SVG flags, Continental Cup renamed European Nights | `neutral-names` | Built, waiting to merge |
 | Online layer: accounts, cloud saves, daily leaderboard, challenge codes, online head-to-head rooms (Supabase) | not started in code | Designed |
 | Casual modes | not started in code | Designed |
 
@@ -110,7 +113,10 @@ Both sites are static sites in the Render project **TouchLine**. That Render wor
 - **Data licensing.** Ratings come from community Kaggle datasets derived from EA Sports FC ratings (FC 24 CC0, FC 25 Apache 2.0, FC 26 CC0, FC 27 an unofficial non-commercial snapshot), the European Soccer Database (ODbL), openfootball results (public domain) and Wikidata (CC0). The ratings themselves originate with EA. Treat TouchLine as a non-commercial fan project; going commercial would need a different ratings source. Full credits in [DATA.md](DATA.md).
 - **No real crests, kits, logos or photos.** Clubs are shown as colours plus a letter code. Keep it that way.
 - **Free Supabase projects pause** after about a week idle; the online layer needs a keep-alive or a paid plan.
-- No player data before 2008-09; Ligue 1, the Eredivisie and the Primeira Liga have no real tables (no record books there).
+- No player data before 2008-09; the French, Dutch and Portuguese leagues have no real tables (no record books there).
+- Emoji flags showed as letter pairs ("BE", "AR") on Windows. Fixed on `neutral-names`: flags are SVG images from `public/flags`; the packs still carry the emoji, which the UI only uses to look up the SVG.
+- `public/flags` adds about 1.1 MB to the deploy (0.37 MB gzipped), almost all in a few detailed coats of arms; each flag loads lazily and only when shown.
+- News written by an older save keeps its old wording ("Continental Cup draw"); everything generated from now on says European Nights.
 - About 230 players have an unknown nationality.
 - Values and wages are our own model, not real figures.
 - The product name is TouchLine, but many screens, the manifest and the share card still say "Touchline" until the redesign lands.
@@ -127,7 +133,7 @@ Tracked as GitHub issues #3 to #20, labelled by area (`area:engine`, `area:game`
 3. Quick Draft as a faithful 38-0 replica (difficulty tiers, ratings toggle, squad-first / position-first, era presets, game-by-game playback).
 4. Online layer: accounts, cloud saves for every mode, a verified daily leaderboard, challenge codes, online head-to-head rooms.
 5. Casual modes.
-6. Later: seasons before 2008-09, a Continental Cup group stage and two-legged ties.
+6. Later: seasons before 2008-09, a European Nights group stage and two-legged ties.
 
 ## 9. Keeping this document current
 
@@ -141,3 +147,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · "While you were away" digest shipped on the working branch; the preview site (`claude/touchline-preview`) carries the case-opening reel, the game-by-game quick season and the Football Manager depth attributes merged together (`ENGINE_VERSION` `'4'` there).
 - 2026-10-25 · owner's agent · Coach marks and the Key shipped on the working branch: seven first-time tips saved on the profile (`seenTips`), Show tips again on the Record page, and a Key chip that labels the state bars and draws a pitch legend; an injured or suspended player's red ring now wins over the fit colour on the pitch.
 - 2026-10-25 · owner's agent · Slot picker shipped on the working branch: tapping a Dugout pitch slot opens a sheet of everyone who can cover it (the same `canCover`/`isAvailable` line auto-pick and `lineupProblems` use; `ACCOMPLISHED_FACTOR` replaces the literal 0.86), replacing the two-tap swap; Draft slot chips, the phone scroll to the landed squad, and the squad list's Out chip renamed Unused.
+- 2026-10-25 · owner's agent · Neutral names on `neutral-names`: the packs name the leagues by country (English League to Portuguese League; data diff: only the 14 league-name fields changed, players.json byte-identical, generatedAt 2026-10-25), flags are drawn SVGs from flag-icons 7.6.0 (`public/flags`, `scripts/brand/flags.mjs`, `src/ui/components/Flag.tsx`) instead of emoji, the Continental Cup is European Nights and the all-leagues wheel All of Europe (saved fields unchanged), the 5th-6th tier reads EUROPEAN PLACES, and no real competition or brand name is left in player-facing text (`trademarks.test.ts`).

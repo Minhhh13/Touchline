@@ -171,8 +171,8 @@ export function Summary() {
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!replay.playing && season?.cupWon && <div className="chip gold" style={{ marginTop: 6 }}>🏆 Cup winners</div>}
-        {season?.continental?.won && <div className="chip gold" style={{ marginTop: 6 }}>🌍 Continental champions</div>}
-        {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
+        {season?.continental?.won && <div className="chip gold" style={{ marginTop: 6 }}><LeagueFlag leagueId="europe" /> European Nights champions</div>}
+        {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}><LeagueFlag leagueId="europe" /> European Nights: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
         {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
         {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)}</div>}
         {season?.objectives?.length ? <div className="chip" style={{ marginTop: 6 }}>Board objectives: {season.objectives.filter((o) => o.met).length} of {season.objectives.length} met</div> : null}
@@ -504,7 +504,7 @@ export function Summary() {
                       <td>
                         {TIER_LABEL[h.tier]}
                         {h.cupWon ? ' + Cup' : ''}
-                        {h.continentalWon ? ' + Europe' : ''}
+                        {h.continentalWon ? ' + European Nights' : ''}
                       </td>
                       <td>
                         {real ? (

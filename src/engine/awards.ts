@@ -58,20 +58,20 @@ export interface Achievement {
 }
 
 export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'perfect', title: '38-0', description: 'Win every league match in a season.', icon: '💎' },
+  { id: 'perfect', title: 'Perfect Season', description: 'Win every league match in a season.', icon: '💎' },
   { id: 'invincible', title: 'Invincibles', description: 'Go a whole league season unbeaten and win it.', icon: '🛡️' },
   { id: 'champions', title: 'Champions', description: 'Win the league.', icon: '🏆' },
   { id: 'centurions', title: 'Centurions', description: 'Reach 100 points.', icon: '💯' },
   { id: 'double', title: 'The Double', description: 'Win the league and the cup in the same season.', icon: '🏆🏆' },
   { id: 'cup', title: 'Cup Winners', description: 'Lift the cup.', icon: '🥇' },
-  { id: 'continental', title: 'Kings of the Continent', description: 'Win the Continental Cup.', icon: '🌍' },
-  { id: 'treble', title: 'The Treble', description: 'League, cup and Continental Cup in one season.', icon: '👑👑👑' },
+  { id: 'continental', title: 'Kings of the Continent', description: 'Win European Nights.', icon: '🌍' },
+  { id: 'treble', title: 'The Treble', description: 'League, cup and European Nights in one season.', icon: '👑👑👑' },
   { id: 'boot30', title: 'Thirty Goals', description: 'A player scores 30 league goals in a season.', icon: '👟' },
   { id: 'glove20', title: 'Wall', description: 'A goalkeeper keeps 20 clean sheets.', icon: '🧱' },
   { id: 'hard-champions', title: 'Blindfolded', description: 'Win the league drafting in hard mode.', icon: '🙈' },
   { id: 'one-club-champions', title: 'Loyalty', description: 'Win the league with a one-club draft.', icon: '❤️' },
   { id: 'one-nation-champions', title: 'International', description: 'Win the league with a one-nation draft.', icon: '🌐' },
-  { id: 'quick-perfect', title: 'Quick 38-0', description: 'A perfect season in a quick draft.', icon: '⚡' },
+  { id: 'quick-perfect', title: 'Quick Perfection', description: 'A perfect season in a quick draft.', icon: '⚡' },
   { id: 'daily-streak-7', title: 'Regular', description: 'Play the daily challenge seven days running.', icon: '📅' },
   { id: 'dynasty-3', title: 'Dynasty', description: 'Win three league titles in a row.', icon: '👑' },
   { id: 'survivor', title: 'Survivor', description: 'Keep your job with board confidence under 20 at some point.', icon: '🪑' },
@@ -105,7 +105,7 @@ export function shareText(s: SeasonSummaryForShare, appName = 'Touchline'): stri
   const lines = [
     `${appName} · ${s.mode}`,
     `${s.teamName} as ${s.hostClubName}, ${seasonLabel}`,
-    `${TIER_LABEL[s.tier]}${s.cupWon ? ' + CUP' : ''}${s.continentalWon ? ' + EUROPE' : ''}`,
+    `${TIER_LABEL[s.tier]}${s.cupWon ? ' + CUP' : ''}${s.continentalWon ? ' + EUROPEAN NIGHTS' : ''}`,
     `${s.row.won}W ${s.row.drawn}D ${s.row.lost}L · ${s.row.points} pts · ${ordinal(s.position)}`,
     blocks,
   ]

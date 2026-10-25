@@ -202,7 +202,7 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
  *
  * Parts are concatenated in the order of the data index (`available`), never in
  * the order they were loaded: `spin()` picks among `clubSeasons` by weighted
- * index, so a European Nights seed must see the same club-season order whether
+ * index, so an All of Europe seed must see the same club-season order whether
  * Spain or Germany was opened first. Leagues missing from the index keep their
  * given order after the indexed ones.
  */

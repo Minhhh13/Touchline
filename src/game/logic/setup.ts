@@ -93,15 +93,15 @@ export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'T
 
 /**
  * One line stating every choice a game will start with, so the ones folded away under More options are still read:
- * "Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
- * the defaults (European Nights, era, one club or nation, hard mode, twists changed from the mode's default, squad
- * size, job security, Europe).
+ * "Touchline XI, 4-3-3, as Brentford in the English League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
+ * the defaults (All of Europe wheel, era, one club or nation, hard mode, twists changed from the mode's default, squad
+ * size, job security, European Nights).
  */
 export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
   const r = s.rules
-  if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
+  if (s.wheelLeagues.length > 1) parts.push(`All of Europe wheel of ${s.wheelLeagues.length} leagues`)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
   if (r.onlyNation) parts.push(`${u.nations[r.onlyNation]?.name ?? r.onlyNation} only`)
@@ -113,7 +113,7 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   if (manage) {
     parts.push(`squad of ${r.squadSize}`)
     if (!s.jobSecurity) parts.push('no sack')
-    if (s.continental) parts.push('Continental Cup')
+    if (s.continental) parts.push('European Nights')
   }
   return parts.join(', ')
 }
@@ -196,7 +196,7 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall - aiOffset
   })
   const boardTarget = boardTargetFor(userStrength, aiStrengths)
-  // Continental Cup: by choice in the first season, by right afterwards
+  // European Nights (the continental cup): by choice in the first season, by right afterwards
   let continental: ContinentalState | undefined
   const wantsEurope = game.year === 1 ? !!s.continental : !!game.qualifiedContinental
   if (wantsEurope) {
@@ -229,9 +229,9 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   if (continental) {
     const tie = continental.ties.find((t) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)!
     const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
-    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'Continental Cup draw', body: `${wantsEurope && game.year > 1 ? 'Qualified by right. ' : ''}Round of 16: ${tie.homeTeamId === USER_TEAM ? 'home to' : 'away at'} ${continental.clubs[opp]?.name ?? opp}, after matchweek ${continentalRounds(matchweeks)[0].afterMatchweek}.` })
+    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'European Nights draw', body: `${wantsEurope && game.year > 1 ? 'Qualified by right. ' : ''}Round of 16: ${tie.homeTeamId === USER_TEAM ? 'home to' : 'away at'} ${continental.clubs[opp]?.name ?? opp}, after matchweek ${continentalRounds(matchweeks)[0].afterMatchweek}.` })
   } else if (wantsEurope) {
-    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'No Continental Cup', body: 'Not enough clubs from other leagues are loaded to form a field this season.' })
+    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'No European Nights', body: 'Not enough clubs from other leagues are loaded to form a field this season.' })
   }
   game.qualifiedContinental = false
   if (game.year === 1) game.finances = startingFinances(u, s.hostClubId, s.leagueSeason, squadWages(game, u))

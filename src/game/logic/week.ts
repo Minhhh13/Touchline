@@ -513,7 +513,7 @@ function completeUserCupTie(game: Game, u: LoadedUniverse, tie: CupTie, res: Ful
     if (won && tie.round === 'F') season.continental.won = true
   }
   const oppName = clubOf(season, live.opponentId)?.name ?? u.clubById[live.opponentId]?.name ?? live.opponentId
-  const lifted = won && tie.round === 'F' ? (comp === 'cup' ? ' The cup is yours!' : ' Champions of the continent!') : ''
+  const lifted = won && tie.round === 'F' ? (comp === 'cup' ? ' The cup is yours!' : ' European Nights champions!') : ''
   news(game, { kind: 'cup', title: `${info.label}: ${won ? 'through' : 'out'}`, body: `${res.homeGoals}-${res.awayGoals}${pens ? ` (${pens.home}-${pens.away} on penalties)` : ''} against ${oppName}.${lifted}` })
   game.rngState = rng.getState()
 }

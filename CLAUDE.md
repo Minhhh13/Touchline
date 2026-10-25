@@ -34,7 +34,7 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - `positions.ts`, `roles.ts` (34 roles), `ratings.ts` (role rating, live modifiers, chemistry, team strength, `autoPickLineup`), `formations.ts` (8 shapes), `tactics.ts`.
   - `draft.ts` wheel, `DraftRules`, twists; `h2h.ts` hot-seat draft; `challenge.ts` ghost-draft links (`RULE_CHECKS`).
   - `match.ts` xG engine, three segments 1-45 / 46-70 / 71-90 (`beginMatch`, `advanceMatch`, `finishMatch`, `simulateMatch`).
-  - `season.ts` fixtures, table, cups, Continental Cup, recovery, board; `market.ts`; `events.ts`; `status.ts`; `staff.ts`; `training.ts`; `objectives.ts`; `awards.ts`; `records.ts`; `nations.ts`.
+  - `season.ts` fixtures, table, cups, European Nights (the continental knockout; `continental` in code and saves), recovery, board; `market.ts`; `events.ts`; `status.ts`; `staff.ts`; `training.ts`; `objectives.ts`; `awards.ts`; `records.ts`; `nations.ts`.
   - `__tests__/helpers.ts` `loadTestUniverse(leagues = ['england'])` reads packs from disk.
 - `src/game/` the save and the game rules on top of the engine.
   - `types.ts` the persisted `Game`, `GameSettings`, `Profile`, `LiveMatch`, `QuickResult`.
@@ -59,7 +59,7 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
 
 - `npm ci` install exactly from the lockfile.
 - `npm run dev` Vite dev server (no service worker in dev).
-- `npm test` Vitest over `src/**/*.test.ts` (about 25 s locally, 174 tests); `npx vitest run src/engine` or `src/game` for one area.
+- `npm test` Vitest over `src/**/*.test.ts` (about 70 s on a busy machine, 211 tests; under heavy load a few long seeded tests can pass the 5 s default timeout, so rerun those with `--testTimeout=120000`); `npx vitest run src/engine` or `src/game` for one area.
 - `npm run typecheck` `tsc -b --noEmit`. `npm run lint` is the same command; there is no ESLint or Prettier.
 - `npm run build` `tsc -b && vite build` into `dist/` (what Render runs).
 - `npx vite preview --port 4173 --strictPort` serve `dist/` for Playwright smokes and service-worker checks.
@@ -98,6 +98,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - Persist only what must survive reload; per-viewer UI conveniences get their own `localStorage` key inside try/catch.
 - New draft rules need an entry in `RULE_CHECKS` (`src/engine/challenge.ts`); the type forces it.
 - New fields holding player-season ids must be remapped in `advanceToNextSeason` (dynasty) and cleared in `releasePlayer`.
+- No real competition, award, game or brand names in user-facing text (Premier League, La Liga, Champions League, FA Cup, Ballon d'Or, Football Manager, FIFA, EA Sports FC, 38-0 and the rest of `src/engine/__tests__/banned.ts`): leagues are the English, Spanish, ... League (the packs' display `name`), the domestic cup is the Cup, the continental knockout is **European Nights** and the all-leagues wheel is **All of Europe** (never the same name), each with the EU flag. Player and club names stay real; code comments may name the real competitions; the data credits keep naming their sources. Internal ids and saved fields keep their old names (`continental`, `'europe'`, `trophies.continental`). `trademarks.test.ts` scans every string literal and JSX text under `src`.
 - Write the product name as TouchLine in new text. Existing strings still say "Touchline"; leave mass renames to the redesign branch.
 
 ## Adding a feature end to end
@@ -117,7 +118,7 @@ Specific recipes: a draft rule (optional `DraftRules` field, apply in `rulesPool
 1. Add a club array and a `LEAGUES` entry in `scripts/import/clubs-europe.mjs` (spread into the registry in `scripts/import/leagues.mjs` after England) (id, names, `fc24LeagueId`, every `eaNames` spelling, `euroLeagueId`, openfootball repo/file or `null`). Keep it **last** so existing seeds do not shift.
 2. Rebuild with `node scripts/import/build.mjs` (optionally with `DATA_CACHE=...`); read the report (per-season club counts, Unknown nations, Warnings) and fix unknown club names by adding aliases in the club tables.
 3. Update the pinned stamp in `src/engine/__tests__/universe.test.ts`, add a check for the league, run all tests.
-4. Check odd club counts (bye weeks), record books (need tables) and the Continental Cup.
+4. Check odd club counts (bye weeks), record books (need tables) and European Nights. Give the league a neutral display `name` by country (never the real competition's), a `leagueFlagCode` entry in `src/ui/format.ts` and `LEAGUE_FLAGS` in `scripts/brand/flags.mjs`, and rerun the flags script for any new nations.
 5. Commit `public/data/**` with `docs/DATA.md` and README counts. Note that existing cross-league challenge links become "unverified".
 
 ## Branches and PRs

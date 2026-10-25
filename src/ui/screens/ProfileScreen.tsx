@@ -84,7 +84,7 @@ export function ProfileScreen() {
                 [
                   ['🏆', 'League titles', profile.trophies?.league ?? 0],
                   ['🥇', 'Cups', profile.trophies?.cup ?? 0],
-                  ['🌍', 'Continental Cups', profile.trophies?.continental ?? 0],
+                  [<LeagueFlag leagueId="europe" size={32} />, 'European Nights', profile.trophies?.continental ?? 0],
                   ['🏆🏆', 'Doubles', profile.trophies?.doubles ?? 0],
                   ['👑', 'Trebles', profile.trophies?.trebles ?? 0],
                 ] as const

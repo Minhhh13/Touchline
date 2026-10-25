@@ -249,7 +249,7 @@ export function Setup() {
               </button>
               {!advanced && (
                 <span className="help">
-                  League season, the club whose place you take, difficulty, seed, where the wheel draws from, era, one-club and one-nation modes, hard mode and twists{isManage && u.available.length >= 2 ? ', the Continental Cup' : ''}. The line above Start states what they are set to.
+                  League season, the club whose place you take, difficulty, seed, where the wheel draws from, era, one-club and one-nation modes, hard mode and twists{isManage && u.available.length >= 2 ? ', European Nights' : ''}. The line above Start states what they are set to.
                 </span>
               )}
               {advanced && (
@@ -307,7 +307,7 @@ export function Setup() {
                   <h3 style={{ marginTop: 6 }}>Wheel rules</h3>
                   <div className="field">
                     Draft from
-                    <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> European Nights: all {u.available.length} leagues</> }]} />
+                    <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> All of Europe: all {u.available.length} leagues</> }]} />
                     <span className="help">{wheelScope === 'europe' ? `The wheel and the market draw from ${listNames(u.available.map((l) => l.country))}.` : 'The wheel and the market stay inside one league.'}</span>
                   </div>
                   <div className="field">
@@ -402,7 +402,7 @@ export function Setup() {
                           if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                         }}
                       />
-                      Continental Cup: European nights against the best of the other leagues
+                      <LeagueFlag leagueId="europe" /> European Nights: a midweek knockout against the best of the other leagues
                     </label>
                   )}
                 </>

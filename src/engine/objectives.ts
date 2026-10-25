@@ -36,7 +36,7 @@ export function pickObjectives(rng: Rng, boardTarget: number, matchweeks: number
     { id: 'home-form', label: ambitious ? 'Lose at most two home league matches' : 'Lose at most four home league matches', target: ambitious ? 2 : 4 },
     { id: 'youth', label: 'Give a player aged 21 or under ten league starts', target: 10 },
   ]
-  if (hasContinental) pool.push({ id: 'continental-qf', label: 'Reach the Continental Cup quarter-final' })
+  if (hasContinental) pool.push({ id: 'continental-qf', label: 'Reach the European Nights quarter-final' })
   if (hasRivals) pool.push({ id: 'rivals', label: 'Do not lose to a rival' })
   const shuffled = rng.shuffle([...pool])
   return shuffled.slice(0, 2)
@@ -62,7 +62,7 @@ export function evaluateObjective(o: Objective, ctx: ObjectiveContext): { met: b
     case 'continental-qf': {
       const ties = season.continental?.ties ?? []
       const met = reached(ties, 'QF')
-      return { met, progress: met ? 'Reached' : season.continental?.eliminated ? 'Knocked out in the round of 16' : 'Still in Europe' }
+      return { met, progress: met ? 'Reached' : season.continental?.eliminated ? 'Knocked out in the round of 16' : 'Still in European Nights' }
     }
     case 'goals': {
       const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
