@@ -24,6 +24,13 @@ import { CACHE, DATA_DIR, SOURCES, OPENFOOTBALL_SEASONS, seasonSlug } from './co
 import { ensureDatasets } from './download.mjs'
 import { fileURLToPath } from 'node:url'
 
+// The data stamp (`generatedAt`) every pack of this build carries: today's date, plus `.<suffix>` when
+// DATA_STAMP_SUFFIX is set, for a second rebuild on the same day. A stamp names exactly one set of bytes: the
+// online layer archives packs by it, and src/online/__tests__/stamps.test.ts fails when bytes change under it.
+const STAMP_SUFFIX = process.env.DATA_STAMP_SUFFIX ?? ''
+if (STAMP_SUFFIX && !/^[0-9A-Za-z]{1,8}$/.test(STAMP_SUFFIX)) throw new Error('DATA_STAMP_SUFFIX must be 1 to 8 letters or digits')
+const GENERATED_AT = new Date().toISOString().slice(0, 10) + (STAMP_SUFFIX ? `.${STAMP_SUFFIX}` : '')
+
 let NATION_OVERRIDES = {}
 try {
   NATION_OVERRIDES = JSON.parse(await readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), 'nations-override.json'), 'utf8'))
@@ -996,7 +1003,7 @@ async function main() {
 
     const outDir = path.join(DATA_DIR, leagueId)
     await mkdir(outDir, { recursive: true })
-    const playersOut = { version: PLAYERS_VERSION, generatedAt: new Date().toISOString().slice(0, 10), columns: COLUMNS, rows: players.map(makeRow) }
+    const playersOut = { version: PLAYERS_VERSION, generatedAt: GENERATED_AT, columns: COLUMNS, rows: players.map(makeRow) }
     await writeFile(path.join(outDir, 'players.json'), JSON.stringify(playersOut))
     const meta = {
       version: 2,
@@ -1017,7 +1024,7 @@ async function main() {
     for (const s of seasonInfo) console.log(`  ${s.season}-${String(s.season + 1).slice(2)}: ${players.filter((p) => p.season === s.season).length} rows, ${s.clubs.length} clubs, table ${s.hasTable ? (s.complete ? 'complete' : 'partial') : 'none'}`)
     leaguesIndex.push({ id: leagueId, name: league.name, shortName: league.shortName, country: league.country, firstSeason: seasons[0], lastSeason: seasons.at(-1), playerSeasons: players.length, players: distinct, clubs: clubs.length })
   }
-  await writeFile(path.join(DATA_DIR, 'leagues.json'), JSON.stringify({ version: 2, generatedAt: new Date().toISOString().slice(0, 10), leagues: leaguesIndex }))
+  await writeFile(path.join(DATA_DIR, 'leagues.json'), JSON.stringify({ version: 2, generatedAt: GENERATED_AT, leagues: leaguesIndex }))
   console.log(`\nTotal: ${grandTotal} player-seasons across ${leagueIds.length} leagues`)
   console.log('Depth columns from source / derived:', Object.fromEntries(Object.keys(depthStats.raw).map((k) => [k, `${depthStats.raw[k]} / ${depthStats.derived[k]}`])))
   if (unknownNations.size) console.log('Unknown nations:', [...unknownNations.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30))

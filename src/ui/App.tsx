@@ -12,6 +12,7 @@ import { Explore } from './screens/Explore'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
+import { Privacy } from './screens/Privacy'
 import { Bar, ClubBadge, Modal, Toast } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
@@ -19,7 +20,12 @@ import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
-import { Bandage, Banknote, BookOpen, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { Bandage, Banknote, BookOpen, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { WorldBoard } from './online/WorldBoard'
+import { AccountChip } from './online/AccountChip'
+import { AccountScreen } from './online/AccountPanel'
+import { parseGameHash } from '../online/core/codes'
+import { onlineAvailable, resolveShort } from '../online/api'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
@@ -30,14 +36,20 @@ export function App() {
     void loadData()
   }, [loadData])
 
-  // A challenge link (`#c=...`) opens once the default league is in: the hash is cleared so a reload does not reopen it
+  // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
+  // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
   useEffect(() => {
     if (!universe) return
     const open = () => {
-      const m = /^#c=([A-Za-z0-9_-]+)$/.exec(location.hash)
-      if (!m) return
+      const h = parseGameHash(location.hash)
+      if (!h || h.kind === 'h') return
       history.replaceState(null, '', location.pathname + location.search)
-      void openChallenge(m[1])
+      if (h.kind === 'c') void openChallenge(h.payload)
+      else
+        void resolveShort(h.code).then((r) => {
+          if (r.ok) void openChallenge(r.encoded)
+          else useStore.getState().showToast(r.message)
+        })
     }
     if (!hashHandled.current) {
       hashHandled.current = true
@@ -106,6 +118,9 @@ export function App() {
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />
   else if (screen === 'howto') body = <HowTo />
+  else if (screen === 'world') body = <WorldBoard />
+  else if (screen === 'privacy') body = <Privacy />
+  else if (screen === 'account') body = <AccountScreen />
   else body = <Home />
 
   return (
@@ -133,6 +148,12 @@ export function App() {
             <Search size={16} />
             <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
           </button>
+          {onlineAvailable() && (
+            <button className={screen === 'world' ? 'active' : ''} onClick={() => go('world')} data-testid="nav-world">
+              <Globe size={16} />
+              <span className="nav-label">World</span>
+            </button>
+          )}
           <button className={screen === 'profile' ? 'active' : ''} onClick={() => go('profile')}>
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
@@ -142,6 +163,7 @@ export function App() {
             <span className="nav-label">How it works</span>
           </button>
         </nav>
+        {onlineAvailable() && <AccountChip active={screen === 'account'} onOpen={() => go('account')} />}
         <button
           type="button"
           className="theme-switch"

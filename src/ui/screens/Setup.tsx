@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupRules, shortNameFor, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, describeRules, setupRules, shortNameFor, summariseSetup } from '@game/logic/setup'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
@@ -16,6 +16,9 @@ import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, SeasonRange } from '../components/SetupBits'
 import { clubName } from '../format'
+import { dailyStartSettings } from '../../online/daily'
+import { useOnline } from '../../online/state'
+import { SignInPrompt } from '../online/SignInPrompt'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 const MODE_LINE: Record<Mode, string> = {
@@ -68,6 +71,8 @@ export function Setup() {
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
+  // Today's pinned ranked Daily, when the online layer has read it (the local mapping otherwise)
+  const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const [leagueId, setLeagueId] = useState('england')
   const [europe, setEurope] = useState(false)
   const [teamName, setTeamName] = useState('Touchline XI')
@@ -171,9 +176,9 @@ export function Setup() {
       return { kind: 'challenge', season: c.s.ls, host: c.s.h, formationId: c.s.f, leagueId: c.s.l, wheelLeagues: c.s.wl, difficulty: c.s.d, rules: rulesFromPayload(c), seed: c.s.seed }
     }
     if (!isDaily) return null
-    // Every rule of the Daily comes from `dailySettings`, so it is the same wheel for everyone
-    const d = dailySettings(u, todaysDailySeed())
-    return { kind: 'daily', season: d.season, host: d.host, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty, rules: d.rules, seed: d.seed }
+    // Every rule of the Daily comes from `dailySettings` (or today's ranked pin, when it differs), so it is the same wheel for everyone
+    const d = dailyStartSettings(u, todaysDailySeed(), teamName.trim() || 'Touchline XI', pin).settings
+    return { kind: 'daily', season: d.leagueSeason, host: d.hostClubId, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty ?? 'calibrated', rules: d.rules, seed: d.seed }
   })()
   const challenge = pendingChallenge?.challenge ?? null
   const fixedReady = !fixed || (fixed.wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(fixed.leagueId))
@@ -181,7 +186,7 @@ export function Setup() {
   /** The settings the Start button would send; a blank seed is drawn at that moment, so a preview names it as such. */
   const buildSettings = (preview: boolean): GameSettings => {
     const name = teamName.trim() || 'Touchline XI'
-    if (fixed?.kind === 'daily') return dailyGameSettings(u, fixed.seed, name)
+    if (fixed?.kind === 'daily') return dailyStartSettings(u, fixed.seed, name, pin).settings
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
     const rules: DraftRules = fixed?.rules ?? { ...chosen, onlyClub: club, onlyNation: nation }
@@ -230,6 +235,7 @@ export function Setup() {
             ← Back
           </button>
         </div>
+        {isManage && !challenge && <SignInPrompt id={mode} text={`Sign in to keep this ${mode === 'dynasty' ? 'Dynasty' : 'Season'} on every device.`} />}
 
         {fixed && (
           <div className="panel col">

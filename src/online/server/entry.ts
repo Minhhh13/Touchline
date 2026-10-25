@@ -1,0 +1,21 @@
+/**
+ * The verifier bundle's entry (`npm run build:verifier` writes it to `supabase/functions/_shared/verifier.js`): the
+ * Edge Function imports everything it runs from here, so the server replays with exactly the engine, the game rules
+ * and the mappings the client ships. Nothing in the bundle may touch the DOM, Node or `localStorage`
+ * (`check:verifier` refuses it otherwise).
+ */
+export { ENGINE_VERSION } from '@engine/version'
+export { buildLeague, mergeUniverses } from '@engine/universe'
+export { cleanName, decodeChallenge, encodeChallenge } from '@engine/challenge'
+export { dailyDateOf, Rng } from '@engine/rng'
+export { autoDraft } from '@engine/draft'
+export { createGame, dailyGameSettings, shortNameFor } from '@game/logic/setup'
+export { runQuickSeason } from '@game/logic/quick'
+export { replayChallenge, challengeFromGame } from '@game/logic/challenge'
+export { weekKeyOf, weekStartOf, weeklyGameSettings } from '../weekly'
+export { canonicalJson, fingerprint } from '../core/canonical'
+export { puzzleOf, settingsHash, strictReplayDraft, verifyDaily, verifyWeekly, verifyRanked } from './dailyVerify'
+export { packFiles, archivePath, puzzleLeagues, universeFromPacks } from './packs'
+export { parseRequest, parseBuildInfo, parseLeaguesIndex, logId, OPS, MAX_BODY_BYTES, DELETE_CONFIRMATION } from './validate'
+export { createServer, pinDateOf, boardIsOpen, Refusal, LIMITS, PUZZLE_LEAGUES } from './service'
+export type { Server, ServerDeps, ServerDb, ServerStorage, ServerAuth, Caller, Reply, StoredPin, DataPackRow, BoardKind } from './service'

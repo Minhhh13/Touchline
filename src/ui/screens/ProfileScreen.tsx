@@ -8,6 +8,7 @@ import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, ordinal, seasonLabel } from '../format'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
+import { AccountLink } from '../online/AccountPanel'
 
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
@@ -133,6 +134,8 @@ export function ProfileScreen() {
             </div>
           </div>
         </div>
+        <div className="col">
+        <AccountLink />
         <div className="panel col">
           <h3>Save data</h3>
           <p className="help">Everything lives in this browser. Export a file to back it up or move it to another device, import one to restore it.</p>
@@ -148,6 +151,7 @@ export function ProfileScreen() {
               Delete all data
             </button>
           </div>
+        </div>
         </div>
         <div className="panel">
           <h3>Best seasons</h3>

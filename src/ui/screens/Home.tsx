@@ -1,7 +1,11 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Trophy, type LucideIcon } from 'lucide-react'
+import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Trophy, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
-import { dailyGameSettings, dailySettings } from '@game/logic/setup'
+import { dailySettings } from '@game/logic/setup'
+import { dailyStartSettings } from '../../online/daily'
+import { useOnline } from '../../online/state'
+import { onlineAvailable } from '../../online/api'
+import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
@@ -44,9 +48,9 @@ function GoLabel() {
   )
 }
 
-function Tile({ icon: Icon, title, meta, onClick }: { icon: LucideIcon; title: string; meta: string; onClick: () => void }) {
+function Tile({ icon: Icon, title, meta, onClick, testId }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string }) {
   return (
-    <button type="button" className="home-tile" onClick={onClick}>
+    <button type="button" className="home-tile" onClick={onClick} data-testid={testId}>
       <span className="tile-icon">
         <Icon size={20} />
       </span>
@@ -60,12 +64,15 @@ function Tile({ icon: Icon, title, meta, onClick }: { icon: LucideIcon; title: s
 
 export function Home() {
   const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
+  const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
-  const daily = dailyReady ? dailySettings(u, todaysDailySeed()) : null
+  // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
+  const dailyStart = dailyReady ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
+  const daily = dailyReady ? (dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, host: dailyStart.settings.hostClubId, season: dailyStart.settings.leagueSeason } : dailySettings(u, todaysDailySeed())) : null
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
   const dailyUnderWay = !!game && game.settings.mode === 'daily' && game.settings.seed === todaysDailySeed() && game.phase !== 'summary'
   const playDaily = () => {
@@ -75,7 +82,7 @@ export function Home() {
       return
     }
     if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
-    startGame(dailyGameSettings(u, todaysDailySeed()))
+    startGame(dailyStart!.settings)
   }
   const achievements = Object.keys(profile.achievements).length
   return (
@@ -123,6 +130,8 @@ export function Home() {
           )}
         </div>
       </section>
+
+      <ConflictCards />
 
       {game && (
         <div className="panel resume-card row between wrap">
@@ -196,6 +205,11 @@ export function Home() {
                     {daily.formationId} · {seasonLabel(daily.season)}
                   </span>
                 )}
+                {pin && dailyStart && (
+                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? 'Every score on the world leaderboard is checked by replay' : undefined}>
+                    {dailyStart.ranked ? 'Ranked today' : dailyStart.source === 'missing_data' ? 'Reload for the ranked puzzle' : 'Unranked: reload to update'}
+                  </span>
+                )}
                 {profile.dailyStreak > 0 && (
                   <span className="streak" title={dailyDone ? 'Played today' : 'Daily streak'}>
                     <Flame size={13} />
@@ -235,10 +249,17 @@ export function Home() {
 
       <div className="home-tiles">
         <Tile icon={Swords} title="Head-to-head" meta="Two managers, one device" onClick={() => go('h2h')} />
+        {onlineAvailable() && <Tile icon={Globe} title="World leaderboard" meta="Daily, weekly and all-time, by country" onClick={() => go('world')} testId="world-card" />}
         <Tile icon={Search} title="Explore" meta={u ? `${u.available.length} leagues of real squads` : 'Real squads since 2008-09'} onClick={() => go('explore')} />
         <Tile icon={Trophy} title="Profile" meta={`${profile.seasonsSimulated} seasons · ${achievements} achievements`} onClick={() => go('profile')} />
         <Tile icon={BookOpen} title="How it works" meta="The wheel, matches, the board" onClick={() => go('howto')} />
       </div>
+      <p className="muted small" style={{ marginTop: 16, textAlign: 'center' }}>
+        Free, no ads, no account needed.{' '}
+        <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="privacy-link">
+          Privacy and fair play
+        </button>
+      </p>
     </div>
   )
 }

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
+import { buildInfoFrom } from './src/online/buildInfo'
 
 // On GitHub Pages the site lives under /<repo>/; set BASE_PATH in CI.
 const base = process.env.BASE_PATH || '/'
@@ -25,9 +26,26 @@ function stampServiceWorker(): Plugin {
   }
 }
 
+/** Write `dist/build.json` (`{ engine, data, builtAt }`): the live site's copy tells the online layer which engine and data it serves. */
+function buildInfo(): Plugin {
+  let outDir = 'dist'
+  return {
+    name: 'touchline-build-info',
+    apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir
+    },
+    closeBundle() {
+      const root = path.dirname(fileURLToPath(import.meta.url))
+      const info = buildInfoFrom(readFileSync(path.resolve(root, 'src/engine/version.ts'), 'utf8'), readFileSync(path.resolve(root, 'public/data/leagues.json'), 'utf8'), new Date().toISOString())
+      writeFileSync(path.resolve(outDir, 'build.json'), JSON.stringify(info))
+    },
+  }
+}
+
 export default defineConfig({
   base,
-  plugins: [react(), stampServiceWorker()],
+  plugins: [react(), stampServiceWorker(), buildInfo()],
   resolve: {
     alias: {
       '@engine': fileURLToPath(new URL('./src/engine', import.meta.url)),

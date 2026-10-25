@@ -141,9 +141,9 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
 /**
  * The challenger's season from a link's `x`: the first-half tactics and the bench changes, then, when the link names a second half or a
  * January deal, the window opened, the second-half tactics set and the deal found among the listings (a deal that was
- * not on offer throws), else the season in one go.
+ * not on offer throws), else the season in one go. Shared with the ranked boards' verifier (`src/online/server/dailyVerify.ts`).
  */
-function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | undefined): void {
+export function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | undefined): void {
   applyTactics(game, x?.t)
   // The bench changes travel as made; the season applies each at its matchweek (one that does not fit throws)
   if (x?.s?.length) game.quickChanges = x.s.map(([from, slotId, inId]) => ({ from, slotId, inId }))

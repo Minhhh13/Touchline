@@ -17,7 +17,7 @@ import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { APP_NAME } from '../brand'
-import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
+import { challengeFromGame, claimOf, verdictLine } from '@game/logic/challenge'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
@@ -26,6 +26,8 @@ import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
+import { shareLink } from '../../online/api'
+import { RankedStatus } from '../online/RankedStatus'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -35,6 +37,9 @@ export function Summary() {
   const [hlWeek, setHlWeek] = useState<number | null>(null)
   // Every game of a quick season, game by game; the replay is UI state only
   const replay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
+  // The long #c= link, offered beside a short one: it works offline and without the server
+  const [longLink, setLongLink] = useState<string | null>(null)
+  const [shortCode, setShortCode] = useState<string | null>(null)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const q = game.quickResult
@@ -117,11 +122,15 @@ export function Summary() {
       showToast('This result cannot be packed into a challenge.')
       return
     }
-    const url = challengeLink(c, location.origin, location.pathname)
+    // A short #s= link when signed in and online; the long #c= link otherwise (it always works)
+    const share = await shareLink(c)
+    const url = share.url
     setLink(url)
+    setShortCode(share.code)
+    setLongLink(share.code ? share.longUrl : null)
     try {
       await navigator.clipboard.writeText(url)
-      showToast(`Challenge link copied (${url.length} characters). Send it to a friend.`)
+      showToast(share.code ? `Short link ${share.code} copied. Send it to a friend.` : `Challenge link copied (${url.length} characters). Send it to a friend.`)
     } catch {
       showToast('Could not copy. The link is below.')
     }
@@ -265,6 +274,8 @@ export function Summary() {
         </div>
       </div>
 
+      {!replay.playing && <RankedStatus game={game} />}
+
       {q && results.length > 0 && (
         <div style={{ marginTop: 14 }}>
           <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} onHighlights={
@@ -340,7 +351,13 @@ export function Summary() {
             <h3>Challenge link</h3>
             <span className="small muted">Whoever opens it drafts the same wheel as {challengeName}, sees your pick on every spin and plays the same season. Built on data {u.generatedAt}, engine {ENGINE_VERSION}.</span>
           </div>
-          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} />
+          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} data-testid="challenge-link-url" />
+          {shortCode && <div className="small muted" style={{ marginTop: 6 }}>Code {shortCode}: it opens on any device with a connection, signed in or not.</div>}
+          {longLink && (
+            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void navigator.clipboard?.writeText(longLink).then(() => showToast('Long link copied.'), () => setLink(longLink))}>
+              Copy the long link (works offline)
+            </button>
+          )}
         </div>
       )}
 

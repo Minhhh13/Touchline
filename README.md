@@ -4,7 +4,7 @@
 
 A free, open web football game that fuses the spin-and-draft loop of 38-0 with the week-by-week management of Football Manager. Spin a wheel that lands on a real club in a real season from England, Spain, Italy, Germany or France (2008-09 to 2026-27), draft one player from that squad, repeat until your side is built, then either simulate the season instantly or manage it one matchweek at a time: roles, instructions, condition, injuries, a cup, a January window, a board that counts. Your drafted side takes one real club's place in the league you choose and plays the other clubs' real squads of that season: 38 matchweeks in a 20-club league, 34 in an 18-club one.
 
-No account, no server, no ads. Everything runs in the browser and saves to `localStorage`.
+No account needed, no ads; optional sign-in syncs your games and posts verified Daily scores. Everything runs in the browser and saves to `localStorage`, and every mode works signed out and offline. The Privacy and fair play page (linked from Home, How it works and the sign-in panel) says what an online build stores, where, for how long and how to delete it.
 
 ## Features
 
@@ -75,6 +75,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - **Light and dark**: the sun and moon in the top bar flips between them and remembers the choice; Auto on the Profile page follows the device's light or dark setting live. The palette is night navy with cyan and violet-magenta neon accents (a cool lavender Daylight theme); Home opens on our own cartoon drawing of a floodlit ground at night with the three numbers that matter, a drawn picture on each of the four mode cards and compact tiles for the rest, with one icon set (Lucide) throughout.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.
+- Optional online layer (in builds that carry the Supabase variables): sign in from the top bar (Google or an email code) to sync every mode across devices, post the Daily and the weekly challenge to a world leaderboard verified by a server replay (today's Daily, this week's challenge, all-time totals and streaks, by country) and share eight-letter challenge links.
 - **In the record books**: the summary ranks your points, wins, goals scored, goals conceded and defeats against every complete real season of your league in the data with the same number of matches (26 Premier League seasons back to 2000-01, 16 Bundesliga seasons of 34 games), names the three seasons ahead of you and the real champions that year, and marks an outright league record with a gold chip; the share text adds a line for a top-ten points total. A new points record on Realistic difficulty over a full season unlocks the Record Books achievement; leagues without tables (Ligue 1, the Eredivisie, the Primeira Liga) have no record book. Dynasty history shows the real champions beside each of your seasons.
 - Calibrated or Realistic difficulty.
 - One saved game per mode: a quick draft never overwrites your dynasty.
@@ -201,7 +202,7 @@ Design documents:
 ## Roadmap
 
 - Seasons before 2008-09 (needs a ratings source for the 1990s and 2000s)
-- Online leaderboards for the daily challenge
+- Online head-to-head rooms (the optional online layer already has accounts, cloud saves for every mode, the verified world leaderboard and short challenge links)
 - More leagues (Portugal, the Netherlands) and a group stage for the Continental Cup
 - Youth intake and player development targets in Dynasty
 

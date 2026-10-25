@@ -4094,3 +4094,198 @@ table.tbl.contracts .btn.sm {
     grid-template-columns: 38px 22px minmax(0, 1fr) auto auto 34px 28px;
   }
 }
+
+/* ------------------------------------------------------------------------------------------------------------------
+   One-screen pages (the owner's layout rule): boxed panels side by side, no page scroll on a desktop from 1280x720
+   to 2560x1440, each panel scrolling inside itself. `.page.fit` holds a `.fit-head` and a `.fit-grid` of
+   `.fit-panel`s, each a `.panel-head`, one `.fit-scroll` body and an optional `.fit-foot`. Below 1024 px wide or 600 px
+   high the panels stack and the page scrolls as usual. Used by the World leaderboard and the Account screen.
+   ------------------------------------------------------------------------------------------------------------------ */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .app:has(> .page.fit) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .page.fit {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    max-width: 1600px;
+    padding-bottom: var(--space-5);
+  }
+  .page.fit > .fit-grid {
+    flex: 1;
+    min-height: 0;
+  }
+  .fit-grid > .fit-panel {
+    min-height: 0;
+  }
+  .fit-panel > .fit-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+.fit-head {
+  margin-bottom: var(--space-3);
+}
+.fit-head h1 {
+  margin: 0;
+}
+.fit-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+.fit-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fit-panel > .panel-head {
+  flex: none;
+}
+.fit-foot {
+  flex: none;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border);
+}
+.fit-foot.notice {
+  border-top: none;
+}
+@media (min-width: 1024px) {
+  .fit-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .fit-grid.world-grid {
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  }
+}
+/* A table whose header stays in view while its panel scrolls */
+table.tbl.sticky-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+}
+@media (max-width: 720px) {
+  .fit-panel > .fit-scroll {
+    overflow-x: auto;
+  }
+}
+
+/* World leaderboard: the board picker in the side panel */
+.world-boards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.world-board-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.world-board-pick span {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.world-board-pick:hover {
+  background: var(--bg-3);
+}
+.world-board-pick.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.world-weekly {
+  gap: var(--space-2);
+}
+.plain-list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The top bar's sign-in entry (online builds only): a pill beside the theme switch, the selection pattern when open */
+.account-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: var(--border-strong);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-chip .nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-chip:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.account-chip.active {
+  color: var(--text);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.account-chip.syncing svg {
+  animation: account-sync 1.2s linear infinite;
+}
+@keyframes account-sync {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-chip.syncing svg {
+    animation: none;
+  }
+}
+@media (max-width: 720px) {
+  .account-chip {
+    padding: 7px 10px;
+  }
+  .account-chip .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* The Daily card's ranked line on Home (online builds with today's pin) */
+.ranked-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.ranked-tag.on {
+  color: var(--good);
+  font-weight: 600;
+}
