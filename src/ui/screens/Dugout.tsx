@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation, FORMATIONS } from '@engine/formations'
@@ -8,13 +8,15 @@ import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
 import { nextOpponent, upcomingCupTie } from '@game/logic/week'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
 import { canCover, ratingAt } from '@engine/positions'
-import { teamStrength, lineupProblems } from '@game/logic/squad'
+import { teamStrength } from '@game/logic/squad'
 import { SQUAD_CAP, suggestedStatus } from '@game/logic/marketOps'
 import { recentShare, statusOf } from '@game/logic/week'
 import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
+import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
+import { newsTotal, unseenNews } from '@game/logic/news'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -25,7 +27,7 @@ import type { TeamTalk } from '@engine/match'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 
-type Tab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club'
+type Tab = DugoutTab
 
 export function Dugout() {
   const store = useStore()
@@ -33,6 +35,27 @@ export function Dugout() {
   const [tab, setTab] = useState<Tab>('squad')
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [playerModal, setPlayerModal] = useState<string | null>(null)
+  // On a phone the action bar is fixed over the page, so the page's bottom padding follows the bar's measured height
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barHeight, setBarHeight] = useState(0)
+  useEffect(() => {
+    const el = barRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setBarHeight(Math.ceil(el.getBoundingClientRect().height)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [game?.phase, game?.season?.matchweek, game?.season?.sacked])
+  // Opening the Inbox marks everything read, but the divider keeps the unread count as it stood when the tab
+  // opened (or when items arrived while it was open), so the reader can see where the new items end
+  const unseen = game ? unseenNews(game) : 0
+  const posted = game ? newsTotal(game) : 0
+  const [dividerAt, setDividerAt] = useState(0)
+  useEffect(() => {
+    if (tab !== 'inbox') return
+    setDividerAt(unseen)
+    store.markNewsSeen()
+    // `posted` is the trigger: a batch arriving while the tab is open moves the divider to the new batch
+  }, [tab, posted])
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
@@ -43,11 +66,19 @@ export function Dugout() {
   const next = nextOpponent(game)
   const cupTie = upcomingCupTie(game)
   const strength = teamStrength(game, u)
-  const problems = lineupProblems(game, u)
   const squad = squadPlayers(game, u)
   const preseason = game.phase === 'preseason'
   const done = season.matchweek >= season.matchweeks || season.sacked
   const openOffers = game.window?.offers.filter((o) => o.status === 'open').length ?? 0
+  const briefing = weeklyBriefing(game, u)
+  const headline = briefingHeadline(briefing)
+  const act = (a: BriefingAction) => {
+    if (a.op === 'autoPick') store.autoPick()
+    else if (a.op === 'friendly') store.playFriendly()
+    else if (a.op === 'player' && a.playerId) setPlayerModal(a.playerId)
+    else if (a.op === 'event') document.querySelector('[data-testid="event-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (a.tab) setTab(a.tab)
+  }
 
   const onSlotClick = (slotId: string) => {
     if (selectedSlot === slotId) {
@@ -82,7 +113,7 @@ export function Dugout() {
   })
 
   return (
-    <div className="page">
+    <div className={`page ${done ? '' : 'has-bottom-bar'}`} style={!done && barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       {/* Header */}
       <div className="panel row between wrap" style={{ marginBottom: 12 }}>
         <div className="row">
@@ -110,10 +141,10 @@ export function Dugout() {
         </div>
       </div>
 
-      {/* Next match CTA */}
+      {/* Next match CTA: the fixture, the assistant's briefing and the buttons (a fixed bottom bar on phones) */}
       {!done && (
-        <div className="panel row between wrap sticky-cta" style={{ marginBottom: 12, background: 'linear-gradient(135deg, var(--panel), var(--bg-3))' }}>
-          <div className="row wrap">
+        <div className="panel cta" data-testid="cta" style={{ marginBottom: 12, background: 'linear-gradient(135deg, var(--panel), var(--bg-3))' }}>
+          <div className="cta-main">
             {preseason ? (
               <div>
                 <div style={{ fontWeight: 700 }}>Pre-season · {game.friendliesPlayed}/3 friendlies played</div>
@@ -140,33 +171,36 @@ export function Dugout() {
                 </div>
               </div>
             )}
-            {problems.length > 0 && <span className="chip warn" title={problems.join(', ')}>⚠ {problems.length} lineup issue{problems.length > 1 ? 's' : ''} (auto-fixed at kick-off)</span>}
-            {game.pendingEvent && (
-              <button className="chip warn" onClick={() => setTab('inbox')} style={{ cursor: 'pointer' }}>
-                ✉ Decision needed
-              </button>
-            )}
-            {game.window && (
-              <button className="chip good" onClick={() => setTab('market')} style={{ cursor: 'pointer' }}>
-                🛒 Window open · day {game.window.day}/{game.window.days}
-              </button>
-            )}
+            <BriefingList items={briefing} onAction={act} />
           </div>
-          <div className="row wrap">
-            {preseason && game.friendliesPlayed < 3 && (
-              <button className="btn" onClick={() => store.playFriendly()}>
-                Play friendly
-              </button>
+          <div className="cta-bar" ref={barRef} data-testid="cta-bar">
+            {headline && (
+              <div className={`bar-brief ${headline.level}`} data-testid="bar-brief">
+                <span className="icon">{briefingIcon(headline)}</span>
+                <span className="text">{headline.text}</span>
+                {headline.action && headline.action.op !== 'friendly' && (
+                  <button className="btn sm" onClick={() => act(headline.action!)}>
+                    {headline.action.label}
+                  </button>
+                )}
+              </div>
             )}
-            <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent}>
-              {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
-            </button>
-            <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
-              Sim 5
-            </button>
-            <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent}>
-              Sim to end
-            </button>
+            <div className="btns">
+              {preseason && game.friendliesPlayed < 3 && (
+                <button className="btn" onClick={() => store.playFriendly()}>
+                  Play friendly
+                </button>
+              )}
+              <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent}>
+                {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
+              </button>
+              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
+                Sim 5
+              </button>
+              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent}>
+                Sim to end
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -185,7 +219,7 @@ export function Dugout() {
           ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
-          { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent },
+          { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
           { id: 'club', label: 'Club' },
         ]}
       />
@@ -354,17 +388,32 @@ export function Dugout() {
       {tab === 'market' && <MarketTab />}
       {tab === 'inbox' && (
         <div className="panel">
-          <h3>Inbox</h3>
+          <div className="panel-head">
+            <h3>Inbox</h3>
+            {dividerAt > 0 && (
+              <span className="small muted" data-testid="inbox-new-count">
+                {Math.min(dividerAt, season.news.length)} new since your last visit
+              </span>
+            )}
+          </div>
           <div className="news">
             {season.news.map((n, i) => (
-              <div key={i} className="item">
-                <span>{{ result: '⚽', injury: '🩹', suspension: '🟥', board: '🏛', transfer: '💷', award: '🏆', event: '💬', cup: '🏟', training: '🏃', info: 'ℹ️' }[n.kind]}</span>
-                <span>
-                  <div className="t">{n.title}</div>
-                  <div className="b">{n.body}</div>
-                </span>
-                <span className="small muted">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
-              </div>
+              <Fragment key={i}>
+                <div className={`item ${i < dividerAt ? 'new' : ''}`}>
+                  <span>{{ result: '⚽', injury: '🩹', suspension: '🟥', board: '🏛', transfer: '💷', award: '🏆', event: '💬', cup: '🏟', training: '🏃', info: 'ℹ️' }[n.kind]}</span>
+                  <span>
+                    <div className="t">{n.title}</div>
+                    <div className="b">{n.body}</div>
+                  </span>
+                  <span className="small muted">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
+                </div>
+                {/* The divider sits under the last unread item, when anything older is still in the feed */}
+                {i === dividerAt - 1 && i < season.news.length - 1 && (
+                  <div className="divider" data-testid="inbox-divider">
+                    <span>New above · seen before below</span>
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
         </div>
@@ -373,6 +422,33 @@ export function Dugout() {
 
       <PlayerModal id={playerModal} onClose={() => setPlayerModal(null)} />
     </div>
+  )
+}
+
+function briefingIcon(item: BriefingItem): string {
+  if (item.done !== undefined) return item.done ? '✓' : '○'
+  return { block: '✉', warn: '⚠', info: 'ℹ', ok: '✓' }[item.level]
+}
+
+/** The assistant's briefing: one line per thing to do, with the button that does it. */
+function BriefingList({ items, onAction }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void }) {
+  if (items.length === 0) return null
+  return (
+    <ul className="briefing" data-testid="briefing">
+      {items.map((item) => (
+        <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
+          <span className="icon" aria-hidden="true">
+            {briefingIcon(item)}
+          </span>
+          <span className="text">{item.text}</span>
+          {item.action && (
+            <button className="btn sm" onClick={() => onAction(item.action!)}>
+              {item.action.label}
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -661,7 +737,7 @@ function MarketTab() {
       <div className="panel">
         <div className="panel-head">
           <h3>
-            {w.kind === 'summer' ? 'Summer' : 'January'} window · day {w.day}/{w.days}
+            {w.kind === 'summer' ? 'Summer' : 'January'} window · day {w.day + 1}/{w.days}
             {w.day >= w.days - 1 ? ' · deadline day' : ''}
           </h3>
           <div className="row wrap">
@@ -1054,7 +1130,7 @@ function EventCard() {
       </div>
       <div className="row wrap" style={{ marginTop: 8 }}>
         {ev.choices.map((c) => (
-          <button key={c.id} className="btn" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
+          <button key={c.id} className="btn event-choice" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
               <span>{c.label}</span>
               <span className="small muted" style={{ fontWeight: 400 }}>

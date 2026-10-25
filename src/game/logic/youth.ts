@@ -9,6 +9,7 @@ import type { Rng } from '@engine/rng'
 import type { PlayerSeason } from '@engine/types'
 import { newSquadPlayer } from '@engine/season'
 import { squadPlayers } from './players'
+import { postNews } from './news'
 
 export const INTAKE_SIZE = 3
 
@@ -62,6 +63,6 @@ export function signYouth(game: Game, u: LoadedUniverse, playerSeasonId: string 
   game.contracts[p.id] = { years: 3, status: 'prospect' }
   if (!game.bench.includes(p.id)) game.bench.push(p.id)
   intake.chosen = p.id
-  if (game.season) game.season.news.unshift({ matchweek: 0, kind: 'transfer', title: `${p.name} promoted from the academy`, body: `${p.age}-year-old ${p.positions[0]} joins the first-team squad on a three-year deal.` })
+  if (game.season) postNews(game, { matchweek: 0, kind: 'transfer', title: `${p.name} promoted from the academy`, body: `${p.age}-year-old ${p.positions[0]} joins the first-team squad on a three-year deal.` })
   return { ok: true, message: `${p.name} joins the first-team squad.` }
 }

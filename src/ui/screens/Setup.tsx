@@ -1,20 +1,37 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
+import { dailyGameSettings, dailySettings, defaultHostClub, shortNameFor, summariseSetup } from '@game/logic/setup'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, rulesTags, withDifficulty, type DraftRules } from '@engine/draft'
-import { dailySettings } from '@game/logic/daily'
 import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel, type EraRange } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
-import { seasonLabel } from '../format'
+import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 
 type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
+
+/** Whether this viewer last left More options open; a private window or blocked storage reads as closed. */
+const ADVANCED_KEY = 'touchline-setup-advanced'
+function readAdvanced(): boolean {
+  try {
+    return localStorage.getItem(ADVANCED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+function writeAdvanced(open: boolean): void {
+  try {
+    localStorage.setItem(ADVANCED_KEY, open ? '1' : '0')
+  } catch {
+    // Storage blocked: the fold still works for this visit
+  }
+}
 
 /** The wheel's season bounds for an era choice; the Daily has none. */
 function eraBounds(era: Era, from: number, to: number, firstSeason: number, isDaily: boolean): EraRange {
@@ -63,9 +80,22 @@ export function Setup() {
   const [difficulty, setDifficulty] = useState<'calibrated' | 'realistic'>('calibrated')
   const [seed, setSeed] = useState(() => randomSeed())
   const [squadSize, setSquadSize] = useState(18)
+  const [advanced, setAdvanced] = useState(readAdvanced)
+  const moreRef = useRef<HTMLDivElement>(null)
+  // On a phone the start bar is fixed over the page, so the page's bottom padding follows the bar's measured height
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barHeight, setBarHeight] = useState(0)
+  useEffect(() => {
+    const el = barRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setBarHeight(Math.ceil(el.getBoundingClientRect().height)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [u])
 
   const seasons = useMemo(() => (u ? [...new Set(u.clubSeasons.filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
-  const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, leagueSeason])
+  const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
+  const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, effectiveSeason])
   const wheelLeagues = useMemo(() => (wheelScope === 'europe' && u ? u.available.map((l) => l.id) : [leagueId]), [wheelScope, leagueId, u])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
   const allClubs = useMemo(() => {
@@ -84,8 +114,10 @@ export function Setup() {
   const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, formationId])
   const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
-  const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
-  const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : clubsInLeague[Math.floor(clubsInLeague.length / 2)] ?? ''
+  // The club handed over by default sits nearest tenth in that season's real table, so the board's ask is reachable
+  const defaultHost = useMemo(() => (u ? defaultHostClub(u, leagueId, effectiveSeason, clubsInLeague) : ''), [u, leagueId, effectiveSeason, clubsInLeague])
+  const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : defaultHost
+  const hostRow = u?.tables[leagueId]?.[effectiveSeason]?.find((r) => r.clubId === host)
 
   if (!u) return <div className="page">Loading…</div>
   const pickLeague = (id: string) => {
@@ -97,6 +129,14 @@ export function Setup() {
     setWheelScope(scope)
     void ensureLeagues(scope === 'europe' ? u.available.map((l) => l.id) : [leagueId])
   }
+  const toggleAdvanced = (open: boolean) => {
+    setAdvanced(open)
+    writeAdvanced(open)
+  }
+  const openMore = () => {
+    toggleAdvanced(true)
+    moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   // The daily puzzle and a challenge link fix everything but the team name and the picks: formation, league, host club,
   // season, difficulty and (for a challenge) the wheel rules and the seed are not the player's to choose.
@@ -106,31 +146,27 @@ export function Setup() {
       return { kind: 'challenge', season: c.s.ls, host: c.s.h, formationId: c.s.f, leagueId: c.s.l, wheelLeagues: c.s.wl, difficulty: c.s.d, rules: rulesFromPayload(c), seed: c.s.seed }
     }
     if (!isDaily) return null
-    // Every rule of the Daily comes from `dailySettings`, so it is the same wheel for everyone
-    return { kind: 'daily', ...dailySettings(u, todaysDailySeed()) }
+    const d = dailySettings(u, todaysDailySeed())
+    return { kind: 'daily', season: d.season, host: d.host, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty, rules: d.rules, seed: d.seed }
   })()
   const challenge = pendingChallenge?.challenge ?? null
   const fixedReady = !fixed || (fixed.wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(fixed.leagueId))
 
-  const start = () => {
-    const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
-    const club = !isDaily && onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
-    const nation = !isDaily && onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
-    const rules: DraftRules = fixed?.rules ?? { ...withDifficulty(base, hardMode ? 'hard' : base.difficulty ?? 'normal'), ...eraRange, onlyClub: club, onlyNation: nation, twists, leagues: wheelLeagues }
+  /** The settings the Start button would send; a blank seed is drawn at that moment, so a preview names it as such. */
+  const buildSettings = (preview: boolean): GameSettings => {
     const name = teamName.trim() || 'Touchline XI'
-    const short = name
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join('')
-      .slice(0, 3)
-      .toUpperCase() || 'TXI'
-    const settings: GameSettings = {
+    if (fixed?.kind === 'daily') return dailyGameSettings(u, fixed.seed, name)
+    const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
+    const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
+    const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
+    const rules: DraftRules = fixed?.rules ?? { ...withDifficulty(base, hardMode ? 'hard' : base.difficulty ?? 'normal'), ...eraRange, onlyClub: club, onlyNation: nation, twists, leagues: wheelLeagues }
+    return {
       // A challenge always plays as a quick draft, whatever seed it carries, so the Daily streak is never touched
       mode: challenge ? 'quick' : mode,
-      seed: fixed ? fixed.seed : seed.trim() || randomSeed(),
+      seed: fixed ? fixed.seed : seed.trim() || (preview ? 'drawn when you start' : randomSeed()),
       formationId: fixed ? fixed.formationId : formationId,
       teamName: name,
-      shortName: short.length >= 2 ? short : name.slice(0, 3).toUpperCase(),
+      shortName: shortNameFor(name),
       leagueId: fixed ? fixed.leagueId : leagueId,
       wheelLeagues: fixed ? fixed.wheelLeagues : wheelLeagues,
       hostClubId: fixed ? fixed.host : host,
@@ -141,11 +177,13 @@ export function Setup() {
       continental: isManage && continental && u.available.length >= 2,
       ...(challenge ? { challenge } : {}),
     }
-    startGame(settings)
   }
+  const start = () => startGame(buildSettings(false))
+  const summary = summariseSetup(u, buildSettings(true))
+  const ready = fixed ? fixedReady : leagueReady
 
   return (
-    <div className="page">
+    <div className="page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="row between wrap" style={{ marginBottom: 12 }}>
         <h1>{challenge ? 'Challenge' : MODE_TITLE[mode]}</h1>
         <button className="btn ghost" onClick={() => go('home')}>
@@ -161,8 +199,8 @@ export function Setup() {
               <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={28} />
             </label>
             {fixed?.kind === 'daily' && (
-              <div className="notice">
-                Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {todaysDailySeed()}.
+              <div className="notice" data-testid="daily-notice">
+                Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {fixed.seed}.
               </div>
             )}
             {fixed?.kind === 'challenge' && challenge && (
@@ -188,152 +226,172 @@ export function Setup() {
                 <span className="help">{loadingLeagues ? 'Loading league data…' : 'Where your side plays. Each league has its own real clubs and seasons.'}</span>
               </div>
             )}
-            {!fixed && (
-              <div className="field">
-                Draft from
-                <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: `${u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only` }, { value: 'europe', label: `European Nights: all ${u.available.length} leagues` }]} />
-                <span className="help">{wheelScope === 'europe' ? `The wheel and the market draw from ${listNames(u.available.map((l) => l.country))}.` : 'The wheel and the market stay inside one league.'}</span>
-              </div>
+            {!fixed && isManage && (
+              <>
+                <label className="field">
+                  Squad size to draft: {squadSize}
+                  <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} />
+                </label>
+                <label className="toggle">
+                  <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
+                  Job security: the board can sack you
+                </label>
+              </>
             )}
-            {!fixed && (
-            <label className="field">
-              League season to play in
-              <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
-                {seasons.map((s) => (
-                  <option key={s} value={s}>
-                    {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}
-                  </option>
-                ))}
-              </select>
-              <span className="help">Your drafted side replaces one real club and plays its 19 rivals with their real squads of that season.</span>
-            </label>
-            )}
-            {!fixed && (
-            <label className="field">
-              Club whose place you take
-              <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)}>
-                {clubsInLeague.map((c) => (
-                  <option key={c} value={c}>
-                    {u.clubById[c]?.name ?? c}
-                  </option>
-                ))}
-              </select>
-              <span className="help row" style={{ gap: 8 }}>
-                <ClubBadge clubId={host} size={22} /> You inherit their colours, rivals and fixture list. Their real players sit the season out.
-              </span>
-            </label>
-            )}
-            {!fixed && (
-            <div className="field">
-              Difficulty
-              <Segmented
-                value={difficulty}
-                onChange={setDifficulty}
-                options={[
-                  { value: 'calibrated', label: 'Calibrated', hint: 'Real clubs are handicapped so a decent draft competes' },
-                  { value: 'realistic', label: 'Realistic', hint: 'The real squads at full strength. Brutal.' },
-                ]}
-              />
-              <span className="help">{difficulty === 'calibrated' ? 'The league is scaled so an average draft finishes mid-table and a great one wins it.' : 'Modern top clubs field eleven 85+ players. Only a legendary draft survives.'}</span>
-            </div>
-            )}
-            {!fixed && (
-              <label className="field">
-                Seed
-                <div className="row">
-                  <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
-                  <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                    New
-                  </button>
-                </div>
-                <span className="help">Share a seed with a friend and you both get the same wheel.</span>
-              </label>
-            )}
-
           </div>
 
           {!fixed && (
-            <div className="panel col">
-              <h3>Wheel rules</h3>
-              <div className="field">
-                Era
-                <Segmented
-                  value={era}
-                  onChange={setEra}
-                  options={[
-                    { value: 'all', label: 'All eras' },
-                    { value: 'early', label: `${seasonLabel(u.firstSeason)} to 2013-14` },
-                    { value: 'mid', label: '2014-15 to 2019-20' },
-                    { value: 'modern', label: '2020-21 onwards' },
-                    { value: 'custom', label: 'Custom' },
-                  ]}
-                />
-              </div>
-              {era === 'custom' && (
-                <div className="row">
-                  <select className="input" value={from} onChange={(e) => setFrom(Number(e.target.value))}>
-                    {seasons.map((s) => (
-                      <option key={s} value={s}>
-                        {seasonLabel(s)}
-                      </option>
-                    ))}
-                  </select>
-                  <span>to</span>
-                  <select className="input" value={to} onChange={(e) => setTo(Number(e.target.value))}>
-                    {seasons.map((s) => (
-                      <option key={s} value={s}>
-                        {seasonLabel(s)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <label className="field">
-                One-club mode
-                <select className="input" value={onlyClub} onChange={(e) => { setOnlyClub(e.target.value); if (e.target.value) setOnlyNation('') }}>
-                  <option value="">Off: every club</option>
-                  {allClubs.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} only
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                One-nation mode
-                <select className="input" value={nations.some((n) => n.nation === onlyNation) ? onlyNation : ''} onChange={(e) => { setOnlyNation(e.target.value); if (e.target.value) setOnlyClub('') }}>
-                  <option value="">Off: every nationality</option>
-                  {nations.map((n) => (
-                    <option key={n.nation} value={n.nation}>
-                      {nationDepthLabel(n)}
-                    </option>
-                  ))}
-                </select>
+            <div className="panel col" ref={moreRef} data-testid="more-options">
+              <button type="button" className="fold-head" onClick={() => toggleAdvanced(!advanced)} aria-expanded={advanced} data-testid="more-options-toggle">
+                <h3>More options</h3>
+                <span className="small muted">{advanced ? 'Hide ▴' : 'Show ▾'}</span>
+              </button>
+              {!advanced && (
                 <span className="help">
-                  {onlyNation && nations.some((n) => n.nation === onlyNation)
-                    ? `Every pick, signing and academy prospect must come from ${nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.`
-                    : `${nations.length} nations have at least ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}, in the leagues and era chosen.`}
+                  League season, the club whose place you take, difficulty, seed, where the wheel draws from, era, one-club and one-nation modes, hard mode and twists{isManage && u.available.length >= 2 ? ', the Continental Cup' : ''}. The line above Start states what they are set to.
                 </span>
-              </label>
-              <label className="toggle">
-                <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
-                Hard mode: no re-spins, ratings hidden while drafting
-              </label>
-              <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
-                <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
-                Twists: every third spin is golden, basement, blind or decade
-              </label>
-              {isManage && (
+              )}
+              {advanced && (
                 <>
                   <label className="field">
-                    Squad size to draft: {squadSize}
-                    <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} />
+                    League season to play in
+                    <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
+                      {seasons.map((s) => (
+                        <option key={s} value={s}>
+                          {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="help">Your drafted side replaces one real club and plays its {Math.max(0, clubsInLeague.length - 1)} rivals with their real squads of that season.</span>
+                  </label>
+                  <label className="field">
+                    Club whose place you take
+                    <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)} data-testid="host-select">
+                      {clubsInLeague.map((c) => (
+                        <option key={c} value={c}>
+                          {u.clubById[c]?.name ?? c}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="help row" style={{ gap: 8 }} data-testid="host-help">
+                      <ClubBadge clubId={host} size={22} />
+                      {host === defaultHost && hostRow
+                        ? `A mid-table club (${ordinal(hostRow.position)} in ${seasonLabel(effectiveSeason)}), so the board's target is reachable. Change it if you want another club's colours and rivals.`
+                        : 'You inherit their colours, rivals and fixture list. Their real players sit the season out.'}
+                    </span>
+                  </label>
+                  <div className="field">
+                    Difficulty
+                    <Segmented
+                      value={difficulty}
+                      onChange={setDifficulty}
+                      options={[
+                        { value: 'calibrated', label: 'Calibrated', hint: 'Real clubs are handicapped so a decent draft competes' },
+                        { value: 'realistic', label: 'Realistic', hint: 'The real squads at full strength. Brutal.' },
+                      ]}
+                    />
+                    <span className="help">{difficulty === 'calibrated' ? 'The league is scaled so an average draft finishes mid-table and a great one wins it.' : 'Modern top clubs field eleven 85+ players. Only a legendary draft survives.'}</span>
+                  </div>
+                  <label className="field">
+                    Seed
+                    <div className="row">
+                      <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
+                      <button className="btn sm" onClick={() => setSeed(randomSeed())}>
+                        New
+                      </button>
+                    </div>
+                    <span className="help">Share a seed with a friend and you both get the same wheel.</span>
+                  </label>
+
+                  <h3 style={{ marginTop: 6 }}>Wheel rules</h3>
+                  <div className="field">
+                    Draft from
+                    <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: `${u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only` }, { value: 'europe', label: `European Nights: all ${u.available.length} leagues` }]} />
+                    <span className="help">{wheelScope === 'europe' ? `The wheel and the market draw from ${listNames(u.available.map((l) => l.country))}.` : 'The wheel and the market stay inside one league.'}</span>
+                  </div>
+                  <div className="field">
+                    Era
+                    <Segmented
+                      value={era}
+                      onChange={setEra}
+                      options={[
+                        { value: 'all', label: 'All eras' },
+                        { value: 'early', label: `${seasonLabel(u.firstSeason)} to 2013-14` },
+                        { value: 'mid', label: '2014-15 to 2019-20' },
+                        { value: 'modern', label: '2020-21 onwards' },
+                        { value: 'custom', label: 'Custom' },
+                      ]}
+                    />
+                  </div>
+                  {era === 'custom' && (
+                    <div className="row">
+                      <select className="input" value={from} onChange={(e) => setFrom(Number(e.target.value))}>
+                        {seasons.map((s) => (
+                          <option key={s} value={s}>
+                            {seasonLabel(s)}
+                          </option>
+                        ))}
+                      </select>
+                      <span>to</span>
+                      <select className="input" value={to} onChange={(e) => setTo(Number(e.target.value))}>
+                        {seasons.map((s) => (
+                          <option key={s} value={s}>
+                            {seasonLabel(s)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <label className="field">
+                    One-club mode
+                    <select
+                      className="input"
+                      value={onlyClub}
+                      onChange={(e) => {
+                        setOnlyClub(e.target.value)
+                        if (e.target.value) setOnlyNation('')
+                      }}
+                    >
+                      <option value="">Off: every club</option>
+                      {allClubs.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} only
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    One-nation mode
+                    <select
+                      className="input"
+                      value={nations.some((n) => n.nation === onlyNation) ? onlyNation : ''}
+                      onChange={(e) => {
+                        setOnlyNation(e.target.value)
+                        if (e.target.value) setOnlyClub('')
+                      }}
+                    >
+                      <option value="">Off: every nationality</option>
+                      {nations.map((n) => (
+                        <option key={n.nation} value={n.nation}>
+                          {nationDepthLabel(n)}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="help">
+                      {onlyNation && nations.some((n) => n.nation === onlyNation)
+                        ? `Every pick, signing and academy prospect must come from ${nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.`
+                        : `${nations.length} nations have at least ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}, in the leagues and era chosen.`}
+                    </span>
                   </label>
                   <label className="toggle">
-                    <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
-                    Job security: the board can sack you
+                    <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
+                    Hard mode: no re-spins, ratings hidden while drafting
                   </label>
-                  {u.available.length >= 2 && (
+                  <label className="toggle" title="Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.">
+                    <input type="checkbox" checked={twists} onChange={(e) => setTwistsChoice(e.target.checked)} />
+                    Twists: every third spin is golden, basement, blind or decade
+                  </label>
+                  {isManage && u.available.length >= 2 && (
                     <label className="toggle" title="A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.">
                       <input
                         type="checkbox"
@@ -354,22 +412,35 @@ export function Setup() {
 
         <div className="col">
           {!fixed && (
-          <div className="panel">
-            <h3>Formation</h3>
-            <div className="formations">
-              {FORMATIONS.map((f) => (
-                <button key={f.id} className={f.id === formationId ? 'active' : ''} onClick={() => setFormationId(f.id)}>
-                  <div className="fname">{f.name}</div>
-                  <div className="fblurb">{f.blurb}</div>
-                </button>
-              ))}
+            <div className="panel">
+              <h3>Formation</h3>
+              <div className="formations">
+                {FORMATIONS.map((f) => (
+                  <button key={f.id} className={f.id === formationId ? 'active' : ''} onClick={() => setFormationId(f.id)}>
+                    <div className="fname">{f.name}</div>
+                    <div className="fblurb">{f.blurb}</div>
+                  </button>
+                ))}
+              </div>
+              <p className="help">{isManage ? 'You can change shape later, at a small cost to familiarity.' : 'The wheel only offers players who can fill a slot you still need.'}</p>
             </div>
-            <p className="help">{isManage ? 'You can change shape later, at a small cost to familiarity.' : 'The wheel only offers players who can fill a slot you still need.'}</p>
-          </div>
           )}
-          <button className="btn primary big block" onClick={start} disabled={fixed ? !fixedReady || loadingLeagues : !leagueReady || loadingLeagues}>
-            {(fixed ? !fixedReady : !leagueReady) ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Spin the wheel'}
-          </button>
+          <div className="bottom-bar" ref={barRef}>
+            <div className="small muted" data-testid="setup-summary">
+              {summary}
+              {!fixed && (
+                <>
+                  {' · '}
+                  <button type="button" className="linklike" onClick={openMore}>
+                    change
+                  </button>
+                </>
+              )}
+            </div>
+            <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
+              {!ready ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Spin the wheel'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

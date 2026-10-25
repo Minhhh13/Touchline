@@ -19,10 +19,11 @@ import type { SquadPlayer } from '@engine/types'
 import { earnsPointsRecord } from './records'
 import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
 import { difficultyOf } from '@engine/draft'
+import { postNews } from './news'
+import { ASSISTANT_DECIDED } from './digest'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
-  game.season!.news.unshift({ matchweek: game.season!.matchweek, ...item })
-  if (game.season!.news.length > 120) game.season!.news.length = 120
+  postNews(game, { matchweek: game.season!.matchweek, ...item })
 }
 
 function userInput(game: Game, u: LoadedUniverse): MatchTeamInput {
@@ -254,8 +255,11 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   const rng = Rng.fromState(game.rngState)
 
   if (game.pendingEvent && autoManage) {
+    // The assistant takes the second option; the choice goes on record before the event's own item follows it
     const ev = game.pendingEvent
-    applyEventChoice(game, u, ev.choices[Math.min(1, ev.choices.length - 1)].id)
+    const choice = ev.choices[Math.min(1, ev.choices.length - 1)]
+    news(game, { kind: 'event', title: `${ASSISTANT_DECIDED}${ev.title}`, body: choice.label })
+    applyEventChoice(game, u, choice.id)
   }
   if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
 
@@ -743,7 +747,7 @@ export function startSeasonProper(game: Game): void {
   if (game.phase === 'preseason') {
     game.phase = 'week'
     if (game.window?.kind === 'summer') {
-      game.season?.news.unshift({ matchweek: 0, kind: 'transfer', title: 'Summer window closed', body: 'The season is under way. The next window opens in January.' })
+      postNews(game, { matchweek: 0, kind: 'transfer', title: 'Summer window closed', body: 'The season is under way. The next window opens in January.' })
       game.window = null
     }
   }

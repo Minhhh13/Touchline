@@ -267,6 +267,21 @@ p {
   .scoreboard .team {
     font-size: 16px;
   }
+  .page.has-bottom-bar {
+    /* The fixed bar's measured height plus a gap; 150px until it is measured */
+    padding-bottom: calc(var(--bottom-bar-h, 130px) + 20px);
+  }
+  .bottom-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: 1px solid var(--line-2);
+    box-shadow: var(--shadow);
+  }
 }
 
 /* ------------------------------------------------------------------ panels */
@@ -317,6 +332,12 @@ p {
   transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
   text-decoration: none;
   white-space: nowrap;
+}
+/* A decision's choice carries its hint under the label, so it wraps rather than running past a phone's edge */
+.btn.event-choice {
+  white-space: normal;
+  max-width: 100%;
+  text-align: left;
 }
 .btn:hover {
   border-color: var(--accent);
@@ -1029,6 +1050,34 @@ table.tbl tr.clickable:hover {
   font-size: 12px;
   color: var(--text-3);
 }
+/* The Daily card starts the puzzle itself; its body is the way to the full setup for a team name */
+.mode-card.daily {
+  padding: 0;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+}
+.mode-card.daily:hover {
+  transform: none;
+}
+.mode-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  text-align: left;
+  padding: 16px 16px 10px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  cursor: pointer;
+}
+.mode-card-body:hover {
+  background: var(--panel-2);
+}
+.mode-card.daily > .btn {
+  margin: 0 16px 16px;
+}
 
 /* ------------------------------------------------------------------ misc */
 .tier-banner {
@@ -1227,6 +1276,69 @@ table.tbl tr.clickable:hover {
   color: var(--text-2);
   font-size: 13px;
 }
+.news .item.new {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.news .divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.news .divider::before,
+.news .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.tabs button .tab-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ------------------------------------------------------------------ while you were away */
+.digest {
+  gap: 12px;
+}
+.digest-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.digest-results .chip {
+  padding: 3px 8px 3px 4px;
+  font-size: 13px;
+}
+.digest-results .chip.cup {
+  border-style: dashed;
+}
+.digest-conf {
+  display: grid;
+  gap: 4px;
+}
+.digest-group ul {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+  font-size: 13.5px;
+}
 .kv {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1299,10 +1411,136 @@ table.tbl tr.clickable:hover {
   font-size: 12.5px;
   color: var(--text-2);
 }
-.sticky-cta {
-  position: sticky;
-  bottom: 12px;
-  z-index: 15;
+/* The dugout's CTA panel: fixture and briefing on the left, the action bar on the right (fixed to the bottom on phones). */
+.panel.cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+.cta-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.briefing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.brief,
+.bar-brief {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  padding: 2px 0;
+}
+.brief .icon,
+.bar-brief .icon {
+  text-align: center;
+  font-weight: 700;
+}
+.brief.block .icon,
+.bar-brief.block .icon {
+  color: var(--danger);
+}
+.brief.warn .icon,
+.bar-brief.warn .icon {
+  color: var(--warn);
+}
+.brief.info .icon,
+.bar-brief.info .icon {
+  color: var(--text-2);
+}
+.brief.ok .icon,
+.bar-brief.ok .icon {
+  color: var(--accent);
+}
+.brief.done .text {
+  color: var(--text-2);
+}
+.cta-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.cta-bar .bar-brief {
+  display: none;
+}
+.cta-bar .btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  .cta-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: 1px solid var(--line-2);
+    box-shadow: var(--shadow);
+    align-items: stretch;
+  }
+  .cta-bar .bar-brief {
+    display: grid;
+  }
+  .cta-bar .bar-brief .text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cta-bar .btns .btn {
+    flex: 1 1 auto;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .cta-bar .btns .btn.primary.big {
+    flex: 3 1 auto;
+    order: -1;
+  }
+}
+/* The start bar: the choice summary and the one button that matters. Fixed to the bottom on phones. */
+.bottom-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fold-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.fold-head h3 {
+  margin: 0;
+}
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
 }
 .spin-btn {
   width: 100%;
