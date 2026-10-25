@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import { MatchTicker } from '../components/MatchTicker'
 import { Bar, ClubBadge, Pos, Rating, Segmented, Tabs } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 import type { PitchSide } from '../components/LivePitch'
 import { MatchVisuals, MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay, XgRace } from '../components/MatchCharts'
 import { kitColour } from '../match/pitchGeometry'
@@ -16,6 +17,16 @@ import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
 import { isAvailable } from '@game/logic/players'
+
+/** The competition's flag before a match heading: the league's, or the EU flag on a European night; none for a friendly. */
+function CompetitionFlag({ ctx, leagueId }: { ctx: MatchContext; leagueId?: string }) {
+  if (ctx.roundLabel === 'Friendly' || !leagueId) return null
+  return (
+    <>
+      <LeagueFlag leagueId={ctx.competition === 'continental' ? 'europe' : leagueId} size={24} />{' '}
+    </>
+  )
+}
 
 /** Kit colours for the two sides: the user wears the host club's colours, an AI club its own; a clash falls back to the second colour. */
 function kitColours(u: LoadedUniverse, hostClubId: string, homeTeamId: string, awayTeamId: string): { home: string; away: string } {
@@ -70,6 +81,7 @@ export function MatchScreen() {
         <div className="row between wrap" style={{ marginBottom: 10 }}>
           <div>
             <h2>
+              <CompetitionFlag ctx={live.ctx} leagueId={game.season?.leagueId} />
               {live.ctx.roundLabel ?? (live.ctx.competition === 'cup' ? 'Cup' : `Matchweek ${live.ctx.matchweek}`)}
               {live.ctx.importanceLabel ? ` · ${live.ctx.importanceLabel}` : ''}
             </h2>
@@ -129,6 +141,7 @@ export function MatchScreen() {
       <div className="row between wrap" style={{ marginBottom: 10 }}>
         <div>
           <h2>
+            <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
             {ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`)}
             {ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}
           </h2>

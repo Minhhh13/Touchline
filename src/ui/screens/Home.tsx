@@ -2,6 +2,7 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailyGameSettings, dailySettings } from '@game/logic/setup'
 import { seasonLabel } from '../format'
 import { ClubBadge } from '../components/bits'
+import { LeagueFlag } from '../components/Flag'
 
 export function Home() {
   const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
@@ -32,6 +33,13 @@ export function Home() {
         <p className="muted small" style={{ marginTop: 10 }}>
           {u ? `${playerSeasons.toLocaleString()} real player-seasons · ${players.toLocaleString()} players · ${clubCount} clubs · ${u.available.length} leagues · ${seasonLabel(u.firstSeason)} to ${seasonLabel(u.lastSeason)}` : 'Loading the database…'}
         </p>
+        {u && (
+          <div className="row wrap" style={{ gap: 8, marginTop: 8 }} aria-label="Leagues">
+            {u.available.map((l) => (
+              <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
+            ))}
+          </div>
+        )}
       </section>
 
       {game && (

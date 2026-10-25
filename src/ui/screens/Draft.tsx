@@ -8,7 +8,8 @@ import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Pos, Rating } from '../components/bits'
-import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
+import { clubName, nationName, ordinal, seasonLabel } from '../format'
+import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
 import { leagueSegments } from '../components/leagueSegments'
 
@@ -72,7 +73,11 @@ export function Draft() {
   const isDynastySummer = game.settings.mode === 'dynasty' && game.year > 1
 
   const nation = d.rules.onlyNation
-  const nationLabel = nation ? `${flag(u, nation)} ${nationName(u, nation)}` : ''
+  const nationLabel = nation ? (
+    <>
+      <NationFlag nation={nation} named /> {nationName(u, nation)}
+    </>
+  ) : null
   // The ghost: what the challenger did on this spin number. Hidden under hard mode, and absent when the picks could not be resolved on this data
   const challenge = game.settings.challenge
   const ghost = challenge && !d.rules.hardMode && d.current && d.spins > 0 ? challenge.picks[d.spins - 1] : undefined
@@ -110,7 +115,7 @@ export function Draft() {
           <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The Draft'}</h1>
           <div className="muted small">
             {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challenge.claim.pts} pts) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
-            {nation ? `${nationLabel} only · ` : ''}
+            {nation ? <>{nationLabel} only · </> : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
             {d.rules.hardMode ? 'Hard mode · ' : ''}
             {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
@@ -148,7 +153,7 @@ export function Draft() {
             )}
             {!complete && dry && (
               <div className="notice">
-                The wheel has run dry for {nationLabel || 'this draft'}: no one left to draft.{' '}
+                The wheel has run dry for {nationLabel ?? 'this draft'}: no one left to draft.{' '}
                 {fillingStarters ? `Slots are still open (${needs.join(', ')}), so this side cannot start a season. Go home and choose another nation or a wider wheel.` : `You can go on with the ${made} players drafted.`}
               </div>
             )}

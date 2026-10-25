@@ -21,6 +21,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Modal, Rating, Segmented, Stat, Tabs, Pos } from '../components/bits'
 import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
+import { LeagueFlag } from '../components/Flag'
 import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
 import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
@@ -374,7 +375,7 @@ export function Dugout() {
 
       {tab === 'table' && (
         <div className="panel">
-          <h3>League table · {seasonLabel(season.leagueSeason)}</h3>
+          <h3><LeagueFlag leagueId={season.leagueId} label={u.leagues.find((l) => l.id === season.leagueId)?.name} /> League table · {seasonLabel(season.leagueSeason)}</h3>
           <TableView rows={table} teamName={game.settings.teamName} />
           <p className="help">The other nineteen clubs field their real squads from that season, with their own injuries and form.</p>
         </div>
@@ -585,7 +586,7 @@ function CupTab({ comp }: { comp: Competition }) {
         <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
           {field.map((c) => (
             <span key={c.id} className="chip row" style={{ gap: 4 }} title={u.leagues.find((l) => l.id === u.clubById[c.id]?.leagueId)?.name}>
-              <ClubBadge clubId={c.id} size={16} /> {c.shortName}
+              <LeagueFlag leagueId={u.clubById[c.id]?.leagueId ?? ''} size={16} /> <ClubBadge clubId={c.id} size={16} /> {c.shortName}
             </span>
           ))}
         </div>
@@ -915,7 +916,7 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dt>Job security</dt>
           <dd>{game.settings.jobSecurity ? 'On: below 12 after matchweek 10 and you are gone' : 'Off'}</dd>
           <dt>League</dt>
-          <dd>{u.leagues.find((l) => l.id === season.leagueId)?.name ?? season.leagueId} · {season.matchweeks} matchweeks</dd>
+          <dd><LeagueFlag leagueId={season.leagueId} /> {u.leagues.find((l) => l.id === season.leagueId)?.name ?? season.leagueId} · {season.matchweeks} matchweeks</dd>
           <dt>Rivals</dt>
           <dd>{host?.rivals.map((r) => clubName(u, r)).join(', ') || 'None'}</dd>
           <dt>Difficulty</dt>
