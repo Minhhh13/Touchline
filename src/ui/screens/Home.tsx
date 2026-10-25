@@ -162,6 +162,12 @@ export function Home() {
           <p className="muted small">The wheel, the draft rules, how matches are simulated and what the board expects.</p>
         </button>
       </div>
+      <p className="muted small" style={{ marginTop: 16, textAlign: 'center' }}>
+        Free, no ads, no account needed.{' '}
+        <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="privacy-link">
+          Privacy and fair play
+        </button>
+      </p>
     </div>
   )
 }

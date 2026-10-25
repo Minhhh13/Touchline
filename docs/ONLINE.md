@@ -102,7 +102,7 @@ Errors are `{ status, code, reason, ...context }` with these HTTP statuses: 400 
 
 ## 5c. Owner steps in the dashboards (once)
 
-1. Supabase SQL: apply the pending migrations (section 4), then both advisors. The connector's confirmation question has timed out every time an agent asked (three attempts on 2026-10-25), so either answer it when it appears, or run `supabase link --project-ref yvqpmyqomkwtudxmkeou && supabase db push` from a checkout.
+1. Supabase SQL: apply the pending migrations (section 4), then both advisors. The connector's confirmation question has timed out every time an agent asked (four attempts on 2026-10-25), so either answer it when it appears, or run `supabase link --project-ref yvqpmyqomkwtudxmkeou && supabase db push` from a checkout.
 2. Supabase Auth > Providers: Email on (Confirm email on), Email OTP expiry 900 s; Google on with a Web OAuth client whose redirect URI is `https://yvqpmyqomkwtudxmkeou.supabase.co/auth/v1/callback`; anonymous sign-ins as Q4 says (needed only for Phase 2 rooms).
 3. Supabase Auth > Email templates, both "Confirm signup" and "Magic Link": `<h2>Sign in to TouchLine</h2><p>Your code: <b>{{ .Token }}</b> (valid for 15 minutes)</p><p>Or tap: <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Sign in to TouchLine</a></p>` (custom SMTP through Resend must be on to edit them on the Free plan).
 4. Supabase Auth > URL configuration: Site URL `https://touchline.quest`; redirect URLs as section 3 lists, plus `http://localhost:4173/**` for preview smokes.
@@ -141,3 +141,49 @@ A rebuild needs a new `generatedAt` (the stamp guard fails CI otherwise): rebuil
 
 ### Rename an abusive display name
 `update public.profiles set display_name = 'Manager ' || private.random_code(5) where user_id = ...;` Board rows keep the name they were posted under; hide them if needed.
+
+### Restore a user's previous save
+The player can do it themselves: Record page > Account > Cloud history lists each slot's previous copy (and a game abandoned on another device) with "Restore". If they cannot (the previous copy is the same game, or they ask for help): `select slot, game_id, prev_game_id, prev_object_path, prev_saved_at from public.cloud_saves where user_id = '<uid>';`, download `prev_object_path` from Storage > `saves` in the dashboard, gunzip it (`gunzip -c file.json.gz > game.json`; it holds that slot's compacted game, or the hot-seat state for `h2h`), wrap a game as `{"state":{"game":<game.json>},"version":1}` and send them the file: the Record page's Import reads plain JSON. Import replaces that device's whole save, so they export theirs first. Never write their rows by hand; a hand-edited revision breaks the compare-and-set.
+
+### Delete a user (on request, when they cannot sign in)
+1. Storage > `saves`: delete the folder `<uid>/` (Supabase refuses to delete a user who still owns objects). 2. Authentication > Users: find the user by email, Delete user. Foreign keys remove the profile, cloud rows, Daily and weekly entries, totals and challenge codes. 3. A change-log line without the email. A signed-in user does all of this from Record > Account > Delete account (the Edge Function's `account.delete`).
+
+### Rotate keys
+- **Publishable key** (public, but rotate after abuse): Settings > API Keys > create a new publishable key; set it as `VITE_SUPABASE_ANON_KEY` on the Render live site and redeploy; update the Vault secret `touchline_publishable_key` (`select vault.update_secret((select id from vault.secrets where name = 'touchline_publishable_key'), '<new key>');`) and the repository variable `SUPABASE_PUBLISHABLE_KEY`; after a day (installed apps refresh on their next visit), disable the old key.
+- **Secret key**: Settings > API Keys > create a new secret key, then delete the old one. The Edge Function reads `SUPABASE_SECRET_KEYS` from the platform, so no code or secret changes; call `status` and post a test Daily afterwards. The key is never in the repo, CI or a `VITE_` variable, so nothing else moves.
+- **Google OAuth client secret**: rotate in Google Cloud, paste the new secret in Authentication > Providers > Google.
+- **Resend API key** (SMTP password): create a new key in Resend, paste it in Authentication > SMTP, delete the old key.
+
+## 8. Phase 1 release checklist (plan item 13)
+
+State on 2026-10-25. Built and tested in code: everything below marked "code". Each "owner" line is a dashboard step only the owner can do (or approve); tick it in the release PR with a screenshot.
+
+| # | Step | Who | State |
+| --- | --- | --- | --- |
+| 1 | Privacy and fair play page (issue #19): what is stored, where, retention, deletion, leaderboard rules, data credits; linked from Home, How it works and the sign-in panel | code | done (`src/ui/screens/Privacy.tsx`; figures pinned by `retention.test.ts`) |
+| 2 | Apply migrations 2 to 9 (section 4) in file order, rename each local file to the recorded version, then both advisors clean | owner (approve the connector's question) or `supabase db push` | pending: the connector's confirmation question timed out a fourth time on 2026-10-25 for `cloud_saves`; only `online_core` is applied |
+| 3 | Vault secrets for the keep-alive (section 3) and the repository variables `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | owner | pending (after 2) |
+| 4 | Auth providers, OTP expiry 900 s, both email templates, URL configuration (section 5c, 2 to 4) | owner | partly done by the owner (SMTP, Confirm email, Site URL, redirects); Google client, templates and OTP expiry to confirm |
+| 5 | Deploy `touchline-e4` (`npm run deploy:function -- --stage-only`, then the connector's `deploy_edge_function` with `deploy-files.json`, or the CLI); secret `TOUCHLINE_SITE_URL=https://touchline.quest` | agent after 2, with the owner's approval | pending (needs the board migrations) |
+| 6 | Render live site `Touchline`: `VITE_SUPABASE_URL=https://yvqpmyqomkwtudxmkeou.supabase.co`, `VITE_SUPABASE_ANON_KEY=<sb_publishable_ key>`, the headers below, then redeploy | owner | pending: set it only after 1, 2 and 5, when `main` carries this branch |
+| 7 | Preview site: keep it offline-only (no `VITE_SUPABASE_*`); it runs other branches' engines and data, so a ranked post from it would be refused anyway. Consider removing `touchline-preview-hfvi.onrender.com` from the Auth redirect list | owner | to confirm |
+| 8 | `npm run check:dist-keys` green on the deployed build (CI runs it; re-run on the live `dist` after 6) | agent | green locally on both an offline and a Supabase-configured build |
+| 9 | Live smoke: sign in with Google and with an email code, sync two browsers (Season on A appears parked on B), post a Daily (ranked, then `duplicate`), open the World board signed out, mint and open a `#s=` link in another browser; `node scripts/online/smoke-function.mjs` with two test accounts | owner provides two test accounts; agent runs it | pending (no test account yet) |
+| 10 | A Free project pauses after a week idle: upgrade the same project to a paid plan before the public launch | owner | pending |
+
+Render headers (dashboard > the static site > Headers), as the build plan section 7.2 gives them:
+
+| Path | Header | Value |
+| --- | --- | --- |
+| `/*` | `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `/*` | `X-Content-Type-Options` | `nosniff` |
+| `/*` | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `/*` | `Content-Security-Policy-Report-Only` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://yvqpmyqomkwtudxmkeou.supabase.co wss://yvqpmyqomkwtudxmkeou.supabase.co; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` |
+| `/sw.js`, `/build.json` | `Cache-Control` | `no-cache` |
+| `/assets/*` | `Cache-Control` | `public, max-age=31536000, immutable` |
+| `/data/*` | `Cache-Control` | `public, max-age=300` |
+
+The CSP stays report-only until a week of smokes shows no violation. No rewrite rules are needed (hash routing; sign-in returns to `/` with query parameters).
+
+### Playwright pass of 2026-10-25 (this branch)
+Signed out at 1280 and 390 wide, on an offline build and on a build carrying the project's URL and publishable key: details in the handover change log of that date. Signed-in checks (sign-in, sync between two browsers, a ranked post, minting a short link) wait for the owner's test account and the migrations (step 2).

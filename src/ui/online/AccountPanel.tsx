@@ -61,7 +61,11 @@ function SignIn() {
   }
   return (
     <div className="col" data-testid="account-signin">
-      <p className="help">Optional. Signing in keeps your games on every device, posts verified Daily and weekly scores to the world leaderboard and makes short challenge links. Everything works without it.</p>
+      <p className="help">Optional. Signing in keeps your games on every device, posts verified Daily and weekly scores to the world leaderboard and makes short challenge links. Everything works without it.{' '}
+        <button className="btn ghost sm" onClick={() => useStore.getState().go('privacy')} data-testid="signin-privacy">
+          What is stored
+        </button>
+      </p>
       <button className="btn" onClick={() => void google()} data-testid="signin-google">
         Continue with Google
       </button>

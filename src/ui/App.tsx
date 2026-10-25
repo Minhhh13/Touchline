@@ -10,6 +10,7 @@ import { Explore } from './screens/Explore'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
+import { Privacy } from './screens/Privacy'
 import { Bar, ClubBadge, Modal, Toast } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
@@ -102,6 +103,7 @@ export function App() {
   else if (screen === 'profile') body = <ProfileScreen />
   else if (screen === 'howto') body = <HowTo />
   else if (screen === 'world') body = <WorldBoard />
+  else if (screen === 'privacy') body = <Privacy />
   else body = <Home />
 
   return (

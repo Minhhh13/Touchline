@@ -8,7 +8,7 @@ import { runQuickSeason } from '@game/logic/quick'
 import { challengeFromGame } from '@game/logic/challenge'
 import { createShortLink, resolveShortCode } from '../challengeLinks'
 import { boardDate, boardRowFrom, fetchAlltime, fetchBoard, fetchSummary, summaryFrom } from '../boards'
-import { normaliseError, OnlineError, pinFromRow } from '../transport'
+import { normaliseError, NOT_READY, OnlineError, pinFromRow } from '../transport'
 import { FakeBackend, FakeTransport } from './fakeTransport'
 
 const u = loadTestUniverse()
@@ -96,6 +96,12 @@ describe('boards and transport parsing', () => {
     expect(normaliseError({ code: '22023', message: 'bad' }).kind).toBe('bad')
     expect(normaliseError({ code: '', message: 'TypeError: Failed to fetch' }).kind).toBe('network')
     expect(normaliseError({ message: 'x' }, 503).kind).toBe('unavailable')
+    // A migration not applied yet: PostgREST's "Could not find the function ... in the schema cache" never reaches the player
+    for (const code of ['PGRST202', 'PGRST205', '42883', '42P01']) {
+      const e = normaliseError({ code, message: 'Could not find the function public.daily_alltime_board(p_country) in the schema cache' }, 404)
+      expect(e.kind).toBe('unavailable')
+      expect(e.message).toBe(NOT_READY)
+    }
     const pin = pinFromRow('daily', { puzzle_date: '2026-10-25', seed: 'daily-2026-10-25', settings: { mode: 'daily' }, settings_hash: 'abc', engine_version: '4', data_version: '2026-10-24', created_at: 'x' })
     expect(pin).toEqual({ kind: 'daily', key: '2026-10-25', seed: 'daily-2026-10-25', settings: { mode: 'daily' }, settingsHash: 'abc', engineVersion: '4', dataVersion: '2026-10-24' })
     expect(pinFromRow('weekly', null)).toBeNull()

@@ -58,6 +58,9 @@ export function HowTo() {
               </li>
             ))}
           </ul>
+          <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="howto-privacy">
+            Privacy and fair play
+          </button>
         </div>
       </div>
     </div>

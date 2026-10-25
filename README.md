@@ -4,7 +4,7 @@
 
 A free, open web football game that fuses the spin-and-draft loop of 38-0 with the week-by-week management of Football Manager. Spin a wheel that lands on a real club in a real season from England, Spain, Italy, Germany or France (2008-09 to 2026-27), draft one player from that squad, repeat until your side is built, then either simulate the season instantly or manage it one matchweek at a time: roles, instructions, condition, injuries, a cup, a January window, a board that counts. Your drafted side takes one real club's place in the league you choose and plays the other clubs' real squads of that season: 38 matchweeks in a 20-club league, 34 in an 18-club one.
 
-No account, no server, no ads. Everything runs in the browser and saves to `localStorage`.
+No account needed, no ads; optional sign-in syncs your games and posts verified Daily scores. Everything runs in the browser and saves to `localStorage`, and every mode works signed out and offline. The Privacy and fair play page (linked from Home, How it works and the sign-in panel) says what an online build stores, where, for how long and how to delete it.
 
 ## Features
 

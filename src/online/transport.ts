@@ -32,6 +32,9 @@ export class OnlineError extends Error {
 export const isTransient = (e: unknown) => !(e instanceof OnlineError) || e.kind === 'network' || e.kind === 'unavailable' || e.kind === 'rate'
 
 /** A PostgREST or Storage error (`{ code, message }` plus the HTTP status) as an `OnlineError`. */
+/** What a player reads when the backend does not have a feature yet. */
+export const NOT_READY = 'This online feature is not switched on yet. Your games are safe on this device; try again later.'
+
 export function normaliseError(error: { code?: string; message?: string; statusCode?: string | number } | null | undefined, status = 0): OnlineError {
   const code = String(error?.code ?? '')
   const message = error?.message || 'The server did not answer'
@@ -41,6 +44,9 @@ export function normaliseError(error: { code?: string; message?: string; statusC
   if (code === 'PT429' || http === 429) return new OnlineError('rate', message, code || '429', 429)
   if (code === 'PT503' || http >= 500) return new OnlineError('unavailable', message, code || String(http), http || 503)
   if (code === '23505') return new OnlineError('taken', message, code, 409)
+  // The database does not have this function or table yet (a migration not applied): the feature is not switched on,
+  // which is the server's state, not the player's mistake, so it reads like an outage and is retried later
+  if (code === 'PGRST202' || code === 'PGRST205' || code === '42883' || code === '42P01') return new OnlineError('unavailable', NOT_READY, code, 503)
   if (code === '22023' || code === '23514' || code === '42501' || code === 'P0001' || (http >= 400 && http < 500 && http !== 404)) return new OnlineError('bad', message, code || String(http), http || 400)
   if (http === 404) return new OnlineError('missing', message, code || '404', 404)
   // No code and no status: the request never got an answer (offline, DNS, CORS, a dropped connection)
