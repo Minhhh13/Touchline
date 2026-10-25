@@ -3,10 +3,13 @@ import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
+import { rulesFromPayload } from '@engine/challenge'
+import { TIER_LABEL } from '@engine/season'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel, type EraRange } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
 import { seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
+import { clubName } from '../format'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 
@@ -35,7 +38,7 @@ function listNames(names: string[]): string {
 }
 
 export function Setup() {
-  const { universe: u, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
+  const { universe: u, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, pendingChallenge } = useStore()
   const [leagueId, setLeagueId] = useState('england')
   const [wheelScope, setWheelScope] = useState<'league' | 'europe'>('league')
   const [teamName, setTeamName] = useState('Touchline XI')
@@ -94,8 +97,13 @@ export function Setup() {
     void ensureLeagues(scope === 'europe' ? u.available.map((l) => l.id) : [leagueId])
   }
 
-  // The daily puzzle fixes everything but the picks: formation, league, host club and difficulty come from the date.
-  const dailyFixed = (() => {
+  // The daily puzzle and a challenge link fix everything but the team name and the picks: formation, league, host club,
+  // season, difficulty and (for a challenge) the wheel rules and the seed are not the player's to choose.
+  const fixed = ((): { kind: 'daily' | 'challenge'; season: number; host: string; formationId: string; leagueId: string; wheelLeagues: string[]; difficulty: 'calibrated' | 'realistic'; rules: DraftRules | null; seed: string } | null => {
+    if (pendingChallenge) {
+      const c = pendingChallenge.payload
+      return { kind: 'challenge', season: c.s.ls, host: c.s.h, formationId: c.s.f, leagueId: c.s.l, wheelLeagues: c.s.wl, difficulty: c.s.d, rules: rulesFromPayload(c), seed: c.s.seed }
+    }
     if (!isDaily) return null
     const seedNum = todaysDailySeed().split('-').slice(1).join('')
     const n = Number(seedNum) || 0
@@ -105,14 +113,16 @@ export function Setup() {
     const clubs = complete.filter((cs) => cs.season === season).map((cs) => cs.clubId).sort()
     const host = clubs[(n * 7) % clubs.length]
     const formations = ['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '4-4-2-diamond']
-    return { season, host, formationId: formations[(n * 3) % formations.length] }
+    return { kind: 'daily', season, host, formationId: formations[(n * 3) % formations.length], leagueId: 'england', wheelLeagues: ['england'], difficulty: 'calibrated', rules: null, seed: todaysDailySeed() }
   })()
+  const challenge = pendingChallenge?.challenge ?? null
+  const fixedReady = !fixed || (fixed.wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(fixed.leagueId))
 
   const start = () => {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = !isDaily && onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = !isDaily && onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
-    const rules: DraftRules = { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode: !isDaily && hardMode, twists: isDaily ? true : twists, leagues: dailyFixed ? ['england'] : wheelLeagues }
+    const rules: DraftRules = fixed?.rules ?? { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode: !isDaily && hardMode, twists: isDaily ? true : twists, leagues: fixed ? fixed.wheelLeagues : wheelLeagues }
     const name = teamName.trim() || 'Touchline XI'
     const short = name
       .split(/\s+/)
@@ -121,19 +131,21 @@ export function Setup() {
       .slice(0, 3)
       .toUpperCase() || 'TXI'
     const settings: GameSettings = {
-      mode,
-      seed: isDaily ? todaysDailySeed() : seed.trim() || randomSeed(),
-      formationId: dailyFixed ? dailyFixed.formationId : formationId,
+      // A challenge always plays as a quick draft, whatever seed it carries, so the Daily streak is never touched
+      mode: challenge ? 'quick' : mode,
+      seed: fixed ? fixed.seed : seed.trim() || randomSeed(),
+      formationId: fixed ? fixed.formationId : formationId,
       teamName: name,
       shortName: short.length >= 2 ? short : name.slice(0, 3).toUpperCase(),
-      leagueId: dailyFixed ? 'england' : leagueId,
-      wheelLeagues: dailyFixed ? ['england'] : wheelLeagues,
-      hostClubId: dailyFixed ? dailyFixed.host : host,
-      leagueSeason: dailyFixed ? dailyFixed.season : effectiveSeason,
+      leagueId: fixed ? fixed.leagueId : leagueId,
+      wheelLeagues: fixed ? fixed.wheelLeagues : wheelLeagues,
+      hostClubId: fixed ? fixed.host : host,
+      leagueSeason: fixed ? fixed.season : effectiveSeason,
       rules,
       jobSecurity: isManage ? jobSecurity : false,
-      difficulty: dailyFixed ? 'calibrated' : difficulty,
+      difficulty: fixed ? fixed.difficulty : difficulty,
       continental: isManage && continental && u.available.length >= 2,
+      ...(challenge ? { challenge } : {}),
     }
     startGame(settings)
   }
@@ -141,7 +153,7 @@ export function Setup() {
   return (
     <div className="page">
       <div className="row between wrap" style={{ marginBottom: 12 }}>
-        <h1>{MODE_TITLE[mode]}</h1>
+        <h1>{challenge ? 'Challenge' : MODE_TITLE[mode]}</h1>
         <button className="btn ghost" onClick={() => go('home')}>
           ← Back
         </button>
@@ -154,26 +166,42 @@ export function Setup() {
               Team name
               <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={28} />
             </label>
-            {dailyFixed && (
+            {fixed?.kind === 'daily' && (
               <div className="notice">
-                Today's puzzle: everyone drafts a <b>{dailyFixed.formationId}</b> from the same wheel, as <b>{u.clubById[dailyFixed.host]?.name}</b> in the <b>{seasonLabel(dailyFixed.season)}</b> league, calibrated difficulty. Seed {todaysDailySeed()}.
+                Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {todaysDailySeed()}.
               </div>
             )}
-            {!dailyFixed && (
+            {fixed?.kind === 'challenge' && challenge && (
+              <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
+                <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts as {clubName(u, fixed.host)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
+                Same seed, same wheel, {fixed.difficulty} difficulty
+                {fixed.rules?.hardMode ? ', hard mode' : ''}
+                {fixed.rules?.twists ? ', twists on' : ', no twists'}
+                {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
+                {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
+                {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(fixed.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
+                <div className="small" style={{ marginTop: 6 }}>
+                  {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
+                  {challenge.verified === 'unverified' && `Unverified: built on different data (${challenge.reason}). You can still play the same wheel.`}
+                  {challenge.verified === 'no' && `Could not verify the claim (${challenge.reason}). You can still play the same wheel.`}
+                </div>
+              </div>
+            )}
+            {!fixed && (
               <div className="field">
                 League
                 <Segmented value={leagueId} onChange={pickLeague} options={u.available.map((l) => ({ value: l.id, label: l.name, hint: `${l.playerSeasons.toLocaleString()} player-seasons` }))} />
                 <span className="help">{loadingLeagues ? 'Loading league data…' : 'Where your side plays. Each league has its own real clubs and seasons.'}</span>
               </div>
             )}
-            {!dailyFixed && (
+            {!fixed && (
               <div className="field">
                 Draft from
                 <Segmented value={wheelScope} onChange={pickScope} options={[{ value: 'league', label: `${u.available.find((l) => l.id === leagueId)?.name ?? 'This league'} only` }, { value: 'europe', label: `European Nights: all ${u.available.length} leagues` }]} />
                 <span className="help">{wheelScope === 'europe' ? `The wheel and the market draw from ${listNames(u.available.map((l) => l.country))}.` : 'The wheel and the market stay inside one league.'}</span>
               </div>
             )}
-            {!dailyFixed && (
+            {!fixed && (
             <label className="field">
               League season to play in
               <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
@@ -186,7 +214,7 @@ export function Setup() {
               <span className="help">Your drafted side replaces one real club and plays its 19 rivals with their real squads of that season.</span>
             </label>
             )}
-            {!dailyFixed && (
+            {!fixed && (
             <label className="field">
               Club whose place you take
               <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)}>
@@ -201,7 +229,7 @@ export function Setup() {
               </span>
             </label>
             )}
-            {!dailyFixed && (
+            {!fixed && (
             <div className="field">
               Difficulty
               <Segmented
@@ -215,7 +243,7 @@ export function Setup() {
               <span className="help">{difficulty === 'calibrated' ? 'The league is scaled so an average draft finishes mid-table and a great one wins it.' : 'Modern top clubs field eleven 85+ players. Only a legendary draft survives.'}</span>
             </div>
             )}
-            {!isDaily && (
+            {!fixed && (
               <label className="field">
                 Seed
                 <div className="row">
@@ -230,7 +258,7 @@ export function Setup() {
 
           </div>
 
-          {!isDaily && (
+          {!fixed && (
             <div className="panel col">
               <h3>Wheel rules</h3>
               <div className="field">
@@ -331,7 +359,7 @@ export function Setup() {
         </div>
 
         <div className="col">
-          {!dailyFixed && (
+          {!fixed && (
           <div className="panel">
             <h3>Formation</h3>
             <div className="formations">
@@ -345,8 +373,8 @@ export function Setup() {
             <p className="help">{isManage ? 'You can change shape later, at a small cost to familiarity.' : 'The wheel only offers players who can fill a slot you still need.'}</p>
           </div>
           )}
-          <button className="btn primary big block" onClick={start} disabled={!dailyFixed && (!leagueReady || loadingLeagues)}>
-            {!dailyFixed && !leagueReady ? 'Loading league data…' : isManage ? 'Start drafting your squad' : 'Spin the wheel'}
+          <button className="btn primary big block" onClick={start} disabled={fixed ? !fixedReady || loadingLeagues : !leagueReady || loadingLeagues}>
+            {(fixed ? !fixedReady : !leagueReady) ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Spin the wheel'}
           </button>
         </div>
       </div>

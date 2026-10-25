@@ -73,6 +73,11 @@ export function Draft() {
 
   const nation = d.rules.onlyNation
   const nationLabel = nation ? `${flag(u, nation)} ${nationName(u, nation)}` : ''
+  // The ghost: what the challenger did on this spin number. Hidden under hard mode, and absent when the picks could not be resolved on this data
+  const challenge = game.settings.challenge
+  const ghost = challenge && !d.rules.hardMode && d.current && d.spins > 0 ? challenge.picks[d.spins - 1] : undefined
+  const ghostPlayer = ghost?.id ? get(ghost.id) : undefined
+  const ghostSameWheel = !!ghost && !!d.current && ghost.clubId === d.current.clubId && ghost.season === d.current.season
 
   const squad = current ? [...current.squad] : []
   const usable = (p: PlayerSeason) => canUse(d, p)
@@ -104,7 +109,7 @@ export function Draft() {
         <div>
           <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The Draft'}</h1>
           <div className="muted small">
-            {game.settings.teamName} · {game.settings.formationId} · {d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
+            {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challenge.claim.pts} pts) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
             {nation ? `${nationLabel} only · ` : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
             {d.rules.hardMode ? 'Hard mode · ' : ''}
@@ -129,6 +134,18 @@ export function Draft() {
           <div className="panel col">
             {d.rules.twists && !complete && <TwistCard twist={twist} decade={twistDecade(d)} next={!d.current && !dry && nextSpinTwisted(d)} />}
             <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title.replace(' spin', '') : null} onSettled={() => { setSpinning(false); setRevealed(true) }} />
+            {ghost && challenge && revealed && (
+              <div className="chip" data-testid="ghost-chip" title={`${challenge.name}'s spin ${d.spins}`} style={{ alignSelf: 'center', whiteSpace: 'normal', textAlign: 'center' }}>
+                👻{' '}
+                {ghost.id === null
+                  ? `Last time here: ${challenge.name} re-spun`
+                  : ghostPlayer
+                    ? ghostSameWheel
+                      ? `Last time here: ${ghostPlayer.name}`
+                      : `${challenge.name}'s spin ${d.spins}: ${ghostPlayer.name} (${clubName(u, ghost.clubId)} ${seasonLabel(ghost.season)})`
+                    : `${challenge.name}'s spin ${d.spins} is not in this data`}
+              </div>
+            )}
             {!complete && dry && (
               <div className="notice">
                 The wheel has run dry for {nationLabel || 'this draft'}: no one left to draft.{' '}
@@ -188,7 +205,7 @@ export function Draft() {
                           {TWIST_INFO[h.twist].icon}
                         </span>
                       )}
-                      <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">re-spun</span>}</span>
+                      <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">{h.skipped ? 'skipped' : 're-spun'}</span>}</span>
                       {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
                       {p && !d.rules.hardMode && h.twist !== 'blind' && <Rating value={p.overall} />}
                     </div>

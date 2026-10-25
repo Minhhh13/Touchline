@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStore } from '@game/store'
 import { Home } from './screens/Home'
 import { Setup } from './screens/Setup'
@@ -13,11 +13,29 @@ import { H2HScreen } from './screens/H2H'
 import { Modal, Toast } from './components/bits'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, abandonGame } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, abandonGame, openChallenge } = useStore()
+  const hashHandled = useRef(false)
 
   useEffect(() => {
     void loadData()
   }, [loadData])
+
+  // A challenge link (`#c=...`) opens once the default league is in: the hash is cleared so a reload does not reopen it
+  useEffect(() => {
+    if (!universe) return
+    const open = () => {
+      const m = /^#c=([A-Za-z0-9_-]+)$/.exec(location.hash)
+      if (!m) return
+      history.replaceState(null, '', location.pathname + location.search)
+      void openChallenge(m[1])
+    }
+    if (!hashHandled.current) {
+      hashHandled.current = true
+      open()
+    }
+    window.addEventListener('hashchange', open)
+    return () => window.removeEventListener('hashchange', open)
+  }, [universe, openChallenge])
 
   useEffect(() => {
     const root = document.documentElement

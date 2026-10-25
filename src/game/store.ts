@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { produce } from 'immer'
-import type { Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
+import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
@@ -24,6 +24,8 @@ import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft 
 import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
+import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
+import { challengeSettings, replayChallenge } from './logic/challenge'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -67,6 +69,8 @@ interface Store {
   offseason: OffseasonReport | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
   matchView: 'ticker' | 'report'
+  /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
+  pendingChallenge: { payload: ChallengePayload; challenge: ChallengeSettings } | null
 
   loadData: () => Promise<void>
   /** Make sure these league packs are loaded and merged into the universe. */
@@ -74,6 +78,8 @@ interface Store {
   ensureLeagues: (ids: string[]) => Promise<boolean>
   go: (screen: Screen, mode?: Mode) => void
   showToast: (text: string | null) => void
+  /** Open a challenge link (`#c=...`): decode it, load its leagues, replay it and go to Setup. Resolves false with a toast when it cannot be opened. */
+  openChallenge: (encoded: string) => Promise<boolean>
 
   startGame: (settings: GameSettings) => void
   abandonGame: () => void
@@ -196,6 +202,7 @@ export const useStore = create<Store>()(
         toast: null,
         offseason: null,
         matchView: 'ticker',
+        pendingChallenge: null,
 
         loadData: async () => {
           if (get().universe || get().loading) return
@@ -250,8 +257,31 @@ export const useStore = create<Store>()(
           pendingLoad = result.catch(() => undefined)
           return result
         },
-        go: (screen, mode) => set({ screen, ...(mode ? { setupMode: mode } : {}) }),
+        // Any navigation drops a challenge waiting on the Setup screen, so a later Quick Draft starts clean
+        go: (screen, mode) => set({ screen, pendingChallenge: null, ...(mode ? { setupMode: mode } : {}) }),
         showToast: (text) => set({ toast: text }),
+        openChallenge: async (encoded) => {
+          let payload: ChallengePayload
+          try {
+            payload = decodeChallenge(encoded)
+          } catch (e) {
+            set({ toast: e instanceof Error ? e.message : String(e) })
+            return false
+          }
+          const needs = [...new Set([payload.s.l, ...payload.s.wl])]
+          const known = (get().universe?.available ?? []).map((l) => l.id)
+          const unknown = needs.filter((id) => !known.includes(id))
+          if (unknown.length) {
+            set({ toast: `This challenge needs a league this build does not have (${unknown.join(', ')}).` })
+            return false
+          }
+          if (!(await get().ensureLeagues(needs))) return false
+          const u = get().universe
+          if (!u) return false
+          const outcome = replayChallenge(u, payload)
+          set({ pendingChallenge: { payload, challenge: challengeSettings(payload, outcome) }, screen: 'setup', setupMode: 'quick' })
+          return true
+        },
 
         startGame: (settings) => {
           const game = createGame(settings)
@@ -260,7 +290,7 @@ export const useStore = create<Store>()(
           // Park a game of a different kind rather than losing it; a finished one is dropped.
           if (current && slotOf(current) !== slotOf(game) && current.phase !== 'summary') next[slotOf(current)] = current
           delete next[slotOf(game)]
-          set({ game, parked: next, screen: 'game', profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
+          set({ game, parked: next, screen: 'game', pendingChallenge: null, profile: { ...get().profile, gamesPlayed: get().profile.gamesPlayed + 1 } })
         },
         abandonGame: () => set({ game: null, screen: 'home', offseason: null }),
         resumeGame: (slot) => {
@@ -315,7 +345,9 @@ export const useStore = create<Store>()(
           mutate((g, u) => {
             if (!g.draft) return
             const rng = Rng.fromState(g.rngState)
-            // A pending spin is discarded with its twist, so the assistant's first `canSpin` sees the plain wheel
+            // A pending spin is discarded with its twist, but it consumed the RNG, so it stays in the history
+            // as a skipped row (a challenge replay needs every spin) and the assistant's first `canSpin` sees the plain wheel
+            if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}) })
             g.draft.current = null
             g.draft.twist = null
             autoDraft(u, g.draft, rng)
@@ -487,6 +519,7 @@ export const useStore = create<Store>()(
             hostClubId: game.settings.hostClubId,
             xi: Object.values(game.lineup),
             nation: game.settings.rules.onlyNation,
+            ...(game.settings.challenge ? { challenge: { name: game.settings.challenge.name, points: game.settings.challenge.claim.pts } } : {}),
           }
           if (profile.leaderboard.some((e) => e.id === entry.id)) return
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)

@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useStore, SAVE_KEY } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
+import type { LeaderboardEntry } from '@game/types'
 import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 
@@ -20,6 +21,9 @@ function exportSave(): void {
 export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast } = useStore()
   const unlocked = Object.keys(profile.achievements).length
+  // Runs on the same wheel (seed) sit together: the table is already best-first, so a seed's first row is its best
+  const runsBySeed = new Map<string, LeaderboardEntry[]>()
+  for (const e of profile.leaderboard) runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
   const fileRef = useRef<HTMLInputElement>(null)
   const importSave = async (file: File) => {
     try {
@@ -141,12 +145,17 @@ export function ProfileScreen() {
               </tr>
             </thead>
             <tbody>
-              {profile.leaderboard.map((e) => (
+              {profile.leaderboard.map((e) => {
+                const runs = runsBySeed.get(e.seed) ?? [e]
+                const rank = runs.indexOf(e) + 1
+                return (
                 <tr key={e.id}>
                   <td>
-                    <span className="row" style={{ gap: 6 }}>
+                    <span className="row wrap" style={{ gap: 6 }}>
                       <ClubBadge clubId={e.hostClubId} size={20} /> {e.teamName}
                       {e.nation && <Flag nation={e.nation} />}
+                      {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">Best on this wheel · {runs.length} runs</span> : <span className="chip">{ordinal(rank)} of {runs.length} on this wheel</span>)}
+                      {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
                     </span>
                     <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>
                   </td>
@@ -162,7 +171,8 @@ export function ProfileScreen() {
                     {TIER_LABEL[e.tier]} · {ordinal(e.position)}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

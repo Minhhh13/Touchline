@@ -15,10 +15,15 @@ import { clubName, flag, money, nationName, ordinal, seasonLabel } from '../form
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
+import { challengeFromGame, challengeLink, claimOf, verdictLine } from '@game/logic/challenge'
+import { cleanName } from '@engine/challenge'
+import { ENGINE_VERSION } from '@engine/version'
+import { randomSeed } from '@engine/rng'
 
 export function Summary() {
-  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues } = useStore()
+  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
   const [copied, setCopied] = useState(false)
+  const [link, setLink] = useState<string | null>(null)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const q = game.quickResult
@@ -48,6 +53,10 @@ export function Summary() {
   }
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
+  // Head-to-head against the ghost this game was played against
+  const challenge = game.settings.challenge
+  const mine = claimOf(game)
+  if (challenge && mine) extraLines.push(verdictLine(challenge, mine))
   const text = shareText({
     teamName: game.settings.teamName,
     tier,
@@ -75,6 +84,41 @@ export function Summary() {
   }
   const squad = squadPlayers(game, u)
   const isManage = game.settings.mode === 'season' || game.settings.mode === 'dynasty'
+  // Quick mode keeps the draft after the season, so this run can be packed into a link or replayed against itself
+  const canChallenge = !isManage && !!game.draft && !!q
+  const challengeName = cleanName(profile.managerName) || cleanName(game.settings.teamName) || 'A friend'
+  const makeChallenge = async () => {
+    const c = challengeFromGame(game, u, challengeName)
+    if (!c) {
+      showToast('This result cannot be packed into a challenge.')
+      return
+    }
+    const url = challengeLink(c, location.origin, location.pathname)
+    setLink(url)
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast(`Challenge link copied (${url.length} characters). Send it to a friend.`)
+    } catch {
+      showToast('Could not copy. The link is below.')
+    }
+  }
+  const runItBack = () => {
+    const d = game.draft
+    if (!d || !mine) return
+    startGame({
+      ...game.settings,
+      mode: 'quick',
+      challenge: {
+        name: 'your ghost',
+        picks: d.history.map((h) => ({ id: h.pickedId, slotId: h.pickedId ? h.slotId : null, clubId: h.clubId, season: h.season })),
+        claim: mine,
+        verified: 'yes',
+        data: u.generatedAt,
+        engine: ENGINE_VERSION,
+      },
+    })
+  }
+  const ghostLineup = useMemo(() => Object.fromEntries((challenge?.picks ?? []).flatMap((p) => (p.id && p.slotId ? [[p.slotId, p.id] as [string, string]] : []))), [challenge])
   // How the club you replaced actually did that season, when a complete real table exists
   const realRow = useMemo(() => {
     const cs = u.clubSeasonByKey[`${game.settings.hostClubId}@${game.settings.leagueSeason}`]
@@ -151,8 +195,18 @@ export function Summary() {
             Download share card
           </button>
           {!isManage && (
-            <button className="btn" onClick={() => startGame({ ...game.settings, seed: game.settings.mode === 'daily' ? game.settings.seed : Math.random().toString(36).slice(2, 10).toUpperCase() })} disabled={game.settings.mode === 'daily'}>
+            <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: game.settings.mode === 'daily' ? game.settings.seed : randomSeed() })} disabled={game.settings.mode === 'daily'}>
               Draft again
+            </button>
+          )}
+          {canChallenge && (
+            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend">
+              Challenge a friend
+            </button>
+          )}
+          {canChallenge && (
+            <button className="btn" onClick={runItBack} data-testid="run-it-back" title="Draft this wheel again against your own result">
+              Run it back
             </button>
           )}
           {game.settings.mode === 'dynasty' && !season?.sacked && (
@@ -170,6 +224,53 @@ export function Summary() {
           </button>
         </div>
       </div>
+
+      {link && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="challenge-link">
+          <div className="panel-head">
+            <h3>Challenge link</h3>
+            <span className="small muted">Whoever opens it drafts the same wheel as {challengeName}, sees your pick on every spin and plays the same season. Built on data {u.generatedAt}, engine {ENGINE_VERSION}.</span>
+          </div>
+          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} />
+        </div>
+      )}
+
+      {challenge && mine && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="head-to-head">
+          <div className="panel-head">
+            <h3>Head-to-head · vs {challenge.name}</h3>
+            <span className="small muted">
+              Same seed, same wheel.{' '}
+              {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
+              {challenge.verified === 'unverified' && `Unverified: ${challenge.reason ?? 'built on different data'}.`}
+              {challenge.verified === 'no' && `Could not verify the claim: ${challenge.reason ?? 'the picks do not replay'}.`}
+            </span>
+          </div>
+          <div className="grid two">
+            <div className="col">
+              <div className="row between wrap">
+                <b>{challenge.name}</b>
+                <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
+                  {challenge.claim.pts} pts · {TIER_LABEL[challenge.claim.t]} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
+                </span>
+              </div>
+              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{challenge.name}'s picks could not be resolved on this data.</div>}
+            </div>
+            <div className="col">
+              <div className="row between wrap">
+                <b>{game.settings.teamName}</b>
+                <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
+                  {mine.pts} pts · {TIER_LABEL[mine.t]} · {mine.w}-{mine.d}-{mine.l}
+                </span>
+              </div>
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
+            </div>
+          </div>
+          <div className="notice" style={{ marginTop: 10 }} data-testid="verdict">
+            {verdictLine(challenge, mine)}
+          </div>
+        </div>
+      )}
 
       {bench && inBooks && (
         <div className="panel" style={{ marginTop: 14 }} data-testid="record-books">

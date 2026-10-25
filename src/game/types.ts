@@ -9,6 +9,7 @@ import type { TrainingFocus } from '@engine/training'
 import type { SeasonAwards } from '@engine/awards'
 import type { Lineup, PlayerSeason, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
 import type { DraftRules } from '@engine/draft'
+import type { ChallengeClaim } from '@engine/challenge'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty'
 export type Phase = 'draft' | 'preseason' | 'week' | 'match' | 'summary'
@@ -34,6 +35,23 @@ export interface GameSettings {
   difficulty: 'calibrated' | 'realistic'
   /** Enter the Continental Cup in the first season (later seasons qualify by finishing top four). */
   continental?: boolean
+  /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
+  challenge?: ChallengeSettings
+}
+
+/** The challenger's draft and result, carried on a game played from a challenge link. */
+export interface ChallengeSettings {
+  name: string
+  /** One row per spin of the challenger's draft: the full player-season id drafted (null for a re-spin or a discarded spin) and its slot. Empty when the draft could not be replayed. */
+  picks: Array<{ id: string | null; slotId: string | null; clubId: string; season: number }>
+  claim: ChallengeClaim
+  /** 'yes' when the replay reproduced the claim, 'no' when it did not, 'unverified' when the data or the engine differ. */
+  verified: 'yes' | 'no' | 'unverified'
+  /** Why verification fell short, when it did. */
+  reason?: string
+  /** Data stamp and engine version the challenge was built on. */
+  data: string
+  engine: string
 }
 
 export interface Contract {
@@ -215,6 +233,8 @@ export interface LeaderboardEntry {
   xi: string[]
   /** One-nation draft: the nationality the whole squad shared. */
   nation?: string
+  /** Played against a ghost draft: who set it and what they scored. */
+  challenge?: { name: string; points: number }
 }
 
 export interface Profile {

@@ -64,7 +64,11 @@ export interface DraftState {
   /** The club-season currently showing, if a spin is pending a pick. */
   current: { clubId: string; season: number } | null
   spins: number
-  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist }>
+  /**
+   * Every spin in order: the pick made on it, or nulls for a re-spin; `skipped` marks a pending spin
+   * the assistant discarded on "Auto-complete" (it consumed the RNG like any other, so a replay needs it).
+   */
+  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist; skipped?: boolean }>
   /** The twist on the spin currently showing; null (or absent, in an older save) when the spin is a plain one. */
   twist?: Twist | null
 }
