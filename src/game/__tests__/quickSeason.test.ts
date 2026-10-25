@@ -7,7 +7,7 @@ import { getFormation } from '@engine/formations'
 import { ratingAt } from '@engine/positions'
 import { closeJanuary, kickOff, quickSeasonGames, quickUserInput, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
 import { JANUARY_BUDGET_FLOOR, JANUARY_LISTINGS, JANUARY_SHORTLIST, JANUARY_SIGN_GAIN, januaryBudget, januaryShortlist, weakestSlots } from '../logic/january'
-import { foldResults, januaryLine, europeLine, nextReveal, playbackDelay, playbackFrame, PLAYBACK_STEP_MS } from '../logic/gameByGame'
+import { foldResults, januaryLine, europeLine, nextReveal, parsePlaybackSpeed, playbackDelay, playbackFrame, PLAYBACK_STEP_MS } from '../logic/gameByGame'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
 import { settleManager } from '../logic/managers'
 import { createGame, dailyGameSettings, DAILY_SEASON, summariseSetup } from '../logic/setup'
@@ -446,13 +446,14 @@ describe('the playback helpers', () => {
     expect(playbackFrame(results, 2).totals).toMatchObject({ played: 2, points: 4, position: 3 })
   })
 
-  it('stops at the January pause and at the last game, at 700, 350 or 175 ms a game', () => {
+  it('stops at the January pause and at the last game, at 3000, 1500, 750 or 375 ms a game', () => {
     expect(nextReveal(1, 4, 2)).toBe(2)
     expect(nextReveal(2, 4, 2)).toBe(2)
     expect(nextReveal(4, 4)).toBe(4)
     expect(playbackFrame(results, 2, 2).done).toBe(true)
-    expect(PLAYBACK_STEP_MS).toBe(700)
-    expect([playbackDelay(1), playbackDelay(2), playbackDelay(4)]).toEqual([700, 350, 175])
+    expect(PLAYBACK_STEP_MS).toBe(1500)
+    expect([playbackDelay(0.5), playbackDelay(1), playbackDelay(2), playbackDelay(4)]).toEqual([3000, 1500, 750, 375])
+    expect([parsePlaybackSpeed('0.5'), parsePlaybackSpeed('4'), parsePlaybackSpeed(null), parsePlaybackSpeed('3'), parsePlaybackSpeed('')]).toEqual([0.5, 4, 1, 1, 1])
   })
 
   it('words January business and the European run for the share text', () => {

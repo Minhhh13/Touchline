@@ -43,6 +43,10 @@ export interface PreSeasonOdds {
   top6: number
   top10: number
   relegation: number
+  /** Every league game won: the 38-0 the mode is chasing. */
+  perfect: number
+  /** No league game lost. */
+  unbeaten: number
   /** How many sampled seasons ended in each place, 1st first. */
   finishes: number[]
 }
@@ -85,10 +89,13 @@ export interface OddsTally {
   seasons: number
   points: number
   finishes: number[]
+  /** Seasons the user's side won every game, and lost none. */
+  perfect: number
+  unbeaten: number
 }
 
 export function emptyTally(teams: number): OddsTally {
-  return { seasons: 0, points: 0, finishes: new Array<number>(teams).fill(0) }
+  return { seasons: 0, points: 0, finishes: new Array<number>(teams).fill(0), perfect: 0, unbeaten: 0 }
 }
 
 /**
@@ -107,6 +114,8 @@ export function sampleSeasons(league: OddsLeague, rng: Rng, n: number, tally: Od
     pts.fill(0)
     gd.fill(0)
     gf.fill(0)
+    let dropped = 0
+    let lost = 0
     for (const p of league.pairings) {
       const h = rng.poisson(clamp(p.lamH * Math.exp(rng.gaussian(0, p.sigmaH)), 0.12, 5.8))
       const a = rng.poisson(clamp(p.lamA * Math.exp(rng.gaussian(0, p.sigmaA)), 0.12, 5.8))
@@ -120,7 +129,12 @@ export function sampleSeasons(league: OddsLeague, rng: Rng, n: number, tally: Od
         pts[p.home]++
         pts[p.away]++
       }
+      // The user's side is index 0: any game it does not win ends the perfect season, a defeat the unbeaten one
+      if ((p.home === 0 && h <= a) || (p.away === 0 && a <= h)) dropped++
+      if ((p.home === 0 && h < a) || (p.away === 0 && a < h)) lost++
     }
+    if (!dropped) tally.perfect++
+    if (!lost) tally.unbeaten++
     order.sort(cmp)
     tally.finishes[order.indexOf(0)]++
     tally.points += pts[0]
@@ -153,6 +167,8 @@ export function oddsFrom(tally: OddsTally): PreSeasonOdds {
     top6: upTo(6),
     top10: upTo(10),
     relegation: tally.finishes.slice(Math.max(0, teams - ODDS_RELEGATED)).reduce((a, b) => a + b, 0) / n,
+    perfect: (tally.perfect ?? 0) / n,
+    unbeaten: (tally.unbeaten ?? 0) / n,
     finishes: [...tally.finishes],
   }
 }

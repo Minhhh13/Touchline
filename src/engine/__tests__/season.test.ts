@@ -68,26 +68,29 @@ describe('season tier labels', () => {
   it('reads as plain outcomes, never a competition name', () => {
     for (const t of tiers) {
       expect(TIER_LABEL[t]).not.toMatch(/european|nights|38-0/i)
-      expect(tierBlurb(t, 10).length).toBeGreaterThan(10)
+      expect(tierBlurb(t, 10).length).toBeGreaterThan(5)
+      // Short: one line under the headline
+      expect(tierBlurb(t, 10).length).toBeLessThanOrEqual(40)
     }
-    expect(tierLabel('EUROPEAN', 4)).toBe('TOP-FOUR FINISH')
-    expect(tierLabel('EUROPEAN', 3)).toBe('TOP-FOUR FINISH')
-    expect(tierLabel('EUROPEAN', 5)).toBe('TOP-SIX FINISH')
-    expect(tierLabel('EUROPEAN')).toBe('TOP-SIX FINISH')
-    expect(tierLabel('CHAMPIONS', 1)).toBe('CHAMPIONS')
+    expect(tierLabel('EUROPEAN', 4)).toBe('Top 4')
+    expect(tierLabel('EUROPEAN', 3)).toBe('Top 4')
+    expect(tierLabel('EUROPEAN', 5)).toBe('Top 6')
+    expect(tierLabel('EUROPEAN')).toBe('Top 6')
+    expect(tiers.map((t) => TIER_LABEL[t])).toEqual(['Perfect season', 'Invincibles', 'Champions', 'Title race', 'Top 6', 'Mid-table', 'Relegation battle', 'Relegated'])
+    expect(tierLabel('CHAMPIONS', 1)).toBe('Champions')
   })
 
   it('explains the place under the headline, and a sacking', () => {
     expect(tierBlurb('EUROPEAN', 4)).toContain('4th of 20')
-    expect(tierBlurb('EUROPEAN', 4)).toContain('four best')
+    expect(tierBlurb('EUROPEAN', 4)).toContain('top-four')
     expect(tierBlurb('EUROPEAN', 6, 18)).toContain('6th of 18')
-    expect(tierBlurb('RELEGATED', 19)).toContain('bottom three')
+    expect(tierBlurb('RELEGATED', 19)).toContain('down a division')
     expect(tierBlurb('RELEGATED', 12, 20, true)).toMatch(/^Sacked/)
   })
 
   it('keeps the tier ids a 4th-place finish is saved under', () => {
     const rows = Array.from({ length: 20 }, (_, i) => ({ teamId: i === 3 ? USER_TEAM : `t${i}`, played: 38, won: 30 - i, drawn: 4, lost: 4 + i, goalsFor: 60 - i, goalsAgainst: 20 + i, points: (30 - i) * 3 + 4, form: [] }))
     expect(seasonTier(rows, USER_TEAM, false)).toBe('EUROPEAN')
-    expect(tierLabel(seasonTier(rows, USER_TEAM, false), 4)).toBe('TOP-FOUR FINISH')
+    expect(tierLabel(seasonTier(rows, USER_TEAM, false), 4)).toBe('Top 4')
   })
 })

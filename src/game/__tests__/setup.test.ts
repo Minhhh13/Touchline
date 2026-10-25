@@ -112,15 +112,15 @@ describe('the choice summary line', () => {
   it('states the name, shape, host, league season, difficulty and seed in one line', () => {
     // Twists are the quick draft's default, so the default line does not mention them
     expect(QUICK_RULES.twists).toBe(true)
-    expect(summariseSetup(u, base)).toBe('Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A')
+    expect(summariseSetup(u, base)).toBe('Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed K7Q2-MX9A')
   })
 
   it('names twists only when they differ from the default of the mode', () => {
-    expect(summariseSetup(u, { ...base, rules: { ...base.rules, twists: false } })).toBe('Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A, no twists')
+    expect(summariseSetup(u, { ...base, rules: { ...base.rules, twists: false } })).toBe('Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed K7Q2-MX9A, no twists')
     expect(SEASON_RULES.twists).toBe(false)
     expect(summariseSetup(u, { ...base, mode: 'season', jobSecurity: true, rules: { ...SEASON_RULES, twists: true, leagues: ['england'] } })).toBe('Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A, twists, squad of 18')
     // The Daily always plays with twists, which is the quick default, so its line stays short
-    expect(summariseSetup(u, dailyGameSettings(u, 'daily-2026-10-25'))).toBe('Touchline XI, 4-3-3, as Swansea City in the Premier League 2017-18, calibrated, seed daily-2026-10-25')
+    expect(summariseSetup(u, dailyGameSettings(u, 'daily-2026-10-25'))).toBe('Touchline XI, 4-3-3, in the Premier League 2017-18, calibrated, seed daily-2026-10-25')
   })
 
   it('appends only the choices that are off the defaults', () => {

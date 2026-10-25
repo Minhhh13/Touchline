@@ -11,6 +11,7 @@ import type { Fixture, Formation, Lineup, PlayerSeason, Tactics } from '@engine/
 import { playerLookup } from './players'
 import { earnsPointsRecord } from './records'
 import { recordUserGames } from './gameByGame'
+import { packRounds } from './liveTable'
 import { januaryBudget, januaryListings, sameListing } from './january'
 import { difficultyOf } from '@engine/draft'
 import { quickManagerBoost, settleManager } from './managers'
@@ -226,6 +227,7 @@ export function openJanuary(game: Game, u: LoadedUniverse): void {
   game.quickJanuary = {
     ...w,
     firstHalf: userResults(run),
+    firstHalfRounds: packRounds(run.fixtures, run.ids),
     firstHalfTactics: copyTactics(game.tactics),
     ...(game.captainId ? { firstHalfCaptainId: game.captainId } : {}),
   }
@@ -345,6 +347,8 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     ...(deal ? { january: { kind: deal.kind, inId: deal.playerSeasonId, inName: get(deal.playerSeasonId)?.name ?? deal.playerSeasonId, outId: deal.outId, outName: get(deal.outId)?.name ?? deal.outId, fee: deal.fee, slotId: deal.slotId } } : {}),
     ...(run.applied.length ? { changes: run.applied } : {}),
     startRng: { ...startRng },
+    // Every club's results by matchweek, from the fixtures already played: the playback's live table
+    rounds: packRounds(fixtures, ids),
   }
   game.quickResult = quick
   game.lineup = run.lineup

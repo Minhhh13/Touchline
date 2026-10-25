@@ -85,6 +85,8 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
   ]
   const chances: Array<{ key: string; label: string; value: number; bad?: boolean }> = odds
     ? [
+        { key: 'perfect', label: 'Win every game', value: odds.perfect },
+        { key: 'unbeaten', label: 'Go unbeaten', value: odds.unbeaten },
         { key: 'title', label: 'Win the league', value: odds.title },
         { key: 'top4', label: 'Finish top 4', value: odds.top4 },
         { key: 'top6', label: 'Finish top 6', value: odds.top6 },
@@ -96,7 +98,7 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
     <div className="panel col squad-complete" data-testid="squad-complete">
       <div className="sc-head">
         <span className="sc-kicker">Before a ball is kicked</span>
-        <h2>Pre-season odds</h2>
+        <h2>Pundits' prediction</h2>
       </div>
       <div className="sc-grid">
         <div className="col" style={{ gap: 10 }}>
@@ -141,7 +143,7 @@ export function SquadComplete({ game, u, hideRatings, children }: { game: Game; 
         </div>
       </div>
       <p className="help" style={{ margin: 0 }}>
-        From {ODDS_SEASONS.toLocaleString('en-GB')} trial runs of this XI against the {seasonLabel(game.settings.leagueSeason)} league. The real season is played once.
+        The pundits' call, from {ODDS_SEASONS.toLocaleString('en-GB')} trial runs of this XI against the {seasonLabel(game.settings.leagueSeason)} league. The real season is played once.
       </p>
       {children}
     </div>

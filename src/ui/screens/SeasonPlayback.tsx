@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Bandage } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game, QuickJanuary } from '@game/types'
@@ -12,7 +12,12 @@ import { playbackResults, quickChangeProblem, quickSeasonGames, quickSquadAt } f
 import { canPlayFor, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import type { QuickGameResult } from '@game/types'
 import { Pitch } from '../components/Pitch'
-import { foldResults, goalDifferenceLabel, paceLine, PLAYBACK_SPEEDS, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { foldResults, goalDifferenceLabel, paceLine, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { gapLine, momentAt, positionSeries, rivalsOf, tableAfterGame, weeklyTables } from '@game/logic/liveTable'
+import { chaseAt, chaseLine, perfectOverLabel } from '@game/logic/perfect'
+import { USER_TEAM } from '@engine/season'
+import { LiveTable, PositionChart } from '../components/LiveLeague'
+import { QuickTeamLine } from '../components/QuickTeamLine'
 import { GameByGame, SeasonTally, useSeasonPlayback } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
@@ -20,12 +25,13 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ManagerChip } from '../components/ManagerPick'
 import { Pos, Segmented } from '../components/bits'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
-import { clubName, money, ordinal, seasonLabel } from '../format'
+import { clubName, money, ordinal } from '../format'
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
  * window; once the season is done it plays the rest and offers the summary. Only the reveal is paced: every result was
- * simulated before the first game is shown.
+ * simulated before the first game is shown. On a desktop it fits one screen in boxed panels (the game list, the live
+ * table, the position chart), each scrolling inside itself; on a phone the three are tabs under the tally.
  */
 export function SeasonPlayback() {
   const { universe: u, game, playback, endPlayback } = useStore()
@@ -35,6 +41,10 @@ export function SeasonPlayback() {
   const from = playback?.from ?? results.length
   const pb = useSeasonPlayback(results.length, from)
   const [hlWeek, setHlWeek] = useState<number | null>(null)
+  // The phone's tab: the January window opens on the box that holds it, until another tab is chosen there
+  const [tabState, setTabState] = useState<{ at: string; tab: 'list' | 'table' | 'chart' }>({ at: 'play', tab: 'list' })
+  const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
+  const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
   if (!u || !game) return null
   // Watching a game's highlights pauses the playback on the game shown
   const watch = canShowHighlights(game)
@@ -46,22 +56,40 @@ export function SeasonPlayback() {
   const s = game.settings
   const opponent = (id: string) => ({ clubId: id, name: clubName(u, id) })
   const total = game.quickResult?.results?.length ?? quickSeasonGames(u, s)
+  const chase = chaseAt(results, pb.revealed)
+  const line = chaseLine(chase, total)
+  const table = tableAfterGame(tables, results, pb.revealed)
+  const before = tableAfterGame(tables, results, pb.revealed - 1)
+  const gap = gapLine(table, USER_TEAM)
+  const moment = momentAt(tables, results, pb.revealed, USER_TEAM)
+  const teams = table.length || total / 2 + 1
+  const series = tables.length ? positionSeries(tables, results, USER_TEAM, pb.revealed) : results.slice(0, pb.revealed).map((r) => r.position)
+  const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(clubName(u, id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
+  const janOpen = !!j && pb.done
+  const at = janOpen ? 'jan' : 'play'
+  const tab = tabState.at === at ? tabState.tab : janOpen ? 'chart' : tabState.tab
+  const setTab = (t: 'list' | 'table' | 'chart') => setTabState({ at, tab: t })
+  const benchOn = quickBenchRule(game) && !!game.draft && game.draft.bench.length > 0
   return (
-    <div className="page">
-      <div className="setup-flow" data-testid="season-playback">
-        <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
-          <div>
-            <h1>{j && pb.done ? 'January' : 'The season'}</h1>
-            <p className="muted setup-sub">
-              {s.teamName} as {clubName(u, s.hostClubId)} · {seasonLabel(s.leagueSeason)}
-            </p>
+    <div className="page fit" data-testid="season-playback">
+      <div className="fit-head">
+        <div className="col" style={{ gap: 4 }}>
+          <h1>{j && pb.done ? 'January' : 'The season'}</h1>
+          <QuickTeamLine game={game} u={u} />
+        </div>
+        <div className={`chase ${line.tone} ${line.justBroke ? 'broke' : ''}`} key={line.justBroke ? `b${pb.revealed}` : line.tone} data-testid="chase" data-tone={line.tone}>
+          <b data-testid="chase-headline">{line.headline}</b>
+          {line.detail && <span className="small" data-testid="chase-detail">{line.detail}</span>}
+        </div>
+        <div className="col fit-head-side" style={{ gap: 6 }}>
+          <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end' }}>
             {game.manager && <ManagerChip manager={game.manager} />}
-            <div className="playback-mw" data-testid="playback-matchweek">
+            <span className="playback-mw" data-testid="playback-matchweek">
               Matchweek <b>{pb.revealed}</b> / {total}
-            </div>
+            </span>
           </div>
           {!pb.done && (
-            <div className="row wrap" style={{ gap: 8 }}>
+            <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn sm" onClick={pb.toggle} data-testid="playback-pause">
                 {pb.playing ? 'Pause' : 'Play'}
               </button>
@@ -71,21 +99,56 @@ export function SeasonPlayback() {
               </button>
             </div>
           )}
+          {!j && pb.done && (
+            <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end', alignItems: 'center' }} data-testid="playback-end">
+              <span className="small">
+                Full time: {ordinal(game.quickResult?.position ?? 0)}, {game.quickResult?.points ?? 0} points.
+              </span>
+              <button className="btn primary" onClick={endPlayback} data-testid="playback-summary">
+                See the summary
+              </button>
+            </div>
+          )}
         </div>
-        <SeasonTally results={results} upTo={pb.revealed} />
-        {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}
-        {!j && pb.done && (
-          <div className="panel col" data-testid="playback-end">
-            <b>Full time on the season: {ordinal(game.quickResult?.position ?? 0)}, {game.quickResult?.points ?? 0} points.</b>
-            <button className="btn primary big" onClick={endPlayback} data-testid="playback-summary">
-              See the summary
-            </button>
-          </div>
-        )}
-        <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title="Game by game" onHighlights={watch} />
-        {quickBenchRule(game) && game.draft && game.draft.bench.length > 0 && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
-        {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
       </div>
+      <div className="pb-tally-row">
+        <SeasonTally results={results} upTo={pb.revealed} />
+        {gap && (
+          <span className="chip info pb-gap" data-testid="playback-gap">
+            {gap}
+          </span>
+        )}
+        {moment && pb.revealed > 0 && (
+          <span key={`m${pb.revealed}`} className={`moment ${moment}`} data-testid="playback-moment" data-moment={moment} role="status">
+            {moment === 'top' ? 'Top of the league!' : moment === 'top4' ? 'Into the top four' : moment === 'perfect' ? `${chase.won}-0 and counting` : perfectOverLabel(chase.perfectRun)}
+          </span>
+        )}
+      </div>
+      <div className="pb-tabs segmented" role="tablist" aria-label="Season views">
+        {(['list', 'table', 'chart'] as const).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)} data-testid={`pb-tab-${t}`}>
+            {t === 'list' ? 'Games' : t === 'table' ? 'Table' : janOpen ? 'January' : 'Chart'}
+          </button>
+        ))}
+      </div>
+      <div className="fit-grid c3 pb-grid" data-tab={tab}>
+        <div className="fit-cell" data-pane="list">
+          <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title="Game by game" onHighlights={watch} />
+        </div>
+        <div className="panel fit-cell" data-pane="table">
+          <div className="panel-head">
+            <h3>Live table</h3>
+            <span className="small muted">{pb.revealed ? `After game ${pb.revealed}` : 'Before kick-off'}</span>
+          </div>
+          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={(id) => clubName(u, id)} /> : <p className="small muted">This season was saved before the live table: the game list has every result.</p>}
+        </div>
+        <div className="fit-cell fit-col" data-pane="chart">
+          {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}
+          <PositionChart series={series} rivals={rivals} teams={teams} games={total} />
+          {benchOn && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
+        </div>
+      </div>
+      {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
     </div>
   )
 }

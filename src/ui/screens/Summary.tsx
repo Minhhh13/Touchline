@@ -30,6 +30,8 @@ import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } fro
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { CupRuns } from '../components/CupRuns'
+import { QuickTeamLine } from '../components/QuickTeamLine'
+import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -63,6 +65,10 @@ export function Summary() {
     return []
   }, [q, season])
   const results = q?.results ?? []
+  // The 38-0 chase: the record against a perfect season of this league's length, and the runs from the first game
+  const games = results.length || (q ? Math.max(0, (q.table.length - 1) * 2) : 38)
+  const chase = chaseAt(results)
+  const bests = profile.quickBests ?? emptyBests()
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
   // Where this season sits against every complete real season of the league with the same number of matches
@@ -83,6 +89,8 @@ export function Summary() {
   // The Quick Draft's manager, by name and style
   const mgrLine = managerLine(game.manager)
   if (mgrLine) extraLines.push(mgrLine)
+  // The 38-0 chase in the share text: how long the perfect run lasted, for a season short of perfect
+  if (q && results.length && chase.perfectRun < games) extraLines.push(runsLine(chase))
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
@@ -111,7 +119,8 @@ export function Summary() {
     cupWon: season?.cupWon ?? quickCupWon,
     continentalWon: season?.continental?.won ?? quickEuroWon,
     leagueSeason: game.settings.leagueSeason,
-    hostClubName: clubName(u, game.settings.hostClubId),
+    // A quick season's XI is the user's team, never "as" the club whose place it takes
+    hostClubName: game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? clubName(u, game.settings.hostClubId) : '',
     mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
     seed: game.settings.mode === 'daily' ? undefined : game.settings.seed,
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
@@ -176,7 +185,7 @@ export function Summary() {
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
-        subtitle: `as ${clubName(u, game.settings.hostClubId)} · ${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
+        subtitle: `${isManage ? `as ${clubName(u, game.settings.hostClubId)} · ` : `${recordLabel(record.won, record.drawn, record.lost)} · `}${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
         tier,
         row,
         position: record.position,
@@ -190,6 +199,353 @@ export function Summary() {
     } catch {
       showToast('Could not render the share card.')
     }
+  }
+
+  if (q && !isManage) {
+    // A quick season's summary fits one screen on a desktop: the result against 38-0 and the cups, the season game by
+    // game, and everything else in a third box, each scrolling inside itself; a phone stacks them
+    return (
+      <div className="page fit summary-fit" data-testid="summary">
+        <div className="fit-grid c3">
+          <div className="fit-cell fit-col">
+      <div className="tier-banner panel quick" ref={bannerRef}>
+        <QuickTeamLine game={game} u={u}>
+          <span className="small muted">
+            {game.settings.mode === 'daily' ? 'Daily challenge' : 'Quick Draft'}
+            {tags.map((t) => ` · ${t}`).join('')}
+          </span>
+        </QuickTeamLine>
+        {!replay.playing && (
+          <div className={`versus-perfect ${record.won >= games && games > 0 ? 'perfect' : record.lost === 0 ? 'unbeaten' : ''}`} data-testid="versus-perfect">
+            <span className="vp-record" data-testid="versus-perfect-record">{recordLabel(record.won, record.drawn, record.lost)}</span>
+            <span className="vp-against">against {perfectTarget(games)}</span>
+            <span className="vp-line small">{versusPerfectLine(record.won, record.lost, games)}</span>
+            <span className="vp-runs small muted" data-testid="versus-perfect-runs">
+              {runsLine(chase)}
+              {bests.longestPerfectRun ? ` · your best run ${bests.longestPerfectRun}-0` : ''}
+            </span>
+          </div>
+        )}
+        {replay.playing ? (
+          <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">
+            Season in play…
+          </div>
+        ) : (
+          <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
+            {tierName(tier, record.position)}
+          </div>
+        )}
+        {!replay.playing && (
+          <p className="tier-blurb" data-testid="tier-blurb">
+            {tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+          </p>
+        )}
+        {replay.playing && <SeasonTally results={results} upTo={replay.revealed} />}
+        {!replay.playing && (season?.cupWon || quickCupWon) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-cup">🏆 Cup winners</div>}
+        {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <div className="chip gold" style={{ marginTop: 6 }} data-testid="banner-continental">🌍 Continental champions</div>}
+        {season?.continental && !season.continental.won && <div className="chip" style={{ marginTop: 6 }}>Continental Cup: {{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}</div>}
+        {game.manager && (
+          <div style={{ marginTop: 6 }}>
+            <ManagerChip manager={game.manager} />
+          </div>
+        )}
+        {season?.sacked && <div className="chip bad" style={{ marginTop: 6 }}>Sacked</div>}
+        {game.settings.rules.onlyNation && <div className="chip" style={{ marginTop: 6 }}>One nation: <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)}</div>}
+        {season?.objectives?.length ? <div className="chip" style={{ marginTop: 6 }}>Board objectives: {season.objectives.filter((o) => o.met).length} of {season.objectives.length} met</div> : null}
+        {!replay.playing && (
+        <div className="row" style={{ justifyContent: 'center', gap: 24, marginTop: 10 }}>
+          <Stat label="Points" value={record.points} />
+          <Stat label="Finished" value={ordinal(record.position)} />
+          <Stat label="Goals" value={`${record.goalsFor}-${record.goalsAgainst}`} />
+          {q && <Stat label="Team rating" value={q.strength.overall.toFixed(1)} />}
+        </div>
+        )}
+        {!replay.playing && (
+        <div className="blocks" aria-hidden="true">
+          {Array.from({ length: record.won }, (_, i) => (
+            <span key={`w${i}`} style={{ background: 'var(--good)' }} />
+          ))}
+          {Array.from({ length: record.drawn }, (_, i) => (
+            <span key={`d${i}`} style={{ background: 'var(--draw)' }} />
+          ))}
+          {Array.from({ length: record.lost }, (_, i) => (
+            <span key={`l${i}`} style={{ background: 'var(--danger)' }} />
+          ))}
+        </div>
+        )}
+        <div className="row" style={{ justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
+          <button className="btn primary" onClick={copy}>
+            {copied ? 'Copied!' : 'Copy result to share'}
+          </button>
+          <button className="btn" onClick={makeCard}>
+            Download share card
+          </button>
+          {!isManage && (
+            <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: game.settings.mode === 'daily' ? game.settings.seed : randomSeed() })} disabled={game.settings.mode === 'daily'}>
+              Draft again
+            </button>
+          )}
+          {canChallenge && (
+            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend">
+              Challenge a friend
+            </button>
+          )}
+          {canChallenge && (
+            <button className="btn" onClick={runItBack} data-testid="run-it-back" title="Draft this wheel again against your own result">
+              Run it back
+            </button>
+          )}
+          {game.settings.mode === 'dynasty' && !season?.sacked && (
+            <button className="btn primary" onClick={() => nextSeason()} disabled={loadingLeagues}>
+              {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `Continue with ${clubName(u, game.settings.hostClubId)} →`}
+            </button>
+          )}
+          {isManage && (
+            <button className="btn" onClick={() => go('game')} disabled>
+              Season complete
+            </button>
+          )}
+          <button className="btn ghost" onClick={() => { abandonGame(); go('home') }}>
+            New game
+          </button>
+        </div>
+      </div>
+
+      {q && !replay.playing && (
+        <div style={{ marginTop: 14 }}>
+          <CupRuns game={game} u={u} onReveal={onCupReveal} />
+        </div>
+      )}
+
+          </div>
+          <div className="fit-cell" data-pane="list">
+      {q && results.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <GameByGame results={results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} replay={replay} strip={false} orderToggle onHighlights={
+              canShowHighlights(game)
+                ? (r) => {
+                    // A running replay would keep revealing and scrolling the list under the reel: show it all first
+                    if (replay.playing) replay.skip()
+                    setHlWeek(r.matchweek)
+                  }
+                : undefined
+            } />
+          {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
+        </div>
+      )}
+
+          </div>
+          <div className="fit-cell fit-col">
+          <div className="panel">
+            <h3><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> Final table · {seasonLabel(game.settings.leagueSeason)}</h3>
+            <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop />
+          </div>
+          <div className="panel">
+            <h3>Your XI</h3>
+            <Pitch formation={formation} lineup={game.lineup} getPlayer={get} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, s.position]))} />
+            {q && (
+              <div className="kv" style={{ marginTop: 10 }}>
+                <dt>Goalkeeping</dt>
+                <dd>{q.strength.goalkeeping.toFixed(0)}</dd>
+                <dt>Defence</dt>
+                <dd>{q.strength.defence.toFixed(0)}</dd>
+                <dt>Midfield</dt>
+                <dd>{q.strength.midfield.toFixed(0)}</dd>
+                <dt>Attack</dt>
+                <dd>{q.strength.attack.toFixed(0)}</dd>
+                <dt>Balance</dt>
+                <dd>{Math.round(q.strength.balance * 100)}%</dd>
+                <dt>Chemistry</dt>
+                <dd>{q.strength.chemistry >= 0 ? '+' : ''}{q.strength.chemistry}</dd>
+              </div>
+            )}
+          </div>
+          <div className="panel">
+            <h3>Awards</h3>
+            {q && (
+              <div className="col">
+                {q.pots && get(q.pots.playerSeasonId) && <PlayerRow p={get(q.pots.playerSeasonId)!} showClub right={<span className="chip gold">⭐ Player of the season · {q.pots.rating}</span>} />}
+                {q.topScorer && get(q.topScorer.playerSeasonId) && <PlayerRow p={get(q.topScorer.playerSeasonId)!} showClub right={<span className="chip good">⚽ {q.topScorer.goals} goals</span>} />}
+              </div>
+            )}
+            {game.awards && (
+              <div className="col">
+                {game.awards.playerOfTheSeason && get(game.awards.playerOfTheSeason.playerSeasonId) && <PlayerRow p={get(game.awards.playerOfTheSeason.playerSeasonId)!} showClub right={<span className="chip gold">⭐ Player of the season · {game.awards.playerOfTheSeason.value}</span>} />}
+                {game.awards.goldenBoot && get(game.awards.goldenBoot.playerSeasonId) && <PlayerRow p={get(game.awards.goldenBoot.playerSeasonId)!} showClub right={<span className="chip good">👟 {game.awards.goldenBoot.value}</span>} />}
+                {game.awards.playmaker && get(game.awards.playmaker.playerSeasonId) && <PlayerRow p={get(game.awards.playmaker.playerSeasonId)!} showClub right={<span className="chip">🎯 {game.awards.playmaker.value}</span>} />}
+                {game.awards.goldenGlove && get(game.awards.goldenGlove.playerSeasonId) && <PlayerRow p={get(game.awards.goldenGlove.playerSeasonId)!} showClub right={<span className="chip">🧤 {game.awards.goldenGlove.value}</span>} />}
+                {game.awards.youngPlayer && get(game.awards.youngPlayer.playerSeasonId) && <PlayerRow p={get(game.awards.youngPlayer.playerSeasonId)!} showClub right={<span className="chip">🌱 {game.awards.youngPlayer.value}</span>} />}
+              </div>
+            )}
+          </div>
+      {q?.january && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="january-summary">
+          <div className="panel-head">
+            <h3>January business</h3>
+            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+          </div>
+          <div className="small">
+            {q.january.kind === 'sign' ? `Signed ${q.january.inName} for ${money(q.january.fee)}; ${q.january.outName} left.` : `Swapped ${q.january.outName} for ${q.january.inName}.`}
+          </div>
+        </div>
+      )}
+
+      {q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="bench-summary">
+          <div className="panel-head">
+            <h3>The bench</h3>
+            <span className="small muted">
+              {q.changes?.length ?? 0} of {QUICK_CHANGES} changes · injury cover in {coveredGames(q.results)} game{coveredGames(q.results) === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="col small" style={{ gap: 4 }}>
+            {(q.changes ?? []).map((c, i) => (
+              <span key={i}>
+                Matchweek {c.from}: {get(c.inId)?.name ?? c.inId} on for {get(c.outId)?.name ?? c.outId}
+              </span>
+            ))}
+            {!q.changes?.length && <span className="muted">No changes: the XI you drafted saw it through, the bench covering injuries.</span>}
+          </div>
+        </div>
+      )}
+
+      {q?.europe && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="europe-run">
+          <div className="panel-head">
+            <h3>Continental Cup run</h3>
+            <span className={`chip ${q.europe.reached === 'W' ? 'gold' : ''}`}>{q.europe.reached === 'W' ? 'Winners' : `Out in the ${europeRoundLabel(q.europe.reached)}`}</span>
+          </div>
+          <ol className="gbg-list">
+            {q.europe.ties.map((t) => (
+              <li key={t.round} className={`gbg-game ${t.won ? 'W' : 'L'}`}>
+                <span className={`gbg-badge ${t.won ? 'W' : 'L'} round`}>{t.round}</span>
+                <ClubBadge clubId={t.opponentId} size={22} />
+                <span className="gbg-fix">{t.round === 'F' ? `v ${clubName(u, t.opponentId)} (final)` : t.home ? `v ${clubName(u, t.opponentId)} (H)` : `at ${clubName(u, t.opponentId)}`}</span>
+                <span className="gbg-score">
+                  {t.gf}-{t.ga}
+                </span>
+                <span className="gbg-mw">
+                  <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
+                  {t.pens ? ` ${t.pens.for}-${t.pens.against}p` : ''}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {link && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="challenge-link">
+          <div className="panel-head">
+            <h3>Challenge link</h3>
+            <span className="small muted">Whoever opens it drafts the same wheel as {challengeName}, sees your pick on every spin and plays the same season. Built on data {u.generatedAt}, engine {ENGINE_VERSION}.</span>
+          </div>
+          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} />
+        </div>
+      )}
+
+      {challenge && mine && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="head-to-head">
+          <div className="panel-head">
+            <h3>Head-to-head · vs {challenge.name}</h3>
+            <span className="small muted">
+              Same seed, same wheel.{' '}
+              {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
+              {challenge.verified === 'unverified' && `Unverified: ${challenge.reason ?? 'built on different data'}.`}
+              {challenge.verified === 'no' && `Could not verify the claim: ${challenge.reason ?? 'the picks do not replay'}.`}
+            </span>
+          </div>
+          <div className="grid two">
+            <div className="col">
+              <div className="row between wrap">
+                <b>{challenge.name}</b>
+                <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
+                  {challenge.claim.pts} pts · {TIER_LABEL[challenge.claim.t]} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
+                </span>
+              </div>
+              {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
+              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{challenge.name}'s picks could not be resolved on this data.</div>}
+            </div>
+            <div className="col">
+              <div className="row between wrap">
+                <b>{game.settings.teamName}</b>
+                <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
+                  {mine.pts} pts · {TIER_LABEL[mine.t]} · {mine.w}-{mine.d}-{mine.l}
+                </span>
+              </div>
+              {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} />
+            </div>
+          </div>
+          <div className="notice" style={{ marginTop: 10 }} data-testid="verdict">
+            {verdictLine(challenge, mine)}
+          </div>
+        </div>
+      )}
+
+      {bench && inBooks && (
+        <div className="panel" style={{ marginTop: 14 }} data-testid="record-books">
+          <div className="panel-head">
+            <h3>In the record books</h3>
+            <span className="small muted">
+              Against {bench.seasons} complete <LeagueFlag leagueId={game.settings.leagueId} /> {leagueName} seasons of {bench.played} matches in the data
+              {champion ? ` · the real champions in ${seasonLabel(game.settings.leagueSeason)} were ${clubName(u, champion)}` : ''}
+            </span>
+          </div>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th className="num">Yours</th>
+                <th>All-time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {([bench.points, bench.wins, bench.goalsFor, bench.goalsAgainst, bench.defeats] as RecordMetric[]).map((m) => {
+                const isRecord = bench.records.some((r) => r.key === m.key)
+                return (
+                  <tr key={m.key}>
+                    <td>{m.label}</td>
+                    <td className="num">{m.value}</td>
+                    <td style={{ whiteSpace: 'normal' }}>
+                      {isRecord ? (
+                        <span className="chip gold">📜 League record</span>
+                      ) : (
+                        <span>
+                          {m.rank === 1 ? 'Joint best' : `${ordinal(m.rank)} best`} <span className="muted small">of {m.of + 1}{m.equal > 0 && m.rank > 1 ? ` · level with ${m.equal}` : ''}</span>
+                        </span>
+                      )}
+                      {m.better.length > 0 && <div className="small muted">Ahead: {m.better.map((b) => `${clubName(u, b.clubId)} ${b.value} (${seasonLabel(b.season)})`).join(', ')}</div>}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {game.settings.difficulty !== 'realistic' && (
+            <div className="small muted" style={{ marginTop: 8 }}>
+              Calibrated difficulty handicaps the AI clubs, so these are benchmarks rather than records. The Record Books achievement needs a points record on Realistic.
+            </div>
+          )}
+        </div>
+      )}
+
+          {cardUrl && (
+            <div className="panel">
+              <h3>Share card</h3>
+              <img src={cardUrl} alt="Share card" style={{ width: '100%', borderRadius: 10 }} />
+            </div>
+          )}
+          <div className="panel">
+            <h3>Share text</h3>
+            <pre className="mono small" style={{ whiteSpace: 'pre-wrap', margin: 0, color: 'var(--text-2)' }}>
+              {text}
+            </pre>
+          </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

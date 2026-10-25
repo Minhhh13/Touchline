@@ -10,7 +10,8 @@ import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
-import { normaliseGame } from './logic/save'
+import { normaliseGame, normaliseProfile } from './logic/save'
+import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { pickManager } from './logic/managers'
@@ -789,7 +790,10 @@ export const useStore = create<Store>()(
           if (euro) trophies.continental++
           if (league && cup) trophies.doubles++
           if (league && cup && euro) trophies.trebles++
-          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies, seasonsSimulated: profile.seasonsSimulated + 1 } })
+          // The 38-0 chase: best record, longest perfect run and perfect seasons of every quick season (Quick Draft and the Daily)
+          const q = game.quickResult
+          const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests
+          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies, seasonsSimulated: profile.seasonsSimulated + 1, ...(quickBests ? { quickBests } : {}) } })
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
@@ -857,7 +861,7 @@ export const useStore = create<Store>()(
           if (n) parked[slot] = n
         }
         const game = normaliseGame(p.game)
-        return { ...current, ...p, game, parked, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
+        return { ...current, ...p, profile: p.profile ? normaliseProfile(p.profile, defaultProfile) : current.profile, game, parked, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },
   ),

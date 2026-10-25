@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
-import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, playbackDelay, scorersLabel, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, scorersLabel, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
 
@@ -63,6 +63,17 @@ export function useSeasonReplay(total: number): SeasonReplay {
   }
 }
 
+/** The season playback's speed, per viewer (not the match screen's speed, which has its own key). */
+const SPEED_KEY = 'touchline-season-speed'
+
+function readSpeed(): PlaybackSpeed {
+  try {
+    return parsePlaybackSpeed(localStorage.getItem(SPEED_KEY))
+  } catch {
+    return 1
+  }
+}
+
 export interface SeasonPlayback extends SeasonReplay {
   speed: PlaybackSpeed
   setSpeed: (s: PlaybackSpeed) => void
@@ -76,14 +87,22 @@ export interface SeasonPlayback extends SeasonReplay {
 
 /**
  * The season playback after kick-off: it starts on its own from game `from` and reveals one game every
- * `PLAYBACK_STEP_MS / speed` ms (700, 350 or 175) up to `stopAt` (the January pause, or the last game). Pause, speed
+ * `PLAYBACK_STEP_MS / speed` ms (3000, 1500, 750 or 375) up to `stopAt` (the January pause, or the last game). Pause, speed
  * and skip are UI state only: the season itself was simulated before the first game is shown.
  */
 export function useSeasonPlayback(total: number, from: number, stopAt = total): SeasonPlayback {
   const cap = Math.min(total, stopAt)
   const [revealed, setRevealed] = useState(() => Math.min(from, cap))
   const [playing, setPlaying] = useState(() => from < cap)
-  const [speed, setSpeed] = useState<PlaybackSpeed>(1)
+  const [speed, setSpeedState] = useState<PlaybackSpeed>(readSpeed)
+  const setSpeed = (v: PlaybackSpeed) => {
+    setSpeedState(v)
+    try {
+      localStorage.setItem(SPEED_KEY, String(v))
+    } catch {
+      // Storage blocked: the speed lasts for this visit only
+    }
+  }
   useEffect(() => {
     if (!playing) return
     if (revealed >= cap) {

@@ -145,15 +145,21 @@ export function shortName(name: string): string {
   return rest.join(' ')
 }
 
-/** Milliseconds between two games of the season playback at 1x: 38 games in about 27 seconds. */
-export const PLAYBACK_STEP_MS = 700
-/** The playback speeds offered: 1x (700 ms a game), 2x (350 ms) and 4x (175 ms). */
-export const PLAYBACK_SPEEDS = [1, 2, 4] as const
+/** Milliseconds between two games of the season playback at 1x: a calm pace, so each result lands and the tally counts up first. */
+export const PLAYBACK_STEP_MS = 1500
+/** The playback speeds offered: 0.5x (3 s a game), 1x (1.5 s), 2x (750 ms) and 4x (375 ms). */
+export const PLAYBACK_SPEEDS = [0.5, 1, 2, 4] as const
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number]
 
 /** Milliseconds between two games at a speed. */
 export function playbackDelay(speed: PlaybackSpeed): number {
   return PLAYBACK_STEP_MS / speed
+}
+
+/** A stored playback speed read back: one of `PLAYBACK_SPEEDS`, or 1x for anything else (nothing stored, an old value). */
+export function parsePlaybackSpeed(v: string | null | undefined): PlaybackSpeed {
+  const n = Number(v)
+  return (PLAYBACK_SPEEDS as readonly number[]).includes(n) && v !== null && v !== undefined && v !== '' ? (n as PlaybackSpeed) : 1
 }
 
 /** One tick of the playback: one more game revealed, never past `stopAt` (the January pause) or the last game. */

@@ -507,6 +507,7 @@ export function Setup() {
         )}
 
         <div className="bottom-bar" ref={barRef}>
+          {!isManage && <div className="setup-goal" data-testid="setup-goal"><b>Win every game.</b> The goal of a Quick Draft is the perfect season, 38-0.</div>}
           <div className="small muted" data-testid="setup-summary">
             {summary}
             {!fixed && (

@@ -49,6 +49,9 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
       expect(o.teams).toBe(20)
       expect(o.finishes.reduce((x, y) => x + y, 0)).toBe(400)
       expect(o.title).toBeLessThanOrEqual(o.top4)
+      // The 38-0 chase: a perfect season is an unbeaten one, and an unbeaten one is not always a title
+      expect(o.perfect).toBeLessThanOrEqual(o.unbeaten)
+      expect(o.perfect).toBeLessThanOrEqual(o.title)
       expect(o.top4).toBeLessThanOrEqual(o.top6)
       expect(o.top6).toBeLessThanOrEqual(o.top10)
       expect(o.top10 + o.relegation).toBeLessThanOrEqual(1)
@@ -73,6 +76,8 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
     }
     const strong = oddsFrom(sampleSeasons(league(5.8, 0.12), new Rng('odds-strong'), 200, emptyTally(ids.length)))
     expect(strong.title).toBeGreaterThan(0.99)
+    expect(strong.perfect).toBeGreaterThan(0.9)
+    expect(strong.unbeaten).toBeGreaterThanOrEqual(strong.perfect)
     expect(strong.projectedFinish).toBe(1)
     expect(strong.relegation).toBe(0)
     expect(strong.expectedPoints).toBeGreaterThan(28)

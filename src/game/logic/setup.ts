@@ -147,14 +147,16 @@ const TAG_WORDS: Record<string, string> = { Easy: 'easy mode', Normal: 'normal m
 
 /**
  * One line stating every choice a game will start with, so the ones folded away under More options are still read:
- * "Touchline XI, 4-3-3, as Brentford in the Premier League 2025-26, calibrated, seed K7Q2-MX9A", then anything off
+ * "Touchline XI, 4-3-3, in the Premier League 2025-26, calibrated, seed K7Q2-MX9A" (a managed season adds "as Brentford"), then anything off
  * the defaults (European Nights, era, one club or nation, the difficulty, blind, Position First or prime ratings when
  * they differ from the mode's defaults, twists changed from the mode's default, squad size, job security, Europe; for a
  * quick draft no January window, or a Continental Cup run).
  */
 export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
-  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
+  // A quick draft's XI is the user's own team: only a managed season takes a club's place, so only it says "as"
+  const host = s.mode === 'season' || s.mode === 'dynasty' ? `as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ` : ''
+  const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}, seed ${s.seed}`]
   const r = s.rules
   if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)

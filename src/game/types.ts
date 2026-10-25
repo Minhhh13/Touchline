@@ -256,6 +256,8 @@ export interface QuickJanuary {
   listings: JanuaryListing[]
   /** The user's first-half games, shown while the window is open (the full list lands in `QuickResult.results`). */
   firstHalf: QuickGameResult[]
+  /** Every club's first-half results, for the live table while the window is open. Absent on older saves. */
+  firstHalfRounds?: QuickRounds
   /** The tactics and captain the first half was played with; the second half uses `Game.tactics` and `Game.captainId`. */
   firstHalfTactics: Tactics
   firstHalfCaptainId?: string
@@ -336,6 +338,14 @@ export interface QuickResult {
   changes?: Array<QuickChange & { outId: string }>
   /** The RNG state the season kicked off from, so the highlights of any game can be played again. Absent on older saves. */
   startRng?: RngState
+  /** Every club's league results by matchweek, for the playback's live table and position chart. Absent on older saves. */
+  rounds?: QuickRounds
+}
+
+/** A season's league results packed small: `weeks[mw - 1]` holds `[home, away, homeGoals, awayGoals]` per fixture, by index into `ids`. */
+export interface QuickRounds {
+  ids: string[]
+  weeks: number[][]
 }
 
 /** One Continental Cup tie of a quick season's European run, from the user's side. */
@@ -421,4 +431,13 @@ export interface Profile {
   trophies?: { league: number; cup: number; continental: number; doubles: number; trebles: number }
   /** Coach marks dismissed, tip id to the ISO date it was dismissed; missing on older saves (every tip unseen). */
   seenTips?: Record<string, string>
+  /** The 38-0 chase across every Quick Draft and Daily season in this browser; missing on older saves (filled by `normaliseProfile`). */
+  quickBests?: QuickBests
+}
+
+/** Quick Draft bests: the best record (more wins, then fewer defeats, then points), the longest perfect run from the first game, and perfect seasons. */
+export interface QuickBests {
+  bestRecord?: { won: number; drawn: number; lost: number; points: number; games: number }
+  longestPerfectRun?: number
+  perfectSeasons?: number
 }
