@@ -73,6 +73,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Small saves: stored results keep only what the screens read and the save is compressed, so a full Season takes about 50 K characters of the browser's 5 MB, a Dynasty with a parked Season under 100 K; if the storage is ever full a toast says so and the game carries on.
 - Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
 - **Light and dark**: the sun and moon in the top bar flips between them and remembers the choice; Auto on the Profile page follows the device's light or dark setting live. The palette is night navy with cyan and violet-magenta neon accents (a cool lavender Daylight theme); Home opens on our own cartoon drawing of a floodlit ground at night with the three numbers that matter, a drawn picture on each of the four mode cards and compact tiles for the rest, with one icon set (Lucide) throughout.
+- **Motion**: short and light, CSS first, and all of it off with the device's reduced-motion setting. Screens fade and rise in (the old one fading out through a View Transition where the browser has one, with the nav pill sliding across); the Home cards enter one after another; cards lift on hover, buttons press down, tabs slide one underline, toasts and sheets slide up, bars grow from zero; the league packs load behind a shimmering skeleton; the season summary counts up the record and the points and throws a gold flare for a title and confetti for the perfect season.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
 - Awards, a team of the season, nineteen achievements, a local leaderboard and a share card for every season.
 - **In the record books**: the summary ranks your points, wins, goals scored, goals conceded and defeats against every complete real season of your league in the data with the same number of matches (26 Premier League seasons back to 2000-01, 16 Bundesliga seasons of 34 games), names the three seasons ahead of you and the real champions that year, and marks an outright league record with a gold chip; the share text adds a line for a top-ten points total. A new points record on Realistic difficulty over a full season unlocks the Record Books achievement; leagues without tables (Ligue 1, the Eredivisie, the Primeira Liga) have no record book. Dynasty history shows the real champions beside each of your seasons.
@@ -162,12 +163,13 @@ src/
   ui/
     App.tsx                Shell and routing between screens
     screens/               Home, Setup, Draft, Dugout, MatchScreen, Summary, Explore, Profile, HowTo
-    components/            CaseReel, GameByGame, Pitch, PlayerRow, TableView, MatchTicker, LivePitch, MatchCharts, AttributePanel, Logo, bits (with the Info tooltip)
+    components/            CaseReel, GameByGame, Pitch, PlayerRow, TableView, MatchTicker, LivePitch, MatchCharts, AttributePanel, Logo, Celebrate, bits (with the Info tooltip)
     matchday/              The match-day dashboard: shell and clock, widget registry, top bar and drawers, stop panel, squad strip, phone tabs, shirts and panels
     match/                 Pure pitch geometry, the ball path generator, chart series and the shared live clock; dot movement, spells of play, heat and pass maps, commentary, shirt numbers and codes
     brand.ts               The name, the mark's geometry and the canvas colours
     styles.css             Design tokens (dark "Floodlit" and light "Daylight") and the shared components
     theme.ts               Auto, Light and Dark: which theme is on screen, following the device live
+    motion.ts              View Transitions, count-ups, the celebration's pattern; the rules are in DESIGN_SYSTEM.md section 12
 scripts/import/            Data pipeline (build.mjs, download.mjs, parsers, club and nation tables)
 scripts/brand/icons.mjs    Renders the favicon and the app icons from the mark
 public/data/england/       Generated players.json and meta.json
@@ -195,7 +197,7 @@ Design documents:
 - [docs/RESEARCH.md](docs/RESEARCH.md): 38-0 and Football Manager analysis and the fusion thesis.
 - [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): every system and formula as implemented.
 - [docs/DATA.md](docs/DATA.md): data pipeline, sources and licences.
-- [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md): the logo, the blue palette for both themes, type, spacing and the component rules every screen follows.
+- [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md): the logo, the blue palette for both themes, type, spacing and the component rules every screen follows, and the motion rules.
 - [docs/CREDITS.md](docs/CREDITS.md): the flags and the icon set, with author, source and licence.
 
 ## Roadmap

@@ -9,7 +9,8 @@ import { Pitch } from '../components/Pitch'
 import { TWIST_INFO } from '../components/TwistCard'
 import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
 import { TableView } from '../components/TableView'
-import { ClubBadge, Rating, Stat } from '../components/bits'
+import { ClubBadge, CountUp, Rating, Stat } from '../components/bits'
+import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
 import { LeagueFlag, NationFlag } from '../components/Flag'
@@ -182,8 +183,11 @@ export function Summary() {
             Season in play…
           </div>
         ) : (
-          <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-            {tierName(tier)}
+          <div className="tier-wrap">
+            <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} />
+            <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
+              {tierName(tier)}
+            </div>
           </div>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
@@ -195,9 +199,15 @@ export function Summary() {
         {season?.objectives?.length ? <div className="chip" style={{ marginTop: 6 }}>Board objectives: {season.objectives.filter((o) => o.met).length} of {season.objectives.length} met</div> : null}
         {!replay.playing && (
           <div className="record">
-            <span className="w">{record.won}W</span>
-            <span className="d">{record.drawn}D</span>
-            <span className="l">{record.lost}L</span>
+            <span className="w">
+              <CountUp value={record.won} />W
+            </span>
+            <span className="d">
+              <CountUp value={record.drawn} />D
+            </span>
+            <span className="l">
+              <CountUp value={record.lost} />L
+            </span>
           </div>
         )}
         {!replay.playing && realRow && (
@@ -208,7 +218,7 @@ export function Summary() {
         )}
         {!replay.playing && (
         <div className="row" style={{ justifyContent: 'center', gap: 24, marginTop: 10 }}>
-          <Stat label="Points" value={record.points} />
+          <Stat label="Points" value={<CountUp value={record.points} />} />
           <Stat label="Finished" value={ordinal(record.position)} />
           <Stat label="Goals" value={`${record.goalsFor}-${record.goalsAgainst}`} />
           {q && <Stat label="Team rating" value={q.strength.overall.toFixed(1)} />}

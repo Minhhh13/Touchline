@@ -7,6 +7,7 @@ import { ratingBand, textColourFor } from '../format'
 import { useStore } from '@game/store'
 import { tipSeen, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
+import { useCountUp } from '../motion'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -90,19 +91,37 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId }: {
   )
 }
 
+/** Slides up from the bottom, and for its last 220 ms slides away before it clears. */
 export function Toast() {
   const toast = useStore((s) => s.toast)
   const show = useStore((s) => s.showToast)
+  const [leaving, setLeaving] = useState<string | null>(null)
   useEffect(() => {
     if (!toast) return
+    // The same message shown again later starts afresh
+    setLeaving(null)
+    const out = setTimeout(() => setLeaving(toast), 2980)
     const t = setTimeout(() => show(null), 3200)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(out)
+      clearTimeout(t)
+    }
   }, [toast, show])
   if (!toast) return null
   return (
-    <div className="toast" role="status">
+    <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} role="status">
       {toast}
     </div>
+  )
+}
+
+/** A number that counts up from zero when it first appears (useCountUp); `data-counting` is set until it lands, which the smokes wait on. */
+export function CountUp({ value }: { value: number }) {
+  const { value: shown, counting } = useCountUp(value)
+  return (
+    <span className="count-up" data-counting={counting ? '' : undefined}>
+      {shown}
+    </span>
   )
 }
 
@@ -214,8 +233,10 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
 
 /** Tab strip; `alert` draws a dot, `badge` a count (which takes the dot's place when both are set). */
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void }) {
+  const ink = useTabInk(value, tabs.length)
   return (
-    <div className="tabs" role="tablist">
+    <div className={`tabs ${ink.style ? 'has-ink' : ''}`} role="tablist" ref={ink.ref}>
+      {ink.style && <span className={`tabs-ink ${ink.ready ? 'ready' : ''}`} style={ink.style} aria-hidden="true" />}
       {tabs.map((t) => (
         <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)}>
           {t.label}
@@ -230,6 +251,41 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<
       ))}
     </div>
   )
+}
+
+/**
+ * The tab strip's sliding underline: measures the active tab (again whenever a
+ * tab changes size, as a badge appears or the fonts load) and places a 1px bar
+ * under it with translate and scaleX. It only animates after the first
+ * placement, so a strip never sweeps in from the left edge when it mounts.
+ */
+function useTabInk(value: string, count: number) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState<{ x: number; y: number; w: number } | null>(null)
+  const [ready, setReady] = useState(false)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = () => {
+      const b = el.querySelector<HTMLElement>('button[aria-selected="true"]')
+      if (!b) return setBox(null)
+      const next = { x: b.offsetLeft, y: b.offsetTop + b.offsetHeight - 2, w: b.offsetWidth }
+      setBox((prev) => (prev && prev.x === next.x && prev.y === next.y && prev.w === next.w ? prev : next))
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    el.querySelectorAll('button').forEach((b) => ro.observe(b))
+    return () => ro.disconnect()
+  }, [value, count])
+  useEffect(() => {
+    if (!box || ready) return
+    const id = requestAnimationFrame(() => setReady(true))
+    return () => cancelAnimationFrame(id)
+  }, [box, ready])
+  const style = box ? { transform: `translate(${box.x}px, ${box.y}px) scaleX(${box.w})` } : undefined
+  return { ref, style, ready }
 }
 
 /**

@@ -15,6 +15,7 @@ Where it lives:
 | The theme: Auto, Light, Dark | `src/ui/theme.ts` (`resolveTheme`, `toggledTheme`, `useResolvedTheme`), applied in `App.tsx`, painted early by the script in `index.html` |
 | Icons | `lucide-react` (pinned), section 7 |
 | Illustrations and neon art | `src/ui/components/Art.tsx` (`HeroArt`, `ModeArt`, `NeonFlow`), coloured by the `--art-*`, `--cyan` and `--magenta` tokens (section 7) |
+| Motion: tokens, View Transitions, count-ups, the celebration | `--dur-*`, `--ease-*`, `--stagger` in `styles.css` (the motion section); `src/ui/motion.ts`; `CountUp` in `bits.tsx`; `components/Celebrate.tsx`; section 12 |
 
 The rule for everyone building screens: **use the tokens and the components below; no raw colours, no new one-off styles.** If a screen needs something this document does not cover, add it here and to `styles.css` first.
 
@@ -282,7 +283,7 @@ No other spacing values in new CSS; 1 px borders and component sizes (a 44 px di
 | `--panel-shadow` | Daylight only | A soft resting shadow on panels, mode cards and Home tiles so off-white panels lift off the grey page. Floodlit leaves it unset, so panels there are flat. Daylight secondary buttons also carry a 1 px hairline shadow. |
 | `--control-h`, `--control-h-sm`, `--control-h-lg` | 40, 30, 52 px | Minimum heights of buttons, inputs, toggles |
 
-Motion is short and happens once: every screen fades in over 0.22 s when it opens (`.page`, opacity only, because a transform on the page would move its fixed bottom bar); on Home the hero text and the cards rise 12 px into place (`@keyframes rise`, 0.5 to 0.6 s, staggered); the hero art fades in and settles from 104 % (`hero-in`); a short light travels along two of the hero's neon curves (`neon-run`, 7 s, the only looping motion); cards and tiles lift 2 to 3 px on hover and a mode card's neon brightens (`--neon-boost`). Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`. Under `prefers-reduced-motion: reduce` all of it is off, the travelling light included. Nothing that the smokes wait for is hidden behind an animation.
+Motion is short and happens once: every screen fades in over 0.22 s when it opens (`.page`, opacity only, because a transform on the page would move its fixed bottom bar); on Home the hero text and the cards rise 12 px into place (`@keyframes rise`, 0.5 to 0.6 s, staggered); the hero art fades in and settles from 104 % (`hero-in`); a short light travels along two of the hero's neon curves (`neon-run`, 7 s, the only looping motion); cards and tiles lift 2 to 3 px on hover and a mode card's neon brightens (`--neon-boost`). Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`. Under `prefers-reduced-motion: reduce` all of it is off, the travelling light included. Nothing that the smokes wait for is hidden behind an animation. The motion tokens (`--dur-1` to `--dur-4`, `--ease-out`, `--ease-in-out`, `--ease-spring`, `--stagger`) and the rules for everything else are in section 12.
 
 ## 6. Components
 
@@ -387,11 +388,11 @@ Capital 11 px headers in `--text-3`; `.num` for figures; `tr.me` (the user's row
 
 ### Tabs (`Tabs`, `.tabs`)
 
-One-word labels; the active tab has a 2 px `--primary` underline; an alert is the `.dot` in `--warn`. On a phone the tabs are one row that scrolls sideways; never let them wrap into several rows.
+One-word labels; the active tab has a 2 px `--primary` underline, one ink bar (`.tabs-ink`) that slides from tab to tab once `Tabs` has measured them (until then, and without JavaScript, each active tab draws its own inset underline); an alert is the `.dot` in `--warn`. On a phone the tabs are one row that scrolls sideways; never let them wrap into several rows.
 
 ### Modals and sheets (`Modal`)
 
-The title is an `h2` in a `.panel-head` with the close button on the right (`aria-label="Close"`; smoke10 clicks it). Content is a `.col`; actions sit at the end, primary last on desktop and full width on a phone. On a phone (720 px and below) every modal is a bottom sheet: full width, anchored to the bottom, 88 % of the screen at most, with a grabber bar. Escape and a tap on the scrim close it.
+The title is an `h2` in a `.panel-head` with the close button on the right (`aria-label="Close"`; smoke10 clicks it). Content is a `.col`; actions sit at the end, primary last on desktop and full width on a phone. On a phone (720 px and below) every modal is a bottom sheet: full width, anchored to the bottom, 88 % of the screen at most, with a grabber bar, sliding up as it opens; on a desktop it rises 8 px and fades in. The scrim fades in on its own layer (`.modal-back::before`), so the dialog is never see-through while it arrives. Escape and a tap on the scrim close it.
 
 ### Bottom bars (`.bottom-bar`, `.cta-bar`)
 
@@ -399,7 +400,7 @@ On a phone the screen's main action lives in a bar fixed to the bottom (`--panel
 
 ### Notices and toasts
 
-`.notice` (info), `.notice.warn`, `.notice.danger`: a 12 px-radius box on the soft status fill with a 40 % border. Toasts are a floating `--float-bg` box (12 px radius, `--shadow`) at the bottom centre that clears itself after three seconds.
+`.notice` (info), `.notice.warn`, `.notice.danger`: a 12 px-radius box on the soft status fill with a 40 % border. Toasts are a floating `--float-bg` box (12 px radius, `--shadow`) at the bottom centre that slides up as it arrives and, for its last 0.22 s, slides away (`.toast.leaving`) before it clears itself after 3.2 seconds.
 
 ### Top bar
 
@@ -470,7 +471,7 @@ For every screen, in this order:
 
 Notes per screen:
 
-- **Home** (done): the hero is the night-ground drawing (`HeroArt`) under the navy scrim with the open lockup (animated once per page load, in the fixed photo colours in both themes), the tagline, three figures (player-seasons, leagues, seasons) and the league flags. The mode cards keep their order and classes: a drawn scene (`ModeArt`) with its icon badge on the edge, the title, one line of at most eight words, a time tag, and a Start label lined up with the Daily card's own button; on a phone (520 px and below) they become rows with a square picture beside the text. The second row is four compact tiles (`.home-tile`: an icon, a title, one short meta line). Entrances: the hero text and the cards rise in once, staggered by 60 to 80 ms.
+- **Home** (done): the hero is the night-ground drawing (`HeroArt`) under the navy scrim with the open lockup (animated once per page load, in the fixed photo colours in both themes), the tagline, three figures (player-seasons, leagues, seasons) and the league flags. The mode cards keep their order and classes: a drawn scene (`ModeArt`) with its icon badge on the edge, the title, one line of at most eight words, a time tag, and a Start label lined up with the Daily card's own button; on a phone (520 px and below) they become rows with a square picture beside the text. The second row is four compact tiles (`.home-tile`: an icon, a title, one short meta line). Entrances: the hero text, then the cards, then the tiles rise in once, one after another (section 12).
 - **Setup** (the owner's TMI note): keep every option; show fewer words.
   - League: a picture grid of league marks and names in place of the long segmented control and its caption.
   - Club whose place you take: the `ClubBadge` large beside the select; the "mid-table, so the target is reachable" sentence becomes an `Info`.
@@ -487,7 +488,8 @@ Notes per screen:
 Do not rename or remove these without updating the scripts in the same change:
 
 - Classes: `.modes`, `.mode-card` in the order Quick Draft, Daily, Season, Dynasty (`:nth-child(1)` to `(4)`), `.formations`, `button.btn.primary.big` (Setup's Start, the dugout's Play, the half-time Play on), `.wheel-wrap` (the reel branch uses `.reel-wrap`, `.reel-window`, `.reel-strip`, `.reel-card`, `.reel-card.landed`, `.reel-hub .year`), `button.spin-btn`, `.prow` and `.prow:not(.dim)`, `button.btn.block` with "Put …", `.tier-banner .tier`, `.record`, `.tabs button`, `.scoreboard`, `.modal`, `.modal button[aria-label="Close"]`, `.topbar nav button`, `button.btn.danger` (Home's Abandon), `.panel[style*="--warn"] .btn` (the event card), `.news .item .t`, `.panel:has(h3:has-text("Squad ·")) .prow`, `.panel:has-text("Club legends") tbody tr`, `label:has-text("Continental Cup") input`.
-- Test ids: `event-card`, `more-options`, `more-options-toggle`, `setup-summary`, `daily-card`, `daily-play`, `daily-notice`, `challenge-banner`, `host-select`, `host-help`, `cta`, `cta-bar`, `bar-brief`, `briefing`, `half-time-panel`, `late-panel`, `shout`, `play-on`, `no-changes`, `twist-card`, `ghost-chip`, `challenge-friend`, `run-it-back`, `challenge-link`, `head-to-head`, `verdict`, `record-books`, `best-on-wheel`, `status-select`, `bid-status`, `player-status`, and from the later branches `digest`, `digest-close` (the smokes close the digest after Sim 5), `slot-sheet`, `sheet-to-bench`, `slot-chip`, `slot-choices`, `key-toggle`, `pitch-legend`, `toggle-stamina`, `stamina-col`, `inbox-divider`, `live-pitch`, `live-ball`, `tier`, `tier-pending`, and `theme-switch` (the top bar's sun and moon).
+- Test ids: `event-card`, `more-options`, `more-options-toggle`, `setup-summary`, `daily-card`, `daily-play`, `daily-notice`, `challenge-banner`, `host-select`, `host-help`, `cta`, `cta-bar`, `bar-brief`, `briefing`, `half-time-panel`, `late-panel`, `shout`, `play-on`, `no-changes`, `twist-card`, `ghost-chip`, `challenge-friend`, `run-it-back`, `challenge-link`, `head-to-head`, `verdict`, `record-books`, `best-on-wheel`, `status-select`, `bid-status`, `player-status`, and from the later branches `digest`, `digest-close` (the smokes close the digest after Sim 5), `slot-sheet`, `sheet-to-bench`, `slot-chip`, `slot-choices`, `key-toggle`, `pitch-legend`, `toggle-stamina`, `stamina-col`, `inbox-divider`, `live-pitch`, `live-ball`, `tier`, `tier-pending`, `theme-switch` (the top bar's sun and moon), and from the motion pass `celebrate` (with `data-kind` `flare` or `confetti`).
+- Attributes: `data-counting` sits on a `CountUp` while its number is still climbing; `smoke-int.cjs` waits for it to go before it reads `.record`.
 - Labels: "Home", "Profile" (was "Record"; no smoke clicked it), "Tactics", "Squad", "Club", "Europe", "Market", "Inbox", "Play friendly", "Kick off the season", "Sim 5", "Sim to end", "Skip to half time", "Skip to 70 minutes", "Skip to full time", "No changes", "Continue →", "Season summary →", "Next:", "Auto-complete", "To the draft", "Spin the wheel", "Download share card".
 
 ## 10. Merging the other branches
@@ -502,3 +504,50 @@ Done on `integration` (the working branch merged with reel-ui, fm-depth and matc
 ## 11. Open questions for the owner
 
 - The default team name is still "Touchline XI": it is set in the game logic and pinned by tests. "TouchLine XI" is a one-line change there plus the test expectations.
+
+## 12. Motion
+
+The owner asked for "some site animation" and "some nice touchup". Motion here is feedback and a sense of place, never decoration that waits on the player: short, once, and on the compositor.
+
+### Tokens
+
+| Token | Value | Use |
+|---|---|---|
+| `--dur-1` | 150 ms | Hover colours, the press-down (60 ms while held), the outgoing screen |
+| `--dur-2` | 220 ms | Toasts leaving, modals and the scrim on a desktop, the old screen in a View Transition |
+| `--dur-3` | 320 ms | The screen entrance, the tab ink, a phone sheet sliding up, a toast arriving, the theme icon |
+| `--dur-4` | 400 ms | Rises on Home, bars growing, the tier pop |
+| `--ease-out` | `cubic-bezier(0.2, 0.7, 0.2, 1)` | Everything that arrives or moves |
+| `--ease-in-out` | `cubic-bezier(0.4, 0, 0.2, 1)` | Things that leave, the loading sweep |
+| `--ease-spring` | `cubic-bezier(0.2, 0.9, 0.3, 1.25)` | A small overshoot for something worth noticing: the toast, the tier, the theme icon |
+| `--stagger` | 60 ms | The step between items entering one after another |
+
+`DURATION` in `src/ui/motion.ts` mirrors the four durations for the JavaScript side (the count-up runs for `DURATION.slow`).
+
+### Rules
+
+1. **150 to 400 ms**, on the tokens. The exceptions are named: the reel and the wheel (their timing is part of the draft, see CLAUDE.md), the live match pitch, the hero art's settle (`hero-in`) and the travelling neon light (`neon-run`, 7 s, the only loop; ambient, nothing waits on them), the lockup's own load and hover animation (section 2), the loading sweep (a 1.4 s loop, only while the packs load) and the celebration (0.9 s, once per result).
+2. **Transform and opacity only.** No animated width, height, top or left, so nothing reflows. Bars grow with `scaleX`, the tab ink moves with `translate` and `scaleX`, the toast keeps its centring `translate` in every frame. The one width transition left is a bar's value changing in place (an old rule, on one small element).
+3. **Once.** Entrances run when something mounts and never loop. Entrances use `animation-fill-mode: backwards`, so a finished animation never pins a transform over `:hover`.
+4. **Never block.** Nothing the player or a smoke script waits for is hidden behind an animation; buttons work while things are still rising. Count-ups mark themselves with `data-counting` while they climb.
+5. **Reduced motion turns it all off.** Under `prefers-reduced-motion: reduce` the motion section's last block stops every entrance, transition, hover lift and press; `withViewTransition` and `useCountUp` land at once; the celebration is not drawn; the eligible-slot pulse on the pitch stops. Add every new animated selector to that block.
+6. **No dependency.** CSS first; the few helpers in `motion.ts` are plain React. No animation library.
+7. **Decoration never touches the game.** No helper reads the game's RNG or writes state; the confetti is a fixed pattern (`confettiPieces`, the golden angle), not random numbers.
+
+### What moves
+
+| Where | What | How |
+|---|---|---|
+| Every screen | Fades in and rises 8 px; a screen with a fixed bottom bar (`.page.has-bottom-bar`: Setup, the Dugout before the season ends) only fades, because a transform on `.page` would carry the bar | `.page`, `@keyframes page-in` / `page-fade`, `--dur-3` |
+| The top bar, the Home cards and tiles, the theme switch | A View Transition where the browser has one: the old screen fades out over the new one (which runs its own entrance), and on a desktop the active nav pill slides to its new place. Browsers without the API get the entrance alone. | `withViewTransition()` in `motion.ts` (`startViewTransition` + `flushSync`, the `vt` class on `<html>` while it runs), `::view-transition-old(root)`, `view-transition-name: nav-active` |
+| Home | The hero text, then the four cards, then the four tiles rise 12 px one after another; cards and tiles lift 2 to 3 px with the shadow on hover and a mode card's neon brightens; the lockup animates once per page load (section 2) | `@keyframes rise`, `--stagger` |
+| Buttons, nav pills, mode cards, tiles | Press-down while held: a button 1 px lower at 97 %, a nav pill 96 %, a mode card 98.5 %, a tile 98 % | `:active` transforms |
+| The theme switch | The sun or moon spins in when it changes; the whole page crossfades between themes | `@keyframes switch-in`, `withViewTransition` |
+| Tabs | One ink bar slides between tabs | `.tabs-ink`, `useTabInk` in `bits.tsx` |
+| Bars (`Bar`) | Grow from zero when they first appear | `@keyframes bar-grow` |
+| Toasts | Slide up with a small spring, slide away before they clear | `@keyframes toast-in` / `toast-out` |
+| Modals and sheets | Desktop: rise and fade; phone: the sheet slides up; the scrim fades on its own layer | `@keyframes modal-in`, `sheet-up`, `scrim-in` |
+| The league-pack load | A skeleton of the page (a hero block and four cards) with a light sweep, the logo and the caption in the hero block | `.loading-screen`, `.skeleton`, `@keyframes shimmer` |
+| The season summary | The W, D and L and the points count up from zero (`CountUp`); the tier pops in after a replay; a title (Champions, Invincible) gets a gold flare behind the name, the perfect season the flare and 28 pieces of confetti in gold and the two blues, clipped to the banner. It plays the first time a result is shown in a visit and on every replay, not on a revisit. | `useCountUp`, `countUpValue`, `Celebrate`, `celebrationFor`, `confettiPieces`, `useFirstReveal` |
+
+The pure parts (`easeOutCubic`, `countUpValue`, `celebrationFor`, `confettiPieces`, the no-browser fallback of `withViewTransition`) are tested in `src/ui/__tests__/motion.test.ts`.

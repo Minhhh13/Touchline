@@ -134,6 +134,15 @@
   --control-h: 40px;
   --control-h-sm: 30px;
   --control-h-lg: 52px;
+  /* Motion (DESIGN_SYSTEM.md section 12): four durations, three curves; DURATION in motion.ts mirrors the numbers */
+  --dur-1: 150ms;
+  --dur-2: 220ms;
+  --dur-3: 320ms;
+  --dur-4: 400ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  --stagger: 60ms;
 }
 :root[data-theme='light'] {
   color-scheme: light;
@@ -596,6 +605,10 @@ p {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--dur-1) ease, color var(--dur-1) ease, border-color var(--dur-1) ease, transform var(--dur-1) var(--ease-out);
+}
+.topbar nav button:active {
+  transform: scale(0.96);
 }
 .topbar nav button:hover {
   background: var(--bg-3);
@@ -653,14 +666,23 @@ p {
   background: transparent;
   color: var(--text-2);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.3s ease;
+  transition: background var(--dur-1) ease, color var(--dur-1) ease, transform var(--dur-3) var(--ease-spring);
 }
 .theme-switch:hover {
   background: var(--bg-3);
   color: var(--text);
 }
 .theme-switch:active {
-  transform: rotate(30deg);
+  transform: rotate(30deg) scale(0.92);
+}
+.theme-switch svg {
+  animation: switch-in var(--dur-3) var(--ease-spring);
+}
+@keyframes switch-in {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
 }
 .page {
   width: 100%;
@@ -849,7 +871,7 @@ p {
   color: var(--text);
   cursor: pointer;
   font-weight: 600;
-  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: transform var(--dur-1) var(--ease-out), background var(--dur-1) ease, border-color var(--dur-1) ease, color var(--dur-1) ease;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -863,8 +885,10 @@ p {
 .btn:hover {
   border-color: var(--primary);
 }
-.btn:active {
-  transform: translateY(1px);
+.btn:active:not(:disabled) {
+  /* The press-down: a little lower and smaller while held */
+  transform: translateY(1px) scale(0.97);
+  transition-duration: 60ms;
 }
 .btn:disabled {
   opacity: 0.45;
@@ -1216,7 +1240,15 @@ label.field,
   height: 100%;
   border-radius: 3px;
   background: var(--primary);
-  transition: width 0.3s ease;
+  transition: width var(--dur-3) var(--ease-out);
+  /* Grows from zero when it first appears (transform only); later value changes slide the width */
+  transform-origin: left center;
+  animation: bar-grow var(--dur-4) var(--ease-out) backwards;
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
 }
 .bar.thick {
   height: 10px;
@@ -1966,6 +1998,7 @@ table.tbl.contracts .btn.sm {
 
 /* ------------------------------------------------------------------ tabs */
 .tabs {
+  position: relative;
   display: flex;
   gap: var(--space-1);
   flex-wrap: wrap;
@@ -1991,6 +2024,27 @@ table.tbl.contracts .btn.sm {
 .tabs button.active {
   color: var(--text);
   box-shadow: inset 0 -2px 0 var(--primary);
+}
+.tabs button {
+  transition: color var(--dur-1) ease;
+}
+/* Once Tabs has measured the active tab, one 2px ink bar slides between tabs (a 1px bar moved and stretched: transform only) and replaces the per-tab underline */
+.tabs.has-ink button.active {
+  box-shadow: none;
+}
+.tabs-ink {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 1px;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.tabs-ink.ready {
+  transition: transform var(--dur-3) var(--ease-out);
 }
 .tabs button .dot {
   width: 8px;
@@ -2196,13 +2250,13 @@ table.tbl.contracts .btn.sm {
   color: var(--on-photo-2);
 }
 .hero-content > * {
-  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation: rise var(--dur-4) var(--ease-out) backwards;
 }
 .hero-content > :nth-child(2) {
-  animation-delay: 0.08s;
+  animation-delay: calc(var(--stagger) * 1.5);
 }
 .hero-content > :nth-child(3) {
-  animation-delay: 0.16s;
+  animation-delay: calc(var(--stagger) * 3);
 }
 .resume-card {
   margin-bottom: var(--space-3);
@@ -2241,24 +2295,30 @@ table.tbl.contracts .btn.sm {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-1) ease, box-shadow var(--dur-2) ease;
 }
+/* The four cards enter one after another, after the hero text */
 .modes > * {
-  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation: rise var(--dur-4) var(--ease-out) backwards;
+  animation-delay: calc(var(--stagger) * 2);
 }
 .modes > :nth-child(2) {
-  animation-delay: 0.06s;
+  animation-delay: calc(var(--stagger) * 3);
 }
 .modes > :nth-child(3) {
-  animation-delay: 0.12s;
+  animation-delay: calc(var(--stagger) * 4);
 }
 .modes > :nth-child(4) {
-  animation-delay: 0.18s;
+  animation-delay: calc(var(--stagger) * 5);
 }
 .mode-card:hover {
   transform: translateY(-3px);
   border-color: var(--primary);
   box-shadow: var(--shadow);
+}
+.mode-card:not(.daily):active {
+  transform: translateY(-1px) scale(0.985);
+  transition-duration: 60ms;
 }
 /* The picture on top, its icon badge sitting on the edge between picture and text */
 .mode-art {
@@ -2357,10 +2417,10 @@ table.tbl.contracts .btn.sm {
   background: var(--raised);
   color: var(--text);
   font-weight: 600;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--dur-1) ease, border-color var(--dur-1) ease;
 }
 .mode-go svg {
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-2) var(--ease-out);
 }
 .mode-card:hover .mode-go {
   border-color: var(--primary);
@@ -2392,7 +2452,7 @@ table.tbl.contracts .btn.sm {
 }
 .mode-card-body .mode-text {
   padding-bottom: var(--space-3);
-  transition: background 0.15s ease;
+  transition: background var(--dur-1) ease;
 }
 .mode-card.daily > .btn {
   /* block buttons are 100% wide; inside the card the margins must come out of that width */
@@ -2408,7 +2468,17 @@ table.tbl.contracts .btn.sm {
   margin-top: var(--space-4);
 }
 .home-tiles > * {
-  animation: rise 0.5s 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation: rise var(--dur-4) var(--ease-out) backwards;
+  animation-delay: calc(var(--stagger) * 5);
+}
+.home-tiles > :nth-child(2) {
+  animation-delay: calc(var(--stagger) * 5.5);
+}
+.home-tiles > :nth-child(3) {
+  animation-delay: calc(var(--stagger) * 6);
+}
+.home-tiles > :nth-child(4) {
+  animation-delay: calc(var(--stagger) * 6.5);
 }
 .home-tile {
   display: flex;
@@ -2421,11 +2491,16 @@ table.tbl.contracts .btn.sm {
   background: var(--panel);
   border: var(--border);
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-1) ease, box-shadow var(--dur-2) ease;
 }
 .home-tile:hover {
   transform: translateY(-2px);
   border-color: var(--primary);
+  box-shadow: var(--shadow);
+}
+.home-tile:active {
+  transform: scale(0.98);
+  transition-duration: 60ms;
 }
 .tile-icon {
   flex: none;
@@ -2531,7 +2606,12 @@ table.tbl.contracts .btn.sm {
 }
 
 /* ------------------------------------------------------------------ motion */
-/* Short entrances only: content rises into place once, hovers lift. Fill mode is backwards so a finished animation never pins a transform over :hover */
+/*
+ * The rules (DESIGN_SYSTEM.md section 12): 150 to 400 ms on the --dur tokens and
+ * --ease curves; transform and opacity only; entrances run once and use
+ * fill-mode backwards, so a finished animation never pins a transform over
+ * :hover; everything here is off under prefers-reduced-motion (the block at the end).
+ */
 @keyframes rise {
   from {
     opacity: 0;
@@ -2542,32 +2622,240 @@ table.tbl.contracts .btn.sm {
     transform: none;
   }
 }
-/* Every screen fades in when it opens; opacity only, since a transform on .page would move its fixed bottom bar */
+/* Every screen fades and rises in when it opens. A screen with a fixed bottom bar only fades: a transform on .page would carry the bar with it */
 @keyframes page-in {
   from {
     opacity: 0;
+    transform: translateY(8px);
   }
-  to {
-    opacity: 1;
+}
+@keyframes page-fade {
+  from {
+    opacity: 0;
   }
 }
 .page {
-  animation: page-in 0.22s ease-out backwards;
+  animation: page-in var(--dur-3) var(--ease-out) backwards;
+}
+.page.has-bottom-bar {
+  animation-name: page-fade;
+}
+/*
+ * View Transitions (withViewTransition in motion.ts, used by the top bar, the Home
+ * cards and the theme switch): the old screen fades out over the live new one,
+ * which runs its own .page entrance above, and the active nav pill slides across.
+ */
+::view-transition-old(root) {
+  animation: vt-out var(--dur-1) var(--ease-in-out) both;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+  }
+}
+/* Not on a phone, where the nav scrolls sideways and the pill would fly across the logo */
+@media (min-width: 721px) {
+  :root.vt .topbar nav button.active {
+    view-transition-name: nav-active;
+  }
+}
+::view-transition-group(nav-active) {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--ease-out);
+}
+/* Loading: a skeleton of the page with a light sweep; the one loop besides the reel and the live match */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-3);
+  border-radius: var(--radius);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 7%, transparent), transparent);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+.loading-screen {
+  display: grid;
+  gap: var(--space-4);
+}
+.loading-hero {
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  background: var(--panel);
+  border: var(--border);
+}
+.loading-hero .logo,
+.loading-hero .muted {
+  position: relative;
+  z-index: 1;
+}
+.loading-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+.loading-cards .skeleton {
+  height: 220px;
+}
+.loading-cards .skeleton:nth-child(2)::after {
+  animation-delay: 0.1s;
+}
+.loading-cards .skeleton:nth-child(3)::after {
+  animation-delay: 0.2s;
+}
+.loading-cards .skeleton:nth-child(4)::after {
+  animation-delay: 0.3s;
+}
+@media (max-width: 900px) {
+  .loading-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .loading-hero {
+    min-height: 220px;
+  }
+  .loading-cards {
+    grid-template-columns: 1fr;
+  }
+  .loading-cards .skeleton {
+    height: 96px;
+  }
+}
+/* Count-ups keep their width while the figures change */
+.count-up {
+  font-variant-numeric: tabular-nums;
+}
+/* The title flare and the perfect season's confetti, centred on the tier name and clipped to the banner */
+.tier-banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.tier-wrap {
+  position: relative;
+}
+.celebrate {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.celebrate .flare {
+  position: absolute;
+  left: -180px;
+  top: -110px;
+  width: 360px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--gold) 55%, transparent), color-mix(in srgb, var(--gold) 18%, transparent) 55%, transparent);
+  opacity: 0;
+  animation: flare 900ms var(--ease-out) 120ms;
+}
+@keyframes flare {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+.celebrate .piece {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w);
+  height: calc(var(--w) * 0.45);
+  border-radius: 1px;
+  opacity: 0;
+  animation: confetti 900ms cubic-bezier(0.15, 0.8, 0.3, 1) var(--delay);
+}
+.celebrate .piece.c0 {
+  background: var(--gold);
+}
+.celebrate .piece.c1 {
+  background: var(--primary);
+}
+.celebrate .piece.c2 {
+  background: var(--accent);
+}
+@keyframes confetti {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(0.4);
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .page,
   .hero-content > *,
   .modes > *,
-  .home-tiles > * {
+  .home-tiles > *,
+  .bar > span,
+  .toast,
+  .toast.leaving,
+  .modal-back::before,
+  .modal,
+  .theme-switch svg,
+  .skeleton::after,
+  .celebrate,
+  .pitch-wrap .slot .disc.eligible {
     animation: none;
   }
+  .celebrate {
+    display: none;
+  }
   .mode-card,
-  .home-tile {
+  .home-tile,
+  .btn,
+  .topbar nav button,
+  .theme-switch,
+  .tabs-ink.ready,
+  .bar > span {
     transition: none;
   }
   .mode-card:hover,
-  .home-tile:hover {
+  .home-tile:hover,
+  .btn:active:not(:disabled),
+  .mode-card:not(.daily):active,
+  .home-tile:active,
+  .topbar nav button:active,
+  .theme-switch:active {
     transform: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 
@@ -2649,17 +2937,54 @@ table.tbl.contracts .btn.sm {
   box-shadow: var(--shadow);
   z-index: 50;
   max-width: 90vw;
+  animation: toast-in var(--dur-3) var(--ease-spring) backwards;
+}
+.toast.leaving {
+  animation: toast-out var(--dur-2) var(--ease-in-out) forwards;
+}
+/* The toast keeps its centring translate in every frame */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px) scale(0.96);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
 }
 .modal-back {
   position: fixed;
   inset: 0;
-  background: var(--scrim);
   display: grid;
   place-items: center;
   z-index: 40;
   padding: var(--space-4);
 }
+/* The scrim fades in on its own layer, so the sheet or dialog above it is never see-through while it arrives */
+.modal-back::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--scrim);
+  animation: scrim-in var(--dur-2) ease-out backwards;
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
 .modal {
+  animation: modal-in var(--dur-2) var(--ease-out) backwards;
   width: min(640px, 100%);
   max-height: 90vh;
   overflow: auto;
@@ -3665,7 +3990,7 @@ table.tbl.contracts .btn.sm {
   }
 }
 .tier-banner .tier.pop {
-  animation: tier-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  animation: tier-pop var(--dur-4) var(--ease-spring);
 }
 @keyframes tier-pop {
   from {
@@ -3942,10 +4267,10 @@ table.tbl.contracts .btn.sm {
 }
 
 /* ------------------------------------------------------------ slot picker */
-/* Every modal is a bottom sheet on a phone (see .modal); the slot picker also slides up into place */
+/* Every modal is a bottom sheet on a phone (see .modal), and every sheet slides up into place */
 @media (max-width: 720px) {
-  .modal.sheet {
-    animation: sheet-up 0.22s ease-out;
+  .modal {
+    animation: sheet-up var(--dur-3) var(--ease-out) backwards;
   }
 }
 @keyframes sheet-up {
@@ -3957,7 +4282,7 @@ table.tbl.contracts .btn.sm {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .modal.sheet {
+  .modal {
     animation: none;
   }
 }

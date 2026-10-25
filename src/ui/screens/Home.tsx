@@ -7,6 +7,7 @@ import { ClubBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
 import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
+import { withViewTransition } from '../motion'
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
 function compact(n: number): string {
@@ -59,7 +60,9 @@ function Tile({ icon: Icon, title, meta, onClick }: { icon: LucideIcon; title: s
 }
 
 export function Home() {
-  const { universe: u, game, go, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, startGame, loadedLeagues } = useStore()
+  // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
+  const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]

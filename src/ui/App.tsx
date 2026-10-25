@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useStore } from '@game/store'
 import { Home } from './screens/Home'
 import { Setup } from './screens/Setup'
@@ -19,12 +19,17 @@ import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
+import { withViewTransition } from './motion'
 import { Bandage, Banknote, BookOpen, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
+  // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
+  const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
+  // The flip reads what is on screen when it runs, not when it was clicked, so a quick second tap inside the transition flips back
+  const flipTheme = () => withViewTransition(() => setTheme(toggledTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')))
 
   useEffect(() => {
     void loadData()
@@ -47,8 +52,9 @@ export function App() {
     return () => window.removeEventListener('hashchange', open)
   }, [universe, openChallenge])
 
-  // Auto follows the device live (useResolvedTheme listens to prefers-color-scheme); the browser bar takes the page colour
-  useEffect(() => {
+  // Auto follows the device live (useResolvedTheme listens to prefers-color-scheme); the browser bar takes the page colour.
+  // A layout effect, so the attribute changes in the same commit as the switch (the theme's View Transition captures it)
+  useLayoutEffect(() => {
     const root = document.documentElement
     root.setAttribute('data-theme', theme)
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
@@ -81,10 +87,18 @@ export function App() {
   if (!universe || loading) {
     return (
       <div className="app">
-        <div className="page" style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
-          <div className="col" style={{ alignItems: 'center' }}>
+        <div className="page loading-screen" aria-busy="true">
+          <div className="skeleton loading-hero">
             <Logo size="lg" />
-            <div className="muted small">Loading the player database…</div>
+            <div className="muted small" role="status">
+              Loading the player database…
+            </div>
+          </div>
+          <div className="loading-cards" aria-hidden="true">
+            <div className="skeleton" />
+            <div className="skeleton" />
+            <div className="skeleton" />
+            <div className="skeleton" />
           </div>
         </div>
       </div>
@@ -111,33 +125,33 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand" onClick={() => go('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && go('home')}>
+        <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
         <nav>
-          <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>
+          <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
             <House size={16} />
             <span className="nav-label">Home</span>
           </button>
           {game && (
-            <button className={screen === 'game' ? 'active' : ''} onClick={() => go('game')}>
+            <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
               <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : 'Dugout'}</span>
             </button>
           )}
-          <button className={screen === 'h2h' ? 'active' : ''} onClick={() => go('h2h')}>
+          <button className={screen === 'h2h' ? 'active' : ''} onClick={() => nav('h2h')}>
             <Swords size={16} />
             <span className="nav-label">Head-to-head</span>
           </button>
-          <button className={screen === 'explore' ? 'active' : ''} onClick={() => go('explore')}>
+          <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
             <Search size={16} />
             <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
           </button>
-          <button className={screen === 'profile' ? 'active' : ''} onClick={() => go('profile')}>
+          <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
           </button>
-          <button className={screen === 'howto' ? 'active' : ''} onClick={() => go('howto')}>
+          <button className={screen === 'howto' ? 'active' : ''} onClick={() => nav('howto')}>
             <BookOpen size={16} />
             <span className="nav-label">How it works</span>
           </button>
@@ -145,7 +159,7 @@ export function App() {
         <button
           type="button"
           className="theme-switch"
-          onClick={() => setTheme(toggledTheme(theme))}
+          onClick={flipTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           data-testid="theme-switch"
