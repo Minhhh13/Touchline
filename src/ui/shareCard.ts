@@ -2,7 +2,7 @@
  * Render a shareable PNG of a season result on a canvas: tier, record, the XI
  * on a pitch and a footer. Returns a data URL.
  */
-import type { Formation, PlayerSeason, TableRow } from '@engine/types'
+import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/types'
 import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 
@@ -162,6 +162,176 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.arcTo(x, y + h, x, y, r)
   ctx.arcTo(x, y, x + w, y, r)
   ctx.closePath()
+}
+
+export interface MatchCardInput {
+  title: string
+  subtitle: string
+  home: { name: string; colour: string; goals: number; xg: number }
+  away: { name: string; colour: string; goals: number; xg: number }
+  /** Events with positions (attacking coordinates for their side); the rest are skipped. */
+  events: MatchEvent[]
+  /** Cumulative xG per minute, 0..90, for each side (see xgSeries). */
+  xgHome: number[]
+  xgAway: number[]
+  footer: string
+}
+
+const SHOT_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', 'chance', 'save'])
+const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
+
+/**
+ * A shareable PNG of one match: the score, the shot map (home shots at the
+ * right-hand goal, away at the left) and the xG race. Returns a data URL.
+ */
+export function renderMatchCard(input: MatchCardInput): string {
+  const W = 1080
+  const H = 1350
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createLinearGradient(0, 0, 0, H)
+  g.addColorStop(0, '#132019')
+  g.addColorStop(1, '#0b1410')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, W, H)
+  const font = (size: number, weight = 700, family = "'Barlow Condensed', 'Arial Narrow', Impact, sans-serif") => `${weight} ${size}px ${family}`
+  const body = "'Inter', system-ui, sans-serif"
+
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#b4c6ba'
+  ctx.font = font(26, 400, body)
+  ctx.fillText(input.subtitle, W / 2, 70)
+  ctx.fillStyle = '#eef5f0'
+  ctx.font = font(40)
+  ctx.fillText(input.title.toUpperCase(), W / 2, 118)
+
+  // Score: names either side, the colours as bars under them
+  ctx.font = font(150)
+  ctx.fillText(`${input.home.goals} - ${input.away.goals}`, W / 2, 290)
+  ctx.font = font(40)
+  ctx.textAlign = 'right'
+  ctx.fillText(fit(ctx, input.home.name.toUpperCase(), 300), 330, 240)
+  ctx.textAlign = 'left'
+  ctx.fillText(fit(ctx, input.away.name.toUpperCase(), 300), W - 330, 240)
+  ctx.fillStyle = input.home.colour
+  ctx.fillRect(330 - 120, 258, 120, 8)
+  ctx.fillStyle = input.away.colour
+  ctx.fillRect(W - 330, 258, 120, 8)
+
+  // Shot map
+  const px = 90
+  const py = 350
+  const pw = W - 180
+  const ph = Math.round((pw * 68) / 105)
+  ctx.save()
+  roundRect(ctx, px, py, pw, ph, 18)
+  ctx.clip()
+  ctx.fillStyle = '#1d7a3f'
+  ctx.fillRect(px, py, pw, ph)
+  ctx.fillStyle = '#1a6f39'
+  for (let i = 0; i < 10; i += 2) ctx.fillRect(px + (pw / 10) * i, py, pw / 10, ph)
+  ctx.restore()
+  const sx = (x: number) => px + (x / 100) * pw
+  const sy = (y: number) => py + (y / 100) * ph
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+  ctx.lineWidth = 3
+  roundRect(ctx, px, py, pw, ph, 18)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(sx(50), py)
+  ctx.lineTo(sx(50), py + ph)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(sx(50), sy(50), (9.15 / 105) * pw, 0, Math.PI * 2)
+  ctx.stroke()
+  const boxDepth = (16.5 / 105) * 100
+  const boxHalf = (20.15 / 68) * 100
+  ctx.strokeRect(px, sy(50 - boxHalf), (boxDepth / 100) * pw, ((2 * boxHalf) / 100) * ph)
+  ctx.strokeRect(sx(100 - boxDepth), sy(50 - boxHalf), (boxDepth / 100) * pw, ((2 * boxHalf) / 100) * ph)
+  for (const e of input.events) {
+    if (!SHOT_TYPES.has(e.type) || !e.position) continue
+    const x = e.side === 'home' ? e.position.x : 100 - e.position.x
+    const y = e.side === 'home' ? e.position.y : 100 - e.position.y
+    const colour = e.side === 'home' ? input.home.colour : input.away.colour
+    ctx.beginPath()
+    if (GOAL_TYPES.has(e.type)) {
+      ctx.arc(sx(x), sy(y), 17, 0, Math.PI * 2)
+      ctx.fillStyle = colour
+      ctx.fill()
+      ctx.lineWidth = 4
+      ctx.strokeStyle = '#ffffff'
+      ctx.stroke()
+    } else {
+      ctx.arc(sx(x), sy(y), 13, 0, Math.PI * 2)
+      ctx.lineWidth = 5
+      ctx.strokeStyle = colour
+      ctx.setLineDash(e.type === 'save' ? [] : [7, 5])
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+  }
+  ctx.fillStyle = '#b4c6ba'
+  ctx.font = font(22, 400, body)
+  ctx.textAlign = 'center'
+  ctx.fillText('Shot map: filled = goal, ring = saved, dashed = chance', W / 2, py + ph + 40)
+
+  // xG race
+  const cx = 150
+  const cy = py + ph + 110
+  const cw = W - 240
+  const ch = 150
+  const yMax = Math.max(0.5, Math.ceil(Math.max(input.home.xg, input.away.xg) * 2) / 2)
+  const X = (m: number) => cx + (m / 90) * cw
+  const Y = (v: number) => cy + ch - (v / yMax) * ch
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+  ctx.lineWidth = 2
+  ctx.fillStyle = '#7f9587'
+  ctx.textAlign = 'right'
+  for (const t of [0, yMax / 2, yMax]) {
+    ctx.beginPath()
+    ctx.moveTo(cx, Y(t))
+    ctx.lineTo(cx + cw, Y(t))
+    ctx.stroke()
+    ctx.fillText(String(+t.toFixed(2)), cx - 12, Y(t) + 8)
+  }
+  ctx.textAlign = 'center'
+  ctx.fillText('HT', X(45), cy + ch + 34)
+  const line = (series: number[], colour: string) => {
+    ctx.beginPath()
+    series.forEach((v, m) => (m === 0 ? ctx.moveTo(X(m), Y(v)) : ctx.lineTo(X(m), Y(v))))
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 10
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'
+    ctx.stroke()
+    ctx.lineWidth = 6
+    ctx.strokeStyle = colour
+    ctx.stroke()
+  }
+  line(input.xgHome, input.home.colour)
+  line(input.xgAway, input.away.colour)
+  ctx.font = font(34)
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#eef5f0'
+  ctx.fillText(`xG ${input.home.xg.toFixed(2)} - ${input.away.xg.toFixed(2)}`, cx, cy - 14)
+
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#7f9587'
+  ctx.font = font(22, 400, body)
+  ctx.fillText(input.footer, W / 2, H - 80)
+  ctx.fillStyle = '#3ddc84'
+  ctx.font = font(34)
+  ctx.fillText('TOUCHLINE', W / 2, H - 36)
+  return canvas.toDataURL('image/png')
+}
+
+/** Shorten a label until it fits `max` pixels in the current font. */
+function fit(ctx: CanvasRenderingContext2D, text: string, max: number): string {
+  if (ctx.measureText(text).width <= max) return text
+  let t = text
+  while (t.length > 1 && ctx.measureText(t + '…').width > max) t = t.slice(0, -1)
+  return t + '…'
 }
 
 export function downloadDataUrl(dataUrl: string, filename: string): void {

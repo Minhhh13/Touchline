@@ -19,6 +19,7 @@
  */
 import type { Injury, Lineup, MatchEvent, MatchResult, PlayerMatchStats, PlayerSeason, Position, SquadPlayer, Tactics, TeamStrength } from './types'
 import { Rng, type RngState } from './rng'
+import { momentumBins, placeEvents } from './matchDetail'
 import { autoPickLineup, computeTeamStrength, type SlotEvaluation } from './ratings'
 import { tacticalModifiers, type TacticalModifiers } from './tactics'
 import { getFormation } from './formations'
@@ -83,6 +84,21 @@ export interface TeamReport {
   halfTimeEffect?: string
   /** What the touchline shout at 70 minutes did (human side only). */
   lateEffect?: string
+  /** Everyone who took the pitch, with his slot and his minutes, for the pitch views. Absent on results written before them. */
+  appearances?: Appearance[]
+  /** The side's instructions at the final whistle, for the tactics overlay. Absent on older results. */
+  tactics?: Tactics
+}
+
+/** A man who took the pitch: his formation slot, when he came on and went off (90 if he saw it out) and how he left. */
+export interface Appearance {
+  psId: string
+  slotId: string
+  position: Position
+  onAt: number
+  offAt: number
+  red: boolean
+  injured: boolean
 }
 
 /** A touchline shout for the last twenty minutes. */
@@ -109,6 +125,8 @@ export interface FullMatchResult extends MatchResult {
   importance: number
   importanceLabel?: string
   halfTimeScore: { home: number; away: number }
+  /** The home side's share of the pressure in each five-minute bin (eighteen values, 0..1). Absent on results written before the pitch views. */
+  momentum?: number[]
 }
 
 /** Serialisable state of a player on the team sheet. */
@@ -179,6 +197,8 @@ export interface MatchInProgress {
   clock?: MatchClock
   /** Routine changes drawn at the restart but due after the 70th minute; applied when the last segment is played. */
   pendingSubs?: { home: Substitution[]; away: Substitution[] }
+  /** The home side's share of the pressure per five-minute bin, for the segments played so far. */
+  momentum?: number[]
 }
 
 export interface SecondHalfOptions {
@@ -488,6 +508,8 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     teamTalkEffect: side.talkText,
     halfTimeEffect: side.halfTimeText,
     lateEffect: side.lateText,
+    appearances: live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury })),
+    tactics: side.tactics,
   })
 
   mp.rngState = rng.getState()
@@ -509,6 +531,7 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     importance: mp.importance,
     importanceLabel: mp.importanceLabel,
     halfTimeScore: mp.halfTimeScore,
+    momentum: mp.momentum,
   }
 }
 
@@ -604,6 +627,11 @@ function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: 
     tallySaves(rng, mp.aLive, Math.min(4, rng.poisson(lh * 2.2)), from, to)
     tallySaves(rng, mp.hLive, Math.min(4, rng.poisson(la * 2.2)), from, to)
   }
+  // The pitch views' detail comes from a stream forked off a copy of the generator, once the
+  // segment is decided: the match's own draws, and the week's after it, never move.
+  const detail = Rng.fromState(rng.getState()).fork(`detail-${from}`)
+  placeEvents(detail, mp.events, from, to)
+  mp.momentum = momentumBins(detail, { lamH: lh, lamA: la, homeTactics: mp.home.tactics, awayTactics: mp.away.tactics, events: mp.events, from, to, previous: mp.momentum ?? [] })
 }
 
 function score(events: MatchEvent[]): { home: number; away: number } {

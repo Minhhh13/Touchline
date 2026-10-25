@@ -29,6 +29,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Seeds are honest across leagues: a European Nights seed lands on the same clubs whichever order the league packs were opened, and every loaded universe carries the data stamp of its packs beside an engine version, so a result can be checked against the data and engine that produced it.
 - **Head-to-head**: two managers on one device draft from the same spins in snake order, then both sides play the same season, derbies included.
 - Matches are played live with two stops: at half time you give a team talk, change instructions and make up to three substitutions; at the 70th minute you get the rest of your five changes, the instructions again and a touchline shout, and the AI reacts to the score at both stops.
+- **Match visuals**: a live 2D pitch above the ticker (lying down on a desktop, standing up on a phone) with both XIs placed by formation slot and shifted by the instructions (a high line lifts the back four, width spreads the wide men, mentality moves the block), in the clubs' colours. A ball passes between team-mates of the side on top, builds towards the box before every chance and goal, shoots from where the engine says the shot was taken, ripples the net and flashes the scoreboard on a goal and sends the keeper diving on a save; cards, injuries and substitutions are marked on the dot. It follows the ticker's pause (freezing mid-pass, and costing nothing while paused) and 1x, 2x and 4x (a minute lasts 330 ms at 1x while the pitch is on show) and stands still with prefers-reduced-motion. Beside it a momentum bar and an xG race fill with the clock; the report adds both, a shot map, possession and territory, each side's shape with its role labels and instruction arrows, rating bars for both sides and a downloadable match card with the score, the shot map and the xG race.
 - **The 70th-minute window with touchline shouts**: the match runs 1-45, 46-70 and 71-90, each segment taking its share of the expected goals by length (second half weighted 1.06 to 0.94, so 0.47, 0.294 and 0.236 of the match) and of the cards and injuries. All-out attack multiplies your chances by 1.3 and theirs by 1.35 and adds fatigue; shut up shop is ×0.55 and ×0.72; keep shape costs nothing. A side trailing at 70 goes attacking and fast, a side one up goes defensive and deep. Routine substitutions due after 70 wait for the window, and your own changes there override them. A simmed week and a hand-played one run the same three segments, so a seed gives the same match either way.
 
 **Management**
@@ -124,6 +125,7 @@ src/
     ratings.ts             Role ratings, live modifiers, team strength, chemistry, auto-pick
     tactics.ts             Team instructions, AI styles, tactical modifiers
     match.ts               The match engine (xG, Poisson goals, events, ratings)
+    matchDetail.ts         Shot positions and the momentum series for the pitch views
     season.ts              Fixtures, table, cup, recovery, morale, board, tiers
     draft.ts               The wheel and draft rules
     market.ts              Transfer windows, pricing, bids, offers, finances
@@ -140,7 +142,8 @@ src/
   ui/
     App.tsx                Shell and routing between screens
     screens/               Home, Setup, Draft, Dugout, MatchScreen, Summary, Explore, Profile, HowTo
-    components/            Wheel, Pitch, PlayerRow, TableView, MatchTicker, bits
+    components/            Wheel, Pitch, PlayerRow, TableView, MatchTicker, LivePitch, MatchCharts, bits
+    match/                 Pure pitch geometry, the ball path generator, chart series and the shared live clock
     styles.css             Theme tokens (dark "Floodlit" and light "Daylight")
 scripts/import/            Data pipeline (build.mjs, download.mjs, parsers, club and nation tables)
 public/data/england/       Generated players.json and meta.json
