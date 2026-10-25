@@ -139,17 +139,17 @@ export const LOCKUP = {
   pennant: { x: 9, top: 14, bottom: 26, tipX: 37.5, tipY: 19, amp: 1.6, tip: 1.3 },
   /** The short line: its left end (the pole's left edge), length, top edge and thickness. */
   rule: { left: 7.5, length: 37, y: 51, w: 2 },
-  /** About the name's x-height (0.514 of its size) across. */
+  /** About the name's x-height (0.55 of its size in Sora) across. */
   ball: { cx: 28.5, r: 12 },
   /** The ball rolls in this far (u) along the line to its spot, fading in as it starts. */
   roll: 5,
   /**
-   * The name: left edge, top of its line box, font size (cap height 0.708 of
-   * it), and where its baseline lands (the line's top). The mark from the
+   * The name: left edge, top of its line box, font size (cap height 0.73 of
+   * it in Sora), and where its baseline lands (the line's top). The mark from the
    * finial to the baseline is 1.15 cap heights; the gap after the line is
    * about half a letter; finial to line bottom is centred in the 64u box.
    */
-  name: { left: 53.5, top: 5.85, size: 50, baseline: 51 },
+  name: { left: 57, top: 10.7, size: 48, baseline: 51 },
   /** The pennant's flutter: one loop in seconds, and the frames it steps through. */
   wave: { dur: 2.6, frames: 8, amp: 2.2 },
   /** Below this ball diameter in px the lockup uses the flat ball. */
