@@ -225,7 +225,7 @@ function readOrder(fallback: GameOrder): GameOrder {
   }
 }
 
-export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights, order: fixedOrder, orderToggle = false }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void; /** Newest game at the top, or matchweek 1 first (the default). */ order?: GameOrder; /** Offer a Newest / Oldest switch, remembered per viewer; starts newest first. */ orderToggle?: boolean }) {
+export function GameByGame({ results, opponent, replay, title = 'Season, game by game', compact = false, strip = true, onHighlights, order: fixedOrder, orderToggle = false, total = results.length }: { results: QuickGameResult[]; opponent: (teamId: string) => Opponent; replay?: SeasonReplay; title?: string; compact?: boolean; /** Off where the screen shows its own running strip. */ strip?: boolean; /** Each game gets a Highlights button that calls this. */ onHighlights?: (r: QuickGameResult) => void; /** Newest game at the top, or matchweek 1 first (the default). */ order?: GameOrder; /** Offer a Newest / Oldest switch, remembered per viewer; starts newest first. */ orderToggle?: boolean; /** Games in the whole season, when `results` holds only part of it (the playback before January). */ total?: number }) {
   const revealed = replay ? replay.revealed : results.length
   const playing = replay?.playing ?? false
   const [chosen, setChosen] = useState<GameOrder>(() => (orderToggle ? readOrder('newest') : 'oldest'))
@@ -266,7 +266,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               </button>
             </span>
           )}
-          <span className="small muted">{revealed < results.length ? `${revealed} of ${results.length}` : `${results.length} games`}</span>
+          <span className="small muted">{revealed < total ? `${revealed} of ${total}` : `${total} games`}</span>
         </span>
       </div>
       {replay?.canReplay && (

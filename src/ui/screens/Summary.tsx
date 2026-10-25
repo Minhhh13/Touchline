@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
 import { TIER_LABEL, USER_TEAM, computeTable, tierBlurb, tierLabel } from '@engine/season'
@@ -32,7 +32,11 @@ export function Summary() {
   // The game whose highlights are open, by matchweek
   const [hlWeek, setHlWeek] = useState<number | null>(null)
   // Every game of a quick season, game by game; the replay is UI state only
-  const replay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
+  const seasonReplay = useSeasonReplay(game?.quickResult?.results?.length ?? 0)
+  // Play the season hides the record and shows the tally in the banner: bring the banner up so the tally and the
+  // newest game at the top of the list are seen together, wherever the list's Play button was pressed
+  const bannerRef = useRef<HTMLDivElement | null>(null)
+  const replay = { ...seasonReplay, start: () => { seasonReplay.start(); bannerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }) } }
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const q = game.quickResult
@@ -170,7 +174,7 @@ export function Summary() {
 
   return (
     <div className="page">
-      <div className="tier-banner">
+      <div className="tier-banner" ref={bannerRef}>
         <div className="muted small">
           {game.settings.teamName} as {clubName(u, game.settings.hostClubId)} · {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
           {tags.map((t) => ` · ${t}`).join('')}

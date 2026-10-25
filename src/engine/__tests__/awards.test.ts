@@ -27,4 +27,11 @@ describe('share text', () => {
     expect(lines.slice(-4)).toEqual(['⭐ K. De Bruyne', 'One nation: 🇧🇷 Brazil', '📜 3rd-best points total in PL history', 'Seed K7Q2-MX9A'])
     expect(shareText(base)).toBe(shareText({ ...base, extraLines: [] }))
   })
+  it('names the finish in plain words, split by the position', () => {
+    const row = { ...base.row, won: 20, drawn: 8, lost: 10, points: 68 }
+    expect(shareText({ ...base, tier: 'EUROPEAN', position: 4, row }).split('\n')[2]).toBe('TOP-FOUR FINISH')
+    expect(shareText({ ...base, tier: 'EUROPEAN', position: 6, row }).split('\n')[2]).toBe('TOP-SIX FINISH')
+    expect(shareText({ ...base, tier: 'PERFECT', cupWon: true }).split('\n')[2]).toBe('PERFECT SEASON + CUP')
+    expect(shareText({ ...base, tier: 'EUROPEAN', position: 4, row })).not.toMatch(/nights/i)
+  })
 })

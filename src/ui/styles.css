@@ -1095,6 +1095,7 @@ table.tbl tr.clickable:hover {
 
 /* ------------------------------------------------------------------ misc */
 .tier-banner {
+  scroll-margin-top: 96px;
   text-align: center;
   padding: 26px 16px;
   border-radius: var(--radius);
@@ -1141,6 +1142,9 @@ table.tbl tr.clickable:hover {
 }
 .record .d {
   color: #cfd8d2;
+}
+:root[data-theme='light'] .record .d {
+  color: var(--text-3);
 }
 .record .l {
   color: var(--danger);
@@ -1997,11 +2001,16 @@ table.tbl tr.clickable:hover {
   background: color-mix(in srgb, var(--danger) 12%, var(--panel-2));
   border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
 }
-/* The game just played, at the top of a newest-first list: a touch larger, with a flash as it lands */
+/*
+ * A newest-first list: every row drops in with the same animation, so the row the next game pushes down keeps its
+ * animation name and does not fade in a second time when it loses .newest. The game just played is a touch larger.
+ */
+.gbg[data-order='newest'] .gbg-game {
+  animation: gbg-drop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
 .gbg-game.newest {
   padding: 10px 12px;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent);
-  animation: gbg-drop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 .gbg-game.newest .gbg-score {
   font-size: 22px;
@@ -2019,6 +2028,7 @@ table.tbl tr.clickable:hover {
 }
 .gbg-badge.W {
   background: var(--accent);
+  color: var(--accent-ink);
 }
 .gbg-badge.D {
   background: var(--gold);
@@ -2066,6 +2076,11 @@ table.tbl tr.clickable:hover {
 }
 .seg-mini {
   padding: 2px;
+  flex-wrap: nowrap;
+}
+.gbg > .panel-head {
+  flex-wrap: wrap;
+  align-items: center;
 }
 .seg-mini button {
   padding: 3px 8px;
@@ -2109,6 +2124,10 @@ table.tbl tr.clickable:hover {
 }
 .tally-box.d .tally-num {
   color: var(--gold);
+}
+/* The gold token is the dark theme's: on a white box the drawn count needs a deeper amber to read */
+:root[data-theme='light'] .tally-box.d .tally-num {
+  color: #a77b00;
 }
 .tally-box.l .tally-num {
   color: var(--danger);
@@ -2210,7 +2229,7 @@ table.tbl tr.clickable:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .gbg-game,
-  .gbg-game.newest,
+  .gbg[data-order='newest'] .gbg-game,
   .tier-banner .tier.pop {
     animation: none;
   }

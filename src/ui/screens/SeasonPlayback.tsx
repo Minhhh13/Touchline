@@ -79,7 +79,7 @@ export function SeasonPlayback() {
             </button>
           </div>
         )}
-        <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" title="Game by game" onHighlights={watch} />
+        <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title="Game by game" onHighlights={watch} />
         {quickBenchRule(game) && game.draft && game.draft.bench.length > 0 && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
         {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
       </div>
