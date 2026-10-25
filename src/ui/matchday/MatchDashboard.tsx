@@ -245,7 +245,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const banner = <CommentaryBanner d={d} />
   const slot = (id: SlotId) => <Slot key={id} slot={id} id={slots[id]} onChange={(w) => show(id, w)} d={d} compact={compact} />
 
-  if (compact) return <CompactLayout d={d} crumb={crumb} top={top} pitch={pitch} stop={stop} banner={banner} momentum={momentum} strip={strip} drawer={drawer} friendly={friendly} />
+  // Stacked, the momentum chart sits in a half-width box: the full chart (its own proportions, scale and spells), not the wide strip squashed
+  const momentumBox = <MomentumBar momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />
+  if (compact) return <CompactLayout d={d} crumb={crumb} top={top} pitch={pitch} stop={stop} banner={banner} momentum={momentumBox} strip={strip} drawer={drawer} friendly={friendly} />
 
   return (
     <div className="matchday fit" ref={root}>

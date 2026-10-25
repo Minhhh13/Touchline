@@ -10,7 +10,7 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
 import { TWIST_ICON } from '../components/icons'
-import { clubName, nationName, ordinal, seasonLabel } from '../format'
+import { clubName, formationName, nationName, ordinal, seasonLabel } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
 import { eraFirstSeason } from '@game/logic/era'
@@ -140,7 +140,7 @@ export function Draft() {
           <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The draft'}</h1>
           <div className="screen-meta">
             <span>
-              {game.settings.teamName} · {game.settings.formationId}
+              {game.settings.teamName} · {formationName(game.settings.formationId)}
             </span>
             {challenge && <span className="chip info">vs {challenge.name} · {challenge.claim.pts} pts</span>}
             {d.rules.onlyClub && <span className="chip">{clubName(u, d.rules.onlyClub)} only</span>}
@@ -416,7 +416,7 @@ export function Draft() {
         <div className="col draft-pitch">
           <div className="panel">
             <div className="panel-head">
-              <h3>{game.settings.formationId}</h3>
+              <h3>{formationName(game.settings.formationId)}</h3>
               <span className={`chip ${Object.keys(d.lineup).length === 11 ? 'good' : ''}`}>{Object.keys(d.lineup).length}/11 starters</span>
             </div>
             <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hide} />

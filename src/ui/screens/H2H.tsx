@@ -14,7 +14,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Info, Segmented, Stat, TeamBadge } from '../components/bits'
 import { FormationPicker } from '../components/FormationPicker'
 import { LeagueFlag } from '../components/Flag'
-import { clubName, ordinal, seasonLabel, tierName } from '../format'
+import { clubName, formationName, ordinal, seasonLabel, tierName } from '../format'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
@@ -328,7 +328,7 @@ export function H2HScreen() {
                 <span className="club-head">
                   <ClubBadge clubId={h2h.managers[i].hostClubId} size={24} />
                   <h3>
-                    {h2h.managers[i].name} · {h2h.managers[i].formationId}
+                    {h2h.managers[i].name} · {formationName(h2h.managers[i].formationId)}
                   </h3>
                 </span>
                 <span className={`chip icon-chip ${isComplete(d.drafts[i]) ? 'good' : ''}`}>

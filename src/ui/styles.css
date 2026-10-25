@@ -87,7 +87,8 @@
   --info: var(--accent);
   --gold: #f5c542;
   --gold-text: #f5c542;
-  --draw: #a3adbf;
+  /* Draws are amber everywhere (the W/D/L rule: --good, --meter-mid, --bad); --draw stays as an alias */
+  --draw: var(--meter-mid);
   --on-status: #07102e;
   --good-soft: color-mix(in srgb, var(--good) 14%, transparent);
   --warn-soft: color-mix(in srgb, var(--warn) 14%, transparent);
@@ -227,7 +228,7 @@
   --warn: #b03a0a;
   --bad: #b91c1c;
   --gold-text: #805a00;
-  --draw: #5f6b80;
+  --draw: var(--meter-mid);
   --on-status: #ffffff;
   --good-soft: color-mix(in srgb, var(--good) 10%, transparent);
   --warn-soft: color-mix(in srgb, var(--warn) 10%, transparent);
@@ -1129,6 +1130,40 @@ label.field,
   background: var(--bad-soft);
   border-color: color-mix(in srgb, var(--bad) 30%, transparent);
 }
+/* Results: one rule everywhere, a win --good, a draw --meter-mid (amber), a loss --bad (outcomeClass in format.ts) */
+.res-w {
+  color: var(--good);
+}
+.res-d {
+  color: var(--meter-mid);
+}
+.res-l {
+  color: var(--bad);
+}
+.chip.res-w {
+  color: var(--good);
+  background: var(--good-soft);
+  border-color: color-mix(in srgb, var(--good) 30%, transparent);
+}
+.chip.res-d {
+  color: var(--meter-mid);
+  background: color-mix(in srgb, var(--meter-mid) 14%, transparent);
+  border-color: color-mix(in srgb, var(--meter-mid) 34%, transparent);
+}
+.chip.res-l {
+  color: var(--bad);
+  background: var(--bad-soft);
+  border-color: color-mix(in srgb, var(--bad) 30%, transparent);
+}
+.outcome-word {
+  font-weight: 700;
+}
+.fixture .sc .pens {
+  margin-left: 4px;
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
 .chip.gold {
   color: var(--gold-text);
   background: var(--gold-soft);
@@ -1469,7 +1504,8 @@ label.field,
   align-items: center;
   gap: 2px;
   cursor: pointer;
-  width: 84px;
+  /* The width is the slot's label room (--room, from Pitch.tsx): the gap to a level team-mate, capped */
+  width: var(--room, 84px);
 }
 .pitch-wrap .slot .disc {
   width: 44px;
@@ -1513,16 +1549,16 @@ label.field,
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   text-align: center;
   line-height: 1.1;
-  max-width: 84px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .pitch-wrap .slot .sub {
-  font-size: 10px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  max-width: 84px;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2016,12 +2052,12 @@ table.tbl.contracts .btn.sm {
   gap: 2px;
 }
 .form span {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 3px;
   display: inline-grid;
   place-items: center;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--on-status);
 }
@@ -2092,12 +2128,15 @@ table.tbl.contracts .btn.sm {
   background: var(--warn);
 }
 @media (max-width: 720px) {
-  /* One row that scrolls sideways instead of three rows of tabs */
+  /* One row that scrolls sideways instead of three rows of tabs; the right edge fades so the tabs past it read as more */
   .tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    padding-right: 28px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
   .tabs::-webkit-scrollbar {
     display: none;
@@ -2945,10 +2984,7 @@ table.tbl.contracts .btn.sm {
   color: var(--good);
 }
 .record .d {
-  color: var(--draw);
-}
-:root[data-theme='light'] .record .d {
-  color: var(--text-3);
+  color: var(--meter-mid);
 }
 .record .l {
   color: var(--bad);
@@ -3450,6 +3486,47 @@ table.tbl.contracts .btn.sm {
   font-size: 13px;
   padding: 2px 0;
 }
+/* A briefing line's button sits right after its text, not at the far edge of a wide panel */
+.briefing .brief {
+  grid-template-columns: 18px minmax(0, max-content) auto auto;
+  justify-content: start;
+}
+.briefing-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  min-width: 0;
+}
+.brief-toggle {
+  display: none;
+}
+/*
+ * A short desktop window: the briefing is one slim line with "+n more"; the rest opens as a card over the tab,
+ * so the tab's box keeps its height (the one-screen rule: the header, the briefing and the tab bar stay put).
+ */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .briefing-wrap.collapsible .brief-toggle {
+    display: inline-flex;
+  }
+  .briefing-wrap.collapsible .brief-rest {
+    display: none;
+  }
+  .briefing-wrap.collapsible.open .brief-rest {
+    display: flex;
+    position: absolute;
+    top: 100%;
+    left: -10px;
+    right: -10px;
+    z-index: 40;
+    margin-top: 6px;
+    padding: var(--space-2) 10px;
+    background: var(--panel);
+    border: var(--border-strong);
+    border-radius: var(--radius-s);
+    box-shadow: var(--shadow);
+  }
+}
 .brief .icon,
 .bar-brief .icon {
   text-align: center;
@@ -3513,22 +3590,34 @@ table.tbl.contracts .btn.sm {
     box-shadow: var(--shadow);
     align-items: stretch;
   }
-  .cta-bar .bar-brief {
-    display: grid;
+  /* The bar is the buttons only: the briefing line is already in the card above, and Play, Sim 5 and Sim to end share one row */
+  .cta-bar {
+    gap: 6px;
   }
-  .cta-bar .bar-brief .text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .cta-bar .bar-brief {
+    display: none;
+  }
+  .cta-bar .btns {
+    flex-wrap: nowrap;
+    gap: 6px;
   }
   .cta-bar .btns .btn {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     padding-left: 10px;
     padding-right: 10px;
   }
   .cta-bar .btns .btn.primary.big {
-    flex: 3 1 auto;
+    flex: 1 1 auto;
+    min-width: 0;
     order: -1;
+    font-size: 15px;
+    padding: 10px 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cta-bar .btns .btn.primary.big .mode-tag {
+    display: none;
   }
 }
 /* The start bar: the choice summary and the one button that matters. Fixed to the bottom on phones. */
@@ -3838,12 +3927,69 @@ table.tbl.contracts .btn.sm {
 }
 .legend-row {
   display: grid;
-  grid-template-columns: 28px 36px minmax(0, 1fr) auto auto auto;
+  grid-template-columns: 28px 36px minmax(0, 1.5fr) 32px minmax(0, 0.8fr) minmax(0, 1.3fr) 62px 34px 40px;
+  grid-template-areas: 'n r name age pos club season est star';
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
   border-bottom: 1px solid var(--line);
   font-size: 13.5px;
+}
+.legend-row > :nth-child(1) {
+  grid-area: n;
+}
+.legend-row > :nth-child(2) {
+  grid-area: r;
+}
+.legend-row > .lg-name {
+  grid-area: name;
+  min-width: 0;
+}
+.legend-row > .lg-age {
+  grid-area: age;
+  text-align: right;
+}
+.legend-row > .lg-pos {
+  grid-area: pos;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.legend-row > .lg-club {
+  grid-area: club;
+  min-width: 0;
+  justify-content: flex-start;
+}
+.legend-row > .lg-club .ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.legend-row > .lg-season {
+  grid-area: season;
+}
+.legend-row > .lg-est {
+  grid-area: est;
+}
+.legend-row > .lg-star {
+  grid-area: star;
+  justify-self: end;
+}
+.legend-head {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+.legend-head > .lg-star {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+}
+/* Search covers every league: the league tabs above it step back so they do not read as a filter */
+.explore-bar.all-leagues .segmented {
+  opacity: 0.5;
 }
 .notice {
   padding: 10px var(--space-3);
@@ -3969,6 +4115,9 @@ table.tbl.contracts .btn.sm {
 .gbg-strip .w {
   color: var(--good);
 }
+.gbg-strip .d {
+  color: var(--meter-mid);
+}
 .gbg-strip .l {
   color: var(--danger);
 }
@@ -4038,11 +4187,12 @@ table.tbl.contracts .btn.sm {
   color: #0b1410;
 }
 .gbg-badge.W {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--good);
+  color: var(--on-status);
 }
 .gbg-badge.D {
-  background: var(--gold);
+  background: var(--meter-mid);
+  color: var(--on-status);
 }
 .gbg-badge.L {
   background: var(--danger);
@@ -4131,14 +4281,10 @@ table.tbl.contracts .btn.sm {
   color: var(--text-3);
 }
 .tally-box.w .tally-num {
-  color: var(--accent);
+  color: var(--good);
 }
 .tally-box.d .tally-num {
-  color: var(--gold);
-}
-/* The gold token is the dark theme's: on a white box the drawn count needs a deeper amber to read */
-:root[data-theme='light'] .tally-box.d .tally-num {
-  color: #a77b00;
+  color: var(--meter-mid);
 }
 .tally-box.l .tally-num {
   color: var(--danger);
@@ -4364,6 +4510,13 @@ table.tbl.contracts .btn.sm {
 }
 .grid.two.charts {
   gap: 10px;
+}
+.momentum-spells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  color: var(--text-2);
 }
 .mchart {
   background: var(--panel-2);
@@ -5029,7 +5182,8 @@ table.tbl.contracts .btn.sm {
   box-shadow: 0 0 0 1px var(--line);
 }
 .pitch-wrap .slot .sub {
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
 }
 
 /* The Draft */
@@ -5742,6 +5896,15 @@ table.tbl.contracts .btn.sm {
   color: var(--gold-text);
   flex: none;
 }
+/* The winner's trophy sits in the card's corner, so both managers' names get the same room and the cards line up */
+.h2h-side {
+  position: relative;
+}
+.h2h-side .h2h-cup {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+}
 /* Explore */
 .explore-bar {
   display: flex;
@@ -5830,8 +5993,18 @@ table.tbl.contracts .btn.sm {
   border: var(--border);
   text-align: center;
 }
-.cabinet-slot.empty {
-  opacity: 0.45;
+/* An empty slot fades only its drawn icon; the zero and the label keep their contrast */
+.cabinet-slot.empty .cabinet-icon {
+  opacity: 0.4;
+}
+.cabinet-slot.empty .cabinet-n {
+  color: var(--text-3);
+}
+.cabinet-slot > .small {
+  overflow-wrap: break-word;
+  hyphens: auto;
+  max-width: 100%;
+  line-height: 1.2;
 }
 .cabinet-n {
   font-family: var(--font-display);
@@ -6171,22 +6344,16 @@ table.tbl.match-stats th {
 }
 @media (max-width: 520px) {
   .legend-row {
-    grid-template-columns: 22px 36px minmax(0, 1fr) auto;
+    grid-template-columns: 22px 36px minmax(0, 1fr) auto auto;
+    grid-template-areas: 'n r name age star' 'n r club club season';
     row-gap: 2px;
   }
-  .legend-row > :nth-child(4) {
-    grid-column: 3;
-    grid-row: 2;
+  .legend-row > .lg-pos,
+  .legend-row > .lg-est {
+    display: none;
   }
-  .legend-row > :nth-child(5) {
-    grid-column: 4;
-    grid-row: 2;
+  .legend-row > .lg-season {
     text-align: right;
-  }
-  .legend-row > :nth-child(6) {
-    grid-column: 4;
-    grid-row: 1;
-    justify-self: end;
   }
   .steps {
     grid-template-columns: 1fr;
@@ -7624,4 +7791,80 @@ table.tbl.contracts-overview td:nth-child(5) {
 }
 table.tbl.contracts-overview .link-btn.name {
   max-width: 100%;
+}
+
+/* The match replay: the tabs and the buttons share one slim row above the dashboard */
+.replay-head {
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+.replay-head > .tabs {
+  margin: 0;
+  border-bottom: 0;
+}
+
+/* The shot map's key: drawn markers, at the legend's own size */
+.shot-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+}
+.shot-key-mark {
+  flex: none;
+  margin-left: 6px;
+}
+.shot-key-mark:first-child {
+  margin-left: 0;
+}
+
+/* Phones: small controls keep a 36px tap target (the info button already has a 38px one around it) */
+@media (max-width: 720px) {
+  .btn.sm,
+  .chip-btn {
+    min-height: 36px;
+  }
+  .star[role='button'] {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+  }
+  .star[role='button']::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
+}
+
+/* The digest's development report: improving and fading as two short lines */
+.dev-report .dev-line {
+  margin-top: 2px;
+}
+.dev-report .dev-line > span:first-child {
+  font-weight: 700;
+}
+
+/* A narrow phone: the hero's figures keep clear of the card's right edge */
+@media (max-width: 420px) {
+  .hero-stats {
+    gap: var(--space-3);
+  }
+  .hero-stats dd {
+    font-size: 20px;
+  }
+}
+
+/* The opposition report's danger men: a name stays on one line ("I. Ndiaye", never "I." over "Ndiaye") */
+.danger-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A very wide window: the Dugout uses the room rather than sitting in a 1600px column */
+@media (min-width: 2200px) {
+  .app.shell > .page.dugout-page {
+    max-width: 2000px;
+  }
 }

@@ -17,7 +17,7 @@ import { LeagueFlag, NationFlag } from '../components/Flag'
 import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, SeasonRange } from '../components/SetupBits'
-import { clubName } from '../format'
+import { clubName, formationName } from '../format'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 const MODE_LINE: Record<Mode, string> = {
@@ -251,12 +251,12 @@ export function Setup() {
             {teamField}
             {fixed.kind === 'daily' && (
               <div className="notice" data-testid="daily-notice">
-                Today's puzzle: everyone drafts a <b>{fixed.formationId}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {fixed.seed}.
+                Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, as <b>{u.clubById[fixed.host]?.name}</b> in the <b>{seasonLabel(fixed.season)}</b> league, calibrated difficulty. Seed {fixed.seed}.
               </div>
             )}
             {fixed.kind === 'challenge' && challenge && (
               <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
-                <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts as {clubName(u, fixed.host)} {seasonLabel(fixed.season)}, {fixed.formationId} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
+                <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts as {clubName(u, fixed.host)} {seasonLabel(fixed.season)}, {formationName(fixed.formationId)} ({TIER_LABEL[challenge.claim.t]}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
                 Same seed, same wheel, {fixed.difficulty} difficulty
                 {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
                 {fixed.rules?.twists ? ', twists on' : ', no twists'}
@@ -524,7 +524,7 @@ export function Setup() {
                   <span className="help">
                     {onlyNation && nations.some((n) => n.nation === onlyNation)
                       ? <><NationFlag nation={onlyNation} named /> Every pick, signing and academy prospect comes from {nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.</>
-                      : `${nations.length} nations have ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}.`}
+                      : `${nations.length} nations have ${NATION_SLOT_COVER}× the players for every position in a ${formationName(formationId)}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}.`}
                   </span>
                 </label>
               </>

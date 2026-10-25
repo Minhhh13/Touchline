@@ -8,7 +8,7 @@ import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../co
 import { RedCard, YellowCard } from '../components/icons'
 import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { clubName, clubShort, minuteLabel } from '../format'
+import { clubName, clubShort, minuteLabel, outcomeClass, outcomeOf } from '../format'
 import { playerLookup } from '@game/logic/players'
 import type { Appearance, FullMatchResult } from '@engine/match'
 import { feedFromResult } from '@engine/matchFeed'
@@ -120,9 +120,13 @@ export function MatchScreen() {
     closeMatch()
   }
 
+  const tabs = <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
+  const replay = matchView === 'ticker'
   return (
-    <div className={`page ${matchView === 'ticker' ? 'matchday-page' : ''}`}>
-      <div className="row between wrap" style={{ marginBottom: 10 }}>
+    <div className={`page ${replay ? 'matchday-page' : ''}`}>
+      {/* The replay's dashboard names the match in its own line, so the page head is one slim row: the tabs and the buttons */}
+      <div className={`row between wrap ${replay ? 'replay-head' : ''}`} style={{ marginBottom: 10 }}>
+        {replay ? tabs : (
         <div>
           <h2>
             <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
@@ -133,6 +137,7 @@ export function MatchScreen() {
             {homeName} v {awayName}
           </div>
         </div>
+        )}
         <div className="row">
           {game.lastCupMatch && !cupNext && (
             <div className="segmented">
@@ -150,7 +155,7 @@ export function MatchScreen() {
         </div>
       </div>
 
-      <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
+      {!replay && tabs}
 
       {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} />}
       {matchView === 'report' && <Report res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
@@ -207,7 +212,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
               {res.homeGoals} - {res.awayGoals}
             </div>
             <div className="clock">
-              {outcome.toUpperCase()} · HT {res.halfTimeScore.home}-{res.halfTimeScore.away}
+              <span className={`outcome-word ${outcomeClass(userIsHome ? outcomeOf(res.homeGoals, res.awayGoals) : outcomeOf(res.awayGoals, res.homeGoals))}`} data-testid="report-outcome">{outcome.toUpperCase()}</span> · HT {res.halfTimeScore.home}-{res.halfTimeScore.away}
             </div>
           </div>
           <div className="team away">

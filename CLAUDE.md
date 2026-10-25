@@ -51,7 +51,7 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - `screenText.ts` short labels in place of sentences (`modeLabel`, `versusReal`, `shownGames`), pure and tested.
   - `motion.ts` View Transitions (`withViewTransition`), `useCountUp`, the celebration (`celebrationFor`, `confettiPieces`), presentation only; the motion tokens (`--dur-*`, `--ease-*`) and rules are in `docs/DESIGN_SYSTEM.md` section 12.
   - One screen (the season flow): Squad complete, the playback and January are app-shell screens (`.app.shell` in `App.tsx`, every game phase but the match) laid out as `.page.fit` with `.fit-grid`/`.fit-cell` boxes, no page scroll at 1100 px wide and up, each box scrolling inside itself; the quick summary uses the redesign's `.page.summary` (result banner | body). Phones stack. Keep new panels on those screens inside a box.
-  - `styles.css` one global stylesheet: design tokens on `:root` (Floodlit, dark) and `[data-theme='light']` (Daylight), then every shared component; `brand.ts` (`APP_NAME`, the mark's geometry, `BRAND_COLOURS` for canvas drawing) and `components/Logo.tsx`; `format.ts` display helpers (`tierName`, `conditionColour`, `fitRingColour`); `shareCard.ts` canvas PNGs (the result card and the match card).
+  - `styles.css` one global stylesheet: design tokens on `:root` (Floodlit, dark) and `[data-theme='light']` (Daylight), then every shared component; `brand.ts` (`APP_NAME`, the mark's geometry, `BRAND_COLOURS` for canvas drawing) and `components/Logo.tsx`; `format.ts` display helpers (`tierName`, `conditionColour`, `fitRingColour`, `meterValue` for any 0-100 meter, `formationName` for any formation shown, `outcomeClass`/`outcomeOf` for W/D/L colour, `inkOn` for text on a kit colour); `shareCard.ts` canvas PNGs (the result card and the match card).
   - The look is specified in `docs/DESIGN_SYSTEM.md`: use its tokens and components, no raw colours (the pitch's fixed whites and club kit colours excepted).
 - `src/main.tsx` React root; registers `public/sw.js` on production builds only.
 - `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`, and `england/players-classic.json` (the classic seasons 1992-93 to 2007-08, same columns, loaded only when `leagues.json` gives the league a `classicFrom`). Committed; they are also the test fixtures.
@@ -116,6 +116,8 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - New fields holding player-season ids must be remapped in `advanceToNextSeason` (dynasty) and cleared in `releasePlayer`.
 - Write the product name as TouchLine (`APP_NAME`); the default team name "Touchline XI" and lower-case slugs (`touchline-save-v1`, file names) stay as they are. Titles and buttons in sentence case; tiers through `tierName()`.
 - Colours: `--good` for good outcomes, `--primary` for actions and selection, `--accent` for highlights and info, `--meter-mid` (never `--gold`) for the middle band of a bar, `.chip.info` for a state such as "in the XI".
+- Results: a win is `--good`, a draw `--meter-mid` (amber; `--draw` is only an alias), a loss `--bad`, everywhere: use `outcomeClass()` and `.res-w`/`.res-d`/`.res-l`, never a grey or `.chip.warn` draw.
+- Never print a raw meter float or a formation id: `meterValue(v)` and `formationName(id)` (`'4-4-2-diamond'` reads "4-4-2 Diamond").
 
 ## Adding a feature end to end
 

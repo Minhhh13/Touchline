@@ -83,7 +83,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
           {stars.map((p) => (
             <div key={p.id} className="row" style={{ gap: 8 }}>
               <Rating value={p.overall} />
-              <span>{p.name}</span>
+              <span className="danger-name" title={p.name}>{p.name}</span>
               <Pos p={p.positions[0]} />
               {p.positions[0] !== 'GK' && (
                 <button type="button" className={`btn sm ${game?.markTarget === p.id ? 'primary' : 'ghost'}`} title="Man-mark him: his influence drops, your attack loses a little" onClick={() => setMarkTarget(game?.markTarget === p.id ? undefined : p.id)}>

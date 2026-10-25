@@ -7,6 +7,7 @@ import { personalityOf } from '@game/logic/personality'
 import { playerLookup } from '@game/logic/players'
 import { Bar, Info } from '../components/bits'
 import { moraleClass, signed } from '../components/Happiness'
+import { meterValue } from '../format'
 
 const surname = surnameOf
 
@@ -51,7 +52,7 @@ export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }
                       <span className="small muted">{[...r.reasons, p ? personalityOf(p).label : ''].filter(Boolean).join(' · ')}</span>
                     </span>
                     <span className={`chip ${moraleClass(r.morale)}`} title="Morale">
-                      {r.morale}
+                      {meterValue(r.morale)}
                     </span>
                   </button>
                 )
@@ -88,7 +89,7 @@ export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }
               <div className="row between" style={{ gap: 'var(--space-2)' }}>
                 <b className="one-line">{g.label}</b>
                 <span className={`chip ${moraleClass(g.morale)}`} title="Average morale">
-                  {g.morale}
+                  {meterValue(g.morale)}
                 </span>
               </div>
               <div className="small muted">
@@ -121,7 +122,7 @@ export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }
                 <b>{r.name}</b>
                 <span className="small muted one-line">{h.main ? `${h.main.text} ${signed(h.main.delta)}` : 'Nothing recorded yet'}</span>
               </span>
-              <span className={`chip ${moraleClass(h.morale)}`}>{h.morale}</span>
+              <span className={`chip ${moraleClass(h.morale)}`}>{meterValue(h.morale)}</span>
             </button>
           ))}
         </div>

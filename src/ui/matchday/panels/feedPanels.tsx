@@ -10,6 +10,7 @@ import { statsAt } from '@engine/matchStats'
 import { isAvailable } from '@game/logic/players'
 import { minuteLabel } from '../../format'
 import { changeText, latestLine, type CommentaryLine } from '../../match/commentary'
+import { momentumScale } from '../../match/charts'
 import { surname } from '../../match/shirts'
 import { ChangeIcon, EventIcon, SubIcon } from '../icons'
 import { keyItems, momentumSpells, statRows } from '../model'
@@ -108,24 +109,43 @@ export function MomentumWidget({ d }: PanelProps) {
   const W = 360
   const H = 110
   const mid = 52
-  const step = 19
-  const bw = 16
-  const x0 = 10
+  const x0 = 30
+  const step = (W - x0 - 4) / MOMENTUM_BINS
+  const bw = step * 0.84
+  const amp = 40
   const m = d.feed.momentum
   const spells = momentumSpells(m, d.minute)
+  // Scaled to the biggest swing so far; the gutter says what a full bar means
+  const scale = momentumScale(m, d.minute)
+  const top = Math.round((0.5 + scale) * 100)
   return (
     <div className="md-momentum" data-testid="momentum-widget">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Match momentum by five-minute spell">
-        <line x1={x0} y1={mid} x2={x0 + MOMENTUM_BINS * step} y2={mid} stroke="var(--line-2)" />
-        <line x1={x0 + 9 * step - 1} y1={4} x2={x0 + 9 * step - 1} y2={H - 14} stroke="var(--line-2)" strokeDasharray="2 2" />
+        <line x1={x0} y1={mid - amp} x2={W - 4} y2={mid - amp} stroke="var(--line)" strokeDasharray="1 3" />
+        <line x1={x0} y1={mid + amp} x2={W - 4} y2={mid + amp} stroke="var(--line)" strokeDasharray="1 3" />
+        <line x1={x0} y1={mid} x2={W - 4} y2={mid} stroke="var(--line-2)" />
+        {[
+          [mid - amp, `${top}%`],
+          [mid, '50'],
+          [mid + amp, `${top}%`],
+        ].map(([y, t]) => (
+          <text key={String(y)} x={x0 - 4} y={Number(y) + 3} fontSize="8" fill="var(--text-2)" textAnchor="end">
+            {t}
+          </text>
+        ))}
+        <line x1={x0 + 9 * step - 1} y1={4} x2={x0 + 9 * step - 1} y2={H - 14} stroke="var(--text-3)" strokeDasharray="2 2" />
         {m.slice(0, MOMENTUM_BINS).map((v, i) => {
           const frac = Math.max(0, Math.min(1, (d.minute - i * 5) / 5))
           if (frac <= 0) return null
-          const h = (v - 0.5) * 2 * 44 * frac
-          return <rect key={i} x={x0 + i * step} y={h >= 0 ? mid - h : mid} width={bw} height={Math.max(0.5, Math.abs(h))} rx="2" fill={h >= 0 ? d.home.colour : d.away.colour} stroke="var(--text-3)" strokeWidth="0.75" opacity="0.95" />
+          const h = Math.max(-1, Math.min(1, (v - 0.5) / scale)) * amp * frac
+          return (
+            <rect key={i} x={x0 + i * step} y={h >= 0 ? mid - h : mid} width={bw} height={Math.max(0.5, Math.abs(h))} rx="2" fill={h >= 0 ? d.home.colour : d.away.colour} stroke="var(--text-2)" strokeWidth="0.6" strokeOpacity="0.6">
+              <title>{`${i * 5 + 1}-${i * 5 + 5}': ${h >= 0 ? d.home.code : d.away.code} ${Math.round((h >= 0 ? v : 1 - v) * 100)}%`}</title>
+            </rect>
+          )
         })}
         {[0, 45, 90].map((x) => (
-          <text key={x} x={x0 + (x / 5) * step} y={H - 3} fontSize="8" fill="var(--text-3)" textAnchor={x === 0 ? 'start' : 'middle'}>
+          <text key={x} x={x0 + (x / 5) * step} y={H - 3} fontSize="8" fill="var(--text-3)" textAnchor={x === 0 ? 'start' : x === 90 ? 'end' : 'middle'}>
             {x === 0 ? "0'" : x === 45 ? 'HT' : "90'"}
           </text>
         ))}

@@ -29,3 +29,17 @@ export function shownGames(revealed: number, fold: number | undefined, expanded:
   if (!fold || expanded || playing) return revealed
   return Math.min(revealed, fold)
 }
+
+/**
+ * The weekly development report's body ("Improving: A. Name 71→72, B 70→71. Fading: C 80→79.") as two lists, so the
+ * digest can show them one player a line; null when the body is in any other shape (it is then shown as it is).
+ */
+export function developmentLists(body: string): { improving: string[]; fading: string[] } | null {
+  const part = (label: string) => {
+    const m = body.match(new RegExp(`${label}: (.*?→\\d+)\\.(?:\\s|$)`))
+    return m ? m[1].split(', ').filter(Boolean) : []
+  }
+  const improving = part('Improving')
+  const fading = part('Fading')
+  return improving.length || fading.length ? { improving, fading } : null
+}

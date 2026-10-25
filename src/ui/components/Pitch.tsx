@@ -1,7 +1,33 @@
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Formation, PlayerSeason, SquadPlayer } from '@engine/types'
 import { describeFit } from '@engine/positions'
 import { discRating } from '@game/logic/slotSheet'
 import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
+import { surname } from '../match/shirts'
+import { labelRoom } from '../matchday/model'
+
+/** Rough text widths (px per character) of the slot label and its role line (both 11px), to pick a form that fits. */
+const NAME_CH = 6.4
+const SUB_CH = 6.3
+/** The widest a slot's label may be, and what it falls back to before the pitch is measured. */
+const LABEL_MAX = 110
+const PITCH_GUESS = 300
+
+/**
+ * Each slot's label room in px: the gap to the nearest team-mate level with him (so two centre-backs' names never run
+ * into each other), and never past the touchline.
+ */
+function slotRooms(formation: Formation, width: number): Record<string, number> {
+  const gaps = labelRoom(formation.slots.map((sl) => ({ id: sl.id, left: sl.x, top: 100 - sl.y })), 9)
+  const out: Record<string, number> = {}
+  for (const sl of formation.slots) {
+    const gap = gaps[sl.id]
+    const edge = 2 * Math.min(sl.x, 100 - sl.x)
+    const pct = Math.min(gap ?? 100, edge + 6)
+    out[sl.id] = Math.max(40, Math.min(LABEL_MAX, (pct / 100) * width - 6))
+  }
+  return out
+}
 
 export interface PitchProps {
   formation: Formation
@@ -13,11 +39,23 @@ export interface PitchProps {
   eligibleSlots?: string[]
   hideRatings?: boolean
   showRoles?: Record<string, string>
+  /** Short forms of `showRoles` (role codes), shown when the full role does not fit the slot; the full one is in the tooltip. */
+  roleCodes?: Record<string, string>
 }
 
-export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, selectedSlot, eligibleSlots, hideRatings, showRoles }: PitchProps) {
+export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, selectedSlot, eligibleSlots, hideRatings, showRoles, roleCodes }: PitchProps) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(PITCH_GUESS)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setWidth(Math.round(el.getBoundingClientRect().width) || PITCH_GUESS))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const rooms = useMemo(() => slotRooms(formation, width), [formation, width])
   return (
-    <div className="pitch-wrap" role="group" aria-label="Formation">
+    <div className="pitch-wrap" role="group" aria-label="Formation" ref={ref}>
       <svg viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true">
         <g fill="none" style={{ stroke: 'var(--pitch-line)' }} strokeWidth="2">
           <rect x="8" y="8" width="284" height="384" />
@@ -44,13 +82,24 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         // y is from own goal (bottom) to opposition goal (top)
         const left = `${slot.x}%`
         const top = `${100 - slot.y}%`
+        // The label's form: the full name and role when they fit the slot's room, else the surname and the role code
+        const room = rooms[slot.id]
+        const fitNote = fit !== 'natural' ? (fit === 'accomplished' ? ' · acc.' : ' · awk.') : ''
+        const role = showRoles?.[slot.id] ?? slot.position
+        const name = p ? (p.name.length * NAME_CH <= room ? p.name : surname(p.name)) : ''
+        const sub = (role + fitNote).length * SUB_CH <= room ? role : roleCodes?.[slot.id] ?? role
         return (
-          <div key={slot.id} className="slot" style={{ left, top }} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
+          <div key={slot.id} className="slot" style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}` : undefined} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
             <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={ring ? { borderColor: ring } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
             </div>
-            <div className="label">{p ? p.name : ''}</div>
-            {p && <div className="sub">{showRoles?.[slot.id] ?? slot.position}{fit !== 'natural' ? (fit === 'accomplished' ? ' · acc.' : ' · awk.') : ''}</div>}
+            <div className="label">{name}</div>
+            {p && (
+              <div className="sub">
+                {sub}
+                {fitNote}
+              </div>
+            )}
           </div>
         )
       })}

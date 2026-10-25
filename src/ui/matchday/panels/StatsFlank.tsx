@@ -14,7 +14,7 @@ export function StatsFlank({ d, side }: PanelProps & { side: 'home' | 'away' }) 
       </div>
       <dl>
         {flankRows(line).map((r) => (
-          <div key={r.key} className="md-flank-row">
+          <div key={r.key} className="md-flank-row" data-stat={r.key}>
             <dt>{r.label}</dt>
             <dd className="mono">{r.value}</dd>
           </div>

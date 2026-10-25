@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Check, GraduationCap, Globe, Medal, MessageSquare, Star, TrendingDown, TrendingUp, Trophy, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
@@ -28,7 +28,8 @@ import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, TeamBa
 import { BriefingIcon, NewsIcon } from '../components/icons'
 import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
 import { LeagueFlag } from '../components/Flag'
-import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
+import { roleCode } from '../match/shirts'
+import { clubName, clubShort, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
 import type { Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
@@ -116,7 +117,7 @@ export function Dugout() {
   })
 
   return (
-    <div className={`page ${done ? '' : 'has-bottom-bar'}`} style={!done && barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page dugout-page ${done ? '' : 'has-bottom-bar'}`} style={!done && barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       {/* Header */}
       <div className="panel club-header">
         <div className="club-head">
@@ -356,7 +357,7 @@ export function Dugout() {
                   ))}
                 </span>
               </div>
-              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} roleCodes={Object.fromEntries(formation.slots.map((s) => [s.id, roleCode(game.tactics, s.id, s.position)]))} />
               {showKey && <PitchLegend />}
               {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.join(', ')}</div>}
             </div>
@@ -429,7 +430,7 @@ export function Dugout() {
                 const r = f.result
                 const gf = r ? (home ? r.homeGoals : r.awayGoals) : null
                 const ga = r ? (home ? r.awayGoals : r.homeGoals) : null
-                const cls = gf === null ? '' : gf > ga! ? 'good' : gf === ga ? '' : 'bad'
+                const cls = gf === null || ga === null ? '' : outcomeClass(outcomeOf(gf, ga))
                 return (
                   <div key={f.matchweek} className="fixture me">
                     <span className="mw">MW {f.matchweek}</span>
@@ -586,29 +587,52 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
   )
 }
 
-/** The assistant's briefing: one line per thing to do, with the button that does it. */
+/**
+ * The assistant's briefing: one line per thing to do, with the button that does it. On a short desktop window
+ * (styles.css) only the first line shows, with a "+n more" button that opens the rest over the tab rather than
+ * pushing the tab's box down; elsewhere the toggle is hidden and every line shows.
+ */
 function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
+  const [open, setOpen] = useState(false)
   if (items.length === 0) return null
+  const line = (item: BriefingItem, toggle?: ReactNode) => (
+    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
+      <span className="icon" aria-hidden="true">
+        <BriefingIcon item={item} size={15} />
+      </span>
+      <span className="text">
+        {item.text}
+        {item.hint && <Info label={`About: ${item.text}`}>{item.hint}</Info>}
+      </span>
+      {/* Play friendly is the panel's own button, so the checklist line does not repeat it */}
+      {item.action && item.action.op !== 'friendly' ? (
+        <button className="btn sm" onClick={() => onAction(item.action!)}>
+          {item.action.label}
+        </button>
+      ) : (
+        <span />
+      )}
+      {toggle}
+    </li>
+  )
+  if (checklist || items.length === 1) {
+    return (
+      <div className="briefing-wrap" data-testid="briefing">
+        <ul className={`briefing ${checklist ? 'checklist' : ''}`}>{items.map((item) => line(item))}</ul>
+      </div>
+    )
+  }
+  const [first, ...rest] = items
+  const toggle = (
+    <button type="button" className="chip-btn brief-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)} data-testid="briefing-more">
+      {open ? 'Less' : `+${rest.length} more`}
+    </button>
+  )
   return (
-    <ul className={`briefing ${checklist ? 'checklist' : ''}`} data-testid="briefing">
-      {items.map((item) => (
-        <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
-          <span className="icon" aria-hidden="true">
-            <BriefingIcon item={item} size={15} />
-          </span>
-          <span className="text">
-            {item.text}
-            {item.hint && <Info label={`About: ${item.text}`}>{item.hint}</Info>}
-          </span>
-          {/* Play friendly is the panel's own button, so the checklist line does not repeat it */}
-          {item.action && item.action.op !== 'friendly' && (
-            <button className="btn sm" onClick={() => onAction(item.action!)}>
-              {item.action.label}
-            </button>
-          )}
-        </li>
-      ))}
-    </ul>
+    <div className={`briefing-wrap collapsible ${open ? 'open' : ''}`} data-testid="briefing">
+      <ul className="briefing">{line(first, toggle)}</ul>
+      <ul className="briefing brief-rest">{rest.map((item) => line(item))}</ul>
+    </div>
   )
 }
 
@@ -791,13 +815,18 @@ function CupTab({ comp }: { comp: Competition }) {
                 const me = t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM
                 const name = (id: string) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))
                 return (
-                  <div key={i} className={`fixture ${me ? 'me' : ''}`}>
-                    <span className="mw">{t.result ? '' : 'v'}</span>
-                    <span className="h" style={{ fontWeight: t.winnerId === t.homeTeamId ? 700 : 400 }}>
-                      {name(t.homeTeamId)}
+                  <div key={i} className={`fixture ${me ? 'me' : ''}`} data-testid="cup-tie">
+                    <span className="mw">MW {r.afterMatchweek}</span>
+                    <span className="h row" style={{ justifyContent: 'flex-end', gap: 6, fontWeight: t.winnerId === t.homeTeamId ? 700 : 400 }}>
+                      {name(t.homeTeamId)} {t.homeTeamId === USER_TEAM ? null : <ClubBadge clubId={t.homeTeamId} size={18} />}
                     </span>
-                    <span className="sc">{t.result ? `${t.result.homeGoals}-${t.result.awayGoals}${t.result.penalties ? ` (${t.result.penalties.home}-${t.result.penalties.away}p)` : ''}` : '–'}</span>
-                    <span style={{ fontWeight: t.winnerId === t.awayTeamId ? 700 : 400 }}>{name(t.awayTeamId)}</span>
+                    <span className={`sc chip ${me && t.result ? outcomeClass(t.winnerId === USER_TEAM ? 'W' : 'L') : ''}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                      {t.result ? `${t.result.homeGoals} - ${t.result.awayGoals}` : 'v'}
+                      {t.result?.penalties && <span className="pens">{t.result.penalties.home}-{t.result.penalties.away}p</span>}
+                    </span>
+                    <span className="row" style={{ gap: 6, fontWeight: t.winnerId === t.awayTeamId ? 700 : 400 }}>
+                      {t.awayTeamId === USER_TEAM ? null : <ClubBadge clubId={t.awayTeamId} size={18} />} {name(t.awayTeamId)}
+                    </span>
                   </div>
                 )
               })}
@@ -1238,7 +1267,9 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <th>Status</th>
               <th className="num">Minutes</th>
               <th>Morale</th>
-              <th></th>
+              <th className="end">
+                <span className="sr-only">Release</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -1414,17 +1445,17 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
             <div className="meter-row">
               <span className="small">Morale</span>
               <Bar value={s.morale} colour="var(--info)" />
-              <span className="mono small">{Math.round(s.morale)}</span>
+              <span className="mono small">{meterValue(s.morale)}</span>
             </div>
             <div className="meter-row">
               <span className="small">Sharpness</span>
               <Bar value={s.sharpness} colour="var(--meter-sharpness)" />
-              <span className="mono small">{s.sharpness}</span>
+              <span className="mono small">{meterValue(s.sharpness)}</span>
             </div>
             <div className="meter-row">
               <span className="small">Familiarity</span>
               <Bar value={s.familiarity} colour="var(--meter-mid)" />
-              <span className="mono small">{s.familiarity}</span>
+              <span className="mono small">{meterValue(s.familiarity)}</span>
             </div>
             <div className="kv" style={{ marginTop: 'var(--space-2)' }}>
               <dt>Season</dt>

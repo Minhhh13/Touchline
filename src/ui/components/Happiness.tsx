@@ -1,6 +1,6 @@
 import type { SquadPlayer } from '@engine/types'
 import { happinessOf } from '@game/logic/happiness'
-import { moraleWord } from '../format'
+import { meterValue, moraleWord } from '../format'
 import { Info } from './bits'
 
 /** A morale value as a chip class: good from 70, warn under 55, bad under 40. */
@@ -25,7 +25,7 @@ export function HappinessCard({ s }: { s: SquadPlayer }) {
           <Info label="About happiness">The last few things that moved his morale, newest first: results and his rating, minutes against his status, talks, promises, events and the captain.</Info>
         </span>
         <span className={`chip ${moraleClass(h.morale)}`}>
-          {moraleWord(h.morale)} · {h.morale}
+          {moraleWord(h.morale)} · {meterValue(h.morale)}
         </span>
       </div>
       {h.lines.length === 0 ? (

@@ -1,5 +1,5 @@
 import { useStore } from '@game/store'
-import { leagueFlagCode, nationFlagCode, nationName } from '../format'
+import { FALLBACK_FLAG, leagueFlagCode, nationFlagCode, nationName } from '../format'
 
 /**
  * A drawn flag from public/flags (flag-icons by lipis, MIT; see docs/CREDITS.md), never an emoji: Windows shows emoji
@@ -28,7 +28,10 @@ export function Flag({ code, label, size = 18 }: { code: string; label?: string;
 /** A nation's flag from its code in the packs; `named` when its name is printed beside it. */
 export function NationFlag({ nation, size, named }: { nation: string; size?: number; named?: boolean }) {
   const u = useStore((s) => s.universe)
-  return <Flag code={nationFlagCode(u, nation)} label={named ? undefined : nationName(u, nation)} size={size} />
+  const code = nationFlagCode(u, nation)
+  // An unknown nation draws nothing rather than a grey placeholder that reads as a broken image
+  if (code === FALLBACK_FLAG) return null
+  return <Flag code={code} label={named ? undefined : nationName(u, nation)} size={size} />
 }
 
 /** A league's flag ('europe' for the EU flag); pass `label` only when the league's name is not printed beside it. */

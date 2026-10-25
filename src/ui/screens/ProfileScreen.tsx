@@ -110,7 +110,7 @@ export function ProfileScreen() {
                 Show tips again
               </button>
               <span className="small muted">
-                {tipsSeen} of {TIP_IDS.length} tips dismissed
+                {tipsSeen === 0 ? `All ${TIP_IDS.length} tips are showing` : `${tipsSeen} of ${TIP_IDS.length} tips dismissed`}
               </span>
             </div>
           </div>
