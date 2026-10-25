@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Bandage, Trophy } from 'lucide-react'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { EstimatedChip, Flag, Pos, Rating, Bar } from './bits'
-import { conditionColour, seasonLabel, clubShort } from '../format'
+import { conditionColour, seasonLabel, clubShort, meterValue } from '../format'
 import { useStore } from '@game/store'
 import { RedCard } from './icons'
 import { isEstimated } from '@game/logic/era'
@@ -39,7 +39,7 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, 
           {extra}
         </span>
         {state && (
-          <span className="state-bars" title={`Condition ${state.condition} · Morale ${state.morale} · Sharpness ${state.sharpness}`}>
+          <span className="state-bars" title={`Condition ${meterValue(state.condition)} · Morale ${meterValue(state.morale)} · Sharpness ${meterValue(state.sharpness)}`}>
             <Bar value={state.condition} colour={conditionColour(state.condition)} />
             <Bar value={state.morale} colour="var(--info)" />
             <Bar value={state.sharpness} colour="var(--meter-sharpness)" />

@@ -9,7 +9,9 @@ import { binOf, MOMENTUM_BINS } from '@engine/matchDetail'
 import { ROLE_BY_ID } from '@engine/roles'
 import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
 import { placeSide, toShared, type Side } from '../match/pitchGeometry'
-import { territory as territoryOf, xgSeries } from '../match/charts'
+import { momentumScale, territory as territoryOf, xgSeries } from '../match/charts'
+import { momentumSpells } from '../matchday/model'
+import { ROLE_CODE } from '../match/shirts'
 import { shotXg } from '@engine/matchStats'
 import { PitchSvg, pitchMapper, useMediaQuery, type PitchSide } from './LivePitch'
 import { formationName, minuteLabel, textColourFor } from '../format'
@@ -21,13 +23,20 @@ const SHOT_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal', '
 export function MomentumBar({ momentum, clock, events, home, away, strip = false }: { momentum: number[]; clock: number; events: MatchEvent[]; home: PitchSide; away: PitchSide; strip?: boolean }) {
   // The strip variant runs the full width of the dashboard's centre column, a little over a third as tall
   const W = strip ? 760 : 360
-  const H = strip ? 50 : 76
-  const mid = strip ? 25 : 40
-  const step = strip ? 40.5 : 19
-  const bw = strip ? 37 : 17
-  const x0 = 10
-  const amp = strip ? 19 : 30
+  const H = strip ? 54 : 92
+  const mid = strip ? 25 : 42
+  // A gutter on the left for the scale, the minutes along the bottom
+  const x0 = strip ? 34 : 30
+  const step = (W - x0 - 4) / MOMENTUM_BINS
+  const bw = step * 0.84
+  const amp = strip ? 17 : 30
+  const fs = 9
+  // The bars are scaled to the biggest swing so far, and the axis says what a full bar means
+  const scale = momentumScale(momentum, clock)
+  const top = Math.round((0.5 + scale) * 100)
   const goals = events.filter((e) => GOAL_TYPES.has(e.type) && e.minute <= clock)
+  const spells = strip ? [] : momentumSpells(momentum, clock)
+  const htX = x0 + 9 * step - (step - bw) / 2
   return (
     <div className={`mchart ${strip ? 'momentum-strip' : ''}`} data-testid="momentum-bar">
       <div className="row between small">
@@ -41,33 +50,63 @@ export function MomentumBar({ momentum, clock, events, home, away, strip = false
           <span className="swatch" style={{ background: away.colour }} />
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Momentum by five-minute spell">
-        <line x1={x0} y1={mid} x2={x0 + MOMENTUM_BINS * step} y2={mid} stroke="var(--line-2)" strokeWidth="1" />
-        <line x1={x0 + 9 * step - 1} y1={strip ? 2 : 6} x2={x0 + 9 * step - 1} y2={H - (strip ? 2 : 6)} stroke="var(--line-2)" strokeDasharray="2 2" />
-        <text x={x0 + 9 * step + 2} y={H - 2} fontSize={strip ? 7 : 8} fill="var(--text-3)">
-          HT
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Momentum by five-minute spell: up is ${home.shortName}, down is ${away.shortName}, a full bar is ${top}% of the play`}>
+        <line x1={x0} y1={mid - amp} x2={W - 4} y2={mid - amp} stroke="var(--line)" strokeDasharray="1 3" />
+        <line x1={x0} y1={mid + amp} x2={W - 4} y2={mid + amp} stroke="var(--line)" strokeDasharray="1 3" />
+        <line x1={x0} y1={mid} x2={W - 4} y2={mid} stroke="var(--line-2)" strokeWidth="1" />
+        <text x={x0 - 4} y={mid - amp + 3} fontSize={fs} fill="var(--text-2)" textAnchor="end">
+          {top}%
         </text>
+        <text x={x0 - 4} y={mid + 3} fontSize={fs} fill="var(--text-3)" textAnchor="end">
+          50
+        </text>
+        <text x={x0 - 4} y={mid + amp + 3} fontSize={fs} fill="var(--text-2)" textAnchor="end">
+          {top}%
+        </text>
+        <line x1={htX} y1={2} x2={htX} y2={mid + amp + 2} stroke="var(--text-3)" strokeDasharray="2 2" />
+        {[0, 45, 90].map((m) => (
+          <text key={m} x={m === 45 ? htX : x0 + (m / 5) * step} y={H - 2} fontSize={fs} fill="var(--text-3)" textAnchor={m === 0 ? 'start' : m === 90 ? 'end' : 'middle'}>
+            {m === 0 ? "0'" : m === 45 ? 'HT' : "90'"}
+          </text>
+        ))}
         {momentum.slice(0, MOMENTUM_BINS).map((m, i) => {
           const frac = Math.max(0, Math.min(1, (clock - i * 5) / 5))
           if (frac <= 0) return null
-          const h = (m - 0.5) * 2 * amp * frac
+          const h = Math.max(-1, Math.min(1, (m - 0.5) / scale)) * amp * frac
           const x = x0 + i * step
-          return <rect key={i} x={x} y={h >= 0 ? mid - h : mid} width={bw} height={Math.max(0.5, Math.abs(h))} rx="2" fill={h >= 0 ? home.colour : away.colour} stroke="var(--text-3)" strokeWidth="0.75" opacity={0.95}>
-            <title>{`${i * 5 + 1}-${i * 5 + 5}': ${Math.round(m * 100)}% ${home.shortName}`}</title>
-          </rect>
+          const share = Math.round((h >= 0 ? m : 1 - m) * 100)
+          return (
+            <rect key={i} x={x} y={h >= 0 ? mid - h : mid} width={bw} height={Math.max(0.5, Math.abs(h))} rx="2" fill={h >= 0 ? home.colour : away.colour} stroke="var(--text-2)" strokeWidth="0.6" strokeOpacity="0.6">
+              <title>{`${i * 5 + 1}-${i * 5 + 5}': ${h >= 0 ? home.shortName : away.shortName} ${share}%`}</title>
+            </rect>
+          )
         })}
         {goals.map((g, i) => {
           const b = binOf(g.minute)
           const x = x0 + b * step + bw / 2
-          const y = g.side === 'home' ? (strip ? 4 : 7) : H - (strip ? 4 : 7)
+          const y = g.side === 'home' ? mid - amp - (strip ? 4 : 6) : mid + amp + (strip ? 4 : 6)
           return (
             <g key={i}>
-              <circle cx={x} cy={y} r={strip ? 3.4 : 4} fill={g.side === 'home' ? home.colour : away.colour} stroke="var(--panel)" strokeWidth="1.5" />
+              <circle cx={x} cy={y} r={strip ? 3.4 : 4} fill={g.side === 'home' ? home.colour : away.colour} stroke="var(--text)" strokeWidth="1.2" />
               <title>{`${minuteLabel(g.minute)} ${g.playerName ?? 'Goal'}`}</title>
             </g>
           )
         })}
       </svg>
+      {!strip && (
+        <div className="momentum-spells small" data-testid="momentum-spells">
+          {spells.length === 0 ? (
+            <span className="muted">No spell of dominance.</span>
+          ) : (
+            spells.map((sp, i) => (
+              <span key={i} className="row" style={{ gap: 4 }}>
+                <span className="swatch" style={{ background: sp.side === 'home' ? home.colour : away.colour }} />
+                {sp.side === 'home' ? home.shortName : away.shortName} on top {sp.from}-{sp.to}' <span className="muted">({Math.round(sp.strength * 100)}%)</span>
+              </span>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -162,7 +201,9 @@ export function ShotMap({ events, home, away, upTo = Infinity, sizeByXg = false 
           <span className="swatch" style={{ background: home.colour }} />
           {home.shortName} <span className="muted">→</span>
         </span>
-        <span className="muted">● goal · ◉ saved · ◌ chance</span>
+        <span className="shot-key muted">
+          <ShotKey kind="goal" /> goal <ShotKey kind="save" /> saved <ShotKey kind="chance" /> chance
+        </span>
         <span className="row" style={{ gap: 6 }}>
           <span className="muted">←</span> {away.shortName}
           <span className="swatch" style={{ background: away.colour }} />
@@ -225,11 +266,11 @@ export function TacticsOverlay({ side, attack, getPlayer }: { side: PitchSide & 
       </div>
       <PitchSvg portrait={portrait} label={`${side.name} shape: ${label}`}>
         <line x1={lx1} y1={ly1} x2={lx2} y2={ly2} stroke="#fff" strokeWidth="0.5" strokeDasharray="1.5 1.2" opacity="0.8" />
-        <text x={portrait ? lx1 + 0.5 : lx1 + (attack === 'home' ? 1 : -1)} y={portrait ? ly1 - 1 : ly1 + 1.6} fontSize="2.4" fill="#fff" textAnchor={portrait || attack === 'home' ? 'start' : 'end'} opacity="0.9">
+        <text x={portrait ? lx1 + 0.5 : lx1 + (attack === 'home' ? 1 : -1)} y={portrait ? ly1 - 1 : ly1 + 1.6} fontSize="2.4" fill="#fff" stroke="rgba(0,0,0,0.6)" strokeWidth="0.3" paintOrder="stroke" textAnchor={portrait || attack === 'home' ? 'start' : 'end'} opacity="0.9">
           {cap(t.pressing)} press
         </text>
         <Arrow x1={tx1} y1={ty1} x2={tx2} y2={ty2} colour="#fff" width={0.6} />
-        <text x={portrait ? tx1 + 1.5 : (tx1 + tx2) / 2} y={portrait ? Math.max(ty1, ty2) + 3 : ty1 - 2} fontSize="2.4" fill="#fff" textAnchor={portrait ? 'end' : 'middle'} opacity="0.9">
+        <text x={portrait ? tx1 + 1.5 : (tx1 + tx2) / 2} y={portrait ? Math.max(ty1, ty2) + 3 : ty1 - 2} fontSize="2.4" fill="#fff" stroke="rgba(0,0,0,0.6)" strokeWidth="0.3" paintOrder="stroke" textAnchor={portrait ? 'end' : 'middle'} opacity="0.9">
           {cap(t.tempo)} tempo
         </text>
         {starters.map((p) => {
@@ -252,15 +293,16 @@ export function TacticsOverlay({ side, attack, getPlayer }: { side: PitchSide & 
               <text y="0.8" textAnchor="middle" fontSize="2.1" fontWeight="700" fill={textColourFor(side.colour)}>
                 {p.position}
               </text>
-              <text y="5.6" textAnchor="middle" fontSize="2.2" fill="#fff" stroke="rgba(0,0,0,0.6)" strokeWidth="0.3" paintOrder="stroke">
-                {/* Standing up, the pitch is narrow: a two-word role goes on two lines */}
+              {/* Under the dot, or over it at the bottom touchline so it is never clipped */}
+              <text y={!portrait && cy + 5.6 > 66.5 ? -3.6 : 5.6} textAnchor="middle" fontSize="2.2" fill="#fff" stroke="rgba(0,0,0,0.6)" strokeWidth="0.3" paintOrder="stroke">
+                {/* Standing up, the pitch is narrow: a two-word role goes on two lines. Lying down, the role code (the full role is in the tooltip), so labels clear the press and tempo lines and each other */}
                 {portrait
                   ? roleLines(role?.name ?? p.position).map((l, k) => (
                       <tspan key={k} x="0" dy={k ? 2.4 : 0}>
                         {l}
                       </tspan>
                     ))
-                  : role?.name ?? p.position}
+                  : ROLE_CODE[t.roles[p.slotId] ?? ''] ?? role?.name ?? p.position}
               </text>
               {wide && out !== 0 && <Arrow x1={w1x} y1={w1y} x2={w2x} y2={w2y} colour="#fff" width={0.5} />}
             </g>
@@ -271,6 +313,15 @@ export function TacticsOverlay({ side, attack, getPlayer }: { side: PitchSide & 
         {label}
       </div>
     </div>
+  )
+}
+
+/** The shot map's legend markers, drawn like the markers on the map (not text glyphs). */
+function ShotKey({ kind }: { kind: 'goal' | 'save' | 'chance' }) {
+  return (
+    <svg className="shot-key-mark" width="12" height="12" viewBox="-6 -6 12 12" aria-hidden="true">
+      {kind === 'goal' ? <circle r="4.5" fill="currentColor" /> : kind === 'save' ? <><circle r="4.2" fill="none" stroke="currentColor" strokeWidth="1.4" /><circle r="1.4" fill="currentColor" /></> : <circle r="4.2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="2.2 1.6" />}
+    </svg>
   )
 }
 

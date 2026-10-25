@@ -129,3 +129,33 @@ export function textColourFor(bg: string): string {
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
   return lum > 0.6 ? '#111' : '#fff'
 }
+
+/** A 0-100 meter value (condition, morale, sharpness, familiarity) as a whole number: the engine keeps floats (79.99999999999999). */
+export function meterValue(v: number): string {
+  return String(Math.round(v))
+}
+export type Outcome = 'W' | 'D' | 'L'
+/** One colour rule for results everywhere: a win is --good, a draw --draw (amber), a loss --bad (`.res-w`, `.res-d`, `.res-l` in styles.css). */
+export function outcomeClass(o: Outcome | null | undefined): string {
+  return o === 'W' ? 'res-w' : o === 'D' ? 'res-d' : o === 'L' ? 'res-l' : ''
+}
+/** The outcome for the side that scored `gf` and conceded `ga`. */
+export function outcomeOf(gf: number, ga: number): Outcome {
+  return gf > ga ? 'W' : gf < ga ? 'L' : 'D'
+}
+/** WCAG relative luminance of a #rrggbb colour (null for anything else). */
+function luminance(hex: string): number | null {
+  const h = hex.replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(h)) return null
+  const c = [0, 2, 4].map((i) => {
+    const v = parseInt(h.slice(i, i + 2), 16) / 255
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+}
+/** The ink (near-black or white) with the higher WCAG contrast on a kit colour: a club badge's code stays legible on pale and mid kits. */
+export function inkOn(bg: string): string {
+  const l = luminance(bg)
+  if (l === null) return '#fff'
+  return (l + 0.05) / 0.0556 > 1.05 / (l + 0.05) ? '#111' : '#fff'
+}

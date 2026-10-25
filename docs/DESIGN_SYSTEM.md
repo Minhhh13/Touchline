@@ -159,7 +159,7 @@ The profile's theme setting is Auto, Light or Dark (Profile screen). `App.tsx` a
 | `--bad` | `#f87171` | `#b91c1c` | Problems and destruction: defeats, injuries, suspensions, missed objectives, release and delete. `--danger` is the same colour under the older name |
 | `--gold` | `#f5c542` | `#f5c542` | Trophies, records, the captain, golden twists, the reel marker and the wheel pointer: fills, rings and icons |
 | `--gold-text` | `#f5c542` | `#805a00` | Gold as text (bright gold fails on white and on the lavender `--bg-3`) |
-| `--draw` | `--gold` (`#f5c542`) | `--gold-text` (`#805a00`) | Draws, always amber (wins `--good`, losses `--bad`, the owner's rule): the D in records, form squares, result badges, tallies and the share card (`BRAND_COLOURS.draw`) |
+| `--draw` | `--gold` (`#f5c542`) | `--gold-text` (`#805a00`) | Draws, always amber (wins `--good`, losses `--bad`, the owner's rule): the D in records, form squares, result badges, tallies and the share card (`BRAND_COLOURS.draw`); in screens through `outcomeClass()` in `format.ts` and `.res-w` / `.res-d` / `.res-l` (text, and soft chips with `.chip`) |
 | `--info` | `= --accent` | `= --accent` | Info notices |
 | `--on-status` | `#07102e` | `#ffffff` | Letters on W/D/L squares |
 | `--good-soft`, `--warn-soft`, `--bad-soft`, `--gold-soft`, `--info-soft` | 14 % | 10 % (gold 24 %) | Chip and notice backgrounds |

@@ -16,7 +16,8 @@ import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
-import { clubName, ordinal } from './format'
+import { clubName, ordinal, outcomeClass } from './format'
+import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
@@ -295,7 +296,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         {d.results.map((r, i) => (
           <span
             key={i}
-            className={`chip ${r.outcome === 'W' ? 'good' : r.outcome === 'L' ? 'bad' : ''} ${r.comp !== 'league' ? 'cup' : ''}`}
+            className={`chip ${outcomeClass(r.outcome)} ${r.comp !== 'league' ? 'cup' : ''}`}
             title={`${r.comp === 'league' ? `Matchweek ${r.matchweek}` : `${r.roundLabel ?? 'Cup tie'} after matchweek ${r.matchweek}`}: ${r.home ? 'v' : 'at'} ${clubName(u, r.opponentId)} ${r.gf}-${r.ga}${r.penalties ? ` (${r.penalties.gf}-${r.penalties.ga} on penalties)` : ''}`}
           >
             <ClubBadge clubId={r.opponentId} size={18} />
@@ -309,7 +310,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
       </div>
       <div data-testid="digest-table">
         <b>
-          {league.length ? `${tally.W}W ${tally.D}D ${tally.L}L · ` : ''}
+          {league.length ? <><span className="res-w">{tally.W}W</span> <span className="res-d">{tally.D}D</span> <span className="res-l">{tally.L}L</span> · </> : ''}
           {d.fromMatchweek === 0 ? `${ordinal(d.positionTo)} in the table` : move === 'level' ? `Still ${ordinal(d.positionTo)}` : `${ordinal(d.positionFrom)} to ${ordinal(d.positionTo)}`}, {d.points} point{d.points === 1 ? '' : 's'}
         </b>
         <span className="muted"> from {league.length} league match{league.length === 1 ? '' : 'es'}</span>
@@ -373,11 +374,34 @@ function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNod
   if (!items.length) return null
   return (
     <DigestGroup title={title} icon={icon} count={items.length}>
-      {items.slice(0, DIGEST_GROUP_CAP).map((n, i) => (
-        <li key={i}>
-          <b>{n.title}</b> <span className="muted">{n.body}</span>
-        </li>
-      ))}
+      {items.slice(0, DIGEST_GROUP_CAP).map((n, i) => {
+        // A development report lists a dozen players: up and down as two short lists, five names each
+        const dev = n.kind === 'training' ? developmentLists(n.body) : null
+        if (!dev) {
+          return (
+            <li key={i}>
+              <b>{n.title}</b> <span className="muted">{n.body}</span>
+            </li>
+          )
+        }
+        return (
+          <li key={i} className="dev-report">
+            <b>{n.title}</b>
+            {(
+              [
+                ['Improving', dev.improving, 'res-w'],
+                ['Fading', dev.fading, 'res-l'],
+              ] as const
+            ).map(([label, list, cls]) =>
+              list.length ? (
+                <div key={label} className="dev-line small">
+                  <span className={cls}>{label}</span> <span className="muted">{list.slice(0, 5).join(' · ')}{list.length > 5 ? ` · +${list.length - 5} more` : ''}</span>
+                </div>
+              ) : null,
+            )}
+          </li>
+        )
+      })}
     </DigestGroup>
   )
 }

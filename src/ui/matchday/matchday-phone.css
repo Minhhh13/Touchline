@@ -11,20 +11,35 @@
   min-width: 0;
 }
 
-/* Top bar: the scoreboard on its own row, the tools and playback in one row under it */
+/*
+ * Top bar: the scoreboard, then the tools, then the playback, each on its own row. Side by side the playback
+ * (auto width) squeezed the tools to a sliver on tablets, with the buttons drawn under it.
+ */
 .matchday.compact .md-topbar {
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: 'board board' 'tools play';
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'board' 'tools' 'play';
   row-gap: 6px;
+}
+.matchday.compact .scoreboard {
+  justify-self: center;
 }
 .matchday.compact .md-tools {
   grid-area: tools;
   min-width: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
 }
 .matchday.compact .md-tool-row {
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  justify-content: center;
+  overflow: visible;
   padding-bottom: 1px;
+}
+.matchday.compact .md-playback {
+  justify-content: center;
 }
 .matchday.compact .md-tool-row::-webkit-scrollbar {
   display: none;
@@ -133,19 +148,33 @@
   .matchday.compact .md-playback .segmented button {
     padding: 4px 7px;
   }
-  .matchday.compact .md-topbar {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'board' 'tools' 'play';
+  /*
+   * Phones: the tools and the playback each keep to one line that scrolls sideways under an edge fade, and the
+   * landing chip sits under the tools, so the pitch starts after four short rows rather than seven.
+   */
+  .matchday.compact .md-tools {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
   }
+  .matchday.compact .md-tool-row,
   .matchday.compact .md-playback {
+    flex-wrap: nowrap;
     justify-content: flex-start;
-    /* Pause, speed and skip on one line; Auto from here and Sim result wrap under them */
-    flex-wrap: wrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+    padding-right: 18px;
   }
-  /* The tools wrap rather than hide behind the edge */
-  .matchday.compact .md-tool-row {
-    flex-wrap: wrap;
-    overflow: visible;
+  .matchday.compact .md-playback::-webkit-scrollbar {
+    display: none;
+  }
+  .matchday.compact .md-playback > * {
+    flex: 0 0 auto;
+  }
+  .matchday.compact .md-tools .md-chip {
+    align-self: center;
   }
   .matchday .md-tool {
     padding: 5px 9px;

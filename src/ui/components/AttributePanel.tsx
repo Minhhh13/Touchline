@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { AttributeKey, PlayerSeason, SquadPlayer } from '@engine/types'
 import { INJURY_RISK_LABEL, injuryRiskLevel } from '@engine/depth'
 import { Bar } from './bits'
-import { conditionColour } from '../format'
+import { conditionColour, meterValue } from '../format'
 
 /**
  * Football Manager-style attribute panel: labelled bars in five groups, the
@@ -39,7 +39,7 @@ export function AttributePanel({ p, state }: { p: PlayerSeason; state?: SquadPla
               <div key="cond" className="row attr-row">
                 <span className="small attr-label">Condition</span>
                 <Bar value={state.condition} colour={conditionColour(state.condition)} />
-                <span className="mono small attr-value">{state.condition}</span>
+                <span className="mono small attr-value">{meterValue(state.condition)}</span>
               </div>,
             ]
           : []),

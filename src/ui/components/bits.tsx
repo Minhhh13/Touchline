@@ -3,7 +3,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom'
 import type { Position } from '@engine/types'
 import { POSITION_GROUP } from '@engine/positions'
-import { ratingBand, textColourFor } from '../format'
+import { inkOn, ratingBand } from '../format'
 import { useStore } from '@game/store'
 import { tipSeen, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
@@ -14,9 +14,14 @@ export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number
   const club = u?.clubById[clubId]
   const primary = club?.colours.primary ?? '#555'
   const secondary = club?.colours.secondary ?? '#fff'
-  const code = club?.code ?? clubId.slice(0, 3).toUpperCase()
+  const full = club?.code ?? clubId.slice(0, 3).toUpperCase()
+  // A small badge has room for two letters at a legible 8px (the full name is in the tooltip); a big one keeps three inside the ring
+  const small = size < 22
+  const code = small ? full.slice(0, 2) : full
+  const fontSize = small ? Math.max(8, size * 0.42) : size * 0.3
+  const ring = small ? 1.5 : Math.max(2, size * 0.07)
   return (
-    <span className="badge" title={club?.name ?? clubId} style={{ width: size, height: size, background: primary, color: textColourFor(primary), fontSize: size * 0.34, boxShadow: `inset 0 0 0 ${Math.max(2, size * 0.07)}px ${secondary}` }}>
+    <span className="badge" title={club?.name ?? clubId} style={{ width: size, height: size, background: primary, color: inkOn(primary), fontSize, letterSpacing: small ? 0 : undefined, boxShadow: `inset 0 0 0 ${ring}px ${secondary}` }}>
       {code}
     </span>
   )
@@ -26,7 +31,7 @@ export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number
 export function TeamBadge({ code, size = 32 }: { code?: string; size?: number }) {
   const label = (code || 'YOU').slice(0, 3).toUpperCase()
   return (
-    <span className="badge team-badge" style={{ width: size, height: size, background: 'var(--primary)', color: 'var(--on-primary)', fontSize: size * 0.32 }}>
+    <span className="badge team-badge" style={{ width: size, height: size, background: 'var(--primary)', color: 'var(--on-primary)', fontSize: Math.max(8, size * 0.32) }}>
       {label}
     </span>
   )
