@@ -1834,6 +1834,81 @@ table.tbl tr.clickable {
 table.tbl tr.clickable:hover {
   background: var(--bg-3);
 }
+/* A table that may be wider than its panel scrolls inside itself */
+.tbl-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+table.tbl td.end,
+table.tbl th.end {
+  text-align: right;
+}
+/* A select inside a table row: a small control, sized to its text, not to the field width */
+table.tbl select.input.sm {
+  width: auto;
+  min-height: var(--control-h-sm);
+  padding: 2px 6px;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-s);
+}
+table.tbl.contracts th,
+table.tbl.contracts td {
+  padding: var(--space-1) 6px;
+}
+table.tbl.contracts .name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+table.tbl.contracts .btn.sm {
+  padding: 4px 6px;
+}
+/* The Club tab: panels keep their own height instead of stretching to the tallest in the row */
+.grid.club-grid {
+  align-items: start;
+}
+.kv.tight {
+  gap: 2px 14px;
+  line-height: 1.35;
+}
+/* A panel title with its Info beside it */
+.head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.head-title h3,
+.head-title h4 {
+  margin: 0;
+}
+.staff-list {
+  display: flex;
+  flex-direction: column;
+}
+.staff-row {
+  padding: var(--space-3) 0;
+}
+.staff-row + .staff-row {
+  border-top: var(--border);
+}
+.staff-row:first-child {
+  padding-top: 0;
+}
+.one-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 720px) {
+  /* 16px keeps iOS from zooming into the field on focus */
+  table.tbl select.input.sm {
+    font-size: 16px;
+  }
+  .one-line {
+    white-space: normal;
+  }
+}
 .form {
   display: inline-flex;
   gap: 2px;
@@ -2898,6 +2973,17 @@ table.tbl tr.clickable:hover {
 }
 .brief.done .text {
   color: var(--text-2);
+}
+/* The pre-season checklist: short labels, each with its button, wrapping in a row */
+.briefing.checklist {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.briefing.checklist .brief {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .cta-bar {
   display: flex;

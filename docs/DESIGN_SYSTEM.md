@@ -383,7 +383,7 @@ The anatomy, left to right: the rating badge (34 px column), then the name line 
 
 ### Tables (`table.tbl`)
 
-Capital 11 px headers in `--text-3`; `.num` for figures; `tr.me` (the user's row) takes `--primary-soft`; `tr.clickable` hovers on `--bg-3`. On a phone a table scrolls sideways inside itself (`display: block; overflow-x: auto`), never the page; keep tables to the columns that matter there.
+Capital 11 px headers in `--text-3`; `.num` for figures; `tr.me` (the user's row) takes `--primary-soft`; `tr.clickable` hovers on `--bg-3`. On a phone a table scrolls sideways inside itself (`display: block; overflow-x: auto`), never the page; keep tables to the columns that matter there. A table that can be wider than its panel on a desktop sits in a `.tbl-wrap` (scrolls inside the panel); a select in a row is `select.input.sm` (control-h-sm, `--fs-sm`, sized to its text); a trailing action cell is `td.end`.
 
 ### Tabs (`Tabs`, `.tabs`)
 

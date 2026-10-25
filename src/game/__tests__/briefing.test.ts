@@ -56,7 +56,7 @@ describe("the assistant's briefing", () => {
     let items = weeklyBriefing(g, u)
     expect(ids(items)).toEqual(['friendlies', 'captain', 'roles', 'staff', 'set-pieces'])
     expect(items.every((i) => i.done === false && i.level === 'info' && i.action)).toBe(true)
-    expect(items.find((i) => i.id === 'friendlies')?.text).toContain('0 of 3')
+    expect(items.find((i) => i.id === 'friendlies')?.text).toBe('Friendlies 0/3')
     expect(items.find((i) => i.id === 'friendlies')?.action).toEqual({ label: 'Play friendly', op: 'friendly' })
     // The captain suggestion is a real squad player, offered through the player modal
     const captain = items.find((i) => i.id === 'captain')!
@@ -73,7 +73,10 @@ describe("the assistant's briefing", () => {
     const [benchA, benchB] = g.bench.map((id) => squadPlayers(g, u).find((x) => x.p.id === id)!)
     const twoMan: Game = { ...g, lineup: {}, squad: { a: benchA.s, b: benchB.s }, customPlayers: { a: { ...benchA.p, id: 'a', attributes: { ...benchA.p.attributes, mentality: 70 }, traits: { ...benchA.p.traits, professionalism: 1 } }, b: { ...benchB.p, id: 'b', attributes: { ...benchB.p.attributes, mentality: 78 }, traits: { ...benchB.p.traits, professionalism: 0 } } } }
     expect(suggestedCaptain(twoMan, u)).toBe('b')
-    expect(items.find((i) => i.id === 'staff')?.text).toMatch(/^Hire staff: £\d+k a week of wage room, a senior physio costs £15k$/)
+    expect(items.find((i) => i.id === 'staff')?.text).toBe('Staff 0/4')
+    expect(items.find((i) => i.id === 'staff')?.hint).toMatch(/^£\d+k a week of wage room; a senior physio costs £15k\.$/)
+    // Short labels, the why behind an Info button
+    expect(items.every((i) => i.text.length <= 20 && !!i.hint)).toBe(true)
 
     g.friendliesPlayed = 3
     g.captainId = captain.action!.playerId
@@ -84,7 +87,7 @@ describe("the assistant's briefing", () => {
     g.tactics.setPieces = { penalties: Object.values(g.lineup)[9] }
     items = weeklyBriefing(g, u)
     expect(items.every((i) => i.done === true && i.level === 'ok' && !i.action)).toBe(true)
-    expect(items.find((i) => i.id === 'staff')?.text).toBe('Backroom staff hired (1 of 4 roles)')
+    expect(items.find((i) => i.id === 'staff')?.text).toBe('Staff 1/4')
     // Done lines stay visible in pre-season: nothing is urgent, so nothing hides them
     expect(items.length).toBe(5)
     expect(briefingHeadline(items)?.id).toBe('friendlies')
@@ -95,7 +98,7 @@ describe("the assistant's briefing", () => {
     g.youthIntake = { year: g.year, candidates: [] }
     expect(weeklyBriefing(g, u).find((i) => i.id === 'youth')).toMatchObject({ done: false, action: { tab: 'squad' } })
     g.youthIntake.chosen = null
-    expect(weeklyBriefing(g, u).find((i) => i.id === 'youth')).toMatchObject({ done: true, text: 'Youth intake passed this year' })
+    expect(weeklyBriefing(g, u).find((i) => i.id === 'youth')).toMatchObject({ done: true, text: 'Youth intake passed' })
     expect(weeklyBriefing(g, u).length).toBe(6)
   })
 
