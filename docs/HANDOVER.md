@@ -91,7 +91,7 @@ Both sites are static sites in their own Render workspace **TouchLine** (workspa
 - Render's GitHub app is installed on the repo, so both sites deploy on their own. A merge into `main` goes live a few minutes after CI turns green; a red CI run never deploys.
 - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. These are the public publishable keys; Vite bakes them into the build, so changing them needs a redeploy.
 - Optional: add a custom domain (also needed before Supabase can send sign-up emails through Resend, see below). The `-16xv` and `-hfvi` suffixes are Render's and stay unless a custom domain is added.
-- The GitHub Pages workflow (`.github/workflows/pages.yml`) is obsolete; the `reel-ui` branch removes it.
+- The old GitHub Pages workflow is removed. It failed on every push to `main` (Pages is unavailable on a private repo), and because Render waits for every check to pass, it blocked the live deploy.
 
 ### Supabase (backend for the online layer)
 
@@ -142,3 +142,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-25 · owner's agent · Coach marks and the Key shipped on the working branch: seven first-time tips saved on the profile (`seenTips`), Show tips again on the Record page, and a Key chip that labels the state bars and draws a pitch legend; an injured or suspended player's red ring now wins over the fit colour on the pitch.
 - 2026-10-25 · owner's agent · Slot picker shipped on the working branch: tapping a Dugout pitch slot opens a sheet of everyone who can cover it (the same `canCover`/`isAvailable` line auto-pick and `lineupProblems` use; `ACCOMPLISHED_FACTOR` replaces the literal 0.86), replacing the two-tap swap; Draft slot chips, the phone scroll to the landed squad, and the squad list's Out chip renamed Unused.
 - 2026-10-25 · owner's agent · Hosting notes corrected: both Render sites now live in their own TouchLine workspace; the live site deploys `main` after CI passes (https://touchline-16xv.onrender.com), the preview deploys `claude/touchline-preview` (https://touchline-preview-hfvi.onrender.com); the old `-o5ot` and `touchline-preview.onrender.com` sites are gone.
+- 2026-10-25 · owner's agent · Removed `.github/workflows/pages.yml`: its failing run on every push to `main` stopped Render's checks-pass deploy, so merges were not reaching the live site on their own.

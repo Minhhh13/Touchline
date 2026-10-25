@@ -130,7 +130,7 @@ Specific recipes: a draft rule (optional `DraftRules` field, apply in `rulesPool
 - Env vars on Render: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (public publishable keys). Vite inlines `VITE_*` at build time, so a change needs a redeploy and anything `VITE_*` is public. Locally put them in `.env.local` (gitignored via `*.local`).
 - **Supabase** project id `yvqpmyqomkwtudxmkeou` (org Team TouchLine, Sydney, Free plan), schema empty today. Migrations will go in `supabase/migrations/` (the folder does not exist yet) and are applied to that project only. RLS on every table; run the security advisors after each change.
 - **No secrets in the repo.** The Supabase `service_role` key is never used in the browser, never in a `VITE_` var, never committed. Server-side work (Edge Functions) reads it from Supabase secrets.
-- `.github/workflows/pages.yml` is obsolete (private repo, Render hosts); the reel-ui branch removes it.
+- There is no GitHub Pages workflow any more (the repo is private and Render hosts). Do not add one: Render deploys `main` only when every check on the commit passes, so a failing extra workflow blocks the live deploy.
 
 ## Playwright smokes
 
