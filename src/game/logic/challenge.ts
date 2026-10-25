@@ -8,6 +8,10 @@ import { defaultTactics } from '@engine/tactics'
 import { createGame } from './setup'
 import { closeJanuary, openJanuary, runQuickSeason } from './quick'
 import { playerLookup } from './players'
+import { upgradePlayer } from '@engine/upgrader'
+import { giveArmband, lockPlayer } from '@engine/powerups'
+import type { ChallengePowerUp } from '@engine/challenge'
+import type { DraftState } from '@engine/draft'
 
 /** The settings a challenge link fixes; the team name is the only free choice at setup. */
 export function settingsFromChallenge(c: ChallengePayload, teamName: string, shortName: string, challenge: ChallengeSettings): GameSettings {
@@ -84,6 +88,8 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
   const get = playerLookup(game, u)
   const s = game.settings
   const x = seasonOf(game)
+  const upgraded = d.upgrade ? d.history.findIndex((h) => h.pickedId === d.upgrade!.id) : -1
+  const w = powerUpRows(d)
   return {
     v: 1,
     data: u.generatedAt,
@@ -94,7 +100,29 @@ export function challengeFromGame(game: Game, u: LoadedUniverse, name: string): 
     c: claim,
     k: historyKey(d.history),
     ...(x ? { x } : {}),
+    ...(upgraded >= 0 && d.upgrade ? { g: [upgraded, d.upgrade.boost] as [number, number] } : {}),
+    ...(w.length ? { w } : {}),
   }
+}
+
+/** The power-ups a draft used as link rows (`ChallengePayload.w`): the armband and the lock by the row of the pick. */
+function powerUpRows(d: DraftState): ChallengePowerUp[] {
+  const rowOf = (id: string) => d.history.findIndex((h) => h.pickedId === id)
+  return (d.powerUps ?? []).flatMap((x): ChallengePowerUp[] => {
+    switch (x.kind) {
+      case 'reroll':
+        return [['r', x.at]]
+      // A peek no spin followed (the bench closed while it showed) changed nothing, and has no row to name
+      case 'peek':
+        return x.at < d.history.length ? [['p', x.at]] : []
+      case 'swap':
+        return [['s', x.at, x.from, x.to]]
+      case 'armband':
+        return rowOf(x.id) >= 0 ? [['a', rowOf(x.id)]] : []
+      case 'lock':
+        return rowOf(x.id) >= 0 ? [['l', rowOf(x.id)]] : []
+    }
+  })
 }
 
 export interface ReplayOutcome {
@@ -124,6 +152,20 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
     const rng = Rng.fromState(game.rngState)
     picks = replayDraft(u, game.draft!, rng, c)
     game.rngState = rng.getState()
+    // The Lock comes before the Upgrader (it changes what a loss costs); the armband any time
+    const pickAt = (row: number) => {
+      const id = picks[row]?.id
+      if (!id) throw new Error(`Spin ${row + 1} drafted no one to give a power-up to`)
+      return id
+    }
+    for (const x of c.w ?? []) if (x[0] === 'l') lockPlayer(game.draft!, pickAt(x[1]))
+    // The Player Upgrader: the same player and boost; its roll comes from the draft's own stream, so it lands the same
+    if (c.g) {
+      const id = picks[c.g[0]]?.id
+      if (!id) throw new Error(`Spin ${c.g[0] + 1} drafted no one to upgrade`)
+      upgradePlayer(u, game.draft!, id, c.g[1])
+    }
+    for (const x of c.w ?? []) if (x[0] === 'a') giveArmband(game.draft!, pickAt(x[1]))
   } catch (e) {
     return { verified: 'no', reason: e instanceof Error ? e.message : String(e), picks: [] }
   }

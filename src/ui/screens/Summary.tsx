@@ -3,11 +3,13 @@ import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
 import { TIER_LABEL, USER_TEAM, computeTable } from '@engine/season'
 import { shareText } from '@engine/awards'
+import { powerUpsShareLine } from '@game/logic/powerups'
 import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
 import { Pitch } from '../components/Pitch'
 import { TWIST_INFO } from '../components/TwistCard'
 import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
+import { activeModeCards, modesLine } from '@engine/modes'
 import { TableView } from '../components/TableView'
 import { ClubBadge, Rating, Stat } from '../components/bits'
 import { PlayerRow } from '../components/PlayerRow'
@@ -58,8 +60,13 @@ export function Summary() {
   const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
   // The 38-0 options that differ from the mode's defaults: difficulty, blind, draft mode, ratings
-  const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES)
+  // The Quick Draft modes on one line ("🌀 Crazy · 💀 Hard"); Hard then leaves the tag line so it is not said twice
+  const modeLine = activeModeCards(game.settings.rules).some((c) => c !== 'hard') ? modesLine(game.settings.rules) : ''
+  const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES).filter((t) => !(modeLine && t === 'Hard'))
+  if (modeLine) extraLines.push(modeLine)
   if (tags.length) extraLines.push(tags.join(' · '))
+  const powerLine = powerUpsShareLine(game.draft)
+  if (powerLine) extraLines.push(powerLine)
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)
@@ -175,6 +182,7 @@ export function Summary() {
         <div className="muted small">
           {game.settings.teamName} · <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'}
           {tags.map((t) => ` · ${t}`).join('')}
+          {modeLine && <span data-testid="summary-modes">{` · ${modeLine}`}</span>}
         </div>
         {replay.playing ? (
           <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">

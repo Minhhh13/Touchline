@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { QUICK_RULES, SEASON_RULES } from '@engine/draft'
-import { DAILY_FORMATIONS, DAILY_RULES, DEFAULT_HOST_POSITION, TEAM_NAME_IDEAS, dailyGameSettings, dailySettings, defaultHostClub, nextTeamName, shortNameFor, summariseSetup } from '../logic/setup'
+import { DAILY_FORMATIONS, DAILY_RULES, DEFAULT_HOST_POSITION, dailyGameSettings, dailySettings, defaultHostClub, setupChips, shortNameFor, summariseSetup } from '../logic/setup'
+import { FUN_TEAM_NAMES, randomTeamName } from '../logic/teamNames'
+import { POWER_UPS_ICON } from '@engine/powerups'
 import type { GameSettings } from '../types'
 
 const u = loadTestUniverse()
@@ -47,7 +49,7 @@ describe('the Daily puzzle', () => {
     expect(s.hostClubId).toBe('swansea-city')
     expect(s.leagueSeason).toBe(2017)
     expect(s.formationId).toBe('4-3-3')
-    expect(s.rules).toEqual({ ...QUICK_RULES, twists: true, leagues: ['england'] })
+    expect(s.rules).toEqual({ ...QUICK_RULES, respins: 2, twists: true, leagues: ['england'] })
     // The rules come from the Daily's own literal, not the quick defaults
     expect(s.rules).toEqual({ ...DAILY_RULES, leagues: ['england'] })
     expect(s.jobSecurity).toBe(false)
@@ -138,19 +140,85 @@ describe('the choice summary line', () => {
   })
 })
 
-describe('Randomise team name', () => {
-  it('steps through every idea once, then starts again, and starts from the first on a name of its own', () => {
-    const seen = new Set<string>()
-    let name = TEAM_NAME_IDEAS[0]
-    for (let i = 0; i < TEAM_NAME_IDEAS.length; i++) {
-      name = nextTeamName(name)
-      seen.add(name)
+describe('the chip row above Start', () => {
+  const base: GameSettings = {
+    mode: 'quick',
+    seed: 'K7Q2-MX9A',
+    formationId: '4-3-3',
+    teamName: 'Touchline XI',
+    shortName: 'TXI',
+    leagueId: 'england',
+    wheelLeagues: ['england'],
+    hostClubId: 'brentford',
+    leagueSeason: 2025,
+    rules: { ...QUICK_RULES, leagues: ['england'] },
+    jobSecurity: false,
+    difficulty: 'calibrated',
+  }
+  const texts = (s: GameSettings) => setupChips(u, s).map((c) => c.text)
+
+  it('always shows the shape, the league and season, the opposition and the seed, and nothing else at the defaults', () => {
+    expect(texts(base)).toEqual(['4-3-3', 'Premier League 2025-26', 'Calibrated', 'Seed K7Q2-MX9A'])
+    expect(setupChips(u, base).map((c) => c.key)).toEqual(['formation', 'host', 'opposition', 'seed'])
+    // The Daily's chips state its fixed shape, league and season
+    expect(texts(dailyGameSettings(u, 'daily-2026-10-25'))).toEqual(['4-3-3', 'Premier League 2017-18', 'Calibrated', 'Seed daily-2026-10-25'])
+  })
+
+  it('adds a short chip for each choice off the defaults, the same ones the summary line names', () => {
+    const managed: GameSettings = {
+      ...base,
+      mode: 'season',
+      difficulty: 'realistic',
+      wheelLeagues: ['england', 'spain'],
+      rules: { ...SEASON_RULES, squadSize: 20, fromSeason: 2014, toSeason: 2019, hardMode: true, twists: true, onlyClub: 'arsenal', leagues: ['england', 'spain'] },
+      jobSecurity: false,
+      continental: true,
     }
-    expect(seen.size).toBe(TEAM_NAME_IDEAS.length)
-    expect(name).toBe(TEAM_NAME_IDEAS[0])
-    expect(nextTeamName('My own side')).toBe(TEAM_NAME_IDEAS[0])
-    expect(nextTeamName('')).toBe(TEAM_NAME_IDEAS[0])
-    expect(nextTeamName(' Touchline XI ')).toBe(TEAM_NAME_IDEAS[1])
-    for (const n of TEAM_NAME_IDEAS) expect(n.length).toBeLessThanOrEqual(28)
+    expect(texts(managed)).toEqual(['4-3-3', 'Premier League 2025-26', 'Realistic', 'Seed K7Q2-MX9A', '🌍 2 leagues', '2014-15 to 2019-20', 'Arsenal only', 'Hard', 'Twists', 'Squad of 20', 'No sack', 'Continental Cup'])
+    const quick = texts({ ...base, january: false, continental: true, rules: { ...base.rules, benchPicks: 3, twists: false, modes: ['speedrun'], powerUps: true } })
+    expect(quick.slice(4)).toEqual(['No twists', '⏱️ Speedrun', `${POWER_UPS_ICON} Power-ups`, 'No January', 'Bench 3', 'Continental run'])
+    // Every chip stays short enough for a phone row
+    for (const t of [...texts(managed), ...quick]) expect(t.length).toBeLessThanOrEqual(28)
+  })
+})
+
+describe('the Randomise button for the team name', () => {
+  it('only holds invented names: none is a club in any league pack, and each fits the field', () => {
+    const all = loadTestUniverse(u.available.map((l) => l.id))
+    const real = new Set(all.clubs.flatMap((c) => [c.name, c.shortName]).map((n) => n.toLowerCase()))
+    expect(all.clubs.length).toBeGreaterThan(200)
+    expect(new Set(FUN_TEAM_NAMES).size).toBe(FUN_TEAM_NAMES.length)
+    for (const name of FUN_TEAM_NAMES) {
+      expect(real.has(name.toLowerCase())).toBe(false)
+      expect(name.length).toBeLessThanOrEqual(24)
+      expect(name).not.toBe('Touchline XI')
+    }
+  })
+
+  it('reaches every name across rolls and never repeats the one in the field', () => {
+    const seen = new Set<string>()
+    for (let i = 0; i < 400; i++) {
+      const roll = i / 400
+      const current = FUN_TEAM_NAMES[i % FUN_TEAM_NAMES.length]
+      const next = randomTeamName(roll, current)
+      expect(next).not.toBe(current)
+      expect(FUN_TEAM_NAMES).toContain(next)
+      seen.add(randomTeamName(roll))
+    }
+    expect(seen.size).toBe(FUN_TEAM_NAMES.length)
+    // A roll at the edge of the range still lands on a name
+    expect(FUN_TEAM_NAMES).toContain(randomTeamName(0.9999999))
+    expect(FUN_TEAM_NAMES).toContain(randomTeamName(1))
+  })
+
+  it("never gives a head-to-head manager the other manager's name, whatever the case or spacing", () => {
+    for (let i = 0; i < 400; i++) {
+      const roll = i / 400
+      const other = FUN_TEAM_NAMES[Math.floor(roll * FUN_TEAM_NAMES.length)]
+      const mine = FUN_TEAM_NAMES[(i * 7) % FUN_TEAM_NAMES.length]
+      const next = randomTeamName(roll, mine, [`  ${other.toUpperCase()} `])
+      expect(next).not.toBe(other)
+      expect(next).not.toBe(mine)
+    }
   })
 })

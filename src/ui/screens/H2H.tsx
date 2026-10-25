@@ -14,8 +14,12 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Segmented, Stat } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, ordinal, seasonLabel } from '../format'
+import { SectionHead, TeamNameField } from '../components/SetupBits'
+import { InfoTip } from '../components/PowerUpButton'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
+import { h2hTierOdds } from '@game/logic/odds'
+import { SpinOdds } from '../components/SpinOdds'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
 import { GameByGame } from '../components/GameByGame'
 
@@ -39,91 +43,92 @@ export function H2HSetup() {
   const host0 = clubs.includes(hosts[0]) ? hosts[0] : clubs[Math.floor(clubs.length / 3)]
   const host1 = clubs.includes(hosts[1]) && hosts[1] !== host0 ? hosts[1] : clubs.find((c) => c !== host0) ?? clubs[0]
   const short = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase() || 'MGR'
+  const nameOf = (i: number) => names[i].trim() || `Manager ${i + 1}`
   return (
-    <div className="page">
-      <div className="row between wrap" style={{ marginBottom: 12 }}>
-        <div>
-          <h1>Head-to-head</h1>
-          <div className="muted small">Two managers, one device, one wheel. Alternate picks from the same squads, then both sides play the same season.</div>
+    <div className="page has-bottom-bar">
+      <div className="setup-flow wide">
+        <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <h1>Head-to-head</h1>
+            <p className="muted setup-sub">
+              Two managers, one device, one wheel.{' '}
+              <InfoTip label="Head-to-head" text="Each spin lands on one club-season for both of you: the first picker takes a player, the other picks from what is left, and the order snakes. A player goes to one manager only; if nobody fits your open slots you miss that spin. Both XIs then play the same season, two derbies included. Higher finish wins." testId="h2h-info" />
+            </p>
+          </div>
+          <button className="btn ghost" onClick={() => go('home')}>
+            ← Back
+          </button>
         </div>
-        <button className="btn ghost" onClick={() => go('home')}>
-          ← Back
-        </button>
-      </div>
-      <div className="grid two">
-        {[0, 1].map((i) => (
-          <div key={i} className="panel col">
-            <h3>Manager {i + 1}</h3>
-            <label className="field">
-              Name
-              <input className="input" value={names[i]} maxLength={24} onChange={(e) => setNames(names.map((n, j) => (j === i ? e.target.value : n)))} />
-            </label>
-            <div className="field formation-field">
-              Formation
+        <div className="grid two">
+          {[0, 1].map((i) => (
+            <div key={i} className="panel col" data-testid={`h2h-manager-${i}`}>
+              <SectionHead title={`Manager ${i + 1}`} />
+              <TeamNameField label="Name" value={names[i]} onChange={(v) => setNames(names.map((n, j) => (j === i ? v : n)))} fallback={`Manager ${i + 1}`} maxLength={24} testId={`h2h-name-${i}`} taken={[names[1 - i]]} />
               <FormationPicker value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} label={`Manager ${i + 1} formation`} testId={`h2h-formation-${i}`} />
-              <span className="help">{getFormation(formations[i]).blurb}</span>
+              <label className="field">
+                Your club
+                <select className="input" value={i === 0 ? host0 : host1} onChange={(e) => setHosts(hosts.map((h, j) => (j === i ? e.target.value : h)))}>
+                  {clubs.filter((c) => (i === 0 ? c !== host1 : c !== host0)).map((c) => (
+                    <option key={c} value={c}>
+                      {clubName(u, c)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ))}
+        </div>
+        <div className="panel col">
+          <SectionHead title="The league" />
+          <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
+          <div className="setup-cols">
+            <div className="field">
+              Draft from
+              <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> This league</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> All {u.available.length} leagues</> }]} />
             </div>
             <label className="field">
-              Club whose place you take
-              <select className="input" value={i === 0 ? host0 : host1} onChange={(e) => setHosts(hosts.map((h, j) => (j === i ? e.target.value : h)))}>
-                {clubs.filter((c) => (i === 0 ? c !== host1 : c !== host0)).map((c) => (
-                  <option key={c} value={c}>
-                    {clubName(u, c)}
+              Season
+              <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
+                {seasons.map((s) => (
+                  <option key={s} value={s}>
+                    {seasonLabel(s)}
                   </option>
                 ))}
               </select>
             </label>
-          </div>
-        ))}
-        <div className="panel col">
-          <h3>The league</h3>
-          <div className="field">
-            League
-            <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
-          </div>
-          <div className="field">
-            Draft from
-            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> This league</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> All {u.available.length} leagues</> }]} />
-          </div>
-          <label className="field">
-            Season
-            <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
-              {seasons.map((s) => (
-                <option key={s} value={s}>
-                  {seasonLabel(s)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="field">
-            Difficulty
-            <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: 'Calibrated' }, { value: 'realistic', label: 'Realistic' }]} />
-          </div>
-          <label className="toggle">
-            <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
-            Hard mode: ratings hidden
-          </label>
-          <label className="field">
-            Seed
-            <div className="row">
-              <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
-              <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                New
-              </button>
+            <div className="field">
+              Opposition
+              <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: 'Calibrated' }, { value: 'realistic', label: 'Realistic' }]} />
             </div>
-          </label>
-        </div>
-        <div className="col">
-          <div className="panel">
-            <h3>How it works</h3>
-            <ul className="small muted" style={{ paddingLeft: 18, margin: 0 }}>
-              <li>Each spin lands on one club-season for both of you. The first picker takes a player, then the other picks from what is left.</li>
-              <li>Pick order snakes: whoever went second picks first on the next spin.</li>
-              <li>A player can only be drafted by one manager. If nobody in the squad fits your open slots, you miss that spin.</li>
-              <li>Both XIs then play the full season in the same league, including two derbies against each other. Higher finish wins.</li>
-            </ul>
+            <label className="field">
+              Seed
+              <div className="row">
+                <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
+                <button className="btn sm" onClick={() => setSeed(randomSeed())}>
+                  New
+                </button>
+              </div>
+            </label>
           </div>
-          <button className="btn primary big block" disabled={!ready || loadingLeagues} onClick={() => startH2H([{ name: names[0] || 'Manager 1', shortName: short(names[0] || 'Manager 1'), formationId: formations[0], hostClubId: host0 }, { name: names[1] || 'Manager 2', shortName: short(names[1] || 'Manager 2'), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
+          <div className="toggle-row">
+            <label className="toggle">
+              <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
+              💀 Hard mode
+            </label>
+            <InfoTip label="Hard mode" text="Ratings hidden for both managers: go on names and positions." />
+          </div>
+        </div>
+        <div className="bottom-bar">
+          <div className="setup-chips" data-testid="h2h-summary">
+            <span className="chip">{nameOf(0)} {formations[0]}</span>
+            <span className="chip">{nameOf(1)} {formations[1]}</span>
+            <span className="chip">
+              <LeagueFlag leagueId={leagueId} /> {seasonLabel(effectiveSeason)}
+            </span>
+            {wheelScope === 'europe' && <span className="chip">🌍 {u.available.length} leagues</span>}
+            {hardMode && <span className="chip">💀 Hard</span>}
+          </div>
+          <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
             {ready ? 'Start the head-to-head' : 'Loading league data…'}
           </button>
         </div>
@@ -150,6 +155,8 @@ export function H2HScreen() {
   // The leagues the wheel draws from are the draft rules' (an older save may lack `wheelLeagues`)
   const rules = h2h?.draft.drafts[0].rules
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
+  // The exact tier odds of the next spin, shown between spins
+  const odds = useMemo(() => (u && h2h && !h2h.draft.current && !h2hComplete(h2h.draft) ? h2hTierOdds(u, h2h.draft, leagues) : []), [u, h2h, leagues])
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
@@ -201,6 +208,7 @@ export function H2HScreen() {
         <div className="col">
           <div className="panel col">
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
+            {!d.current && !complete && <SpinOdds odds={odds} label="Next spin" />}
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}

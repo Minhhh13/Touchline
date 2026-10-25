@@ -58,8 +58,8 @@ describe('setupRules: the setup screen to DraftRules', () => {
     expect(r).toEqual({ ...QUICK_RULES, leagues: ['england'] })
     expect(r.fromSeason).toBeUndefined()
     expect(r.toSeason).toBeUndefined()
-    // The Daily's literal rules are the same wheel as an untouched quick setup
-    expect(r).toEqual({ ...DAILY_RULES, leagues: ['england'] })
+    // The Daily's literal rules are the same wheel as an untouched quick setup, but for its original 2 re-spins
+    expect(r).toEqual({ ...DAILY_RULES, respins: 1, leagues: ['england'] })
   })
 
   it('gives each difficulty card its re-spins and keeps hard mode in step', () => {
@@ -166,7 +166,7 @@ describe('a game started from the setup cards', () => {
 
 describe('describeRules: a fixed wheel in plain words', () => {
   it("reads the Daily's pinned rules", () => {
-    expect(describeRules(u, dailyGameSettings(u, 'daily-2026-10-25').rules)).toEqual(['Normal: 1 re-spin', 'Ratings on', 'Squad First', 'Season ratings', 'All-time', 'Twists on'])
+    expect(describeRules(u, dailyGameSettings(u, 'daily-2026-10-25').rules)).toEqual(['2 re-spins', 'Ratings on', 'Squad First', 'Season ratings', 'All-time', 'Twists on'])
   })
 
   it('names every option that differs', () => {
