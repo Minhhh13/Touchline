@@ -19,6 +19,11 @@ export function HowTo() {
         <div className="panel">
           <h3>Ratings</h3>
           <p>Ratings come from public datasets of EA Sports FC and FIFA editions and the European Soccer Database, reworked into thirteen attributes: pace, shooting, passing, dribbling, defending, physical, mentality and goalkeeping, plus stamina, strength, aggression, jumping and work rate, which decide how legs last, who wins the duels, who gets booked and how well a press runs. A player's rating for a season is taken from the edition published after it, so it reflects how he actually played that year. Values and wages are our own estimates in today's money. Ratings are an independent interpretation used to make the game work and may differ from any official source.</p>
+          {u?.classicFirstSeason !== undefined && (
+            <p data-testid="howto-estimated">
+              Classic seasons ({u.classicFirstSeason}-{String((u.classicFirstSeason + 1) % 100).padStart(2, '0')} to {u.firstSeason - 1}-{String(u.firstSeason % 100).padStart(2, '0')}) use estimated ratings: no official ratings exist for them, so TouchLine estimates each player from his real league starts and goals, his age, his caps and how his club did, on the same scale as the later seasons. The squads and the final tables are real. These seasons are opt-in (the Classic era in Setup), carry an "estimated" mark wherever they appear, and never join the Daily.
+            </p>
+          )}
         </div>
         <div className="panel">
           <h3>The match engine</h3>

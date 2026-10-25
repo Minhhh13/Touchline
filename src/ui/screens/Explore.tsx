@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { ClubBadge, Flag, Modal, Rating, Pos } from '../components/bits'
+import { ClubBadge, EstimatedChip, Flag, Modal, Rating, Pos } from '../components/bits'
 import { AttributePanel } from '../components/AttributePanel'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
-import { isClassic } from '@engine/universe'
+import { classicFromFor, isEstimated } from '@game/logic/era'
 
 function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
@@ -26,13 +26,14 @@ function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
 /** Every season of one real player across all loaded leagues, with the ratings the engine uses. */
 function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: () => void }) {
   const { universe: u, shortlist, toggleShortlist } = useStore()
-  const seasons = useMemo(() => (u && playerId ? Object.values(u.index).filter((p) => p.playerId === playerId && !isClassic(u, p)).sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId)) : []), [u, playerId])
+  const seasons = useMemo(() => (u && playerId ? Object.values(u.index).filter((p) => p.playerId === playerId).sort((a, b) => a.season - b.season || a.clubId.localeCompare(b.clubId)) : []), [u, playerId])
   if (!u || !playerId || !seasons.length) return null
   const best = [...seasons].sort((a, b) => b.overall - a.overall)[0]
   const latest = seasons[seasons.length - 1]
   const clubs = [...new Set(seasons.map((p) => p.clubId))]
   const peak = Math.max(...seasons.map((p) => p.overall))
   const low = Math.min(...seasons.map((p) => p.overall))
+  const anyEstimated = seasons.some((p) => isEstimated(u, p.id))
   return (
     <Modal open onClose={onClose} title={latest.name} wide>
       <div className="row wrap" style={{ marginBottom: 10 }}>
@@ -50,11 +51,14 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
       </div>
       <div className="grid two">
         <div>
-          <div className="small muted" style={{ marginBottom: 6 }}>Rating by season (peak season highlighted)</div>
+          <div className="small muted" style={{ marginBottom: 6 }}>Rating by season (peak season highlighted{anyEstimated ? '; striped bars are estimated ratings' : ''})</div>
           <div className="row" style={{ gap: 3, alignItems: 'flex-end', height: 70 }}>
-            {seasons.map((p) => (
-              <div key={p.id} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: p === best ? 'var(--meter-mid)' : 'var(--accent)', borderRadius: 3, opacity: p === best ? 1 : 0.75 }} />
-            ))}
+            {seasons.map((p) => {
+              // An estimated season is drawn striped and fainter, so the change of rating source reads at a glance
+              const est = isEstimated(u, p.id)
+              const colour = p === best ? 'var(--meter-mid)' : 'var(--accent)'
+              return <div key={p.id} data-estimated={est ? 'true' : undefined} title={`${seasonLabel(p.season)} · ${clubName(u, p.clubId)} · ${p.overall}${est ? ' · estimated' : ''}`} style={{ flex: 1, minWidth: 6, height: `${Math.max(8, ((p.overall - low + 4) / Math.max(1, peak - low + 4)) * 100)}%`, background: est ? `repeating-linear-gradient(135deg, ${colour} 0 3px, transparent 3px 6px)` : colour, boxShadow: est ? `inset 0 0 0 1px ${colour}` : undefined, borderRadius: 3, opacity: p === best ? 1 : est ? 0.6 : 0.75 }} />
+            })}
           </div>
           <div className="row between small muted" style={{ marginTop: 4 }}>
             <span>{seasonLabel(seasons[0].season)}</span>
@@ -90,6 +94,7 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
                   <td className="num">{p.age}</td>
                   <td className="num">
                     <Rating value={p.overall} />
+                    {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
                   </td>
                   <td className="num">£{p.value}M</td>
                   <td>
@@ -116,23 +121,27 @@ export function Explore() {
   const [careerId, setCareerId] = useState<string | null>(null)
   const [view, setView] = useState<'browse' | 'legends' | 'search'>('browse')
   const [posFilter, setPosFilter] = useState<'all' | Position>('all')
-  if (!u) return null
-  const seasons = Array.from({ length: u.lastSeason - u.firstSeason + 1 }, (_, i) => u.firstSeason + i)
-  const table = u.tables[leagueId]?.[season] ?? []
-  const clubsInSeason = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
-  const selected = clubId ? u.clubSeasonByKey[`${clubId}@${season}`] : undefined
   const legends = useMemo(() => {
-    const all = Object.values(u.index).filter((p) => (posFilter === 'all' || p.positions[0] === posFilter) && u.clubById[p.clubId]?.leagueId === leagueId && !isClassic(u, p))
+    if (!u) return []
+    const all = Object.values(u.index).filter((p) => (posFilter === 'all' || p.positions[0] === posFilter) && u.clubById[p.clubId]?.leagueId === leagueId)
     return all.sort((a, b) => b.overall - a.overall).slice(0, 60)
   }, [u, posFilter, leagueId])
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (q.length < 2) return []
+    if (!u || q.length < 2) return []
     return Object.values(u.index)
-      .filter((p) => p.name.toLowerCase().includes(q) && !isClassic(u, p))
+      .filter((p) => p.name.toLowerCase().includes(q))
       .sort((a, b) => a.playerId.localeCompare(b.playerId) || a.season - b.season)
       .slice(0, 120)
   }, [u, query])
+  if (!u) return null
+  // Classic seasons (estimated ratings) come first for a league that has them
+  const firstShown = classicFromFor(u, [leagueId]) ?? u.firstSeason
+  const seasons = Array.from({ length: u.lastSeason - firstShown + 1 }, (_, i) => firstShown + i)
+  const table = u.tables[leagueId]?.[season] ?? []
+  const clubsInSeason = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
+  const selected = clubId ? u.clubSeasonByKey[`${clubId}@${season}`] : undefined
+  const seasonEstimated = clubsInSeason.some((cs) => cs.estimated)
 
   return (
     <div className="page">
@@ -177,10 +186,16 @@ export function Explore() {
                 {seasons.map((s) => (
                   <option key={s} value={s}>
                     {seasonLabel(s)}
+                    {s < u.firstSeason ? ' (estimated ratings)' : ''}
                   </option>
                 ))}
               </select>
             </div>
+            {seasonEstimated && (
+              <p className="help" style={{ marginTop: 0 }}>
+                <EstimatedChip /> The squads and the table are real; no official ratings exist for this season, so these are TouchLine's estimates.
+              </p>
+            )}
             <table className="tbl">
               <thead>
                 <tr>
@@ -224,6 +239,7 @@ export function Explore() {
                     <h2 style={{ fontSize: 24 }}>{clubName(u, selected.clubId)}</h2>
                     <div className="small muted">
                       {seasonLabel(selected.season)} · {!selected.complete ? 'season in progress' : selected.position > 0 ? `${ordinal(selected.position)} · ${selected.points} pts · ${selected.won}-${selected.drawn}-${selected.lost}` : 'final table not on record'} · {selected.squad.length} players
+                      {selected.estimated && <> <EstimatedChip /></>}
                     </div>
                   </div>
                 </div>
@@ -266,7 +282,10 @@ export function Explore() {
               <span className="row small" style={{ gap: 6 }}>
                 <ClubBadge clubId={p.clubId} size={18} /> {clubName(u, p.clubId)}
               </span>
-              <span className="small muted">{seasonLabel(p.season)}</span>
+              <span className="small muted">
+                {seasonLabel(p.season)}
+                {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
+              </span>
               <button type="button" className="btn sm ghost" onClick={() => toggleShortlist(p.id)} title="Shortlist">
                 <Star on={shortlist.includes(p.id)} />
               </button>

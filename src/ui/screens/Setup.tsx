@@ -6,16 +6,15 @@ import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
 import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
-import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel, type EraRange } from '@engine/nations'
+import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
 import { poolClubSeasons } from '@engine/universe'
+import { classicFromFor, eraRules, eraSeasons, leagueSeasonChoices, type Era } from '@game/logic/era'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { clubName } from '../format'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
-
-type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
 
 /** Whether this viewer last left More options open; a private window or blocked storage reads as closed. */
 const ADVANCED_KEY = 'touchline-setup-advanced'
@@ -34,23 +33,6 @@ function writeAdvanced(open: boolean): void {
   }
 }
 
-/** The wheel's season bounds for an era choice; the Daily has none. */
-function eraBounds(era: Era, from: number, to: number, firstSeason: number, isDaily: boolean): EraRange {
-  if (isDaily) return {}
-  switch (era) {
-    case 'early':
-      return { fromSeason: firstSeason, toSeason: 2013 }
-    case 'mid':
-      return { fromSeason: 2014, toSeason: 2019 }
-    case 'modern':
-      return { fromSeason: 2020 }
-    case 'custom':
-      return { fromSeason: Math.min(from, to), toSeason: Math.max(from, to) }
-    default:
-      return {}
-  }
-}
-
 function listNames(names: string[]): string {
   if (names.length <= 1) return names.join('')
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
@@ -63,6 +45,7 @@ export function Setup() {
   const [teamName, setTeamName] = useState('Touchline XI')
   const [formationId, setFormationId] = useState('4-3-3')
   const [era, setEra] = useState<Era>('all')
+  const [includeClassic, setIncludeClassic] = useState(false)
   const [from, setFrom] = useState(u?.firstSeason ?? 2008)
   const [to, setTo] = useState(u?.lastSeason ?? 2026)
   const [onlyClub, setOnlyClub] = useState('')
@@ -94,26 +77,30 @@ export function Setup() {
     return () => ro.disconnect()
   }, [u])
 
-  // Classic seasons are not offered here yet (they need the classic era control)
-  const seasons = useMemo(() => (u ? [...new Set(poolClubSeasons(u, false).filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort() : []), [u, leagueId])
+  // Classic league seasons are listed too, tagged: their rivals' ratings are estimated
+  const seasonChoices = useMemo(() => (u ? leagueSeasonChoices(u, leagueId) : []), [u, leagueId])
+  const seasons = useMemo(() => seasonChoices.map((s) => s.season), [seasonChoices])
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const clubsInLeague = useMemo(() => (u ? u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort((a, b) => (u.clubById[a]?.name ?? a).localeCompare(u.clubById[b]?.name ?? b)) : []), [u, leagueId, effectiveSeason])
   const wheelLeagues = useMemo(() => (wheelScope === 'europe' && u ? u.available.map((l) => l.id) : [leagueId]), [wheelScope, leagueId, u])
-  // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
-  const allClubs = useMemo(() => {
-    if (!u) return []
-    const lo = Math.min(from, to)
-    const hi = Math.max(from, to)
-    const inEra = new Set(poolClubSeasons(u, false).filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
-    return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
-  }, [u, wheelLeagues, from, to])
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const twists = twistsChoice ?? (isManage ? SEASON_RULES.twists ?? false : QUICK_RULES.twists ?? false)
-  const eraRange = eraBounds(era, from, to, u?.firstSeason ?? 2008, isDaily)
+  // Classic seasons (estimated ratings) are offered only when a wheel league has them; the Daily never sees them
+  const classicFrom = u ? classicFromFor(u, wheelLeagues) : undefined
+  const eraRange = u ? eraRules(u, { era, from, to, includeClassic, isDaily, leagues: wheelLeagues }) : {}
+  const rangeSeasons = useMemo(() => (u ? eraSeasons(u, wheelLeagues) : []), [u, wheelLeagues])
+  // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
+  const allClubs = useMemo(() => {
+    if (!u) return []
+    const lo = eraRange.fromSeason ?? -Infinity
+    const hi = eraRange.toSeason ?? Infinity
+    const inEra = new Set(poolClubSeasons(u, eraRange.classic).filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
+    return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
+  }, [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic])
   // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era.
   // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
-  const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, formationId])
+  const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, formationId])
   const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   // The club handed over by default sits nearest tenth in that season's real table, so the board's ask is reachable
@@ -212,6 +199,7 @@ export function Setup() {
                 {fixed.rules?.hardMode ? ', hard mode' : ''}
                 {fixed.rules?.twists ? ', twists on' : ', no twists'}
                 {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
+                {fixed.rules?.classic ? ', classic seasons (estimated ratings)' : ''}
                 {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
                 {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(fixed.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
                 <div className="small" style={{ marginTop: 6 }}>
@@ -258,13 +246,16 @@ export function Setup() {
                   <label className="field">
                     League season to play in
                     <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
-                      {seasons.map((s) => (
+                      {seasonChoices.map(({ season: s, classic }) => (
                         <option key={s} value={s}>
-                          {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}
+                          {seasonLabel(s)} {s === u.currentSeason ? '(in progress)' : ''}{classic ? '(estimated ratings)' : ''}
                         </option>
                       ))}
                     </select>
-                    <span className="help">Your drafted side replaces one real club and plays its {Math.max(0, clubsInLeague.length - 1)} rivals with their real squads of that season.</span>
+                    <span className="help">
+                      Your drafted side replaces one real club and plays its {Math.max(0, clubsInLeague.length - 1)} rivals with their real squads of that season.
+                      {seasonChoices.find((c) => c.season === effectiveSeason)?.classic ? ' A classic season: the squads and the table are real, the ratings are our estimate.' : ''}
+                    </span>
                   </label>
                   <label className="field">
                     Club whose place you take
@@ -314,21 +305,33 @@ export function Setup() {
                   <div className="field">
                     Era
                     <Segmented
-                      value={era}
+                      value={era === 'classic' && classicFrom === undefined ? 'all' : era}
                       onChange={setEra}
                       options={[
                         { value: 'all', label: 'All eras' },
+                        ...(classicFrom !== undefined ? [{ value: 'classic' as const, label: `Classic: ${seasonLabel(classicFrom)} to ${seasonLabel(u.firstSeason - 1)}`, hint: 'Real squads and tables with estimated ratings', testId: 'era-classic' }] : []),
                         { value: 'early', label: `${seasonLabel(u.firstSeason)} to 2013-14` },
                         { value: 'mid', label: '2014-15 to 2019-20' },
                         { value: 'modern', label: '2020-21 onwards' },
                         { value: 'custom', label: 'Custom' },
                       ]}
                     />
+                    {classicFrom !== undefined && era === 'all' && (
+                      <label className="toggle">
+                        <input type="checkbox" checked={includeClassic} onChange={(e) => setIncludeClassic(e.target.checked)} data-testid="include-classic" />
+                        Include classic seasons ({seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)})
+                      </label>
+                    )}
+                    {classicFrom !== undefined && (
+                      <span className="help" data-testid="classic-help">
+                        {seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)} use TouchLine's estimated ratings (no official ratings exist); squads and tables are real.{eraRange.classic ? ' Classic seasons are on.' : ''}
+                      </span>
+                    )}
                   </div>
                   {era === 'custom' && (
                     <div className="row">
                       <select className="input" value={from} onChange={(e) => setFrom(Number(e.target.value))}>
-                        {seasons.map((s) => (
+                        {rangeSeasons.map((s) => (
                           <option key={s} value={s}>
                             {seasonLabel(s)}
                           </option>
@@ -336,7 +339,7 @@ export function Setup() {
                       </select>
                       <span>to</span>
                       <select className="input" value={to} onChange={(e) => setTo(Number(e.target.value))}>
-                        {seasons.map((s) => (
+                        {rangeSeasons.map((s) => (
                           <option key={s} value={s}>
                             {seasonLabel(s)}
                           </option>

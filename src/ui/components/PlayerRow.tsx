@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
-import { Flag, Pos, Rating, Bar } from './bits'
+import { EstimatedChip, Flag, Pos, Rating, Bar } from './bits'
 import { conditionColour, seasonLabel, clubShort } from '../format'
 import { useStore } from '@game/store'
+import { isEstimated } from '@game/logic/era'
 
 /** `showLabels` prints Cond, Mor and Shp under the three state bars (the Key toggle), for screens that cannot hover. */
 export function PlayerRow({ p, state, right, onClick, dim, selected, hideRatings, showClub, extra, showLabels }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode; showLabels?: boolean }) {
@@ -11,6 +12,7 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, hideRatings
   if (state?.injury) flags.push(<span key="inj" className="chip bad" title={state.injury.description}>🩹 {state.injury.weeksOut}w</span>)
   if (state && state.suspension > 0) flags.push(<span key="sus" className="chip bad">🟥 {state.suspension}</span>)
   if (p.accolades.includes('Champion')) flags.push(<span key="ch" className="chip gold" title="Won the league that season">🏆</span>)
+  if (u && isEstimated(u, p.id)) flags.push(<EstimatedChip key="est" compact />)
   return (
     <button type="button" className={`prow ${dim ? 'dim' : ''} ${selected ? 'selected' : ''}`} onClick={dim ? undefined : onClick} disabled={dim && !onClick}>
       <Rating value={p.overall} hidden={hideRatings} />

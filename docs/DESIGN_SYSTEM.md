@@ -270,6 +270,7 @@ Pills of 12 px semibold for short facts.
 | `.chip.warn` | Attention | "Bidding war", "can cover CB" |
 | `.chip.bad` | A problem | "🩹 3w", "Sacked", "✗ Missed" |
 | `.chip.gold` | Trophies, records, the captain | "🏆", "📜 League record", "©" |
+| `.chip.estimated` | A number that is TouchLine's estimate (classic seasons), dashed border in `--text-2`; only through `EstimatedChip` | "Estimated ratings", "est." |
 
 At most three chips on a row; a chip is never a button unless it is in a chip group like the depth chart. `.chip.good` is not a selection colour: the XI's position chips in the squad list become `.chip.info` in the screen pass.
 

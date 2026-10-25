@@ -22,6 +22,7 @@ import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { bestWinLine } from '@game/logic/gameByGame'
+import { estimatedNote } from '@game/logic/era'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -44,7 +45,7 @@ export function Summary() {
   const results = q?.results ?? []
   const replay = useSeasonReplay(results.length)
   const formation = getFormation(game.tactics.formationId)
-  const row: TableRow = { teamId: USER_TEAM, played: 38, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
+  const row: TableRow = { teamId: USER_TEAM, played: record.won + record.drawn + record.lost, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
   // Where this season sits against every complete real season of the league with the same number of matches
   const leagueName = u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? game.settings.leagueId
   const bench = useMemo(() => (season?.sacked ? null : benchmarkSeason(u, game.settings.leagueId, record)), [u, game.settings.leagueId, record.won, record.drawn, record.lost, record.points, record.goalsFor, record.goalsAgainst, season?.sacked])
@@ -61,6 +62,9 @@ export function Summary() {
   if (recordLine) extraLines.push(recordLine)
   const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
   if (bestLine) extraLines.push(bestLine)
+  // A classic pick or a classic league season: the numbers are TouchLine's estimate, and the share says so
+  const estimated = estimatedNote(u, Object.values(game.lineup), game.settings.leagueId, game.settings.leagueSeason)
+  if (estimated) extraLines.push(estimated)
   // Head-to-head against the ghost this game was played against
   const challenge = game.settings.challenge
   const mine = claimOf(game)
@@ -145,7 +149,7 @@ export function Summary() {
         formation,
         lineup: game.lineup,
         getPlayer: get,
-        footer: game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`,
+        footer: `${game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`}${estimated ? ' · estimated ratings' : ''}`,
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)

@@ -29,6 +29,15 @@ export function Rating({ value, size, hidden }: { value: number; size?: 'lg'; hi
   )
 }
 
+/** The marker of a classic season's numbers: TouchLine's estimate, not an EA rating. `compact` fits a player row. */
+export function EstimatedChip({ compact }: { compact?: boolean }) {
+  return (
+    <span className="chip estimated" data-testid="estimated-chip" title="Estimated ratings: no official ratings exist for this season, so TouchLine estimates them from real appearances, goals and results. Squads and tables are real.">
+      {compact ? 'est.' : 'Estimated ratings'}
+    </span>
+  )
+}
+
 export function Pos({ p }: { p: Position }) {
   return <span className={`pos ${POSITION_GROUP[p]}`}>{p}</span>
 }
@@ -52,11 +61,11 @@ export function Bar({ value, max = 100, colour, thick }: { value: number; max?: 
   )
 }
 
-export function Segmented<T extends string>({ options, value, onChange }: { options: Array<{ value: T; label: string; hint?: string }>; value: T; onChange: (v: T) => void }) {
+export function Segmented<T extends string>({ options, value, onChange }: { options: Array<{ value: T; label: string; hint?: string; testId?: string }>; value: T; onChange: (v: T) => void }) {
   return (
     <div className="segmented" role="radiogroup">
       {options.map((o) => (
-        <button key={o.value} type="button" className={o.value === value ? 'active' : ''} onClick={() => onChange(o.value)} title={o.hint} role="radio" aria-checked={o.value === value}>
+        <button key={o.value} type="button" className={o.value === value ? 'active' : ''} onClick={() => onChange(o.value)} title={o.hint} role="radio" aria-checked={o.value === value} data-testid={o.testId}>
           {o.label}
         </button>
       ))}

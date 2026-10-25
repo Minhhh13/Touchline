@@ -7,7 +7,7 @@ import { CaseReel } from '../components/CaseReel'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, Pos, Rating, Tip } from '../components/bits'
+import { ClubBadge, EstimatedChip, Pos, Rating, Tip } from '../components/bits'
 import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { draftSlotChoices } from '@game/logic/slotSheet'
@@ -120,6 +120,7 @@ export function Draft() {
             {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challenge.claim.pts} pts) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
             {nation ? `${nationLabel} only · ` : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
+            {d.rules.classic ? 'Classic seasons · ' : ''}
             {d.rules.hardMode ? 'Hard mode · ' : ''}
             {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
           </div>
@@ -253,6 +254,7 @@ export function Draft() {
                     <h2 style={{ fontSize: 26 }}>{clubName(u, current.clubId)}</h2>
                     <div className="muted small">
                       {seasonLabel(current.season)} · {!current.complete ? 'season in progress' : current.champions ? '🏆 Champions' : current.position > 0 ? `${ordinal(current.position)} · ${current.points} pts` : 'final table not on record'}{current.position > 0 ? ` · ${current.won}-${current.drawn}-${current.lost}` : ''}
+                      {current.estimated && <> <EstimatedChip /></>}
                     </div>
                   </div>
                 </div>

@@ -912,6 +912,10 @@ label.field,
   background: var(--gold-soft);
   border-color: color-mix(in srgb, var(--gold) 45%, transparent);
 }
+.chip.estimated {
+  border-style: dashed;
+  color: var(--text-2);
+}
 .chip.info {
   color: var(--accent);
   background: var(--primary-soft);
