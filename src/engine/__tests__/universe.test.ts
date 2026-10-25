@@ -183,9 +183,38 @@ describe('Premier League tables 1992-93 to 2007-08', () => {
     expect(boro.points).toBe(39)
     expect(boro.points).toBe(3 * boro.won + boro.drawn - 3)
     expect(boro.position).toBe(19)
-    // nobody else lost points that season or in any other Premier League season in the packs
+    // nobody else lost points that season; the other Premier League deductions in the packs are the modern ones below
     const deducted = Object.entries(u.tables.england).flatMap(([s, rows]) => rows.filter((r) => r.deduction).map((r) => `${r.clubId}@${s}`))
-    expect(deducted).toEqual(['middlesbrough@1996'])
+    expect(deducted).toEqual(['middlesbrough@1996', 'portsmouth@2009', 'everton@2023', 'nottingham-forest@2023'])
     for (const rows of Object.values(u.tables.england)) for (const r of rows) expect(r.points).toBe(3 * r.won + r.drawn - (r.deduction ?? 0))
+  })
+})
+
+describe('points deductions in the seasons with players', () => {
+  const u = loadTestUniverse(['england', 'spain', 'italy', 'germany'])
+  it('ranks every deducted club where the league did (the official tables on Wikipedia)', () => {
+    const row = (league: string, season: number, clubId: string) => {
+      const r = u.tables[league][season].find((x) => x.clubId === clubId)!
+      return [r.position, r.points, r.deduction]
+    }
+    expect(row('england', 2009, 'portsmouth')).toEqual([20, 19, 9])
+    expect(row('england', 2023, 'everton')).toEqual([15, 40, 8])
+    expect(row('england', 2023, 'nottingham-forest')).toEqual([17, 32, 4])
+    expect(row('spain', 2014, 'almeria')).toEqual([19, 29, 3])
+    expect(row('italy', 2014, 'parma')).toEqual([20, 19, 7])
+    expect(row('italy', 2018, 'chievo')).toEqual([20, 17, 3])
+    expect(row('italy', 2022, 'juventus')).toEqual([7, 62, 10])
+    // the wheel's club-seasons carry the same official finish
+    expect(u.clubSeasonByKey['everton@2023'].position).toBe(15)
+    expect(u.clubSeasonByKey['juventus@2022'].points).toBe(62)
+    for (const league of ['england', 'spain', 'italy', 'germany']) {
+      for (const rows of Object.values(u.tables[league])) {
+        for (const r of rows) expect(r.points).toBe(3 * r.won + r.drawn - (r.deduction ?? 0))
+        expect(rows.map((r) => r.position)).toEqual(rows.map((_, i) => i + 1))
+        for (let i = 1; i < rows.length; i++) expect(rows[i - 1].points, `${league} ${rows[i].clubId}`).toBeGreaterThanOrEqual(rows[i].points)
+      }
+    }
+    const all = ['england', 'spain', 'italy', 'germany'].flatMap((l) => Object.entries(u.tables[l]).flatMap(([s, rows]) => rows.filter((r) => r.deduction && Number(s) >= 2008).map((r) => `${l}:${r.clubId}@${s}`)))
+    expect(all.length).toBe(7)
   })
 })
