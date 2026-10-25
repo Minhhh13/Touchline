@@ -30,7 +30,7 @@ export function KickOff() {
         <div>
           <h1>Kick-off</h1>
           <p className="muted setup-sub">
-            {s.teamName}, {seasonLabel(s.leagueSeason)}. Set how the XI plays, then watch the season game by game.
+            {s.teamName} · {u.leagues.find((l) => l.id === s.leagueId)?.name ?? ''} {seasonLabel(s.leagueSeason)}. Set how the XI plays, then watch the season game by game.
           </p>
         </div>
         <div className="grid two">

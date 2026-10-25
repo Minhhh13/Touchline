@@ -43,6 +43,8 @@ export interface GameSettings {
    * Quick Draft: a top-four finish earns a short Continental Cup run after the league season.
    */
   continental?: boolean
+  /** How the main play button plays a match (Season and Dynasty): stops for your calls, auto-play with the assistant at the stops, or straight to the result. Unset reads as 'watch'. */
+  matchPlay?: 'watch' | 'auto' | 'sim'
   /** Quick Draft and the Daily: the season stops after the halfway matchweek for a January window. Absent (older saves) is off. */
   january?: boolean
   /** A ghost draft this game is played against (opened from a challenge link or "Run it back"). */
