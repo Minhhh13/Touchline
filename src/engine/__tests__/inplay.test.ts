@@ -324,6 +324,36 @@ describe('changes with the ball in play', { timeout: 30_000 }, () => {
     expect(changeInPlay(summary, s, { side: 'home', minute: 30, tactics: { ...summary.home.tactics, width: 'wide' } }).refusal).toBe('summary-match')
   })
 
+  it('a substitution needs the ball in play, and a man who has just come on cannot go straight off', () => {
+    let checked = 0
+    for (let i = 0; i < 12; i++) {
+      const s = sides(i)
+      const mp = standingAt(`inplay-kickoff-${i}`, s, 0)
+      const sub = aSub(mp, s, 'home', 0)
+      if (!sub) continue
+      const t = mp.home.tactics
+      const snap = JSON.stringify(mp)
+      // At 0 the substitution is refused and nothing else changes, so the match is untouched
+      expect(changeInPlay(mp, s, { side: 'home', minute: 0, substitutions: [sub] })).toEqual({ applied: false, refusal: 'no-change', made: [], refused: [{ ...sub, why: 'before-kick-off' }] })
+      expect(JSON.stringify(mp)).toBe(snap)
+      // Instructions at 0 still apply from the first minute, and the starters stay the starters
+      const out = changeInPlay(mp, s, { side: 'home', minute: 0, substitutions: [sub], tactics: { ...t, width: t.width === 'wide' ? 'narrow' : 'wide' } })
+      expect(out).toMatchObject({ applied: true, made: [], refused: [{ ...sub, why: 'before-kick-off' }] })
+      expect(mp.hLive.filter((p) => p.onAt === 0)).toHaveLength(11)
+      // On at 20, and straight off again at 20: refused; a minute later he can go
+      const at20 = changeInPlay(mp, s, { side: 'home', minute: 20, substitutions: [sub] })
+      if (!at20.made.length) continue
+      const next = benchAt(mp, 'home', 20, s.home.getState).find((id) => !mp.hLive.some((p) => p.psId === id))
+      if (!next) continue
+      expect(changeInPlay(mp, s, { side: 'home', minute: 20, substitutions: [{ off: sub.on, on: next }] }).refused).toEqual([{ off: sub.on, on: next, why: 'not-on-pitch' }])
+      if (mp.hLive.find((p) => p.psId === sub.on)!.offAt < 90) continue
+      expect(changeInPlay(mp, s, { side: 'home', minute: 21, substitutions: [{ off: sub.on, on: next }] }).made).toHaveLength(1)
+      expectConsistent(mp)
+      checked++
+    }
+    expect(checked).toBeGreaterThan(6)
+  })
+
   it('a shout after 70 plays the rest under it and survives a later cut; the bench and the pitch at a minute follow the log', () => {
     const s = sides(5)
     const mp = beginMatch({ rng: new Rng('inplay-shout'), ...s, detail: 'full' })
@@ -345,9 +375,20 @@ describe('changes with the ball in play', { timeout: 30_000 }, () => {
   it('keeps the new match fields small and only on full-detail matches', () => {
     const s = sides(2)
     const r = simulateMatch({ rng: new Rng('inplay-size'), ...s, detail: 'full' })
-    expect(r.timeline!.filter((e) => e.by === 'kickoff')).toHaveLength(2)
     expect(r.seedKey).toMatch(/^[0-9a-z]+-[0-9a-z]+-[0-9a-z]+-[0-9a-z]+$/)
-    expect(JSON.stringify({ timeline: r.timeline, seedKey: r.seedKey }).length).toBeLessThan(512)
+    // A side whose instructions never changed keeps no kick-off entry in the result: its final tactics say it
+    for (const side of ['home', 'away'] as const) {
+      const changed = r.timeline!.some((e) => e.side === side && e.by !== 'kickoff' && (e.instructions || e.setPieces))
+      expect(r.timeline!.some((e) => e.side === side && e.by === 'kickoff')).toBe(changed)
+    }
+    let total = 0
+    for (let i = 0; i < 60; i++) {
+      const x = simulateMatch({ rng: new Rng(`inplay-size-${i}`), ...sides(i), detail: 'full' })
+      const bytes = JSON.stringify({ timeline: x.timeline, seedKey: x.seedKey }).length
+      expect(bytes).toBeLessThan(512)
+      total += bytes
+    }
+    expect(total / 60).toBeLessThan(400)
     const summary = simulateMatch({ rng: new Rng('inplay-size'), ...sides(2), detail: 'summary' })
     expect(summary.timeline).toBeUndefined()
     expect(summary.seedKey).toBeUndefined()

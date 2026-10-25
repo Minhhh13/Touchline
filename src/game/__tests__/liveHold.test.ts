@@ -5,6 +5,7 @@ import { USER_TEAM } from '@engine/season'
 import { advanceLiveMatch, changeLiveMatch, completeLiveMatch, finishLiveMatch, playFriendly, playMatchweek } from '../logic/week'
 import { clone, seasonGame } from './seasonGame'
 import type { Game } from '../types'
+import { useStore } from '../store'
 
 describe('the last twenty minutes held live, and changes with the ball in play', { timeout: 30_000 }, () => {
   const u = loadTestUniverse()
@@ -80,8 +81,11 @@ describe('the last twenty minutes held live, and changes with the ball in play',
     const sub = oneSub(g, 30)
     const slot = Object.keys(g.lineup).find((k) => g.lineup[k] === sub.off)!
     const tactics = { ...g.tactics, mentality: g.tactics.mentality === 'attacking' ? 'defensive' as const : 'attacking' as const }
+    const rngBefore = { ...g.rngState }
     const out = changeLiveMatch(g, u, { minute: 30, tactics, substitutions: [sub] })
     expect(out.applied).toBe(true)
+    // The game's generator is never touched by a change in play
+    expect(g.rngState).toEqual(rngBefore)
     expect(out.made).toHaveLength(1)
     expect(g.lineup[slot]).toBe(sub.on)
     expect(g.bench).toContain(sub.off)
@@ -111,5 +115,37 @@ describe('the last twenty minutes held live, and changes with the ball in play',
     completeLiveMatch(g, u)
     expect(g.live).toBeNull()
     expect([g.lastMatch!.homeGoals, g.lastMatch!.awayGoals]).toEqual([score.home, score.away])
+  })
+
+  it('the store: play on held, change with the ball in play, complete at the whistle, all through Immer without a hitch', () => {
+    const g = seasonGame(u, 'inplay-store', 1)
+    playMatchweek(g, u)
+    useStore.setState({ universe: u, game: g, loadedLeagues: ['england'], toast: null })
+    const st = () => useStore.getState()
+    st().advanceLive({})
+    expect(st().game!.live!.mp.clock).toBe(70)
+    const tactics = st().game!.tactics
+    const out = st().interveneLive({ minute: 60, tactics: { ...tactics, tempo: tactics.tempo === 'fast' ? 'slow' : 'fast' } })
+    expect(out).toMatchObject({ applied: true })
+    expect(st().toast).toBeNull()
+    expect(st().game!.tactics.tempo).not.toBe(tactics.tempo)
+    expect(st().interveneLive({ minute: 75, tactics })?.refusal).toBe('outside-segment')
+    st().advanceLive({}, true)
+    expect(st().game!.live!.mp.clock).toBe(90)
+    const live = st().game!.live!
+    const side = live.userIsHome ? 'home' : 'away'
+    const off = onPitchAtMinute(live.mp, side, 80).find((p) => p.position !== 'GK' && p.offAt >= 90 && !p.red && p.onAt < 80)
+    const on = benchAt(live.mp, side, 80, (id) => st().game!.squad[id]).find((id) => !(side === 'home' ? live.mp.hLive : live.mp.aLive).some((p) => p.psId === id))
+    if (off && on) {
+      const sub = st().interveneLive({ minute: 80, substitutions: [{ off: off.psId, on }] })
+      expect(sub?.applied).toBe(true)
+      if (sub?.made.length) expect(Object.values(st().game!.lineup)).toContain(on)
+    }
+    expect(st().toast).toBeNull()
+    st().completeLive()
+    expect(st().game!.live).toBeNull()
+    expect(st().game!.lastMatch?.timeline?.some((e) => e.by === 'manager' && e.minute === 60)).toBe(true)
+    expect(st().interveneLive({ minute: 30 })).toMatchObject({ applied: false })
+    useStore.setState({ game: null, universe: null, loadedLeagues: [] })
   })
 })

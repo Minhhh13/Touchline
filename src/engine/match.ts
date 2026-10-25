@@ -158,7 +158,8 @@ export interface InPlayOutcome {
   applied: boolean
   refusal?: InPlayRefusal
   made: Substitution[]
-  refused: Array<{ off: string; on: string; why: 'no-window' | 'no-subs-left' | 'not-on-pitch' | 'unavailable' | 'already-played' }>
+  /** `before-kick-off`: a substitution at minute 0 (the team is picked before the match, not changed in it). */
+  refused: Array<{ off: string; on: string; why: 'no-window' | 'no-subs-left' | 'not-on-pitch' | 'unavailable' | 'already-played' | 'before-kick-off' }>
   /** A shout asked for before the 70th minute. */
   shoutRefused?: boolean
 }
@@ -429,6 +430,30 @@ function recordChange(mp: MatchInProgress, side: 'home' | 'away', minute: number
   if (entry !== last) timeline.push(entry)
 }
 
+/**
+ * The timeline as a result keeps it. A side's kick-off entry keeps only the
+ * instructions a later entry of that side changes (the others never moved, so
+ * the final tactics say them) and is dropped when nothing is left and its
+ * set-piece takers never changed. The match feed reads it back whole. Saves
+ * keep a whole season of results, so every byte here counts.
+ */
+export function compactTimeline(timeline: TimelineEntry[]): TimelineEntry[] {
+  const out: TimelineEntry[] = []
+  for (const e of timeline) {
+    if (e.by !== 'kickoff') {
+      out.push(e)
+      continue
+    }
+    const later = timeline.filter((x) => x.side === e.side && x.by !== 'kickoff')
+    const keys = new Set(later.flatMap((x) => Object.keys(x.instructions ?? {})))
+    const kept: Partial<Record<keyof Instructions, string>> = {}
+    for (const k of INSTRUCTION_KEYS) if (keys.has(k) && e.instructions?.[k] !== undefined) kept[k] = e.instructions[k]
+    if (!Object.keys(kept).length && !e.setPieces) continue
+    out.push({ ...e, instructions: kept as Partial<Instructions> })
+  }
+  return out
+}
+
 /** The score as it stands in a paused match. */
 export function currentScore(mp: MatchInProgress): { home: number; away: number } {
   return score(mp.events)
@@ -628,7 +653,7 @@ export function finishMatch(mp: MatchInProgress, lookups: { home: TeamLookups; a
     importanceLabel: mp.importanceLabel,
     halfTimeScore: mp.halfTimeScore,
     momentum: mp.momentum,
-    ...(mp.timeline ? { timeline: mp.timeline } : {}),
+    ...(mp.timeline ? { timeline: compactTimeline(mp.timeline) } : {}),
     ...(mp.seedKey ? { seedKey: mp.seedKey } : {}),
     ...(mp.detail === 'full' && mp.neutral ? { neutral: true } : {}),
   }
@@ -838,7 +863,13 @@ export function changeInPlay(mp: MatchInProgress, lookups: { home: TeamLookups; 
   const windowAtK = subs.some((s) => s.minute === k && isManagerWindow(s))
   const windows = managerWindowsUsed(work, sideKey)
   for (const s of change.substitutions ?? []) {
-    const off = live.find((p) => p.psId === s.off && p.offAt >= 90 && !p.red && p.onAt <= k)
+    // A substitution needs the ball in play: before kick-off the manager picks the team instead
+    if (k < 1) {
+      refused.push({ ...s, why: 'before-kick-off' })
+      continue
+    }
+    // On the pitch at k, and not a man who came on this very minute
+    const off = live.find((p) => p.psId === s.off && p.offAt >= 90 && !p.red && p.onAt < k)
     if (!off) {
       refused.push({ ...s, why: 'not-on-pitch' })
       continue

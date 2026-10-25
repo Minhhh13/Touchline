@@ -86,16 +86,22 @@ function liveAppearances(live: LivePlayer[]): FeedAppearance[] {
   return live.map((p) => ({ psId: p.psId, slotId: p.slotId, position: p.position, onAt: p.onAt, offAt: p.offAt, red: p.red, injured: !!p.injury, effective: p.effective }))
 }
 
-/** The timeline with a kick-off entry for each side that lacks one, read off its tactics. */
+/**
+ * The timeline with both kick-off entries first (home, then away) and whole, as
+ * the engine writes them: a result keeps only the kick-off instructions that
+ * changed later (or no entry at all), and an older result none, so whatever is
+ * missing is read off the side's final tactics, which those instructions never
+ * left.
+ */
 function withKickOff(timeline: TimelineEntry[] | undefined, home: Tactics, away: Tactics): TimelineEntry[] {
-  const out = [...(timeline ?? [])]
-  for (const [side, t] of [['home', home], ['away', away]] as const) {
-    if (out.some((e) => e.side === side && e.by === 'kickoff')) continue
+  const all = timeline ?? []
+  const kick = (side: 'home' | 'away', t: Tactics): TimelineEntry => {
+    const own = all.find((e) => e.side === side && e.by === 'kickoff')
     const instructions: Partial<Instructions> = {}
-    for (const k of INSTRUCTION_KEYS) (instructions as Record<string, string>)[k] = t[k]
-    out.unshift({ minute: 0, side, by: 'kickoff', instructions })
+    for (const k of INSTRUCTION_KEYS) (instructions as Record<string, string>)[k] = own?.instructions?.[k] ?? t[k]
+    return own ? { ...own, instructions } : { minute: 0, side, by: 'kickoff', instructions }
   }
-  return out
+  return [kick('home', home), kick('away', away), ...all.filter((e) => e.by !== 'kickoff')]
 }
 
 function sideFromSnapshot(s: TeamSnapshot, live: LivePlayer[], subs: Substitution[]): FeedSide {

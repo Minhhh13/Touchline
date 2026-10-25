@@ -46,7 +46,11 @@ describe('match feed', () => {
     expect(feed.neutral).toBe(true)
     expect(feed.home.shortName).toBe('HOM')
     expect(feed.finalStats!.home).toBe(r.homeStats)
-    expect(feed.timeline).toEqual(r.timeline)
+    // The result keeps a compacted timeline; the feed reads back exactly the one the match had
+    const mp = beginMatch({ rng: new Rng('feed-result'), ...sides(3), detail: 'full', neutral: true })
+    advanceMatch(mp, sides(3), undefined, 70)
+    advanceMatch(mp, sides(3), undefined, 90)
+    expect(feed.timeline).toEqual(mp.timeline)
     expect(feed.lastMinute).toBeGreaterThanOrEqual(90)
     const older = { ...r, timeline: undefined, seedKey: undefined, neutral: undefined }
     const old = feedFromResult(older, 'H-A-3')
@@ -77,8 +81,14 @@ describe('match feed', () => {
       // The AI side's reaction at the break shows from 46
       const ai = feed.timeline.find((e) => e.side === 'away' && e.by === 'ai')
       if (ai) expect(tacticsAt(feed, 'away', 46)).toMatchObject(ai.instructions!)
+      advanceMatch(mp, s, undefined, 90)
+      const live = feedFromLive(mp, 'k')
       const r = finishMatch(mp, s)
-      expect(tacticsAt(feedFromResult(r, 'k'), 'home', 31).mentality).toBe(t30.mentality)
+      const res = feedFromResult(r, 'k')
+      expect(tacticsAt(res, 'home', 31).mentality).toBe(t30.mentality)
+      // However the result compacts its timeline, every minute reads the same tactics as in play
+      expect(res.timeline).toEqual(live.timeline)
+      for (let m = 0; m <= 94; m++) for (const side of ['home', 'away'] as const) expect(tacticsAt(res, side, m)).toEqual(tacticsAt(live, side, m))
     }
   })
 
