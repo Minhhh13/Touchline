@@ -84,7 +84,7 @@ describe('the default host club', () => {
 
   it('falls back to the alphabetical middle when the table is missing', () => {
     const clubs = clubsIn(2025)
-    expect(defaultHostClub(u, 'england', 1999, clubs)).toBe(clubs[Math.floor(clubs.length / 2)])
+    expect(defaultHostClub(u, 'england', 1991, clubs)).toBe(clubs[Math.floor(clubs.length / 2)])
     expect(defaultHostClub(u, 'nowhere', 2025, clubs)).toBe(clubs[Math.floor(clubs.length / 2)])
     expect(defaultHostClub(u, 'england', 2025, [])).toBe('')
   })

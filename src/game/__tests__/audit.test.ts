@@ -160,10 +160,12 @@ describe('audit fixes: transfer market', () => {
     g.finances.budget = 9999
     g.finances.wageCap = 999999
     const get = playerLookup(g, u)
-    // A fringe player of a league rival, old enough that no club calls him untouchable
+    // A fringe player of a league rival, old enough that no club calls him untouchable, and not
+    // the same man as one we drafted from another season (the market refuses those)
+    const owned = new Set(Object.keys(g.squad).map((id) => get(id)?.playerId))
     let target: { psId: string; clubId: string } | null = null
     for (const [clubId, club] of Object.entries(g.season!.ai)) {
-      const fringe = club.squad.map((id) => u.index[id]).filter((p) => p && p.age >= 24 && p.age < 33 && p.overall < 78)
+      const fringe = club.squad.map((id) => u.index[id]).filter((p) => p && p.age >= 24 && p.age < 33 && p.overall < 78 && !owned.has(p.playerId))
       const notListed = fringe.find((p) => !g.window!.listings.some((l) => u.index[l.playerSeasonId]?.playerId === p.playerId))
       if (notListed) {
         target = { psId: notListed.id, clubId }

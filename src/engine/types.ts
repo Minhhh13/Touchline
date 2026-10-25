@@ -122,6 +122,8 @@ export interface LeagueSeasonRow {
   lost: number
   goalsFor: number
   goalsAgainst: number
+  /** Points deducted by the league that season; `points` is already net of it. */
+  deduction?: number
 }
 
 export interface LeagueInfo {

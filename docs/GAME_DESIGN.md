@@ -677,7 +677,7 @@ Line two names the host club and season; line three is the tier plus "+ CUP" whe
 
 ### In the record books
 
-`src/engine/records.ts` is pure lookups over the real league tables already shipped in `u.tables` (the season tables of each pack plus England's historic 2000-01 to 2007-08 tables); nothing in it touches the RNG.
+`src/engine/records.ts` is pure lookups over the real league tables already shipped in `u.tables` (the season tables of each pack plus England's historic 1992-93 to 2007-08 tables: the three 22-club seasons of 42 games until 1994-95 form their own peer group; points are net of any deduction, and `realChampion` names nobody for a season in `u.voidTitles`); nothing in it touches the RNG.
 
 - **Complete seasons only.** `historicRows(u, leagueId)` returns every row of every complete real season, oldest first. `LeagueSeasonRow` carries no `played`, so a row's matches are `won + drawn + lost`; a season counts when every row adds up to `2 × (clubs − 1)`, which skips the season in progress (`u.currentSeason`, 2026-27 with four to seven matches played); seasons that ship without a table (the Bundesliga's 2008-09 and 2009-10, La Liga before 2012-13, Serie A before 2013-14) never reach `u.tables` (`buildLeague` drops empty tables), and an empty table would be skipped too. With the 2026-10-24 data that is 26 Premier League seasons (520 club-seasons of 38 matches), 14 La Liga, 13 Serie A and 16 Bundesliga seasons (288 club-seasons of 34 matches); Ligue 1, the Eredivisie and the Primeira Liga ship without tables and return nothing.
 - **Same length only.** `benchmarkSeason(u, leagueId, row)` compares the user's season with the historic rows of the same `played`, so a 34-game Bundesliga campaign is never measured against a 38-game one and a sacked or otherwise unfinished season matches nothing. Five metrics: points, wins and goals scored (more is better), goals conceded and defeats (fewer is better). Each reports `rank` (1 + the historic rows strictly better), `of` (historic rows compared), `equal` (rows level with it) and `better` (the top three ahead of it, best first, ties broken by season then club id). `records` lists the metrics where the season stands alone at the top (`rank === 1` and `equal === 0`): Manchester City's real 2017-18 ranks first on points but ties itself, so it is not an outright record, while 101 points is. `seasons` is the number of distinct seasons compared and a league has a record book only from `RECORD_BOOK_MIN_SEASONS = 10` of them (`hasRecordBook`).
@@ -762,7 +762,7 @@ The site is hosted as a Render static site (build `npm ci && npm run build`, pub
 
 Not in the code today:
 
-- 1992-93 to 2007-08 seasons; tables exist for 2000-01 to 2007-08 but no player data.
+- 1992-93 to 2007-08 seasons; Premier League tables exist for all of them (1992-93 onwards) but no player data yet (`classic-seasons`).
 - Online leaderboards, shared daily results and online multiplayer; the leaderboard is per browser and head-to-head is hot-seat only.
 - 38-0 modes not reproduced: Last One Standing, Teammate Chain, Tournaments, Multiplayer leagues.
 - FM systems not reproduced: separate in-possession and out-of-possession shapes, scouting with attribute ranges, individual training, youth intake and regens, mentoring, press conferences beyond the events deck, finances beyond budget, wages, staff and prize money.

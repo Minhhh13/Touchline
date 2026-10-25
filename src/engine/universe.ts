@@ -24,9 +24,14 @@ export interface MetaFile {
     clubs: string[]
     complete: boolean
     hasTable?: boolean
-    table: Array<{ clubId: string; position: number; played: number; won: number; drawn: number; lost: number; gf: number; ga: number; pts: number }>
+    /** The title was stripped or never awarded: the club on top of the table is not champion. */
+    titleVoid?: boolean
+    /** `pts` is net of `deduction`, the points the league took off the club that season. */
+    table: Array<{ clubId: string; position: number; played: number; won: number; drawn: number; lost: number; gf: number; ga: number; pts: number; deduction?: number }>
   }>
   historicTables: Record<string, MetaFile['seasons'][number]['table']>
+  /** Seasons of `historicTables` whose title was stripped or never awarded. */
+  historicTitleVoid?: number[]
   sources: Array<{ credit: string; licence: string }>
 }
 
@@ -48,6 +53,8 @@ export interface LoadedUniverse extends Universe {
   available: LeagueInfo[]
   /** Date stamp (YYYY-MM-DD) of the data packs, from `leagues.json`; the pack's own date for a single league built offline. */
   generatedAt: string
+  /** By league id, the seasons whose title was stripped or never awarded (no champion). */
+  voidTitles: Record<string, number[]>
 }
 
 export function seasonLabel(season: number): string {
@@ -142,7 +149,8 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
   let currentSeason: number | null = null
   const newestSeason = Math.max(...meta.seasons.map((s) => s.season))
   const toRows = (table: MetaFile['seasons'][number]['table']): LeagueSeasonRow[] =>
-    table.map((r) => ({ clubId: r.clubId, position: r.position, points: r.pts, won: r.won, drawn: r.drawn, lost: r.lost, goalsFor: r.gf, goalsAgainst: r.ga }))
+    table.map((r) => ({ clubId: r.clubId, position: r.position, points: r.pts, won: r.won, drawn: r.drawn, lost: r.lost, goalsFor: r.gf, goalsAgainst: r.ga, ...(r.deduction ? { deduction: r.deduction } : {}) }))
+  const voidTitles = new Set<number>(meta.historicTitleVoid ?? [])
   for (const s of meta.seasons) {
     const rows = toRows(s.table)
     if (rows.length) tables[s.season] = rows
@@ -151,10 +159,12 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     const complete = hasTable ? s.complete : s.season < newestSeason
     if (!complete && currentSeason === null) currentSeason = s.season
     const byClub = Object.fromEntries(rows.map((r) => [r.clubId, r]))
+    if (s.titleVoid) voidTitles.add(s.season)
     for (const clubId of s.clubs) {
       const squad = (squads[`${clubId}@${s.season}`] ?? []).sort((a, b) => b.overall - a.overall)
       const t = byClub[clubId]
-      const champions = s.complete && t?.position === 1
+      // A stripped or unawarded title makes nobody champion, though the table keeps its order
+      const champions = s.complete && t?.position === 1 && !s.titleVoid
       const cs: ClubSeason = {
         clubId,
         leagueId,
@@ -194,6 +204,7 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     currentSeason,
     available: [leagueInfo],
     generatedAt: players.generatedAt,
+    voidTitles: { [leagueId]: [...voidTitles].sort((a, b) => a - b) },
   }
 }
 
@@ -224,6 +235,7 @@ export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[],
     clubById: { ...first.clubById },
     clubSeasonByKey: { ...first.clubSeasonByKey },
     sources: [...first.sources],
+    voidTitles: { ...first.voidTitles },
     available,
     generatedAt: generatedAt ?? ordered.map((u) => u.generatedAt).sort().at(-1) ?? first.generatedAt,
   }
@@ -236,6 +248,7 @@ export function mergeUniverses(parts: LoadedUniverse[], available: LeagueInfo[],
     Object.assign(out.nations, u.nations)
     Object.assign(out.clubById, u.clubById)
     Object.assign(out.clubSeasonByKey, u.clubSeasonByKey)
+    Object.assign(out.voidTitles, u.voidTitles)
     out.firstSeason = Math.min(out.firstSeason, u.firstSeason)
     out.lastSeason = Math.max(out.lastSeason, u.lastSeason)
     if (u.currentSeason && !out.currentSeason) out.currentSeason = u.currentSeason

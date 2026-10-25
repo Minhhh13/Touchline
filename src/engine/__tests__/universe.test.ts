@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from './helpers'
 import { POSITIONS } from '../positions'
@@ -5,7 +7,11 @@ import { Rng } from '../rng'
 import { canUse, eligibleSlots, isComplete, newDraft, pick, QUICK_RULES, spin } from '../draft'
 import { getFormation } from '../formations'
 import { ENGINE_VERSION } from '../version'
-import type { LoadedUniverse } from '../universe'
+import type { LeaguesFile, LoadedUniverse, PlayersFile } from '../universe'
+
+const DATA = path.resolve(__dirname, '..', '..', '..', 'public', 'data')
+const readPack = (league: string): PlayersFile => JSON.parse(readFileSync(path.join(DATA, league, 'players.json'), 'utf8')) as PlayersFile
+const ALL_LEAGUES = (JSON.parse(readFileSync(path.join(DATA, 'leagues.json'), 'utf8')) as LeaguesFile).leagues.map((l) => l.id)
 
 /** Spin and pick a quick 4-3-3 from `leagues`, returning the club-seasons the wheel landed on. */
 function quickDraftSpins(u: LoadedUniverse, leagues: string[], seed: string): string[] {
@@ -98,5 +104,88 @@ describe('universe data', () => {
     const e = loadTestUniverse(['england', 'spain'])
     expect(e.generatedAt).toBe(u.generatedAt)
     expect(ENGINE_VERSION).toMatch(/^\d+$/)
+  })
+})
+
+describe('pack rows', () => {
+  it('every row of every pack has finite hidden traits from 0 to 100', () => {
+    for (const league of ALL_LEAGUES) {
+      const pack = readPack(league)
+      const cols = ['cons', 'inj', 'big', 'prof'].map((c) => pack.columns.indexOf(c))
+      for (const i of cols) expect(i).toBeGreaterThanOrEqual(0)
+      let bad = 0
+      for (const row of pack.rows) {
+        for (const i of cols) {
+          const v = row[i]
+          if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 100) bad++
+        }
+      }
+      expect(bad, league).toBe(0)
+    }
+  })
+
+  it('full backs stand on the side of their stronger foot in the European Soccer Database seasons too', () => {
+    // 2008-09 to 2013-14 come from line-up coordinates; from 2014-15 EA positions. Both eras should agree.
+    for (const league of ['england', 'spain']) {
+      const u = loadTestUniverse([league])
+      const share = (from: number, to: number, pos: string) => {
+        const ps = Object.values(u.index).filter((p) => p.season >= from && p.season <= to && p.positions[0] === pos)
+        return { left: ps.filter((p) => p.foot === 'L').length / ps.length, n: ps.length }
+      }
+      for (const [from, to] of [[2008, 2013], [2014, 2026]]) {
+        const lb = share(from, to, 'LB')
+        const rb = share(from, to, 'RB')
+        expect(lb.n).toBeGreaterThan(100)
+        expect(rb.n).toBeGreaterThan(100)
+        expect(lb.left, `${league} LB ${from}`).toBeGreaterThan(0.7)
+        expect(rb.left, `${league} RB ${from}`).toBeLessThan(0.1)
+      }
+    }
+  })
+})
+
+describe('Premier League tables 1992-93 to 2007-08', () => {
+  const u = loadTestUniverse()
+  const classic = Array.from({ length: 16 }, (_, i) => 1992 + i)
+  it('has all sixteen, complete: 22 clubs and 462 matches until 1994-95, 20 and 380 after', () => {
+    for (const s of classic) {
+      const t = u.tables.england[s]
+      expect(t, String(s)).toBeTruthy()
+      const clubs = s <= 1994 ? 22 : 20
+      expect(t.length).toBe(clubs)
+      for (const r of t) expect(r.won + r.drawn + r.lost).toBe(2 * (clubs - 1))
+      // every match counted once for each side
+      expect(t.reduce((a, r) => a + r.won + r.drawn + r.lost, 0) / 2).toBe(clubs * (clubs - 1))
+      expect(t.reduce((a, r) => a + r.goalsFor, 0)).toBe(t.reduce((a, r) => a + r.goalsAgainst, 0))
+      expect(t.map((r) => r.position)).toEqual(Array.from({ length: clubs }, (_, i) => i + 1))
+      // no players for these seasons yet, so nothing on the wheel
+      expect(u.clubSeasons.some((cs) => cs.season === s)).toBe(false)
+    }
+  })
+  it('resolves every one of the 40 clubs and gets the champions right', () => {
+    const ids = new Set(classic.flatMap((s) => u.tables.england[s].map((r) => r.clubId)))
+    expect(ids.size).toBe(40)
+    for (const id of ids) expect(u.clubById[id], id).toBeTruthy()
+    for (const id of ['oldham-athletic', 'swindon-town', 'barnsley', 'sheffield-wednesday', 'wimbledon']) expect(ids).toContain(id)
+    const champions = classic.map((s) => u.tables.england[s][0].clubId)
+    expect(champions).toEqual(['manchester-united', 'manchester-united', 'blackburn-rovers', 'manchester-united', 'manchester-united', 'arsenal', 'manchester-united', 'manchester-united', 'manchester-united', 'arsenal', 'manchester-united', 'arsenal', 'chelsea', 'chelsea', 'manchester-united', 'manchester-united'])
+  })
+  it('matches the real 1992-93 Manchester United and the unbeaten 2003-04 Arsenal', () => {
+    const united = u.tables.england[1992][0]
+    expect([united.clubId, united.won, united.drawn, united.lost, united.goalsFor, united.goalsAgainst, united.points]).toEqual(['manchester-united', 24, 12, 6, 67, 31, 84])
+    const arsenal = u.tables.england[2003][0]
+    expect([arsenal.clubId, arsenal.won, arsenal.drawn, arsenal.lost, arsenal.goalsFor, arsenal.goalsAgainst, arsenal.points]).toEqual(['arsenal', 26, 12, 0, 73, 26, 90])
+  })
+  it('applies the 1996-97 deduction: Middlesbrough 19th on 39 points after losing 3', () => {
+    const t = u.tables.england[1996]
+    const boro = t.find((r) => r.clubId === 'middlesbrough')!
+    expect(boro.deduction).toBe(3)
+    expect(boro.points).toBe(39)
+    expect(boro.points).toBe(3 * boro.won + boro.drawn - 3)
+    expect(boro.position).toBe(19)
+    // nobody else lost points that season or in any other Premier League season in the packs
+    const deducted = Object.entries(u.tables.england).flatMap(([s, rows]) => rows.filter((r) => r.deduction).map((r) => `${r.clubId}@${s}`))
+    expect(deducted).toEqual(['middlesbrough@1996'])
+    for (const rows of Object.values(u.tables.england)) for (const r of rows) expect(r.points).toBe(3 * r.won + r.drawn - (r.deduction ?? 0))
   })
 })

@@ -197,4 +197,5 @@ describe('match detail: shot positions and momentum', () => {
   })
 })
 
-const PINNED = { goals: 432, chances: 769, state: { a: -1802413461, b: 1017949396, c: -1306234288, d: -1031035180 } }
+// Re-pinned for the 2026-10-25 data rebuild (positions and hidden traits of 2008-14 rows): the RNG state is unchanged.
+const PINNED = { goals: 448, chances: 768, state: { a: -1802413461, b: 1017949396, c: -1306234288, d: -1031035180 } }

@@ -11,7 +11,8 @@
  *   2024       EA Sports FC 25 ratings
  *   2025       EA Sports FC 26 ratings
  *   2026       EA Sports FC 27 ratings (current season)
- * League tables: openfootball results files, 2000-01 onwards.
+ * League tables: openfootball results files, 2000-01 onwards (England from 1992-93),
+ * corrected by scripts/import/historic/overrides.mjs (points deductions, void titles).
  */
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
@@ -20,7 +21,8 @@ import { readCsv } from './csv.mjs'
 import { nation, nationFlag, NATION_NAMES } from './nations.mjs'
 import { LEAGUES, clubIdIn, FC24_LEAGUE_BY_ID, EA_LEAGUE_BY_NAME, EURO_LEAGUE_BY_ID } from './leagues.mjs'
 import { parseResults, buildTable } from './openfootball.mjs'
-import { CACHE, DATA_DIR, SOURCES, OPENFOOTBALL_SEASONS, seasonSlug } from './config.mjs'
+import { CACHE, DATA_DIR, SOURCES, openfootballSeasons, seasonSlug } from './config.mjs'
+import { applyTableOverrides } from './historic/overrides.mjs'
 import { ensureDatasets } from './download.mjs'
 import { fileURLToPath } from 'node:url'
 
@@ -151,11 +153,18 @@ function modelWage(value) {
   return 5 * Math.pow(Math.max(0.1, value), 0.85)
 }
 
+/** A source value, or the fallback when it is missing: `num()` turns a blank cell into NaN, which `??` lets through. */
+const finiteOr = (v, fallback) => (Number.isFinite(v) ? v : fallback)
+
 function traitsFor(id, { composure, reactions, age, reputation, workRate, physical }) {
   const n = (salt) => unit(id, salt) - 0.5 // -0.5..0.5
-  const consistency = clamp(0.5 + 0.004 * ((composure ?? 60) - 60) + 0.003 * ((reactions ?? 60) - 60) + n(1) * 0.3, 0.05, 0.98)
-  const injury = clamp(0.3 + n(2) * 0.5 + (age >= 32 ? 0.15 : age >= 30 ? 0.07 : 0) - 0.002 * ((physical ?? 60) - 60), 0.03, 0.97)
-  const bigMatch = clamp(0.45 + ((reputation ?? 1) - 1) * 0.1 + 0.003 * ((composure ?? 60) - 60) + n(3) * 0.3, 0.05, 0.98)
+  const com = finiteOr(composure, 60)
+  const rea = finiteOr(reactions, 60)
+  const phy = finiteOr(physical, 60)
+  const rep = finiteOr(reputation, 1)
+  const consistency = clamp(0.5 + 0.004 * (com - 60) + 0.003 * (rea - 60) + n(1) * 0.3, 0.05, 0.98)
+  const injury = clamp(0.3 + n(2) * 0.5 + (age >= 32 ? 0.15 : age >= 30 ? 0.07 : 0) - 0.002 * (phy - 60), 0.03, 0.97)
+  const bigMatch = clamp(0.45 + (rep - 1) * 0.1 + 0.003 * (com - 60) + n(3) * 0.3, 0.05, 0.98)
   let wr = 0
   if (workRate) {
     const [att, def] = String(workRate).split('/').map((s) => s.trim().toLowerCase())
@@ -637,7 +646,14 @@ async function loadFc27(fc26Ages, sofifaIndex, currentClubs) {
 // ---------------------------------------------------------------------------
 // Source: European Soccer Database (2008-09 .. 2013-14)
 
-function inferPosition(x, y) {
+/**
+ * Position from a European Soccer Database line-up slot. The database's X runs
+ * 1-9 from the team's right touchline to its left (X 2 is the right back: 86%
+ * of 2008-14 players found there are right-footed), so it is mirrored here to
+ * read 1 as the left: the rules below put low X on the left.
+ */
+function inferPosition(rawX, y) {
+  const x = 10 - rawX
   if (y <= 1) return 'GK'
   if (y <= 4) return x <= 2 ? 'LB' : x >= 8 ? 'RB' : 'CB'
   if (y <= 6) return x <= 2 ? 'LB' : x >= 8 ? 'RB' : 'DM'
@@ -813,8 +829,9 @@ function shortName(full) {
 
 async function loadTables(leagueId) {
   const dir = path.join(CACHE, 'openfootball', leagueId)
+  const league = LEAGUES[leagueId]
   const tables = {}
-  for (const season of OPENFOOTBALL_SEASONS) {
+  for (const season of openfootballSeasons(league)) {
     const file = path.join(dir, `${seasonSlug(season)}.txt`)
     let text
     try {
@@ -825,13 +842,21 @@ async function loadTables(leagueId) {
     const { matches, unknown } = parseResults(text, (name) => clubIdIn(leagueId, name))
     for (const u of unknown) warnings.push(`openfootball ${leagueId} ${seasonSlug(season)}: unknown club ${u}`)
     if (!matches.length) continue
-    const table = buildTable(matches)
-    const teams = table.length
+    const built = buildTable(matches)
+    const teams = built.length
     const expected = teams * (teams - 1)
-    tables[season] = { season, complete: matches.length >= expected && teams >= 16, matches: matches.length, table }
+    // A league that knows its size (the Premier League: 22 clubs until 1994-95) also checks the club count
+    const expectedClubs = league.openfootball?.clubs?.(season)
+    if (expectedClubs && teams !== expectedClubs) warnings.push(`openfootball ${leagueId} ${seasonSlug(season)}: ${teams} clubs, expected ${expectedClubs}`)
+    const { table, titleVoid, missing, applied } = applyTableOverrides(leagueId, season, built)
+    for (const id of missing) warnings.push(`overrides ${leagueId} ${seasonSlug(season)}: ${id} is not in the table`)
+    if (applied) tableOverridesApplied.push(`${leagueId} ${seasonSlug(season)}`)
+    const complete = matches.length >= expected && teams >= 16 && (!expectedClubs || teams === expectedClubs)
+    tables[season] = { season, complete, matches: matches.length, table, titleVoid }
   }
   return tables
 }
+const tableOverridesApplied = []
 
 // ---------------------------------------------------------------------------
 // Main
@@ -989,7 +1014,7 @@ async function main() {
       const clubsIn = Object.keys(counts).filter((c) => counts[c] >= 12).sort()
       const t = tables[s]
       // Without a results table, only the newest season in the pack is still being played
-      return { season: s, clubs: clubsIn, complete: t ? t.complete : s < Math.max(...seasons), hasTable: !!t, table: t?.table ?? [] }
+      return { season: s, clubs: clubsIn, complete: t ? t.complete : s < Math.max(...seasons), hasTable: !!t, ...(t?.titleVoid ? { titleVoid: true } : {}), table: t?.table ?? [] }
     })
     const nations = {}
     for (const p of players) if (!nations[p.nation]) nations[p.nation] = { name: NATION_NAMES[p.nation] ?? 'Unknown', flag: nationFlag(p.nation) }
@@ -998,6 +1023,7 @@ async function main() {
     await mkdir(outDir, { recursive: true })
     const playersOut = { version: PLAYERS_VERSION, generatedAt: new Date().toISOString().slice(0, 10), columns: COLUMNS, rows: players.map(makeRow) }
     await writeFile(path.join(outDir, 'players.json'), JSON.stringify(playersOut))
+    const historicTitleVoid = Object.values(tables).filter((t) => t.titleVoid && !seasons.includes(t.season)).map((t) => t.season)
     const meta = {
       version: 2,
       league: { id: leagueId, name: league.name, shortName: league.shortName, country: league.country },
@@ -1005,7 +1031,11 @@ async function main() {
       nations,
       seasons: seasonInfo,
       historicTables: Object.fromEntries(Object.entries(tables).filter(([s]) => !seasons.includes(Number(s))).map(([s, t]) => [s, t.table])),
-      sources: Object.values(SOURCES).map((s) => ({ credit: s.credit, licence: s.licence })).concat([{ credit: 'openfootball (GitHub)', licence: 'CC0 / public domain' }]),
+      ...(historicTitleVoid.length ? { historicTitleVoid } : {}),
+      sources: Object.values(SOURCES)
+        .map((s) => ({ credit: s.credit, licence: s.licence }))
+        .concat([{ credit: 'openfootball (GitHub)', licence: 'CC0 / public domain' }])
+        .concat(tableOverridesApplied.some((k) => k.startsWith(`${leagueId} `)) ? [{ credit: 'Points deductions and stripped titles: Wikipedia season articles (references)', licence: 'Facts; CC BY-SA 4.0 articles, no text reproduced' }] : []),
     }
     await writeFile(path.join(outDir, 'meta.json'), JSON.stringify(meta))
     const sizeMb = (Buffer.byteLength(JSON.stringify(playersOut)) / 1e6).toFixed(2)
@@ -1014,12 +1044,15 @@ async function main() {
     console.log(`\n${league.name}: ${players.length} player-seasons, ${distinct} players, ${clubs.length} clubs, ${seasons[0]}-${seasons.at(-1)}, players.json ${sizeMb} MB`)
     const depthMeans = ['sta', 'str', 'agg', 'jmp', 'wr'].map((k, i) => `${k} ${(players.reduce((a, p) => a + p.depth[i], 0) / players.length).toFixed(1)}`).join(' ')
     console.log(`  depth means: ${depthMeans}`)
+    const historicSeasons = Object.values(tables).filter((t) => !seasons.includes(t.season))
+    if (historicSeasons.length) console.log(`  historic tables (no players): ${historicSeasons.length}, ${historicSeasons.filter((t) => t.complete).length} complete (${historicSeasons.map((t) => `${seasonSlug(t.season)} ${t.table.length} clubs ${t.matches} matches`).join(', ')})`)
     for (const s of seasonInfo) console.log(`  ${s.season}-${String(s.season + 1).slice(2)}: ${players.filter((p) => p.season === s.season).length} rows, ${s.clubs.length} clubs, table ${s.hasTable ? (s.complete ? 'complete' : 'partial') : 'none'}`)
     leaguesIndex.push({ id: leagueId, name: league.name, shortName: league.shortName, country: league.country, firstSeason: seasons[0], lastSeason: seasons.at(-1), playerSeasons: players.length, players: distinct, clubs: clubs.length })
   }
   await writeFile(path.join(DATA_DIR, 'leagues.json'), JSON.stringify({ version: 2, generatedAt: new Date().toISOString().slice(0, 10), leagues: leaguesIndex }))
   console.log(`\nTotal: ${grandTotal} player-seasons across ${leagueIds.length} leagues`)
   console.log('Depth columns from source / derived:', Object.fromEntries(Object.keys(depthStats.raw).map((k) => [k, `${depthStats.raw[k]} / ${depthStats.derived[k]}`])))
+  if (tableOverridesApplied.length) console.log('Table overrides applied:', tableOverridesApplied.join(', '))
   if (unknownNations.size) console.log('Unknown nations:', [...unknownNations.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30))
   const uniqWarnings = [...new Set(warnings)]
   if (uniqWarnings.length) console.log(`Warnings (${uniqWarnings.length}):\n  ` + uniqWarnings.slice(0, 80).join('\n  '))

@@ -37,10 +37,10 @@ The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with 
 ### `public/data/<league>/meta.json` (about 80 KB)
 
 - `league`: `{ id: "england", name: "English Top Flight", shortName: "England" }`.
-- `clubs`: the 46 clubs that appear in any squad or table, with name, short name, three-letter code, city, nickname, founding year, approximate kit colours, an AI playing style and a rivals list (from `scripts/import/clubs-england.mjs`, which holds 55 clubs; only the used ones are emitted).
+- `clubs`: the 51 clubs that appear in any squad or table, with name, short name, three-letter code, city, nickname, founding year, approximate kit colours, an AI playing style and a rivals list (from `scripts/import/clubs-england.mjs`, which holds 58 clubs; only the used ones are emitted). Oldham Athletic, Swindon Town and Barnsley were appended for the 1992-98 tables (club ids are permanent, so new clubs go at the end).
 - `nations`: code to `{ name, flag }` for the 117 codes present.
-- `seasons`: for each season with player data, the clubs in it, whether the real table is complete, and the table (position, played, won, drawn, lost, goals for and against, points).
-- `historicTables`: tables for seasons without player data (2000-01 to 2007-08).
+- `seasons`: for each season with player data, the clubs in it, whether the real table is complete, and the table (position, played, won, drawn, lost, goals for and against, points). A row carries `deduction` when the league took points off the club (`pts` is already net of it); a season carries `titleVoid: true` when its title was stripped and not re-awarded (nobody is champion). Both are optional and absent from every season shipped today except the deduction below.
+- `historicTables`: tables for seasons without player data (England 1992-93 to 2007-08). `historicTitleVoid` (optional, absent today) lists those whose title was void.
 - `sources`: the credit and licence lines shown in the How it works screen.
 
 ## 2. Coverage
@@ -53,7 +53,7 @@ The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with 
 | 2025-26 | 540 | FC 27 (borrowed) | FC 26 dataset |
 | 2026-27 | 612 | FC 27 (current edition, no later one yet) | FC 27 dataset, clubs filtered to the 2026-27 table |
 
-Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 46 clubs, 19 seasons (2008-09 to 2026-27)**. The 2026-27 table is partial (five matches played per club at build time) and is flagged `complete: false`; the engine treats that season as "in progress" and awards no Champion accolade for it. Overall ratings range from 46 to 91.
+Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 51 clubs, 19 seasons (2008-09 to 2026-27)**, plus 16 complete Premier League tables without player data (1992-93 to 2007-08: 22 clubs and 462 matches until 1994-95, 20 and 380 since; 40 distinct clubs). The 2026-27 table is partial (five matches played per club at build time) and is flagged `complete: false`; the engine treats that season as "in progress" and awards no Champion accolade for it. Overall ratings range from 46 to 91.
 
 ## 3. Sources
 
@@ -64,7 +64,8 @@ Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 46
 | EA Sports FC 26 Player Ratings (Kaggle) | justdhia | CC0 1.0 | The FC 26 edition (2025-26 membership; ratings for 2024-25). |
 | EA SPORTS FC 27 Player Ratings (Kaggle) | mikedpad | Unofficial non-commercial snapshot of EA's public ratings API (see the dataset README) | The FC 27 edition, men's football only (2026-27 membership and ratings; ratings for 2025-26). |
 | European Soccer Database (Kaggle) | Hugo Mathien | ODbL | 2008-09 to 2013-14: Premier League line-ups with pitch coordinates, player attributes over time, birthdays and heights. |
-| openfootball/england (GitHub) | openfootball | CC0 / public domain | Results text files, 2000-01 to 2026-27, parsed into league tables. |
+| openfootball/england (GitHub) | openfootball | CC0 / public domain | Results text files, 1992-93 to 2026-27 (`archive/1990s/<season>/` before 2000-01), parsed into league tables. |
+| English Wikipedia season articles | Wikipedia contributors | CC BY-SA 4.0 (facts only, no text reproduced) | Points deductions and stripped titles in `scripts/import/historic/overrides.mjs`, one cited article per entry. |
 | Wikidata | Wikimedia | CC0 | Nationalities for players the EA data never covered, via `scripts/import/enrich-nations.mjs` (see section 6). |
 
 Download URLs and file names are in `scripts/import/config.mjs`. Kaggle datasets are fetched through the unauthenticated download redirect and unpacked with `unzip`.
@@ -107,7 +108,7 @@ Five more attributes carry the Football Manager depth: stamina, strength, aggres
 Goalkeepers keep their own (low) stamina and aggression from the source. The FC 25, FC 26 and FC 27 files carry no work-rate text and the European Soccer Database's text is sometimes garbage (`None`, `norm`, `_0`), so those rows take the mentality fallback. At the current build 69,120 finalised rows read stamina, strength and aggression from the source every time; jumping is derived for 381 database rows that lack it and work rate for 14,776 rows (the three latest editions plus the unusable database text), the other 54,344 from the text. `src/engine/depth.ts` holds the same five formulas, so a format 2 pack loaded by the engine gets the same derived values the builder would have written. Means in the Premier League pack: stamina 67, strength 69, aggression 65, jumping 69, work rate 61; keepers average 36 stamina.
 ### Positions
 
-EA position strings map to the game's ten: LWB to LB, RWB to RB, CDM to DM, CAM to AM, LM and LF to LW, RM and RF to RW, CF to ST; up to three kept in order. For 2008-14, positions are inferred from each line-up's X and Y pitch coordinates (`inferPosition`): the keeper line, then full-backs and centre-backs, defensive midfield, wide and central midfield, attacking midfield and the forward line by column. A player's observed positions (any used in at least 25 per cent of appearances) are merged with his EA position list where a sofifa id links them; a goalkeeper on either side is a goalkeeper only.
+EA position strings map to the game's ten: LWB to LB, RWB to RB, CDM to DM, CAM to AM, LM and LF to LW, RM and RF to RW, CF to ST; up to three kept in order. For 2008-14, positions are inferred from each line-up's X and Y pitch coordinates (`inferPosition`): the keeper line, then full-backs and centre-backs, defensive midfield, wide and central midfield, attacking midfield and the forward line by column. The database's X runs from the team's right touchline (1) to its left (9), so `inferPosition` mirrors it (`10 − X`) before applying the left-to-right rules. Builds before 2026-10-25 read it unmirrored and swapped every left and right position in 2008-14: the left-foot share of left backs was 0.04 and of right backs 0.86 in the Premier League, against 0.86 and 0.00 in the EA seasons. Now it is 0.86 and 0.04 (every league: left backs 0.67 to 0.91, right backs 0.02 to 0.08), and A. Cole and P. Evra are left backs again. A player's observed positions (any used in at least 25 per cent of appearances) are merged with his EA position list where a sofifa id links them; a goalkeeper on either side is a goalkeeper only.
 
 ### Hidden traits
 
@@ -118,7 +119,7 @@ Deterministic from the player id (a cyrb53 hash provides repeatable noise), so a
 - big match: 0.45 + 0.1 × (international reputation − 1) + 0.003 × (composure − 60) + noise ±0.15 (reputation is inferred from overall where the dataset lacks it: 88+ is 4, 84+ is 3, 80+ is 2)
 - professionalism: 0.55 + 0.15 × work-rate score (high/medium/low on both sides) + noise ±0.15
 
-All clamped to 0.05 to 0.98 and stored as percentages.
+All clamped to 0.05 to 0.98 and stored as percentages. A missing input (composure, reactions, physical, reputation) takes the neutral value shown (60, or 1 for reputation): `num()` reads a blank cell as NaN, and builds before 2026-10-25 let NaN through `?? 60`, so 23,725 rows of 2008-15 (every league) shipped `null` consistency and big-match values, which the engine then read as 0.5. Every row now carries all four traits.
 
 ### Value and wage
 
@@ -130,7 +131,9 @@ Names are the dataset's short or common name, or "F. Surname" (keeping particles
 
 ### League tables
 
-Each openfootball results file is parsed (both the "Home 1-2 (0-1) Away" and "Home v Away 1-2 (0-1)" layouts), club names are resolved through the alias table in `clubs-england.mjs`, and a table is built with 3-1-0 points, goal difference, goals scored and name as tie-breakers. A season is complete at 380 matches. Seasons with a table but no player data go to `historicTables`.
+Each openfootball results file is parsed (both the "Home 1-2 (0-1) Away" and "Home v Away 1-2 (0-1)" layouts), club names are resolved through the alias table in `clubs-england.mjs`, and a table is built with 3-1-0 points, goal difference, goals scored and name as tie-breakers. A season is complete when every club has played every other home and away (`clubs × (clubs − 1)` matches, at least 16 clubs); a league can also declare its size per season (`openfootball.clubs` in `leagues.mjs`: the Premier League had 22 clubs until 1994-95, 20 since), and a table with a different club count is incomplete and warned about. The fetched seasons are per league (`openfootball.from`, 1992 for England, 2000 otherwise; `openfootballSeasons` and `openfootballPath` in `config.mjs`). Seasons with a table but no player data go to `historicTables`.
+
+Then `scripts/import/historic/overrides.mjs` corrects what results alone cannot know: points deductions (subtracted from `pts`, recorded as `deduction`), clubs placed last by the league whatever their points (`placedLast`), and void titles (`titleVoid`), re-ranking the table by the same order. Each entry cites the English Wikipedia season article it was checked against. The only one with a table in the packs today is Middlesbrough 1996-97 (−3 for calling off the December 1996 fixture at Blackburn: 19th on 39 points, relegated). The others wait for the classic seasons of other leagues: Ligue 1 1992-93 (Marseille's title void; Marseille and Valenciennes −1), Serie A 2004-05 (title void), 2005-06 (Juventus placed last, Milan, Fiorentina and Lazio −30, title to Inter) and 2006-07 (Milan −8, Fiorentina −15, Lazio −3, Reggina −11, Siena −1), Primeira Liga 2007-08 (Porto −6, Belenenses −3). An override naming a club missing from its table is printed as a warning.
 
 ### Nationalities
 
@@ -148,17 +151,17 @@ node scripts/import/enrich-nations.mjs   # optional: query Wikidata and refresh 
 
 Downloads are cached in `.cache/datasets` under the repository root, or wherever the `DATA_CACHE` environment variable points. The cache is not committed; add `.cache` to `.gitignore` if you build locally (it is not listed there today). The build prints per-season counts, totals, file size, unknown nations and any unmatched club names.
 
-The Vitest suite (`npm test`) loads the generated files and checks: every season from 2008-09 has 20 clubs; every player-season has a valid overall, positions, age, value and club; J. Vardy 2015-16 is a Leicester City champion rated 80 or more (with stamina above 80 and work rate 80); the 2015-16 table is complete with Leicester first; every pack carries the five depth columns as integers in 1 to 99, keepers read far lower than outfielders on stamina and aggression, and a format 2 pack with the columns stripped still loads with the fallbacks (`src/engine/__tests__/fmdepth.test.ts`).
+The Vitest suite (`npm test`) loads the generated files and checks: every season from 2008-09 has 20 clubs; every player-season has a valid overall, positions, age, value and club; J. Vardy 2015-16 is a Leicester City champion rated 80 or more (with stamina above 80 and work rate 80); the 2015-16 table is complete with Leicester first; every pack carries the five depth columns as integers in 1 to 99, keepers read far lower than outfielders on stamina and aggression, and a format 2 pack with the columns stripped still loads with the fallbacks (`src/engine/__tests__/fmdepth.test.ts`); every row of every pack has four finite traits from 0 to 100; left backs are mostly left-footed and right backs almost never, in the 2008-14 seasons as in the EA ones; the 16 Premier League tables of 1992-93 to 2007-08 are complete (match counts, 40 resolved clubs, the champions, Manchester United 1992-93 at 24-12-6 and 84 points, Arsenal 2003-04 at 26-12-0 and 90) and Middlesbrough 1996-97 is 19th on 39 after its deduction (`universe.test.ts`); a void title makes nobody champion (`titleVoid.test.ts`).
 
 ## 6. Known limits
 
-- No player data before 2008-09. 38-0 covers 1992-93 onwards; open data for those seasons is a roadmap item.
+- No player data before 2008-09. 38-0 covers 1992-93 onwards; the Premier League tables go back to 1992-93, and squads with estimated ratings for 1992-93 to 2007-08 are in progress (`classic-seasons`).
 - 2008-14 positions are inferred from line-up coordinates and may list a player where he was fielded rather than where he was best.
 - Nationality is unknown for 228 players (505 rows), mostly 2008-14; the Wikidata enrichment has not yet been run into the committed override file.
 - The 2026-27 season uses the current edition's ratings (there is no later one), and its table is partial until the season ends.
 - The FC 27 dataset is an unofficial, non-commercial snapshot of a public API.
 - Values and wages are a model, not reported figures. Blending with normalised EA values applies only where the FC 24 dataset supplies one (2014-15 to 2023-24).
-- Clubs are limited to those that appear in a parsed table or a squad; the master list has 55 entries and 46 are emitted.
+- Clubs are limited to those that appear in a parsed table or a squad; the master list has 58 entries and 51 are emitted.
 
 ## 7. Legal
 

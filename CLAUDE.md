@@ -50,7 +50,7 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - The look is specified in `docs/DESIGN_SYSTEM.md`: use its tokens and components, no raw colours (the pitch's fixed whites and club kit colours excepted).
 - `src/main.tsx` React root; registers `public/sw.js` on production builds only.
 - `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`. Committed; they are also the test fixtures.
-- `scripts/import/` offline data pipeline (`build.mjs`, `download.mjs`, `config.mjs`, `leagues.mjs`, club tables, `nations*.{mjs,json}`, `enrich-nations.mjs`).
+- `scripts/import/` offline data pipeline (`build.mjs`, `download.mjs`, `config.mjs` (`openfootballSeasons`, `openfootballPath`: England's results from 1992-93, `archive/1990s/` before 2000-01), `leagues.mjs` (`openfootball.from`, `openfootball.clubs` per season), club tables, `nations*.{mjs,json}`, `enrich-nations.mjs`, `historic/overrides.mjs`: cited points deductions, clubs placed last and void titles applied after `buildTable`).
 - `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences), `RESEARCH.md`, `HANDOVER.md`.
 - `.github/workflows/ci.yml` npm ci, typecheck, test, build on Node 22 for every push and PR.
 
@@ -60,7 +60,7 @@ Node >= 22.13 (`package.json` engines; CI uses 22).
 
 - `npm ci` install exactly from the lockfile.
 - `npm run dev` Vite dev server (no service worker in dev).
-- `npm test` Vitest over `src/**/*.test.ts` (about a minute locally, 239 tests; on a loaded machine a slow seeded sweep can hit the 5 s timeout, so rerun that file alone before suspecting it); `npx vitest run src/engine` or `src/game` for one area.
+- `npm test` Vitest over `src/**/*.test.ts` (about a minute locally, 260 tests; on a loaded machine a slow seeded sweep can hit the 5 s timeout, so rerun that file alone before suspecting it); `npx vitest run src/engine` or `src/game` for one area.
 - `npm run typecheck` `tsc -b --noEmit`. `npm run lint` is the same command; there is no ESLint or Prettier.
 - `npm run build` `tsc -b && vite build` into `dist/` (what Render runs).
 - `npx vite preview --port 4173 --strictPort` serve `dist/` for Playwright smokes and service-worker checks.
@@ -163,6 +163,8 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 - `signYouth` hardcodes 23 instead of `SQUAD_CAP`; change both.
 - `finishSeason` parses `awards.goldenBoot.value` as `"<n> goals"`; changing award strings breaks achievements.
 - France, the Netherlands and Portugal have no tables (no record book, flat wheel weight).
+- England's `historicTables` run 1992-93 to 2007-08; the first three have 22 clubs and 42 games, so anything that assumes 20 clubs or 38 games per historic season is wrong. A table row's `points` is net of `deduction`; `u.voidTitles` lists seasons with no champion (none shipped today).
+- The data stamp is a date, so two rebuilds on one day share `generatedAt`: a challenge link made on the first reads as verified on the second even when the packs changed.
 - Some docs are stale (README: "Node 20 or later", the 69,118 player-season count (69,155 today) and the roadmap line listing Portugal and the Netherlands as future; DATA.md: the England-only intro and totals, and the note that `.cache` is not in `.gitignore`; RESEARCH section 7 lists youth intake, loans, staff and press conferences as not taken). Fix what you touch.
 
 ## Work in progress (not shipped; check branches before overlapping)
