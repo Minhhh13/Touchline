@@ -2,7 +2,8 @@
  * The top bar's drawers: Tactics (the shape and roles, read-only: the lineup is
  * keyed by slot), Instructions (in and out of possession), Shouts (from the
  * 70th minute), Tweaks (set-piece takers among the men on the pitch) and
- * Substitutions (pick off, pick on, queue several, make them in one window).
+ * Substitutions (the substitution board: drag, tap or key a substitute onto a
+ * starter, stage several, make them in one window).
  * Each Apply sends one change where the top bar's chip says it lands.
  */
 import { useState, type ReactNode } from 'react'
@@ -14,11 +15,11 @@ import type { PlayerSeason, SquadPlayer, Tactics } from '@engine/types'
 import { Segmented } from '../../components/bits'
 import { positionCode, roleCode, surname } from '../../match/shirts'
 import { SHOUTS_CLOSED, setPiecesDiffer, instructionDiff, type DrawerId, type Sub } from '../controls'
-import { ConditionIcon } from '../ConditionIcon'
-import { Shirt } from '../Shirt'
+import { boardRoom, countersAfter } from '../subBoard'
 import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { Drawer } from './Drawer'
+import { SubBoard } from './SubBoard'
 
 export interface DrawerProps {
   hand: ManagerHand
@@ -29,10 +30,12 @@ export interface DrawerProps {
   condition: (psId: string) => number | null
   /** The man selected on the strip or a shirt, offered first when taking someone off. */
   selected: string | null
+  /** The save hides ratings (hard or blind): the board shows its fit colours but no numbers. */
+  hideRatings?: boolean
 }
 
 /** The chip again in the drawer, and the two buttons. */
-function Foot({ hand, onApply, canApply, label = 'Apply' }: { hand: ManagerHand; onApply: () => void; canApply: boolean; label?: string }) {
+function Foot({ hand, onApply, canApply, label = 'Apply', testId }: { hand: ManagerHand; onApply: () => void; canApply: boolean; label?: string; testId?: string }) {
   return (
     <>
       <span className={`md-chip ${hand.landing.kind}`}>
@@ -42,7 +45,7 @@ function Foot({ hand, onApply, canApply, label = 'Apply' }: { hand: ManagerHand;
       <button type="button" className="btn sm ghost" onClick={hand.close}>
         Cancel
       </button>
-      <button type="button" className="btn sm primary" onClick={onApply} disabled={!canApply || !hand.editable}>
+      <button type="button" className="btn sm primary" onClick={onApply} disabled={!canApply || !hand.editable} data-testid={testId}>
         {label}
       </button>
     </>
@@ -173,23 +176,17 @@ export function TweaksDrawer({ hand, get }: DrawerProps) {
   )
 }
 
-export function SubsDrawer({ hand, view, get, squad, condition, selected }: DrawerProps) {
+export function SubsDrawer({ hand, view, get, squad, condition, selected, hideRatings = false }: DrawerProps) {
   const [queue, setQueue] = useState<Sub[]>([])
-  const [off, setOff] = useState<string | null>(selected && hand.onPitch.includes(selected) ? selected : null)
-  const queuedOff = new Set(queue.map((s) => s.off))
-  const queuedOn = new Set(queue.map((s) => s.on))
-  const room = hand.subCap - queue.length
   const ballRolling = hand.landing.kind !== 'now' || hand.minute >= 1
   const counters = `${hand.subsLeft}/${MAX_SUBS} subs · ${hand.windowsLeft}/${MAX_WINDOWS} stoppages`
-  const pick = (on: string) => {
-    if (!off || room <= 0) return
-    setQueue([...queue, { off, on }])
-    setOff(null)
-  }
+  // The subs this window can take, and none in play once the three stoppages are spent (as the engine counts them)
+  const room = boardRoom({ subCap: hand.subCap, landing: hand.landing.kind, windowsLeft: hand.windowsLeft, windowOpen: hand.windowOpen })
+  const next = countersAfter({ subsLeft: hand.subsLeft, windowsLeft: hand.windowsLeft, landing: hand.landing.kind, windowOpen: hand.windowOpen, staged: queue.length })
   const note =
     hand.landing.kind === 'stop' && hand.landing.stop === 45
       ? 'Changes at the break spend no stoppage.'
-      : hand.landing.kind === 'now' && hand.windowsLeft <= 0
+      : hand.landing.kind === 'now' && hand.windowsLeft <= 0 && !hand.windowOpen
         ? 'No stoppages left: the referee will not stop play for another change.'
         : hand.landing.kind === 'now'
           ? 'Every change made together uses one stoppage.'
@@ -197,72 +194,25 @@ export function SubsDrawer({ hand, view, get, squad, condition, selected }: Draw
   return (
     <Drawer
       wide
+      className="board"
       title="Substitutions"
       sub={counters}
       onClose={hand.close}
-      foot={<Foot hand={hand} label={queue.length > 1 ? `Make ${queue.length} changes` : 'Make changes'} canApply={queue.length > 0 && ballRolling} onApply={() => hand.submit({ substitutions: queue }) && hand.close()} />}
+      foot={
+        <>
+          {queue.length > 0 && (
+            <span className="small muted sub-after" data-testid="sub-after">
+              After: {next.subsLeft}/{MAX_SUBS} subs{hand.landing.kind === 'now' ? ` · ${next.windowsLeft}/${MAX_WINDOWS} stoppages` : ''}
+            </span>
+          )}
+          <Foot hand={hand} testId="sub-confirm" label={queue.length > 1 ? `Make ${queue.length} changes` : 'Make changes'} canApply={queue.length > 0 && ballRolling} onApply={() => hand.submit({ substitutions: queue }) && hand.close()} />
+        </>
+      }
     >
       {!ballRolling && <p className="small muted">Substitutions wait until the ball is rolling.</p>}
-      {note && ballRolling && <p className="small muted">{note}</p>}
-      {(hand.pendingSubs.length > 0 || queue.length > 0) && (
-        <ul className="md-queue">
-          {hand.pendingSubs.map((s) => (
-            <li key={`p-${s.on}`} className="muted">
-              {surname(get(s.on)?.name)} for {surname(get(s.off)?.name)} <span className="md-tag">at the stop</span>
-            </li>
-          ))}
-          {queue.map((s) => (
-            <li key={s.on}>
-              <b>{surname(get(s.on)?.name)}</b> for {surname(get(s.off)?.name)}
-              <button type="button" className="btn sm ghost" onClick={() => setQueue(queue.filter((x) => x !== s))} aria-label={`Undo ${get(s.on)?.name} for ${get(s.off)?.name}`}>
-                Undo
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="md-subs">
-        <div>
-          <div className="md-group">Take off</div>
-          <div className="md-pick" role="listbox" aria-label="On the pitch">
-            {hand.onPitch
-              .filter((id) => !queuedOff.has(id))
-              .map((id) => {
-                const p = get(id)
-                const cond = condition(id)
-                return (
-                  <button key={id} type="button" role="option" aria-selected={off === id} className={`md-pick-row ${off === id ? 'active' : ''}`} onClick={() => setOff(off === id ? null : id)} disabled={room <= 0 || !ballRolling}>
-                    <Shirt colour={p?.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[id]} size={20} />
-                    <span className="nm">{p?.name ?? id}</span>
-                    <span className="pos mono">{p?.positions[0]}</span>
-                    {cond !== null && <ConditionIcon value={cond} />}
-                  </button>
-                )
-              })}
-          </div>
-        </div>
-        <div>
-          <div className="md-group">{off ? `On for ${surname(get(off)?.name)}` : 'Bring on'}</div>
-          <div className="md-pick" role="listbox" aria-label="Bench">
-            {hand.bench
-              .filter((id) => !queuedOn.has(id))
-              .map((id) => {
-                const p = get(id)
-                const cond = squad[id]?.condition
-                return (
-                  <button key={id} type="button" role="option" aria-selected={false} className="md-pick-row" onClick={() => pick(id)} disabled={!off || room <= 0}>
-                    <Shirt colour={p?.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[id]} size={20} />
-                    <span className="nm">{p?.name ?? id}</span>
-                    <span className="pos mono">{p?.positions.join(' ')}</span>
-                    {cond !== undefined && <ConditionIcon value={cond} />}
-                  </button>
-                )
-              })}
-            {hand.bench.length === 0 && <div className="small muted">Nobody available on the bench.</div>}
-          </div>
-        </div>
-      </div>
-      {room <= 0 && <p className="small muted">{hand.subCap === 0 ? 'No more changes at this point.' : 'That is every change this window can take.'}</p>}
+      {note && ballRolling && <p className="small muted sub-note">{note}</p>}
+      <SubBoard hand={hand} view={view} get={get} squad={squad} condition={condition} selected={selected} queue={queue} setQueue={setQueue} room={room} disabled={!ballRolling || !hand.editable} hideRatings={hideRatings} />
+      {room <= 0 && queue.length === 0 && ballRolling && <p className="small muted">{hand.subCap === 0 ? 'No more changes at this point.' : 'That is every change this window can take.'}</p>}
     </Drawer>
   )
 }

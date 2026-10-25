@@ -102,6 +102,9 @@
   --pitch-disc-empty: rgba(7, 16, 46, 0.5);
   --pitch-highlight: #5ee3fb;
   --pitch-bad: #f87171;
+  /* The substitution board's fit glows on the grass: natural, can cover (out of position is --pitch-bad) */
+  --pitch-fit: #34d399;
+  --pitch-cover: #f5c542;
   /* Type */
   --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
