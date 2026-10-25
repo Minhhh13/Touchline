@@ -17,6 +17,7 @@ import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/st
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
 import { yearLabel } from '@game/logic/modes'
+import { nextStop, simToLabel, stopLine } from '@game/logic/highlights'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
@@ -63,6 +64,9 @@ export function Dugout() {
   const openOffers = game.window?.offers.filter((o) => o.status === 'open').length ?? 0
   const briefing = weeklyBriefing(game, u)
   const headline = briefingHeadline(briefing)
+  // Highlights: the stop the last run made (only while the game still stands where it stopped) and whether the next week is itself one
+  const stopped = store.simStop && store.simStop.gameId === game.id && store.simStop.year === game.year && store.simStop.matchweek === season.matchweek ? store.simStop.stop : null
+  const bigNext = done ? null : nextStop(game, u)
   const act = (a: BriefingAction) => {
     if (a.op === 'autoPick') store.autoPick()
     else if (a.op === 'friendly') store.playFriendly()
@@ -136,6 +140,11 @@ export function Dugout() {
       {!done && (
         <div className="panel cta" data-testid="cta" style={{ marginBottom: 12, background: 'linear-gradient(135deg, var(--panel), var(--bg-3))' }}>
           <div className="cta-main">
+            {stopped && (
+              <div className="small" data-testid="sim-stop" style={{ color: 'var(--gold)', fontWeight: 600, marginBottom: 6 }}>
+                ⏸ {stopLine(stopped, u)}
+              </div>
+            )}
             {preseason ? (
               <div>
                 <div style={{ fontWeight: 700 }}>Pre-season · {game.friendliesPlayed}/3 friendlies played</div>
@@ -184,6 +193,9 @@ export function Dugout() {
               )}
               <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent}>
                 {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
+              </button>
+              <button className="btn" data-testid="sim-big" onClick={() => store.simToNextBigMatch()} disabled={!!game.pendingEvent || !!bigNext} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
+                {bigNext ? `${bigNext.label} next` : simToLabel(game, u)}
               </button>
               <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
                 Sim 5

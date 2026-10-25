@@ -16,6 +16,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - **Daily Challenge**: everyone gets the same wheel today (seed `daily-YYYY-MM-DD`). Streaks are tracked.
 - **Two-tap start**: Setup shows team name, league and formation (plus squad size and job security for a season); everything else sits under More options, folded by default and remembered per browser. One line above Start states every choice, with a change link, and on a phone that line and the Start button sit in a fixed bottom bar. The default host club is the one nearest tenth in that season's real table, and the Home card starts today's Daily directly.
 - **Season**: draft 16 to 22 players, then manage 38 matchweeks with three pre-season friendlies, a 16-team cup, a transfer window and a board.
+- **Season Highlights**: "Sim to the next big match" lets the assistant play the routine weeks and stops before every derby, title decider, cup semi-final and final, the last five weeks while the title or survival is still open, the January window and a board on the brink, so a season takes 15 minutes instead of 45. The button names what it can see coming ("Sim to Derby day (MW 12)") and the Dugout says why it stopped.
 - **Dynasty**: Season mode that never ends. Players age, contracts run down, some retire, you get summer bonus spins and the league moves on to the next real season.
 
 **The draft**

@@ -30,6 +30,7 @@ import { QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
+import { simToNextStop, type StopReason } from './logic/highlights'
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -73,6 +74,8 @@ interface Store {
   offseason: OffseasonReport | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
   matchView: 'ticker' | 'report'
+  /** Why the last Sim to the next big match stopped, for the game, year and matchweek it stopped at (transient, never saved). */
+  simStop: { stop: StopReason; gameId: string; year: number; matchweek: number } | null
   /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
   pendingChallenge: { payload: ChallengePayload; challenge: ChallengeSettings } | null
 
@@ -104,6 +107,8 @@ interface Store {
   advanceLive: (opts: LiveChanges) => void
   simToEnd: () => void
   simWeeks: (n: number) => void
+  /** Sim 5's weeks until the next derby, title decider, cup semi-final or final, open run-in, January window or board alarm; that week is not played. */
+  simToNextBigMatch: () => void
   closeMatch: () => void
   setMatchView: (v: 'ticker' | 'report') => void
 
@@ -207,6 +212,7 @@ export const useStore = create<Store>()(
         toast: null,
         offseason: null,
         matchView: 'ticker',
+        simStop: null,
         pendingChallenge: null,
 
         loadData: async () => {
@@ -418,6 +424,19 @@ export const useStore = create<Store>()(
           }
         },
         simToEnd: () => get().simWeeks(40),
+        simToNextBigMatch: () => {
+          const out: { stop: StopReason | null } = { stop: null }
+          mutate((g, u) => {
+            out.stop = simToNextStop(g, u)
+          })
+          const after = get().game
+          const stop = out.stop
+          set({ matchView: 'report', simStop: stop && after?.season ? { stop, gameId: after.id, year: after.year, matchweek: after.season.matchweek } : null })
+          if (after?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
         closeMatch: () => {
           mutate((g, u) => closeLiveMatch(g, u))
           // Leaving the final match of the season closes the season

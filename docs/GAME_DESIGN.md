@@ -389,6 +389,22 @@ Up to three friendlies against a random club-season that finished 8th or lower (
 
 When the last match of the season is played live, the match screen keeps the final whistle until you continue; the season closes (`seasonEnding`) when you leave it, or when the assistant plays on. Substitutions made at half time and at the 70th minute are written back into the lineup, so the kick-off XI is snapshotted (`onAt === 0`) before the result is applied, for the appearance and promise bookkeeping.
 
+### Season Highlights: sim to the next big match
+
+The Dugout's first sim button plays routine weeks with the assistant and hands the manager the ones that matter (`src/game/logic/highlights.ts`, store `simToNextBigMatch`). Each week is Sim 5's step (`playMatchweek(game, u, true)`, phase back to `week`), so the run plays exactly the weeks `simWeeks(k)` would and draws nothing of its own.
+
+Before each week, `nextStop` (pure) stops the run, leaving that week unplayed, for, in this order:
+- a **final** or **semi-final**: `upcomingCupTie` is round F or SF, in the cup or the Continental Cup;
+- a **title decider** or **Derby day**: `describeImportance` gives 1.2 or more for the league match (Title decider 1.3, Derby day 1.25);
+- the **title run-in**: one of the last 5 matchweeks, top by 3 points or fewer, or within 3 of the top;
+- the **survival run-in**: one of the last 5 matchweeks, in the bottom three with safety still within reach (points plus three per fixture left at least the last safe club's points), or no more than 3 points above the first relegation place.
+
+After each simmed week, `stopAfterWeek` stops the run when the January window opened that week (`window.kind === 'january'`, `day === 0`), or, with job security on, when board confidence crossed from 25 or more to below 25. A sacking or the season's last week ends the run as before.
+
+The button names what it can see coming (`foreseeStop`: the next derby, a drawn semi-final or final, the week the January window opens): "Sim to Derby day (MW 12)", otherwise "Sim to the next big match". Title deciders, the run-in and the board depend on results still to come, so the run can stop sooner. When the next week is itself a stop the button reads "Derby day next" and is disabled: play it. The stop is printed above the fixture ("⏸ Stopped for Derby day v Liverpool, MW 12"); it is transient store state (`simStop`), never saved, and shows only while the game stands at the matchweek it stopped at.
+
+Measured over 36 auto-managed England 2025-26 seasons (six mid-table hosts, Calibrated, ENGINE_VERSION `'4'`, the stop weeks played by the assistant): 4.6 stops a season (p10/p50/p90 3/5/7); per season 1.6 derby days, 1.0 January windows, 0.6 cup semi-finals, 0.5 title deciders, 0.5 title run-in weeks, 0.4 cup finals, 0.1 survival run-in weeks, and with job security on 0.2 board alarms. A test keeps the mean between 2.5 and 8.
+
 ### The assistant's briefing
 
 `weeklyBriefing(game, u)` (`src/game/logic/briefing.ts`) is a pure, RNG-free function that turns the game state into at most `BRIEFING_CAP` (6) lines, each a `BriefingItem` with a level (`block`, `warn`, `info`, `ok`), a sentence and an optional action (a dugout tab to open and, where needed, an op: repair the lineup, open a player, scroll to the pending decision, play a friendly). The dugout renders it inside the next-match panel in place of the old chip row; it is empty once the season is over or the manager is sacked.

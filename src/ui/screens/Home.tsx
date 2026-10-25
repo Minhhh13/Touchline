@@ -110,7 +110,7 @@ export function Home() {
           <span className="icon">📋</span>
           <h3>Season</h3>
           <p>Draft a squad of eighteen, then manage it week by week: tactics, roles, rotation, injuries, the cup, the January window, the board.</p>
-          <span className="foot">45 minutes · deep</span>
+          <span className="foot">15 to 45 minutes · sim to the big matches</span>
         </button>
         <button className="mode-card" onClick={() => go('setup', 'dynasty')}>
           <span className="icon">👑</span>
