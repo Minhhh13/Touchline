@@ -55,7 +55,38 @@ export interface DraftRules {
    * XI is full with bench places to spare. Bench spins after the XI draw from their own stream (`DraftState.benchRng`).
    */
   benchPicks?: number
+  /**
+   * Quick Draft modes that change the wheel (`src/engine/modes.ts` has the cards): `crazy` (a twist on every spin and
+   * surprises after picks), `underdog` (bottom-half sides only), `legends` (club-seasons with an 85+ player only) and
+   * `speedrun` (a timer per pick in the UI, the assistant picking on expiry). Hard is the difficulty, not a flag here.
+   * None when absent, so older saves and links read unchanged. Read through `modesOf`.
+   */
+  modes?: QuickMode[]
 }
+
+/** The mode flags a set of draft rules may carry (Hard is the difficulty). */
+export type QuickMode = 'crazy' | 'underdog' | 'legends' | 'speedrun'
+export const QUICK_MODES: readonly QuickMode[] = ['crazy', 'underdog', 'legends', 'speedrun']
+/** A Legends wheel lands only on club-seasons holding at least one player rated this or more that season. */
+export const LEGENDS_RATING = 85
+/** Chance after each pick of a Crazy draft that a surprise lands on the next spin. */
+export const CRAZY_SURPRISE_CHANCE = 0.3
+
+/** The known mode flags of a set of rules, each once, in `QUICK_MODES` order. */
+export function modesOf(rules: DraftRules): QuickMode[] {
+  const on = rules.modes ?? []
+  return QUICK_MODES.filter((m) => on.includes(m))
+}
+
+export function hasMode(rules: DraftRules, mode: QuickMode): boolean {
+  return !!rules.modes?.includes(mode)
+}
+
+/**
+ * A surprise of a Crazy draft, rolled after a pick and applied to the next spin: a free re-spin (one more in the
+ * budget), a forced position (the next pick must fill this open slot) or a golden spin (champions only, when any are left).
+ */
+export type Surprise = { kind: 'respin' } | { kind: 'forced'; slotId: string } | { kind: 'golden' }
 
 export type DraftDifficulty = 'easy' | 'normal' | 'hard'
 /** Squad First: spin a club, pick any player, choose his slot. Position First: choose a slot, then spin for a club to fill it. */
@@ -158,14 +189,29 @@ export interface DraftState {
    * first such spin, so the season (which starts from the game's stream) is the same however many bench spins follow.
    */
   benchRng?: RngState
+  /** Crazy: the surprise stream, seeded from the game seed by `newDraft` and drawn once after every pick. Absent otherwise. */
+  crazyRng?: RngState
+  /** Crazy: the slot a forced-position surprise says the next pick fills; cleared by that pick. */
+  forcedSlot?: string | null
+  /** Crazy: the twist a golden surprise sets for the next spin; cleared by that spin. */
+  forcedTwist?: Twist | null
+  /** Crazy: the latest surprise and the spin count when it landed, for the draft screen. */
+  surprise?: (Surprise & { atSpin: number }) | null
 }
 
-export function newDraft(formation: Formation, rules: DraftRules): DraftState {
-  return { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [], twist: null, target: null }
+/**
+ * A fresh draft. A Crazy draft with a `seed` gets its own surprise stream, seeded from the game seed apart from the
+ * game's stream, so the surprises never move a spin or a match of the main stream.
+ */
+export function newDraft(formation: Formation, rules: DraftRules, seed?: string): DraftState {
+  const d: DraftState = { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [], twist: null, target: null }
+  if (hasMode(rules, 'crazy') && seed !== undefined) d.crazyRng = new Rng(`${seed}:crazy-surprises`).getState()
+  return d
 }
 
-/** Whether the next spin of this draft is a twist spin. */
+/** Whether the next spin of this draft is a twist spin: every third with twists on, every spin in Crazy mode. */
 export function nextSpinTwisted(d: DraftState): boolean {
+  if (hasMode(d.rules, 'crazy')) return true
   return !!d.rules.twists && (d.spins + 1) % TWIST_EVERY === 0
 }
 
@@ -229,6 +275,7 @@ function hasQuickBench(d: DraftState): boolean {
  */
 export function benchRoom(d: DraftState): boolean {
   if (isComplete(d)) return false
+  if (forcedSlotOf(d)) return false
   if (hasQuickBench(d)) return d.bench.length < benchPlaces(d.rules) && !positionFirst(d)
   return !fillingXI(d)
 }
@@ -270,8 +317,16 @@ export function positionFirst(d: DraftState): boolean {
   return draftModeOf(d.rules) === 'position' && fillingXI(d)
 }
 
-/** The slot a Position First spin is filling, when one has been chosen and is still open. */
+/** Crazy: the open slot a forced-position surprise says the next pick fills, while the XI is being filled. */
+export function forcedSlotOf(d: DraftState): Formation['slots'][number] | null {
+  if (!d.forcedSlot || !fillingXI(d)) return null
+  return openSlots(d).find((s) => s.id === d.forcedSlot) ?? null
+}
+
+/** The slot this spin is filling: a Crazy forced position, or the slot a Position First spin chose, while it is still open. */
 export function targetSlot(d: DraftState): Formation['slots'][number] | null {
+  const forced = forcedSlotOf(d)
+  if (forced) return forced
   if (!positionFirst(d) || !d.target) return null
   return openSlots(d).find((s) => s.id === d.target) ?? null
 }
@@ -308,17 +363,65 @@ export function draftRating(u: LoadedUniverse, d: DraftState, p: PlayerSeason): 
  * someone usable: the expensive pass (every `canUse` check), independent of the twist.
  */
 function rulesPool(u: LoadedUniverse, d: DraftState, slots: Formation['slots'] = candidateSlots(d)): ClubSeason[] {
-  return u.clubSeasons.filter((cs) => rulesAdmit(d, cs) && cs.squad.some((p) => usableFor(d, p, slots)))
+  return u.clubSeasons.filter((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableFor(d, p, slots)))
 }
 
 /** The era, club and league rules for one club-season (the cheap half of `rulesPool`). */
-function rulesAdmit(d: DraftState, cs: ClubSeason): boolean {
+function rulesAdmit(u: LoadedUniverse, d: DraftState, cs: ClubSeason): boolean {
   const r = d.rules
   if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
   if (r.toSeason !== undefined && cs.season > r.toSeason) return false
   if (r.onlyClub && cs.clubId !== r.onlyClub) return false
   if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
+  if (r.modes?.length) {
+    if (hasMode(r, 'underdog') && !bottomHalf(u, cs)) return false
+    if (hasMode(r, 'legends') && !hasLegend(cs)) return false
+  }
   return true
+}
+
+/** Legends: whether a club-season holds at least one player rated `LEGENDS_RATING` or more that season. */
+export function hasLegend(cs: ClubSeason): boolean {
+  return cs.squad.some((p) => p.overall >= LEGENDS_RATING)
+}
+
+/** Per universe, the club-seasons of league-seasons without a final table that rank in the bottom half by squad strength. */
+const strengthBottomHalf = new WeakMap<LoadedUniverse, Set<string>>()
+
+/** The mean of a club-season's eleven best ratings, the strength a league-season without a table is ranked by. */
+function squadStrength(cs: ClubSeason): number {
+  const best = cs.squad.map((p) => p.overall).sort((a, b) => b - a).slice(0, 11)
+  return best.length ? best.reduce((s, x) => s + x, 0) / best.length : 0
+}
+
+/**
+ * Underdog: whether a club-season finished in the bottom half of its league that season (below the halfway place of its
+ * final table). A league-season without a table (France, the Netherlands, Portugal) ranks its clubs by the mean of their
+ * eleven best ratings instead, ties by club id, so every league has underdogs. Pure: a cache per universe, never a change to it.
+ */
+export function bottomHalf(u: LoadedUniverse, cs: ClubSeason): boolean {
+  const table = u.tables[cs.leagueId]?.[cs.season]
+  if (table?.length && cs.position > 0) return cs.position > table.length / 2
+  let set = strengthBottomHalf.get(u)
+  if (!set) {
+    set = new Set<string>()
+    const groups = new Map<string, ClubSeason[]>()
+    for (const x of u.clubSeasons) {
+      if (u.tables[x.leagueId]?.[x.season]?.length && x.position > 0) continue
+      const key = `${x.leagueId}@${x.season}`
+      const g = groups.get(key)
+      if (g) g.push(x)
+      else groups.set(key, [x])
+    }
+    for (const g of groups.values()) {
+      const ranked = g.map((x) => ({ x, s: squadStrength(x) })).sort((a, b) => b.s - a.s || a.x.clubId.localeCompare(b.x.clubId))
+      ranked.forEach((r, i) => {
+        if (i + 1 > ranked.length / 2) set!.add(`${r.x.clubId}@${r.x.season}`)
+      })
+    }
+    strengthBottomHalf.set(u, set)
+  }
+  return set.has(`${cs.clubId}@${cs.season}`)
 }
 
 /** Narrow a rules pool by a twist, then by the one-club-season-once rule. */
@@ -348,7 +451,7 @@ export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
 
 /** Whether some club-season the rules admit holds a player usable in this slot (the wheel would not be empty). */
 function slotSpinnable(u: LoadedUniverse, d: DraftState, slot: Formation['slots'][number]): boolean {
-  return u.clubSeasons.some((cs) => rulesAdmit(d, cs) && cs.squad.some((p) => usableFor(d, p, [slot])))
+  return u.clubSeasons.some((cs) => rulesAdmit(u, d, cs) && cs.squad.some((p) => usableFor(d, p, [slot])))
 }
 
 /**
@@ -368,6 +471,8 @@ export function spinnableSlots(u: LoadedUniverse, d: DraftState): Formation['slo
 export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): void {
   if (!positionFirst(d)) throw new Error('Choosing a slot first is a Position First rule')
   if (d.current) throw new Error('Pick a player for the slot you chose first')
+  const forced = forcedSlotOf(d)
+  if (forced) throw new Error(`A Crazy surprise: this pick fills ${forced.position}`)
   const slot = openSlots(d).find((s) => s.id === slotId)
   if (!slot) throw new Error('That slot is not open')
   if (!slotSpinnable(u, d, slot)) throw new Error(`No club left on the wheel can fill ${slot.position}`)
@@ -392,7 +497,11 @@ export function spin(u: LoadedUniverse, d: DraftState, main: Rng): ClubSeason {
   d.twist = null
   // One expensive pass; each twist's wheel is that pool narrowed, exactly what `wheelPool` would return with the twist set
   const base = rulesPool(u, d)
-  if (nextSpinTwisted(d)) {
+  // Crazy: a golden surprise sets this spin's twist without a draw, when champions are still on the wheel
+  const forcedTwist = d.forcedTwist && narrowPool(u, d, d.forcedTwist, base).length > 0 ? d.forcedTwist : null
+  if (d.forcedTwist !== undefined) d.forcedTwist = null
+  if (forcedTwist) d.twist = forcedTwist
+  else if (nextSpinTwisted(d)) {
     const candidates = TWISTS.filter((twist) => narrowPool(u, d, twist, base).length > 0)
     if (candidates.length) d.twist = rng.pick(candidates)
   }
@@ -418,7 +527,8 @@ export function respin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
   if (d.respinsLeft <= 0) throw new Error('No re-spins left')
   d.respinsLeft--
   // Position First: the re-spin keeps the chosen slot, logged on the skipped row so a replay can set it again
-  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}), ...(targetSlot(d) ? { target: d.target! } : {}) })
+  const t = targetSlot(d)
+  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}), ...(t ? { target: t.id } : {}) })
   d.twist = null
   return spin(u, d, rng)
 }
@@ -450,6 +560,40 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   d.current = null
   d.twist = null
   d.target = null
+  if (d.forcedSlot !== undefined) d.forcedSlot = null
+  if (d.crazyRng) rollSurprise(u, d)
+}
+
+/**
+ * Crazy: after a pick, one draw from the surprise stream decides whether a surprise lands (`CRAZY_SURPRISE_CHANCE`), and
+ * a second which: a free re-spin, a forced position (an open slot some club on the wheel can fill, offered only with two
+ * or more open slots, so a choice is taken away) or a golden spin. Nothing is rolled once the draft is complete. Draws
+ * only from `crazyRng`, never the game's stream.
+ */
+function rollSurprise(u: LoadedUniverse, d: DraftState): void {
+  if (!d.crazyRng || isComplete(d)) return
+  const rng = Rng.fromState(d.crazyRng)
+  if (rng.chance(CRAZY_SURPRISE_CHANCE)) {
+    const open = fillingXI(d) ? openSlots(d).filter((s) => slotSpinnable(u, d, s)) : []
+    const kinds: Array<Surprise['kind']> = ['respin', 'golden', ...(open.length >= 2 ? (['forced'] as const) : [])]
+    const kind = rng.pick(kinds)
+    let s: Surprise
+    if (kind === 'forced') {
+      const slot = rng.pick(open)
+      d.forcedSlot = slot.id
+      // Position First: the forced slot is also the chosen one, so a re-spin row names it as a replay expects
+      if (draftModeOf(d.rules) === 'position') d.target = slot.id
+      s = { kind: 'forced', slotId: slot.id }
+    } else if (kind === 'respin') {
+      d.respinsLeft++
+      s = { kind: 'respin' }
+    } else {
+      d.forcedTwist = 'golden'
+      s = { kind: 'golden' }
+    }
+    d.surprise = { ...s, atSpin: d.spins }
+  }
+  d.crazyRng = rng.getState()
 }
 
 /** Best slot suggestion for a player given what is open. */
@@ -469,6 +613,30 @@ export function neededPositions(d: DraftState): Position[] {
 }
 
 /**
+ * The assistant's pick from a club-season: natural fits for the open slots first (0.92 for a cover), otherwise the
+ * highest rating (career best under Prime); onto the bench once the XI is full. Null when no one can be used. No RNG.
+ */
+export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason): { id: string; slot: string | 'bench' } | null {
+  const candidates = cs.squad.filter((p) => canUse(d, p))
+  const open = candidateSlots(d)
+  let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
+  for (const p of candidates) {
+    if (open.length) {
+      for (const s of open) {
+        if (!canCover(p, s.position, d.rules.minFit)) continue
+        const fit = describeFit(p, s.position)
+        const score = draftRating(u, d, p) * (fit === 'natural' ? 1 : 0.92)
+        if (!best || score > best.score) best = { p, slot: s.id, score }
+      }
+    } else {
+      const score = draftRating(u, d, p)
+      if (!best || score > best.score) best = { p, slot: 'bench', score }
+    }
+  }
+  return best ? { id: best.p.id, slot: best.slot } : null
+}
+
+/**
  * Auto-draft the rest (used by "sim the rest" and for AI opponents in head-to-head).
  * Stops short of the squad size when the wheel has run dry (a one-nation draft).
  */
@@ -479,32 +647,28 @@ export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
     // Position First: keep a slot already chosen, otherwise take the first open slot (formation order) the wheel can fill. No RNG.
     if (positionFirst(d) && !targetSlot(d)) d.target = spinnableSlots(u, d)[0].id
     const cs = spin(u, d, rng)
-    const candidates = cs.squad.filter((p) => canUse(d, p))
-    if (!candidates.length) {
-      d.current = null
-      d.twist = null
-      continue
-    }
-    // Prefer natural fits for the scarcest open slot, otherwise highest rating (career best under Prime).
-    const open = candidateSlots(d)
-    let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
-    for (const p of candidates) {
-      if (open.length) {
-        for (const s of open) {
-          if (!canCover(p, s.position, d.rules.minFit)) continue
-          const fit = describeFit(p, s.position)
-          const score = draftRating(u, d, p) * (fit === 'natural' ? 1 : 0.92)
-          if (!best || score > best.score) best = { p, slot: s.id, score }
-        }
-      } else {
-        const score = draftRating(u, d, p)
-        if (!best || score > best.score) best = { p, slot: 'bench', score }
-      }
-    }
-    if (best) pick(u, d, best.p.id, best.slot)
+    const best = assistantChoice(u, d, cs)
+    if (best) pick(u, d, best.id, best.slot)
     else {
       d.current = null
       d.twist = null
     }
   }
+}
+
+/**
+ * Speedrun: the pick clock ran out, so the assistant takes this pick: it chooses a slot under Position First when none is
+ * chosen, spins when no spin is showing (from the game's stream, like any spin), then makes its pick (`assistantChoice`).
+ * One pick at most; nothing when the draft is complete or the wheel has run dry.
+ */
+export function assistantTurn(u: LoadedUniverse, d: DraftState, rng: Rng): void {
+  if (isComplete(d)) return
+  if (!d.current) {
+    if (!canSpin(u, d)) return
+    if (positionFirst(d) && !targetSlot(d)) d.target = spinnableSlots(u, d)[0].id
+    spin(u, d, rng)
+  }
+  const cs = u.clubSeasonByKey[`${d.current!.clubId}@${d.current!.season}`]
+  const best = cs ? assistantChoice(u, d, cs) : null
+  if (best) pick(u, d, best.id, best.slot)
 }

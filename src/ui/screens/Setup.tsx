@@ -3,7 +3,8 @@ import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, setupRules, shortNameFor, summariseSetup } from '@game/logic/setup'
 import { FORMATIONS, getFormation } from '@engine/formations'
-import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
+import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
+import { MODE_CARDS, MODE_INFO, crazyFormation, toggleModeCard, type ModeCard } from '@engine/modes'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
 import { TIER_LABEL } from '@engine/season'
@@ -12,7 +13,7 @@ import { randomSeed } from '@engine/rng'
 import { ordinal, seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
 import { Pitch } from '../components/Pitch'
-import { ChoiceCards, SeasonRange } from '../components/SetupBits'
+import { ChoiceCards, ModeCards, SeasonRange } from '../components/SetupBits'
 import { clubName } from '../format'
 
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
@@ -81,6 +82,8 @@ export function Setup() {
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
   const [benchPicks, setBenchPicks] = useState(5)
+  // Quick Draft modes (Crazy, Underdog, Legends, Speedrun); the Hard card is the difficulty above
+  const [modes, setModes] = useState<QuickMode[]>([])
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
   const [leagueSeason, setLeagueSeason] = useState(() => {
@@ -121,7 +124,7 @@ export function Setup() {
   const twists = twistsChoice ?? !!modeBase.twists
   const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
   // Everything the cards, the slider and the toggles say, as the rules Start will send (before the club and nation checks)
-  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks })
+  const chosen = setupRules(base, { difficulty: draftDifficulty, showRatings, draftMode, ratings: isManage ? 'season' : ratingsMode, eraFrom, eraTo, first, last, twists, leagues: wheelLeagues, benchPicks: isManage ? 0 : benchPicks, modes: isManage ? [] : modes })
   const eraRange = isDaily ? {} : { fromSeason: chosen.fromSeason, toSeason: chosen.toSeason }
   const eraLine = useMemo(() => (u ? eraCount(u, wheelLeagues, eraRange) : null), [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason])
   // Only clubs the wheel could actually land on: in a wheel league, with a squad inside the chosen era
@@ -183,11 +186,14 @@ export function Setup() {
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
     const rules: DraftRules = fixed?.rules ?? { ...chosen, onlyClub: club, onlyNation: nation }
+    const seedText = fixed ? fixed.seed : seed.trim() || (preview ? 'drawn when you start' : randomSeed())
+    // Crazy draws the formation from the seed (a blank seed draws it at Start); a challenge carries the one its challenger had
+    const crazy = !fixed && modesOf(rules).includes('crazy')
     return {
       // A challenge always plays as a quick draft, whatever seed it carries, so the Daily streak is never touched
       mode: challenge ? 'quick' : mode,
-      seed: fixed ? fixed.seed : seed.trim() || (preview ? 'drawn when you start' : randomSeed()),
-      formationId: fixed ? fixed.formationId : formationId,
+      seed: seedText,
+      formationId: fixed ? fixed.formationId : crazy ? (preview && !seed.trim() ? formationId : crazyFormation(seedText)) : formationId,
       teamName: name,
       shortName: shortNameFor(name),
       leagueId: fixed ? fixed.leagueId : leagueId,
@@ -205,10 +211,21 @@ export function Setup() {
     }
   }
   const start = () => startGame(buildSettings(false))
-  const summary = summariseSetup(u, buildSettings(true))
+  const preview = buildSettings(true)
+  const summary = summariseSetup(u, preview)
   const ready = fixed ? fixedReady : leagueReady
-  const shownFormation = getFormation(fixed ? fixed.formationId : formationId)
   const hard = draftDifficulty === 'hard'
+  const crazyOn = !fixed && !isManage && modes.includes('crazy')
+  // Crazy with a seed typed in shows the shape that seed draws; with a blank seed the shape is drawn at Start
+  const crazyKnown = crazyOn && !!seed.trim()
+  const shownFormation = getFormation(fixed ? fixed.formationId : crazyKnown ? preview.formationId : formationId)
+  const cardsOn: ModeCard[] = [...(hard ? (['hard'] as const) : []), ...modes]
+  const toggleMode = (card: ModeCard) => {
+    const next = toggleModeCard(cardsOn, card)
+    // The Hard card and the Difficulty cards are one setting: leaving Hard goes back to Normal
+    setDraftDifficulty(next.includes('hard') ? 'hard' : hard ? 'normal' : draftDifficulty)
+    setModes(next.filter((c): c is QuickMode => c !== 'hard'))
+  }
   const teamField = (
     <label className="field">
       Team name
@@ -280,9 +297,24 @@ export function Setup() {
           </div>
         )}
 
+        {!fixed && !isManage && (
+          <div className="panel col" data-testid="modes-panel">
+            <div className="row between wrap">
+              <h3>Modes</h3>
+              <span className="small muted">{cardsOn.length ? `${cardsOn.length} on` : 'Mix and match, or none'}</span>
+            </div>
+            <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} onToggle={toggleMode} />
+          </div>
+        )}
+
         <div className="panel col">
           <h3>Formation</h3>
-          {!fixed && (
+          {crazyOn && (
+            <div className="notice small" data-testid="crazy-formation">
+              {crazyKnown ? `Crazy: seed ${seed.trim()} draws a ${shownFormation.name}.` : 'Crazy: the formation is drawn when you start.'}
+            </div>
+          )}
+          {!fixed && !crazyOn && (
             <div className="formations">
               {FORMATIONS.map((f) => (
                 <button key={f.id} type="button" className={f.id === formationId ? 'active' : ''} aria-pressed={f.id === formationId} onClick={() => setFormationId(f.id)}>

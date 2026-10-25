@@ -9,7 +9,7 @@ export const TWIST_INFO: Record<Twist, { icon: string; title: string; rule: stri
 }
 
 /** The twist on the spin now showing (or the one coming), above the wheel. */
-export function TwistCard({ twist, decade, next }: { twist: Twist | null | undefined; decade: number | null; next: boolean }) {
+export function TwistCard({ twist, decade, next, every }: { twist: Twist | null | undefined; decade: number | null; next: boolean; every?: boolean }) {
   if (twist) {
     const info = TWIST_INFO[twist]
     const rule = twist === 'decade' && decade !== null ? `The wheel stays in the ${decade}s: ${seasonLabel(decade)} to ${seasonLabel(decade + 9)}.` : info.rule
@@ -33,7 +33,7 @@ export function TwistCard({ twist, decade, next }: { twist: Twist | null | undef
         </span>
         <div>
           <div className="twist-title">Twist spin next</div>
-          <div className="small muted">Every {TWIST_EVERY === 3 ? 'third' : `${TWIST_EVERY}th`} spin is golden, basement, blind or decade. The wheel decides which.</div>
+          <div className="small muted">{every ? 'Crazy: every' : `Every ${TWIST_EVERY === 3 ? 'third' : `${TWIST_EVERY}th`}`} spin is golden, basement, blind or decade. The wheel decides which.</div>
         </div>
       </div>
     )

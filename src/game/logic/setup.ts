@@ -1,7 +1,8 @@
 import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { benchPlaces, difficultyOf, draftModeOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type RatingsMode } from '@engine/draft'
+import { benchPlaces, difficultyOf, DIFFICULTY_RESPINS, draftModeOf, modesOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
+import { MODE_INFO, withModes } from '@engine/modes'
 import { dailySettings } from './daily'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -54,6 +55,8 @@ export interface SetupChoices {
   onlyNation?: string
   /** Quick Draft bench places (0 to 5); none when absent or 0. */
   benchPicks?: number
+  /** Quick Draft mode flags (Crazy, Underdog, Legends, Speedrun); Hard is `difficulty`. None when absent. */
+  modes?: QuickMode[]
 }
 
 /**
@@ -68,7 +71,7 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
   const lo = Math.max(c.first, Math.min(c.eraFrom, c.eraTo))
   const hi = Math.min(c.last, Math.max(c.eraFrom, c.eraTo))
   const hard = c.difficulty === 'hard'
-  return {
+  const rules: DraftRules = {
     ...withDifficulty(base, c.difficulty),
     showRatings: hard ? false : c.showRatings,
     draftMode: c.draftMode,
@@ -81,6 +84,8 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     leagues: c.leagues,
     ...(c.benchPicks ? { benchPicks: c.benchPicks } : {}),
   }
+  // The mode flags (and Crazy's twists); Hard is already the difficulty, so it rides along unchanged
+  return c.modes?.length ? withModes(rules, [...(hard ? (['hard'] as const) : []), ...c.modes]) : rules
 }
 
 /**
@@ -92,14 +97,17 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
   const diff = difficultyOf(r)
   const name = diff === 'easy' ? 'Easy' : diff === 'hard' ? 'Hard' : 'Normal'
   const respins = r.respins
+  const respinWords = respins === 0 ? 'no re-spins' : `${respins} re-spin${respins === 1 ? '' : 's'}`
   return [
-    `${name}: ${respins === 0 ? 'no re-spins' : `${respins} re-spin${respins === 1 ? '' : 's'}`}`,
+    // A budget that is not the difficulty's own (the Daily's 2) is stated alone, so it never reads as "Normal: 2"
+    respins === DIFFICULTY_RESPINS[diff] ? `${name}: ${respinWords}` : respinWords[0].toUpperCase() + respinWords.slice(1),
     ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on',
     draftModeOf(r) === 'position' ? 'Position First' : 'Squad First',
     ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
     r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(r.fromSeason ?? u.firstSeason)} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
     r.twists ? 'Twists on' : 'No twists',
     ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
+    ...modesOf(r).map((m) => `${MODE_INFO[m].icon} ${MODE_INFO[m].title}`),
   ]
 }
 
@@ -161,7 +169,9 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   for (const t of rulesTags(r, manage ? SEASON_RULES : QUICK_RULES)) parts.push(TAG_WORDS[t] ?? t)
   // Twists are on by default for a quick draft and off for a managed season: only a change from that is worth a word
   const twistsDefault = !!(manage ? SEASON_RULES.twists : QUICK_RULES.twists)
-  if (!!r.twists !== twistsDefault) parts.push(r.twists ? 'twists' : 'no twists')
+  // Crazy turns twists on by itself, so only a change that Crazy does not explain is worth a word
+  if (!!r.twists !== twistsDefault && !modesOf(r).includes('crazy')) parts.push(r.twists ? 'twists' : 'no twists')
+  for (const m of modesOf(r)) parts.push(`${MODE_INFO[m].title.toLowerCase()} mode`)
   if (manage) {
     parts.push(`squad of ${r.squadSize}`)
     if (!s.jobSecurity) parts.push('no sack')
@@ -184,7 +194,7 @@ export function createGame(settings: GameSettings): Game {
     settings,
     phase: 'draft',
     rngState: rng.getState(),
-    draft: newDraft(formation, settings.rules),
+    draft: newDraft(formation, settings.rules, settings.seed),
     squad: {},
     contracts: {},
     customPlayers: {},

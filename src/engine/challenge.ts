@@ -14,7 +14,7 @@
  * draft the way the store does, one `spin` per history row.
  */
 import type { DraftRules, DraftState } from './draft'
-import { DIFFICULTIES, DRAFT_MODES, QUICK_BENCH_MAX, QUICK_RULES, RATINGS_MODES, canCloseBench, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type RatingsMode } from './draft'
+import { DIFFICULTIES, DRAFT_MODES, QUICK_BENCH_MAX, QUICK_MODES, QUICK_RULES, RATINGS_MODES, canCloseBench, canSpin, difficultyOf, isComplete, openSlots, picksMade, pick, positionFirst, spin, type DraftDifficulty, type DraftMode, type QuickMode, type RatingsMode } from './draft'
 import type { Rng } from './rng'
 import { hashString } from './rng'
 import type { DefensiveLine, Mentality, PassingStyle, Pressing, SeasonTier, Tempo, Width } from './types'
@@ -211,6 +211,8 @@ const RULE_CHECKS: Record<keyof DraftRules, (v: unknown) => boolean> = {
   draftMode: (v) => DRAFT_MODES.includes(v as DraftMode),
   ratings: (v) => RATINGS_MODES.includes(v as RatingsMode),
   benchPicks: (v) => isInt(v) && v >= 0 && v <= QUICK_BENCH_MAX,
+  // A list of known mode flags, each once (Hard travels as the difficulty)
+  modes: (v) => Array.isArray(v) && v.length <= QUICK_MODES.length && v.every((m) => QUICK_MODES.includes(m as QuickMode)) && new Set(v).size === v.length,
 }
 
 /** Whether an object is a rules diff made only of known rules holding sensible values. */

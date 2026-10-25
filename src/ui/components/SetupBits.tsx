@@ -41,3 +41,26 @@ export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]
     </div>
   )
 }
+
+/**
+ * The Quick Draft's Modes row: icon cards that switch on and off, several at once. What a tap does to the others (Hard
+ * linked to the difficulty, Underdog and Legends exclusive) is the caller's `toggleModeCard`; this only renders.
+ */
+export function ModeCards<T extends string>({ cards, on, info, onToggle }: { cards: readonly T[]; on: readonly T[]; info: Record<T, { icon: string; title: string; line: string }>; onToggle: (card: T) => void }) {
+  return (
+    <div className="qmode-row" role="group" aria-label="Modes" data-testid="modes">
+      {cards.map((c) => {
+        const active = on.includes(c)
+        return (
+          <button key={c} type="button" className={`qmode ${active ? 'active' : ''}`} aria-pressed={active} onClick={() => onToggle(c)} data-testid={`mode-${c}`} title={info[c].line}>
+            <span className="micon" aria-hidden="true">
+              {info[c].icon}
+            </span>
+            <span className="ctitle">{info[c].title}</span>
+            <span className="cline">{info[c].line}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
