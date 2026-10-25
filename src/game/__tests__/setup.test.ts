@@ -57,6 +57,11 @@ describe('the Daily puzzle', () => {
     expect(dailyGameSettings(u, 'daily-2026-10-25', '   ').teamName).toBe('Touchline XI')
   })
 
+  it('keeps the Daily at two re-spins (the owner\'s decision of 2026-10-25; a change would change everyone\'s puzzle)', () => {
+    expect(dailyGameSettings(u, 'daily-2026-10-25').rules.respins).toBe(2)
+    expect(dailyGameSettings(u, 'daily-2027-03-14').rules.respins).toBe(2)
+  })
+
   it('derives the scoreboard code from the initials, or the first letters of a one-word name', () => {
     expect(shortNameFor('Touchline XI')).toBe('TX')
     expect(shortNameFor('Real Madrid Castilla Reserves')).toBe('RMC')
