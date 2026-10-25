@@ -103,14 +103,24 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
 
   const shownRef = useRef(new Map<string, { x: number; y: number }>())
   // The animation: one frame reads the shared clock, interpolates the ball and sets transforms.
+  // It runs only while the clock does: paused, or stood at a stop, the last frame stays on
+  // screen and the loop sleeps until the clock store changes again.
   useEffect(() => {
     if (reduced) return
     const shown = shownRef.current
     let id = 0
+    let lastT = Number.NaN
+    let lastDots = -1
     const frame = () => {
+      id = 0
       const s = useLiveClock.getState()
+      if (s.running) id = requestAnimationFrame(frame)
       const stopped = !s.running && s.clock >= to
       const T = stopped ? to + 0.99 : Math.min(to + 0.99, fractionalClock(s, performance.now()))
+      // Nothing has moved since the last frame (a dot mounting for a substitute counts as a move)
+      if (T === lastT && dots.current.size === lastDots) return
+      lastT = T
+      lastDots = dots.current.size
       const b = ballAt(path, T)
       const at = (x: number, y: number) => {
         const [sx, sy] = map(x, y)
@@ -197,10 +207,16 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           rippleRef.current.setAttribute('opacity', String(0.9 * (1 - f)))
         } else rippleRef.current.setAttribute('opacity', '0')
       }
-      id = requestAnimationFrame(frame)
     }
-    id = requestAnimationFrame(frame)
-    return () => cancelAnimationFrame(id)
+    const wake = () => {
+      if (!id) id = requestAnimationFrame(frame)
+    }
+    wake()
+    const unsubscribe = useLiveClock.subscribe(wake)
+    return () => {
+      unsubscribe()
+      cancelAnimationFrame(id)
+    }
   }, [path, reduced, to, map, placed, phases])
 
   const homeOn = onPitchAt(homePlaced, minute)

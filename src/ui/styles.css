@@ -1556,9 +1556,6 @@ table.tbl tr.clickable:hover {
   font-family: var(--font-body);
   user-select: none;
 }
-.live-dot {
-  transition: transform 0.12s linear;
-}
 .live-flash {
   animation: fadein 0.3s ease;
 }
@@ -1657,7 +1654,6 @@ table.tbl tr.clickable:hover {
   text-align: right;
 }
 @media (prefers-reduced-motion: reduce) {
-  .live-dot,
   .live-flash,
   .scoreboard.flash,
   .tick {
