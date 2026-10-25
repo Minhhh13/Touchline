@@ -18,7 +18,7 @@ TouchLine is built by two people, the owner and a friend, each working with thei
 
 - **TouchLine** (written with a capital L) is a browser football game: 38-0's spin-the-wheel draft fused with Football Manager depth.
 - A wheel lands on a real club in a real season (seven leagues, 2008-09 to 2026-27); you draft one player per spin, then simulate or manage the season.
-- Stack: Vite 6 + React 19 + TypeScript 5.8 strict + Zustand 5 (persist) + Immer 11. Tests: Vitest 3 (node environment).
+- Stack: Vite 6 + React 19 + TypeScript 5.8 strict + Zustand 5 (persist) + Immer 11, icons from `lucide-react` (pinned). Tests: Vitest 3 (node environment).
 - A deterministic seeded engine (`src/engine`) is the core: one seed replays identically on every device (the Daily, challenge links, leaderboards).
 - No server at runtime: static JSON league packs in `public/data`, saves in `localStorage`. An online layer on Supabase is in progress and must stay optional.
 
@@ -38,22 +38,23 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
   - `__tests__/helpers.ts` `loadTestUniverse(leagues = ['england'])` reads packs from disk.
 - `src/game/` the save and the game rules on top of the engine.
   - `types.ts` the persisted `Game`, `GameSettings`, `Profile`, `LiveMatch`, `QuickResult`.
-  - `store.ts` Zustand store `useStore`, `SAVE_KEY = 'touchline-save-v1'`, persist `version: 1`, `partialize` (`persistedState`, which runs `compactGame`), `merge` -> `normaliseGame`, the `mutate(fn)` Immer helper, every UI action, `exportSaveJson`/`readSaveFile`/`storeImportedSave`/`wipeSave` for the Record page.
+  - `store.ts` Zustand store `useStore`, `SAVE_KEY = 'touchline-save-v1'`, persist `version: 1`, `partialize` (`persistedState`, which runs `compactGame`), `merge` -> `normaliseGame`, the `mutate(fn)` Immer helper, every UI action, `exportSaveJson`/`readSaveFile`/`storeImportedSave`/`wipeSave` for the Profile page.
   - `saveStorage.ts` the persist storage: lz-string `compressToUTF16` on write, plain JSON or compressed on read, coalesced writes (`flush`, `freeze`), the quota error.
   - `logic/setup.ts` `createGame`, `beginSeason`, Daily mapping (frozen); `quick.ts` `runQuickSeason`; `gameByGame.ts` (the quick season's game-by-game playback, pure); `week.ts` matchweek loop, live matches, cups, events, `finishSeason`; `dynasty.ts`; `marketOps.ts`; `squad.ts`; `players.ts` (`playerLookup`); `talks.ts`; `development.ts`; `youth.ts`; `briefing.ts` (pure); `slotSheet.ts` (the Dugout slot picker and Draft slot chips, pure); `digest.ts` and `news.ts` (the "while you were away" digest and unread counts, pure); `tips.ts` (coach-mark ids); `challenge.ts`; `records.ts`; `save.ts` (`normaliseGame`); `compact.ts` (`compactGame`, what a saved result keeps); `h2h.ts`.
 - `src/ui/` React screens, no game decisions.
-  - `App.tsx` screen switch on `screen` + `game.phase` (no router), challenge hash `#c=`, theme, toast.
+  - `App.tsx` screen switch on `screen` + `game.phase` (no router), challenge hash `#c=`, theme (sets `data-theme` from `theme.ts`'s `useResolvedTheme`; the top bar's `theme-switch`), toast.
   - `screens/` Home, Setup, Draft, Dugout (season hub), MatchScreen, Summary, H2H, Explore, ProfileScreen, HowTo, StatsTab, OppositionReport.
   - `components/` CaseReel (the draft's case-opening reel), GameByGame, Pitch (+ PitchLegend), LivePitch and MatchCharts (the live 2D pitch, momentum, xG race, shot map), AttributePanel, PlayerRow, TableView, MatchTicker, TwistCard, bits (Rating, Modal, Tabs, Toast, Tip...), leagueSegments, `Flag.tsx` (`Flag`, `NationFlag`, `LeagueFlag`: drawn SVG flags from `public/flags`, never emoji).
   - `match/` pure helpers for the match visuals (`pitchGeometry.ts`, `possession.ts`, `charts.ts`, `clockStore.ts`).
   - `styles.css` one global stylesheet: design tokens on `:root` (Floodlit, dark) and `[data-theme='light']` (Daylight), then every shared component; `brand.ts` (`APP_NAME`, the mark's geometry, `BRAND_COLOURS` for canvas drawing) and `components/Logo.tsx`; `format.ts` display helpers (`tierName`, `conditionColour`, `fitRingColour`); `shareCard.ts` canvas PNGs (the result card and the match card).
   - The look is specified in `docs/DESIGN_SYSTEM.md`: use its tokens and components, no raw colours (the pitch's fixed whites and club kit colours excepted).
 - `src/main.tsx` React root; registers `public/sw.js` on production builds only.
+- `public/img/` the Home photos as WebP (Unsplash License; every file credited in `docs/CREDITS.md`).
 - `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`. Committed; they are also the test fixtures.
 - `public/flags/` 4:3 SVG flags (`<code>.svg`: ISO alpha-2, `gb-eng`/`gb-sct`/`gb-wls`/`gb-nir`, `eu`, and our own `unknown.svg`) copied from flag-icons 7.6.0 (MIT, `LICENSE.txt` beside them) by `scripts/brand/flags.mjs`; committed, served cache-first by `public/sw.js`.
 - `scripts/import/` offline data pipeline (`build.mjs`, `download.mjs`, `config.mjs`, `leagues.mjs`, club tables, `nations*.{mjs,json}`, `enrich-nations.mjs`).
 - `scripts/brand/flags.mjs` copies the flags the packs need from an extracted flag-icons package into `public/flags` (how to rerun at its top).
-- `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences, flags), `RESEARCH.md`, `HANDOVER.md`, `CREDITS.md` (third-party notices, one self-contained section each).
+- `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences, flags), `RESEARCH.md`, `HANDOVER.md`, `DESIGN_SYSTEM.md`, `CREDITS.md` (third-party notices, one self-contained section each: flags, photos, icons).
 - `.github/workflows/ci.yml` npm ci, typecheck, test, build on Node 22 for every push and PR.
 
 ## Commands
@@ -97,7 +98,8 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - Hooks above early returns in new components (Dugout, Summary and Explore currently break this; hoist when you touch them).
 - Display names and numbers go through `src/ui/format.ts` (money in millions, wages in thousands per week).
 - Flags are drawn, never emoji (Windows shows emoji flags as letter pairs): render `NationFlag`/`LeagueFlag` from `src/ui/components/Flag.tsx` (`leagueId="europe"` is the EU flag), never a nation's `.flag` string or `flag()`. Pass `label` only when no name is printed beside the flag.
-- No real crests, kits, logos or photos: club identity is colours plus a code (`ClubBadge`).
+- No real crests, kits, logos or player photos: club identity is colours plus a code (`ClubBadge`). Photos only under the Unsplash or Pexels License, with no identifiable people or readable branding, each credited in `docs/CREDITS.md` (rules in `docs/DESIGN_SYSTEM.md` section 7).
+- Icons come from `lucide-react`, one import per icon; emoji only as status glyphs inside text or share text, never as the picture of a card, button or heading.
 - Persist only what must survive reload; per-viewer UI conveniences get their own `localStorage` key inside try/catch.
 - New draft rules need an entry in `RULE_CHECKS` (`src/engine/challenge.ts`); the type forces it.
 - New fields holding player-season ids must be remapped in `advanceToNextSeason` (dynasty) and cleared in `releasePlayer`.
@@ -159,7 +161,7 @@ Playwright is not a dependency. Install it outside the repo or with `npm i -D pl
 - Formation slot ids are keys of saved lineups, roles and challenge picks; never rename them. Role contributions sum to 1.
 - `store.merge` spreads persisted state over defaults, so removing a persisted key needs handling in `merge`.
 - `go()` clears `pendingChallenge`; navigating away from Setup drops an opened challenge link.
-- Theme "auto" is not OS-aware (no `prefers-color-scheme` block); auto renders dark.
+- Theme: `data-theme` is always set (`light` or `dark`), by the inline script in `index.html` before load and by `App.tsx` after; Auto follows `prefers-color-scheme` live. Headless Chromium reports light, so smokes on Auto run in Daylight unless the context sets `colorScheme: 'dark'`.
 - `Rating` (`bits.tsx`) renders the number as a bare text node inside `.rating`, and `.hidden-ratings` only hides `.rating > span`, so the CSS alone does not hide it; always pass `hideRatings`/`hidden`.
 - Reel timing: `SPIN_MS` (2300 ms, the strip's slide) and `SETTLE_MS` (2500 ms, `onSettled`) are in `CaseReel.tsx`; change them together.
 - `public/sw.js` must keep the literal `__BUILD__` (stamped at build) and relative paths. Packs are unhashed and served stale-while-revalidate, so pack-shape changes must tolerate one old visit.

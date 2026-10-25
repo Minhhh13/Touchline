@@ -16,10 +16,13 @@ import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
 import { clubName, ordinal } from './format'
 import { Lockup, Logo } from './components/Logo'
+import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
+import { Bandage, Banknote, BookOpen, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, profile, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge } = useStore()
   const hashHandled = useRef(false)
+  const theme = useResolvedTheme(profile.theme)
 
   useEffect(() => {
     void loadData()
@@ -42,10 +45,15 @@ export function App() {
     return () => window.removeEventListener('hashchange', open)
   }, [universe, openChallenge])
 
+  // Auto follows the device live (useResolvedTheme listens to prefers-color-scheme); the browser bar takes the page colour
   useEffect(() => {
     const root = document.documentElement
-    if (profile.theme === 'auto') root.removeAttribute('data-theme')
-    else root.setAttribute('data-theme', profile.theme)
+    root.setAttribute('data-theme', theme)
+    const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
+  }, [theme])
+  useEffect(() => {
+    rememberThemePreference(profile.theme)
   }, [profile.theme])
 
   if (loadError) {
@@ -74,7 +82,7 @@ export function App() {
         <div className="page" style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
           <div className="col" style={{ alignItems: 'center' }}>
             <Logo size="lg" />
-            <div className="muted small">Loading eleven thousand player-seasons…</div>
+            <div className="muted small">Loading the player database…</div>
           </div>
         </div>
       </div>
@@ -102,26 +110,42 @@ export function App() {
         </div>
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => go('home')}>
+            <House size={16} />
             Home
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => go('game')}>
+              {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
               {game.phase === 'draft' ? 'Draft' : game.phase === 'summary' ? 'Summary' : 'Dugout'}
             </button>
           )}
           <button className={screen === 'h2h' ? 'active' : ''} onClick={() => go('h2h')}>
+            <Swords size={16} />
             Head-to-head
           </button>
           <button className={screen === 'explore' ? 'active' : ''} onClick={() => go('explore')}>
+            <Search size={16} />
             Explore
           </button>
           <button className={screen === 'profile' ? 'active' : ''} onClick={() => go('profile')}>
-            Record
+            <Trophy size={16} />
+            Profile
           </button>
           <button className={screen === 'howto' ? 'active' : ''} onClick={() => go('howto')}>
+            <BookOpen size={16} />
             How it works
           </button>
         </nav>
+        <button
+          type="button"
+          className="theme-switch"
+          onClick={() => setTheme(toggledTheme(theme))}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          data-testid="theme-switch"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
       </header>
       {body}
       <Toast />
@@ -221,7 +245,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         </div>
       </div>
       {d.decisions.length > 0 && (
-        <DigestGroup title="Decided for you" icon="💬" count={d.decisions.length}>
+        <DigestGroup title="Decided for you" icon={<MessageSquare size={14} />} count={d.decisions.length}>
           {d.decisions.slice(0, DIGEST_GROUP_CAP).map((x, i) => (
             <li key={i}>
               <b>{x.title}</b>: {x.choice}
@@ -230,10 +254,10 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
           ))}
         </DigestGroup>
       )}
-      <NewsGroup title="Injuries" icon="🩹" items={d.injuries} />
-      <NewsGroup title="Suspensions" icon="🟥" items={d.suspensions} />
-      <NewsGroup title="Transfers" icon="💷" items={d.transfers} />
-      <NewsGroup title="Development" icon="🏃" items={d.development} />
+      <NewsGroup title="Injuries" icon={<Bandage size={14} />} items={d.injuries} />
+      <NewsGroup title="Suspensions" icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
+      <NewsGroup title="Transfers" icon={<Banknote size={14} />} items={d.transfers} />
+      <NewsGroup title="Development" icon={<TrendingUp size={14} />} items={d.development} />
       {quiet && <p className="muted small">Nothing else to report: no injuries, bans, transfers or decisions taken in your name.</p>}
       {d.truncated && <p className="muted small">The inbox keeps the latest 120 items, so the earliest of these weeks have already dropped off it.</p>}
       <div className="row between wrap">
@@ -248,10 +272,10 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
   )
 }
 
-function DigestGroup({ title, icon, count, children }: { title: string; icon: string; count: number; children: React.ReactNode }) {
+function DigestGroup({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
     <div className="digest-group">
-      <div className="small muted">
+      <div className="small muted digest-group-title">
         {icon} {title}
       </div>
       <ul>{children}</ul>
@@ -260,7 +284,7 @@ function DigestGroup({ title, icon, count, children }: { title: string; icon: st
   )
 }
 
-function NewsGroup({ title, icon, items }: { title: string; icon: string; items: NewsItem[] }) {
+function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNode; items: NewsItem[] }) {
   if (!items.length) return null
   return (
     <DigestGroup title={title} icon={icon} count={items.length}>

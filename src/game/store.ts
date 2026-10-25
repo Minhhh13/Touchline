@@ -162,7 +162,7 @@ interface Store {
   setTheme: (t: Profile['theme']) => void
   /** A coach mark's 'Got it': it never shows again on this profile. */
   dismissTip: (id: TipId) => void
-  /** 'Show tips again' on the Record screen: every coach mark shows once more. */
+  /** 'Show tips again' on the Profile screen: every coach mark shows once more. */
   resetTips: () => void
 }
 
