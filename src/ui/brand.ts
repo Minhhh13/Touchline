@@ -322,9 +322,27 @@ export function ballPanels(cx: number, cy: number, r: number): BallPanel[] {
   })
 }
 
-/** The tiny ball's single patch: a pentagon nudged up and left, so it reads as a ball and not a target. */
+/** The tiny mono and inverse ball's single patch: a pentagon nudged up and left, so it reads as a ball and not a target. */
 export function tinyPatch(cx: number, cy: number, r: number): string {
   return pentagonPath(cx - r * 0.14, cy - r * 0.2, r * 0.52)
+}
+
+/**
+ * The 16 px colour ball's patches: the front pentagon and the panels on the
+ * lower rim. Dropping the upper rim panels keeps the top of the ball a clean
+ * white arc against the tile at 16 px, while at 32 device px (a favicon on a
+ * high-density screen) the real panels read as a football, not an eye.
+ */
+export function tinyPanels(cx: number, cy: number, r: number): string[] {
+  return ballPanels(cx, cy, r)
+    .filter((p) => p.type === 'pent')
+    .filter((p) => {
+      const pts = [...p.d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => [+m[1], +m[2]])
+      const mx = pts.reduce((s, q) => s + q[0], 0) / pts.length
+      const my = pts.reduce((s, q) => s + q[1], 0) / pts.length
+      return Math.hypot(mx - cx, my - cy) < r * 0.35 || my > cy + r * 0.5
+    })
+    .map((p) => p.d)
 }
 
 /** The flat ball's soft grey edge, so a white disc stays round on blue or on a white page. */
@@ -375,7 +393,8 @@ export function ballSvg(id: string, o: BallOptions): { defs: string; body: strin
     }
   }
   if (tier === 'tiny') {
-    return { defs: '', body: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff"/><path d="${patches[0]}" fill="${MARK.panel}"/>${after}` }
+    // Real panels, not the single patch: at 32 device px (a favicon on a high-density screen) one centred patch reads as an eye
+    return { defs: clipDef, body: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff"/><g clip-path="url(#${clip})" fill="${MARK.panel}">${tinyPanels(cx, cy, r).map((d) => `<path d="${d}"/>`).join('')}</g>${after}` }
   }
   if (tier === 'mid') {
     return {

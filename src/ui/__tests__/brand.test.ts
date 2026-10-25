@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { LOCKUP, MARK, ballPanels, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, type MarkTier } from '../brand'
+import { Lockup } from '../components/Logo'
+import { LOCKUP, MARK, ballPanels, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, tinyPanels, type MarkTier } from '../brand'
 
 const TIERS: MarkTier[] = ['full', 'mid', 'tiny']
 
@@ -57,6 +60,18 @@ describe('the mark', () => {
     expect(centred.length).toBe(1)
   })
 
+  it('draws real panels on the 16 px ball, so the favicon reads as a ball and not an eye at 32 device px, and keeps its top a clean white arc', () => {
+    const svg = markSvgInner('t', { tier: 'tiny' })
+    const { cx, cy, r } = MARK.tiers.tiny.ball
+    const patches = tinyPanels(cx, cy, r)
+    expect(patches.length).toBeGreaterThan(1)
+    expect(svg.match(/<path d="M[^"]*"\/>/g)?.length).toBe(patches.length)
+    // the front pentagon is one of them, and nothing reaches into the top third of the ball
+    expect(patches.some((d) => points(d).every(([x, y]) => Math.hypot(x - cx, y - cy) < r * 0.6))).toBe(true)
+    for (const d of patches) for (const [, y] of points(d)) expect(y).toBeGreaterThan(cy - r * 0.6)
+    expect(readFileSync(new URL('../../../public/favicon.svg', import.meta.url), 'utf8').trim()).toBe(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">${markSvgInner('tl', { tier: 'tiny' })}</svg>`)
+  })
+
   it('prefixes every id with the instance id, so two marks on a page never share a gradient', () => {
     for (const t of TIERS) {
       for (const variant of ['colour', 'mono', 'inverse'] as const) {
@@ -81,6 +96,14 @@ describe('the lockup', () => {
     for (const [x, y] of points(pennantPath(pennant))) expect(Math.hypot(x - ball.cx, y - cy)).toBeGreaterThan(ball.r + 2.5)
     // the roll starts with the ball wholly behind the pole's centre, where its track begins
     expect(rollFrom + ball.r).toBeLessThan(pole.x)
+  })
+
+  it('carries the name once as text; the glint copy is generated content', () => {
+    const html = renderToStaticMarkup(createElement(Lockup, { animate: 'load' }))
+    expect(html.replace(/<[^>]*>/g, '')).toBe('TouchLine')
+    expect(html).toContain('data-text="TouchLine"')
+    const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
+    expect(css).toContain('.tl-shine::before {\n  content: attr(data-text);')
   })
 
   it('matches the stylesheet', () => {
