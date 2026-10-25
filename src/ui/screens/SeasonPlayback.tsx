@@ -7,6 +7,7 @@ import { getFormation } from '@engine/formations'
 import { ratingsHidden } from '@engine/draft'
 import { ratingAt } from '@engine/positions'
 import { playerLookup } from '@game/logic/players'
+import { quickSeasonGames } from '@game/logic/quick'
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { GameByGame, GameCard, RunningStrip, useSeasonPlayback } from '../components/GameByGame'
 import { PlayerRow } from '../components/PlayerRow'
@@ -27,10 +28,10 @@ export function SeasonPlayback() {
   const from = playback?.from ?? results.length
   const pb = useSeasonPlayback(results.length, from)
   if (!u || !game) return null
-  const opponent = (id: string) => ({ clubId: id, name: clubName(u, id) })
   const s = game.settings
+  const opponent = (id: string) => ({ clubId: id, name: clubName(u, id) })
   const latest = pb.revealed ? results[pb.revealed - 1] : null
-  const total = game.quickResult?.results?.length ?? (j ? j.afterMatchweek * 2 : results.length)
+  const total = game.quickResult?.results?.length ?? quickSeasonGames(u, s)
   return (
     <div className="page">
       <div className="setup-flow" data-testid="season-playback">
@@ -55,7 +56,7 @@ export function SeasonPlayback() {
         </div>
         <RunningStrip results={results} upTo={pb.revealed} />
         {latest && !(j && pb.done) && <GameCard r={latest} opponent={opponent(latest.opponentId)} />}
-        {j && pb.done && <JanuaryWindow game={game} u={u} j={j} />}
+        {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}
         {!j && pb.done && (
           <div className="panel col" data-testid="playback-end">
             <b>Full time on the season: {ordinal(game.quickResult?.position ?? 0)}, {game.quickResult?.points ?? 0} points.</b>
@@ -90,7 +91,7 @@ function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j: Quick
         <span className="chip">Budget {money(j.budget)}</span>
       </div>
       <p className="help" style={{ margin: 0 }}>
-        {ordinal(j.position)} after {j.afterMatchweek} games. The board backs one deal: sign a player with the budget, swap one of your XI for him, or pass. It can help or hurt, and there is no undo.
+        {ordinal(j.position)} after {j.firstHalf.length} games. The board backs one deal: sign a player with the budget, swap one of your XI for him, or pass. It can help or hurt, and there is no undo.
       </p>
       {j.listings.length === 0 && <div className="notice">Nobody fits this wheel's rules this January.</div>}
       <div className="col" style={{ gap: 6 }}>

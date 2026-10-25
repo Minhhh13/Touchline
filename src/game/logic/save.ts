@@ -44,5 +44,7 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     jobOffers: g.jobOffers ?? [],
     pendingMove: g.pendingMove ?? null,
     quickResult: g.quickResult ?? null,
+    // A season paused for a January window that is not there cannot go on: back to the tactics step, which replays it
+    phase: g.phase === 'january' && !g.quickJanuary ? 'kickoff' : g.phase,
   }
 }

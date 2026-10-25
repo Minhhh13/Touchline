@@ -11,7 +11,7 @@ import type { LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame } from './logic/save'
-import { closeJanuary, kickOff, toKickoff } from './logic/quick'
+import { closeJanuary, kickOff, reopenJanuary, toKickoff } from './logic/quick'
 import { advanceLiveMatch, applyEventChoice, closeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import type { SquadStatus } from '@engine/status'
@@ -424,6 +424,12 @@ export const useStore = create<Store>()(
           if (before?.phase !== 'january' || !before.quickJanuary) return
           const from = before.quickJanuary.firstHalf.length
           mutate((g, u) => closeJanuary(g, u, index))
+          if (get().game?.phase === 'january') {
+            // The deal did not replay (the league data changed since the window opened): draw the window again rather than stay stuck
+            mutate((g, u) => reopenJanuary(g, u))
+            set({ toast: 'The league data changed since the window opened, so the first half and the window were drawn again.' })
+            return
+          }
           if (get().game?.phase === 'summary') {
             set({ playback: { from } })
             unlockFromGame()

@@ -32,6 +32,14 @@ export function quickXI(game: Game, u: LoadedUniverse): { lineup: Lineup; bench:
   return { lineup, bench }
 }
 
+/**
+ * How many league games the user plays in a quick season: every other club twice. With an odd number of clubs each
+ * matchweek holds a bye, so this is two fewer than the matchweeks (36 of 38 with 19 clubs). Pure.
+ */
+export function quickSeasonGames(u: LoadedUniverse, s: Pick<Game['settings'], 'leagueId' | 'leagueSeason' | 'hostClubId'>): number {
+  return 2 * u.clubSeasons.filter((cs) => cs.leagueId === s.leagueId && cs.season === s.leagueSeason && cs.clubId !== s.hostClubId).length
+}
+
 /** The user's side in a quick-season match: the XI with the manager's tactics, captain and penalty taker. */
 export function quickUserInput(game: Game, lineup: Lineup, bench: string[], tactics: Tactics, captainId: string | undefined, get: (id: string) => PlayerSeason | undefined): MatchTeamInput {
   return { teamId: USER_TEAM, teamName: game.settings.teamName, shortName: game.settings.shortName, tactics, lineup, bench, getPlayer: get, getState: () => undefined, ...(captainId ? { captainId } : {}) }
@@ -106,7 +114,7 @@ function windowAt(game: Game, u: LoadedUniverse, run: QuickRun): Pick<QuickJanua
   const position = positionOf(table, USER_TEAM)
   const xiValue = Object.values(run.lineup).reduce((s, id) => s + (run.get(id)?.value ?? 0), 0)
   const budget = januaryBudget(position, run.ids.length, xiValue)
-  const listings = januaryListings(game, u, run.lineup, budget, run.get, Rng.fromState(run.rng.getState()).fork('january'))
+  const listings = januaryListings(game, u, run.lineup, budget, run.get, Rng.fromState(run.rng.getState()).fork('january'), run.bench)
   return { afterMatchweek: run.half, position, budget, listings }
 }
 
@@ -146,6 +154,20 @@ export function closeJanuary(game: Game, u: LoadedUniverse, index: number | null
     if (sp) for (const k of ['penalties', 'freeKicks', 'corners'] as const) if (sp[k] === move.outId) delete sp[k]
   }
   runQuickSeason(game, u)
+}
+
+/**
+ * Draw the January window again from the start of the season, with the tactics and captain the first half kicked off
+ * with. For a window whose deal no longer replays (league data updated under a save paused in January): the first
+ * half and the listings are recomputed on the data now loaded, so the manager is never stuck on a dead window.
+ */
+export function reopenJanuary(game: Game, u: LoadedUniverse): void {
+  const j = game.quickJanuary
+  if (!j || game.phase !== 'january') return
+  game.tactics = copyTactics(j.firstHalfTactics)
+  if (j.firstHalfCaptainId) game.captainId = j.firstHalfCaptainId
+  else delete game.captainId
+  openJanuary(game, u)
 }
 
 /** The quick season's first step after the draft (Quick Draft and the Daily): the tactics screen, with the XI in place. */

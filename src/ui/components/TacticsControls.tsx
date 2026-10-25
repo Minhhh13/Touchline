@@ -43,8 +43,9 @@ export function TeamInstructions({ t, onChange }: { t: Tactics; onChange: (patch
 
 /** Captain and penalty taker from the XI; "Auto" leaves the choice to the match engine, as in the Dugout. */
 export function CaptainAndPenalties({ xi, captainId, penalties, onCaptain, onPenalties, hideRatings }: { xi: PlayerSeason[]; captainId?: string; penalties?: string; onCaptain: (id: string | undefined) => void; onPenalties: (id: string | undefined) => void; hideRatings?: boolean }) {
-  const takers = xi.filter((p) => p.positions[0] !== 'GK').sort((a, b) => b.attributes.shooting + b.attributes.mentality - (a.attributes.shooting + a.attributes.mentality))
-  const leaders = [...xi].sort((a, b) => b.attributes.mentality - a.attributes.mentality)
+  // With ratings hidden (Hard, blind) the lists keep the XI's order: sorting by the attributes would give them away
+  const takers = xi.filter((p) => p.positions[0] !== 'GK').sort((a, b) => (hideRatings ? 0 : b.attributes.shooting + b.attributes.mentality - (a.attributes.shooting + a.attributes.mentality)))
+  const leaders = [...xi].sort((a, b) => (hideRatings ? 0 : b.attributes.mentality - a.attributes.mentality))
   const score = (n: number) => (hideRatings ? '' : ` (${n})`)
   return (
     <div className="col">

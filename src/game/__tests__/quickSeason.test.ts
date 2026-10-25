@@ -5,8 +5,8 @@ import { autoDraft, isComplete, QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, encodeChallenge } from '@engine/challenge'
 import { getFormation } from '@engine/formations'
 import { ratingAt } from '@engine/positions'
-import { closeJanuary, kickOff, QUICK_EUROPE_PLACES, quickUserInput, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
-import { JANUARY_BUDGET_FLOOR, JANUARY_LISTINGS, januaryBudget, weakestSlots } from '../logic/january'
+import { closeJanuary, kickOff, QUICK_EUROPE_PLACES, quickSeasonGames, quickUserInput, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
+import { JANUARY_BUDGET_FLOOR, JANUARY_LISTINGS, JANUARY_SHORTLIST, JANUARY_SIGN_GAIN, januaryBudget, januaryShortlist, weakestSlots } from '../logic/january'
 import { foldResults, januaryLine, europeLine, nextReveal, playbackDelay, playbackFrame, PLAYBACK_STEP_MS } from '../logic/gameByGame'
 import { challengeFromGame, replayChallenge } from '../logic/challenge'
 import { createGame, dailyGameSettings, DAILY_SEASON, summariseSetup } from '../logic/setup'
@@ -114,6 +114,18 @@ describe('the January window of a quick season', { timeout: 90_000 }, () => {
     }
   })
 
+  it('never offers a man already in the squad, bench included', () => {
+    for (const seed of ['jan-bench-1', 'jan-bench-2', 'jan-bench-3', 'jan-bench-4']) {
+      const g = drafted({ seed, rules: { ...QUICK_RULES, leagues: ['england'], squadSize: 15 } })
+      expect(g.bench.length).toBeGreaterThan(0)
+      kickOff(g, u)
+      const get = playerLookup(g, u)
+      const squad = new Set([...Object.values(g.lineup), ...g.bench].map((id) => get(id)!.playerId))
+      expect(g.quickJanuary!.listings.length).toBeGreaterThan(0)
+      for (const l of g.quickJanuary!.listings) expect(squad.has(get(l.playerSeasonId)!.playerId)).toBe(false)
+    }
+  })
+
   it('a signing changes the second half only, and the summary records it', () => {
     for (const seed of SEEDS) {
       const base = drafted({ seed })
@@ -161,6 +173,39 @@ describe('the January window of a quick season', { timeout: 90_000 }, () => {
     closeJanuary(g, u, 0)
     expect(g.captainId).toBeUndefined()
     expect(g.tactics.setPieces?.penalties).toBeUndefined()
+  })
+
+  it('shortlists one season per player, his best that fits, so one man never fills the list (Prime makes his seasons alike)', () => {
+    const g = drafted({ seed: 'jan-prime', rules: { ...QUICK_RULES, leagues: ['england'], ratings: 'prime' } })
+    const get = playerLookup(g, u)
+    const cbs = u.clubSeasons.flatMap((cs) => cs.squad.filter((p) => p.positions.includes('CB')))
+    const slot = { position: 'CB' as const, rating: 72 }
+    const list = januaryShortlist(cbs, slot, 'sign', 1000, get)
+    expect(list.length).toBe(JANUARY_SHORTLIST)
+    expect(new Set(list.map((c) => c.p.playerId)).size).toBe(list.length)
+    for (let i = 0; i < list.length; i++) {
+      const gain = list[i].rating - slot.rating
+      expect(gain).toBeGreaterThanOrEqual(JANUARY_SIGN_GAIN[0])
+      expect(gain).toBeLessThanOrEqual(JANUARY_SIGN_GAIN[1])
+      if (i) expect(list[i].rating).toBeLessThanOrEqual(list[i - 1].rating)
+    }
+    // Without the rule the top of the list would repeat players: several of these men have more than one qualifying season
+    const raw = cbs.filter((p) => {
+      const gain = ratingAt(get(p.id)!, 'CB') - slot.rating
+      return gain >= JANUARY_SIGN_GAIN[0] && gain <= JANUARY_SIGN_GAIN[1]
+    })
+    expect(new Set(raw.map((p) => p.playerId)).size).toBeLessThan(raw.length)
+    // Nobody taken, nobody over the budget
+    const taken = new Set([list[0].p.playerId])
+    expect(januaryShortlist(cbs, slot, 'sign', 1000, get, taken).some((c) => c.p.playerId === list[0].p.playerId)).toBe(false)
+    for (const c of januaryShortlist(cbs, slot, 'sign', 10, get)) expect(c.fee).toBeLessThanOrEqual(10)
+  })
+
+  it('counts the games a quick season plays: every other club twice', () => {
+    const g = drafted({ seed: 'jan-1', january: false })
+    kickOff(g, u)
+    expect(quickSeasonGames(u, g.settings)).toBe(g.quickResult!.results!.length)
+    expect(quickSeasonGames(u, g.settings)).toBe(38)
   })
 
   it('works out a budget that grows from the leaders to the bottom side, never under the floor', () => {
@@ -253,6 +298,42 @@ describe('the store flow', { timeout: 90_000 }, () => {
     s.endPlayback()
     expect(useStore.getState().playback).toBeNull()
     useStore.setState({ game: null, universe: null, loadedLeagues: [] })
+  })
+
+  it('draws the window again, rather than staying stuck, when its deal no longer replays (data changed under the save)', () => {
+    const g = drafted({ seed: 'jan-store-2' })
+    kickOff(g, u)
+    const fresh = clone(g)
+    // A listing the season would no longer offer, as after a data update
+    g.quickJanuary!.listings[0].fee += 0.5
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    useStore.setState({ universe: u, game: g, loadedLeagues: ['england'], playback: { from: 0 }, toast: null })
+    useStore.getState().closeJanuary(0)
+    quiet.mockRestore()
+    const after = useStore.getState().game!
+    expect(after.phase).toBe('january')
+    expect(after.quickJanuary!.move).toBeUndefined()
+    expect(after.quickJanuary!.listings).toEqual(fresh.quickJanuary!.listings)
+    expect(useStore.getState().toast).toMatch(/drawn again/)
+    // And the redrawn window closes normally
+    useStore.getState().closeJanuary(0)
+    expect(useStore.getState().game!.phase).toBe('summary')
+    useStore.setState({ game: null, universe: null, loadedLeagues: [], playback: null })
+  })
+
+  it('sends a save paused for a January window it does not hold back to the tactics step, which replays the season', () => {
+    const g = drafted({ seed: 'jan-2' })
+    const at = clone(g)
+    kickOff(g, u)
+    const broken = clone(g) as unknown as Record<string, unknown>
+    delete broken.quickJanuary
+    const n = normaliseGame(broken as unknown as Game)!
+    expect(n.phase).toBe('kickoff')
+    kickOff(n, u)
+    kickOff(at, u)
+    expect(n.quickJanuary).toEqual(at.quickJanuary)
+    // An intact pause is left where it is
+    expect(normaliseGame(clone(g))!.phase).toBe('january')
   })
 
   it('opens a save written before the window with nothing to fill in', () => {
