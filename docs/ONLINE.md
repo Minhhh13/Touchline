@@ -19,7 +19,7 @@ The game stays offline-first and unchanged. `src/online` loads only when the bui
 | `src/online/daily.ts`, `src/online/weekly.ts` | pure client parts: `dailyStartSettings`, `buildDailySubmission`; the weekly mapping `weeklyGameSettings`, `weekKeyOf` |
 | `src/online/__tests__/packHashes.json` | the stamp guard's record of every pack file's SHA-256 per `generatedAt` |
 | `supabase/migrations/` | the Phase 1 migrations (section 4) |
-| `supabase/tests/sql/phase1.sql` | the Phase 1 assertion suite |
+| `supabase/tests/sql/phase1.sql`, `phase1_review.sql` | the Phase 1 assertion suite and the adversarial review suite |
 | `scripts/online/sql/stub.sql`, `run-local.sh` | a local stand-in for Supabase and the runner (`npm run sql:test`) |
 | `scripts/online/check-dist-keys.mjs` | `npm run check:dist-keys`: fails when `dist/` holds an `sb_secret_` key or a non-anon JWT (CI runs it after the build) |
 | `.github/workflows/db-tests.yml` | runs the SQL suite on a Postgres 17 service container, only for commits that touch SQL |
@@ -43,6 +43,7 @@ Applied in this order (file names carry the version the project recorded once ap
 5. `challenge_codes`: `challenges`, `create_challenge`, `get_challenge`.
 6. `online_housekeeping`: pg_cron, daily clean-up of spent rate-limit windows and expired codes.
 7. `service_only_policies`: an explicit deny-all policy for the client roles on the five service-only tables in `private` (answers the Security Advisor's INFO lint 0008; no behaviour change).
+8. `review_hardening` (the adversarial review of 2026-10-25, a forward migration so it applies the same on any earlier state): `save_claim`, `save_delete` and `profile_put` compare the base revision with `is distinct from` (a null base used to skip the compare-and-set and overwrite the newer copy); a claim never lists an object a row still points at as `obsolete`, and filing the current object as its own previous copy is refused; `private.save_object_count()` counts the caller's objects only (it took any user id); display names and board team names refuse invisible, bidi and exotic space characters (`private.is_clean_name`, mirrored by `HIDDEN_CHARS` in the verifier and pinned equal by a test), which let a name pose as someone else's while passing the uniqueness check.
 
 This project's default privileges grant every new table, sequence and function in `public` to `anon` and `authenticated` (read from `pg_default_acl` on 2026-10-25). Every migration therefore revokes table privileges and EXECUTE before granting, the stand-in mirrors those defaults, and the suite asserts that `anon` can read only `daily_puzzles` and `weekly_puzzles` and execute only the eight readers.
 
@@ -50,7 +51,7 @@ Every board function takes an optional country (`p_country`, ISO 3166-1 alpha-2 
 
 Rules that hold across all of them: RLS on every table in `public` and `private`; no SECURITY DEFINER function in `public`; `search_path` pinned everywhere; `svc_*` functions executable by `service_role` only; `anon` can execute exactly `daily_board`, `daily_summary`, `daily_rank`, `daily_alltime_board`, `weekly_board`, `weekly_summary`, `weekly_rank` and `get_challenge`. Picks, XIs and payloads on a board stay hidden until nobody can post that day or week any more.
 
-Run the SQL suite locally with `npm run sql:test` (needs PostgreSQL 16 or 17 binaries; `PG_BIN=/usr/lib/postgresql/16/bin` by default, or `DATABASE_URL` for an existing empty database). It prints `PHASE 1 ASSERTIONS PASSED`.
+Run the SQL suite locally with `npm run sql:test` (needs PostgreSQL 16 or 17 binaries; `PG_BIN=/usr/lib/postgresql/16/bin` by default, or `DATABASE_URL` for an existing empty database). It prints `PHASE 1 ASSERTIONS PASSED`, then `REVIEW ASSERTIONS PASSED` for `supabase/tests/sql/phase1_review.sql` (the attacks a hostile client tries: null base revisions, another account's rows and objects, direct writes to boards, pins and totals, private helpers called directly, look-alike names, impossible figures). The throwaway cluster is UTF8, as Supabase is; the review suite refuses to run on any other encoding, since a SQL_ASCII cluster tests the name rules on bytes.
 
 ## 5. The weekly challenge
 

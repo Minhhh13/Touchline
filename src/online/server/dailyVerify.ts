@@ -139,7 +139,12 @@ export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePay
   game.rngState = rng.getState()
 }
 
-const CONTROL = /[\u0000-\u001f\u007f-\u009f]/
+/**
+ * Characters a team name may not hold, the same set as `private.is_clean_name` in the database: controls, soft
+ * hyphen, zero-width and bidi formatting characters, every space but U+0020, variation selectors, byte-order mark,
+ * Hangul fillers and specials. They let a name pose as another on a board while comparing as different.
+ */
+export const HIDDEN_CHARS = /[\u0000-\u001f\u007f-\u00a0\u00ad\u034f\u061c\u115f\u1160\u1680\u17b4\u17b5\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f-\u206f\u3000\u3164\ufe00-\ufe0f\ufeff\uffa0\ufff0-\uffff]/
 
 /** The window a ranked seed may be posted in, by server time. */
 function seedWindow(kind: PuzzlePin['kind'], seed: string, now: Date): { key: string; open: boolean } | null {
@@ -158,8 +163,14 @@ function seedWindow(kind: PuzzlePin['kind'], seed: string, now: Date): { key: st
  * may rank (one the live site served after the pin was made); `u` must be the universe of `payload.data`.
  */
 export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody, now: Date, dataAllowed: (version: string) => boolean): Verdict {
+  // The body arrives as raw JSON from the Edge Function: never trust its types
+  const raw: unknown = body
+  if (!raw || typeof raw !== 'object') return fail(422, 'invalid_payload', 'The submission is not an object')
+  const { encoded: rawEncoded, teamName: rawTeam, shortName: rawShort } = raw as Record<string, unknown>
+  if (typeof rawEncoded !== 'string') return fail(422, 'invalid_payload', 'The submission has no payload')
+  if (typeof rawTeam !== 'string' || typeof rawShort !== 'string') return fail(422, 'invalid_team', 'A team name and a short name are text')
   let c: ChallengePayload
-  const encoded = body.encoded.trim().replace(/^#?c=/, '')
+  const encoded = rawEncoded.trim().replace(/^#?c=/, '')
   if (encoded.length > 8000) return fail(422, 'invalid_payload', 'The submission is too long')
   try {
     c = decodeChallenge(encoded)
@@ -178,10 +189,10 @@ export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody
   if (!samePuzzle) return fail(409, 'puzzle_mismatch', 'This run was played on a different puzzle from the ranked one')
   const host = u.clubSeasonByKey[`${s.hostClubId}@${s.leagueSeason}`]
   if (!host || host.leagueId !== s.leagueId) return fail(409, 'puzzle_mismatch', `This data has no ${s.hostClubId} ${s.leagueSeason}`)
-  if (body.teamName.length < 1 || body.teamName.length > 28 || CONTROL.test(body.teamName)) return fail(422, 'invalid_team', 'A team name is 1 to 28 characters')
-  if (!/^[A-Z0-9]{2,3}$/.test(body.shortName)) return fail(422, 'invalid_team', 'A short name is 2 or 3 capital letters or digits')
+  if (rawTeam.trim() !== rawTeam || [...rawTeam].length < 1 || [...rawTeam].length > 28 || HIDDEN_CHARS.test(rawTeam)) return fail(422, 'invalid_team', 'A team name is 1 to 28 visible characters')
+  if (!/^[A-Z0-9]{2,3}$/.test(rawShort)) return fail(422, 'invalid_team', 'A short name is 2 or 3 capital letters or digits')
   // Exactly the names the player played with: they are part of the game that was replayed
-  const game = createGame({ ...s, teamName: body.teamName, shortName: body.shortName })
+  const game = createGame({ ...s, teamName: rawTeam, shortName: rawShort })
   try {
     strictReplayDraft(u, game, c)
   } catch (e) {
@@ -199,7 +210,7 @@ export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody
     ok: true,
     key: window.key,
     entry: {
-      team_name: body.teamName,
+      team_name: rawTeam,
       points: q.points,
       won: q.won,
       drawn: q.drawn,

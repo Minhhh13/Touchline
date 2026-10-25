@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '@engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
@@ -8,7 +10,7 @@ import type { Game, GameSettings } from '@game/types'
 import { createGame, dailyGameSettings } from '@game/logic/setup'
 import { runQuickSeason } from '@game/logic/quick'
 import { challengeFromGame, replayChallenge } from '@game/logic/challenge'
-import { maxDraftRows, puzzleOf, settingsHash, strictReplayDraft, verifyDaily, verifyWeekly, type PuzzlePin, type Verdict } from '../server/dailyVerify'
+import { HIDDEN_CHARS, maxDraftRows, puzzleOf, settingsHash, strictReplayDraft, verifyDaily, verifyWeekly, type PuzzlePin, type RankedBody, type Verdict } from '../server/dailyVerify'
 import { buildRankedSubmission, dailyStartSettings, weeklyStartSettings } from '../daily'
 import { weekKeyOf, weekKeyOfSeed, weekStartOf, weeklyGameSettings, weeklyIsOpen } from '../weekly'
 
@@ -182,6 +184,29 @@ describe('verifyDaily: refusals', () => {
     expect(code(verifyDaily(u, pin, post(honest, { teamName: 'Bad\u0007Name' }), NOW, never))).toBe('422 invalid_team')
     expect(code(verifyDaily(u, pin, post(honest, { shortName: 'vf' }), NOW, never))).toBe('422 invalid_team')
     expect(code(verifyDaily(u, pin, post(honest, { shortName: 'ABCD' }), NOW, never))).toBe('422 invalid_team')
+    // Names that pose as another on the board: zero-width, bidi override, byte-order mark, no-break space, padding
+    for (const teamName of ['Verified\u200bFC', 'Verified \u202eCF', 'Verified FC\ufeff', 'Verified\u00a0FC', ' Verified FC', 'Verified FC ']) {
+      expect(code(verifyDaily(u, pin, post(honest, { teamName }), NOW, never))).toBe('422 invalid_team')
+    }
+    // Accented and non-Latin names are fine (28 code points, not UTF-16 units)
+    expect(code(verifyDaily(u, pin, post(honest, { teamName: 'Hà Nội FC' }), NOW, never))).not.toBe('422 invalid_team')
+    expect(code(verifyDaily(u, pin, post(honest, { teamName: '\u{1F981}'.repeat(28) }), NOW, never))).not.toBe('422 invalid_team')
+  }, 300000)
+
+  it('422 for a body whose fields are not text (the Edge Function passes raw JSON)', () => {
+    const bad = (b: unknown) => code(verifyDaily(u, pin, b as RankedBody, NOW, never))
+    expect(bad(null)).toBe('422 invalid_payload')
+    expect(bad({ encoded: 42, teamName: 'Verified FC', shortName: 'VFC' })).toBe('422 invalid_payload')
+    expect(bad({ encoded: encodeChallenge(honest), teamName: 12345, shortName: 'VFC' })).toBe('422 invalid_team')
+    expect(bad({ encoded: encodeChallenge(honest), teamName: ['Verified FC'], shortName: 'VFC' })).toBe('422 invalid_team')
+    expect(bad({ encoded: encodeChallenge(honest), teamName: 'Verified FC', shortName: ['VFC'] })).toBe('422 invalid_team')
+  })
+
+  it('refuses the same hidden characters as the database (private.is_clean_name)', () => {
+    const sql = readFileSync(path.resolve(__dirname, '../../../supabase/migrations/20261025093008_review_hardening.sql'), 'utf8')
+    const m = /p !~ '(\[[^']+\])'/.exec(sql)
+    expect(m).not.toBeNull()
+    expect(HIDDEN_CHARS.source).toBe(m![1])
   })
 
   it('422 invalid_picks with the spin number for a tampered draft', () => {

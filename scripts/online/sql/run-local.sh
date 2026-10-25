@@ -39,7 +39,8 @@ if [[ "$(id -u)" == "0" ]]; then
 fi
 cleanup() { "${as[@]}" "$PG_BIN/pg_ctl" -D "$tmp/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$tmp"; }
 trap cleanup EXIT
-"${as[@]}" "$PG_BIN/initdb" -D "$tmp/data" -U postgres -A trust >/dev/null
+# UTF8, as on Supabase: on a SQL_ASCII cluster the Unicode name checks would test bytes, not characters
+"${as[@]}" "$PG_BIN/initdb" -D "$tmp/data" -U postgres -A trust -E UTF8 --locale=C.UTF-8 >/dev/null
 port=$(( 20000 + RANDOM % 20000 ))
 "${as[@]}" "$PG_BIN/pg_ctl" -D "$tmp/data" -o "-k $tmp -p $port -c listen_addresses=''" -l "$tmp/log" -w start >/dev/null
 "${as[@]}" "$PG_BIN/createdb" -h "$tmp" -p "$port" -U postgres touchline
