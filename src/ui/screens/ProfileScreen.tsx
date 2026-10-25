@@ -1,12 +1,13 @@
-import { useRef } from 'react'
-import { Crown, Globe, Medal, Trophy } from 'lucide-react'
+import { useRef, type ReactNode } from 'react'
+import { CalendarDays, Crown, Download, Flame, Globe, Lock, Medal, Trophy, Trash2, Upload } from 'lucide-react'
 import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
-import { TIER_LABEL } from '@engine/season'
 import type { LeaderboardEntry } from '@game/types'
-import { ClubBadge, Flag, Segmented } from '../components/bits'
+import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
-import { clubName, ordinal, seasonLabel } from '../format'
+import { AchievementIcon } from '../components/icons'
+import { clubName, ordinal, seasonLabel, tierName } from '../format'
+import { modeLabel } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 
 function exportSave(): void {
@@ -45,10 +46,22 @@ export function ProfileScreen() {
     wipeSave()
     location.reload()
   }
+  const trophies: Array<[ReactNode, string, number]> = [
+    [<Trophy size={26} />, 'League titles', profile.trophies?.league ?? 0],
+    [<Medal size={26} />, 'Cups', profile.trophies?.cup ?? 0],
+    [<Globe size={26} />, 'Continental Cups', profile.trophies?.continental ?? 0],
+    [<><Trophy size={22} /><Trophy size={22} /></>, 'Doubles', profile.trophies?.doubles ?? 0],
+    [<Crown size={26} />, 'Trebles', profile.trophies?.trebles ?? 0],
+  ]
   return (
     <div className="page">
-      <div className="row between wrap" style={{ marginBottom: 10 }}>
-        <h1>Profile</h1>
+      <div className="screen-head">
+        <div className="screen-title">
+          <h1>Profile</h1>
+          <div className="screen-meta">
+            <span>{profile.managerName ? `${profile.managerName}, manager` : 'Your record, trophies and settings'}</span>
+          </div>
+        </div>
         <button className="btn ghost" onClick={() => go('home')}>
           ← Home
         </button>
@@ -56,28 +69,32 @@ export function ProfileScreen() {
       <div className="grid two">
         <div className="col">
           <div className="panel col">
-            <h3>Manager</h3>
+            <h3 style={{ margin: 0 }}>Manager</h3>
             <label className="field">
               Name
               <input className="input" value={profile.managerName} onChange={(e) => setManagerName(e.target.value)} placeholder="The Gaffer" />
             </label>
             <div className="field">
-              Theme
+              <span>
+                Theme <Info label="About the theme">Auto follows your device's light or dark setting. The sun and moon in the top bar flips it too.</Info>
+              </span>
               <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto', hint: "Follows your device's light or dark setting" }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
             </div>
-            <div className="kv">
-              <dt>Games started</dt>
-              <dd>{profile.gamesPlayed}</dd>
-              <dt>Seasons simulated</dt>
-              <dd>{profile.seasonsSimulated}</dd>
-              <dt>Daily streak</dt>
-              <dd>{profile.dailyStreak}</dd>
-              <dt>Achievements</dt>
-              <dd>
-                {unlocked} / {ACHIEVEMENTS.length}
-              </dd>
+            <div className="stat-strip profile-stats">
+              <Stat label="Games" value={profile.gamesPlayed} />
+              <Stat label="Seasons" value={profile.seasonsSimulated} />
+              <Stat
+                label="Daily streak"
+                value={
+                  <span className="icon-title">
+                    <Flame size={20} className={profile.dailyStreak ? 'streak-on' : ''} aria-hidden="true" />
+                    {profile.dailyStreak}
+                  </span>
+                }
+              />
+              <Stat label="Achievements" value={`${unlocked}/${ACHIEVEMENTS.length}`} />
             </div>
-            <div className="row wrap">
+            <div className="toolbar">
               <button
                 className="btn sm"
                 data-testid="reset-tips"
@@ -96,36 +113,44 @@ export function ProfileScreen() {
           </div>
           <div className="panel">
             <h3>Trophy cabinet</h3>
-            <div className="row wrap" style={{ gap: 14 }}>
-              {(
-                [
-                  [<Trophy size={26} />, 'League titles', profile.trophies?.league ?? 0],
-                  [<Medal size={26} />, 'Cups', profile.trophies?.cup ?? 0],
-                  [<Globe size={26} />, 'Continental Cups', profile.trophies?.continental ?? 0],
-                  [<><Trophy size={22} /><Trophy size={22} /></>, 'Doubles', profile.trophies?.doubles ?? 0],
-                  [<Crown size={26} />, 'Trebles', profile.trophies?.trebles ?? 0],
-                ] as const
-              ).map(([icon, label, n]) => (
-                <div key={label} className="col" style={{ alignItems: 'center', minWidth: 90, opacity: n ? 1 : 0.45 }}>
+            <div className="cabinet">
+              {trophies.map(([icon, label, n]) => (
+                <div key={label} className={`cabinet-slot ${n ? '' : 'empty'}`}>
                   <span className="cabinet-icon">{icon}</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 24 }}>{n}</span>
+                  <span className="cabinet-n">{n}</span>
                   <span className="small muted">{label}</span>
                 </div>
               ))}
             </div>
           </div>
           <div className="panel">
-            <h3>Achievements</h3>
+            <div className="panel-head">
+              <h3>Achievements</h3>
+              <span className="small muted">
+                {unlocked}/{ACHIEVEMENTS.length}
+              </span>
+            </div>
             <div className="achievements">
               {ACHIEVEMENTS.map((a) => {
                 const date = profile.achievements[a.id]
                 return (
                   <div key={a.id} className={`ach ${date ? '' : 'locked'}`}>
-                    <span className="icon">{a.icon}</span>
+                    <span className="icon" aria-hidden="true">
+                      <AchievementIcon id={a.id} />
+                      {!date && (
+                        <span className="ach-lock">
+                          <Lock size={11} />
+                        </span>
+                      )}
+                    </span>
                     <span>
                       <div className="title">{a.title}</div>
                       <div className="desc">{a.description}</div>
-                      {date && <div className="small muted">{date}</div>}
+                      {date && (
+                        <div className="ach-date">
+                          <CalendarDays size={11} aria-hidden="true" /> {date}
+                        </div>
+                      )}
                     </span>
                   </div>
                 )
@@ -133,67 +158,90 @@ export function ProfileScreen() {
             </div>
           </div>
         </div>
-        <div className="panel col">
-          <h3>Save data</h3>
-          <p className="help">Everything lives in this browser. Export a file to back it up or move it to another device, import one to restore it.</p>
-          <div className="row wrap">
-            <button className="btn" onClick={exportSave}>
-              Export save file
-            </button>
-            <button className="btn" onClick={() => fileRef.current?.click()}>
-              Import save file
-            </button>
-            <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importSave(f); e.target.value = '' }} />
-            <button className="btn ghost danger" onClick={wipe}>
-              Delete all data
-            </button>
+        <div className="col">
+          <div className="panel col">
+            <div className="panel-head" style={{ marginBottom: 0 }}>
+              <span className="head-title">
+                <h3>Save data</h3>
+                <Info label="About save data">Everything lives in this browser. Export a file to back it up or move it to another device; import one to restore it.</Info>
+              </span>
+            </div>
+            <div className="toolbar">
+              <button className="btn" onClick={exportSave}>
+                <Download size={16} aria-hidden="true" /> Export save file
+              </button>
+              <button className="btn" onClick={() => fileRef.current?.click()}>
+                <Upload size={16} aria-hidden="true" /> Import save file
+              </button>
+              <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importSave(f); e.target.value = '' }} />
+              <button className="btn ghost danger" onClick={wipe}>
+                <Trash2 size={16} aria-hidden="true" /> Delete all data
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="panel">
-          <h3>Best seasons</h3>
-          {profile.leaderboard.length === 0 && <div className="muted small">Nothing yet. Spin the wheel.</div>}
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Team</th>
-                <th>Mode</th>
-                <th>League</th>
-                <th className="num">Pts</th>
-                <th className="num">W-D-L</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profile.leaderboard.map((e) => {
-                const runs = runsBySeed.get(e.seed) ?? [e]
-                const rank = runs.indexOf(e) + 1
-                return (
-                <tr key={e.id}>
-                  <td>
-                    <span className="row wrap" style={{ gap: 6 }}>
-                      <ClubBadge clubId={e.hostClubId} size={20} /> {e.teamName}
-                      {e.nation && <Flag nation={e.nation} />}
-                      {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">Best on this wheel · {runs.length} runs</span> : <span className="chip">{ordinal(rank)} of {runs.length} on this wheel</span>)}
-                      {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
-                    </span>
-                    <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>
-                  </td>
-                  <td>{e.mode}</td>
-                  <td>{u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)}</td>
-                  <td className="num" style={{ fontWeight: 700 }}>
-                    {e.points}
-                  </td>
-                  <td className="num">
-                    {e.won}-{e.drawn}-{e.lost}
-                  </td>
-                  <td>
-                    {TIER_LABEL[e.tier]} · {ordinal(e.position)}
-                  </td>
-                </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="panel">
+            <div className="panel-head">
+              <h3>Best seasons</h3>
+              {profile.leaderboard.length > 0 && <span className="small muted">{profile.leaderboard.length} run{profile.leaderboard.length === 1 ? '' : 's'}</span>}
+            </div>
+            {profile.leaderboard.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-icon" aria-hidden="true">
+                  <Trophy size={26} />
+                </span>
+                <h3>Nothing yet</h3>
+                <p className="muted small">Spin the wheel; your best seasons land here.</p>
+              </div>
+            ) : (
+              <div className="tbl-wrap">
+                <table className="tbl best-tbl">
+                  <thead>
+                    <tr>
+                      <th>Team</th>
+                      <th className="num">Pts</th>
+                      <th className="num">W-D-L</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profile.leaderboard.map((e) => {
+                      const runs = runsBySeed.get(e.seed) ?? [e]
+                      const rank = runs.indexOf(e) + 1
+                      return (
+                        <tr key={e.id}>
+                          <td>
+                            <span className="row wrap" style={{ gap: 6 }}>
+                              <ClubBadge clubId={e.hostClubId} size={20} /> <b>{e.teamName}</b>
+                              {e.nation && <Flag nation={e.nation} />}
+                            </span>
+                            <div className="small muted">
+                              {u ? clubName(u, e.hostClubId) : e.hostClubId} · {u?.clubById[e.hostClubId] && <LeagueFlag leagueId={u.clubById[e.hostClubId].leagueId} label={u.leagues.find((l) => l.id === u.clubById[e.hostClubId].leagueId)?.name} />} {seasonLabel(e.leagueSeason)} · {modeLabel(e.mode)}
+                            </div>
+                            {(runs.length > 1 || e.challenge) && (
+                              <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
+                                {runs.length > 1 && (rank === 1 ? <span className="chip gold" data-testid="best-on-wheel">Best on this wheel · {runs.length} runs</span> : <span className="chip">{ordinal(rank)} of {runs.length} on this wheel</span>)}
+                                {e.challenge && <span className={`chip ${e.points > e.challenge.points ? 'good' : e.points < e.challenge.points ? 'bad' : ''}`}>vs {e.challenge.name} {e.challenge.points}</span>}
+                              </div>
+                            )}
+                          </td>
+                          <td className="num" style={{ fontWeight: 700 }}>
+                            {e.points}
+                          </td>
+                          <td className="num">
+                            {e.won}-{e.drawn}-{e.lost}
+                          </td>
+                          <td>
+                            {tierName(e.tier)}
+                            <div className="small muted">{ordinal(e.position)}</div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
