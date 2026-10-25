@@ -9,42 +9,61 @@
  */
 :root {
   color-scheme: dark;
-  /* Surfaces: deep navy, lightest on top */
-  --bg: #0a1120;
-  --bg-2: #0e1729;
-  --bg-3: #1a2640;
-  --panel: #111b2f;
-  --panel-2: #16223a;
-  --raised: #1c2a45;
-  --line: #24324d;
-  --line-2: #33445f;
-  --field-bg: #0d1628;
-  --field-border: #607192;
-  --scrim: rgba(3, 7, 18, 0.62);
-  --float-bg: #1f2d4a;
-  --float-text: #eef3fc;
-  --float-line: #33445f;
+  /* Surfaces: deep night navy, lightest on top */
+  --bg: #07102e;
+  --bg-2: #0a1538;
+  --bg-3: #182a64;
+  --panel: #0c1a46;
+  --panel-2: #112152;
+  --raised: #172a62;
+  --line: #1f3270;
+  --line-2: #2d4386;
+  --field-bg: #08133a;
+  --field-border: #6075b8;
+  --scrim: rgba(3, 7, 26, 0.66);
+  --float-bg: #1a2d6a;
+  --float-text: #f1f4ff;
+  --float-line: #2d4386;
   /* Text */
-  --text: #eef3fc;
+  --text: #f1f4ff;
   --text-1: var(--text);
-  --text-2: #b8c4d9;
-  --text-3: #8695ae;
-  /* Brand blue */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-active: #1e40af;
-  --on-primary: #ffffff;
-  --primary-soft: color-mix(in srgb, var(--primary) 18%, transparent);
-  --accent: #60a5fa;
-  --focus: #60a5fa;
-  --navy: #0b1633;
-  --navy-2: #1b2a4a;
-  --glow: color-mix(in srgb, var(--primary) 16%, transparent);
-  /* On a photo (the home hero): fixed in both themes, because the photo and its navy scrim do not change */
+  --text-2: #c3cdf0;
+  --text-3: #93a3d6;
+  /* Brand: the cyan for actions and selection, a cyan-to-violet gradient on the primary button, magenta only in the neon art */
+  --primary: #38d9f5;
+  --primary-hover: #6be5fa;
+  --primary-active: #1fbfdd;
+  --on-primary: #07102e;
+  --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
+  --primary-grad: linear-gradient(100deg, #38d9f5 0%, #7fa6ff 55%, #cf7dff 100%);
+  --primary-grad-hover: linear-gradient(100deg, #6be5fa 0%, #9bbaff 55%, #dc9bff 100%);
+  --primary-glow: 0 0 0 1px color-mix(in srgb, #7fa6ff 40%, transparent), 0 6px 22px -6px color-mix(in srgb, #38d9f5 55%, transparent), 0 6px 26px -8px color-mix(in srgb, #cf7dff 50%, transparent);
+  --accent: #5ee3fb;
+  --focus: #5ee3fb;
+  --navy: #081544;
+  --navy-2: #13266b;
+  --glow: color-mix(in srgb, var(--primary) 11%, transparent);
+  --glow-2: color-mix(in srgb, var(--magenta) 9%, transparent);
+  /* The neon pair, for the art (components/Art.tsx) and thin decorative lines only, never for meaning */
+  --cyan: #38d9f5;
+  --magenta: #e070ff;
+  --neon-blur: 6px;
+  --neon-strength: 0.9;
+  /* The cartoon art: fills and ink that follow the theme */
+  --art-sky-1: #0a1a52;
+  --art-sky-2: #050c2a;
+  --art-ink: #040a24;
+  --art-body: #1b2f78;
+  --art-body-2: #2a4296;
+  --art-light: #e9f3ff;
+  --art-grass: #0f3a63;
+  --art-grass-2: #0c3157;
+  --art-paper: #f1f4ff;
+  /* On the hero art: fixed in both themes, because the hero is always the night scene */
   --on-photo: #ffffff;
-  --on-photo-2: rgba(255, 255, 255, 0.8);
-  --photo-accent: #60a5fa;
-  --photo-scrim: color-mix(in srgb, var(--navy) 90%, transparent);
+  --on-photo-2: rgba(255, 255, 255, 0.82);
+  --photo-accent: #5ee3fb;
+  --photo-scrim: color-mix(in srgb, var(--navy) 88%, transparent);
   /* Status */
   --good: #34d399;
   --warn: #fb923c;
@@ -54,7 +73,7 @@
   --gold: #f5c542;
   --gold-text: #f5c542;
   --draw: #a3adbf;
-  --on-status: #0a1120;
+  --on-status: #07102e;
   --good-soft: color-mix(in srgb, var(--good) 14%, transparent);
   --warn-soft: color-mix(in srgb, var(--warn) 14%, transparent);
   --bad-soft: color-mix(in srgb, var(--bad) 14%, transparent);
@@ -79,9 +98,9 @@
   --pitch: #1d7a3f;
   --pitch-2: #1a6f39;
   --pitch-line: rgba(255, 255, 255, 0.5);
-  --pitch-disc: rgba(10, 17, 32, 0.86);
-  --pitch-disc-empty: rgba(10, 17, 32, 0.5);
-  --pitch-highlight: #60a5fa;
+  --pitch-disc: rgba(7, 16, 46, 0.86);
+  --pitch-disc-empty: rgba(7, 16, 46, 0.5);
+  --pitch-highlight: #5ee3fb;
   --pitch-bad: #f87171;
   /* Type */
   --font-display: 'Barlow Condensed', 'Arial Narrow', Impact, system-ui, sans-serif;
@@ -111,38 +130,59 @@
   --radius-pill: 999px;
   --border: 1px solid var(--line);
   --border-strong: 1px solid var(--line-2);
-  --shadow: 0 10px 30px rgba(2, 6, 23, 0.45);
+  --shadow: 0 10px 30px rgba(2, 5, 24, 0.5);
   --control-h: 40px;
   --control-h-sm: 30px;
   --control-h-lg: 52px;
 }
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #f3f6fb;
-  --bg-2: #e9eef6;
-  --bg-3: #e1e7f1;
+  --bg: #f3f5fe;
+  --bg-2: #e9edfb;
+  --bg-3: #e0e5f8;
   --panel: #ffffff;
-  --panel-2: #f6f8fc;
+  --panel-2: #f7f8ff;
   --raised: #ffffff;
-  --line: #dbe2ec;
-  --line-2: #c6d0de;
+  --line: #d9def3;
+  --line-2: #c1c8e8;
   --field-bg: #ffffff;
-  --field-border: #7d8aa0;
-  --scrim: rgba(11, 22, 51, 0.45);
-  --float-bg: #0b1633;
+  --field-border: #7680ad;
+  --scrim: rgba(10, 27, 81, 0.42);
+  --float-bg: #0a1b51;
   --float-text: #ffffff;
-  --float-line: #0b1633;
-  --text: #0d1526;
-  --text-2: #3d4a60;
-  --text-3: #56637a;
-  --primary-soft: color-mix(in srgb, var(--primary) 12%, transparent);
-  --accent: #1d4ed8;
-  --focus: #2563eb;
-  --glow: color-mix(in srgb, var(--primary) 9%, transparent);
+  --float-line: #0a1b51;
+  --text: #0a1b51;
+  --text-2: #36427a;
+  --text-3: #535e92;
+  --primary: #2747e0;
+  --primary-hover: #1f37bf;
+  --primary-active: #1a2e9e;
+  --on-primary: #ffffff;
+  --primary-soft: color-mix(in srgb, var(--primary) 10%, transparent);
+  --primary-grad: linear-gradient(100deg, #2747e0 0%, #4a43e6 50%, #7b3fe4 100%);
+  --primary-grad-hover: linear-gradient(100deg, #1f37bf 0%, #3d35cc 50%, #6a30cf 100%);
+  --primary-glow: 0 6px 18px -8px color-mix(in srgb, #2747e0 60%, transparent), 0 6px 20px -10px color-mix(in srgb, #7b3fe4 55%, transparent);
+  --accent: #2440cc;
+  --focus: #2747e0;
+  --glow: color-mix(in srgb, var(--cyan) 12%, transparent);
+  --glow-2: color-mix(in srgb, var(--magenta) 8%, transparent);
+  --cyan: #0890b4;
+  --magenta: #b84ae0;
+  --neon-blur: 4px;
+  --neon-strength: 0.55;
+  --art-sky-1: #e6ebff;
+  --art-sky-2: #f6f3ff;
+  --art-ink: #0a1b51;
+  --art-body: #c9d3fb;
+  --art-body-2: #aebcf5;
+  --art-light: #ffffff;
+  --art-grass: #b9e4ee;
+  --art-grass-2: #a6dae7;
+  --art-paper: #ffffff;
   --good: #056a4c;
   --warn: #b03a0a;
   --bad: #b91c1c;
-  --gold-text: #8a6100;
+  --gold-text: #805a00;
   --draw: #5f6b80;
   --on-status: #ffffff;
   --good-soft: color-mix(in srgb, var(--good) 10%, transparent);
@@ -156,7 +196,7 @@
   --pos-att: #be123c;
   --meter-sharpness: #7c3aed;
   --meter-mid: #a16207;
-  --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --shadow: 0 10px 30px rgba(10, 27, 81, 0.12);
 }
 
 * {
@@ -171,7 +211,7 @@ body {
   margin: 0;
   /* The floodlight glow is painted once at the top; repeating, it would reappear one screen down */
   background-color: var(--bg);
-  background-image: radial-gradient(1200px 600px at 50% -10%, var(--glow), transparent 60%);
+  background-image: radial-gradient(900px 520px at 18% -12%, var(--glow), transparent 62%), radial-gradient(900px 520px at 85% -14%, var(--glow-2), transparent 62%);
   background-repeat: no-repeat;
   color: var(--text);
   /* Native checkboxes, radios and sliders take the brand blue, not the browser's own */
@@ -195,7 +235,7 @@ a {
   outline-offset: 2px;
 }
 ::selection {
-  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 /* Headings are mixed case; capitals are kept for small labels and chips only */
 h1,
@@ -312,7 +352,7 @@ p {
   --u: calc(var(--h) / 64);
   --tl-ink: #ffffff;
   --tl-ball-ring: transparent;
-  --tl-glint-edge: rgba(147, 197, 253, 0.95);
+  --tl-glint-edge: rgba(165, 243, 252, 0.95);
   --tl-glint-core: #ffffff;
   --tl-dim: rgba(0, 0, 0, 0.68);
   /* The name's top-lit "Touch" and the deeper blue of "Line" (each end clears 4.5:1 on the page) */
@@ -338,11 +378,11 @@ p {
 :root[data-theme='light'] .tl-lockup {
   --tl-ink: var(--text);
   --tl-ball-ring: var(--text);
-  --tl-touch-top: #2d3d5e;
-  --tl-touch-bottom: #0d1526;
-  --tl-line-top: #2563eb;
-  --tl-line-bottom: #1e3a8a;
-  --tl-glint-edge: #bfdbfe;
+  --tl-touch-top: #2d3d6e;
+  --tl-touch-bottom: #0a1b51;
+  --tl-line-top: #2747e0;
+  --tl-line-bottom: #1e2f8a;
+  --tl-glint-edge: #c7d2fe;
   --tl-glint-core: #ffffff;
 }
 /* The short touchline under the flag and the ball; its top edge is the name's baseline */
@@ -801,21 +841,34 @@ p {
   border-color: var(--line-2);
 }
 .btn.primary {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--primary-grad);
+  border-color: transparent;
   color: var(--on-primary);
+  box-shadow: var(--primary-glow);
 }
 .btn.primary:hover {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background: var(--primary-grad-hover);
+  border-color: transparent;
 }
 .btn.primary:active {
   background: var(--primary-active);
   border-color: var(--primary-active);
+  box-shadow: none;
 }
+.btn.primary:disabled,
 .btn.primary:disabled:hover {
+  background: var(--primary-grad);
+  border-color: transparent;
+  box-shadow: none;
+}
+/* Small primaries sit in lists (Draft, Bid): a flat fill, so a column of them does not glow */
+.btn.primary.sm,
+.btn.primary.sm:disabled:hover {
   background: var(--primary);
-  border-color: var(--primary);
+  box-shadow: none;
+}
+.btn.primary.sm:hover {
+  background: var(--primary-hover);
 }
 .btn.danger {
   border-color: color-mix(in srgb, var(--bad) 50%, transparent);
@@ -1485,6 +1538,14 @@ label.field,
   border: var(--border);
   box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.65);
 }
+.reel-window > .reel-accent {
+  position: absolute;
+  inset: auto 0 0 0;
+  width: 100%;
+  height: 60%;
+  opacity: 0.4;
+  z-index: 0;
+}
 .reel-window::before,
 .reel-window::after {
   content: '';
@@ -1538,7 +1599,7 @@ label.field,
   inset: 0;
   z-index: 4;
   pointer-events: none;
-  background: #0b140f;
+  background: var(--navy);
   opacity: 0;
   transition: opacity 0.15s ease-out;
 }
@@ -1546,6 +1607,8 @@ label.field,
   opacity: 0.94;
 }
 .reel-strip {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: var(--gap);
@@ -1833,8 +1896,64 @@ table.tbl tr.clickable:hover {
   }
 }
 
+/* ------------------------------------------------------------------ art */
+/* Our own drawings (components/Art.tsx). Fills and ink come from the --art-* tokens, the neon from --cyan and --magenta. */
+.art {
+  display: block;
+  overflow: hidden;
+}
+.art .a-ink {
+  fill: var(--art-ink);
+}
+.art .a-body {
+  fill: var(--art-body);
+}
+.art .a-body2 {
+  fill: var(--art-body-2);
+}
+.art .a-light {
+  fill: var(--art-light);
+}
+.art .a-paper {
+  fill: var(--art-paper);
+}
+.art .a-line {
+  stroke: var(--art-ink);
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.art .neon-halo {
+  opacity: calc(var(--neon-strength) * var(--neon-boost, 1) * 0.7);
+}
+.art .neon-core {
+  opacity: calc(var(--neon-strength) * var(--neon-boost, 1) * 0.55);
+}
+/* A short light travels along two of the hero's curves; off under reduced motion */
+.art .neon-run {
+  stroke-dasharray: 9 91;
+  stroke-dashoffset: 100;
+  opacity: var(--neon-strength);
+  animation: neon-run 7s linear infinite;
+}
+@keyframes neon-run {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .art .neon-run {
+    display: none;
+  }
+  .hero-photo {
+    animation: none;
+  }
+}
+.neon-flow {
+  pointer-events: none;
+}
+
 /* ------------------------------------------------------------------ hero / home */
-/* The hero is a floodlit photo under a navy scrim; text on it uses the fixed --on-photo tokens, so it reads the same in both themes */
+/* The hero is our night-ground drawing (HeroArt in components/Art.tsx) under a navy scrim; text on it uses the fixed --on-photo tokens, so it reads the same in both themes */
 .hero {
   position: relative;
   isolation: isolate;
@@ -1848,7 +1967,7 @@ table.tbl tr.clickable:hover {
   margin-bottom: var(--space-4);
 }
 .hero-photo,
-.hero-photo img {
+.hero-photo .art {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1856,24 +1975,47 @@ table.tbl tr.clickable:hover {
 }
 .hero-photo {
   z-index: -2;
+  animation: hero-in 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
-.hero-photo img {
-  object-fit: cover;
-  object-position: 50% 60%;
-  opacity: 0;
-  transform: scale(1.06);
-  transition: opacity 0.9s ease-out, transform 2.4s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-.hero-photo.ready img {
-  opacity: 1;
-  transform: none;
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+  }
 }
 .hero::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(90deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 55%, transparent) 55%, color-mix(in srgb, var(--navy) 10%, transparent) 100%), linear-gradient(0deg, color-mix(in srgb, var(--navy) 70%, transparent) 0%, transparent 60%);
+  background: linear-gradient(90deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 62%, transparent) 42%, color-mix(in srgb, var(--navy) 6%, transparent) 78%), linear-gradient(0deg, color-mix(in srgb, var(--navy) 60%, transparent) 0%, transparent 50%);
+}
+/* The hero is always the night scene; Daylight turns it to a softer dusk */
+.hero {
+  --art-sky-1: #13297a;
+  --art-sky-2: #050c2a;
+  --art-ink: #030820;
+  --art-body: #142a70;
+  --art-body-2: #20398c;
+  --art-light: #eaf6ff;
+  --art-grass: #0c3a63;
+  --art-grass-2: #0a3157;
+  --art-paper: #f1f4ff;
+  --cyan: #38d9f5;
+  --magenta: #e070ff;
+  --neon-strength: 0.9;
+}
+:root[data-theme='light'] .hero {
+  --art-sky-1: #3b52b8;
+  --art-sky-2: #1a2a78;
+  --art-ink: #0a1550;
+  --art-body: #2a43a0;
+  --art-body-2: #3755b8;
+  --art-grass: #1d5a8c;
+  --art-grass-2: #19507e;
+  --cyan: #5ee3fb;
+  --magenta: #e58bff;
+  --neon-strength: 0.6;
 }
 .hero-content {
   padding: var(--space-6) 40px;
@@ -1887,7 +2029,7 @@ table.tbl tr.clickable:hover {
 .hero h1 .tl-lockup {
   --tl-delay: 0.15s;
 }
-/* The lockup on the hero photo uses the fixed photo tokens in both themes, like the rest of the hero text */
+/* The lockup on the hero art uses the fixed photo tokens in both themes, like the rest of the hero text */
 :root .hero h1 .tl-lockup {
   --tl-ink: var(--on-photo);
   --tl-ball-ring: transparent;
@@ -1997,29 +2139,27 @@ table.tbl tr.clickable:hover {
   border-color: var(--primary);
   box-shadow: var(--shadow);
 }
-/* The photo on top, its icon badge sitting on the edge between photo and text */
+/* The picture on top, its icon badge sitting on the edge between picture and text */
 .mode-art {
   position: relative;
   display: block;
   aspect-ratio: 2 / 1;
-  background: var(--navy);
+  background: var(--art-sky-1);
 }
-.mode-art img {
+.mode-art .mode-scene {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  border-bottom: var(--border);
 }
-.mode-art::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, color-mix(in srgb, var(--navy) 45%, transparent), transparent 60%);
+/* The neon in the picture brightens on hover; the drawing itself stays put */
+.mode-art .neon-halo,
+.mode-art .neon-core {
+  transition: opacity 0.25s ease;
 }
-.mode-card:hover .mode-art img,
-.mode-card-body:hover .mode-art img {
-  transform: scale(1.06);
+.mode-card:hover .mode-scene,
+.mode-card-body:hover .mode-scene {
+  --neon-boost: 1.35;
 }
 .mode-icon {
   position: absolute;
@@ -2193,7 +2333,7 @@ table.tbl tr.clickable:hover {
     grid-template-columns: repeat(2, 1fr);
   }
 }
-/* Phones: the mode cards become rows, a square photo beside the text, so all four fit in about one screen */
+/* Phones: the mode cards become rows, a square picture beside the text, so all four fit in about one screen */
 @media (max-width: 520px) {
   .mode-card:not(.daily),
   .mode-card-body {
@@ -2206,9 +2346,11 @@ table.tbl tr.clickable:hover {
     aspect-ratio: auto;
     min-height: 108px;
   }
-  .mode-art img {
+  .mode-art .mode-scene {
     position: absolute;
     inset: 0;
+    border-bottom: 0;
+    border-right: var(--border);
   }
   .mode-icon {
     left: auto;
@@ -2239,7 +2381,7 @@ table.tbl tr.clickable:hover {
     object-position: 50% 75%;
   }
   .hero::before {
-    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 60%, transparent) 55%, color-mix(in srgb, var(--navy) 15%, transparent) 100%);
+    background: linear-gradient(0deg, var(--photo-scrim) 0%, color-mix(in srgb, var(--navy) 72%, transparent) 62%, color-mix(in srgb, var(--navy) 25%, transparent) 100%);
   }
   .hero-content {
     padding: var(--space-5) var(--space-4);
@@ -2296,18 +2438,11 @@ table.tbl tr.clickable:hover {
     animation: none;
   }
   .mode-card,
-  .mode-art img,
-  .home-tile,
-  .hero-photo img {
+  .home-tile {
     transition: none;
   }
-  .hero-photo img {
-    transform: none;
-  }
   .mode-card:hover,
-  .home-tile:hover,
-  .mode-card:hover .mode-art img,
-  .mode-card-body:hover .mode-art img {
+  .home-tile:hover {
     transform: none;
   }
 }

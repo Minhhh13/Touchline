@@ -44,17 +44,16 @@ Path aliases: `@engine/*` -> `src/engine`, `@game/*` -> `src/game`, `@ui/*` -> `
 - `src/ui/` React screens, no game decisions.
   - `App.tsx` screen switch on `screen` + `game.phase` (no router), challenge hash `#c=`, theme (sets `data-theme` from `theme.ts`'s `useResolvedTheme`; the top bar's `theme-switch`), toast.
   - `screens/` Home, Setup, Draft, Dugout (season hub), MatchScreen, Summary, H2H, Explore, ProfileScreen, HowTo, StatsTab, OppositionReport.
-  - `components/` CaseReel (the draft's case-opening reel), GameByGame, Pitch (+ PitchLegend), LivePitch and MatchCharts (the live 2D pitch, momentum, xG race, shot map), AttributePanel, PlayerRow, TableView, MatchTicker, TwistCard, bits (Rating, Modal, Tabs, Toast, Tip...), leagueSegments, `Flag.tsx` (`Flag`, `NationFlag`, `LeagueFlag`: drawn SVG flags from `public/flags`, never emoji).
+  - `components/` CaseReel (the draft's case-opening reel), GameByGame, Pitch (+ PitchLegend), LivePitch and MatchCharts (the live 2D pitch, momentum, xG race, shot map), AttributePanel, PlayerRow, TableView, MatchTicker, TwistCard, bits (Rating, Modal, Tabs, Toast, Tip...), leagueSegments, `Flag.tsx` (`Flag`, `NationFlag`, `LeagueFlag`: drawn SVG flags from `public/flags`, never emoji), `Art.tsx` (`HeroArt`, `ModeArt`, `NeonFlow`: our own cartoon and neon SVG, coloured by the `--art-*`, `--cyan`, `--magenta` tokens).
   - `match/` pure helpers for the match visuals (`pitchGeometry.ts`, `possession.ts`, `charts.ts`, `clockStore.ts`).
   - `styles.css` one global stylesheet: design tokens on `:root` (Floodlit, dark) and `[data-theme='light']` (Daylight), then every shared component; `brand.ts` (`APP_NAME`, the mark's geometry, `BRAND_COLOURS` for canvas drawing) and `components/Logo.tsx`; `format.ts` display helpers (`tierName`, `conditionColour`, `fitRingColour`); `shareCard.ts` canvas PNGs (the result card and the match card).
   - The look is specified in `docs/DESIGN_SYSTEM.md`: use its tokens and components, no raw colours (the pitch's fixed whites and club kit colours excepted).
 - `src/main.tsx` React root; registers `public/sw.js` on production builds only.
-- `public/img/` the Home photos as WebP (Unsplash License; every file credited in `docs/CREDITS.md`).
 - `public/data/` generated league packs: `leagues.json`, `<league>/players.json`, `<league>/meta.json`. Committed; they are also the test fixtures.
 - `public/flags/` 4:3 SVG flags (`<code>.svg`: ISO alpha-2, `gb-eng`/`gb-sct`/`gb-wls`/`gb-nir`, `eu`, and our own `unknown.svg`) copied from flag-icons 7.6.0 (MIT, `LICENSE.txt` beside them) by `scripts/brand/flags.mjs`; committed, served cache-first by `public/sw.js`.
 - `scripts/import/` offline data pipeline (`build.mjs`, `download.mjs`, `config.mjs`, `leagues.mjs`, club tables, `nations*.{mjs,json}`, `enrich-nations.mjs`).
 - `scripts/brand/flags.mjs` copies the flags the packs need from an extracted flag-icons package into `public/flags` (how to rerun at its top).
-- `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences, flags), `RESEARCH.md`, `HANDOVER.md`, `DESIGN_SYSTEM.md`, `CREDITS.md` (third-party notices, one self-contained section each: flags, photos, icons).
+- `docs/` `GAME_DESIGN.md` (every system as implemented), `DATA.md` (pipeline, sources, licences, flags), `RESEARCH.md`, `HANDOVER.md`, `DESIGN_SYSTEM.md`, `CREDITS.md` (third-party notices, one self-contained section each: flags, icons).
 - `.github/workflows/ci.yml` npm ci, typecheck, test, build on Node 22 for every push and PR.
 
 ## Commands
@@ -98,7 +97,7 @@ Before every push: `npm run typecheck && npm test && npm run build`, plus the Pl
 - Hooks above early returns in new components (Dugout, Summary and Explore currently break this; hoist when you touch them).
 - Display names and numbers go through `src/ui/format.ts` (money in millions, wages in thousands per week).
 - Flags are drawn, never emoji (Windows shows emoji flags as letter pairs): render `NationFlag`/`LeagueFlag` from `src/ui/components/Flag.tsx` (`leagueId="europe"` is the EU flag), never a nation's `.flag` string or `flag()`. Pass `label` only when no name is printed beside the flag.
-- No real crests, kits, logos or player photos: club identity is colours plus a code (`ClubBadge`). Photos only under the Unsplash or Pexels License, with no identifiable people or readable branding, each credited in `docs/CREDITS.md` (rules in `docs/DESIGN_SYSTEM.md` section 7).
+- No real crests, kits, logos or player photos: club identity is colours plus a code (`ClubBadge`). The Home pictures are our own cartoon SVG (`src/ui/components/Art.tsx`: `HeroArt`, `ModeArt`, `NeonFlow`), no photos. Never UEFA or Champions League marks or trade dress (no starball, no star shapes or patterns, no such text); rules in `docs/DESIGN_SYSTEM.md` sections 3 and 7.
 - Icons come from `lucide-react`, one import per icon; emoji only as status glyphs inside text or share text, never as the picture of a card, button or heading.
 - Persist only what must survive reload; per-viewer UI conveniences get their own `localStorage` key inside try/catch.
 - New draft rules need an entry in `RULE_CHECKS` (`src/engine/challenge.ts`); the type forces it.
