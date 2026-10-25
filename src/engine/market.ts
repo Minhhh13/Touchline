@@ -90,6 +90,12 @@ export interface MarketContext {
   toSeason?: number
   /** Leagues the market draws from; all loaded leagues when omitted. */
   leagues?: string[]
+  /** One-nation draft: only players of this nationality are listed, and approaches for anyone else are refused. */
+  onlyNation?: string
+}
+
+function nationNameOf(u: LoadedUniverse, nation: string): string {
+  return u.nations[nation]?.name ?? nation
 }
 
 /** Opening asking price for a player-season in this market. */
@@ -151,15 +157,20 @@ function roundM(v: number): number {
 /** Open a window with a fresh market of listings drawn from across the eras. */
 export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36): Window {
   const { u, rng } = ctx
-  const pool = u.clubSeasons.filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason) && (!ctx.leagues || ctx.leagues.includes(cs.leagueId)))
+  const nation = ctx.onlyNation
+  const eligible = (p: PlayerSeason): boolean => !nation || p.nationality === nation
+  // A one-nation market only samples club-seasons that hold someone of that nation, so a thin nation still fills the window
+  const pool = u.clubSeasons.filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason) && (!ctx.leagues || ctx.leagues.includes(cs.leagueId)) && (!nation || cs.squad.some(eligible)))
   const candidates: PlayerSeason[] = []
   const seenHumans = new Set<string>()
   // Sample club-seasons, then take a few players from each with a bias to quality so the market is interesting.
+  // Rejections (already seen, already ours) are frequent for a small nation, so it gets a longer run.
   let guard = 0
-  while (candidates.length < count && guard++ < count * 20 && pool.length) {
+  const maxTries = count * (nation ? 60 : 20)
+  while (candidates.length < count && guard++ < maxTries && pool.length) {
     const cs = rng.pick(pool)
     const picks = rng.int(1, 3)
-    const sorted = [...cs.squad].sort((a, b) => b.overall - a.overall)
+    const sorted = cs.squad.filter(eligible).sort((a, b) => b.overall - a.overall)
     for (let i = 0; i < picks && candidates.length < count; i++) {
       // Weighted towards the top of the squad but not exclusively.
       const idx = Math.min(sorted.length - 1, Math.floor(Math.pow(rng.next(), 1.8) * sorted.length))
@@ -252,6 +263,7 @@ export function enquire(ctx: MarketContext, w: Window, p: PlayerSeason): { listi
   const { rng, u } = ctx
   const club = u.clubById[p.clubId]?.name ?? 'The club'
   if (ctx.ownedPlayerIds.has(p.playerId)) return { message: `${p.name} is already in your squad.` }
+  if (ctx.onlyNation && p.nationality !== ctx.onlyNation) return { message: `The board wants a ${nationNameOf(u, ctx.onlyNation)} squad. ${p.name} is not ${nationNameOf(u, ctx.onlyNation)}.` }
   const existing = w.listings.find((l) => l.playerSeasonId === p.id || u.index[l.playerSeasonId]?.playerId === p.playerId)
   if (existing && (existing.status === 'available' || existing.status === 'bidding')) return { listing: existing, message: `${p.name} is already on the market.` }
   if (existing) return { message: `${p.name} has already moved this window.` }

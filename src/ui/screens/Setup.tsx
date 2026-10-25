@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useStore, todaysDailySeed } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { FORMATIONS } from '@engine/formations'
+import { FORMATIONS, getFormation } from '@engine/formations'
 import { QUICK_RULES, SEASON_RULES, type DraftRules } from '@engine/draft'
+import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationDepth, nationDepthLabel, type EraRange } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
 import { seasonLabel } from '../format'
 import { ClubBadge, Segmented } from '../components/bits'
@@ -10,6 +11,23 @@ import { ClubBadge, Segmented } from '../components/bits'
 const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 
 type Era = 'all' | 'early' | 'mid' | 'modern' | 'custom'
+
+/** The wheel's season bounds for an era choice; the Daily has none. */
+function eraBounds(era: Era, from: number, to: number, firstSeason: number, isDaily: boolean): EraRange {
+  if (isDaily) return {}
+  switch (era) {
+    case 'early':
+      return { fromSeason: firstSeason, toSeason: 2013 }
+    case 'mid':
+      return { fromSeason: 2014, toSeason: 2019 }
+    case 'modern':
+      return { fromSeason: 2020 }
+    case 'custom':
+      return { fromSeason: Math.min(from, to), toSeason: Math.max(from, to) }
+    default:
+      return {}
+  }
+}
 
 function listNames(names: string[]): string {
   if (names.length <= 1) return names.join('')
@@ -26,6 +44,7 @@ export function Setup() {
   const [from, setFrom] = useState(u?.firstSeason ?? 2008)
   const [to, setTo] = useState(u?.lastSeason ?? 2026)
   const [onlyClub, setOnlyClub] = useState('')
+  const [onlyNation, setOnlyNation] = useState('')
   const [hardMode, setHardMode] = useState(false)
   const [leagueSeason, setLeagueSeason] = useState(() => {
     if (!u) return 2025
@@ -50,6 +69,11 @@ export function Setup() {
     const inEra = new Set(u.clubSeasons.filter((cs) => cs.season >= lo && cs.season <= hi).map((cs) => cs.clubId))
     return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
   }, [u, wheelLeagues, from, to])
+  const isDaily = mode === 'daily'
+  const isManage = mode === 'season' || mode === 'dynasty'
+  const eraRange = eraBounds(era, from, to, u?.firstSeason ?? 2008, isDaily)
+  // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era
+  const nations = useMemo(() => (u && !isDaily ? nationDepth(u, wheelLeagues, eraRange, getFormation(formationId), isManage ? squadSize : 11) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, formationId, isManage, squadSize])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!continental || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1] ?? leagueSeason
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : clubsInLeague[Math.floor(clubsInLeague.length / 2)] ?? ''
@@ -63,25 +87,6 @@ export function Setup() {
   const pickScope = (scope: 'league' | 'europe') => {
     setWheelScope(scope)
     void ensureLeagues(scope === 'europe' ? u.available.map((l) => l.id) : [leagueId])
-  }
-
-  const isDaily = mode === 'daily'
-  const isManage = mode === 'season' || mode === 'dynasty'
-
-  const eraRange = (): { fromSeason?: number; toSeason?: number } => {
-    if (isDaily) return {}
-    switch (era) {
-      case 'early':
-        return { fromSeason: u.firstSeason, toSeason: 2013 }
-      case 'mid':
-        return { fromSeason: 2014, toSeason: 2019 }
-      case 'modern':
-        return { fromSeason: 2020 }
-      case 'custom':
-        return { fromSeason: Math.min(from, to), toSeason: Math.max(from, to) }
-      default:
-        return {}
-    }
   }
 
   // The daily puzzle fixes everything but the picks: formation, league, host club and difficulty come from the date.
@@ -101,7 +106,8 @@ export function Setup() {
   const start = () => {
     const base: DraftRules = isManage ? { ...SEASON_RULES, squadSize } : QUICK_RULES
     const club = !isDaily && onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
-    const rules: DraftRules = { ...base, ...eraRange(), onlyClub: club, hardMode: !isDaily && hardMode, leagues: dailyFixed ? ['england'] : wheelLeagues }
+    const nation = !isDaily && onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
+    const rules: DraftRules = { ...base, ...eraRange, onlyClub: club, onlyNation: nation, hardMode: !isDaily && hardMode, leagues: dailyFixed ? ['england'] : wheelLeagues }
     const name = teamName.trim() || 'Touchline XI'
     const short = name
       .split(/\s+/)
@@ -257,7 +263,7 @@ export function Setup() {
               )}
               <label className="field">
                 One-club mode
-                <select className="input" value={onlyClub} onChange={(e) => setOnlyClub(e.target.value)}>
+                <select className="input" value={onlyClub} onChange={(e) => { setOnlyClub(e.target.value); if (e.target.value) setOnlyNation('') }}>
                   <option value="">Off: every club</option>
                   {allClubs.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -265,6 +271,22 @@ export function Setup() {
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className="field">
+                One-nation mode
+                <select className="input" value={nations.some((n) => n.nation === onlyNation) ? onlyNation : ''} onChange={(e) => { setOnlyNation(e.target.value); if (e.target.value) setOnlyClub('') }}>
+                  <option value="">Off: every nationality</option>
+                  {nations.map((n) => (
+                    <option key={n.nation} value={n.nation}>
+                      {nationDepthLabel(n)}
+                    </option>
+                  ))}
+                </select>
+                <span className="help">
+                  {onlyNation && nations.some((n) => n.nation === onlyNation)
+                    ? `Every pick, signing and academy prospect must come from ${nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.`
+                    : `${nations.length} nations have at least ${NATION_SLOT_COVER}× the players for every position in a ${formationId}${isManage ? ` and ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}, in the leagues and era chosen.`}
+                </span>
               </label>
               <label className="toggle">
                 <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />

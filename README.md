@@ -20,6 +20,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - The wheel only lands on squads that can fill a slot you still need: no dead spins.
 - A real player can be drafted once, whichever club or season you catch him in.
 - Eight formations, position eligibility (a wing-back covers full-back, a wide midfielder covers the wing), era filters, one-club mode, hard mode (ratings hidden), re-spins and shareable seeds.
+- **One-Nation Draft**: pick a nationality at setup and every pick, signing and academy prospect must share it. Only nations with twice the cover for every position in your shape are offered (71 of the 162 in the data for a 4-3-3 across all seven leagues, 26 from England alone); the wheel never lands on a squad without an eligible player, approaches for anyone else are refused by the board, and a wheel that runs dry lets you start with the eleven you have. Win the league for the International achievement.
 - Seven leagues: the Premier League, La Liga, Serie A, the Bundesliga, Ligue 1, the Eredivisie and the Primeira Liga, each with its own real clubs and seasons. Play in one league and draft from it alone, or switch on European Nights and draft from all seven.
 - Seeds are honest across leagues: a European Nights seed lands on the same clubs whichever order the league packs were opened, and every loaded universe carries the data stamp of its packs beside an engine version, so a result can be checked against the data and engine that produced it.
 - **Head-to-head**: two managers on one device draft from the same spins in snake order, then both sides play the same season, derbies included.
@@ -48,7 +49,7 @@ No account, no server, no ads. Everything runs in the browser and saves to `loca
 - Export and import your save file from the Record page, and a trophy cabinet across every game you have played.
 - Installable as an app: a service worker caches the shell and any league pack you have opened, so the game starts and plays offline.
 - Board target and confidence, with optional job security (you can be sacked), plus two board objectives a season (a cup run, a goals tally, home form, youth minutes, derbies, a European quarter-final) that pay into the budget when met.
-- Awards, a team of the season, seventeen achievements, a local leaderboard and a share card for every season.
+- Awards, a team of the season, eighteen achievements, a local leaderboard and a share card for every season.
 - Calibrated or Realistic difficulty.
 - One saved game per mode: a quick draft never overwrites your dynasty.
 

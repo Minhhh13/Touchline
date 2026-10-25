@@ -1,0 +1,47 @@
+import { describe, expect, it } from 'vitest'
+import { loadTestUniverse } from './helpers'
+import { getFormation } from '../formations'
+import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationDepth, nationDepthLabel, UNKNOWN_NATION } from '../nations'
+import { canCover } from '../positions'
+import type { Position } from '../types'
+
+describe('nationDepth', () => {
+  const u = loadTestUniverse()
+  const f433 = getFormation('4-3-3')
+
+  it('never offers unknown nationalities and skips a nation without two keepers', () => {
+    const depth = nationDepth(u, ['england'], {}, f433, 11)
+    expect(depth.length).toBeGreaterThan(10)
+    expect(depth.some((n) => n.nation === UNKNOWN_NATION)).toBe(false)
+    // Côte d'Ivoire has had plenty of Premier League players but not two distinct goalkeepers
+    const civKeepers = new Set(Object.values(u.index).filter((p) => p.nationality === 'CIV' && canCover(p, 'GK', 'accomplished')).map((p) => p.playerId))
+    expect(civKeepers.size).toBeLessThan(NATION_SLOT_COVER)
+    expect(depth.some((n) => n.nation === 'CIV')).toBe(false)
+    // England itself is obviously deep enough, and the label carries flag, name and count
+    const eng = depth.find((n) => n.nation === 'ENG')
+    expect(eng).toBeDefined()
+    expect(nationDepthLabel(eng!)).toBe(`${u.nations['ENG'].flag} England · ${eng!.players} players`)
+    expect(eng!.players).toBeGreaterThan(1000)
+    expect(depth.map((n) => n.name)).toEqual([...depth.map((n) => n.name)].sort((a, b) => a.localeCompare(b)))
+  })
+
+  it('every qualifying nation really covers each position twice and the squad plus margin', () => {
+    const squadSize = 18
+    const depth = nationDepth(u, ['england'], { fromSeason: 2016 }, f433, squadSize)
+    const demand = new Map<Position, number>()
+    for (const s of f433.slots) demand.set(s.position, (demand.get(s.position) ?? 0) + 1)
+    for (const n of depth) {
+      expect(n.players).toBeGreaterThanOrEqual(squadSize + NATION_SQUAD_MARGIN)
+      const rows = Object.values(u.index).filter((p) => p.nationality === n.nation && p.season >= 2016)
+      expect(new Set(rows.map((p) => p.playerId)).size).toBe(n.players)
+      for (const [pos, count] of demand) {
+        const humans = new Set(rows.filter((p) => canCover(p, pos, 'accomplished')).map((p) => p.playerId))
+        expect(humans.size).toBeGreaterThanOrEqual(NATION_SLOT_COVER * count)
+      }
+    }
+    // A bigger squad asks for more humans, so the list can only shrink
+    expect(nationDepth(u, ['england'], { fromSeason: 2016 }, f433, 22).length).toBeLessThanOrEqual(depth.length)
+    // A league that is not loaded contributes nothing
+    expect(nationDepth(u, ['spain'], {}, f433, 11)).toEqual([])
+  })
+})

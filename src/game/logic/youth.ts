@@ -19,9 +19,10 @@ export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): strin
     const pid = u.index[l.playerSeasonId]?.playerId
     if (pid) owned.add(pid)
   }
-  const { fromSeason, toSeason } = game.settings.rules
+  const { fromSeason, toSeason, onlyNation } = game.settings.rules
   const inEra = (p: PlayerSeason) => (fromSeason === undefined || p.season >= fromSeason) && (toSeason === undefined || p.season <= toSeason)
-  const young = (p: PlayerSeason) => p.age <= 20 && p.overall >= 58 && p.overall <= 76 && !owned.has(p.playerId) && inEra(p)
+  // A one-nation academy only brings through that nation's youngsters
+  const young = (p: PlayerSeason) => p.age <= 20 && p.overall >= 58 && p.overall <= 76 && !owned.has(p.playerId) && inEra(p) && (!onlyNation || p.nationality === onlyNation)
   const seen = new Set<string>()
   const pickFrom = (pool: PlayerSeason[], n: number): PlayerSeason[] => {
     const out: PlayerSeason[] = []

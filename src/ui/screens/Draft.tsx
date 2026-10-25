@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { eligibleSlots, fillingXI, isComplete, neededPositions, openSlots, picksMade, suggestSlot, wheelPool } from '@engine/draft'
+import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, openSlots, picksMade, suggestSlot, wheelPool } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { Wheel } from '../components/Wheel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Pos, Rating } from '../components/bits'
-import { clubName, ordinal, seasonLabel } from '../format'
+import { clubName, flag, nationName, ordinal, seasonLabel } from '../format'
 import { playerLookup } from '@game/logic/players'
 import { leagueSegments } from '../components/leagueSegments'
 
@@ -45,6 +45,9 @@ export function Draft() {
     return segments.length && segments[0].id.startsWith('league:') ? `league:${cs?.leagueId ?? ''}` : d.current.clubId
   }, [u, d?.current, segments])
 
+  // A one-nation wheel can run out of eligible players; checked after every pick, not only on a spin
+  const dry = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && !canSpin(u, d), [u, d])
+
   useEffect(() => {
     if (d?.current) {
       setSpinning(true)
@@ -65,12 +68,11 @@ export function Draft() {
   const selectedEligible = selected ? eligibleSlots(d, selected).map((s) => s.id) : []
   const isDynastySummer = game.settings.mode === 'dynasty' && game.year > 1
 
+  const nation = d.rules.onlyNation
+  const nationLabel = nation ? `${flag(u, nation)} ${nationName(u, nation)}` : ''
+
   const squad = current ? [...current.squad] : []
-  const usable = (p: PlayerSeason) => {
-    if (d.takenPlayers.includes(p.playerId)) return false
-    if (fillingStarters) return eligibleSlots(d, p).length > 0
-    return true
-  }
+  const usable = (p: PlayerSeason) => canUse(d, p)
 
   const onPick = (p: PlayerSeason) => {
     if (!usable(p)) return
@@ -100,6 +102,7 @@ export function Draft() {
           <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The Draft'}</h1>
           <div className="muted small">
             {game.settings.teamName} · {game.settings.formationId} · {d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
+            {nation ? `${nationLabel} only · ` : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
             {hide ? 'Hard mode · ' : ''}seed {game.settings.seed}
           </div>
@@ -121,7 +124,18 @@ export function Draft() {
         <div className="col">
           <div className="panel col">
             <Wheel segments={segments} targetId={wheelTarget} year={d.current?.season ?? null} spinning={spinning} spinKey={d.spins} onSettled={() => { setSpinning(false); setRevealed(true) }} />
-            {!complete && (
+            {!complete && dry && (
+              <div className="notice">
+                The wheel has run dry for {nationLabel || 'this draft'}: no one left to draft.{' '}
+                {fillingStarters ? `Slots are still open (${needs.join(', ')}), so this side cannot start a season. Go home and choose another nation or a wider wheel.` : `You can go on with the ${made} players drafted.`}
+              </div>
+            )}
+            {!complete && dry && !fillingStarters && (
+              <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
+                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'Simulate the season' : isDynastySummer ? 'Into the new season' : `Go to pre-season with ${made}`}
+              </button>
+            )}
+            {!complete && !dry && (
               <>
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => spin()}>
                   {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : made === 0 ? 'Spin the wheel' : 'Spin again'}
@@ -219,6 +233,7 @@ export function Draft() {
                   {sortedSquad.map((p) => {
                     const ok = usable(p)
                     const taken = d.takenPlayers.includes(p.playerId)
+                    const foreign = !nationAllows(d, p)
                     const slots = eligibleSlots(d, p)
                     const best = fillingStarters ? bestFit(slots.map((s) => describeFit(p, s.position))) : undefined
                     return (
@@ -229,7 +244,7 @@ export function Draft() {
                         selected={selectedPlayer === p.id}
                         hideRatings={hide}
                         onClick={() => onPick(p)}
-                        extra={taken ? <span className="chip">already drafted</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
+                        extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
                         right={ok ? <span className="btn sm primary">{fillingStarters ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )

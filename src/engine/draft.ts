@@ -3,7 +3,7 @@
  *  - spins never land on a club-season that cannot help you (no dead spins);
  *  - a human being can be drafted once, whatever the season;
  *  - squad drafts fill eleven starting slots first, then bench places;
- *  - optional filters: era, one club, hard mode (ratings hidden in the UI).
+ *  - optional filters: era, one club, one nation, hard mode (ratings hidden in the UI).
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
 import type { Rng } from './rng'
@@ -21,6 +21,8 @@ export interface DraftRules {
   toSeason?: number
   /** Restrict the wheel to one club's history. */
   onlyClub?: string
+  /** Only players of this nationality may be drafted (ISO3 as stored in `PlayerSeason.nationality`). */
+  onlyNation?: string
   /** Leagues the wheel may land on; all loaded leagues when omitted. */
   leagues?: string[]
   /** Minimum position fit required to draft into a starting slot. */
@@ -71,14 +73,20 @@ export function fillingXI(d: DraftState): boolean {
   return openSlots(d).length > 0
 }
 
+/** The nationality rule, when the draft has one. */
+export function nationAllows(d: DraftState, p: PlayerSeason): boolean {
+  return !d.rules.onlyNation || p.nationality === d.rules.onlyNation
+}
+
 export function canUse(d: DraftState, p: PlayerSeason): boolean {
   if (d.takenPlayers.includes(p.playerId)) return false
+  if (!nationAllows(d, p)) return false
   if (fillingXI(d)) return openSlots(d).some((s) => canCover(p, s.position, d.rules.minFit))
   return true
 }
 
 export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'] {
-  if (d.takenPlayers.includes(p.playerId)) return []
+  if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p)) return []
   return openSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
 }
 
@@ -97,6 +105,15 @@ export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
   // the wheel reopens rather than stopping the draft with slots still to fill
   const fresh = base.filter((cs) => !d.usedClubSeasons.includes(`${cs.clubId}@${cs.season}`))
   return fresh.length ? fresh : base
+}
+
+/**
+ * Whether a spin can land anywhere. A one-nation wheel can run dry once every
+ * usable player of that nation has been drafted; the UI checks this before
+ * spinning instead of letting `spin` throw.
+ */
+export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
+  return wheelPool(u, d).length > 0
 }
 
 /**
@@ -135,6 +152,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (!p) throw new Error('Unknown player')
   if (p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
   if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
+  if (!nationAllows(d, p)) throw new Error(`${p.name} is not ${u.nations[d.rules.onlyNation ?? '']?.name ?? d.rules.onlyNation}`)
   if (slotId === 'bench') {
     if (fillingXI(d)) throw new Error('Fill your starting XI first')
     if (isComplete(d)) throw new Error('Squad complete')
@@ -168,10 +186,14 @@ export function neededPositions(d: DraftState): Position[] {
   return [...new Set(openSlots(d).map((s) => s.position))]
 }
 
-/** Auto-draft the rest (used by "sim the rest" and for AI opponents in head-to-head). */
+/**
+ * Auto-draft the rest (used by "sim the rest" and for AI opponents in head-to-head).
+ * Stops short of the squad size when the wheel has run dry (a one-nation draft).
+ */
 export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
   let guard = 0
   while (!isComplete(d) && guard++ < 200) {
+    if (!canSpin(u, d)) break
     const cs = spin(u, d, rng)
     const candidates = cs.squad.filter((p) => canUse(d, p))
     if (!candidates.length) {

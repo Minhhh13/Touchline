@@ -70,6 +70,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'glove20', title: 'Wall', description: 'A goalkeeper keeps 20 clean sheets.', icon: '🧱' },
   { id: 'hard-champions', title: 'Blindfolded', description: 'Win the league drafting in hard mode.', icon: '🙈' },
   { id: 'one-club-champions', title: 'Loyalty', description: 'Win the league with a one-club draft.', icon: '❤️' },
+  { id: 'one-nation-champions', title: 'International', description: 'Win the league with a one-nation draft.', icon: '🌐' },
   { id: 'quick-perfect', title: 'Quick 38-0', description: 'A perfect season in a quick draft.', icon: '⚡' },
   { id: 'daily-streak-7', title: 'Regular', description: 'Play the daily challenge seven days running.', icon: '📅' },
   { id: 'dynasty-3', title: 'Dynasty', description: 'Win three league titles in a row.', icon: '👑' },

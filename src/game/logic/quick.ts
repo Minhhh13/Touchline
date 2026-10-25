@@ -83,6 +83,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
   if (tier === 'INVINCIBLE' || tier === 'PERFECT') game.unlocked.push('invincible')
   if (pos === 1 && game.settings.rules.hardMode) game.unlocked.push('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) game.unlocked.push('one-club-champions')
+  if (pos === 1 && game.settings.rules.onlyNation) game.unlocked.push('one-nation-champions')
   game.phase = 'summary'
   game.rngState = rng.getState()
 }

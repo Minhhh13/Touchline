@@ -41,7 +41,7 @@ Setup options (`src/ui/screens/Setup.tsx`):
 - League season to play in (2008-09 to 2026-27, the in-progress season flagged) and the club whose place you take. You inherit their colours, rivals and fixture slot; their real players sit the season out.
 - Difficulty: **Calibrated** (default) or **Realistic**. See section 13.
 - Seed (shareable, `XXXX-XXXX` from a 32-character alphabet) for all modes except Daily.
-- Wheel rules (not Daily): era (all, first season to 2013-14, 2014-15 to 2019-20, 2020-21 onwards, or a custom range), one-club mode (restrict the wheel to one club's history), hard mode (ratings hidden while drafting; the engine ignores this flag).
+- Wheel rules (not Daily): era (all, first season to 2013-14, 2014-15 to 2019-20, 2020-21 onwards, or a custom range), one-club mode (restrict the wheel to one club's history), one-nation mode (every player must share one nationality; section 5), hard mode (ratings hidden while drafting; the engine ignores this flag). One club and one nation are exclusive in the setup form: choosing one clears the other.
 - Season and Dynasty only: squad size slider 16 to 22, and a job-security toggle (the board can sack you).
 - Formation: one of eight (section 4).
 
@@ -76,6 +76,15 @@ Rules (`src/engine/draft.ts`):
 - **Picks** go into an open slot the player can cover, or onto the bench once the XI is full. The UI suggests the first natural slot, then the first eligible one.
 - **Auto-complete** lets the assistant finish: on each spin it takes the best `overall × (1 or 0.92 if not a natural fit)` into the scarcest open slot, or the highest-rated player for the bench.
 - In Dynasty, agent events (section 10) and the summer grant **bonus spins**, shown as a gold chip and redeemed at the summer draft.
+
+### One-Nation Draft
+
+`DraftRules.onlyNation` holds an ISO3 code as stored in `PlayerSeason.nationality` (`'BRA'`); `'UNK'`, the code for the 1,876 player-seasons whose nationality is not known, is never offered. The rule is one predicate, `nationAllows`, applied in `canUse`, `eligibleSlots` and `pick` (which throws "`{name} is not Brazil`"), so the wheel pool, the spin weighting, the assistant's auto-draft and the head-to-head usable list all inherit it: the wheel still never lands on a club-season without an eligible player, and in the squad list players of another nationality are dimmed with a "not Brazil" chip.
+
+- **Setup.** The one-nation select (`nationDepth`, `src/engine/nations.ts`) lists the nations deep enough for the chosen shape in the chosen wheel leagues and era: for every position in the formation, at least 2 × its slot count in distinct humans who can cover it at `accomplished` fit (the draft's own predicate), and at least `squadSize + 6` distinct humans in all (11 + 6 for a quick draft). It is one pass over the loaded player-seasons, about 160 ms for all seven leagues, memoised on wheel leagues, era, formation and squad size. With the 2026-10-24 data a 4-3-3 across all seven leagues offers 71 of the 162 nations (68 at squad size 18, 65 at 22); England alone offers 26 (21 at 18). Côte d'Ivoire, with Premier League players in every era but only one goalkeeper, is left out; Brazil counts 1,141 distinct players across the seven leagues and 107 in England. The option label reads `🇧🇷 Brazil · 1141 players`. The Daily ignores the rule.
+- **Running dry.** The depth check covers year one; in a Dynasty the rule is copied into every summer draft, so bonus spins can exhaust a thin nation over the years. `canSpin(u, d)` is the pool-not-empty check: the store refuses to spin and toasts "The wheel has run dry for Brazil" instead of surfacing an engine error, `autoDraft` stops instead of throwing, and the Draft screen replaces the spin button with a notice. When the XI is full the draft may close short of the squad size (`finishDraft` accepts `picksMade >= 11` once `canSpin` is false); with slots still open the side cannot start and the notice says to go home and pick another nation.
+- **Market and academy.** `MarketContext.onlyNation` travels from `settings.rules` into the January window, the Dynasty summer window, scouting trickle and every approach. `openWindow` samples only club-seasons that hold someone of the nation and takes only that nation's players from each, with a sampling budget of 60 tries per listing instead of 20 because repeats are frequent for a small nation; without the rule its random draws are unchanged. `enquire` answers an approach for anyone else, from the shortlist or the search box, with "The board wants a Brazil squad" and lists nothing. `buildYouthIntake` keeps only youngsters of the nation.
+- **Record.** Winning the league with the rule on unlocks `one-nation-champions` ("International"), in both the season and the quick path. The share text gains the line `One nation: 🇧🇷 Brazil` before the seed, the summary shows the same chip, and the leaderboard entry stores `nation` and shows the flag beside the team name.
 
 ## 6. The player model
 
@@ -441,7 +450,7 @@ A rolling feed of up to 120 items: results, injuries, suspensions, board, transf
 
 **Windows.** The January window opens after matchweek 19 with 36 listings and 7 market days at price level 1.05. Two days pass automatically with each matchweek you play, and you can advance a day at a time from the Market tab; left alone it shuts after matchweek 23. Dynasty summers open a 40-listing, 10-day window at price level 1.0 that stays open through pre-season and closes at kick-off. Listings respect your era filters.
 
-**Listings** are sampled from club-seasons across the eras, one to three players each, biased to the top of each squad, never a human you already own. Suitors: 1 to 3 for an 85+, 0 to 2 for a 78+, else 0 to 1.
+**Listings** are sampled from club-seasons across the eras, one to three players each, biased to the top of each squad, never a human you already own, and in a one-nation game (section 5) only players of that nation from club-seasons that hold one. Suitors: 1 to 3 for an 85+, 0 to 2 for a 78+, else 0 to 1.
 
 **Asking price** starts from value × price level, then:
 
@@ -484,7 +493,7 @@ Prices round to the nearest £1M above 20, £0.5M above 5, else £0.1M.
 
 **Awards** (`computeAwards`, Season and Dynasty): Player of the Season (best average rating with 15+ appearances), Golden Boot (most goals), Playmaker (most assists), Golden Glove (goalkeeper with most clean sheets; a clean sheet needs 60 minutes), Young Player (23 or under, 15+ apps), and a Team of the Season laid out in a 4-3-3 by average rating. Quick modes report the top scorer and the best average over 15+ apps.
 
-**Achievements** (15, stored with the unlock date in the profile):
+**Achievements** (18, stored with the unlock date in the profile):
 
 | Id | Title | Condition |
 | --- | --- | --- |
@@ -494,10 +503,13 @@ Prices round to the nearest £1M above 20, £0.5M above 5, else £0.1M.
 | centurions | Centurions | 100 points |
 | double | The Double | League and cup in one season |
 | cup | Cup Winners | Lift the cup |
+| continental | Kings of the Continent | Win the Continental Cup |
+| treble | The Treble | League, cup and Continental Cup in one season |
 | boot30 | Thirty Goals | A player scores 30 |
 | glove20 | Wall | 20 clean sheets |
 | hard-champions | Blindfolded | Win the league after a hard-mode draft |
 | one-club-champions | Loyalty | Win the league with a one-club draft |
+| one-nation-champions | International | Win the league with a one-nation draft |
 | quick-perfect | Quick 38-0 | Perfect season in a quick draft |
 | daily-streak-7 | Regular | Seven daily challenges running |
 | dynasty-3 | Dynasty | Three titles in a row |

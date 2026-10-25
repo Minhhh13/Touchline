@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { useStore, SAVE_KEY } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { TIER_LABEL } from '@engine/season'
-import { ClubBadge, Segmented } from '../components/bits'
+import { ClubBadge, Flag, Segmented } from '../components/bits'
 import { clubName, ordinal, seasonLabel } from '../format'
 
 function exportSave(): void {
@@ -146,6 +146,7 @@ export function ProfileScreen() {
                   <td>
                     <span className="row" style={{ gap: 6 }}>
                       <ClubBadge clubId={e.hostClubId} size={20} /> {e.teamName}
+                      {e.nation && <Flag nation={e.nation} />}
                     </span>
                     <div className="small muted">{u ? clubName(u, e.hostClubId) : e.hostClubId}</div>
                   </td>

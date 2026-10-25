@@ -516,7 +516,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
 
   // Transfer window: opens at the halfway point; three market days pass per matchweek, so it shuts three matchweeks later
   if (mw === Math.floor(season.matchweeks / 2) && !game.window) {
-    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues }, 'january')
+    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
@@ -758,6 +758,7 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (game.awards.goldenGlove && Number(game.awards.goldenGlove.value.split(' ')[0]) >= 20) unlock('glove20')
   if (pos === 1 && game.settings.rules.hardMode) unlock('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) unlock('one-club-champions')
+  if (pos === 1 && game.settings.rules.onlyNation) unlock('one-nation-champions')
   if (game.unlocked.includes('survivor-pending') && !season.sacked) unlock('survivor')
   const titles = game.history.slice(-3).filter((h) => h.position === 1).length
   if (titles >= 3) unlock('dynasty-3')

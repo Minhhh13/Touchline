@@ -5,7 +5,7 @@ import type { Game, GameSettings, LeaderboardEntry, Mode, Profile } from './type
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
 import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
-import { isComplete, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
+import { canSpin, isComplete, picksMade, pick as draftPick, respin as draftRespin, spin as draftSpin, autoDraft } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
@@ -287,6 +287,10 @@ export const useStore = create<Store>()(
         spin: () =>
           mutate((g, u) => {
             if (!g.draft || g.draft.current) return
+            if (!canSpin(u, g.draft)) {
+              set({ toast: `The wheel has run dry for ${u.nations[g.draft.rules.onlyNation ?? '']?.name ?? 'this draft'}.` })
+              return
+            }
             const rng = Rng.fromState(g.rngState)
             draftSpin(u, g.draft, rng)
             g.rngState = rng.getState()
@@ -317,7 +321,9 @@ export const useStore = create<Store>()(
           }),
         finishDraft: () => {
           mutate((g, u) => {
-            if (!g.draft || !isComplete(g.draft)) return
+            if (!g.draft) return
+            // A one-nation wheel that has run dry may close with a full XI short of the squad size
+            if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
             if (g.settings.mode === 'quick' || g.settings.mode === 'daily') runQuickSeason(g, u)
             else beginSeason(g, u)
           })
@@ -478,6 +484,7 @@ export const useStore = create<Store>()(
             leagueSeason: game.settings.leagueSeason,
             hostClubId: game.settings.hostClubId,
             xi: Object.values(game.lineup),
+            nation: game.settings.rules.onlyNation,
           }
           if (profile.leaderboard.some((e) => e.id === entry.id)) return
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)

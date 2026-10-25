@@ -213,6 +213,8 @@ export interface LeaderboardEntry {
   leagueSeason: number
   hostClubId: string
   xi: string[]
+  /** One-nation draft: the nationality the whole squad shared. */
+  nation?: string
 }
 
 export interface Profile {
