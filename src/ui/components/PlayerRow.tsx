@@ -4,14 +4,14 @@ import { Flag, Pos, Rating, Bar } from './bits'
 import { conditionColour, seasonLabel, clubShort } from '../format'
 import { useStore } from '@game/store'
 
-export function PlayerRow({ p, state, right, onClick, dim, selected, hideRatings, showClub, extra }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode }) {
+export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, hideRatings, showClub, extra }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; /** Marks a row that fits the slot being filled (Position First). */ highlight?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode }) {
   const u = useStore((s) => s.universe)
   const flags: ReactNode[] = []
   if (state?.injury) flags.push(<span key="inj" className="chip bad" title={state.injury.description}>🩹 {state.injury.weeksOut}w</span>)
   if (state && state.suspension > 0) flags.push(<span key="sus" className="chip bad">🟥 {state.suspension}</span>)
   if (p.accolades.includes('Champion')) flags.push(<span key="ch" className="chip gold" title="Won the league that season">🏆</span>)
   return (
-    <button type="button" className={`prow ${dim ? 'dim' : ''} ${selected ? 'selected' : ''}`} onClick={dim ? undefined : onClick} disabled={dim && !onClick}>
+    <button type="button" className={`prow ${dim ? 'dim' : ''} ${selected ? 'selected' : ''} ${highlight ? 'fit' : ''}`} onClick={dim ? undefined : onClick} disabled={dim && !onClick}>
       <Rating value={p.overall} hidden={hideRatings} />
       <span className="col" style={{ gap: 2 }}>
         <span className="name">

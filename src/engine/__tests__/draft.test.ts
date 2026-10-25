@@ -71,7 +71,7 @@ describe('one-nation draft', () => {
       expect(isComplete(auto)).toBe(true)
       for (const id of Object.values(auto.lineup)) expect(u.index[id].nationality).toBe('BRA')
     }
-  })
+  }, 30000) // 40 one-nation drafts: about 3 s alone, past the 5 s default while the other files run beside it
 
   it('refuses a pick of another nationality and reports the nation by name', () => {
     const d = newDraft(getFormation('4-3-3'), rules)

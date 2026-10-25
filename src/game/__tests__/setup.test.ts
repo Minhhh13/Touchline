@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { QUICK_RULES, SEASON_RULES } from '@engine/draft'
-import { DAILY_FORMATIONS, DEFAULT_HOST_POSITION, dailyGameSettings, dailySettings, defaultHostClub, shortNameFor, summariseSetup } from '../logic/setup'
+import { DAILY_FORMATIONS, DAILY_RULES, DEFAULT_HOST_POSITION, dailyGameSettings, dailySettings, defaultHostClub, shortNameFor, summariseSetup } from '../logic/setup'
 import type { GameSettings } from '../types'
 
 const u = loadTestUniverse()
@@ -19,7 +19,7 @@ describe('the Daily puzzle', () => {
     // Pinned: 25 October 2026 reads as 20261025, which indexes the complete English seasons, their clubs sorted by
     // id (times seven) and the five shapes (times three). Changing any of these changes everyone's puzzle.
     const d = dailySettings(u, 'daily-2026-10-25')
-    expect(d).toEqual({ seed: 'daily-2026-10-25', leagueId: 'england', wheelLeagues: ['england'], season: 2017, host: 'swansea-city', formationId: '4-3-3', difficulty: 'calibrated' })
+    expect(d).toEqual({ seed: 'daily-2026-10-25', leagueId: 'england', wheelLeagues: ['england'], season: 2017, host: 'swansea-city', formationId: '4-3-3', difficulty: 'calibrated', rules: { ...DAILY_RULES, leagues: ['england'] }, january: true, continental: false })
     const other = dailySettings(u, 'daily-2026-01-01')
     expect(other.season).toBe(2011)
     expect(other.host).toBe('liverpool')
@@ -48,6 +48,8 @@ describe('the Daily puzzle', () => {
     expect(s.leagueSeason).toBe(2017)
     expect(s.formationId).toBe('4-3-3')
     expect(s.rules).toEqual({ ...QUICK_RULES, twists: true, leagues: ['england'] })
+    // The rules come from the Daily's own literal, not the quick defaults
+    expect(s.rules).toEqual({ ...DAILY_RULES, leagues: ['england'] })
     expect(s.jobSecurity).toBe(false)
     expect(s.difficulty).toBe('calibrated')
     expect(s.continental).toBe(false)

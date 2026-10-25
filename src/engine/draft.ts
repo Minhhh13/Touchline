@@ -3,13 +3,17 @@
  *  - spins never land on a club-season that cannot help you (no dead spins);
  *  - a human being can be drafted once, whatever the season;
  *  - squad drafts fill eleven starting slots first, then bench places;
- *  - optional filters: era, one club, one nation, hard mode (ratings hidden in the UI);
+ *  - optional filters: era, one club, one nation;
+ *  - a difficulty (easy, normal, hard: 3, 1 or 0 re-spins, hard hiding ratings) and a ratings toggle;
+ *  - two draft modes: Squad First (spin, then pick anyone and choose his slot) and
+ *    Position First (choose a slot, then spin for a club that can fill it);
  *  - optional twists: every third spin is a golden, basement, blind or decade spin.
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
 import type { Rng } from './rng'
 import { canCover, describeFit, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
+import { primeOf } from './prime'
 
 export interface DraftRules {
   /** Players to draft in total: 11 for a quick XI, 16-18 for a season squad. */
@@ -28,12 +32,77 @@ export interface DraftRules {
   leagues?: string[]
   /** Minimum position fit required to draft into a starting slot. */
   minFit: Fit
-  /** Hide ratings in the UI (engine ignores this). */
+  /**
+   * Hide ratings in the UI (the engine ignores this). Kept beside `difficulty` for older saves and
+   * links: `true` reads as hard; `withDifficulty` keeps the two in step.
+   */
   hardMode: boolean
   /** Prevent the same club-season from appearing twice. */
   uniqueClubSeasons: boolean
   /** Every third spin carries a twist (section 5 of the design doc). Off when omitted, so older saves are unchanged. */
   twists?: boolean
+  /** Easy, normal or hard: 3, 1 or 0 re-spins, hard hiding ratings. Read through `difficultyOf`; absent in older saves. */
+  difficulty?: DraftDifficulty
+  /** Show ratings while drafting (default true); off is blind mode. Always off on hard (`ratingsHidden`). */
+  showRatings?: boolean
+  /** Squad First (default) or Position First. Read through `draftModeOf`. */
+  draftMode?: DraftMode
+  /** Rate players as they were that season (default) or at their career best (`src/engine/prime.ts`). */
+  ratings?: RatingsMode
+}
+
+export type DraftDifficulty = 'easy' | 'normal' | 'hard'
+/** Squad First: spin a club, pick any player, choose his slot. Position First: choose a slot, then spin for a club to fill it. */
+export type DraftMode = 'squad' | 'position'
+/** Season: rated as they were that season. Prime: every player at his career-best rating across the loaded leagues. */
+export type RatingsMode = 'season' | 'prime'
+
+/** Re-spins a whole draft gets at each difficulty. */
+export const DIFFICULTY_RESPINS: Record<DraftDifficulty, number> = { easy: 3, normal: 1, hard: 0 }
+export const DIFFICULTIES: readonly DraftDifficulty[] = ['easy', 'normal', 'hard']
+export const DRAFT_MODES: readonly DraftMode[] = ['squad', 'position']
+export const RATINGS_MODES: readonly RatingsMode[] = ['season', 'prime']
+
+/** The difficulty a set of rules plays at; an older save without the field reads `hardMode: true` as hard and anything else as normal. */
+export function difficultyOf(rules: DraftRules): DraftDifficulty {
+  if (rules.hardMode) return 'hard'
+  return rules.difficulty ?? 'normal'
+}
+
+/** The rules at a difficulty: its re-spin budget, hard mode in step and ratings forced off on hard. */
+export function withDifficulty(rules: DraftRules, difficulty: DraftDifficulty): DraftRules {
+  const hard = difficulty === 'hard'
+  return { ...rules, difficulty, respins: DIFFICULTY_RESPINS[difficulty], hardMode: hard, showRatings: hard ? false : rules.showRatings ?? true }
+}
+
+/** Whether ratings are hidden while drafting: hard difficulty, an older hard-mode save, or the ratings toggle off. */
+export function ratingsHidden(rules: DraftRules): boolean {
+  return difficultyOf(rules) === 'hard' || rules.showRatings === false
+}
+
+export function draftModeOf(rules: DraftRules): DraftMode {
+  return rules.draftMode ?? 'squad'
+}
+
+export function ratingsModeOf(rules: DraftRules): RatingsMode {
+  return rules.ratings ?? 'season'
+}
+
+const DIFFICULTY_LABEL: Record<DraftDifficulty, string> = { easy: 'Easy', normal: 'Normal', hard: 'Hard' }
+
+/**
+ * The 38-0 options that differ from a base set of rules, as short labels for the share text and
+ * the summary line: `['Hard', 'Position First', 'Prime ratings']`. Ratings hidden by the toggle
+ * shows as `Blind` unless the difficulty is hard, which hides them anyway.
+ */
+export function rulesTags(rules: DraftRules, base: DraftRules = QUICK_RULES): string[] {
+  const out: string[] = []
+  const diff = difficultyOf(rules)
+  if (diff !== difficultyOf(base)) out.push(DIFFICULTY_LABEL[diff])
+  if (diff !== 'hard' && rules.showRatings === false) out.push('Blind')
+  if (draftModeOf(rules) !== draftModeOf(base)) out.push(draftModeOf(rules) === 'position' ? 'Position First' : 'Squad First')
+  if (ratingsModeOf(rules) !== ratingsModeOf(base)) out.push(ratingsModeOf(rules) === 'prime' ? 'Prime ratings' : 'Season ratings')
+  return out
 }
 
 /**
@@ -48,8 +117,8 @@ export const TWISTS: readonly Twist[] = ['golden', 'basement', 'blind', 'decade'
 /** A twist arrives on every spin whose number is a multiple of this. */
 export const TWIST_EVERY = 3
 
-export const QUICK_RULES: DraftRules = { squadSize: 11, respins: 2, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true, twists: true }
-export const SEASON_RULES: DraftRules = { squadSize: 18, respins: 3, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: false, twists: false }
+export const QUICK_RULES: DraftRules = { squadSize: 11, respins: DIFFICULTY_RESPINS.normal, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: true, twists: true, difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season' }
+export const SEASON_RULES: DraftRules = { squadSize: 18, respins: DIFFICULTY_RESPINS.easy, minFit: 'accomplished', hardMode: false, uniqueClubSeasons: false, twists: false, difficulty: 'easy', showRatings: true, draftMode: 'squad', ratings: 'season' }
 
 export interface DraftState {
   rules: DraftRules
@@ -68,13 +137,18 @@ export interface DraftState {
    * Every spin in order: the pick made on it, or nulls for a re-spin; `skipped` marks a pending spin
    * the assistant discarded on "Auto-complete" (it consumed the RNG like any other, so a replay needs it).
    */
-  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist; skipped?: boolean }>
+  history: Array<{ clubId: string; season: number; pickedId: string | null; slotId: string | null; twist?: Twist; skipped?: boolean; target?: string }>
   /** The twist on the spin currently showing; null (or absent, in an older save) when the spin is a plain one. */
   twist?: Twist | null
+  /**
+   * Position First: the open slot the player chose before spinning. The spin lands only on club-seasons
+   * with someone usable there, the pick must go into it, and a re-spin keeps it. Null or absent otherwise.
+   */
+  target?: string | null
 }
 
 export function newDraft(formation: Formation, rules: DraftRules): DraftState {
-  return { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [], twist: null }
+  return { rules, formation, lineup: {}, bench: [], takenPlayers: [], usedClubSeasons: [], respinsLeft: rules.respins, current: null, spins: 0, history: [], twist: null, target: null }
 }
 
 /** Whether the next spin of this draft is a twist spin. */
@@ -132,31 +206,60 @@ export function nationAllows(d: DraftState, p: PlayerSeason): boolean {
   return !d.rules.onlyNation || p.nationality === d.rules.onlyNation
 }
 
-export function canUse(d: DraftState, p: PlayerSeason): boolean {
+/** Whether the draft is choosing a slot before each spin: Position First while the XI is being filled (bench picks are squad first). */
+export function positionFirst(d: DraftState): boolean {
+  return draftModeOf(d.rules) === 'position' && fillingXI(d)
+}
+
+/** The slot a Position First spin is filling, when one has been chosen and is still open. */
+export function targetSlot(d: DraftState): Formation['slots'][number] | null {
+  if (!positionFirst(d) || !d.target) return null
+  return openSlots(d).find((s) => s.id === d.target) ?? null
+}
+
+/** The slots a pick may go into right now: the chosen slot under Position First, every open slot otherwise. */
+function candidateSlots(d: DraftState): Formation['slots'] {
+  const t = targetSlot(d)
+  return t ? [t] : openSlots(d)
+}
+
+function usableFor(d: DraftState, p: PlayerSeason, slots: Formation['slots']): boolean {
   if (d.takenPlayers.includes(p.playerId)) return false
   if (!nationAllows(d, p)) return false
-  if (fillingXI(d)) return openSlots(d).some((s) => canCover(p, s.position, d.rules.minFit))
+  if (fillingXI(d)) return slots.some((s) => canCover(p, s.position, d.rules.minFit))
   return true
+}
+
+export function canUse(d: DraftState, p: PlayerSeason): boolean {
+  return usableFor(d, p, candidateSlots(d))
 }
 
 export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'] {
   if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p)) return []
-  return openSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
+  return candidateSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
+}
+
+/** A player's rating under the draft's ratings rule: his career best in the wheel leagues under Prime, that season's otherwise. */
+export function draftRating(u: LoadedUniverse, d: DraftState, p: PlayerSeason): number {
+  return ratingsModeOf(d.rules) === 'prime' ? Math.max(p.overall, primeOf(u, p.playerId, d.rules.leagues)?.overall ?? p.overall) : p.overall
 }
 
 /**
  * The club-seasons the era, club, nation and league rules admit that still hold
  * someone usable: the expensive pass (every `canUse` check), independent of the twist.
  */
-function rulesPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
+function rulesPool(u: LoadedUniverse, d: DraftState, slots: Formation['slots'] = candidateSlots(d)): ClubSeason[] {
+  return u.clubSeasons.filter((cs) => rulesAdmit(d, cs) && cs.squad.some((p) => usableFor(d, p, slots)))
+}
+
+/** The era, club and league rules for one club-season (the cheap half of `rulesPool`). */
+function rulesAdmit(d: DraftState, cs: ClubSeason): boolean {
   const r = d.rules
-  return u.clubSeasons.filter((cs) => {
-    if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
-    if (r.toSeason !== undefined && cs.season > r.toSeason) return false
-    if (r.onlyClub && cs.clubId !== r.onlyClub) return false
-    if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
-    return cs.squad.some((p) => canUse(d, p))
-  })
+  if (r.fromSeason !== undefined && cs.season < r.fromSeason) return false
+  if (r.toSeason !== undefined && cs.season > r.toSeason) return false
+  if (r.onlyClub && cs.clubId !== r.onlyClub) return false
+  if (r.leagues && !r.leagues.includes(cs.leagueId)) return false
+  return true
 }
 
 /** Narrow a rules pool by a twist, then by the one-club-season-once rule. */
@@ -180,7 +283,36 @@ export function wheelPool(u: LoadedUniverse, d: DraftState): ClubSeason[] {
  * spinning instead of letting `spin` throw.
  */
 export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
+  if (positionFirst(d) && !targetSlot(d)) return spinnableSlots(u, d).length > 0
   return wheelPool(u, d).length > 0
+}
+
+/** Whether some club-season the rules admit holds a player usable in this slot (the wheel would not be empty). */
+function slotSpinnable(u: LoadedUniverse, d: DraftState, slot: Formation['slots'][number]): boolean {
+  return u.clubSeasons.some((cs) => rulesAdmit(d, cs) && cs.squad.some((p) => usableFor(d, p, [slot])))
+}
+
+/**
+ * Position First: the open slots a spin could fill. A slot drops out only when no club-season in the
+ * era, club, nation and league rules has an undrafted player who can cover it; the one-club-season-once
+ * rule never empties a slot's wheel, because it reopens used club-seasons as `wheelPool` does.
+ */
+export function spinnableSlots(u: LoadedUniverse, d: DraftState): Formation['slots'] {
+  if (!positionFirst(d)) return []
+  return openSlots(d).filter((s) => slotSpinnable(u, d, s))
+}
+
+/**
+ * Position First: choose the open slot the next spin fills. No RNG. Throws when a spin is showing
+ * (the slot is locked until the pick), when the slot is not open, or when no club left can fill it.
+ */
+export function chooseSlot(u: LoadedUniverse, d: DraftState, slotId: string): void {
+  if (!positionFirst(d)) throw new Error('Choosing a slot first is a Position First rule')
+  if (d.current) throw new Error('Pick a player for the slot you chose first')
+  const slot = openSlots(d).find((s) => s.id === slotId)
+  if (!slot) throw new Error('That slot is not open')
+  if (!slotSpinnable(u, d, slot)) throw new Error(`No club left on the wheel can fill ${slot.position}`)
+  d.target = slot.id
 }
 
 /**
@@ -194,6 +326,7 @@ export function canSpin(u: LoadedUniverse, d: DraftState): boolean {
  * The candidate check narrows one rules pool four times rather than rebuilding it.
  */
 export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
+  if (positionFirst(d) && !targetSlot(d)) throw new Error('Choose a slot first')
   d.twist = null
   // One expensive pass; each twist's wheel is that pool narrowed, exactly what `wheelPool` would return with the twist set
   const base = rulesPool(u, d)
@@ -221,7 +354,8 @@ export function spin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
 export function respin(u: LoadedUniverse, d: DraftState, rng: Rng): ClubSeason {
   if (d.respinsLeft <= 0) throw new Error('No re-spins left')
   d.respinsLeft--
-  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}) })
+  // Position First: the re-spin keeps the chosen slot, logged on the skipped row so a replay can set it again
+  if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, ...(d.twist ? { twist: d.twist } : {}), ...(targetSlot(d) ? { target: d.target! } : {}) })
   d.twist = null
   return spin(u, d, rng)
 }
@@ -242,6 +376,8 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
     const slot = d.formation.slots.find((s) => s.id === slotId)
     if (!slot) throw new Error('Unknown slot')
     if (d.lineup[slot.id]) throw new Error('Slot already filled')
+    const t = targetSlot(d)
+    if (t && t.id !== slot.id) throw new Error(`This spin fills the ${t.position} slot you chose`)
     if (!canCover(p, slot.position, d.rules.minFit)) throw new Error(`${p.name} cannot play ${slot.position}`)
     d.lineup[slot.id] = p.id
   }
@@ -250,6 +386,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   d.history.push({ ...d.current, pickedId: p.id, slotId: slotId === 'bench' ? null : slotId, ...(d.twist ? { twist: d.twist } : {}) })
   d.current = null
   d.twist = null
+  d.target = null
 }
 
 /** Best slot suggestion for a player given what is open. */
@@ -276,6 +413,8 @@ export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
   let guard = 0
   while (!isComplete(d) && guard++ < 200) {
     if (!canSpin(u, d)) break
+    // Position First: keep a slot already chosen, otherwise take the first open slot (formation order) the wheel can fill. No RNG.
+    if (positionFirst(d) && !targetSlot(d)) d.target = spinnableSlots(u, d)[0].id
     const cs = spin(u, d, rng)
     const candidates = cs.squad.filter((p) => canUse(d, p))
     if (!candidates.length) {
@@ -283,19 +422,19 @@ export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
       d.twist = null
       continue
     }
-    // Prefer natural fits for the scarcest open slot, otherwise highest rating.
-    const open = openSlots(d)
+    // Prefer natural fits for the scarcest open slot, otherwise highest rating (career best under Prime).
+    const open = candidateSlots(d)
     let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
     for (const p of candidates) {
       if (open.length) {
         for (const s of open) {
           if (!canCover(p, s.position, d.rules.minFit)) continue
           const fit = describeFit(p, s.position)
-          const score = p.overall * (fit === 'natural' ? 1 : 0.92)
+          const score = draftRating(u, d, p) * (fit === 'natural' ? 1 : 0.92)
           if (!best || score > best.score) best = { p, slot: s.id, score }
         }
       } else {
-        const score = p.overall
+        const score = draftRating(u, d, p)
         if (!best || score > best.score) best = { p, slot: 'bench', score }
       }
     }

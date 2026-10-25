@@ -43,7 +43,7 @@ export function Home() {
                 {game.settings.teamName} · {game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : game.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${game.year}`}
               </div>
               <div className="small muted">
-                {game.phase === 'draft' ? 'Drafting' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
+                {game.phase === 'draft' ? 'Drafting' : game.phase === 'kickoff' ? 'Kick-off' : game.phase === 'january' ? 'January window' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
               </div>
             </div>
           </div>
@@ -66,7 +66,7 @@ export function Home() {
               <div style={{ fontWeight: 700 }}>
                 {g.settings.teamName} · {g.settings.mode === 'quick' ? 'Quick draft' : g.settings.mode === 'daily' ? 'Daily challenge' : g.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${g.year}`} (parked)
               </div>
-              <div className="small muted">{g.phase === 'draft' ? 'Drafting' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
+              <div className="small muted">{g.phase === 'draft' ? 'Drafting' : g.phase === 'kickoff' ? 'Kick-off' : g.phase === 'january' ? 'January window' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
             </div>
           </div>
           <div className="row">

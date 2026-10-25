@@ -18,10 +18,12 @@ import { autoPickLineup } from '@engine/ratings'
 import type { SquadPlayer } from '@engine/types'
 import { earnsPointsRecord } from './records'
 import { EXPECTED_SHARE, minutesShare, RECENT_WEEKS, statusMoraleDrift, type SquadStatus } from '@engine/status'
+import { difficultyOf } from '@engine/draft'
+import { postNews } from './news'
+import { ASSISTANT_DECIDED } from './digest'
 
 function news(game: Game, item: Omit<NewsItem, 'matchweek'>): void {
-  game.season!.news.unshift({ matchweek: game.season!.matchweek, ...item })
-  if (game.season!.news.length > 120) game.season!.news.length = 120
+  postNews(game, { matchweek: game.season!.matchweek, ...item })
 }
 
 function userInput(game: Game, u: LoadedUniverse): MatchTeamInput {
@@ -253,8 +255,11 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   const rng = Rng.fromState(game.rngState)
 
   if (game.pendingEvent && autoManage) {
+    // The assistant takes the second option; the choice goes on record before the event's own item follows it
     const ev = game.pendingEvent
-    applyEventChoice(game, u, ev.choices[Math.min(1, ev.choices.length - 1)].id)
+    const choice = ev.choices[Math.min(1, ev.choices.length - 1)]
+    news(game, { kind: 'event', title: `${ASSISTANT_DECIDED}${ev.title}`, body: choice.label })
+    applyEventChoice(game, u, choice.id)
   }
   if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
 
@@ -742,7 +747,7 @@ export function startSeasonProper(game: Game): void {
   if (game.phase === 'preseason') {
     game.phase = 'week'
     if (game.window?.kind === 'summer') {
-      game.season?.news.unshift({ matchweek: 0, kind: 'transfer', title: 'Summer window closed', body: 'The season is under way. The next window opens in January.' })
+      postNews(game, { matchweek: 0, kind: 'transfer', title: 'Summer window closed', body: 'The season is under way. The next window opens in January.' })
       game.window = null
     }
   }
@@ -827,7 +832,7 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   if (season.continental?.won && season.cupWon && pos === 1) unlock('treble')
   if (game.awards.goldenBoot && Number(game.awards.goldenBoot.value.split(' ')[0]) >= 30) unlock('boot30')
   if (game.awards.goldenGlove && Number(game.awards.goldenGlove.value.split(' ')[0]) >= 20) unlock('glove20')
-  if (pos === 1 && game.settings.rules.hardMode) unlock('hard-champions')
+  if (pos === 1 && difficultyOf(game.settings.rules) === 'hard') unlock('hard-champions')
   if (pos === 1 && game.settings.rules.onlyClub) unlock('one-club-champions')
   if (pos === 1 && game.settings.rules.onlyNation) unlock('one-nation-champions')
   if (earnsPointsRecord(u, season.leagueId, game.settings.difficulty, row, season.matchweeks, season.sacked)) unlock('record-points')

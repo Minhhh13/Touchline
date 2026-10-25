@@ -99,5 +99,5 @@ describe('one-nation draft through a game', () => {
     const lines = text.split('\n')
     expect(lines.at(-2)).toBe('One nation: 🇧🇷 Brazil')
     expect(lines.at(-1)).toBe('Seed ABCD-EFGH')
-  })
+  }, 30000) // whole quick seasons: a few seconds alone, past the 5 s default while the other files run beside it
 })

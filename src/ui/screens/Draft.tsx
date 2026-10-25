@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
-import { canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, suggestSlot, twistDecade, wheelPool } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinnableSlots, suggestSlot, targetSlot, twistDecade, wheelPool } from '@engine/draft'
 import { bestFit, describeFit } from '@engine/positions'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel } from '../components/CaseReel'
@@ -20,7 +20,7 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 ]
 
 export function Draft() {
-  const { universe: u, game, spin, respin, pickPlayer, autoDraftRest, finishDraft, go, showToast } = useStore()
+  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, finishDraft, go, showToast } = useStore()
   const [spinning, setSpinning] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
@@ -48,6 +48,8 @@ export function Draft() {
 
   // A one-nation wheel can run out of eligible players; checked after every pick, not only on a spin
   const dry = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && !canSpin(u, d), [u, d])
+  // Position First: the open slots a spin could fill, offered on the pitch before each spin
+  const choosable = useMemo(() => (u && d && positionFirst(d) && !d.current ? spinnableSlots(u, d).map((s) => s.id) : []), [u, d])
 
   useEffect(() => {
     if (d?.current) {
@@ -61,7 +63,12 @@ export function Draft() {
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
   // A blind spin hides ratings like hard mode does, until the pick is made
   const twist = d.twist ?? null
-  const hide = d.rules.hardMode || twist === 'blind'
+  const hide = ratingsHidden(d.rules) || twist === 'blind'
+  const hiddenAll = ratingsHidden(d.rules)
+  const choosing = positionFirst(d) && !d.current && !isComplete(d)
+  // Position First: the slot this spin fills, kept until the pick; the list lights up whoever can play there
+  const target = targetSlot(d)
+  const tags = rulesTags(d.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES)
   const complete = isComplete(d)
   const total = d.rules.squadSize
   const made = picksMade(d)
@@ -75,11 +82,12 @@ export function Draft() {
   const nationLabel = nation ? `${flag(u, nation)} ${nationName(u, nation)}` : ''
   // The ghost: what the challenger did on this spin number. Hidden under hard mode, and absent when the picks could not be resolved on this data
   const challenge = game.settings.challenge
-  const ghost = challenge && !d.rules.hardMode && d.current && d.spins > 0 ? challenge.picks[d.spins - 1] : undefined
+  const ghost = challenge && !hiddenAll && d.current && d.spins > 0 ? challenge.picks[d.spins - 1] : undefined
   const ghostPlayer = ghost?.id ? get(ghost.id) : undefined
   const ghostSameWheel = !!ghost && !!d.current && ghost.clubId === d.current.clubId && ghost.season === d.current.season
 
-  const squad = current ? [...current.squad] : []
+  // Through the lookup, so Prime ratings show in the list
+  const squad = current ? current.squad.map((p) => get(p.id) ?? p) : []
   const usable = (p: PlayerSeason) => canUse(d, p)
 
   const onPick = (p: PlayerSeason) => {
@@ -93,6 +101,12 @@ export function Draft() {
     }
   }
   const onSlot = (slotId: string) => {
+    if (choosing) {
+      if (choosable.includes(slotId)) chooseSlot(slotId)
+      else if (d.lineup[slotId]) showToast('That slot is filled')
+      else showToast('No club left on the wheel can fill that slot')
+      return
+    }
     if (!selected) return
     if (!selectedEligible.includes(slotId)) {
       showToast(`${selected.name} cannot play there`)
@@ -112,7 +126,7 @@ export function Draft() {
             {game.settings.teamName} · {game.settings.formationId} · {challenge ? `vs ${challenge.name} (${challenge.claim.pts} pts) · ` : ''}{d.rules.onlyClub ? `${clubName(u, d.rules.onlyClub)} only · ` : ''}
             {nation ? `${nationLabel} only · ` : ''}
             {d.rules.fromSeason || d.rules.toSeason ? `${seasonLabel(d.rules.fromSeason ?? u.firstSeason)} to ${seasonLabel(d.rules.toSeason ?? u.lastSeason)} · ` : ''}
-            {d.rules.hardMode ? 'Hard mode · ' : ''}
+            {tags.map((t) => `${t} · `).join('')}
             {d.rules.twists ? 'Twists · ' : ''}seed {game.settings.seed}
           </div>
         </div>
@@ -128,7 +142,7 @@ export function Draft() {
         </div>
       </div>
 
-      <div className={`grid draft ${d.rules.hardMode ? 'hidden-ratings' : ''}`}>
+      <div className={`grid draft ${hiddenAll ? 'hidden-ratings' : ''}`}>
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
@@ -154,13 +168,18 @@ export function Draft() {
             )}
             {!complete && dry && !fillingStarters && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'Simulate the season' : isDynastySummer ? 'Into the new season' : `Go to pre-season with ${made}`}
+                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'On to kick-off' : isDynastySummer ? 'Into the new season' : `Go to pre-season with ${made}`}
               </button>
             )}
             {!complete && !dry && (
               <>
-                <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => spin()}>
-                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : made === 0 ? 'Spin the wheel' : 'Spin again'}
+                {choosing && (
+                  <div className="notice small" data-testid="position-first">
+                    {target ? `Filling ${target.position}: the wheel only stops on a club with someone who can play there.` : 'Position First: tap an open slot on the pitch, then spin for a club to fill it.'}
+                  </div>
+                )}
+                <button className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
+                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 ? 'Spin the wheel' : 'Spin again'}
                 </button>
                 <div className="row between">
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
@@ -174,7 +193,7 @@ export function Draft() {
             )}
             {complete && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'Simulate the season' : isDynastySummer ? 'Into the new season' : 'Go to pre-season'}
+                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'On to kick-off' : isDynastySummer ? 'Into the new season' : 'Go to pre-season'}
               </button>
             )}
           </div>
@@ -207,7 +226,7 @@ export function Draft() {
                       )}
                       <span style={{ fontWeight: 600 }}>{p ? p.name : <span className="muted">{h.skipped ? 'skipped' : 're-spun'}</span>}</span>
                       {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
-                      {p && !d.rules.hardMode && h.twist !== 'blind' && <Rating value={p.overall} />}
+                      {p && !hiddenAll && h.twist !== 'blind' && <Rating value={p.overall} />}
                     </div>
                   )
                 })}
@@ -280,6 +299,7 @@ export function Draft() {
                         p={p}
                         dim={!ok}
                         selected={selectedPlayer === p.id}
+                        highlight={!!target && ok}
                         hideRatings={hide}
                         onClick={() => onPick(p)}
                         extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
@@ -300,7 +320,7 @@ export function Draft() {
               <h3>{game.settings.formationId}</h3>
               <span className="small muted">{Object.keys(d.lineup).length}/11 starters</span>
             </div>
-            <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={selectedEligible} hideRatings={hide} />
+            <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hide} />
             {selected && suggestSlot(d, selected) && suggestSlot(d, selected) !== 'bench' && (
               <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(suggestSlot(d, selected) as string)}>
                 Put {selected.name} at {openSlots(d).find((s) => s.id === suggestSlot(d, selected))?.position}
