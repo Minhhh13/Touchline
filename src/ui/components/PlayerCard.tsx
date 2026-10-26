@@ -164,7 +164,7 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
                             <span className="pc-club">
                               <ClubBadge clubId={s.clubId} size={18} />
                               <span className="pc-club-name">{clubName(u, s.clubId)}</span>
-                              {s.accolades.includes('Champion') && <Trophy size={13} className="gold-ic" aria-label="Champions" />}
+                              {s.accolades.includes('Champion') && <Trophy size={13} className="gold-ic" role="img" aria-label="Champions" />}
                             </span>
                           </td>
                           <td className="num">{s.age}</td>

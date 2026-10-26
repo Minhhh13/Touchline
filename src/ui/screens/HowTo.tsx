@@ -129,7 +129,7 @@ export function HowTo() {
         </Section>
 
         <Section Icon={ChartColumn} title="Ratings" lead="Thirteen attributes per player-season, taken from the ratings edition published after it. The top of the scale is stretched: 90 against 87 is a bigger gap than 72 against 69.">
-          <div className="howto-scale" aria-label="The rating scale">
+          <div className="howto-scale" role="group" aria-label="The rating scale">
             {[92, 87, 82, 77, 72, 66].map((v) => (
               <Rating key={v} value={v} />
             ))}
@@ -143,7 +143,7 @@ export function HowTo() {
         </Section>
 
         <Section Icon={Activity} title="The match engine" lead="Each XI is scored by unit, shaped by roles, fit and live state. Your instructions meet theirs, expected goals follow, and goals are drawn from them minute by minute.">
-          <div className="howto-timeline" aria-label="A match in three parts">
+          <div className="howto-timeline" role="group" aria-label="A match in three parts">
             <span style={{ flex: 45 }}>
               1–45<small>Half-time talk</small>
             </span>

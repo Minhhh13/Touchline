@@ -35,6 +35,7 @@ import { costLabel, slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
+import { useFocusOnLanding } from '../a11y'
 import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
 import { canPickManager, quickManagerOptions } from '@game/logic/managers'
@@ -126,6 +127,9 @@ export function Draft() {
     if (!revealed || typeof window === 'undefined' || !window.matchMedia?.('(max-width: 720px)').matches) return
     squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [revealed])
+  // The landing moves the focus to the club's name (the Spin button under it is disabled), so the squad is the next Tab
+  const clubHeadRef = useRef<HTMLHeadingElement>(null)
+  useFocusOnLanding(revealed, clubHeadRef)
 
   const allBoxes = useBoxes(DRAFT)
   if (!u || !game || !d) return null
@@ -268,7 +272,7 @@ export function Draft() {
         </div>
         <div className="draft-progress">
           <div className="row between" style={{ gap: 'var(--space-2)' }}>
-            <span className="draft-count" data-testid="pick-count" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
+            <span className="draft-count" data-testid="pick-count" role="img" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
               {places && !fillingStarters ? (
                 <>
                   <span className="eyebrow">Bench</span> <b>{d.bench.length}</b> / {places}
@@ -426,7 +430,7 @@ export function Draft() {
                   const prevId = d.rules.chain ? d.history.slice(0, at).reverse().find((x) => x.pickedId)?.pickedId : undefined
                   return (
                     <li key={i}>
-                      {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={22} />}
+                      {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} role="img" aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={22} />}
                       <span className="who">
                         <span className={p ? 'name' : 'muted'}>{p ? p.name : h.skipped ? 'Skipped' : 'Re-spun'}</span>
                         <span className="when">
@@ -438,7 +442,7 @@ export function Draft() {
                             </span>
                           )}
                           {h.twist && TwistIcon && (
-                            <span className="log-twist" title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
+                            <span className="log-twist" title={TWIST_INFO[h.twist].title} role="img" aria-label={TWIST_INFO[h.twist].title}>
                               <TwistIcon size={12} aria-hidden="true" />
                             </span>
                           )}
@@ -504,7 +508,7 @@ export function Draft() {
                   {iconsSpin ? <span className="icons-badge" style={{ width: 44, height: 44 }} aria-hidden="true">★</span> : <ClubBadge clubId={current.clubId} size={44} />}
                   {iconsSpin ? (
                     <div data-testid="icons-header">
-                      <h2>Icons collection</h2>
+                      <h2 ref={clubHeadRef} tabIndex={-1}>Icons collection</h2>
                       <div className="club-sub">
                         <span>The {current.squad.length} best players of all time on this wheel, each at his peak</span>
                         <TierChip tier="icons" />
@@ -512,7 +516,7 @@ export function Draft() {
                     </div>
                   ) : (
                   <div>
-                    <h2>{clubName(u, current.clubId)}</h2>
+                    <h2 ref={clubHeadRef} tabIndex={-1}>{clubName(u, current.clubId)}</h2>
                     <div className="club-sub">
                       <span>{seasonLabel(current.season)}</span>
                       {!current.complete ? (

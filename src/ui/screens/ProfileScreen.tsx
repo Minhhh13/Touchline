@@ -368,14 +368,14 @@ export function ProfileScreen() {
           {on('chase') && (
           <div className="panel" data-testid="quick-bests">
             <h3>The 38-0 chase</h3>
-            <div className="kv">
+            <dl className="kv">
               <dt>Best record</dt>
               <dd data-testid="best-record">{bests.bestRecord ? `${recordLabel(bests.bestRecord.won, bests.bestRecord.drawn, bests.bestRecord.lost)} · ${bests.bestRecord.points} pts` : '—'}</dd>
               <dt>Longest perfect run</dt>
               <dd data-testid="best-run">{bests.longestPerfectRun ? `${bests.longestPerfectRun}-0` : '—'}</dd>
               <dt>Perfect seasons</dt>
               <dd data-testid="perfect-seasons">{bests.perfectSeasons ?? 0}</dd>
-            </div>
+            </dl>
             <p className="help" style={{ margin: '8px 0 0' }}>Quick Draft and Daily seasons in this browser. The goal: win every game.</p>
           </div>
           )}

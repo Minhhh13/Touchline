@@ -11,6 +11,7 @@ import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
 import { classicFromFor, isEstimated } from '@game/logic/era'
 import { careerSeasons } from '@game/logic/playerCard'
+import { pressable } from '../a11y'
 
 function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
@@ -137,7 +138,7 @@ export function Explore() {
           <div className="panel">
             <div className="panel-head">
               <h3>League table</h3>
-              <select className="input" style={{ width: 'auto' }} value={season} onChange={(e) => { setSeason(Number(e.target.value)); setClubId('') }}>
+              <select className="input" style={{ width: 'auto' }} aria-label="Season" value={season} onChange={(e) => { setSeason(Number(e.target.value)); setClubId('') }}>
                 {seasons.map((s) => (
                   <option key={s} value={s}>
                     {seasonLabel(s)}
@@ -173,12 +174,12 @@ export function Explore() {
                   const top11 = cs.squad.slice(0, 11)
                   const avg = top11.length ? top11.reduce((s, p) => s + p.overall, 0) / top11.length : 0
                   return (
-                    <tr key={cs.clubId} className={`clickable ${shownClubId === cs.clubId ? 'me' : ''}`} onClick={() => setClubId(cs.clubId)}>
+                    <tr key={cs.clubId} className={`clickable ${shownClubId === cs.clubId ? 'me' : ''}`} onClick={() => setClubId(cs.clubId)} {...pressable(() => setClubId(cs.clubId))} aria-current={shownClubId === cs.clubId ? 'true' : undefined}>
                       <td>{cs.position || '–'}</td>
                       <td>
                         <span className="row" style={{ gap: 8 }}>
                           <ClubBadge clubId={cs.clubId} size={22} /> {clubName(u, cs.clubId)}
-                          {cs.champions && <Trophy size={14} className="gold-ic" aria-label="Champions" />}
+                          {cs.champions && <Trophy size={14} className="gold-ic" role="img" aria-label="Champions" />}
                         </span>
                       </td>
                       <td className="num">{t?.points ?? '–'}</td>
