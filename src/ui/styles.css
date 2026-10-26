@@ -9081,6 +9081,15 @@ table.tbl.match-stats th {
     max-width: min(100%, 75cqh);
     margin-inline: auto;
   }
+  /* Squad complete on a short window: Simulate season and its line stay at the foot of the prediction's box */
+  .page.fit .squad-complete > .sc-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-bottom: calc(-1 * var(--panel-pad));
+    padding: var(--space-2) 0 var(--panel-pad);
+    background: var(--panel);
+  }
   .page.fit .sc-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -11215,6 +11224,16 @@ table.tbl.contracts-overview .link-btn.name {
   .arena-hub .pitch-wrap {
     max-width: max(220px, calc((100dvh - 470px) * 0.75));
     margin-inline: auto;
+  }
+  /*
+   * The calls (Manage this one, Sim this tie, Sim to the end) stay at the foot of their box, in view at every size:
+   * below the pitch, the team talk, training and captain they sat 170 px under the fold at 1280x720.
+   */
+  .arena-hub .fit-cell > .arena-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    box-shadow: var(--shadow);
   }
 }
 /* On a phone the Modes row's switch cards (Power-ups, Moneyball, Teammate chain) wrap instead of running off the side */
