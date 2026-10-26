@@ -65,7 +65,8 @@ describe('pick grades', () => {
       for (const gr of pickGrades(u, g.draft!, get)) {
         const h = g.draft!.history[gr.spin]
         const pos = g.draft!.formation.slots.find((s) => s.id === gr.slotId)!.position
-        const drafted = new Set(g.draft!.history.slice(0, gr.spin).map((x) => (x.pickedId ? get(x.pickedId)?.playerId : undefined)))
+        // Every man drafted on another spin is out of this one's reckoning
+        const drafted = new Set(g.draft!.history.flatMap((x, i) => (x.pickedId && i !== gr.spin ? [get(x.pickedId)?.playerId] : [])))
         const best = Math.max(...u.clubSeasonByKey[`${h.clubId}@${h.season}`].squad.filter((p) => p.id === h.pickedId || !drafted.has(p.playerId)).map((p) => discRating(get(p.id)!, pos)))
         // The best man left in his own slot is a floor: a pick leaves at least that gap
         expect(gr.left).toBeGreaterThanOrEqual(best - gr.rating)

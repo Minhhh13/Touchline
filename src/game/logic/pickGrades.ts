@@ -2,7 +2,8 @@
  * Pick grades for a finished draft (draft-preserving: it only reads the draft log). Each XI pick is graded A to D by
  * his rating in the slot he was drafted into (`inSlotRating`: the number on his pitch disc and the headline of the
  * Draft's slot chips, so the recap and the pitch agree) against the best play his spin offered for the slots still
- * open (`pickGrades`), leaving out players already drafted by then. Every man is rated as the draft rated him (`get`: under Prime ratings at his
+ * open (`pickGrades`), leaving out the men you drafted on other spins (before it they were gone; after it you got
+ * them anyway). Every man is rated as the draft rated him (`get`: under Prime ratings at his
  * career best), so the pick and the rest of his squad compare like with like. Display only: nothing about spins,
  * picks or power-ups changes.
  */
@@ -68,13 +69,14 @@ type DraftLog = Pick<DraftState, 'history' | 'formation'> & { rules?: Pick<Draft
 export function pickGrades(u: LoadedUniverse, d: DraftLog, get: (id: string) => PlayerSeason | undefined): GradedPick[] {
   const slots = d.formation.slots
   const spins: Array<{ spin: number; picked: PlayerSeason; slot: number; best: Array<{ p: PlayerSeason; r: number }> }> = []
-  const taken = new Set<string>()
+  // Every man you drafted, on any spin: one drafted before a spin was gone, and one drafted after it you got anyway
+  const drafted = new Set(d.history.flatMap((h) => (h.pickedId ? [get(h.pickedId)?.playerId ?? ''] : [])))
   d.history.forEach((h, spin) => {
     const picked = h.pickedId ? get(h.pickedId) : undefined
     const slot = h.slotId ? slots.findIndex((s) => s.id === h.slotId) : -1
     if (picked && slot >= 0 && !isIcons(h)) {
       // Every man as the draft rated him (`get`: Prime ratings, an upgrade), as the man you took is, so like meets like
-      const pool = (u.clubSeasonByKey[`${h.clubId}@${h.season}`]?.squad ?? []).filter((p) => p.id === picked.id || !taken.has(p.playerId)).map((p) => (p.id === picked.id ? picked : get(p.id) ?? p))
+      const pool = (u.clubSeasonByKey[`${h.clubId}@${h.season}`]?.squad ?? []).filter((p) => p.id === picked.id || !drafted.has(p.playerId)).map((p) => (p.id === picked.id ? picked : get(p.id) ?? p))
       if (!pool.some((p) => p.id === picked.id)) pool.push(picked)
       // The best man of this spin in each slot: the rating, then your own pick, then squad order
       const best = slots.map((sl) => {
@@ -87,7 +89,6 @@ export function pickGrades(u: LoadedUniverse, d: DraftLog, get: (id: string) => 
       })
       spins.push({ spin, picked, slot, best })
     }
-    if (picked) taken.add(picked.playerId)
   })
   // The slots the graded spins filled, in the order the spins filled them (an Icon's slot is not in play)
   const n = spins.length
