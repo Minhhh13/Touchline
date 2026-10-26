@@ -13134,6 +13134,33 @@ table.tbl.hub td.name {
   break-inside: avoid;
   margin: 0 0 var(--space-3);
 }
+/* Every width: the small inline controls keep their look but get a 24 px target (WCAG 2.2 target size, O-12 in
+   docs/QA.md): the setup cards' "i", the text links, Boxes, chip buttons, the folds and the panels' summaries */
+.qinfo-btn,
+.linklike,
+.boxes-btn,
+button.chip,
+.fold-head,
+details > summary.panel-head {
+  position: relative;
+}
+.qinfo-btn::after,
+.linklike::after,
+.boxes-btn::after,
+.fold-head::after,
+details > summary.panel-head::after {
+  content: '';
+  position: absolute;
+  inset: -4px -2px;
+}
+.qinfo-btn::after {
+  inset: -3px;
+}
+button.chip::after {
+  content: '';
+  position: absolute;
+  inset: -1px 0;
+}
 /* Phones: the small inline controls keep their look but get a 32 px+ target */
 @media (max-width: 720px) {
   .linklike,

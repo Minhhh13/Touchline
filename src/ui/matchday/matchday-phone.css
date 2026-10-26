@@ -198,6 +198,13 @@
   .matchday select.md-highlights {
     height: 32px;
   }
+  /* 16px keeps iOS from zooming into a picker on focus (O-8 in docs/QA.md): the mentality, highlights, panel and set-piece selects */
+  .matchday .md-select,
+  .matchday .md-ment .md-select,
+  .matchday .md-heat-side .md-select,
+  .matchday select.md-highlights {
+    font-size: 16px;
+  }
   .matchday .md-moments {
     min-width: 32px;
     height: 32px;
