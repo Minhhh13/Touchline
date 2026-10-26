@@ -192,11 +192,11 @@ export class FakeTransport implements OnlineTransport {
     throw new OnlineError('missing', `no function ${fn}`, 'PGRST202', 404)
   }
 
-  async invoke(body: Record<string, unknown>): Promise<FunctionReply> {
+  async invoke(body: Record<string, unknown>, opts: { guest?: boolean } = {}): Promise<FunctionReply> {
     this.b.calls.push(`invoke:${String(body.op)}`)
     const f = this.b.failNext.shift()
     if (f) throw f
-    if (!this.userId) return { status: 401, body: { code: 'signed_out' } }
+    if (!this.userId && !opts.guest) return { status: 401, body: { code: 'signed_out' } }
     return this.b.fn(body, this.userId)
   }
 

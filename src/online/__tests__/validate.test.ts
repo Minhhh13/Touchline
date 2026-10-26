@@ -18,7 +18,9 @@ describe('parseRequest', () => {
     }
     expect(parseRequest(JSON.stringify({ op: 'account.delete', confirm: DELETE_CONFIRMATION }))).toEqual({ ok: true, value: { op: 'account.delete', confirm: DELETE_CONFIRMATION } })
     // The 38-0 chase's two ops (docs/ONLINE.md section 5d); chase.start is checked in chase.test.ts
-    expect(OPS).toEqual(['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete'])
+    expect(OPS).toEqual(['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume'])
+    expect(parseRequest(JSON.stringify({ op: 'room.leave', code: 'K7Q2MX9A', token: 'x'.repeat(43) }))).toEqual({ ok: true, value: { op: 'room.leave', code: 'K7Q2MX9A', token: 'x'.repeat(43) } })
+    expect(parseRequest(JSON.stringify({ op: 'room.resume', code: 'k7q2 mx9a' }))).toEqual({ ok: true, value: { op: 'room.resume', code: 'K7Q2MX9A' } })
   })
 
   it('refuses every malformed body with a reason', () => {

@@ -16,6 +16,14 @@ export const RETENTION = {
   challengeCodeDays: 365,
   /** Characters of an account id an Edge Function log line may carry. */
   logUserIdChars: 8,
+  /** Minutes an online head-to-head room waits for its second manager (`private.h2h_wait`). */
+  roomWaitMinutes: 30,
+  /** Minutes a room's draft may sit with no pick before it times out (`private.h2h_idle`). */
+  roomIdleMinutes: 15,
+  /** Hours a room is kept after it ends, then deleted (`private.h2h_keep`, the `touchline-h2h-rooms` job). */
+  roomKeepHours: 24,
+  /** Days a device keeps its seat in a room (`SEAT_KEEP_MS` in src/online/rooms.ts). */
+  seatKeepDays: 2,
   /** The device-local keys the online layer writes (besides the game's own save). */
-  deviceKeys: ['touchline-auth-v1', 'touchline-online-v1', 'touchline-online-prompts-v1'],
+  deviceKeys: ['touchline-auth-v1', 'touchline-online-v1', 'touchline-online-prompts-v1', 'touchline-rooms-v1'],
 } as const

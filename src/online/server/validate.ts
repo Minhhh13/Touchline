@@ -6,12 +6,18 @@
  */
 import type { LeaguesFile } from '@engine/universe'
 import type { BuildInfo } from '../buildInfo'
+import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
 import { weekStartOf } from '../weekly'
 
-/** Every operation the Phase 1 function answers. Challenge codes are not here: `create_challenge` and
- * `get_challenge` are database functions the client calls directly (the opener's replay decides, as today). */
-export const OPS = ['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete'] as const
+/** Every operation the function answers. Challenge codes are not here: `create_challenge` and `get_challenge` are
+ * database functions the client calls directly (the opener's replay decides, as today). `chase.*` are the 38-0 chase's;
+ * the `room.*` ops are Phase 2's
+ * online head-to-head rooms, the only ones a guest (no account) may call. */
+export const OPS = ['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume'] as const
 export type Op = (typeof OPS)[number]
+
+/** The ops a guest may call: the rooms (`room.resume` needs an account, and says so itself). */
+export const ROOM_OPS: readonly Op[] = ['room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume']
 
 /** The largest request body accepted, in UTF-8 bytes (a ranked payload is at most 8000 characters). */
 export const MAX_BODY_BYTES = 16384
@@ -26,6 +32,11 @@ export type ServerRequest =
   | { op: 'daily.submit' | 'weekly.submit' | 'chase.submit'; encoded: string; teamName: string; shortName: string }
   | { op: 'chase.start'; leagueId: string; formationId: string; ratings: 'season' | 'prime'; benchPicks: number; engine: string; data: string }
   | { op: 'account.delete'; confirm: typeof DELETE_CONFIRMATION }
+  | { op: 'room.create'; settings: RoomSettings; manager: RoomManagerInput; engine: string; data: string }
+  | { op: 'room.join'; code: string; manager: RoomManagerInput; engine: string; data: string }
+  | { op: 'room.pick'; code: string; token: string; version: number; playerSeasonId: string; slotId: string }
+  | { op: 'room.leave'; code: string; token: string }
+  | { op: 'room.resume'; code: string }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string }
 
@@ -41,6 +52,43 @@ const ALLOWED: Record<Op, readonly string[]> = {
   'chase.start': ['leagueId', 'formationId', 'ratings', 'benchPicks', 'engine', 'data'],
   'chase.submit': ['encoded', 'teamName', 'shortName'],
   'account.delete': ['confirm'],
+  'room.create': ['settings', 'manager', 'engine', 'data'],
+  'room.join': ['code', 'manager', 'engine', 'data'],
+  'room.pick': ['code', 'token', 'version', 'playerSeasonId', 'slotId'],
+  'room.leave': ['code', 'token'],
+  'room.resume': ['code'],
+}
+
+/** A seat token as the server issues it: 32 random bytes, base64url without padding. */
+export const SEAT_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
+
+function roomManagerOf(v: unknown): RoomManagerInput | null {
+  if (!isRecord(v)) return null
+  const extra = Object.keys(v).filter((k) => k !== 'name' && k !== 'formationId' && k !== 'hostClubId')
+  if (extra.length) return null
+  const { name, formationId, hostClubId } = v
+  if (typeof name !== 'string' || name.length > 64 || typeof formationId !== 'string' || formationId.length > 24 || typeof hostClubId !== 'string' || hostClubId.length > 64) return null
+  return { name, formationId, hostClubId }
+}
+
+function roomSettingsOf(v: unknown): RoomSettings | null {
+  if (!isRecord(v)) return null
+  const extra = Object.keys(v).filter((k) => !['leagueId', 'wheelLeagues', 'leagueSeason', 'difficulty', 'hardMode'].includes(k))
+  if (extra.length) return null
+  const { leagueId, wheelLeagues, leagueSeason, difficulty, hardMode } = v
+  if (typeof leagueId !== 'string' || !LEAGUE_RE.test(leagueId)) return null
+  if (!Array.isArray(wheelLeagues) || wheelLeagues.length < 1 || wheelLeagues.length > 32 || !wheelLeagues.every((l) => typeof l === 'string' && LEAGUE_RE.test(l))) return null
+  if (typeof leagueSeason !== 'number' || !Number.isInteger(leagueSeason) || leagueSeason < 1900 || leagueSeason > 2100) return null
+  if (difficulty !== 'calibrated' && difficulty !== 'realistic') return null
+  if (typeof hardMode !== 'boolean') return null
+  return { leagueId, wheelLeagues: wheelLeagues as string[], leagueSeason, difficulty, hardMode }
+}
+
+/** The room code of a body: the 8 characters of the seed alphabet, as typed or pasted, or null. */
+export function roomCodeOf(v: unknown): string | null {
+  if (typeof v !== 'string' || v.length > 24) return null
+  const code = v.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  return /^[A-HJ-NP-Z2-9]{8}$/.test(code) ? code : null
 }
 
 /** A real calendar date written `YYYY-MM-DD`. */
@@ -105,6 +153,41 @@ export function parseRequest(text: string): Parsed<ServerRequest> {
     case 'account.delete':
       if (raw.confirm !== DELETE_CONFIRMATION) return bad(`account.delete needs confirm: "${DELETE_CONFIRMATION}"`)
       return { ok: true, value: { op: 'account.delete', confirm: DELETE_CONFIRMATION } }
+    case 'room.create':
+    case 'room.join': {
+      const manager = roomManagerOf(raw.manager)
+      if (!manager) return bad('manager is { name, formationId, hostClubId }')
+      if (typeof raw.engine !== 'string' || !ENGINE_RE.test(raw.engine)) return bad('engine is the engine version the client runs')
+      if (typeof raw.data !== 'string' || !STAMP_RE.test(raw.data)) return bad('data is the data stamp the client plays on')
+      if (op === 'room.create') {
+        const settings = roomSettingsOf(raw.settings)
+        if (!settings) return bad('settings is { leagueId, wheelLeagues, leagueSeason, difficulty, hardMode }')
+        return { ok: true, value: { op: 'room.create', settings, manager, engine: raw.engine, data: raw.data } }
+      }
+      const code = roomCodeOf(raw.code)
+      if (!code) return bad('code is a room code')
+      return { ok: true, value: { op: 'room.join', code, manager, engine: raw.engine, data: raw.data } }
+    }
+    case 'room.pick': {
+      const code = roomCodeOf(raw.code)
+      if (!code) return bad('code is a room code')
+      if (typeof raw.token !== 'string' || !SEAT_TOKEN_RE.test(raw.token)) return bad('token is the seat token')
+      if (typeof raw.version !== 'number' || !Number.isInteger(raw.version) || raw.version < 0 || raw.version > 100000) return bad('version is the room version the pick was made on')
+      if (typeof raw.playerSeasonId !== 'string' || raw.playerSeasonId.length < 1 || raw.playerSeasonId.length > 120) return bad('playerSeasonId is a player-season id')
+      if (typeof raw.slotId !== 'string' || raw.slotId.length < 1 || raw.slotId.length > 16) return bad('slotId is a slot id or bench')
+      return { ok: true, value: { op: 'room.pick', code, token: raw.token, version: raw.version, playerSeasonId: raw.playerSeasonId, slotId: raw.slotId } }
+    }
+    case 'room.leave': {
+      const code = roomCodeOf(raw.code)
+      if (!code) return bad('code is a room code')
+      if (typeof raw.token !== 'string' || !SEAT_TOKEN_RE.test(raw.token)) return bad('token is the seat token')
+      return { ok: true, value: { op: 'room.leave', code, token: raw.token } }
+    }
+    case 'room.resume': {
+      const code = roomCodeOf(raw.code)
+      if (!code) return bad('code is a room code')
+      return { ok: true, value: { op: 'room.resume', code } }
+    }
   }
 }
 

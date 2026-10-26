@@ -1,4 +1,5 @@
-// TouchLine Edge Function touchline-e__ENGINE__, the loader form (deploy with Verify JWT on). The engine, the verifier
+// TouchLine Edge Function touchline-e__ENGINE__, the loader form (deploy with Verify JWT off: withSupabase
+// below accepts a signed-in user's JWT or the project's publishable key, a guest, and verifies either). The engine, the verifier
 // and the request flow live in one hashed bundle the site publishes with every build (dist/edge/verifier-<hash16>.js,
 // scripts/online/edgeBundle.mjs); this file fetches it from the live site, refuses anything whose SHA-256 is not the
 // constant below, runs it once per isolate and hands it each verified request. A compromised or stale site cannot change
@@ -69,7 +70,7 @@ let handler: Promise<Handler> | null = null
 let failedAt = 0
 
 export default {
-  fetch: withSupabase({ auth: 'user', errors: { detailed: false } }, async (req, ctx) => {
+  fetch: withSupabase({ auth: ['user', 'publishable'], errors: { detailed: false } }, async (req, ctx) => {
     if (!handler) {
       if (Date.now() - failedAt < 30000) return Response.json({ status: 503, code: 'verifier_unavailable', reason: 'The verifier is not loaded; retry shortly' }, { status: 503 })
       handler = load()

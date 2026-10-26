@@ -9,6 +9,7 @@ import { createStore } from 'zustand/vanilla'
 import { useStore } from 'zustand'
 import type { PuzzlePin } from './server/dailyVerify'
 import type { SaveMeta, SlotId } from './core/slots'
+import type { RoomUi } from './rooms'
 
 export interface OnlineSession {
   userId: string
@@ -70,6 +71,8 @@ export interface OnlineState {
   outboxCount: number
   posts: Record<string, PostState>
   pins: OnlinePins
+  /** The online head-to-head room open on this device, if any (src/online/rooms.ts). */
+  room: RoomUi | null
 }
 
 export const initialOnlineState: OnlineState = {
@@ -86,6 +89,7 @@ export const initialOnlineState: OnlineState = {
   outboxCount: 0,
   posts: {},
   pins: { daily: null, weekly: null, day: null, week: null },
+  room: null,
 }
 
 export const onlineStore = createStore<OnlineState>(() => ({ ...initialOnlineState }))
