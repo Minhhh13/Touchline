@@ -14291,3 +14291,25 @@ details.opposition {
     width: 200%;
   }
 }
+/* ------------------------------------------------------------------------- accessibility round 2 (2026-10-26) */
+/* The skip link: the first Tab stop, off the screen until it has the focus. Fixed, so it is never a row of the shell's
+   grid; the screen's `.page` it points at is the main landmark (src/ui/landmarks.ts) and takes no ring of its own */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+.skip-link:focus {
+  transform: none;
+}
+.app > .page#main:focus {
+  outline: none;
+}
