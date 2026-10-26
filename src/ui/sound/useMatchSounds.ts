@@ -33,8 +33,7 @@ export function useMatchSounds(o: MatchSoundOptions): void {
     let prev: TimelinePoint | null = s0.running ? { t: s0.at, hold: null } : null
     const last: Partial<Record<string, number>> = {}
     let raf = 0
-    const step = () => {
-      raf = requestAnimationFrame(step)
+    const hear = () => {
       const now = performance.now()
       const cur = timeline(useLiveClock.getState(), now)
       if (prev && liveAudio() && matchSoundOn()) {
@@ -43,7 +42,15 @@ export function useMatchSounds(o: MatchSoundOptions): void {
       }
       prev = cur
     }
+    const step = () => {
+      raf = requestAnimationFrame(step)
+      hear()
+    }
     raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
+    return () => {
+      cancelAnimationFrame(raf)
+      // The whistle can end the match (and close the dashboard) between two frames: hear the last stretch on the way out
+      hear()
+    }
   }, [])
 }
