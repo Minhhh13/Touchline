@@ -13,7 +13,12 @@ import { beginSeason, createGame } from '@game/logic/setup'
 import { H2HSetup } from '../screens/H2H'
 import { TacticsTab } from '../screens/Dugout'
 import { Explore } from '../screens/Explore'
-import { renderProblems, show } from './qaSsr'
+import { markupProblems, renderProblems, show } from './qaSsr'
+import { ScreenBoundary } from '../components/ScreenBoundary'
+import { renderToString } from 'react-dom/server'
+import { createElement } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 describe('QA screen fixes', () => {
   it('QA-2: the head-to-head setup renders while the chosen league is still loading (it was a white page)', () => {
@@ -35,5 +40,26 @@ describe('QA screen fixes', () => {
     expect(renderProblems(TacticsTab)).toEqual([])
     show({ game: null, screen: 'explore' })
     expect(renderProblems(Explore)).toEqual([])
+  })
+})
+
+describe('QA-4: a screen that throws while rendering', () => {
+  it('shows a way out instead of a white page, and clears on the next screen', () => {
+    const boom = new Error('boom')
+    expect(ScreenBoundary.getDerivedStateFromError(boom)).toEqual({ error: boom })
+    // The same screen keeps the error; another screen or phase clears it
+    expect(ScreenBoundary.getDerivedStateFromProps({ resetKey: 'game|week|setup', onHome: () => {}, children: null }, { error: boom, key: 'game|week|setup' })).toBeNull()
+    expect(ScreenBoundary.getDerivedStateFromProps({ resetKey: 'home||setup', onHome: () => {}, children: null }, { error: boom, key: 'game|week|setup' })).toEqual({ error: null, key: 'home||setup' })
+    const b = new ScreenBoundary({ resetKey: 'game|week|setup', onHome: () => {}, children: null })
+    b.state = { error: boom, key: 'game|week|setup' }
+    const html = renderToString(createElement(() => b.render()))
+    expect(html).toContain('data-testid="screen-error"')
+    expect(html).toContain('Back to home')
+    expect(markupProblems(html)).toEqual([])
+  })
+
+  it('wraps the screens in App, so a render error never blanks the top bar', () => {
+    const src = readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')
+    expect(src).toMatch(/<ScreenBoundary resetKey=[\s\S]{0,200}?\{body\}\s*<\/ScreenBoundary>/)
   })
 })

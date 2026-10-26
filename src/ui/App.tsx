@@ -21,6 +21,7 @@ import { ArenaSummary } from './screens/ArenaSummary'
 import { RunInSetup } from './screens/RunInSetup'
 import { RunInSummary } from './screens/RunInSummary'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
+import { ScreenBoundary } from './components/ScreenBoundary'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
@@ -276,7 +277,9 @@ export function App() {
           <span>Show top bar</span>
         </button>
       )}
-      {body}
+      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')}>
+        {body}
+      </ScreenBoundary>
       <Toast />
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
         {offseason && (
