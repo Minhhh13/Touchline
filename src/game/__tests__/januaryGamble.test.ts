@@ -15,6 +15,7 @@ import { playerLookup } from '../logic/players'
 import { normaliseGame } from '../logic/save'
 import { TIERS } from '../logic/rarity'
 import { nonStandardRun } from '../../online/server/dailyVerify'
+import { NON_STANDARD_RULES, unrankedReason } from '../../online/daily'
 import type { Game, GameSettings } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -265,6 +266,23 @@ describe('the January gamble and the rest of the game', { timeout: 180_000 }, ()
     expect(isChallengeSeason({ jg: ['z'] })).toBe(false)
     expect(isChallengeSeason({ jg: ['s', 'ST'], j: ['a', 'ST'] })).toBe(false)
     expect(isChallengeSeason({ j: ['a', 'ST'] })).toBe(true)
+  })
+
+  it('a finished season that used the spin or the Upgrader never ranks; one that passed or took a listing still can', () => {
+    // A Quick Draft on the ranked puzzle's kind of rules (none of the non-standard ones), so only the window decides
+    const rules = Object.fromEntries(Object.entries({ ...QUICK_RULES, leagues: ['england'] }).filter(([k]) => !(NON_STANDARD_RULES as readonly string[]).includes(k))) as unknown as typeof QUICK_RULES
+    const passed = atJanuary({ seed: 'jg-1', rules })
+    const spun = clone(passed)
+    const upped = clone(passed)
+    closeJanuary(passed, u, null)
+    expect(unrankedReason(passed, u)).toBeNull()
+    rollJanuarySpin(spun, u)
+    closeJanuarySpin(spun, u, null)
+    expect(unrankedReason(spun, u)).toMatch(/January spin/)
+    rollJanuaryUpgrade(upped, u, Object.values(upped.lineup)[0], 2)
+    closeJanuary(upped, u, null)
+    expect(unrankedReason(upped, u)).toMatch(/January spin and Upgrader/)
+    expect(nonStandardRun(challengeFromGame(upped, u, 'x')!, upped.settings.rules)).toMatch(/January/)
   })
 
   it('a save from before the gamble opens in January and plays on; a malformed gamble is dropped', () => {
