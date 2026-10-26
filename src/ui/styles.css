@@ -2300,13 +2300,13 @@ kbd {
 .reel-season .lbl {
   font-size: 12px; /* px: the reel geometry */
   letter-spacing: 0.12em;
-  color: var(--text-2, #b4c6ba);
+  color: var(--text-2);
 }
 .reel-season .lbl.twist {
-  color: var(--gold, #f5c542);
+  color: var(--gold);
 }
 :root[data-theme='light'] .reel-season .lbl.twist {
-  color: var(--text, #0f1b15);
+  color: var(--text);
 }
 .reel-drum-window {
   position: relative;
@@ -2327,7 +2327,7 @@ kbd {
   font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  color: var(--text, #eef5f0);
+  color: var(--text);
 }
 
 /* Stage 2: the strip */
@@ -2373,8 +2373,8 @@ kbd {
   bottom: 0;
   width: 2px;
   transform: translateX(-50%);
-  background: var(--gold, #f5c542);
-  box-shadow: 0 0 10px var(--gold, #f5c542);
+  background: var(--gold);
+  box-shadow: 0 0 10px var(--gold);
   z-index: 3;
   pointer-events: none;
 }
@@ -2389,11 +2389,11 @@ kbd {
 }
 .reel-marker::before {
   top: 0;
-  border-top: 12px solid var(--gold, #f5c542);
+  border-top: 12px solid var(--gold);
 }
 .reel-marker::after {
   bottom: 0;
-  border-bottom: 12px solid var(--gold, #f5c542);
+  border-bottom: 12px solid var(--gold);
 }
 /* Hides the strip while the season rolls, so the season reads first */
 .reel-veil {
@@ -2531,7 +2531,7 @@ kbd {
   font-weight: 700;
   text-transform: uppercase;
   line-height: 1;
-  color: var(--text, #eef5f0);
+  color: var(--text);
 }
 .reel-hub .year {
   font-size: 28px; /* px: the reel geometry */
@@ -2541,16 +2541,16 @@ kbd {
 .reel-club-season {
   font-size: 14px; /* px: the reel geometry */
   font-weight: 600;
-  color: var(--text-2, #b4c6ba);
+  color: var(--text-2);
 }
 .reel-skip {
   padding: 4px 12px;
   border-radius: 999px;
-  border: 1px dashed var(--line-2, #2f4a3b);
+  border: 1px dashed var(--line-2);
   background: none;
   font: inherit;
   font-size: var(--fs-meta);
-  color: var(--text-2, #b4c6ba);
+  color: var(--text-2);
   cursor: pointer;
 }
 
@@ -9151,7 +9151,7 @@ table.tbl.match-stats th {
    two points still show above and below the card */
 .mspin-idle {
   --idle-step: calc(var(--card, 80px) + var(--gap, 8px));
-  --ghost: color-mix(in srgb, var(--reel-ink, #93a3d6) 16%, transparent);
+  --ghost: color-mix(in srgb, var(--reel-ink) 16%, transparent);
   position: absolute;
   left: 50%;
   top: 50%;
@@ -9166,14 +9166,14 @@ table.tbl.match-stats th {
   font-weight: 700;
   color: var(--text-3);
   background: linear-gradient(165deg, var(--navy-2), var(--navy));
-  border: 2px solid color-mix(in srgb, var(--reel-ink, #93a3d6) 45%, transparent);
+  border: 2px solid color-mix(in srgb, var(--reel-ink) 45%, transparent);
   box-shadow:
     calc(-1 * var(--idle-step)) 0 0 0 var(--ghost),
     var(--idle-step) 0 0 0 var(--ghost),
-    calc(-2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 9%, transparent),
-    calc(2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 9%, transparent),
-    calc(-3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 5%, transparent),
-    calc(3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 5%, transparent);
+    calc(-2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink) 9%, transparent),
+    calc(2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink) 9%, transparent),
+    calc(-3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink) 5%, transparent),
+    calc(3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink) 5%, transparent);
   z-index: 4;
 }
 .mspin-sound {
