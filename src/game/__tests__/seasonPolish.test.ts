@@ -8,6 +8,8 @@ import { SQUAD_CAP } from '../logic/marketOps'
 import { autoDraft } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { newSquadPlayer } from '@engine/season'
+import { seasonRecords } from '../logic/seasonRecords'
+import { USER_TEAM, type SeasonState } from '@engine/season'
 import { seasonGame } from './seasonGame'
 
 const u = loadTestUniverse(['england'])
@@ -54,5 +56,20 @@ describe('Season polish', () => {
       beginSeason(g, u)
       expect(Object.keys(g.squad).length).toBeLessThanOrEqual(SQUAD_CAP)
     }
+  })
+  it('season records give our score first, away wins included', () => {
+    const g = seasonGame(u, 'polish-records', 12)
+    const r = seasonRecords(g.season!, (id) => u.clubById[id]?.name ?? id)!
+    expect(r.played).toBe(12)
+    const mine = g.season!.fixtures.filter((f) => f.result && (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM))
+    const margins = mine.map((f) => (f.homeTeamId === USER_TEAM ? 1 : -1) * (f.result!.homeGoals - f.result!.awayGoals))
+    if (Math.max(...margins) > 0) {
+      const [gf, ga] = r.bigWin.split(' ')[0].split('-').map(Number)
+      expect(gf - ga).toBe(Math.max(...margins))
+    }
+    // An away win written as the fixture reads (home goals first) would show a loss's score
+    const away = { ...g.season!, fixtures: [{ matchweek: 1, homeTeamId: 'nottingham-forest', awayTeamId: USER_TEAM, result: { homeGoals: 0, awayGoals: 9 } }] } as unknown as SeasonState
+    expect(seasonRecords(away, () => 'Forest')!.bigWin).toBe('9-0 at Forest (MW 1)')
+    expect(seasonRecords(away, () => 'Forest')!.bigLoss).toBe('–')
   })
 })
