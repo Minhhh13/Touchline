@@ -1596,7 +1596,7 @@ label.field,
 .stat .value {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 24px;
+  font-size: var(--fs-h2);
   line-height: 1;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
