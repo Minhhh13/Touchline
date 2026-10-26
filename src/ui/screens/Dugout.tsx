@@ -48,7 +48,7 @@ import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_B
 import { ContractCard, ContractTalks } from '../components/ContractTalks'
 import { dugoutKey, isControlTarget } from '../dugoutKeys'
 import { PositionChart } from '../components/LiveLeague'
-import { EVEN_BAND, filterNews, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
+import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 
 type Tab = DugoutTab
 
@@ -476,7 +476,13 @@ export function Dugout() {
 
       {tab === 'fixtures' && (
         <div className="panel">
-          <h3>Fixtures and results</h3>
+          <div className="panel-head">
+            <span className="head-title">
+              <h3>Fixtures and results</h3>
+              <Info label="About the calendar">One cell a matchweek: the opponent, home or away and the result; a cup tie after the matchweek sits in the same cell. Upcoming cells are tinted by the opponent's place today: red for the top four, green for the bottom four.</Info>
+            </span>
+          </div>
+          <SeasonStrip table={table} />
           <div className="fixture-list">
             {season.takeoverAt ? (
               <div className="fixture me" data-testid="before-you-arrived">
@@ -767,6 +773,40 @@ function SeasonSoFar({ table }: { table: TableRow[] }) {
       ) : (
         <PositionChart series={story.series} rivals={story.rivals.map((r) => ({ ...r, name: clubShort(u, r.teamId) }))} teams={table.length} games={season.matchweeks - first + 1} unit="MW" first={first} target={season.boardTarget} title="League position by matchweek" />
       )}
+    </div>
+  )
+}
+
+/** The Fixtures tab's calendar: one cell a matchweek, ten to a row on a desktop. */
+function SeasonStrip({ table }: { table: TableRow[] }) {
+  const { universe: u, game } = useStore()
+  if (!u || !game?.season) return null
+  const cells = seasonStrip(game, table)
+  const nextMw = game.season.matchweek + 1
+  return (
+    <div className="season-strip" data-testid="season-strip">
+      {cells.map((c) => {
+        const opp = c.opp ? clubName(u, c.opp) : null
+        const tieLine = c.ties.map((t) => `${t.comp === 'cup' ? 'Cup' : 'Continental Cup'} ${t.round} ${t.home ? 'v' : 'at'} ${clubName(u, t.opp)}${t.score ? ` ${t.score}` : ''}`).join('; ')
+        const title = `MW ${c.matchweek}: ${opp ? `${c.home ? 'v' : 'at'} ${opp}${c.score ? ` ${c.score}` : ''}` : 'free weekend'}${tieLine ? `; then ${tieLine}` : ''}`
+        return (
+          <div key={c.matchweek} className={`ss-cell ${c.outcome ? 'played' : c.band ? `band-${c.band}` : 'free'} ${c.matchweek === nextMw ? 'next' : ''}`} title={title} data-testid="strip-cell">
+            <span className="ss-mw">{c.matchweek}</span>
+            <span className="ss-opp">
+              {c.opp ? <ClubBadge clubId={c.opp} size={18} /> : <span className="muted">–</span>}
+              {c.opp && <span className="ss-ha">{c.home ? 'H' : 'A'}</span>}
+            </span>
+            <span className="ss-chips">
+              {c.outcome && <span className={`chip ${outcomeClass(c.outcome)}`}>{c.outcome}</span>}
+              {c.ties.map((t) => (
+                <span key={t.comp + t.round} className={`chip ss-tie ${t.outcome ? outcomeClass(t.outcome) : ''}`}>
+                  {t.comp === 'cup' ? 'Cup' : 'CC'}
+                </span>
+              ))}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -1211,6 +1251,14 @@ function MarketTab() {
             </button>
           </div>
         </div>
+        {windowCountdown(w).last && tickerLines(w).length > 0 && (
+          <div className="deadline-ticker" data-testid="deadline-ticker" aria-label="Deadline day: the latest market news">
+            <span className="deadline-tag">Deadline day</span>
+            <span className="deadline-track">
+              <span className="deadline-run">{tickerLines(w).join('  ·  ')}</span>
+            </span>
+          </div>
+        )}
         {msg && <div className="notice" style={{ marginBottom: 'var(--space-2)' }}>{msg}</div>}
         <Tip id="market-first">Bids near the asking price are accepted, bids well under it annoy the club and raise the price; the asking price shows what it was on day one.</Tip>
         <div className="segmented scroll" style={{ marginBottom: 'var(--space-3)' }}>
@@ -1386,6 +1434,28 @@ function MarketTab() {
             })}
           </div>
         </div>
+        {doneDeals(w).length > 0 && (
+          <div className="panel" data-testid="done-deals">
+            <div className="panel-head">
+              <h3>Done deals</h3>
+              <span className="small muted">{w.kind === 'summer' ? 'Summer' : 'January'} window</span>
+            </div>
+            <div className="col small" style={{ gap: 4 }}>
+              {doneDeals(w).map((d) => {
+                const p = get(d.playerSeasonId)
+                return (
+                  <div key={d.dir + d.playerSeasonId} className="row between" style={{ gap: 'var(--space-2)' }}>
+                    <span className="row" style={{ gap: 6, minWidth: 0 }}>
+                      <span className={`chip ${d.dir === 'in' ? 'good' : 'info'}`}>{d.dir === 'in' ? 'In' : 'Out'}</span>
+                      <span className="one-line">{p?.name ?? 'A player'}{d.clubId ? ` to ${clubShort(u, d.clubId)}` : ''}</span>
+                    </span>
+                    <span className="mono">{d.loan ? `Loan ${money(d.fee)}` : money(d.fee)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
         <div className="panel">
           <h3>Market log</h3>
           <div className="col small market-log">

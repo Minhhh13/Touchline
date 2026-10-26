@@ -5,7 +5,7 @@ import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE, rolesFor } from '@engine/roles'
 import { playerLookup, squadPlayers } from '../logic/players'
 import { teamStrength } from '../logic/squad'
-import { EVEN_BAND, filterNews, matchUp, formTitle, formTrend, FORM_BAND, inboxGroup, INBOX_FILTERS, minutesLast3, positionHistory, positionStory, ratingBand, roleFit, roleOptions, sparkPoints, teamFamiliarity, windowCountdown } from '../logic/squadDisplay'
+import { doneDeals, EVEN_BAND, filterNews, matchUp, seasonStrip, tableBand, tickerLines, formTitle, formTrend, FORM_BAND, inboxGroup, INBOX_FILTERS, minutesLast3, positionHistory, positionStory, ratingBand, roleFit, roleOptions, sparkPoints, teamFamiliarity, windowCountdown } from '../logic/squadDisplay'
 import { seasonGame } from './seasonGame'
 import { nextOpponent } from '../logic/week'
 
@@ -131,6 +131,32 @@ describe('the inbox filters', () => {
   }, 60_000)
 })
 
+describe('deadline day', () => {
+  it('lists signings at the fee bid (or the loan fee) and sales at the accepted offer, and the ticker takes the newest lines', () => {
+    const base = { asking: 10, opening: 10, suitors: 0, listedDay: 0, tags: [] }
+    const w = {
+      listings: [
+        { ...base, playerSeasonId: 'a', status: 'signed' as const, bid: 9 },
+        { ...base, playerSeasonId: 'b', status: 'signed' as const, loan: true, loanFee: 1.5 },
+        { ...base, playerSeasonId: 'c', status: 'gone' as const },
+        { ...base, playerSeasonId: 'd', status: 'available' as const },
+      ],
+      offers: [
+        { playerSeasonId: 'e', fromClubId: 'arsenal', amount: 22, day: 2, status: 'accepted' as const },
+        { playerSeasonId: 'f', fromClubId: 'chelsea', amount: 5, day: 2, status: 'rejected' as const },
+      ],
+      log: ['7', '6', '5', '4', '3', '2', '1'],
+    }
+    expect(doneDeals(w)).toEqual([
+      { dir: 'in', playerSeasonId: 'a', fee: 9, loan: false },
+      { dir: 'in', playerSeasonId: 'b', fee: 1.5, loan: true },
+      { dir: 'out', playerSeasonId: 'e', fee: 22, loan: false, clubId: 'arsenal' },
+    ])
+    expect(tickerLines(w)).toEqual(['7', '6', '5', '4', '3'])
+    expect(tickerLines({ log: [] })).toEqual([])
+  })
+})
+
 describe('the window countdown', () => {
   it('counts the market days left after today and says so on the last', () => {
     expect(windowCountdown({ day: 0, days: 7 })).toEqual({ daysLeft: 6, label: 'Window shuts in 6 days', last: false })
@@ -195,5 +221,41 @@ describe('the next match', () => {
     }
     expect(ahead + behind).toBeGreaterThan(0)
     expect(matchUp(seasonGame(u, 'next-1', 0), u, 'not-a-club')).toBeNull()
+  }, 60_000)
+})
+
+describe('the season calendar strip', () => {
+  it('has a cell per matchweek with the result from the score, the band from today\'s table and the cup ties after it', () => {
+    let ties = 0
+    for (const seed of ['strip-1', 'strip-2']) {
+      const g = seasonGame(u, seed, 14)
+      const s = g.season!
+      const ids = [USER_TEAM, ...Object.keys(s.ai)]
+      const table = computeTable(s.fixtures, ids)
+      const cells = seasonStrip(g, table)
+      expect(cells.map((c) => c.matchweek)).toEqual(Array.from({ length: s.matchweeks }, (_, i) => i + 1))
+      for (const c of cells) {
+        const f = s.fixtures.find((x) => x.matchweek === c.matchweek && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
+        if (!f) {
+          expect(c.opp).toBeNull()
+          continue
+        }
+        expect(c.home).toBe(f.homeTeamId === USER_TEAM)
+        if (c.matchweek <= s.matchweek) {
+          const r = f.result!
+          const gf = c.home ? r.homeGoals : r.awayGoals
+          const ga = c.home ? r.awayGoals : r.homeGoals
+          expect(c.outcome).toBe(gf > ga ? 'W' : gf < ga ? 'L' : 'D')
+        } else expect(c.outcome).toBeUndefined()
+        expect(c.band).toBe(tableBand(positionOf(table, c.opp!), ids.length))
+        ties += c.ties.length
+        for (const t of c.ties) if (t.outcome) expect(['W', 'L']).toContain(t.outcome)
+      }
+    }
+    expect(ties).toBeGreaterThan(0)
+    expect(tableBand(4, 20)).toBe('top')
+    expect(tableBand(5, 20)).toBe('mid')
+    expect(tableBand(17, 20)).toBe('bottom')
+    expect(tableBand(16, 20)).toBe('mid')
   }, 60_000)
 })

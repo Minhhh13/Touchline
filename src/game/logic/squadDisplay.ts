@@ -3,12 +3,12 @@
  * and sparkline, the squad list's views, role fit and options, the XI's familiarity, the inbox filters, the window
  * countdown and the league position by matchweek. Pure: nothing here draws a number or changes the game.
  */
-import { aiTeamInput, computeTable, positionOf, USER_TEAM, type CarryRow, type NewsItem } from '@engine/season'
+import { aiTeamInput, computeTable, positionOf, USER_TEAM, type CarryRow, type CupTie, type NewsItem } from '@engine/season'
 import { computeTeamStrength, roleRating } from '@engine/ratings'
 import type { LoadedUniverse } from '@engine/universe'
 import { teamStrength } from './squad'
 import { rolesFor } from '@engine/roles'
-import type { Fixture, PlayerSeason, Position, SquadPlayer } from '@engine/types'
+import type { Fixture, PlayerSeason, Position, SquadPlayer, TableRow } from '@engine/types'
 import type { Window } from '@engine/market'
 import type { Game } from '../types'
 
@@ -154,6 +154,18 @@ export function windowCountdown(w: Pick<Window, 'day' | 'days'>): { daysLeft: nu
   return { daysLeft, label, last: daysLeft === 0 }
 }
 
+/** The window's completed deals: our signings (fee, or the loan fee) and the players we sold (the accepted offer). */
+export function doneDeals(w: Pick<Window, 'listings' | 'offers'>): Array<{ dir: 'in' | 'out'; playerSeasonId: string; fee: number; loan: boolean; clubId?: string }> {
+  const ins = w.listings.filter((l) => l.status === 'signed').map((l) => ({ dir: 'in' as const, playerSeasonId: l.playerSeasonId, fee: l.loan ? (l.loanFee ?? 0) : (l.bid ?? l.asking), loan: !!l.loan }))
+  const outs = w.offers.filter((o) => o.status === 'accepted').map((o) => ({ dir: 'out' as const, playerSeasonId: o.playerSeasonId, fee: o.amount, loan: false, clubId: o.fromClubId }))
+  return [...ins, ...outs]
+}
+
+/** The deadline-day ticker: the newest log lines, at most `n`. */
+export function tickerLines(w: Pick<Window, 'log'>, n = 5): string[] {
+  return w.log.slice(0, n)
+}
+
 // ---------------------------------------------------------------- the table
 
 /**
@@ -214,4 +226,75 @@ export function matchUp(game: Game, u: LoadedUniverse, clubId: string): MatchUpR
   const us = teamStrength(game, u)
   const row = (label: string, ours: number, theirs: number): MatchUpRow => ({ label, ours: Math.round(ours * 10) / 10, theirs: Math.round(theirs * 10) / 10, edge: ours - theirs > EVEN_BAND ? 'ahead' : theirs - ours > EVEN_BAND ? 'behind' : 'even' })
   return [row('Our attack v their defence', us.attack, them.defence), row('Midfield v midfield', us.midfield, them.midfield), row('Our defence v their attack', us.defence, them.attack), row('Our keeper v their attack', us.goalkeeping, them.attack), row('Overall', us.overall, them.overall)]
+}
+
+// ---------------------------------------------------------------- the season calendar
+
+export type Outcome = 'W' | 'D' | 'L'
+export type TableBand = 'top' | 'mid' | 'bottom'
+
+export interface StripTie {
+  comp: 'cup' | 'continental'
+  round: CupTie['round']
+  opp: string
+  home: boolean
+  /** Won or lost (penalties decide a draw); absent before it is played. */
+  outcome?: 'W' | 'L'
+  score?: string
+}
+
+export interface StripCell {
+  matchweek: number
+  /** Null on a free weekend. */
+  opp: string | null
+  home: boolean
+  outcome?: Outcome
+  score?: string
+  /** The opponent's band in the table today: top four, bottom four or between (upcoming cells are tinted by it). */
+  band: TableBand | null
+  /** The user's cup or Continental Cup tie played after this matchweek. */
+  ties: StripTie[]
+}
+
+/** A table band for a place: the top four, the bottom four, or between. */
+export function tableBand(pos: number, teams: number): TableBand {
+  return pos <= 4 ? 'top' : pos > teams - 4 ? 'bottom' : 'mid'
+}
+
+/**
+ * Every matchweek of the user's season as a calendar cell: the opponent and venue, the result once played (W, D or L
+ * from the score), the opponent's band in today's table, and any cup tie played after it. Reads scores only, so a
+ * compacted save draws the same strip.
+ */
+export function seasonStrip(game: Pick<Game, 'season'>, table: TableRow[]): StripCell[] {
+  const s = game.season
+  if (!s) return []
+  const teams = table.length
+  const cells: StripCell[] = []
+  const ties = [...s.cup.map((t) => ({ t, comp: 'cup' as const })), ...(s.continental?.ties ?? []).map((t) => ({ t, comp: 'continental' as const }))].filter(({ t }) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)
+  for (let mw = (s.takeoverAt ?? 0) + 1; mw <= s.matchweeks; mw++) {
+    const f = s.fixtures.find((x) => x.matchweek === mw && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
+    const home = !!f && f.homeTeamId === USER_TEAM
+    const opp = f ? (home ? f.awayTeamId : f.homeTeamId) : null
+    const r = f?.result
+    const gf = r ? (home ? r.homeGoals : r.awayGoals) : 0
+    const ga = r ? (home ? r.awayGoals : r.homeGoals) : 0
+    const outcome: Outcome | undefined = r ? (gf > ga ? 'W' : gf < ga ? 'L' : 'D') : undefined
+    const pos = opp ? positionOf(table, opp) : 0
+    cells.push({
+      matchweek: mw,
+      opp,
+      home,
+      outcome,
+      score: r ? `${r.homeGoals}-${r.awayGoals}` : undefined,
+      band: opp && pos > 0 ? tableBand(pos, teams) : null,
+      ties: ties
+        .filter(({ t }) => t.afterMatchweek === mw)
+        .map(({ t, comp }) => {
+          const th = t.homeTeamId === USER_TEAM
+          return { comp, round: t.round, opp: th ? t.awayTeamId : t.homeTeamId, home: th, outcome: t.winnerId ? (t.winnerId === USER_TEAM ? 'W' : 'L') : undefined, score: t.result ? `${t.result.homeGoals}-${t.result.awayGoals}${t.result.penalties ? ` (${t.result.penalties.home}-${t.result.penalties.away}p)` : ''}` : undefined }
+        }),
+    })
+  }
+  return cells
 }

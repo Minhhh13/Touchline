@@ -1590,6 +1590,112 @@ label.field,
     display: none;
   }
 }
+/* The Fixtures tab's season calendar: ten matchweek cells a row on a desktop, five on a phone */
+.season-strip {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: var(--space-3);
+}
+.ss-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 4px;
+  min-width: 0;
+  border-radius: var(--radius-s);
+  border: var(--border);
+  background: var(--panel-2);
+}
+.ss-cell.band-top {
+  background: color-mix(in srgb, var(--danger) 9%, var(--panel-2));
+}
+.ss-cell.band-bottom {
+  background: color-mix(in srgb, var(--good) 9%, var(--panel-2));
+}
+.ss-cell.free {
+  opacity: 0.6;
+}
+.ss-cell.next {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.ss-mw {
+  font-size: 10px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.ss-opp {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.ss-ha {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.ss-chips {
+  display: inline-flex;
+  gap: 2px;
+  min-height: 18px;
+}
+.ss-chips .chip {
+  padding: 0 5px;
+  font-size: 10px;
+}
+@media (max-width: 720px) {
+  .season-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+/* Deadline day on the Market tab: the latest market news running along one line */
+.deadline-ticker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: 5px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent);
+  background: var(--bad-soft);
+  overflow: hidden;
+}
+.deadline-tag {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bad);
+}
+.deadline-track {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.deadline-run {
+  display: inline-block;
+  padding-left: 100%;
+  font-size: var(--fs-sm);
+  animation: deadline-run 28s linear infinite;
+}
+@keyframes deadline-run {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deadline-run {
+    padding-left: 0;
+    animation: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
 /* A key name in running text (How it works) */
 kbd {
   font-family: var(--mono);
