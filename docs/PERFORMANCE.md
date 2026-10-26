@@ -147,7 +147,7 @@ until the screen is up (and its save written); "worst frame" the longest gap bet
 | Cold start, Fast 3G (no service worker): loading screen, Home rendered, "TTI" | 3.38 s, 7.48 s, 7.54 s | 4.41 s, 6.60 s, 6.67 s |
 | Live match at 1x, 6x CPU: main thread per second, fps (p95 frame) | 936 to 953 ms, 50 fps (31 to 33 ms) | 889 to 893 ms, 52 fps (30 to 31 ms); capped within seconds |
 | Entry chunk with its static imports (gzip) | 290 KB | 292 KB (+ `saveWorker` 5 KB and `quickWorker` 82 KB raw, both lazy) |
-| Edge verifier | `verifier-37d256f009b3b3e9.js` | unchanged by these six changes (the England build, Next item 1, renames it) |
+| Edge verifier | `verifier-37d256f009b3b3e9.js` | unchanged by these six changes (measured on engine 4; merged onto engine 5 the e5 bundle stays `verifier-603b905d0570f641.js`) |
 
 What changed:
 
@@ -197,7 +197,9 @@ What changed:
    verifier's bundle, and a lazy load would need an async step in one of them (or a build-time swap that an early
    call could read empty, which would move seeds). Left for an engine release.
 
-No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pass untouched, ENGINE_VERSION is `'4'`.
+No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pass untouched (ENGINE_VERSION was `'4'`
+when this was measured; merged onto engine 5 at ec520f3, `quickWorker.test.ts` still finds the worker's 50 seasons
+byte for byte the page's).
 
 ## Next
 
@@ -206,7 +208,9 @@ In order of what a phone would gain:
 1. **Home's first render** is the start's longest task (about 375 ms at 4x: React's render and commit of Home, and a
    forced layout for `--topbar-h` in App.tsx that costs about 100 ms of style and layout in the first frame).
    England's `buildLeague` is only 100 to 120 ms of the start now that the classic pack is lazy (round 1's 500 ms
-   counted it); a column-index build was tried in round 2 (its last commit) and measures the same on the phone.
+   counted it); a column-index build was tried in round 2 and measures the same on the phone. It did not ship: it
+   renames the edge verifier, so it is parked on the branch `perf-r2-with-buildleague` for a future engine bump, when
+   the function is redeployed anyway.
 2. **The match screen's first render** (about 370 ms at 4x on a session's first match, 170 after): `MatchDashboard`'s
    memos (`samplePlayers`, the feed, the commentary) run in the render that opens it; they could start a frame
    later, or the dashboard could mount its panels over two frames.

@@ -49,24 +49,26 @@ const strip = (r: QuickCupRun | null | undefined) => (r ? { ties: r.ties, reache
 /**
  * The runs, the achievements and the RNG state of sixteen seeded seasons' cups as they were on main at 238b040,
  * before the bracket was kept: recording every tie and playing the field on after the user goes out moves none of it.
+ * Re-baselined on ENGINE_VERSION '5' (the seasons before the cups moved with the playtest fixes), so they now pin
+ * engine 5's cups.
  */
 const BEFORE_THE_BRACKET: Record<string, string> = {
-  'bracket-1': '8f81851903ab7ba1',
-  'bracket-2': 'ab00e3f386ea7df2',
-  'bracket-3': 'fed3e233a77b2bc2',
-  'bracket-4': 'd5327d0c03f3ee3c',
-  'bracket-5': '56156e95589cc453',
-  'bracket-6': 'aa420b4b9cd619c6',
-  'bracket-7': 'e0498966b0c4bf32',
-  'bracket-8': '1c3f443574c39ec0',
-  'bracket-9': '33b1cd2cedc5c890',
-  'bracket-10': 'df4b7cf6e7b3de91',
-  'bracket-11': '434e5f185e25a8b6',
-  'bracket-12': 'eb34440542bd54de',
-  'bracket-13': '687b5d46a7d043ae',
-  'bracket-14': 'bcac3eb7b6fab73a',
-  'bracket-15': '5eea022e063b9fe6',
-  'bracket-16': '0df9219b73d0caf8',
+  'bracket-1': '7759665205ac1f91',
+  'bracket-2': '544ea84272d625f4',
+  'bracket-3': 'c0ecba76f13c0a8d',
+  'bracket-4': '2b3200aca61d9235',
+  'bracket-5': '6cce593cc04c8a98',
+  'bracket-6': '101e8c28f42d47e5',
+  'bracket-7': '9b67f307ec5b0aff',
+  'bracket-8': 'b7f8f518bc7d1ad3',
+  'bracket-9': '3fa11b6de7fe0816',
+  'bracket-10': 'a8137e909a9f1367',
+  'bracket-11': 'a707ca1f3dec7632',
+  'bracket-12': '6b00609e12c3f9c6',
+  'bracket-13': 'afff7a972e9f863a',
+  'bracket-14': '76b4546d1566e8f6',
+  'bracket-15': 'bfb7b1996375d57c',
+  'bracket-16': '6891d534fe03dc6e',
 }
 
 /** Every structural rule a full sixteen-club bracket keeps. */
@@ -309,9 +311,10 @@ describe('the Treble and the Double', { timeout: 300_000 }, () => {
     expect(honourEntry(played('cab-shell'), { league: true, cup: false, continental: false })).toBeNull()
   })
 
+  // treble-3 wins all three on ENGINE_VERSION '5' (found by sweeping; treble-11 did on '4')
   it('file a real Treble through the store: the cabinet, the honours board and the achievement', async () => {
     const all = loadTestUniverse(['england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'portugal'])
-    const g = createGame(settings('treble-11', { teamName: 'Treble XI', shortName: 'TRB', rules: { ...QUICK_RULES, leagues: ['england'], difficulty: 'easy' } }))
+    const g = createGame(settings('treble-3', { teamName: 'Treble XI', shortName: 'TRB', rules: { ...QUICK_RULES, leagues: ['england'], difficulty: 'easy' } }))
     const rng = Rng.fromState(g.rngState)
     autoDraft(all, g.draft!, rng)
     g.rngState = rng.getState()

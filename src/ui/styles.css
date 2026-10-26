@@ -849,10 +849,11 @@ p {
     border-top: var(--border-strong);
     box-shadow: var(--shadow);
   }
-  /* 16px keeps iOS from zooming into a field on focus */
-  .input,
-  select.input {
-    font-size: 16px;
+}
+/* The smallest phones (320 px, or a mini with Display Zoom): seven nav icons fit the row without widening the page */
+@media (max-width: 359px) {
+  .topbar nav button {
+    padding: 7px 9px;
   }
 }
 
@@ -1227,6 +1228,14 @@ select.input {
 .input:focus {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+@media (max-width: 720px) {
+  /* 16px keeps iOS from zooming into a field on focus; after the base rule above, so it wins */
+  .input,
+  select.input,
+  .step-head-row .season-pick {
+    font-size: 16px;
+  }
 }
 /* A form field: the label above, the control, then at most one short .help caption */
 label.field,
@@ -7335,9 +7344,13 @@ dl.kv {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
 .role-pick select.input {
   width: auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--control-h-sm);
   padding: 4px 8px;
 }
@@ -9793,13 +9806,11 @@ table.tbl.match-stats th {
     transform: scale(1.08);
     opacity: 1;
   }
+  /* It settles and stays at full strength: fading an old chip took its text under 4.5:1 (docs/ACCESSIBILITY.md) */
   20%,
-  80% {
+  100% {
     transform: scale(1);
     opacity: 1;
-  }
-  100% {
-    opacity: 0.35;
   }
 }
 .pb-tabs {
@@ -11399,6 +11410,7 @@ table.tbl tr.chase-perfect td:first-child {
 /* Step 3's season picker: a compact select ("2025-26 ▾") on the step's title line, so it costs no height */
 .step-head-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -14377,6 +14389,135 @@ details.opposition {
 }
 
 
+/* ------------------------------------------------------------ a large screen (2026-10-26, round 5) */
+/* From 2200 px wide the pages take a wider cap instead of a 1600 px column between wide empty sides, and from 2200x1200
+   (1440p and ultrawide 1440) the type, space and control tokens step up by about a fifth, so a 27-inch window does not
+   read small. Only tokens move: every box keeps its fit rules, and the match day keeps its own fit (DESIGN_SYSTEM 13). */
+@media (min-width: 2200px) {
+  :root {
+    --page-max-lg: 2160px;
+  }
+  .app.shell > .page,
+  .app > .page.report-page,
+  .page.fit,
+  .app.shell > .page.dugout-page {
+    max-width: var(--page-max-lg);
+  }
+}
+@media (min-width: 3000px) {
+  :root {
+    --page-max-lg: 2560px;
+  }
+}
+@media (min-width: 2200px) and (min-height: 1200px) {
+  :root {
+    --fs-xs: 0.8125rem;
+    --fs-meta: 0.875rem;
+    --fs-sm: 0.9375rem;
+    --fs-base: 1.0625rem;
+    --fs-h3: 1.4375rem;
+    --fs-h2: 1.8125rem;
+    --fs-h1: 2.375rem;
+    --fs-hero: 4.75rem;
+    --space-1: 5px;
+    --space-2: 10px;
+    --space-3: 14px;
+    --space-4: 20px;
+    --space-5: 28px;
+    --space-6: 38px;
+    --gutter: 24px;
+    --panel-pad: 20px;
+    --control-h: 48px;
+    --control-h-sm: 36px;
+    --control-h-lg: 62px;
+  }
+  /* The fixed side columns grow with the type, so the pitch and the log are not left narrow beside a wide middle */
+  .grid.draft {
+    grid-template-columns: 380px minmax(0, 1fr) 500px;
+  }
+  .grid.dugout {
+    grid-template-columns: minmax(0, 1fr) 500px;
+  }
+  .draft-recap {
+    max-width: 860px;
+  }
+}
+
+/* ------------------------------------------------------------ the Weekly setup's record (2026-10-26, round 5) */
+/* Under This week's rules: the theme's story, this week, the streak and last week, so the box is not one notice over an empty panel */
+.weekly-record {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  min-width: 0;
+}
+/* On a desktop the rules step gives way and scrolls inside itself, so Start Draft stays whole (1280 x 720) */
+@media (min-width: 1100px) {
+  .setup-page .setup-box > .setup-step:has(.weekly-record) {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+.weekly-record .weekly-story {
+  margin: 0;
+}
+.weekly-record .recap-card {
+  padding: var(--space-2) var(--space-3);
+}
+
+/* ------------------------------------------------------------ pre-season with the coach mark and the youth intake (2026-10-26, round 5) */
+/* The intake's inline bottom margin doubled the tab body's gap (16 px lost); on a short desktop window the coach mark
+   and the intake share one row, so the squad grid under them keeps the pitch whole (it scrolled 90 px at 1280 x 720) */
+@media (min-width: 1100px) {
+  .app.shell .tab-body:has(> .grid.dugout) > .youth-intake {
+    margin-bottom: 0 !important;
+  }
+}
+@media (min-width: 1100px) and (max-height: 940px) {
+  .app.shell .tab-body:has(> .tip):has(> .youth-intake):has(> .grid.dugout) {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+  }
+  .app.shell .tab-body:has(> .youth-intake):has(> .grid.dugout) > .tip {
+    grid-column: 1;
+    margin: 0;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake {
+    grid-column: 2;
+    align-self: stretch;
+  }
+  /* Half a row: the title and Pass this year on the first line, the candidates' chips under them */
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake > .panel-head {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-side {
+    margin-left: auto;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-line {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-line > .youth-chip {
+    flex: 1 1 0;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .youth-intake) > .grid.dugout {
+    grid-column: 1 / -1;
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout > .col > .panel:has(.pitch-wrap) {
+    padding-block: var(--space-2);
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout > .col > .panel:has(.pitch-wrap) > .panel-head {
+    margin-bottom: var(--space-1);
+  }
+}
+
 /* ------------------------------------------------------------ first run (onboarding, 2026-10-26) */
 /* Home's hero for a manager with nothing finished: the game in three steps and one button, in place of the figures and flags */
 .first-run {
@@ -14656,9 +14797,6 @@ details.opposition {
   .mspin-style > .row {
     flex-wrap: wrap;
   }
-  .step-head-row {
-    flex-wrap: wrap;
-  }
   .step-head-row .season-pick {
     flex: 0 1 auto;
     min-width: 0;
@@ -14682,4 +14820,233 @@ details.opposition {
     inset: 0 auto 0 -50%;
     width: 200%;
   }
+}
+/* ------------------------------------------------------------------------- accessibility round 2 (2026-10-26) */
+/* The skip link: the first Tab stop, off the screen until it has the focus. Fixed, so it is never a row of the shell's
+   grid; the screen's `.page` it points at is the main landmark (src/ui/landmarks.ts) and takes no ring of its own */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+.skip-link:focus {
+  transform: none;
+}
+.app > .page#main:focus {
+  outline: none;
+}
+/* Phones: Apple's 44 pt target for what is tapped most. Buttons, small buttons, the chip buttons, the segmented
+   choices, tabs and form fields grow to 44 px tall (an icon-only small button to 44 wide); round icon buttons keep their
+   look and take the room from an invisible ::after, clear of their neighbours. Phone-only: the desktop fit is untouched */
+@media (max-width: 720px) {
+  .btn,
+  .btn.sm,
+  .cta-bar .btns .btn,
+  .chip-btn,
+  .segmented button,
+  .tabs button,
+  .input,
+  select.input,
+  input[type='range'] {
+    min-height: 44px;
+  }
+  .btn.sm:has(> svg:only-child),
+  .name-btn,
+  .segmented button {
+    min-width: 44px;
+  }
+  .step-head-row .season-pick {
+    min-height: 44px;
+  }
+  .brand {
+    min-height: 44px;
+  }
+  .theme-switch::after {
+    inset: -6px;
+  }
+  .info-btn::after {
+    inset: -14px;
+  }
+  .star[role='button']::after {
+    inset: -13px;
+  }
+  .reel-sound::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+  .boxes-btn::after {
+    inset: -10px -4px;
+  }
+  .linklike {
+    position: relative;
+  }
+  .linklike::after {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
+  }
+  .tbl tr.clickable > td {
+    height: 44px;
+  }
+  details > summary {
+    min-height: 44px;
+    align-content: center;
+  }
+}
+/* The Gauntlet's rungs still ahead: a dashed outline, not a fade (60% opacity took the numbers under 4.5:1) */
+.chip.rung-ahead {
+  border-style: dashed;
+  background: transparent;
+}
+/* Phones at 175 % and 200 % text (iOS Dynamic Type through the root font size, docs/ACCESSIBILITY.md section 5): the
+   rows that ran past the window wrap instead. Each only wraps when its content no longer fits, so 100 % is unchanged */
+@media (max-width: 720px) {
+  .draft-progress > .row,
+  .draft-progress > .row > .row,
+  .panel-head > .row {
+    flex-wrap: wrap;
+  }
+  .prow .meta .chip,
+  .mspin-style-edge {
+    white-space: normal;
+    max-width: 100%;
+  }
+  .mspin-style-edge {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  /* A stat's capitalised label ("ACHIEVEMENTS") is wider than its half of the strip at 200 % */
+  .stat .label {
+    overflow-wrap: anywhere;
+  }
+}
+/* Home's lockup on a narrow phone: it scales with its column (a size container), so it is never clipped by the hero
+   (it ran 27 px past a 320 px screen); at 390 px and up it stays 60 px tall. The lockup is a logotype drawn to its own
+   geometry: it opts out of a text-size adjustment (iOS text zoom), which grew its name but not its flag and ball */
+.tl-lockup {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+@media (max-width: 520px) {
+  .hero-content {
+    width: 100%;
+  }
+  .hero h1 {
+    container-type: inline-size;
+  }
+  .hero h1 .tl-lockup {
+    --h: min(60px, 19.5cqi);
+  }
+}
+/* iOS Dynamic Type arrives as the root font size (src/ui/textScale.ts), never as a text-size adjustment: the page
+   opts out of Safari's own landscape inflation so the two never stack */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+/* The Dugout on a phone: its own small controls reach 44 px too (the tables' selects, the roles' selects, the squad
+   views, a small button's width), a player's name link grows an invisible target, and at 200 % text the squad's
+   toolbar, the role pickers and the planner's need chips give way rather than run past the window */
+@media (max-width: 720px) {
+  .input.sm,
+  table.tbl select.input.sm,
+  .role-pick select.input,
+  .segmented.squad-views-seg button {
+    min-height: 44px;
+  }
+  .btn.sm {
+    min-width: 44px;
+  }
+  .link-btn {
+    position: relative;
+  }
+  .link-btn::after {
+    content: '';
+    position: absolute;
+    inset: -12px -2px;
+  }
+  .skip-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  /* The dressing room's groups list their names inline, and a group's names wrap to lines 19 px apart on a phone:
+     each name is 24 px tall, so the lines clear WCAG 2.5.8 (axe target-size) */
+  .room-group .link-btn {
+    min-height: 24px;
+  }
+  .panel-head > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .row.between:has(> .chip.warn) {
+    flex-wrap: wrap;
+  }
+  .row.between > .chip.warn {
+    white-space: normal;
+    max-width: 100%;
+  }
+  /* The checklist's lines sit close: its Info buttons are drawn at 24 px so their own box clears WCAG 2.5.8 */
+  .briefing .brief .info-btn {
+    width: 24px;
+    height: 24px;
+  }
+}
+/* A tablet at 200 % text (820 px): the manager spin's edges run past the window too */
+@media (max-width: 1099.98px) {
+  .mspin-style-edge {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+/* The match charts' head rows (the xG race: home, title, away) wrap at 200 % text on a phone */
+@media (max-width: 720px) {
+  .mchart > .row.between {
+    flex-wrap: wrap;
+  }
+}
+
+/* Content depth: the Trophy Room's milestones (a thin bar to the next tier) and the summary's pundit verdict */
+.milestones-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 8px;
+}
+.milestones-head .small {
+  margin-left: auto;
+  font-weight: 400;
+}
+.milestone-text {
+  min-width: 0;
+  flex: 1;
+}
+.milestone-meter {
+  display: block;
+  height: 4px;
+  margin-top: 5px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.milestone-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--primary);
+}
+.tier-blurb.pundit-verdict svg {
+  vertical-align: -2px;
+  color: var(--accent);
 }

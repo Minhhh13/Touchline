@@ -35,7 +35,10 @@ export function withViewTransition(update: () => void): void {
   root.classList.add('vt')
   try {
     const t = doc.startViewTransition(() => flushSync(update))
-    void t.finished.finally(() => root.classList.remove('vt'))
+    // A transition the browser aborts (the viewport resized, as a phone's does when it turns or its bars move) rejects
+    // these promises; the change itself has still been made, so the rejection is only the lost animation
+    t.ready.catch(() => undefined)
+    void t.finished.catch(() => undefined).then(() => root.classList.remove('vt'))
   } catch {
     root.classList.remove('vt')
     update()

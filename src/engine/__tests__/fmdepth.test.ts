@@ -337,7 +337,7 @@ describe('depth in the match engine', () => {
   }, 30000)
 
   it('a seeded match is deterministic and pinned to the engine version', () => {
-    expect(ENGINE_VERSION).toBe('4')
+    expect(ENGINE_VERSION).toBe('5')
     const play = () => {
       const rng = new Rng('depth-pin')
       const home: MatchTeamInput = teamInputFromPool('E', 'Elite', 'ELI', tacticsForStyle('possession', '4-3-3'), elite)
@@ -349,7 +349,7 @@ describe('depth in the match engine', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b))
     const summary = { score: `${a.homeGoals}-${a.awayGoals}`, events: a.events.length, xg: `${a.xg.home}/${a.xg.away}`, cards: a.events.filter((e) => e.type === 'yellow' || e.type === 'red').length }
     console.log('depth-pin', JSON.stringify(summary))
-    // Pinned on ENGINE_VERSION 4. Any change to the draws a match takes from the seed moves these,
+    // Pinned on ENGINE_VERSION 4, and the same on 5 (this match makes no change a keeper-only man could take). Any change to the draws a match takes from the seed moves these,
     // and must bump the version: a mismatch here is the reminder. A data rebuild can move them too
     // (the pools are real players): 3.2 became 3.18 when the 2026-10-25 rebuild un-swapped the
     // 2008-14 left and right positions and C. Ronaldo 2008-09 joined the elite pool as a right winger.

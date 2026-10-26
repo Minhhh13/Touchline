@@ -77,7 +77,7 @@ describe('scroll boxes', () => {
     expect(scrollFocusAction({ ...base, scrollable: true, ownTabIndex: true })).toBe('none')
   })
   it('covers the shell boxes and the table wrappers', () => {
-    for (const sel of ['.fit-cell', '.tab-body', '.tbl-wrap', '.screen-body', '.draft-log', '.summary-body']) expect(SCROLL_BOXES).toContain(sel)
+    for (const sel of ['.fit-cell', '.tab-body', '.tbl-wrap', '.screen-body', '.draft-log', '.summary-body', '.gbg-list', '.md-flank > dl']) expect(SCROLL_BOXES).toContain(sel)
   })
 })
 

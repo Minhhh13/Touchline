@@ -29,6 +29,45 @@ describe('season', () => {
     expect(pairs.size).toBe(380)
   })
 
+  it('never puts a club at the same venue more than twice running, for every league size and seed (TL-05)', () => {
+    const longestRun = (xs: string[]) => xs.reduce((acc, x, i) => { const cur = i > 0 && x === xs[i - 1] ? acc.cur + 1 : 1; return { cur, best: Math.max(acc.best, cur) } }, { cur: 0, best: 0 }).best
+    for (let size = 2; size <= 24; size++) {
+      const ids = Array.from({ length: size }, (_, i) => `t${i}`)
+      const weeks = size % 2 ? size * 2 : (size - 1) * 2
+      for (let s = 0; s < 12; s++) {
+        const fixtures = generateFixtures(ids, new Rng(`venues-${size}-${s}`))
+        expect(fixtures.length).toBe(size * (size - 1))
+        // Matchweek order, every club once a week at most, every ordered pair exactly once
+        expect(fixtures.map((f) => f.matchweek)).toEqual([...fixtures.map((f) => f.matchweek)].sort((a, b) => a - b))
+        expect(Math.max(...fixtures.map((f) => f.matchweek))).toBe(weeks)
+        expect(new Set(fixtures.map((f) => `${f.homeTeamId}>${f.awayTeamId}`)).size).toBe(fixtures.length)
+        for (let mw = 1; mw <= weeks; mw++) {
+          const playing = fixtures.filter((f) => f.matchweek === mw).flatMap((f) => [f.homeTeamId, f.awayTeamId])
+          expect(new Set(playing).size).toBe(playing.length)
+        }
+        for (const id of ids) {
+          const mine = fixtures.filter((f) => f.homeTeamId === id || f.awayTeamId === id)
+          const venues = mine.map((f) => (f.homeTeamId === id ? 'H' : 'A'))
+          expect(venues.filter((v) => v === 'H').length).toBe(size - 1)
+          expect(longestRun(venues)).toBeLessThanOrEqual(2)
+          // Each half is a full round robin, and from four clubs up no rematch comes in the very next game
+          const half = mine.filter((f) => f.matchweek <= weeks / 2)
+          expect(new Set(half.map((f) => (f.homeTeamId === id ? f.awayTeamId : f.homeTeamId))).size).toBe(size - 1)
+          for (let i = 1; size >= 4 && i < mine.length; i++) {
+            const opp = (f: typeof mine[number]) => (f.homeTeamId === id ? f.awayTeamId : f.homeTeamId)
+            expect(opp(mine[i])).not.toBe(opp(mine[i - 1]))
+          }
+        }
+      }
+    }
+  })
+
+  it('varies the schedule with the seed', () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `t${i}`)
+    const firstWeek = (seed: string) => generateFixtures(ids, new Rng(seed)).filter((f) => f.matchweek === 1).map((f) => `${f.homeTeamId}>${f.awayTeamId}`).sort().join(',')
+    expect(new Set(Array.from({ length: 20 }, (_, i) => firstWeek(`vary-${i}`))).size).toBe(20)
+  })
+
   it('simulates a full season for an auto-drafted squad in the 2025-26 league', () => {
     const rng = new Rng('season-1')
     const leagueSeason = 2025

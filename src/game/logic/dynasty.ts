@@ -2,7 +2,6 @@ import type { Game } from '../types'
 import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import type { PlayerSeason } from '@engine/types'
-import { overallOf } from '@engine/positions'
 import { newDraft } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { playerLookup, squadPlayers } from './players'
@@ -11,6 +10,7 @@ import { releasePlayer } from './marketOps'
 import { openWindow } from '@engine/market'
 import { WAGE_MULT } from '@engine/status'
 import { logMorale } from './happiness'
+import { developedOverall } from './development'
 import { focusFilter } from './scouting'
 import type { Contract } from '../types'
 
@@ -49,8 +49,8 @@ export function ageOneYear(p: PlayerSeason, rng: Rng, year: number): PlayerSeaso
   bump('strength', age >= 33 ? physicalBias * 0.8 : age >= 30 ? -delta : 0)
   bump('aggression', -delta)
   bump('workRate', -delta)
-  const next: PlayerSeason = { ...p, id: `${p.playerId}@dyn${year}`, age, attributes: attrs, accolades: [], overall: 0 }
-  next.overall = overallOf(next)
+  // A delta from the displayed overall, never the one the attributes derive (`developedOverall`, INV-01)
+  const next: PlayerSeason = { ...p, id: `${p.playerId}@dyn${year}`, age, attributes: attrs, accolades: [], overall: developedOverall(p, attrs) }
   // Value follows the new rating and age
   const base = 0.25 * Math.pow(1.21, next.overall - 60)
   const ageF = age <= 21 ? 1.3 : age <= 26 ? 1.15 : age <= 29 ? 1 : age <= 31 ? 0.72 : age <= 33 ? 0.45 : 0.25

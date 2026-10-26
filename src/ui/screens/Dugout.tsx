@@ -61,6 +61,7 @@ import type { BoxSet } from '../boxes'
 import type { Game } from '@game/types'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { countPhrase } from '../screenText'
+import { newsBody } from '@game/logic/newsFlavour'
 
 type Tab = DugoutTab
 
@@ -324,8 +325,8 @@ export function Dugout() {
                 </button>
               )}
               <button className="btn primary big" onClick={() => void store.playWeekSoon()} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
-                <span className="lbl-long">{store.playingWeek ? 'Playing…' : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
-                <span className="lbl-short">{store.playingWeek ? 'Playing…' : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
+                <span className="lbl-long">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
+                <span className="lbl-short">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatch())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
@@ -664,7 +665,7 @@ export function Dugout() {
                   </span>
                   <span>
                     <div className="t">{n.title}</div>
-                    <div className="b">{n.body}</div>
+                    <div className="b">{newsBody(n)}</div>
                     <InboxActions item={n} game={game} onAction={act} />
                   </span>
                   <span className="news-mw">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
@@ -1041,7 +1042,7 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
               const current = t.setPieces?.[sp.key] ?? ''
               return (
                 <Instruction key={sp.key} label={sp.label} help={sp.hint}>
-                  <select className="input" aria-label={sp.label} value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
+                  <select className="input" aria-label={`${sp.label} taker`} value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
                     <option value="">Auto: best on the pitch</option>
                     {xi.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1390,7 +1391,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     {l.response && <span className="chip">{l.response}</span>}
                   </div>
                   <div className="bidrow">
-                    <input className="input" type="number" min={0.1} step={0.5} value={bid} onChange={(e) => setBids({ ...bids, [l.playerSeasonId]: Number(e.target.value) })} />
+                    <input className="input" type="number" min={0.1} step={0.5} value={bid} onChange={(e) => setBids({ ...bids, [l.playerSeasonId]: Number(e.target.value) })} aria-label={`Your bid for ${p.name}, in £ millions`} />
                     <span className="small muted">£M</span>
                     <button
                       className="btn sm primary"

@@ -8,4 +8,4 @@
  * stamp beside the data stamp so a mismatch can be reported instead of silently
  * failing verification.
  */
-export const ENGINE_VERSION = '4'
+export const ENGINE_VERSION = '5'

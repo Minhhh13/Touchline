@@ -1,4 +1,5 @@
-import { Component, createElement, lazy, Suspense, type ComponentType, type ReactNode } from 'react'
+import { Component, createElement, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
+import { House, RotateCcw, TriangleAlert } from 'lucide-react'
 
 /**
  * Route-level code splitting: every screen but Home is its own chunk, so a phone downloads, parses and compiles only
@@ -6,7 +7,8 @@ import { Component, createElement, lazy, Suspense, type ComponentType, type Reac
  * time (`prefetchScreens`), in the order a player meets them, so the first tap on a mode rarely waits and every screen
  * is in the service worker's cache for the next offline visit. A screen whose chunk is already in renders at once,
  * without a Suspense frame; one still on its way shows `ScreenFallback`; one that cannot load (offline before it was
- * fetched, or a deploy replaced it) shows `ScreenBoundary`'s reload card instead of a blank page.
+ * fetched, or a deploy replaced it) shows `ScreenBoundary`'s reload card instead of a blank page, and a screen that throws
+ * while rendering shows its Back to home and Reload card.
  */
 
 /** Whether this page loaded before a service worker controlled it (a first visit): its assets then bypassed the worker's cache. */
@@ -63,27 +65,89 @@ export function ScreenFallback() {
   )
 }
 
-/** A screen's chunk that failed to load: say so and offer a reload, rather than an empty page. */
-export class ScreenBoundary extends Component<{ children: ReactNode; screenKey: string }, { failed: boolean; key: string }> {
-  state = { failed: false, key: this.props.screenKey }
-  static getDerivedStateFromError() {
-    return { failed: true }
+/**
+ * A screen chunk that could not be fetched (offline before it was prefetched, or a deploy replaced it), as Chromium,
+ * Firefox, Safari and Vite's CSS preload word it, as opposed to a render error in a screen that did load. Pure.
+ */
+export function isChunkLoadError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return error.name === 'ChunkLoadError' || /dynamically imported module|Importing a module script failed|Unable to preload CSS|Loading (?:CSS )?chunk \S+ failed/i.test(error.message)
+}
+
+interface BoundaryProps {
+  children: ReactNode
+  /** The screen on show: a new key (another screen or phase) clears a caught error, so that screen gets its own try. */
+  resetKey: string
+  onHome: () => void
+}
+
+interface BoundaryState {
+  error: Error | null
+  key: string
+}
+
+/**
+ * The one boundary around the screens: it holds the Suspense frame of a lazy screen and catches whatever goes wrong
+ * below it, so the page is never left white with no way out. A chunk that did not load says so and offers a reload; a
+ * screen that threw while rendering shows the error, Back to home and Reload, the top bar kept. The save is untouched:
+ * the store's state is not part of the render. Navigating to another screen or phase resets it.
+ */
+export class ScreenBoundary extends Component<BoundaryProps, BoundaryState> {
+  state: BoundaryState = { error: null, key: this.props.resetKey }
+
+  static getDerivedStateFromError(error: Error): Partial<BoundaryState> {
+    return { error }
   }
-  static getDerivedStateFromProps(props: { screenKey: string }, state: { failed: boolean; key: string }) {
-    // Moving to another screen clears the card: that screen gets its own try
-    return props.screenKey !== state.key ? { failed: false, key: props.screenKey } : null
+
+  static getDerivedStateFromProps(props: BoundaryProps, state: BoundaryState): Partial<BoundaryState> | null {
+    return props.resetKey !== state.key ? { error: null, key: props.resetKey } : null
   }
-  render() {
-    if (!this.state.failed) return <Suspense fallback={<ScreenFallback />}>{this.props.children}</Suspense>
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(isChunkLoadError(error) ? 'Screen chunk did not load' : 'Screen error', error, info.componentStack)
+  }
+
+  render(): ReactNode {
+    const { error } = this.state
+    if (!error) return <Suspense fallback={<ScreenFallback />}>{this.props.children}</Suspense>
+    const chunk = isChunkLoadError(error)
+    const reload = (
+      <button type="button" className={chunk ? 'btn primary' : 'btn'} onClick={() => location.reload()} data-testid="screen-error-reload">
+        <RotateCcw size={16} aria-hidden="true" /> Reload
+      </button>
+    )
+    const home = (
+      <button type="button" className={chunk ? 'btn' : 'btn primary'} onClick={this.props.onHome} data-testid="screen-error-home">
+        <House size={16} aria-hidden="true" /> Back to home
+      </button>
+    )
     return (
       <div className="page">
-        <div className="panel col" data-testid="screen-load-error">
-          <h2>This screen did not load</h2>
-          <p className="muted">It needs a connection the first time. Your game is saved: reload to try again.</p>
+        <div className="panel col" role="alert" data-testid={chunk ? 'screen-load-error' : 'screen-error'}>
+          <h2 className="row">
+            <TriangleAlert size={20} aria-hidden="true" /> {chunk ? 'This screen did not load' : 'This screen hit a problem'}
+          </h2>
+          {chunk ? (
+            <p className="muted">It needs a connection the first time. Your game is saved: reload to try again.</p>
+          ) : (
+            <>
+              <p className="muted">Your game and your record are saved. Go back to the home screen, or reload the page to try this screen again.</p>
+              <p className="muted small mono">{error.message}</p>
+            </>
+          )}
+          {/* The likely fix goes first: a reload for a chunk, home for a screen that threw */}
           <div className="row wrap">
-            <button className="btn primary" onClick={() => location.reload()}>
-              Reload
-            </button>
+            {chunk ? (
+              <>
+                {reload}
+                {home}
+              </>
+            ) : (
+              <>
+                {home}
+                {reload}
+              </>
+            )}
           </div>
         </div>
       </div>

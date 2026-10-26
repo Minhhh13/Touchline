@@ -116,8 +116,9 @@ describe('Dressing Room', () => {
 
   it('the quick season unlocks it on a chained title and only then', () => {
     // Seeds found by sweeping 60 chained England drafts (2 titles, mean 50.6 points; unchained 16 titles, 69.6); re-swept
-    // over 100 on main's Quick Draft defaults when main merged in (titles on 53 and 78, both unbroken)
-    for (const [seed, champion] of [['chain-measure-53', true], ['chain-measure-78', true], ['chain-measure-0', false]] as const) {
+    // over 100 on main's Quick Draft defaults when main merged in (titles on 53 and 78, both unbroken), and on ENGINE_VERSION
+    // '5' (titles on 4 and 53, both unbroken)
+    for (const [seed, champion] of [['chain-measure-53', true], ['chain-measure-4', true], ['chain-measure-0', false]] as const) {
       const g = drafted({ seed })
       runQuickSeason(g, u)
       expect(g.quickResult!.position === 1, seed).toBe(champion)

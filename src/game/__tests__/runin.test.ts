@@ -10,7 +10,7 @@ import { playMatchweek } from '../logic/week'
 import { inRecordBooks } from '../logic/records'
 import { finishDraftLabel, MODE_TITLE, modeLabel } from '../logic/modes'
 import { nextStop, stopLine } from '../logic/seasonHighlights'
-import { beginRunIn, briefOpen, briefStanding, gapLine, realFinish, RUN_IN_CONFIDENCE, RUN_IN_MORALE, RUN_IN_SPINS, RUN_IN_SQUAD, runInEntry, runInGameSettings, runInShare, runInUnlocks, runInVerdict, seedRunInDraft, takeoverTable } from '../logic/runin'
+import { beginRunIn, briefOpen, briefStanding, gapLine, realFinish, RUN_IN_CONFIDENCE, RUN_IN_MORALE, RUN_IN_SPINS, RUN_IN_SQUAD, runInEntry, runInGameSettings, runInShare, runInUnlocks, runInVerdict, seedRunInDraft, takeoverTable, runInProjectedLineup } from '../logic/runin'
 import type { LoadedUniverse } from '@engine/universe'
 import type { Game } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
@@ -47,6 +47,32 @@ function playOut(g: Game, uv: LoadedUniverse = u): number {
   }
   return weeks
 }
+
+describe('Run-in: the reinforcements on the pitch', () => {
+  it('shows the XI the job will start with, signings included, without touching the draft', () => {
+    let signingsInXI = 0
+    for (const seed of ['runin-xi-1', 'runin-xi-2', 'runin-xi-3', 'runin-xi-4']) {
+      const g = createGame(runInGameSettings(u, WEST_HAM, { seed }))
+      seedRunInDraft(g, u)
+      // Nothing drafted yet: the pitch shows the club's own XI
+      expect(runInProjectedLineup(g, u)).toBeNull()
+      const rng = Rng.fromState(g.rngState)
+      autoDraft(u, g.draft!, rng)
+      g.rngState = rng.getState()
+      const before = JSON.stringify(g)
+      const projected = runInProjectedLineup(g, u)!
+      expect(JSON.stringify(g)).toBe(before)
+      beginRunIn(g, u)
+      expect(projected).toEqual(g.lineup)
+      const signed = new Set(JSON.parse(before).draft.history.flatMap((h: { pickedId: string | null }) => (h.pickedId ? [h.pickedId] : [])))
+      signingsInXI += Object.values(projected).filter((id) => signed.has(id)).length
+    }
+    expect(signingsInXI).toBeGreaterThan(0)
+    // Not a run-in, no projection
+    const quick = createGame({ ...runInGameSettings(u, WEST_HAM, { seed: 'runin-xi-q' }), mode: 'quick' })
+    expect(runInProjectedLineup(quick, u)).toBeNull()
+  }, 120_000)
+})
 
 describe('Run-in: the takeover', () => {
   it('inherits the real squad and seeds a draft of four spins on top of it', () => {

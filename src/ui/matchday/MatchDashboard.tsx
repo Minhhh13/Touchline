@@ -25,6 +25,7 @@ import type { LiveMatch, MatchContext } from '@game/types'
 import { LivePitch, useMediaQuery } from '../components/LivePitch'
 import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
+import { commentaryContextFor } from '../match/commentaryColour'
 import { matchPath } from '../match/epochs'
 import { cuePending, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
@@ -45,6 +46,7 @@ import { StopPanel, type StopActions } from './StopPanel'
 import { TopBar } from './TopBar'
 import type { LiveControl, MatchdayData, SideView } from './types'
 import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
+import { readMark, resumeFrom, resumeLine, segmentKey, writeMark } from './resume'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { MATCHDAY_COMPACT, matchdayBoxes, readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
@@ -89,7 +91,12 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const story = useMemo(() => xgStory(feed), [feed])
   const ref = useMemo(() => roundRefOf(ctx, live?.cupTieIndex), [ctx, live?.cupTieIndex])
   const elsewhere = useMemo(() => elsewhereLines(latestScores(game, u, ref, feed.lastMinute, true)), [game, u, ref, feed.lastMinute])
-  const commentary = useMemo(() => commentaryUpTo(feed, mpath, feed.lastMinute, codes, getName, elsewhere), [feed, mpath, codes, getName, elsewhere])
+  // The table and our men's season before kick-off, for the commentary's colour (a live league match only; display only)
+  const liveLeague = live?.kind === 'league'
+  const season = game.season
+  const squad = game.squad
+  const talk = useMemo(() => commentaryContextFor({ season, squad }, homeId, awayId, liveLeague), [season, squad, homeId, awayId, liveLeague])
+  const commentary = useMemo(() => commentaryUpTo(feed, mpath, feed.lastMinute, codes, getName, elsewhere, talk), [feed, mpath, codes, getName, elsewhere, talk])
 
   // The clock: from the segment's start (or the last change in play) to the stop, or to the whistle
   const stopAt = stopTarget(feed)
@@ -102,9 +109,24 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const holds = useMemo(() => mpath.epochs.flatMap((e) => goalHolds(feed.events, e.from, e.to, { userSide: userSide ?? undefined, reduced, replay: keyMoments })).sort((a, b) => a.t - b.t), [mpath, feed.events, userSide, reduced, keyMoments])
   // Every chance, save and foul behind a card is a cue: its minute's commentary and panels wait until the pitch has shown it
   const cues = useMemo(() => mpath.epochs.flatMap((e) => cueTimes(feed.events, e.from, e.to)).sort((a, b) => a - b), [mpath, feed.events])
-  const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  // A reload picks the clock up where this tab left the segment (resume.ts), not from its first minute again
+  const resumeKey = live ? segmentKey(game.id, feed.key, feed.decidedTo, start, feed.events.length) : null
+  const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(), resumeKey, start, stopAt) : start))
+  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  useEffect(() => {
+    if (!resumeKey) return
+    return useLiveClock.subscribe((s, prev) => {
+      if (s.clock !== prev.clock || s.done !== prev.done) writeMark({ key: resumeKey, at: s.done ? s.stopAt + 1 : s.clock })
+    })
+  }, [resumeKey])
+  const showToast = store.showToast
+  useEffect(() => {
+    const line = resumeLine(resumeAt, start, stopAt)
+    if (line) showToast(line)
+    // Mount only: the line is about the reload
+  }, [])
   // The whistle, the crowd and the net, on the same clock the pitch draws from (presentation only)
-  useMatchSounds({ events: feed.events, ranges: mpath.epochs, holds, userSide, start, stopAt, final, reduced })
+  useMatchSounds({ events: feed.events, ranges: mpath.epochs, holds, userSide, start: resumeAt, stopAt, final, reduced })
   // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
   const revealed = useLiveClock((s) => s.revealed)
   const cued = useLiveClock((s) => s.cued ?? 0)
