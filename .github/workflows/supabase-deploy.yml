@@ -1,0 +1,50 @@
+name: Supabase deploy
+
+# Manual only: it never runs on push, so it can never block Render's deploy of main. Applies the migrations and
+# deploys this engine's Edge Function (touchline-e{ENGINE_VERSION}) to the TouchLine project yvqpmyqomkwtudxmkeou.
+# Needs the environment "production" (Settings > Environments, with a required reviewer) holding the secrets
+# SUPABASE_ACCESS_TOKEN (a scoped personal access token for this project only) and SUPABASE_DB_PASSWORD.
+# No Supabase API key lives in GitHub: the function uses the platform's own service role.
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: 'migrations, function, or both'
+        required: true
+        default: 'both'
+        type: choice
+        options: [both, migrations, function]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: yvqpmyqomkwtudxmkeou
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run src/online
+      - name: Migrations
+        if: inputs.what != 'function'
+        run: |
+          npx -y supabase@2.122.0 link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+          npx -y supabase@2.122.0 db push --password "$SUPABASE_DB_PASSWORD"
+      - name: Edge Function
+        if: inputs.what != 'migrations'
+        run: npm run deploy:function

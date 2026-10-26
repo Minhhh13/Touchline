@@ -10,3 +10,14 @@ coverage
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Environment (only the example is committed)
+.env
+.env.*
+!.env.example
+
+# Supabase CLI state and generated function bundles
+supabase/.temp/
+supabase/.branches/
+supabase/functions/touchline-e*/
+supabase/functions/_shared/verifier.js

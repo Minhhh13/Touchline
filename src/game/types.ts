@@ -680,6 +680,8 @@ export interface Profile {
   runIns?: RunInEntry[]
   /** Coach marks dismissed, tip id to the ISO date it was dismissed; missing on older saves (every tip unseen). */
   seenTips?: Record<string, string>
+  /** The manager's favourite club (a club id), chosen on the account's profile step or the Profile screen; absent when none. Display only. */
+  favouriteClub?: string
   /** The 38-0 chase across every Quick Draft and Daily season in this browser; missing on older saves (filled by `normaliseProfile`). */
   quickBests?: QuickBests
   /**

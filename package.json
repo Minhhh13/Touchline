@@ -11,9 +11,15 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc -b --noEmit"
+    "lint": "tsc -b --noEmit",
+    "check:dist-keys": "node scripts/online/check-dist-keys.mjs dist",
+    "sql:test": "bash scripts/online/sql/run-local.sh",
+    "build:verifier": "node scripts/online/build-verifier.mjs",
+    "check:verifier": "node scripts/online/check-verifier.mjs --no-build",
+    "deploy:function": "node scripts/online/deploy-function.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.117.3",
     "immer": "^11.2.9",
     "lucide-react": "1.53.0",
     "lz-string": "1.5.0",
@@ -26,6 +32,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
+    "esbuild": "0.25.12",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vitest": "^3.2.0"

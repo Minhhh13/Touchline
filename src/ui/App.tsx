@@ -12,6 +12,7 @@ import { Explore } from './screens/Explore'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
+import { Privacy } from './screens/Privacy'
 import { Arena } from './screens/Arena'
 import { ArenaSetup } from './screens/ArenaSetup'
 import { ArenaChallengeSetup } from './screens/ArenaChallengeSetup'
@@ -28,10 +29,15 @@ import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
-import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
+import { WorldBoard } from './online/WorldBoard'
+import { AccountChip } from './online/AccountChip'
+import { AccountScreen } from './online/AccountPanel'
+import { parseGameHash } from '../online/core/codes'
+import { onlineAvailable, resolveShort } from '../online/api'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
@@ -87,14 +93,20 @@ export function App() {
     void loadData()
   }, [loadData])
 
-  // A challenge link (`#c=...`) opens once the default league is in: the hash is cleared so a reload does not reopen it
+  // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
+  // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
   useEffect(() => {
     if (!universe) return
     const open = () => {
-      const m = /^#c=([A-Za-z0-9_-]+)$/.exec(location.hash)
-      if (!m) return
+      const h = parseGameHash(location.hash)
+      if (!h || h.kind === 'h') return
       history.replaceState(null, '', location.pathname + location.search)
-      void openChallenge(m[1])
+      if (h.kind === 'c') void openChallenge(h.payload)
+      else
+        void resolveShort(h.code).then((r) => {
+          if (r.ok) void openChallenge(r.encoded)
+          else useStore.getState().showToast(r.message)
+        })
     }
     if (!hashHandled.current) {
       hashHandled.current = true
@@ -168,7 +180,7 @@ export function App() {
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
   // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
   // Setup and the match day keep their own layouts
-  let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto'
+  let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto' || screen === 'world' || screen === 'account'
   if (screen === 'game' && game) {
     // An arena shoot-out waiting for its takers is a shell screen too (`.page.fit`)
     shell = game.phase !== 'match' || !!game.arena?.pending
@@ -185,6 +197,9 @@ export function App() {
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />
   else if (screen === 'howto') body = <HowTo />
+  else if (screen === 'world') body = <WorldBoard />
+  else if (screen === 'privacy') body = <Privacy />
+  else if (screen === 'account') body = <AccountScreen />
   else body = <Home />
 
   return (
@@ -212,6 +227,12 @@ export function App() {
             <Search size={16} />
             <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
           </button>
+          {onlineAvailable() && (
+            <button className={screen === 'world' ? 'active' : ''} onClick={() => nav('world')} data-testid="nav-world">
+              <Globe size={16} />
+              <span className="nav-label">World</span>
+            </button>
+          )}
           <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
@@ -221,6 +242,7 @@ export function App() {
             <span className="nav-label">How it works</span>
           </button>
         </nav>
+        {onlineAvailable() && <AccountChip active={screen === 'account'} onOpen={() => nav('account')} />}
         <button
           type="button"
           className="theme-switch"

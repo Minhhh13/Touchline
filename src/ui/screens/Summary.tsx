@@ -31,7 +31,7 @@ import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { APP_NAME } from '../brand'
-import { challengeFromGame, challengeLink, claimCupsLine, claimOf, verdictLine } from '@game/logic/challenge'
+import { challengeFromGame, claimCupsLine, claimOf, verdictLine } from '@game/logic/challenge'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
@@ -40,6 +40,8 @@ import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
+import { shareLink } from '../../online/api'
+import { RankedStatus } from '../online/RankedStatus'
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { CupRuns } from '../components/CupRuns'
 import { ManagerChip } from '../components/ManagerPick'
@@ -56,6 +58,9 @@ export function Summary() {
   const [cardUrl, setCardUrl] = useState<string | null>(null)
   // The game whose highlights are open, by matchweek
   const [hlWeek, setHlWeek] = useState<number | null>(null)
+  // The long #c= link, offered beside a short one: it works offline and without the server
+  const [longLink, setLongLink] = useState<string | null>(null)
+  const [shortCode, setShortCode] = useState<string | null>(null)
   // The post-season cups being revealed tie by tie (both can be at once): the banner keeps each trophy back until its run is shown
   const [revealingCups, setRevealingCups] = useState<QuickCupComp[]>([])
   const onCupReveal = useCallback((comp: QuickCupComp, on: boolean) => setRevealingCups((list) => (on ? (list.includes(comp) ? list : [...list, comp]) : list.filter((c) => c !== comp))), [])
@@ -201,11 +206,15 @@ export function Summary() {
       showToast('This result cannot be packed into a challenge.')
       return
     }
-    const url = challengeLink(c, location.origin, location.pathname)
+    // A short #s= link when signed in and online; the long #c= link otherwise (it always works)
+    const share = await shareLink(c)
+    const url = share.url
     setLink(url)
+    setShortCode(share.code)
+    setLongLink(share.code ? share.longUrl : null)
     try {
       await navigator.clipboard.writeText(url)
-      showToast(`Challenge link copied (${url.length} characters). Send it to a friend.`)
+      showToast(share.code ? `Short link ${share.code} copied. Send it to a friend.` : `Challenge link copied (${url.length} characters). Send it to a friend.`)
     } catch {
       showToast('Could not copy. The link is below.')
     }
@@ -431,6 +440,7 @@ export function Summary() {
 
       {/* Everything under the result: on a desktop one panel that scrolls inside itself */}
       <div className="summary-body fill" data-testid="summary-body">
+      {!replay.playing && <RankedStatus game={game} />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
       {q && results.length > 0 && (
         <GameByGame
@@ -519,7 +529,13 @@ export function Summary() {
               </Info>
             </span>
           </div>
-          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} />
+          <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} data-testid="challenge-link-url" />
+          {shortCode && <div className="small muted" style={{ marginTop: 6 }}>Code {shortCode}: it opens on any device with a connection, signed in or not.</div>}
+          {longLink && (
+            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void navigator.clipboard?.writeText(longLink).then(() => showToast('Long link copied.'), () => setLink(longLink))}>
+              Copy the long link (works offline)
+            </button>
+          )}
         </div>
       )}
 
