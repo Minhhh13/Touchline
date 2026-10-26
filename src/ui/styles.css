@@ -129,14 +129,15 @@
   --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --fs-xs: 11px;
-  --fs-meta: 12px;
-  --fs-sm: 13px;
-  --fs-base: 14px;
-  --fs-h3: 19px;
-  --fs-h2: 24px;
-  --fs-h1: 32px;
-  --fs-hero: 64px;
+  /* In rem (the same 11 to 64 px at the browser's default 16 px), so the type scale follows a reader's larger default text */
+  --fs-xs: 0.6875rem;
+  --fs-meta: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.875rem;
+  --fs-h3: 1.1875rem;
+  --fs-h2: 1.5rem;
+  --fs-h1: 2rem;
+  --fs-hero: 4rem;
   /* Space, shape, elevation */
   --space-1: 4px;
   --space-2: 8px;
@@ -14132,3 +14133,75 @@ details.opposition {
   font-weight: 700;
 }
 
+
+/* ------------------------------------------------------------------------------- accessibility pass (2026-10-26) */
+/* docs/ACCESSIBILITY.md. Phones only, so the desktop's one-screen fit is untouched. */
+@media (max-width: 720px) {
+  /* Touch targets of 44 px (Apple's minimum; WCAG 2.5.8 asks 24) where they are the way around the app: the top bar's
+     pills, its round buttons and the fold heads. The round buttons keep their look and take the room from an ::after */
+  .topbar nav button {
+    min-height: 44px;
+  }
+  .theme-switch,
+  .fold-head {
+    position: relative;
+  }
+  .theme-switch::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+  }
+  .fold-head {
+    min-height: 44px;
+  }
+  .info-btn::after {
+    inset: -13px;
+  }
+  /* The setup cards' "i" sits beside its card: 32 px, clear of the card's own target */
+  .qinfo-btn {
+    position: relative;
+  }
+  .qinfo-btn::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+  /* Larger text (iOS text size, a reader's default font size): rows and heads wrap or give way rather than run off
+     the screen. A player row's name column may shrink below its content; the manager guide's edge wraps under its name;
+     the season picker shares its line or takes its own */
+  .prow {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+  .mspin-styles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mspin-style > .row {
+    flex-wrap: wrap;
+  }
+  .step-head-row {
+    flex-wrap: wrap;
+  }
+  .step-head-row .season-pick {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Home's three figures wrap to a second line rather than run off the hero (its text column may be narrower than
+     the lockup, which the hero clips) */
+  .hero-content {
+    min-width: 0;
+  }
+  .hero-stats {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+}
+@media (max-width: 520px) {
+  /* A mode card that grows taller with larger text: the picture's subject layer is an absolutely placed <svg>, which
+     takes its width from its height (2:1) rather than from its insets, so it ran 80 px into the text. Its width is
+     set outright, twice the square, as the clip-path expects */
+  .mode-art .mode-scene.scene-subject {
+    inset: 0 auto 0 -50%;
+    width: 200%;
+  }
+}
