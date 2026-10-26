@@ -6389,7 +6389,7 @@ dl.kv {
   border-left: 3px solid var(--caption-kit, transparent);
   background: var(--pitch-disc);
   color: #fff;
-  font-size: 11px;
+  font-size: 11px; /* px: on the live pitch */
   font-weight: 600;
   line-height: 17px;
   letter-spacing: 0.01em;
@@ -6444,7 +6444,7 @@ dl.kv {
   border-left: 3px solid var(--pitch-highlight);
   background: var(--pitch-disc);
   color: #fff;
-  font-size: 11px;
+  font-size: 11px; /* px: on the live pitch */
   font-weight: 700;
   line-height: 17px;
   letter-spacing: 0.08em;
@@ -6666,7 +6666,7 @@ dl.kv {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
 }
 .decision-actions {
@@ -6709,7 +6709,7 @@ dl.kv {
   .decision-actions .btn {
     flex: 1 1 40%;
     padding: 8px 6px;
-    font-size: 14px;
+    font-size: var(--fs-base);
   }
   .decision-actions .btn.primary {
     flex-basis: 100%;
@@ -6726,7 +6726,7 @@ dl.kv {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-2);
@@ -6763,7 +6763,7 @@ dl.kv {
 }
 .chip-btn {
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-2);
@@ -6780,7 +6780,7 @@ dl.kv {
 .mode-tag {
   display: inline-block;
   margin-left: 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   padding: 1px 7px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, currentColor 18%, transparent);
@@ -6808,7 +6808,7 @@ dl.kv {
 .gbg-hl {
   min-width: 30px;
   padding: 2px 6px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .hl-score {
   display: grid;
@@ -6827,7 +6827,7 @@ dl.kv {
 }
 .hl-goals {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: calc(var(--fs-h1) - 2px);
   line-height: 1;
 }
 .hl-line {
