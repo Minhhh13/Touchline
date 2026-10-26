@@ -34,6 +34,9 @@ function getJson<T>(path: string): Promise<T> {
   })
 }
 
+/** A break between the parse of a pack and its build, so the two run as two tasks and the page can paint between them. */
+const yieldToMain = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
 /** Keep a promise in `cache` under `key` unless it fails, so the next call retries the network. */
 function cached<T>(cache: Map<string, Promise<T>>, key: string, make: () => Promise<T>): Promise<T> {
   let p = cache.get(key)
@@ -78,6 +81,7 @@ function loadStandard(id: string): Promise<StandardLeague> {
     const [players, meta, index] = await Promise.all([getJson<PlayersFile>(`${id}/players.json`), getJson<MetaFile>(`${id}/meta.json`), fetchLeaguesIndex()])
     const info = index.leagues.find((l) => l.id === id)
     const header = { version: players.version, generatedAt: players.generatedAt, columns: players.columns }
+    await yieldToMain()
     return { u: buildLeague(players, meta, info), meta, header, info }
   })
 }
@@ -86,12 +90,9 @@ function loadFull(id: string): Promise<LoadedUniverse> {
   return cached(fullCache, id, async () => {
     const s = await loadStandard(id)
     if (!hasClassicPack(s.info)) return s.u
-    // As the engine's loader: a failed classic fetch loads the standard seasons only, and is tried again next time
-    const classic = await getJson<PlayersFile>(`${id}/players-classic.json`).catch(() => undefined)
-    if (!classic) {
-      fullCache.delete(id)
-      return s.u
-    }
+    // Asked for on purpose, so a failed fetch fails the load (the store says so and keeps what it has); the next ask retries
+    const classic = await getJson<PlayersFile>(`${id}/players-classic.json`)
+    await yieldToMain()
     return withClassic(s.u, s.header, s.meta, s.info, classic)
   })
 }
