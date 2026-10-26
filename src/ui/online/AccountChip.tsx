@@ -31,7 +31,7 @@ export function AccountChip({ onOpen, active }: { onOpen: () => void; active: bo
   }, [open])
   if (!session)
     return (
-      <button type="button" className={`theme-switch account-chip${active ? ' active' : ''}`} onClick={onOpen} aria-label="Sign in" aria-current={active ? 'page' : undefined} title="Sign in to save your seasons, records and Dailies to your account" data-testid="account-chip">
+      <button type="button" className={`theme-switch account-chip${active ? ' active' : ''}`} onClick={onOpen} aria-label="Sign in or create an account" aria-current={active ? 'page' : undefined} title="Sign in or create an account" data-testid="account-chip">
         <LogIn size={18} />
       </button>
     )
