@@ -6,9 +6,14 @@ import type { PlayerSeason } from '@engine/types'
 import { countPhrase } from '../screenText'
 import { seasonLabel } from '../format'
 import { Tip } from './bits'
+import { useEffect } from 'react'
+import { prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
 
 const GRADE_CLASS: Record<PickGrade, string> = { A: 'good', B: 'info', C: 'warn', D: 'bad' }
 const GRADES: PickGrade[] = ['A', 'B', 'C', 'D']
+/** Seconds from the recap's mount to the grade's pop at its fullest (`recap-pop`: 60 ms stagger, then a 400 ms spring). */
+const GRADE_SOUND_DELAY = 0.24
 
 /**
  * The Draft's middle box once every pick is made: the draft's grade and verdict, the grade tally, the best pick, the one
@@ -20,11 +25,18 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
   const best = r.best ? get(r.best.pickedId) : undefined
   const missed = r.miss ? get(r.miss.pickedId) : undefined
   const span = r.seasons ? (r.seasons[0] === r.seasons[1] ? seasonLabel(r.seasons[0]) : `${seasonLabel(r.seasons[0])} to ${seasonLabel(r.seasons[1])}`) : null
+  // The grade lands with a stamp and its chord, on the pop's peak (the stagger and half the spring), once per visit
+  const first = useFirstReveal(`draft-grade:${r.grade}:${r.picks}:${r.clubs}:${r.nations}:${r.xiRating}`, false)
+  useEffect(() => {
+    if (!first || !r.grade) return
+    const reduced = prefersReducedMotion()
+    playSound({ id: 'grade', grade: r.grade, reduced }, reduced ? 0 : GRADE_SOUND_DELAY)
+  }, [])
   return (
     <div className="draft-recap" data-testid="draft-recap">
       <div className="recap-head">
         {r.grade && (
-          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" aria-label={`Draft grade ${r.grade}`}>
+          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" role="img" aria-label={`Draft grade ${r.grade}`}>
             {r.grade}
           </span>
         )}
@@ -121,7 +133,7 @@ function HindsightXI({ h, slotName }: { h: Hindsight; slotName: (slotId: string)
               <span className="hs-pos">{slotName(p.slotId)}</span>
               <span className="hs-name">{p.name}</span>
               <span className="hs-rating">{p.rating}</span>
-              {p.yours ? <Check size={13} className="hs-tick" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
+              {p.yours ? <Check size={13} className="hs-tick" role="img" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
             </li>
           ))}
         </ol>

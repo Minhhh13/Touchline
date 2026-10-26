@@ -284,7 +284,7 @@ function WeeklyPlay({ weekKey }: { weekKey: string }) {
 /** W-D-L in the result colours: wins green, draws amber, defeats red. */
 function Wdl({ won, drawn, lost }: { won: number; drawn: number; lost: number }) {
   return (
-    <span className="wdl" aria-label={`${won} won, ${drawn} drawn, ${lost} lost`}>
+    <span className="wdl" role="img" aria-label={`${won} won, ${drawn} drawn, ${lost} lost`}>
       <span className="res-w">{won}</span>-<span className="res-d">{drawn}</span>-<span className="res-l">{lost}</span>
     </span>
   )

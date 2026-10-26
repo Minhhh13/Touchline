@@ -43,6 +43,19 @@ describe('pre-season odds', { timeout: 120_000 }, () => {
     expect(oddsFrom(t)).toEqual(whole)
   })
 
+  it('give the same odds over any split of the seasons (the screen samples time-budgeted slices of a few seasons)', () => {
+    const g = drafted('odds-2b')
+    const league = oddsLeague(g, u)
+    const n = ODDS_STEP + 37
+    const whole = oddsFrom(sampleSeasons(league, oddsRng(g), n, emptyTally(league.ids.length)))
+    const rng = oddsRng(g)
+    const t = emptyTally(league.ids.length)
+    const sizes = [1, 5, 7, 2, 13, 5, 5, 1, 30]
+    for (let i = 0; t.seasons < n; i++) sampleSeasons(league, rng, Math.min(sizes[i % sizes.length], n - t.seasons), t)
+    expect(t.seasons).toBe(n)
+    expect(oddsFrom(t)).toEqual(whole)
+  })
+
   it('add up: every season lands in one place, the chances nest and the projection sits inside the table', () => {
     for (const seed of ['odds-3', 'odds-4', 'odds-5']) {
       const o = preSeasonOdds(drafted(seed), u, 400)

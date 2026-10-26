@@ -1,5 +1,6 @@
 import { gameLabel, type SeasonStory } from '@game/logic/story'
 import type { QuickGameResult } from '@game/types'
+import { resultsLabel } from '../a11y'
 
 const CELL: Record<'W' | 'D' | 'L', string> = { W: 'var(--good)', D: 'var(--draw)', L: 'var(--bad)' }
 
@@ -16,7 +17,7 @@ export function SeasonStoryPanel({ story, opponentName }: { story: SeasonStory; 
       <div className="notice" data-testid="story-moment">
         {story.moment}
       </div>
-      <div className="blocks" data-testid="story-strip" role="img" aria-label={`Results in order: ${story.strip.join(' ')}`}>
+      <div className="blocks" data-testid="story-strip" role="img" aria-label={resultsLabel(story.strip, 'Results in order')}>
         {story.strip.map((o, i) => (
           <span key={i} data-outcome={o} title={`MW ${story.results[i]?.matchweek ?? i + 1}: ${o}`} style={{ background: CELL[o] }} />
         ))}

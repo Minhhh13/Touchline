@@ -473,7 +473,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
                 <div style={{ textAlign: 'left' }}>
                   <h3 style={{ margin: 0 }}>{m[i].name}</h3>
                 </div>
-                {r.winner === i && <Trophy size={20} className="h2h-cup" aria-label="Winner" />}
+                {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label="Winner" />}
               </div>
               <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierName(r.tiers[i], r.positions[i])}</span>
               <div className="record">

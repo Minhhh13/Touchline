@@ -5,6 +5,7 @@ import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
 import { surname } from '../match/shirts'
 import { labelRoom } from '../matchday/model'
+import { isActivationKey } from '../a11y'
 
 /** Rough text widths (px per character) of the slot label and its role line (both 11px), to pick a form that fits. */
 const NAME_CH = 6.4
@@ -95,7 +96,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const name = p ? (p.name.length * NAME_CH <= room ? p.name : surname(p.name)) : ''
         const sub = (role + fitNote).length * SUB_CH <= room ? role : roleCodes?.[slot.id] ?? role
         return (
-          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingLine(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? `${p.name}${rated && !hideRatings ? `, ${slotRatingLine(rated, slot.position)}` : ''}` : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
+          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingLine(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role={onSlotClick ? 'button' : 'img'} tabIndex={onSlotClick ? 0 : undefined} aria-label={`${slot.position} ${p ? `${p.name}${rated && !hideRatings ? `, ${slotRatingLine(rated, slot.position)}` : ''}` : 'empty'}`} onKeyDown={(e) => { if (onSlotClick && isActivationKey(e.key)) { e.preventDefault(); onSlotClick(slot.id) } }}>
             <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
               {/* Out of position: the cost against his overall, so 84 here and 89 on his card read as one number */}
