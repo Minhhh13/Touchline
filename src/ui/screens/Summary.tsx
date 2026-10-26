@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Briefcase, Check, ChevronDown, Copy, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
+import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
@@ -48,6 +48,7 @@ import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
 import { ChaseStatus } from '../online/ChaseStatus'
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
 import { ManagerChip } from '../components/ManagerPick'
 import { caseIconIn, caseLine } from '@game/logic/endCase'
@@ -169,6 +170,11 @@ export function Summary() {
   for (const [line, comp] of [[cupLine(q?.cup, 'cup'), 'cup'], [cupLine(q?.continentalCup, 'continental'), 'continental']] as Array<[string | null, QuickCupComp]>) if (line && cupsShown(comp)) extraLines.push(line)
   const quickCupWon = cupsShown('cup') && wonCup(q, 'cup')
   const quickEuroWon = (cupsShown('continental') && q?.continentalCup?.reached === 'W') || q?.europe?.reached === 'W'
+  // The Treble (league, Cup and Continental Cup) or a Double (the league and one cup), once its cups are shown
+  const cupsWon = { cup: season?.cupWon ?? quickCupWon, continental: season?.continental?.won ?? quickEuroWon }
+  const honour = honourOf(isTitle(record.position, tier), cupsWon.cup, cupsWon.continental)
+  const honourCups = (['cup', 'continental'] as const).filter((c) => cupsWon[c])
+  if (honour && !replay.playing) extraLines.push(honourLine(honour, honourCups))
   // A classic pick or a classic league season: the numbers are TouchLine's estimate, and the share says so
   // The player-seasons themselves, so a dynasty's aged copy still counts by the club-season it was drafted from
   const estimated = estimatedNote(u, Object.values(game.lineup).map((id) => get(id) ?? id), game.settings.leagueId, game.settings.leagueSeason)
@@ -256,6 +262,8 @@ export function Summary() {
         lineup: game.lineup,
         getPlayer: get,
         footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
+        // The Treble or a Double in gold under the record
+        ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : {}),
         strip: story?.strip,
         moment: story?.moment,
         // A chained draft prints its chain of club codes under the record
@@ -406,6 +414,16 @@ export function Summary() {
           </div>
         )}
         <div className="banner-chips">
+          {!replay.playing && honour === 'treble' && (
+            <span className="chip gold icon-chip honour-chip treble" data-testid="banner-treble" title={honourDetail(honourCups)}>
+              <Crown size={14} aria-hidden="true" /> Treble
+            </span>
+          )}
+          {!replay.playing && honour === 'double' && (
+            <span className="chip gold icon-chip honour-chip" data-testid="banner-double" title={honourDetail(honourCups)}>
+              <Trophy size={12} aria-hidden="true" /> {honourLabel(honour, honourCups) === 'The Double' ? 'Double' : 'League and Continental double'}
+            </span>
+          )}
           {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, 'Cup winners', 'gold')}</span>}
           {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, 'Continental champions', 'gold')}</span>}
           {game.manager && <ManagerChip manager={game.manager} />}

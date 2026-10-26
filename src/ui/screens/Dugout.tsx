@@ -27,6 +27,8 @@ import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, TeamBadge, Tip, useViewerFlag } from '../components/bits'
+import { Bracket } from '../components/Bracket'
+import { seasonCupBracket } from '@game/logic/bracket'
 import { BriefingIcon, NewsIcon } from '../components/icons'
 import { SQUAD_COLUMNS } from '../components/AttributePanel'
 import { PlayerCardModal } from '../components/PlayerCard'
@@ -1145,38 +1147,16 @@ function CupTab({ comp }: { comp: Competition }) {
           ))}
         </div>
       )}
-      {rounds.map((r) => {
-        const ties = allTies.filter((t) => t.round === r.round)
-        if (!ties.length) return null
-        return (
-          <div key={r.round} className="cup-round">
-            <h4>
-              {r.label} <span className="muted small">after MW {r.afterMatchweek}</span>
-            </h4>
-            <div className="fixture-list">
-              {ties.map((t, i) => {
-                const me = t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM
-                const name = (id: string) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))
-                return (
-                  <div key={i} className={`fixture ${me ? 'me' : ''}`} data-testid="cup-tie">
-                    <span className="mw">MW {r.afterMatchweek}</span>
-                    <span className="h row" style={{ justifyContent: 'flex-end', gap: 6, fontWeight: t.winnerId === t.homeTeamId ? 700 : 400 }}>
-                      {t.homeTeamId === USER_TEAM ? <span className="fx-name">{name(t.homeTeamId)}</span> : <FxName full={name(t.homeTeamId)} short={clubShort(u, t.homeTeamId)} />} {t.homeTeamId === USER_TEAM ? null : <ClubBadge clubId={t.homeTeamId} size={18} />}
-                    </span>
-                    <span className={`sc chip ${me && t.result ? outcomeClass(t.winnerId === USER_TEAM ? 'W' : 'L') : ''}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
-                      {t.result ? `${t.result.homeGoals} - ${t.result.awayGoals}` : 'v'}
-                      {t.result?.penalties && <span className="pens">{t.result.penalties.home}-{t.result.penalties.away}p</span>}
-                    </span>
-                    <span className="row" style={{ gap: 6, fontWeight: t.winnerId === t.awayTeamId ? 700 : 400 }}>
-                      {t.awayTeamId === USER_TEAM ? null : <ClubBadge clubId={t.awayTeamId} size={18} />} {t.awayTeamId === USER_TEAM ? <span className="fx-name">{name(t.awayTeamId)}</span> : <FxName full={name(t.awayTeamId)} short={clubShort(u, t.awayTeamId)} />}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })}
+      <Bracket
+        view={seasonCupBracket(allTies, rounds)}
+        nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))}
+        badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={id} size={18} />)}
+        userId={USER_TEAM}
+        trophy={comp}
+        testId={`season-bracket-${comp}`}
+        tieTestId="cup-tie"
+        meTestId="cup-tie"
+      />
       {eliminated && <div className="notice warn">Knocked out. The remaining rounds are free midweeks for recovery.</div>}
       {won && (
         <div className="notice icon-notice gold">

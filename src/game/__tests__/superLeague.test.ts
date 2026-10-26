@@ -285,6 +285,8 @@ describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
           // Not on offer for this finish
         }
       }
+      // The cups' bracket (kept since, played on from the same fork after the user's run) is left out: the pins are the results
+      for (const run of [g.quickResult?.cup, g.quickResult?.continentalCup]) if (run) delete run.bracket
       return g
     }
     const pins: Record<string, string> = {
