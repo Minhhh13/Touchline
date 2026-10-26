@@ -21,6 +21,7 @@ import { arenaChallengeFromGame, arenaVerifiedLine, challengeLink, runItBackAren
 import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
@@ -102,7 +103,7 @@ export function ArenaSummary() {
         lineup: game.lineup,
         getPlayer: get,
         footer: shareCardFooter(game),
-        hideRatings: game.settings.rules.hardMode,
+        hideRatings: ratingHidden(game.settings.rules, 'squad'),
         banner: { text: banner },
         lines: [...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])],
       })
@@ -269,7 +270,7 @@ export function ArenaSummary() {
           </div>
           <div className="panel">
             <h3>The XI · {formation.name}</h3>
-            <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={game.settings.rules.hardMode} />
+            <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={ratingHidden(game.settings.rules, 'squad')} />
           </div>
         </div>
         {cup && a.bracket && (
