@@ -1679,7 +1679,7 @@ label.field,
 }
 /* Form on a squad row: the arrow (last three against the season), the last-five sparkline, the MOTM star */
 .form-arrow {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   line-height: 1;
   color: var(--text-3);
 }
@@ -1737,7 +1737,7 @@ label.field,
   background: var(--warn-soft);
 }
 .needs-you-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1833,7 +1833,7 @@ label.field,
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 .ss-mw {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -1843,7 +1843,7 @@ label.field,
   gap: 3px;
 }
 .ss-ha {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   font-weight: 700;
   color: var(--text-2);
 }
@@ -1854,7 +1854,7 @@ label.field,
 }
 .ss-chips .chip {
   padding: 0 5px;
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
 }
 @media (max-width: 720px) {
   .season-strip {
@@ -1875,7 +1875,7 @@ label.field,
 }
 .deadline-tag {
   flex: none;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1970,7 +1970,7 @@ label.field,
 /* A pick's grade in the finished draft log */
 .chip.pick-grade {
   padding: 0 5px;
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   line-height: 1.5;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -2014,7 +2014,7 @@ kbd {
   color: var(--danger);
 }
 .state-labels span {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   line-height: 1;
   color: var(--text-3);
   text-transform: uppercase;
@@ -2059,7 +2059,7 @@ kbd {
   flex-wrap: wrap;
   gap: 4px 12px;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-3);
 }
 .pitch-legend span {
