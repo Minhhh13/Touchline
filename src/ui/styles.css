@@ -11576,7 +11576,7 @@ html {
 }
 .atmos-value {
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: var(--fs-h1);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -11620,7 +11620,7 @@ html {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: var(--space-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .mood-lines .mw {
   color: var(--text-3);
@@ -11800,7 +11800,7 @@ table.tbl.contracts-overview .link-btn.name {
     gap: var(--space-3);
   }
   .hero-stats dd {
-    font-size: 20px;
+    font-size: calc(var(--fs-h3) + 1px);
   }
 }
 
