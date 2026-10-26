@@ -43,4 +43,20 @@ describe('the browser transport to the Edge Function', () => {
     expect(headers.apikey).toBe(cfg.key)
     expect(Object.keys(headers).map((h) => h.toLowerCase())).not.toContain('authorization')
   })
+
+  it('calls an older engine\'s function for a run filed on that engine, and only with a digits-only stamp', async () => {
+    const seen: string[] = []
+    const fakeFetch = (async (url: string | URL | Request) => {
+      seen.push(String(url))
+      return new Response('{}', { status: 200 })
+    }) as typeof fetch
+    const sb = { auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-token' } } }) } } as unknown as SupabaseClient
+    const t = new SupabaseTransport(sb, cfg, fakeFetch)
+    await t.invoke({ op: 'daily.submit' }, { engine: '4' })
+    await t.invoke({ op: 'daily.submit' }, { engine: '../x' })
+    await t.invoke({ op: 'daily.submit' })
+    expect(new URL(seen[0]).pathname).toBe('/functions/v1/touchline-e4')
+    expect(new URL(seen[1]).pathname).toBe(`/functions/v1/${cfg.functionName}`)
+    expect(new URL(seen[2]).pathname).toBe(`/functions/v1/${cfg.functionName}`)
+  })
 })

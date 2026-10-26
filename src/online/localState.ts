@@ -34,6 +34,9 @@ export interface OutboxEntry {
   owner?: string | null
   /** A 38-0 chase entry: when its attempt closes (epoch ms), from the attempt's own window. Absent on the boards' entries. */
   closes?: number
+  /** The engine the run was played on (`ENGINE_VERSION` when filed); it posts to that engine's function. Missing on
+   * entries filed before the field: read from the payload (`entryEngine`). */
+  engine?: string
 }
 
 export interface OnlineRecord {

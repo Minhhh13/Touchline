@@ -8,7 +8,7 @@ import type { ChallengePayload } from '@engine/challenge'
 import type { SlotId } from '../core/slots'
 import type { PuzzlePin } from '../server/dailyVerify'
 import type { AccountProfile } from '../state'
-import { OnlineError, type ChallengeRow, type ClaimArgs, type ClaimResult, type CloudRow, type FunctionReply, type OnlineTransport } from '../transport'
+import { OnlineError, type ChallengeRow, type ClaimArgs, type ClaimResult, type CloudRow, type FunctionReply, type InvokeOptions, type OnlineTransport } from '../transport'
 
 interface Row extends CloudRow {
   userId: string
@@ -24,7 +24,7 @@ export class FakeBackend {
   /** Every call, by name, for assertions. */
   calls: string[] = []
   /** Scripted Edge Function: answers by op. */
-  fn: (body: Record<string, unknown>, userId: string | null) => FunctionReply = () => ({ status: 404, body: { code: 'not_found' } })
+  fn: (body: Record<string, unknown>, userId: string | null, opts: InvokeOptions) => FunctionReply | Promise<FunctionReply> = () => ({ status: 404, body: { code: 'not_found' } })
   /** Make the next calls fail (a network drop or a refusal). */
   failNext: OnlineError[] = []
   private clock = 0
@@ -192,12 +192,12 @@ export class FakeTransport implements OnlineTransport {
     throw new OnlineError('missing', `no function ${fn}`, 'PGRST202', 404)
   }
 
-  async invoke(body: Record<string, unknown>, opts: { guest?: boolean } = {}): Promise<FunctionReply> {
-    this.b.calls.push(`invoke:${String(body.op)}`)
+  async invoke(body: Record<string, unknown>, opts: InvokeOptions = {}): Promise<FunctionReply> {
+    this.b.calls.push(`invoke:${String(body.op)}${opts.engine ? `@e${opts.engine}` : ''}`)
     const f = this.b.failNext.shift()
     if (f) throw f
     if (!this.userId && !opts.guest) return { status: 401, body: { code: 'signed_out' } }
-    return this.b.fn(body, this.userId)
+    return this.b.fn(body, this.userId, opts)
   }
 
   async myChallenges(): Promise<ChallengeRow[]> {
