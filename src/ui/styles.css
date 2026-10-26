@@ -9745,6 +9745,10 @@ table.tbl.match-stats th {
   color: var(--text-3);
   text-align: right;
 }
+/* Your row's tint takes --text-3 to 4.2:1; --text-2 keeps the place AA */
+.lt-row.me .lt-pos {
+  color: var(--text-2);
+}
 .lt-club {
   display: flex;
   align-items: center;

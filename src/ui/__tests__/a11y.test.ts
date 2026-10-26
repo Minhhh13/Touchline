@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { KeyboardEvent } from 'react'
 import { isActivationKey, outcomeWord, pressable, resultsLabel } from '../a11y'
 import { scrollFocusAction, SCROLL_BOXES } from '../scrollFocus'
-import { contrastRatio, inkOn } from '../format'
+import { contrastRatio, inkOn, textColourFor } from '../format'
 
 /** A stand-in keyboard event: only what `pressable` reads. */
 function key(k: string, onInner = false) {
@@ -98,6 +98,13 @@ describe('badge ink', () => {
     for (const red of ['#ef0107', '#eb172b']) expect(contrastRatio(inkOn(red), red)).toBeGreaterThanOrEqual(4.5)
     expect(inkOn('#ffffff')).toBe('#111')
     expect(inkOn('#132257')).toBe('#fff')
+  })
+  it('the match day and the reel use the same choice, so an orange or red kit no longer carries white text', () => {
+    for (const kit of ['#f58220', '#eb172b', '#ef0107', '#fdb913', '#6cabdd', '#034694']) {
+      expect(textColourFor(kit)).toBe(inkOn(kit))
+      expect(contrastRatio(textColourFor(kit), kit)).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(textColourFor('not a colour')).toBe('#fff')
   })
   it('contrast ratios match the WCAG figures', () => {
     expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 5)

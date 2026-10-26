@@ -120,14 +120,10 @@ export function moraleWord(v: number): string {
   if (v >= 40) return 'Poor'
   return 'Very poor'
 }
+/** Text on a kit colour (the match day's codes, shirts and discs, the reel's cards): the same WCAG choice as `inkOn`. */
 export function textColourFor(bg: string): string {
-  const hex = bg.replace('#', '')
-  if (hex.length !== 6) return '#fff'
-  const r = parseInt(hex.slice(0, 2), 16)
-  const g = parseInt(hex.slice(2, 4), 16)
-  const b = parseInt(hex.slice(4, 6), 16)
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return lum > 0.6 ? '#111' : '#fff'
+  // It used a brightness cut-off (0.6), which put white on orange and mid reds at 2.9 to 4.5:1
+  return inkOn(bg)
 }
 
 /** A 0-100 meter value (condition, morale, sharpness, familiarity) as a whole number: the engine keeps floats (79.99999999999999). */
