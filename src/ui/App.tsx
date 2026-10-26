@@ -418,7 +418,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         <DigestGroup title="Decided for you" icon={<MessageSquare size={14} />} count={d.decisions.length}>
           {d.decisions.slice(0, DIGEST_GROUP_CAP).map((x, i) => (
             <li key={i}>
-              <b>{x.title}</b>: {x.choice}
+              <b>{x.title}</b>{x.count ? ` (${x.count} times)` : ''}: {x.choice}
               {x.outcome && <span className="muted"> · {x.outcome}</span>}
             </li>
           ))}
