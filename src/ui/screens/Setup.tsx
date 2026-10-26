@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Skull, Smile, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, describeRules, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
@@ -29,6 +29,7 @@ import { dailyStartSettings } from '../../online/daily'
 import { useOnline } from '../../online/state'
 import { SignInPrompt } from '../online/SignInPrompt'
 import { MODE_TITLE } from '@game/logic/modes'
+import { quickSetupLineFull } from '@game/logic/setupLine'
 import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
 import { previousWeeklySeed, weeklySeed } from '@engine/rng'
 import { weeklyRecord } from '@game/logic/weeklyRecord'
@@ -751,7 +752,7 @@ export function Setup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={fixed ? 4 : 5} title="Spin" />
               <div className="small muted" data-testid="setup-summary" title={isQuickLine ? summary : undefined}>
-                {isQuickLine ? quickSetupLine(u, preview) : summary}
+                {isQuickLine ? quickSetupLineFull(u, preview) : summary}
                 {!fixed && (
                   <>
                     {' · '}

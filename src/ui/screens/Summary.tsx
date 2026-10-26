@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
+import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Link, Medal, Minus, Plus, PoundSterling, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
@@ -11,6 +11,7 @@ import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
 import { realityLine, storyForGame } from '@game/logic/story'
 import { SeasonStoryPanel } from '../components/SeasonStory'
 import { capLine } from '@game/logic/cap'
+import { casualChips } from '@game/logic/casualChips'
 import { inRecordBooks } from '@game/logic/records'
 import { chainCodes, chainLine } from '@game/logic/chain'
 import { shareText } from '@engine/awards'
@@ -445,6 +446,11 @@ export function Summary() {
           )}
           {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
           {season?.sacked && <span className="chip bad">Sacked</span>}
+          {casualChips(game).map((c) => (
+            <span key={c.key} className="chip icon-chip" title={c.title} data-testid={`summary-${c.key}`}>
+              {c.key === 'cap' ? <PoundSterling size={12} aria-hidden="true" /> : <Link size={12} aria-hidden="true" />} {c.text}
+            </span>
+          ))}
           {tags.map((t) => (
             <span key={t} className="chip">
               {t}
