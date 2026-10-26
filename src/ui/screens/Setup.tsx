@@ -490,7 +490,7 @@ export function Setup() {
                         <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" title="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When none is left, the next spin is free and the chain starts again.">
                           <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
                           <span className="micon" aria-hidden="true">🔗</span>
-                          <span className="ctitle">Teammate chain</span>
+                          <span className="ctitle"><span className="lbl-long">Teammate chain</span><span className="lbl-short">Chain</span></span>
                           <span className="cline">{chain ? 'On: each pick played beside the last' : 'Each pick played beside the last'}</span>
                         </label>
                       </div>

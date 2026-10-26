@@ -3994,9 +3994,13 @@ table.tbl.contracts .btn.sm {
   .cta-bar .lbl-short {
     display: inline;
   }
-  /* Pre-season has four buttons: Kick off takes the first row, the friendly and the sims share the second */
-  .cta-bar .btns.four .btn.primary.big {
+  /* Four or five buttons: the main one takes the first row, the friendly and the sims share the second */
+  .cta-bar .btns .btn.primary.big {
     flex-basis: 100%;
+  }
+  .cta-bar .btns .btn:not(.primary) {
+    padding-left: 8px;
+    padding-right: 8px;
   }
 }
 /* The start bar: the choice summary and the one button that matters. Fixed to the bottom on phones. */
@@ -10237,5 +10241,67 @@ table.tbl.hub td.name {
   .rp-tactics-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
+  }
+}
+/* Setup's Modes row on a desktop: eleven cards in two rows of six, each its icon beside its name, so every name reads
+   whole ("Chain" for the Teammate chain; the card's tooltip and the Info tip keep the full line) */
+.qmode .lbl-short {
+  display: none;
+}
+@media (min-width: 1000px) {
+  .setup-modes-row {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 4px;
+  }
+  .setup-page .qmode,
+  .setup-page .qmode.pu-card {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 3px;
+    padding: 3px 4px;
+  }
+  .setup-page .qmode .micon,
+  .setup-page .qmode.pu-card .micon {
+    font-size: 13px;
+    flex: none;
+  }
+  .setup-page .qmode .ctitle {
+    letter-spacing: -0.01em;
+  }
+  .setup-page .qmode .ctitle {
+    min-width: 0;
+  }
+  .setup-page .qmode .lbl-long {
+    display: none;
+  }
+  .setup-page .qmode .lbl-short {
+    display: inline;
+  }
+}
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .setup-modes-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+/* Below the desktop the switch cards take a full row each, so Moneyball and the Teammate chain read whole beside their line */
+@media (max-width: 999px) {
+  .setup-modes-row .pu-setup .qmode.pu-card {
+    flex-basis: 100%;
+  }
+}
+/* An arena shoot-out on the report: one slim box above the scoreboard, so the boxes below keep the height */
+@media (min-width: 1100px) {
+  .page.report-page > [data-testid='shootout-reveal'] {
+    flex: none;
+    margin-bottom: 0 !important;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+  .page.report-page > [data-testid='shootout-reveal'] .panel-head {
+    margin-bottom: var(--space-2);
+  }
+  .page.report-page > [data-testid='shootout-reveal'] h2 {
+    font-size: var(--fs-h3);
   }
 }

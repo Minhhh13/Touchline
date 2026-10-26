@@ -240,7 +240,7 @@ export function Dugout() {
               ))}
             </div>
             {/* On a narrow phone the labels shorten (`.lbl-short`) and the buttons wrap rather than clip */}
-            <div className={`btns ${preseason && game.friendliesPlayed < 3 ? 'four' : ''}`}>
+            <div className="btns">
               {preseason && game.friendliesPlayed < 3 && (
                 <button className="btn" onClick={() => store.playFriendly()}>
                   <span className="lbl-long">Play friendly</span>
@@ -253,7 +253,8 @@ export function Dugout() {
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => store.simToNextBigMatch()} disabled={!!game.pendingEvent || !!bigNext} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
-                {bigNext ? `${bigNext.label} next` : simToLabel(game, u)}
+                <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
+                <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
               <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
                 Sim 5
