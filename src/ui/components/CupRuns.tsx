@@ -136,7 +136,7 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
         const scorers = scorersLabel(t.scorers)
         return (
           <li key={t.round} className={`gbg-game cup-tie ${o} ${i === 0 ? 'newest' : ''}`} data-testid="cup-tie" data-outcome={o}>
-            <span className={`gbg-badge ${o}`} aria-label={t.won ? 'Through' : 'Out'}>
+            <span className={`gbg-badge ${o}`} role="img" aria-label={t.won ? 'Through' : 'Out'}>
               {o}
             </span>
             <ClubBadge clubId={t.opponentId} size={22} />

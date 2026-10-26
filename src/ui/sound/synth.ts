@@ -1,29 +1,26 @@
-import type { DisplayTier, Tier } from '@game/logic/rarity'
-import { soundOn, subscribeSound } from './prefs'
+import type { DisplayTier } from '@game/logic/rarity'
+import { matchSoundOn, soundOn, subscribeSound } from './prefs'
+import { makeBank, renderScore, safetyNet, type NoiseBank } from './render'
+import { scoreFor, type SoundRequest } from './scores'
 
 /*
  * TouchLine's sounds, synthesised in the browser with the Web Audio API: no
- * audio files ship and no recording is copied. A few oscillators, gain
- * envelopes and a burst of white noise make every sound below.
+ * audio files ship and no recording is copied. Oscillators, FM pairs, gain
+ * envelopes and filtered noise make every sound: the reel's tick, whoosh and
+ * pop below, and the palette in scores.ts (`playSound`), rendered by render.ts.
  *
  * Rules: nothing plays before a user gesture (the context is created or resumed
  * inside one, see `armAudio`), nothing plays while sound is off, and nothing
  * happens where there is no AudioContext (tests, headless runs, old browsers).
- * Math.random here only varies a tick's pitch and fills the noise buffer; it is
- * presentation and never touches the game's RNG.
+ * Match sounds also follow their own switch (`matchSoundOn`). Math.random here
+ * only varies a tick's pitch and fills the tick's noise; the palette's variation
+ * is seeded per sound. All of it is presentation and never touches the game.
  */
 
 /** The master volume: modest, under the page's own sounds and the viewer's music. */
 export const MASTER_GAIN = 0.35
 
-/** The first note of each landing; a quick way to tell the landings apart (and what the smoke test listens for). */
-export const LANDING_NOTES: Record<Tier, readonly number[]> = {
-  blue: [659.25],
-  purple: [587.33, 880],
-  pink: [698.46, 1046.5],
-  red: [523.25, 659.25, 783.99, 1046.5],
-  gold: [392, 493.88, 587.33, 783.99],
-}
+export { LANDING_NOTES } from './scores'
 
 /** Seconds in the tick's and the whoosh's noise buffers (the smoke test tells them apart by length). */
 export const TICK_NOISE_S = 0.04
@@ -35,6 +32,7 @@ let ctx: AudioContext | null = null
 let master: GainNode | null = null
 let tickNoise: AudioBuffer | null = null
 let whooshNoise: AudioBuffer | null = null
+let bank: NoiseBank | null = null
 let armed = false
 
 function audioCtor(): Ctor | null {
@@ -50,9 +48,15 @@ function noise(c: AudioContext, seconds: number): AudioBuffer {
   return buf
 }
 
-/** Creates the context (or resumes a suspended one). Call only from a user gesture; does nothing while sound is off. */
+/** The page has had a real gesture (sticky user activation); true where the browser cannot say. */
+function hadGesture(): boolean {
+  const ua = typeof navigator !== 'undefined' ? (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation : undefined
+  return ua ? ua.hasBeenActive : true
+}
+
+/** Creates the context (or resumes a suspended one). Call only from a user gesture; does nothing while sound is off, or before the page has had a real one. */
 export function unlockAudio(): void {
-  if (!soundOn()) return
+  if (!soundOn() || !hadGesture()) return
   try {
     if (!ctx) {
       const C = audioCtor()
@@ -60,9 +64,10 @@ export function unlockAudio(): void {
       ctx = new C()
       master = ctx.createGain()
       master.gain.value = MASTER_GAIN
-      master.connect(ctx.destination)
+      master.connect(safetyNet(ctx))
       tickNoise = noise(ctx, TICK_NOISE_S)
       whooshNoise = noise(ctx, WHOOSH_NOISE_S)
+      bank = makeBank(ctx)
     }
     if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined)
   } catch {
@@ -79,13 +84,26 @@ export function unlockAudio(): void {
 export function armAudio(): void {
   if (armed || typeof window === 'undefined') return
   armed = true
-  for (const type of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(type, unlockAudio, { capture: true, passive: true })
+  const onGesture = (e: Event) => {
+    if (e.isTrusted) unlockAudio()
+  }
+  for (const type of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(type, onGesture, { capture: true, passive: true })
+  window.addEventListener('click', clickSound, { capture: true, passive: true })
   subscribeSound(() => {
     if (!ctx || !master) return
     const on = soundOn()
     master.gain.cancelScheduledValues(ctx.currentTime)
     master.gain.setValueAtTime(on ? MASTER_GAIN : 0, ctx.currentTime)
   })
+}
+
+/** A primary button pressed: the palette's quiet click (none on a disabled button or inside `data-sound="off"`). */
+function clickSound(e: Event): void {
+  if (!e.isTrusted) return
+  const t = e.target as Element | null
+  const b = typeof t?.closest === 'function' ? t.closest('.btn.primary') : null
+  if (!b || (b as HTMLButtonElement).disabled || b.closest('[data-sound="off"]')) return
+  playSound({ id: 'click' })
 }
 
 /** The context to play on now, or null: no gesture yet, sound off, or no Web Audio. */
@@ -97,6 +115,7 @@ export function liveAudio(): { c: AudioContext; out: AudioNode } | null {
 /** A gain envelope: silent, up to `peak` in `attack` s, then an exponential fall to silence by `at + dur`. */
 function envelope(c: AudioContext, out: AudioNode, at: number, peak: number, attack: number, dur: number): GainNode {
   const g = c.createGain()
+  g.gain.value = 0.0001
   g.gain.setValueAtTime(0.0001, at)
   g.gain.linearRampToValueAtTime(peak, at + attack)
   g.gain.exponentialRampToValueAtTime(0.0001, at + dur)
@@ -114,14 +133,6 @@ function tone(c: AudioContext, out: AudioNode, at: number, freq: number, opts: {
   osc.start(at)
   osc.stop(at + dur + 0.05)
   return osc
-}
-
-/** A bell-ish note: the fundamental and a quiet, slightly inharmonic overtone. */
-function chime(c: AudioContext, out: AudioNode, at: number, freq: number, opts: { type?: OscillatorType; peak?: number; dur?: number } = {}): void {
-  const peak = opts.peak ?? 0.3
-  const dur = opts.dur ?? 0.7
-  tone(c, out, at, freq, { type: opts.type ?? 'sine', peak, dur })
-  tone(c, out, at, freq * 2.76, { peak: peak * 0.12, dur: dur * 0.45 })
 }
 
 /** A card passing the marker: a 40 ms burst of band-passed noise. `rate` (about 0.9 to 1.1) shifts its pitch. */
@@ -169,46 +180,9 @@ export function playPop(at: number): AudioScheduledSourceNode | null {
   return tone(a.c, a.out, at, 540, { glideTo: 190, peak: 0.45, dur: 0.14 })
 }
 
-/**
- * The reveal, scaled by rarity: blue a plain chime; purple and pink a brighter two-note chime
- * (pink higher and brighter); red a rising arpeggio; gold an arpeggio into a held sting chord with a
- * shimmer of high pings on top; the Icons card (Gamble mode's rare spin) plays gold's. `reduced`
- * (prefers-reduced-motion) drops the shimmer.
- */
+/** The reveal, rising with rarity (scores.ts `landingScore`); the Icons card plays gold's. `reduced` (prefers-reduced-motion) drops the shimmer. */
 export function playLanding(display: DisplayTier, reduced = false): void {
-  const tier: Tier = display === 'icons' ? 'gold' : display
-  const a = liveAudio()
-  if (!a) return
-  const { c, out } = a
-  const t = c.currentTime + 0.01
-  const n = LANDING_NOTES[tier]
-  switch (tier) {
-    case 'blue':
-      chime(c, out, t, n[0], { dur: 0.8 })
-      break
-    case 'purple':
-      chime(c, out, t, n[0], { dur: 0.5 })
-      chime(c, out, t + 0.12, n[1], { dur: 0.9 })
-      break
-    case 'pink':
-      chime(c, out, t, n[0], { type: 'triangle', dur: 0.5 })
-      chime(c, out, t + 0.11, n[1], { type: 'triangle', dur: 1 })
-      break
-    case 'red':
-      n.forEach((f, i) => chime(c, out, t + i * 0.075, f, { type: 'triangle', peak: 0.26, dur: i === n.length - 1 ? 1.1 : 0.4 }))
-      break
-    case 'gold': {
-      n.forEach((f, i) => chime(c, out, t + i * 0.06, f, { type: 'triangle', peak: 0.24, dur: 0.35 }))
-      const sting = t + 0.26
-      tone(c, out, sting, 98, { type: 'sine', peak: 0.4, attack: 0.004, dur: 0.6 })
-      for (const f of [783.99, 987.77, 1174.66]) tone(c, out, sting, f, { type: 'triangle', peak: 0.14, attack: 0.01, dur: 1.5 })
-      if (!reduced) {
-        const pings = [2093, 2637, 3136, 2349, 3520, 2794, 3951, 3136]
-        pings.forEach((f, i) => tone(c, out, sting + 0.08 + i * 0.07 + Math.random() * 0.03, f * (0.99 + Math.random() * 0.02), { peak: 0.07, dur: 0.25 }))
-      }
-      break
-    }
-  }
+  playSound({ id: 'landing', tier: display, reduced })
 }
 
 /** Stops scheduled sources that have not finished (a skip, a new spin, a closed screen). */
@@ -228,25 +202,23 @@ export function playDialTick(rate: number): void {
   if (a) playTick(a.c.currentTime + 0.005, rate)
 }
 
-/**
- * The Upgrader's verdict. A win: a bright rising arpeggio into a held major chord over a soft low thump, with a
- * shimmer of high pings (dropped when `reduced`). A loss: a falling "wah-wah", two sliding minor notes into a low
- * groan. Synthesised like every other sound here.
- */
+/** The Upgrader's verdict, a sting for a win and a falling "wah-wah" for a loss (scores.ts `upgradeScore`); `reduced` drops the win's shimmer. */
 export function playUpgradeResult(won: boolean, reduced = false): void {
+  playSound({ id: 'upgrade', won, reduced })
+}
+
+/**
+ * Plays one sound of the palette (scores.ts) `delay` s from now: nothing without a gesture, with sound off, or for
+ * a match sound with match sounds off. Returns the sources it scheduled (empty when it played nothing).
+ */
+export function playSound(req: SoundRequest, delay = 0): AudioScheduledSourceNode[] {
   const a = liveAudio()
-  if (!a) return
-  const { c, out } = a
-  const t = c.currentTime + 0.01
-  if (won) {
-    tone(c, out, t, 110, { type: 'sine', peak: 0.38, attack: 0.004, dur: 0.45, glideTo: 70 })
-    ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => chime(c, out, t + i * 0.07, f, { type: 'triangle', peak: 0.24, dur: i === 3 ? 1.2 : 0.35 }))
-    for (const f of [1046.5, 1318.51, 1567.98]) tone(c, out, t + 0.3, f, { type: 'triangle', peak: 0.1, attack: 0.02, dur: 1.4 })
-    if (!reduced) [2637, 3136, 3520, 4186, 3136, 3951].forEach((f, i) => tone(c, out, t + 0.36 + i * 0.06 + Math.random() * 0.02, f, { peak: 0.06, dur: 0.22 }))
-    return
+  if (!a || !bank) return []
+  const score = scoreFor(req)
+  if (score.category === 'match' && !matchSoundOn()) return []
+  try {
+    return renderScore(a.c, a.out, a.c.currentTime + 0.01 + Math.max(0, delay), score, bank)
+  } catch {
+    return []
   }
-  tone(c, out, t, 392, { type: 'triangle', peak: 0.26, attack: 0.01, dur: 0.32, glideTo: 370 })
-  tone(c, out, t + 0.3, 349.23, { type: 'triangle', peak: 0.26, attack: 0.01, dur: 0.34, glideTo: 330 })
-  tone(c, out, t + 0.62, 311.13, { type: 'triangle', peak: 0.28, attack: 0.01, dur: 0.9, glideTo: 185 })
-  tone(c, out, t + 0.62, 77.78, { type: 'sine', peak: 0.3, attack: 0.02, dur: 0.8, glideTo: 55 })
 }

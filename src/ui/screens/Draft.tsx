@@ -36,12 +36,15 @@ import { costLabel, slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
+import { useFocusOnLanding } from '../a11y'
 import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
 import { canPickManager, quickManagerOptions } from '@game/logic/managers'
+import { resultsFinished } from '@game/logic/onboarding'
 import { ManagerPick } from '../components/ManagerPick'
 import { DraftRecap } from '../components/DraftRecap'
 import { draftRecap } from '@game/logic/draftRecap'
+import { playSound } from '../sound/synth'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -52,6 +55,8 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 
 export function Draft() {
   const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
+  // A manager's first draft ever (nothing finished yet): one plain line under the first spin
+  const firstDraft = useStore((s) => resultsFinished(s.profile) === 0)
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -103,6 +108,7 @@ export function Draft() {
     const before = picksSeen.current
     picksSeen.current = pickNo
     if (!d || pickNo <= before) return
+    playSound({ id: 'pick' })
     const last = [...d.history].reverse().find((h) => h.pickedId)
     setRevealId(last?.pickedId && revealsOnPick(d.rules, last.twist) ? last.pickedId : null)
     const t = window.setTimeout(() => setRevealId(null), 1200)
@@ -127,6 +133,9 @@ export function Draft() {
     if (!revealed || typeof window === 'undefined' || !window.matchMedia?.('(max-width: 720px)').matches) return
     squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [revealed])
+  // The landing moves the focus to the club's name (the Spin button under it is disabled), so the squad is the next Tab
+  const clubHeadRef = useRef<HTMLHeadingElement>(null)
+  useFocusOnLanding(revealed, clubHeadRef)
 
   const allBoxes = useBoxes(DRAFT)
   if (!u || !game || !d) return null
@@ -269,7 +278,7 @@ export function Draft() {
         </div>
         <div className="draft-progress">
           <div className="row between" style={{ gap: 'var(--space-2)' }}>
-            <span className="draft-count" data-testid="pick-count" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
+            <span className="draft-count" data-testid="pick-count" role="img" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
               {places && !fillingStarters ? (
                 <>
                   <span className="eyebrow">Bench</span> <b>{d.bench.length}</b> / {places}
@@ -362,12 +371,17 @@ export function Draft() {
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
                   {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 ? 'Spin the wheel' : places && !fillingStarters ? 'Spin for the bench' : 'Spin again'}
                 </button>
+                {firstDraft && made === 0 && !d.current && !spinning && !choosing && (
+                  <p className="help first-spin-help" data-testid="first-spin-help">
+                    The wheel lands on a real club in a real season. Then you pick one of its players for your XI.
+                  </p>
+                )}
                 {canClose && (
                   <button className="btn" disabled={spinning} onClick={() => finishDraft()} data-testid="finish-draft">
                     {d.bench.length ? `On to kick-off with ${d.bench.length} on the bench` : 'On to kick-off without a bench'}
                   </button>
                 )}
-                <div className="row between">
+                <div className="row between wrap">
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
                     Re-spin ({d.respinsLeft})
                   </button>
@@ -427,7 +441,7 @@ export function Draft() {
                   const prevId = d.rules.chain ? d.history.slice(0, at).reverse().find((x) => x.pickedId)?.pickedId : undefined
                   return (
                     <li key={i}>
-                      {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={22} />}
+                      {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} role="img" aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={22} />}
                       <span className="who">
                         <span className={p ? 'name' : 'muted'}>{p ? p.name : h.skipped ? 'Skipped' : 'Re-spun'}</span>
                         <span className="when">
@@ -439,7 +453,7 @@ export function Draft() {
                             </span>
                           )}
                           {h.twist && TwistIcon && (
-                            <span className="log-twist" title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
+                            <span className="log-twist" title={TWIST_INFO[h.twist].title} role="img" aria-label={TWIST_INFO[h.twist].title}>
                               <TwistIcon size={12} aria-hidden="true" />
                             </span>
                           )}
@@ -505,7 +519,7 @@ export function Draft() {
                   {iconsSpin ? <span className="icons-badge" style={{ width: 44, height: 44 }} aria-hidden="true">★</span> : <ClubBadge clubId={current.clubId} size={44} />}
                   {iconsSpin ? (
                     <div data-testid="icons-header">
-                      <h2>Icons collection</h2>
+                      <h2 ref={clubHeadRef} tabIndex={-1}>Icons collection</h2>
                       <div className="club-sub">
                         <span>The {current.squad.length} best players of all time on this wheel, each at his peak</span>
                         <TierChip tier="icons" />
@@ -513,7 +527,7 @@ export function Draft() {
                     </div>
                   ) : (
                   <div>
-                    <h2>{clubName(u, current.clubId)}</h2>
+                    <h2 ref={clubHeadRef} tabIndex={-1}>{clubName(u, current.clubId)}</h2>
                     <div className="club-sub">
                       <span>{seasonLabel(current.season)}</span>
                       {!current.complete ? (
@@ -565,7 +579,7 @@ export function Draft() {
                       )
                     })}
                     {canBench(d, selected) && (
-                      <button type="button" className="btn sm primary" onClick={() => { pickPlayer(selected.id, 'bench'); setSelectedPlayer(null) }} data-testid="to-bench">
+                      <button type="button" className="btn sm" onClick={() => { pickPlayer(selected.id, 'bench'); setSelectedPlayer(null) }} data-testid="to-bench">
                         Send him to the bench
                       </button>
                     )}
@@ -576,7 +590,7 @@ export function Draft() {
                 </div>
               )}
               {revealed && fillingStarters && (
-                <Tip id="draft-first-reveal">The number by each player is his overall. Green fits means his natural position; amber can cover means he plays there at a penalty, shown as his number in that slot (the one on the pitch) and the cost against his overall. Re-spins are a budget for the whole draft.</Tip>
+                <Tip id="draft-first-reveal">Tap a player to draft him. The number is his overall rating: green fits is his own position, amber can cover plays him out of position for a few points less. Your re-spins last the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist lined draft-list">

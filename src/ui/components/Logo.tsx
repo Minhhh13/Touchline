@@ -61,27 +61,40 @@ export function Logo({ size = 'md', variant = 'colour', className }: { size?: Lo
 let loadPlayed = false
 
 const REDUCED = '(prefers-reduced-motion: reduce)'
-function subscribeReduced(cb: () => void) {
-  const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(REDUCED) : null
-  mq?.addEventListener('change', cb)
-  return () => mq?.removeEventListener('change', cb)
+const TOUCH = '(hover: none)'
+function subscribeTo(query: string) {
+  return (cb: () => void) => {
+    const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(query) : null
+    mq?.addEventListener('change', cb)
+    return () => mq?.removeEventListener('change', cb)
+  }
 }
+const subscribeReduced = subscribeTo(REDUCED)
+const subscribeTouch = subscribeTo(TOUCH)
+const matches = (query: string) => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches
 /** True when motion should stay off; also on the server, where nothing animates. */
 function useReducedMotion(): boolean {
-  return useSyncExternalStore(
-    subscribeReduced,
-    () => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(REDUCED).matches : true),
-    () => true,
-  )
+  return useSyncExternalStore(subscribeReduced, () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? matches(REDUCED) : true), () => true)
 }
+/** True on a touch screen (no hover): a phone or a tablet. */
+function useTouchScreen(): boolean {
+  return useSyncExternalStore(subscribeTouch, () => matches(TOUCH), () => false)
+}
+
+/**
+ * Loops of the pennant's flutter on a touch screen before it comes to rest. SMIL repaints the page on the main thread
+ * every frame (on a 4x-throttled phone it took 80% of Home's main thread at rest, on every screen with the top bar),
+ * so a phone shows it as the lockup appears and then lets the page sleep; a desktop keeps it for ever.
+ */
+export const TOUCH_WAVE_LOOPS = 3
 
 /**
  * The open lockup: the mark's drawing without the tile (the corner flag
  * standing on a short touchline, the ball resting on it), then "TouchLine"
  * standing on the same ground; no line under the name. `height` is in px (a
  * stylesheet may resize it through --h; the ball's detail follows `height`).
- * The pennant flutters in a light wind, always (SMIL, so the pole and the ball
- * stay still). animate: 'load' plays the shine, the short line drawing itself
+ * The pennant flutters in a light wind (SMIL, so the pole and the ball stay
+ * still): always on a desktop, for TOUCH_WAVE_LOOPS loops on a touch screen. animate: 'load' plays the shine, the short line drawing itself
  * and the ball rolling in along it once per page load; 'hover' plays it on
  * hover or keyboard focus. The resting state is the finished logo, so
  * prefers-reduced-motion shows that, with the pennant still.
@@ -95,7 +108,8 @@ export function Lockup({ height = 64, animate = 'none', className }: { height?: 
   }, [play])
   const tier = (height * 2 * LOCKUP.ball.r) / LOCKUP.grid >= LOCKUP.fullBallFrom ? 'full' : 'mid'
   const wave = !useReducedMotion()
-  const flag = useMemo(() => lockupFlagSvg(id, wave), [id, wave])
+  const loops = useTouchScreen() ? TOUCH_WAVE_LOOPS : undefined
+  const flag = useMemo(() => lockupFlagSvg(id, wave, loops), [id, wave, loops])
   const ball = useMemo(() => lockupBallSvg(id, tier), [id, tier])
   const d = 2 * LOCKUP.ball.r
   const cls = ['tl-lockup', play && 'tl-play', animate === 'hover' && 'tl-hover', className].filter(Boolean).join(' ')

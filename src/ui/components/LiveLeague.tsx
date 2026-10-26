@@ -58,7 +58,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
           return (
             <div key={r.teamId} className={`lt-row ${me ? 'me' : ''} ${zoneOf(i + 1, teams) ?? ''}`} style={{ transform: `translateY(${rows(i)})` }} data-testid={me ? 'live-table-me' : 'live-table-row'} data-place={i + 1}>
               <span className="lt-pos">{i + 1}</span>
-              <span className="lt-move" aria-label={move > 0 ? `Up ${move}` : move < 0 ? `Down ${-move}` : undefined}>
+              <span className="lt-move" role={move ? 'img' : undefined} aria-label={move > 0 ? `Up ${move}` : move < 0 ? `Down ${-move}` : undefined}>
                 {move > 0 ? <ArrowUp size={12} className="up" /> : move < 0 ? <ArrowDown size={12} className="down" /> : null}
               </span>
               <span className="lt-club">

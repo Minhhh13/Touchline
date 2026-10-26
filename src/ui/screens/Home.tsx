@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailySettings } from '@game/logic/setup'
 import { modeLabel } from '@game/logic/modes'
@@ -7,7 +7,8 @@ import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
-import { arenaDailySeed, weeklySeed } from '@engine/rng'
+import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
+import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
 import { useOnline } from '../../online/state'
 import { onlineAvailable } from '../../online/api'
@@ -70,6 +71,46 @@ function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: Lu
   )
 }
 
+const STEP_ICON: Record<(typeof FIRST_RUN_STEPS)[number]['id'], LucideIcon> = { spin: Dices, draft: UserPlus, play: Trophy }
+
+/** The first-run panel in the hero: the game in three steps and one button into a Quick Draft on Setup's defaults. */
+function FirstRun({ ready, onPlay, onHowTo }: { ready: boolean; onPlay: () => void; onHowTo: () => void }) {
+  return (
+    <div className="first-run" data-testid="first-run">
+      <ol className="first-steps">
+        {FIRST_RUN_STEPS.map((step, i) => {
+          const Icon = STEP_ICON[step.id]
+          return (
+            <li key={step.id}>
+              <span className="first-step-icon" aria-hidden="true">
+                <Icon size={18} />
+              </span>
+              <span>
+                <b>
+                  {i + 1}. {step.title}
+                </b>
+                <span>{step.line}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+      <div className="first-go">
+        <button type="button" className="btn primary big" disabled={!ready} onClick={onPlay} data-testid="first-draft">
+          {ready ? 'Play your first draft' : 'Loading…'}
+          {ready && <ArrowRight size={18} aria-hidden="true" />}
+        </button>
+        <span className="first-note">
+          <Clock size={13} aria-hidden="true" /> About 5 minutes, no sign-up.{' '}
+          <button type="button" className="linklike" onClick={onHowTo}>
+            How it works
+          </button>
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function Home() {
   const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
@@ -123,6 +164,12 @@ export function Home() {
     if (isThisWeek(parked.quick)) return resumeGame('quick')
     go('setup', 'weekly')
   }
+  // A manager with nothing finished and nothing waiting gets the game in three steps and one button into a Quick Draft
+  const newcomer = isNewcomer(profile, !!game || Object.keys(parked).length > 0)
+  const playFirstDraft = () => {
+    const settings = u && dailyReady ? firstDraftSettings(u, randomSeed()) : null
+    if (settings) withViewTransition(() => startGame(settings))
+  }
   const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? `${done}${streak ? ` · streak ${streak}` : ''}` : streak ? `Streak ${streak} · ${fallback}` : fallback)
   return (
     <div className="page home">
@@ -135,6 +182,10 @@ export function Home() {
             <Lockup height={104} animate="load" />
           </h1>
           <p className="tag">Spin the wheel. Draft the XI. Manage the season.</p>
+          {newcomer ? (
+            <FirstRun ready={dailyReady} onPlay={playFirstDraft} onHowTo={() => go('howto')} />
+          ) : (
+          <>
           <dl className="hero-stats" aria-live="polite">
             {u ? (
               <>
@@ -161,11 +212,13 @@ export function Home() {
             )}
           </dl>
           {u && (
-            <div className="row wrap hero-flags" aria-label="Leagues">
+            <div className="row wrap hero-flags" role="group" aria-label="Leagues">
               {u.available.map((l) => (
                 <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
               ))}
             </div>
+          )}
+          </>
           )}
         </div>
       </section>
@@ -259,7 +312,7 @@ export function Home() {
               </span>
             </span>
           </button>
-          <button type="button" className="btn primary block" disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
+          <button type="button" className={`btn block${newcomer ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
             {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
           </button>
         </div>
@@ -288,12 +341,12 @@ export function Home() {
       </div>
 
       {/* The casual modes: one sitting each, beside the four ways to play above */}
-      <div className="home-tiles casual" data-testid="casual-row" aria-label="More ways to play">
+      <div className="home-tiles casual" data-testid="casual-row" role="group" aria-label="More ways to play">
         <Tile icon={Zap} testId="arena-daily-card" title="Daily Arena" meta={streakMeta(arenaDone ? `Played: ${arenaDone.label}` : null, profile.arenaDaily?.streak, u ? dailyArenaLine(u, arenaToday) : 'Same draw for everyone')} onClick={playArenaDaily} disabled={!dailyReady} />
         <Tile icon={CalendarRange} testId="weekly-card" title="Weekly Challenge" meta={streakMeta(weekDone ? `Played: ${weekDone.points} pts` : null, profile.weekly?.streak, weekPlan ? `${weeklyThemeName(weekPlan.theme) || 'This week'} · ends Sunday` : 'One themed wheel a week')} onClick={playWeekly} disabled={!u} />
         <Tile icon={Award} testId="arena-cup-card" title="The Cup" meta="Draft 16, win a knockout" onClick={() => openArenaSetup('cup')} />
         <Tile icon={ChevronsUp} testId="arena-gauntlet-card" title="The Gauntlet" meta="Climb 15 rungs, lose once and out" onClick={() => openArenaSetup('gauntlet')} />
-        <Tile icon={Timer} testId="runin-card" title="Run-in" meta="Take over at MW 28, ten games left" onClick={() => go('setup', 'runin')} />
+        <Tile icon={Timer} testId="runin-card" title="Run-in" meta="Take over a real club, ten games left" onClick={() => go('setup', 'runin')} />
       </div>
 
       <div className="home-tiles">

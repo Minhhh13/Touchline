@@ -36,7 +36,7 @@ The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with 
 
 ### `public/data/england/players-classic.json` (1.16 MB)
 
-The classic seasons, 1992-93 to 2007-08 (section 8): the same `{ version, generatedAt, columns, rows }` and the same 29 columns as `players.json`, kept in its own file so `players.json` keeps its rows and order. The browser loads it only for a league whose `leagues.json` entry has `classicFrom` (England, 1992), and a failed fetch loads the standard seasons alone.
+The classic seasons, 1992-93 to 2007-08 (section 8): the same `{ version, generatedAt, columns, rows }` and the same 29 columns as `players.json`, kept in its own file so `players.json` keeps its rows and order. The browser loads it only for a league whose `leagues.json` entry has `classicFrom` (England, 1992), and only when something asks for classic seasons (`src/game/packs.ts`: a game with `rules.classic`, the Setup's Classic toggle, Explore); a plain start loads the standard seasons alone, and fetches this file without parsing it some seconds later so the service worker has it for an offline visit. A classic load whose fetch fails fails (the toggle switches back off with a toast; a saved classic game is parked). The engine's own loader (`fetchLeague`, used by the tests and the server) still loads it with every league that has one, and a failed fetch there loads the standard seasons alone.
 
 ### `public/data/<league>/meta.json` (about 80 KB)
 

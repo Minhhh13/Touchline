@@ -18,28 +18,33 @@ export function GauntletLadder({ u, a, ghost }: { u: LoadedUniverse; a: ArenaSta
   const mark = (i: number) => (i === fell ? ' 👻' : '')
   const note = (i: number) => (ghost?.arena ? ` · ${ghostStepLine(ghost, i)}` : '')
   return (
-    <div className="row wrap" style={{ gap: 6 }} data-testid="gauntlet-ladder">
+    <div className="row wrap" style={{ gap: 6 }} role="list" aria-label="The Gauntlet's rungs" data-testid="gauntlet-ladder">
       {Array.from({ length: GAUNTLET_RUNGS }, (_, i) => {
         const played = a.log[i]
         if (played) {
           const won = stepWon(played)
           return (
-            <span key={i} className={`chip ${won ? 'good' : 'bad'}`} title={`Rung ${i + 1}: ${played.gf}-${played.ga}${played.pens ? ` (${played.pens.us}-${played.pens.them} pens)` : ''} v ${arenaClubName(u, played.opponent)}${note(i)}`} data-testid={won ? 'rung-won' : 'rung-lost'}>
-              {code(played.opponent)}
+            <span key={i} role="listitem" className={`chip ${won ? 'good' : 'bad'}`} title={`Rung ${i + 1}: ${played.gf}-${played.ga}${played.pens ? ` (${played.pens.us}-${played.pens.them} pens)` : ''} v ${arenaClubName(u, played.opponent)}${note(i)}`} data-testid={won ? 'rung-won' : 'rung-lost'}>
+              <span className="sr-only">Rung {i + 1}, {won ? 'won' : 'lost'} {played.gf}-{played.ga}{played.pens ? `, ${played.pens.us}-${played.pens.them} on penalties,` : ''} v {arenaClubName(u, played.opponent)}{note(i)}: </span>
+              <span aria-hidden="true">{code(played.opponent)}</span>
+              <span className="res-letter" aria-hidden="true">{won ? 'W' : 'L'}</span>
               {mark(i)}
             </span>
           )
         }
         if (i === a.step && !a.over && a.next) {
           return (
-            <span key={i} className="chip gold" title={`Rung ${i + 1}: ${arenaClubName(u, a.next)}${note(i)}`} data-testid="rung-next">
-              <ClubBadge clubId={clubIdOfKey(a.next)} size={18} /> {i + 1}
+            <span key={i} role="listitem" className="chip gold" title={`Rung ${i + 1}: ${arenaClubName(u, a.next)}${note(i)}`} data-testid="rung-next">
+              <span className="sr-only">Up next, rung {i + 1} v {arenaClubName(u, a.next)}{note(i)}: </span>
+              <span aria-hidden="true" className="row" style={{ gap: 4 }}>
+                <ClubBadge clubId={clubIdOfKey(a.next)} size={18} /> {i + 1}
+              </span>
               {mark(i)}
             </span>
           )
         }
         return (
-          <span key={i} className="chip" style={{ opacity: 0.6 }} title={ghost?.arena ? `Rung ${i + 1}${note(i)}` : undefined}>
+          <span key={i} role="listitem" className="chip rung-ahead" title={ghost?.arena ? `Rung ${i + 1}${note(i)}` : undefined}>
             {i + 1}
             {mark(i)}
           </span>

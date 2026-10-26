@@ -49,6 +49,7 @@ import { readMark, resumeFrom, resumeLine, segmentKey, writeMark } from './resum
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { MATCHDAY_COMPACT, matchdayBoxes, readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
+import { useMatchSounds } from '../sound/useMatchSounds'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
@@ -118,6 +119,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
     if (line) showToast(line)
     // Mount only: the line is about the reload
   }, [])
+  // The whistle, the crowd and the net, on the same clock the pitch draws from (presentation only)
+  useMatchSounds({ events: feed.events, ranges: mpath.epochs, holds, userSide, start: resumeAt, stopAt, final, reduced })
   // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
   const revealed = useLiveClock((s) => s.revealed)
   const cued = useLiveClock((s) => s.cued ?? 0)
