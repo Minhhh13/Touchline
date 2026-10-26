@@ -9729,13 +9729,11 @@ table.tbl.match-stats th {
     transform: scale(1.08);
     opacity: 1;
   }
+  /* It settles and stays at full strength: fading an old chip took its text under 4.5:1 (docs/ACCESSIBILITY.md) */
   20%,
-  80% {
+  100% {
     transform: scale(1);
     opacity: 1;
-  }
-  100% {
-    opacity: 0.35;
   }
 }
 .pb-tabs {
