@@ -10378,6 +10378,13 @@ table.tbl.match-stats th {
 .result-banner .blocks {
   margin-top: var(--space-3);
 }
+/* The Gauntlet's ladder takes the blocks' place under the figures, with the same gap */
+.result-banner .banner-ladder {
+  margin-top: var(--space-3);
+}
+.result-banner .banner-ladder [data-testid='gauntlet-ladder'] {
+  justify-content: center;
+}
 .result-banner .banner-actions {
   margin-top: var(--space-4);
 }

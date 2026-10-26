@@ -150,7 +150,7 @@ export function ArenaSummary() {
           </div>
         )}
         {gauntlet && (
-          <div className="row" style={{ justifyContent: 'center' }}>
+          <div className="row banner-ladder" style={{ justifyContent: 'center' }}>
             <GauntletLadder u={u} a={a} />
           </div>
         )}
