@@ -58,7 +58,7 @@ describe('rooms need no account', () => {
 
   it('keeps guests to the rooms: every other op answers 401', async () => {
     const h = makeHarness(new Date('2026-10-26T10:00:00Z'), LIVE)
-    for (const body of [{ op: 'daily.pin' }, { op: 'weekly.pin' }, { op: 'account.delete', confirm: 'delete my account' }, { op: 'room.resume', code: 'K7Q2MX9A' }]) {
+    for (const body of [{ op: 'daily.pin' }, { op: 'weekly.pin' }, { op: 'chase.start', leagueId: 'england', formationId: '4-3-3', ratings: 'season', benchPicks: 0, engine: ENGINE_VERSION, data: STAMP }, { op: 'account.delete', confirm: 'delete my account' }, { op: 'room.resume', code: 'K7Q2MX9A' }]) {
       const r = await call(h, body)
       expect(r.status, body.op).toBe(401)
       expect(r.body.code).toBe('unauthorised')

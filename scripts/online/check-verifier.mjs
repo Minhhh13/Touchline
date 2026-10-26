@@ -2,7 +2,7 @@
 // Check the verifier bundle the Edge Function runs, on its own, in Node: build it (unless --no-build), load it,
 // and drive its createServer through a whole Phase 1 day with in-memory stand-ins for the database, Storage and the
 // live site (public/data from disk): pin today's Daily, post an honest Auto-complete run, a retry and a tampered
-// copy, then pin and post the weekly challenge. The bundle must rank the honest runs with the figures the game
+// copy, then pin and post the weekly challenge, then issue a 38-0 chase attempt and post a run on it. The bundle must rank the honest runs with the figures the game
 // itself produced (and that replayChallenge reproduces), refuse the tampered one with a spin number, and never
 // name a DOM or Node global. Then an online head-to-head room (Phase 2) between two guests: made, joined and drafted
 // pick by pick to the season, which must equal the same game played hot-seat on the seed the finished room reveals.
@@ -67,6 +67,8 @@ const roomDb = {
   roomLeave: async () => ({ status: 'bad' }),
   roomReseat: async () => ({ status: 'bad' }),
 }
+const attempts = new Map()
+const chaseEntries = new Map()
 const deps = {
   now: () => NOW,
   log: () => {},
@@ -100,6 +102,24 @@ const deps = {
       const prior = entries.get(k)
       if (prior) return { status: prior.draft_fingerprint === entry.draft_fingerprint ? 'duplicate' : 'already_submitted' }
       entries.set(k, entry)
+      return { status: 'ranked', position: 1, total: 1 }
+    },
+    chaseStart: async (uid, leagueId, formationId, options, engine, data) => {
+      const code = 'CHECKRUN' + String(attempts.size + 2).padStart(2, '2')
+      const attempt = { code, seed: `chase-${code}`, leagueId, formationId, ratings: options.ratings, benchPicks: options.benchPicks, engineVersion: engine, dataVersion: data, createdAt: NOW.toISOString(), expiresAt: new Date(NOW.getTime() + 48 * 3600000).toISOString(), submittedAt: null }
+      attempts.set(code, { ...attempt, uid })
+      return { status: 'ok', left: 4, cap: 5, attempt }
+    },
+    chaseAttempt: async (uid, code) => {
+      const a = attempts.get(code)
+      if (!a || a.uid !== uid) return null
+      const { uid: _u, ...attempt } = a
+      return attempt
+    },
+    chaseSubmit: async (uid, code, entry) => {
+      const prior = chaseEntries.get(code)
+      if (prior) return { status: prior.draft_fingerprint === entry.draft_fingerprint ? 'duplicate' : 'already_submitted' }
+      chaseEntries.set(code, entry)
       return { status: 'ranked', position: 1, total: 1 }
     },
     dataPack: async (v) => packs.get(v) ?? null,
@@ -160,6 +180,18 @@ expect(pin.status === 200, `daily.pin answered ${pin.status} ${JSON.stringify(pi
 expect(pin.body.pin.settingsHash === V.settingsHash(V.dailyGameSettings(u, `daily-${day}`)), 'the pinned Daily is not the Daily mapping')
 const dailyPts = await rankedRun('daily', V.dailyGameSettings(u, `daily-${day}`, 'Check FC'), day)
 const weeklyPts = await rankedRun('weekly', V.weeklyGameSettings(u, week, 'Check FC'), week)
+// The 38-0 chase: an attempt issued on the live data, a run on its wheel ranked on the replay, another account refused
+const start = await call({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', ratings: 'prime', benchPicks: 1, engine: V.ENGINE_VERSION, data: index.generatedAt })
+expect(start.status === 200 && start.body.attempt, `chase.start answered ${start.status} ${JSON.stringify(start.body)}`)
+const chaseSettings = V.chaseGameSettings(u, start.body.attempt.code, 'england', '4-3-3', 'Check FC', { ratings: 'prime', benchPicks: 1 })
+expect(chaseSettings && chaseSettings.seed === start.body.attempt.seed, 'the chase mapping gave no settings for the issued attempt')
+const chaseGame = autoPlayed(chaseSettings)
+const chaseBody = { op: 'chase.submit', encoded: V.encodeChallenge(V.challengeFromGame(chaseGame, u, 'Check')), teamName: chaseGame.settings.teamName, shortName: chaseGame.settings.shortName }
+const chased = await call(chaseBody)
+const cq = chaseGame.quickResult
+expect(chased.status === 200 && chased.body.status === 'ranked' && chased.body.official.points === cq.points && chased.body.official.won === cq.won && chased.body.official.claimMatched === true, `chase.submit: expected ranked on the game's own figures, got ${chased.status} ${JSON.stringify(chased.body)}`)
+const stranger = await server.handle({ ...caller, userId: '22222222-2222-4222-8222-222222222222' }, JSON.stringify(chaseBody))
+expect(stranger.status === 409 && stranger.body.code === 'no_attempt', `chase.submit: another account's post was not refused (${JSON.stringify(stranger.body)})`)
 
 // An online room between two guests (the publishable key, no account), played to the season through the bundle
 const guests = [{ guest: true, subject: await V.guestSubject('192.0.2.1', deps.sha256Hex) }, { guest: true, subject: await V.guestSubject('192.0.2.2', deps.sha256Hex) }]
@@ -201,4 +233,4 @@ while (!V.h2hComplete(hot)) {
 }
 const season = V.runH2HSeason(u, rng, room.managers, hot.drafts, room.settings.leagueId, room.settings.leagueSeason, room.settings.difficulty)
 expect(JSON.stringify(season) === JSON.stringify(room.result), 'the room\'s season differs from the same game played hot-seat')
-console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game`)
+console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, 38-0 chase ranked ${cq.won}-${cq.drawn}-${cq.lost}, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game`)

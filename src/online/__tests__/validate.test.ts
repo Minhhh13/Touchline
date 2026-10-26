@@ -13,11 +13,12 @@ describe('parseRequest', () => {
     expect(parseRequest('{"op":"daily.pin"}')).toEqual({ ok: true, value: { op: 'daily.pin' } })
     expect(parseRequest('{"op":"daily.pin","date":"2026-10-25"}')).toEqual({ ok: true, value: { op: 'daily.pin', date: '2026-10-25' } })
     expect(parseRequest('{"op":"weekly.pin","week":"2026-W43"}')).toEqual({ ok: true, value: { op: 'weekly.pin', week: '2026-W43' } })
-    for (const op of ['daily.submit', 'weekly.submit']) {
+    for (const op of ['daily.submit', 'weekly.submit', 'chase.submit']) {
       expect(parseRequest(JSON.stringify({ op, encoded: 'abc', teamName: 'Verified FC', shortName: 'VFC' }))).toEqual({ ok: true, value: { op, encoded: 'abc', teamName: 'Verified FC', shortName: 'VFC' } })
     }
     expect(parseRequest(JSON.stringify({ op: 'account.delete', confirm: DELETE_CONFIRMATION }))).toEqual({ ok: true, value: { op: 'account.delete', confirm: DELETE_CONFIRMATION } })
-    expect(OPS).toEqual(['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume'])
+    // The 38-0 chase's two ops (docs/ONLINE.md section 5d); chase.start is checked in chase.test.ts
+    expect(OPS).toEqual(['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete', 'room.create', 'room.join', 'room.pick', 'room.leave', 'room.resume'])
     expect(parseRequest(JSON.stringify({ op: 'room.leave', code: 'K7Q2MX9A', token: 'x'.repeat(43) }))).toEqual({ ok: true, value: { op: 'room.leave', code: 'K7Q2MX9A', token: 'x'.repeat(43) } })
     expect(parseRequest(JSON.stringify({ op: 'room.resume', code: 'k7q2 mx9a' }))).toEqual({ ok: true, value: { op: 'room.resume', code: 'K7Q2MX9A' } })
   })

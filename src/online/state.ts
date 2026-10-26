@@ -35,10 +35,11 @@ export type SyncConflict =
   /** Newer progress of the game on screen exists on another device (row 10 while it is being played). */
   | { kind: 'newer'; slot: SlotId; remote: SaveMeta | null }
 
-/** What happened to a ranked post (a Daily or the week's challenge), keyed `daily:2026-10-25` or `weekly:2026-W43`. */
+/** What happened to a ranked post (a Daily, the week's challenge or a 38-0 chase run), keyed `daily:2026-10-25`,
+ * `weekly:2026-W43` or `chase:K7Q2MX9A3B`. A chase post also carries its week's place and whether it was flawless. */
 export type PostState =
   | { state: 'waiting'; reason: 'sign_in' | 'retry' | 'sending'; points?: number }
-  | { state: 'posted'; position: number; total: number; countryPosition?: number | null; countryTotal?: number | null; country?: string | null; points: number; claimMatched: boolean; already: boolean }
+  | { state: 'posted'; position: number; total: number; countryPosition?: number | null; countryTotal?: number | null; country?: string | null; points: number; claimMatched: boolean; already: boolean; weekPosition?: number | null; weekTotal?: number | null; perfect?: boolean }
   | { state: 'unranked'; code: string; reason: string }
   | { state: 'rejected'; code: string; reason: string }
   | { state: 'closed' }
@@ -99,4 +100,4 @@ export function useOnline<T>(selector: (s: OnlineState) => T): T {
 }
 
 /** The key a ranked post is filed under. */
-export const postKey = (kind: 'daily' | 'weekly', key: string) => `${kind}:${key}`
+export const postKey = (kind: 'daily' | 'weekly' | 'chase', key: string) => `${kind}:${key}`

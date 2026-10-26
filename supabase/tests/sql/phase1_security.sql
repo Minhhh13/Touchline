@@ -6,7 +6,11 @@
 \pset pager off
 
 \echo '--- security: anon executes exactly the public board readers and their private helpers'
+-- The 38-0 chase (migration chase_board) adds chase_board and chase_summary for everyone, chase_my_status and
+-- chase_my_entries for signed-in accounts; its writers svc_chase_start, svc_chase_attempt, svc_chase_submit are
+-- service_role only like every svc_*.
 do $t$ declare got text[]; want text[] := array[
+  'private.chase_board_impl', 'private.chase_summary_impl',
   'private.country_filter', 'private.daily_alltime_impl', 'private.daily_board_impl', 'private.daily_is_open',
   'private.daily_rank_impl', 'private.daily_revealed', 'private.daily_summary_impl', 'private.get_challenge_impl',
   'private.is_anonymous', 'private.is_clean_name', 'private.normalise_code', 'private.week_start_of',
@@ -14,6 +18,7 @@ do $t$ declare got text[]; want text[] := array[
   'private.weekly_summary_impl',
   -- Phase 2 rooms: the room reader for anyone holding a code (h2h_rooms migration)
   'private.h2h_peek_impl', 'public.h2h_peek',
+  'public.chase_board', 'public.chase_summary',
   'public.daily_alltime_board', 'public.daily_board', 'public.daily_rank', 'public.daily_summary', 'public.get_challenge',
   'public.weekly_board', 'public.weekly_rank', 'public.weekly_summary'];
 begin
@@ -25,6 +30,8 @@ end $t$;
 
 \echo '--- security: authenticated adds only its own saves, profile, challenge codes and entries'
 do $t$ declare got text[]; want text[] := array[
+  'private.chase_board_impl', 'private.chase_my_entries_impl', 'private.chase_my_status_impl', 'private.chase_summary_impl',
+  'public.chase_board', 'public.chase_my_entries', 'public.chase_my_status', 'public.chase_summary',
   'private.cloud_delete_all_impl', 'private.country_filter', 'private.create_challenge_impl', 'private.daily_alltime_impl',
   'private.display_name_check_impl', 'public.display_name_check',
   'private.daily_alltime_mine_impl', 'private.daily_board_impl', 'private.daily_is_open', 'private.daily_my_entries_impl',

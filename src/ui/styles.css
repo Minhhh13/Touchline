@@ -9728,6 +9728,26 @@ table.tbl.sticky-head thead th {
 .world-weekly {
   gap: var(--space-2);
 }
+/* The 38-0 chase: W-D-L in the result colours, the closest-ever record, flawless rows, the start card's pickers */
+.wdl {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.chase-record {
+  flex: none;
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-sm);
+}
+table.tbl tr.chase-perfect td:first-child {
+  box-shadow: inset 3px 0 0 var(--good);
+}
+.chase-pick {
+  gap: var(--space-2);
+}
+.chase-pick > .field {
+  flex: 1 1 110px;
+  min-width: 0;
+}
 .plain-list {
   margin: 0;
   padding-left: 1.1em;
