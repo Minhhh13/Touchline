@@ -14400,8 +14400,17 @@ details.opposition {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   min-width: 0;
+}
+/* On a desktop the rules step gives way and scrolls inside itself, so Start Draft stays whole (1280 x 720) */
+@media (min-width: 1100px) {
+  .setup-page .setup-box > .setup-step:has(.weekly-record) {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 .weekly-record .weekly-story {
   margin: 0;
