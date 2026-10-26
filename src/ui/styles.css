@@ -14375,3 +14375,25 @@ details.opposition {
   border-style: dashed;
   background: transparent;
 }
+/* Phones at 175 % and 200 % text (iOS Dynamic Type through the root font size, docs/ACCESSIBILITY.md section 5): the
+   rows that ran past the window wrap instead. Each only wraps when its content no longer fits, so 100 % is unchanged */
+@media (max-width: 720px) {
+  .draft-progress > .row,
+  .draft-progress > .row > .row,
+  .panel-head > .row {
+    flex-wrap: wrap;
+  }
+  .prow .meta .chip,
+  .mspin-style-edge {
+    white-space: normal;
+    max-width: 100%;
+  }
+  .mspin-style-edge {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  /* A stat's capitalised label ("ACHIEVEMENTS") is wider than its half of the strip at 200 % */
+  .stat .label {
+    overflow-wrap: anywhere;
+  }
+}
