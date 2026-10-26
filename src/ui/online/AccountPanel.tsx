@@ -8,7 +8,8 @@ import { restorable } from '../../online/sync'
 import type { CloudRow } from '../../online/transport'
 import { countryFlag } from '../../online/core/country'
 import { savedLine } from '../../online/core/status'
-import { ClubBadge } from '../components/bits'
+import { AUTH_MODES, authCopy, authOutcomeNote, type AuthMode } from '../../online/core/authCopy'
+import { ClubBadge, Segmented } from '../components/bits'
 import { COUNTRY_OPTIONS, countryName } from './countries'
 import { ConflictCards } from './ConflictCard'
 import { OnlineRecord } from './OnlineRecord'
@@ -115,10 +116,13 @@ function ClubPicker() {
 type Step = { at: 'email' } | { at: 'sending' } | { at: 'code'; sentAt: number } | { at: 'verifying'; sentAt: number }
 
 /**
- * Create an account or sign in, by email: the address, then the six-digit code (the email's link works too, on any
- * device). The first sign-in with an address creates the account; there is no separate sign-up.
+ * Sign in or create an account, by email: a two-option switch (Sign in, Create account), the address, then the
+ * six-digit code (the email's link works too, on any device). Both options run the same flow (the first code for an
+ * address creates the account); only the words differ. `onVerify` reports the option a code is checked under (null when
+ * the check fails), so the screen can say when the address was the other kind once the account loads.
  */
-function SignIn() {
+function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMode) => void; onVerify: (m: AuthMode | null) => void }) {
+  const copy = authCopy(mode)
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [step, setStep] = useState<Step>({ at: 'email' })
@@ -162,8 +166,10 @@ function SignIn() {
     if (expired) return
     setStep({ at: 'verifying', sentAt })
     setMsg(null)
+    onVerify(mode)
     const r = await api.emailVerify(email, code)
     if (!r.ok) {
+      onVerify(null)
       setStep({ at: 'code', sentAt })
       setMsg(r.message)
     }
@@ -179,6 +185,11 @@ function SignIn() {
       <p className="account-promise" data-testid="account-promise">
         {ACCOUNT_PROMISE}
       </p>
+      {!onCodeStep && (
+        <div data-testid="auth-mode">
+          <Segmented<AuthMode> value={mode} onChange={onMode} options={AUTH_MODES.map((m) => ({ value: m.value, label: m.label, testId: m.value === 'signin' ? 'auth-mode-signin' : 'auth-mode-create' }))} />
+        </div>
+      )}
       {!onCodeStep ? (
         <form
           className="col"
@@ -192,9 +203,11 @@ function SignIn() {
             <input className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" data-testid="signin-email" />
           </label>
           <button type="submit" className="btn primary" disabled={step.at === 'sending' || !email.trim()} data-testid="signin-send">
-            {step.at === 'sending' ? 'Sending…' : 'Email me a code'}
+            {step.at === 'sending' ? 'Sending…' : copy.submit}
           </button>
-          <p className="help">New here? The same code creates your account. No password.</p>
+          <p className="help" data-testid="signin-help">
+            {copy.emailHelp}
+          </p>
         </form>
       ) : (
         <form
@@ -206,7 +219,7 @@ function SignIn() {
           data-testid="signin-code-step"
         >
           <div className="notice" data-testid="signin-sent">
-            Check your inbox: code sent to <b>{maskEmail(email) ?? email}</b>.
+            {copy.codeLead} <b>{maskEmail(email) ?? email}</b>.
           </div>
           {expired ? (
             <div className="notice warn" data-testid="signin-expired">
@@ -221,7 +234,7 @@ function SignIn() {
           <div className="row wrap">
             {!expired && (
               <button type="submit" className="btn primary" disabled={step.at === 'verifying' || code.length < 6} data-testid="signin-verify">
-                {step.at === 'verifying' ? 'Signing in…' : 'Sign in'}
+                {step.at === 'verifying' ? (mode === 'create' ? 'Creating…' : 'Signing in…') : copy.verify}
               </button>
             )}
             <button type="button" className="btn ghost sm" disabled={wait > 0 && !expired} onClick={() => void send()} data-testid="signin-resend">
@@ -495,6 +508,22 @@ export function AccountScreen() {
     if (configured && !started) void api.startOnline()
   }, [configured, started])
   const setup = !!session && accountLoaded && !account
+  // Sign in or Create account: the same email code underneath. The option a code was checked under is kept until the
+  // account loads, then turned into a one-line note (frozen, so finishing the setup step does not change it).
+  const [mode, setMode] = useState<AuthMode>('signin')
+  const [attempt, setAttempt] = useState<AuthMode | null>(null)
+  const [note, setNote] = useState<string | null>(null)
+  useEffect(() => {
+    if (!session) {
+      setNote(null)
+      return
+    }
+    if (!attempt) return
+    const n = authOutcomeNote(attempt, accountLoaded, !!account)
+    if (n === undefined) return
+    setNote(n)
+    setAttempt(null)
+  }, [session, attempt, accountLoaded, account])
   return (
     <div className="page account-page" data-testid="account-panel">
       <div className="screen-head">
@@ -517,7 +546,7 @@ export function AccountScreen() {
           <div className="grid three account-grid">
             <section className="panel fit-panel" data-testid="account-identity">
               <div className="panel-head">
-                <h3>{!session ? 'Create an account or sign in' : setup ? 'Set up your profile' : 'You'}</h3>
+                <h3>{!session ? authCopy(mode).heading : setup ? 'Set up your profile' : 'You'}</h3>
                 {session && (
                   <button className="btn sm ghost" onClick={() => void api.signOutOnline()} data-testid="signout">
                     Sign out
@@ -526,9 +555,14 @@ export function AccountScreen() {
               </div>
               <div className="fit-scroll col">
                 {!session ? (
-                  <SignIn />
+                  <SignIn mode={mode} onMode={setMode} onVerify={setAttempt} />
                 ) : (
                   <>
+                    {note && (
+                      <div className="notice" data-testid="auth-outcome">
+                        {note}
+                      </div>
+                    )}
                     <span className="small muted" data-testid="account-email">
                       {session.maskedEmail ?? 'Your account'} · {session.provider === 'google' ? 'Google' : 'email'}
                     </span>
@@ -558,7 +592,7 @@ export function AccountLink() {
         <h3>{session ? 'Your account' : 'Back up your saves'}</h3>
         <span className="small muted">{session ? <>{account ? `${account.displayName}: ` : ''}<SavedStatus testId="account-link-status" /></> : ACCOUNT_PROMISE}</span>
       </div>
-      <button className={`btn ${session ? '' : 'primary'}`} onClick={() => go('account')} data-testid="account-open">
+      <button className={`btn ${session ? '' : 'primary'}`} onClick={() => go('account')} aria-label={session ? undefined : 'Sign in or create an account'} title={session ? undefined : 'Sign in or create an account'} data-testid="account-open">
         {session ? 'Open' : 'Sign in'}
       </button>
     </div>

@@ -5,7 +5,7 @@ import type { Game, QuickJanuary } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason } from '@engine/types'
 import { getFormation } from '@engine/formations'
-import { ratingsHidden } from '@engine/draft'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 import { ratingAt } from '@engine/positions'
 import { playerLookup } from '@game/logic/players'
 import { playbackResults, quickChangeProblem, quickSeasonGames, quickSquadAt } from '@game/logic/quick'
@@ -168,7 +168,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
   const { benchChange } = useStore()
   const [inId, setInId] = useState<string | null>(null)
   const get = playerLookup(game, u)
-  const hide = ratingsHidden(game.settings.rules)
+  const hide = ratingHidden(game.settings.rules, 'squad')
   const formation = getFormation(game.tactics.formationId)
   const view = quickSquadAt(game, u, results, revealed)
   const problem = quickChangeProblem(game, u, results, revealed)
@@ -253,7 +253,7 @@ function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j: Quick
   const [chosen, setChosen] = useState<number | null>(null)
   const [tactics, setShowTactics] = useState(false)
   const get = playerLookup(game, u)
-  const hide = ratingsHidden(game.settings.rules)
+  const hide = ratingHidden(game.settings.rules, 'market')
   const formation = getFormation(game.tactics.formationId)
   const slotOf = (slotId: string) => formation.slots.find((x) => x.id === slotId)
   const xi = Object.values(game.lineup)
@@ -343,7 +343,7 @@ function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j: Quick
       {tactics && (
         <div className="col">
           <TeamInstructions t={game.tactics} onChange={setTactics} />
-          <CaptainAndPenalties xi={xi} captainId={game.captainId} penalties={game.tactics.setPieces?.penalties} onCaptain={(id) => setCaptain(id ?? '')} onPenalties={(id) => setTactics({ setPieces: { ...game.tactics.setPieces, penalties: id } })} hideRatings={hide} />
+          <CaptainAndPenalties xi={xi} captainId={game.captainId} penalties={game.tactics.setPieces?.penalties} onCaptain={(id) => setCaptain(id ?? '')} onPenalties={(id) => setTactics({ setPieces: { ...game.tactics.setPieces, penalties: id } })} hideRatings={ratingHidden(game.settings.rules, 'squad')} />
         </div>
       )}
     </div>

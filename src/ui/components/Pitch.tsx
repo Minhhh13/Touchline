@@ -38,12 +38,14 @@ export interface PitchProps {
   selectedSlot?: string | null
   eligibleSlots?: string[]
   hideRatings?: boolean
+  /** The player whose rating just came out of hiding (a blind pick landing): his disc flips the number in. */
+  revealId?: string | null
   showRoles?: Record<string, string>
   /** Short forms of `showRoles` (role codes), shown when the full role does not fit the slot; the full one is in the tooltip. */
   roleCodes?: Record<string, string>
 }
 
-export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, selectedSlot, eligibleSlots, hideRatings, showRoles, roleCodes }: PitchProps) {
+export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, selectedSlot, eligibleSlots, hideRatings, revealId, showRoles, roleCodes }: PitchProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(PITCH_GUESS)
   useEffect(() => {
@@ -90,7 +92,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const sub = (role + fitNote).length * SUB_CH <= room ? role : roleCodes?.[slot.id] ?? role
         return (
           <div key={slot.id} className="slot" style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}` : undefined} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
-            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}`} style={ring ? { borderColor: ring } : undefined}>
+            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
             </div>
             <div className="label">{name}</div>
