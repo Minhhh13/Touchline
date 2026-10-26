@@ -14372,3 +14372,13 @@ details.opposition {
     font-size: var(--fs-meta);
   }
 }
+/* The Draft's first spin for a new manager: one plain line under Spin the wheel; a desktop's middle box already says it */
+.first-spin-help {
+  margin: 0;
+  text-align: center;
+}
+@media (min-width: 1100px) {
+  .app.shell .first-spin-help {
+    display: none;
+  }
+}
