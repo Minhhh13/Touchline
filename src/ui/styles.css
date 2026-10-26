@@ -1194,7 +1194,7 @@ p {
 .btn.big {
   min-height: var(--control-h-lg);
   padding: 10px 24px;
-  font-size: 17px;
+  font-size: calc(var(--fs-h3) - 2px);
   font-family: var(--font-display);
   letter-spacing: 0.01em;
   border-radius: var(--radius-m);
