@@ -1565,7 +1565,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
       {on('board') && (
       <div className="panel">
         <h3>Board</h3>
-        <div className="kv tight">
+        <dl className="kv tight">
           <dt>You replace</dt>
           <dd data-testid="you-replace">
             <span className="row" style={{ gap: 6 }}>
@@ -1586,7 +1586,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
           <dd>{host?.rivals.map((r) => clubName(u, r)).join(', ') || 'None'}</dd>
           <dt>Difficulty</dt>
           <dd title={season.aiOffset > 0 ? `Rivals play ${season.aiOffset} rating points below their real strength` : 'Real squads at full strength'}>{season.aiOffset > 0 ? `Calibrated (−${season.aiOffset})` : 'Realistic'}</dd>
-        </div>
+        </dl>
         {season.objectives && season.objectives.length > 0 && (
           <>
             <h4 className="head-title" style={{ marginTop: 'var(--space-4)' }}>
@@ -1629,7 +1629,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
             <Info label="About finances">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</Info>
           </span>
         </div>
-        <div className="kv tight">
+        <dl className="kv tight">
           <dt>Transfer budget</dt>
           <dd>{money(game.finances.budget)}</dd>
           <dt>Wage bill</dt>
@@ -1642,7 +1642,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
           <dd>{money(game.finances.spent)}</dd>
           <dt>Wages paid</dt>
           <dd>{money(game.finances.wagesPaid)}{game.finances.bonusesPaid ? ` (bonuses ${money(game.finances.bonusesPaid)})` : ''}</dd>
-        </div>
+        </dl>
         <WageSlider onMessage={setClubMsg} />
       </div>
       )}

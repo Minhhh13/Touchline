@@ -13,6 +13,8 @@ import { beginSeason, createGame } from '@game/logic/setup'
 import { H2HSetup } from '../screens/H2H'
 import { TacticsTab } from '../screens/Dugout'
 import { Explore } from '../screens/Explore'
+import { ProfileScreen } from '../screens/ProfileScreen'
+import { StatsTab } from '../screens/StatsTab'
 import { markupProblems, renderProblems, show } from './qaSsr'
 import { ScreenBoundary } from '../components/ScreenBoundary'
 import { renderToString } from 'react-dom/server'
@@ -61,5 +63,23 @@ describe('QA-4: a screen that throws while rendering', () => {
   it('wraps the screens in App, so a render error never blanks the top bar', () => {
     const src = readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')
     expect(src).toMatch(/<ScreenBoundary resetKey=[\s\S]{0,200}?\{body\}\s*<\/ScreenBoundary>/)
+  })
+})
+
+describe('QA-6: key-value lists are description lists', () => {
+  it('the Profile chase, the season records and the Club tab put their dt and dd inside a dl', () => {
+    const u = loadTestUniverse(['england'])
+    const g = createGame({ mode: 'season', seed: 'qa-fix-dl', formationId: '4-3-3', teamName: 'QA', shortName: 'QAA', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2024, rules: { ...SEASON_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    show({ universe: u, loadedLeagues: ['england'], game: g, screen: 'game' })
+    expect(renderProblems(StatsTab)).toEqual([])
+    show({ screen: 'profile' })
+    expect(renderProblems(ProfileScreen)).toEqual([])
+    // The Club tab is inside the Dugout: its source holds no key-value div any more
+    const src = readFileSync(join(__dirname, '..', 'screens', 'Dugout.tsx'), 'utf8') + readFileSync(join(__dirname, '..', 'components', 'ContractTalks.tsx'), 'utf8')
+    expect(src).not.toMatch(/<div className="kv/)
   })
 })

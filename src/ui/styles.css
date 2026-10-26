@@ -4367,6 +4367,10 @@ table.tbl.contracts .btn.sm {
   gap: 4px 14px;
   font-size: 13.5px;
 }
+/* A key-value list is a <dl>: no browser margins, so it sits as the div it replaced did */
+dl.kv {
+  margin-block: 0;
+}
 .kv dt {
   color: var(--text-3);
 }

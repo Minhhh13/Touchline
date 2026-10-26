@@ -42,6 +42,7 @@ export function markupProblems(html: string): string[] {
       if (tag === 'button' && !f.text.trim() && !attr(f.attrs, 'aria-label') && !attr(f.attrs, 'title') && !attr(f.attrs, 'aria-labelledby')) out.push(`button without a name: <button${f.attrs.slice(0, 120)}>`)
       continue
     }
+    if ((tag === 'dt' || tag === 'dd') && stack.at(-1)?.tag !== 'dl' && !(stack.at(-1)?.tag === 'div' && stack.at(-2)?.tag === 'dl')) out.push(`${tag} outside a dl: <${tag}${attrs.slice(0, 80)}>`)
     if (tag === 'img' && attr(attrs, 'alt') === undefined && attr(attrs, 'aria-hidden') !== 'true') out.push(`img without alt: <img${attrs.slice(0, 100)}>`)
     if (tag === 'input' || tag === 'select' || tag === 'textarea') {
       const type = attr(attrs, 'type')

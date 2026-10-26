@@ -21,7 +21,7 @@ export function SeasonStoryPanel({ story, opponentName }: { story: SeasonStory; 
           <span key={i} data-outcome={o} title={`MW ${story.results[i]?.matchweek ?? i + 1}: ${o}`} style={{ background: CELL[o] }} />
         ))}
       </div>
-      <dl className="kv" style={{ marginTop: 12 }}>
+      <dl className="kv" style={{ marginTop: 12, marginBottom: '1em' }}>
         {story.clinchedAt != null && (
           <>
             <dt>Title sealed</dt>
