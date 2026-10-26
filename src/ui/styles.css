@@ -8869,7 +8869,7 @@ table.tbl.match-stats th {
 .sc-head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: calc(var(--fs-h1) - 2px);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   line-height: 1.05;
@@ -8911,7 +8911,7 @@ table.tbl.match-stats th {
   margin-right: 4px;
 }
 .sc-kicker {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -8944,7 +8944,7 @@ table.tbl.match-stats th {
 }
 .sc-big-num {
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: calc(var(--fs-h1) * 1.25);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
@@ -8961,7 +8961,7 @@ table.tbl.match-stats th {
   grid-template-columns: 112px minmax(0, 1fr) 52px;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .sc-chance b,
 .sc-unit b {
@@ -9014,7 +9014,7 @@ table.tbl.match-stats th {
 }
 .jw-pace {
   margin: 0;
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
   color: var(--text-2);
 }
 .jw-choice {
@@ -9032,7 +9032,7 @@ table.tbl.match-stats th {
     grid-template-columns: 100px minmax(0, 1fr) 48px;
   }
   .sc-big-num {
-    font-size: 34px;
+    font-size: calc(var(--fs-h1) + 2px);
   }
 }
 
@@ -9075,7 +9075,7 @@ table.tbl.match-stats th {
   border-radius: 10px;
   text-align: center;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--accent);
