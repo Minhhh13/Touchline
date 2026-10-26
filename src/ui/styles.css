@@ -3019,7 +3019,7 @@ kbd {
 table.tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: calc(var(--fs-sm) + 0.5px);
 }
 table.tbl th,
 table.tbl td {
@@ -3118,7 +3118,7 @@ table.tbl.contracts .btn.sm {
 @media (max-width: 720px) {
   /* 16px keeps iOS from zooming into the field on focus */
   table.tbl select.input.sm {
-    font-size: 16px;
+    font-size: 16px; /* px: 16 px so iOS does not zoom */
   }
   .one-line {
     white-space: normal;
@@ -3134,7 +3134,7 @@ table.tbl.contracts .btn.sm {
   border-radius: 3px;
   display: inline-grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 11px; /* px: the 16 px form box */
   font-weight: 700;
   color: var(--on-status);
 }
