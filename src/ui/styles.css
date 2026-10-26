@@ -10338,37 +10338,6 @@ table.tbl.hub td.name {
   overflow: hidden;
 }
 .pc-career {
-/* ------------------------------------------------------------------ the match report: one screen
- * DESIGN_SYSTEM.md section 13. The head is one row (the match's name, Live and Report, the buttons); under it the
- * scoreboard band, then three boxes side by side: the goals and the numbers; the pictures (Shot map, Momentum,
- * Possession, Tactics as tabs); the player of the match over the ratings and the notes (tabs). Below 1100 px every
- * pane stacks under its own heading and the page scrolls, as a phone does.
- */
-.match-head {
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  margin-bottom: 10px;
-}
-.match-head > .tabs {
-  margin: 0;
-  border-bottom: 0;
-}
-.match-title h2 {
-  margin: 0;
-}
-.report-dash,
-.report-col,
-.rp-box,
-.rp-flow {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
-}
-.report-dash .tip {
-  margin: 0;
-}
-.report-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
@@ -10854,6 +10823,44 @@ table.tbl.hub td.name {
   }
   .pc-tbl th.c-star {
     width: 68px;
+  }
+}
+
+/* ------------------------------------------------------------------ the match report: one screen
+ * DESIGN_SYSTEM.md section 13. The head is one row (the match's name, Live and Report, the buttons); under it the
+ * scoreboard band, then three boxes side by side: the goals and the numbers; the pictures (Shot map, Momentum,
+ * Possession, Tactics as tabs); the player of the match over the ratings and the notes (tabs). Below 1100 px every
+ * pane stacks under its own heading and the page scrolls, as a phone does.
+ */
+.match-head {
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: 10px;
+}
+.match-head > .tabs {
+  margin: 0;
+  border-bottom: 0;
+}
+.match-title h2 {
+  margin: 0;
+}
+.report-dash,
+.report-col,
+.rp-box,
+.rp-flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.report-dash .tip {
+  margin: 0;
+}
+.report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
 .rp-box-head {
   display: flex;
   align-items: center;
