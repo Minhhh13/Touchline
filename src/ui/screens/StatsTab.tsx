@@ -8,6 +8,7 @@ import { ClubBadge, Info, Rating } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import type { SquadPlayer } from '@engine/types'
 import { PlayerPeek } from '../components/PlayerPeek'
+import type { Boxes } from '../components/Boxes'
 
 /** A signed figure to one decimal: "+1.4", "−0.8", "0.0". */
 function signedOne(v: number): string {
@@ -20,7 +21,8 @@ type Stat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
  * The Stats tab, three boxes side by side: the season's records, league-wide player statistics (your squad and every
  * AI club's), and the data hub (your players' expected goals and assists, per 90, from `src/game/logic/dataHub.ts`).
  */
-export function StatsTab() {
+/** `boxes` is the Dugout's Boxes control for this tab. */
+export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const { universe: u, game } = useStore()
   const [stat, setStat] = useState<Stat>('goals')
   const rows = useMemo(() => {
@@ -87,9 +89,11 @@ export function StatsTab() {
   if (!u || !game?.season) return null
   const totals = dataHubTotals(hub)
   const picks = analystPicks(hub)
+  const on = (id: string) => boxes?.on(id) ?? true
+  const grid = boxes?.grid([{ track: 'minmax(0, 0.8fr)', ids: ['records'] }, { track: 'minmax(0, 1.1fr)', ids: ['league-stats'] }, { track: 'minmax(0, 1.2fr)', ids: ['data-hub'] }]) ?? { className: '', style: undefined }
   return (
-    <div className="grid three fill squad-views stats-grid" data-testid="stats-tab">
-      {records ? (
+    <div className={`grid three fill squad-views stats-grid ${grid.className}`} style={grid.style} data-testid="stats-tab">
+      {!on('records') ? null : records ? (
         <div className="panel">
           <h3>Season records</h3>
           <div className="kv">
@@ -123,6 +127,7 @@ export function StatsTab() {
           <div className="small muted">No matches played yet.</div>
         </div>
       )}
+    {on('league-stats') && (
     <div className="panel">
       <div className="panel-head">
         <h3><LeagueFlag leagueId={game.season.leagueId} label={u.leagues.find((l) => l.id === game.season?.leagueId)?.name} /> League statistics</h3>
@@ -185,6 +190,8 @@ export function StatsTab() {
         </tbody>
       </table></div>
     </div>
+    )}
+    {on('data-hub') && (
     <div className="panel" data-testid="data-hub">
       <div className="panel-head">
         <span className="head-title">
@@ -247,6 +254,7 @@ export function StatsTab() {
         </table>
       </div>
     </div>
+    )}
     </div>
   )
 }

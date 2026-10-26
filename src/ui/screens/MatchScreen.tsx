@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeftRight, Bandage, ImageDown } from 'lucide-react'
+import { BoxesMenu, useBoxes, type Boxes } from '../components/Boxes'
+import { REPORT } from '../boxSets'
 import { useStore } from '@game/store'
 import { Bar, ClubBadge, Rating, Tabs, Tip } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
@@ -63,6 +65,7 @@ export function MatchScreen() {
   const [which, setWhich] = useState<'league' | 'cup'>('league')
   /** When a cup tie follows the league match, hold it until the league result has been seen. */
   const [holdLive, setHoldLive] = useState(false)
+  const reportBoxes = useBoxes(REPORT)
   if (!u || !game) return null
   const get = playerLookup(game, u)
   const live = game.live && !holdLive ? game.live : null
@@ -184,6 +187,7 @@ export function MatchScreen() {
               </button>
             </div>
           )}
+          {!replay && <BoxesMenu groups={[reportBoxes]} />}
           <button className="btn primary" onClick={onContinue} disabled={!!arena?.pending} data-testid="match-continue">
             {continueLabel}
           </button>
@@ -194,7 +198,7 @@ export function MatchScreen() {
       {arena && !replay && <ShootoutPanel />}
 
       {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} />}
-      {matchView === 'report' && <Report res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
+      {matchView === 'report' && <Report boxes={reportBoxes} res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
     </div>
   )
 }
@@ -202,7 +206,7 @@ export function MatchScreen() {
 type ChartTab = 'shots' | 'flow' | 'possession' | 'tactics'
 type PeopleTab = 'ours' | 'theirs' | 'notes'
 
-function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResult; ctx: MatchContext; names: { home: string; away: string; homeShort: string; awayShort: string }; outcome: string; get: (id: string) => ReturnType<ReturnType<typeof playerLookup>>; colours: { home: string; away: string } }) {
+function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxes; res: FullMatchResult; ctx: MatchContext; names: { home: string; away: string; homeShort: string; awayShort: string }; outcome: string; get: (id: string) => ReturnType<ReturnType<typeof playerLookup>>; colours: { home: string; away: string } }) {
   const u = useStore((s) => s.universe)
   const game = useStore((s) => s.game)
   const { home: homeName, away: awayName } = names
@@ -248,6 +252,12 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
   const motm = [...res.homeStats, ...res.awayStats].find((s) => s.playerSeasonId === res.motmId)
   const motmSide = motm ? (res.homeStats.includes(motm) ? names.homeShort : names.awayShort) : ''
   const opponentBox = !!game && !!u && ctx.competition === 'league' && ctx.roundLabel !== 'Friendly'
+  // The Boxes control: the columns left take the freed width
+  const grid = boxes.grid([
+    { track: 'minmax(240px, 0.8fr)', ids: ['goals', 'stats'] },
+    { track: 'minmax(0, 1.5fr)', ids: ['charts'] },
+    { track: 'minmax(340px, 1.05fr)', ids: ['people'] },
+  ])
   return (
     <div className="report-dash">
       <div className="scoreboard report-board">
@@ -270,8 +280,10 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
       </div>
 
       {/* Three boxes side by side on a desktop: the goals and the numbers; the pictures (tabs); the ratings and the notes (tabs). A phone stacks every pane */}
-      <div className="report-grid">
+      <div className={`report-grid ${grid.className}`} style={grid.style}>
+        {(boxes.on('goals') || boxes.on('stats')) && (
         <div className="report-col">
+          {boxes.on('goals') && (
           <div className="panel rp-goals">
             <h3>Goals</h3>
             {goals.length === 0 && <div className="muted small">No goals.</div>}
@@ -290,6 +302,8 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
               </ol>
             )}
           </div>
+          )}
+          {boxes.on('stats') && (
           <div className="panel rp-stats">
             <h3>Match stats</h3>
             <table className="tbl match-stats">
@@ -326,9 +340,12 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
               </tbody>
             </table>
           </div>
+          )}
           <Tip id="report-first">xG is the chances each side created; the notes are the exact modifiers your instructions produced.</Tip>
         </div>
+        )}
 
+        {boxes.on('charts') && (
         <div className="panel rp-box rp-charts">
           <div className="rp-box-head">
             <Tabs<ChartTab> value={chartOn} onChange={setChart} tabs={chartTabs} className="rp-tabs" testId="report-tab" />
@@ -366,7 +383,9 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
             </div>
           )}
         </div>
+        )}
 
+        {boxes.on('people') && (
         <div className="panel rp-box rp-people">
           {motm && (
             <div className="rp-motm" data-testid="report-motm">
@@ -493,6 +512,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   )

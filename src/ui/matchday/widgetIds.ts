@@ -4,6 +4,7 @@
  * choices, read and written inside try/catch and validated against the ids.
  * Choices never go into the save.
  */
+import type { BoxSet } from '../boxes'
 
 export const WIDGET_IDS = [
   'match-events',
@@ -124,4 +125,35 @@ export function writeChoice(slot: SlotId, id: WidgetId, storage: ChoiceStorage |
 /** The widget in each slot: the remembered choice, else the default. */
 export function resolveSlots(stored: Partial<SlotChoices>, friendly: boolean): SlotChoices {
   return { ...defaultSlots(friendly), ...stored }
+}
+
+/** Where each desktop slot sits, for the Boxes checklist. */
+export const SLOT_PLACE: Record<SlotId, string> = { A: 'Top left', B: 'Top middle', C: 'Top right', L: 'Under our line-up', R: 'Under their line-up' }
+
+/**
+ * The dashboard's hideable boxes on a desktop, for the Boxes control (`components/Boxes.tsx`): both line-ups, the five
+ * widget slots (each named with the widget it holds now), both stats flanks, the momentum strip and the commentary.
+ * The top bar (score, clock, playback), the pitch, our XI strip and the stop panels always stay, so every box may go.
+ * Ids are storage values (`touchline-boxes-matchday`): never rename one.
+ */
+export function matchdayBoxes(slots: SlotChoices): BoxSet {
+  const slot = (id: SlotId) => ({ id: `slot-${id}`, label: `${SLOT_PLACE[id]}: ${WIDGET_LABEL[slots[id]]}` })
+  return {
+    screen: 'matchday',
+    title: 'Match day',
+    min: 0,
+    boxes: [{ id: 'home-xi', label: 'Home line-up' }, slot('L'), slot('A'), slot('B'), slot('C'), { id: 'away-xi', label: 'Away line-up' }, slot('R'), { id: 'stats', label: 'Stats beside the pitch' }, { id: 'momentum', label: 'Momentum strip' }, { id: 'commentary', label: 'Commentary banner' }],
+  }
+}
+
+/** Under 1200 px (the stacked board): the commentary, the pulse row and the panel tabs may go; the pitch and the strip stay. */
+export const MATCHDAY_COMPACT: BoxSet = {
+  screen: 'matchday-compact',
+  title: 'Match day',
+  min: 0,
+  boxes: [
+    { id: 'commentary', label: 'Commentary banner' },
+    { id: 'pulse', label: 'Momentum and xG story' },
+    { id: 'panels', label: 'Panel tabs' },
+  ],
 }
