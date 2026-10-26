@@ -39,6 +39,8 @@ import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByG
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
+import { januaryGambleLine } from '@game/logic/januaryGamble'
+import { tierName as rarityName } from '@game/logic/rarity'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
@@ -152,6 +154,8 @@ export function Summary() {
   // January business and the European run of a quick season, when there were any
   const janLine = januaryLine(q?.january)
   if (janLine) extraLines.push(janLine)
+  const gambleLine = januaryGambleLine(q?.januaryGamble)
+  if (gambleLine) extraLines.push(gambleLine)
   const benchLine = changesLine(q?.changes, (id) => shortName(get(id)?.name ?? id))
   if (benchLine) extraLines.push(benchLine)
   const euroLine = europeLine(q?.europe)
@@ -473,6 +477,22 @@ export function Summary() {
           </div>
           <div className="small">
             {q.january.kind === 'sign' ? `Signed ${q.january.inName} for ${money(q.january.fee)}; ${q.january.outName} left.` : `Swapped ${q.january.outName} for ${q.january.inName}.`}
+          </div>
+        </div>
+      )}
+
+      {q?.januaryGamble && (
+        <div className="panel" data-testid="january-gamble-summary">
+          <div className="panel-head">
+            <h3>{q.januaryGamble.kind === 'spin' ? 'January spin' : 'January Upgrader'}</h3>
+            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+          </div>
+          <div className="small">
+            {q.januaryGamble.kind === 'spin'
+              ? q.januaryGamble.outName
+                ? `The case landed on ${q.januaryGamble.inName} (${rarityName(q.januaryGamble.tier)}); he came in for ${q.januaryGamble.outName}.`
+                : `The case landed on ${q.januaryGamble.inName} (${rarityName(q.januaryGamble.tier)}); you kept your XI.`
+              : `${q.januaryGamble.name} at ${q.januaryGamble.chance}% for +${q.januaryGamble.boost}: ${q.januaryGamble.won ? `won, +${q.januaryGamble.delta}` : `lost, ${q.januaryGamble.delta}`} for the second half.`}
           </div>
         </div>
       )}
