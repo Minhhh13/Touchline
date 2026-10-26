@@ -10557,7 +10557,7 @@ table.tbl tr.chase-perfect td:first-child {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
 }
@@ -10645,7 +10645,7 @@ table.tbl tr.chase-perfect td:first-child {
 .code-input {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3em;
-  font-size: 20px;
+  font-size: calc(var(--fs-h3) + 1px);
 }
 .name-check {
   min-height: 1.3em;
@@ -10799,7 +10799,7 @@ table.tbl tr.chase-perfect td:first-child {
   border-style: dashed;
 }
 .pu-icon {
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
   line-height: 1;
 }
 /* The power-ups' pictures are Lucide icons sized by the text around them */
@@ -10815,7 +10815,7 @@ table.tbl tr.chase-perfect td:first-child {
   vertical-align: -2px;
 }
 .pu-title {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 700;
   line-height: 1.15;
 }
@@ -10823,7 +10823,7 @@ table.tbl tr.chase-perfect td:first-child {
   max-width: 100%;
   overflow: hidden;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -10873,7 +10873,7 @@ table.tbl tr.chase-perfect td:first-child {
   background: var(--panel-2);
   box-shadow: var(--shadow);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-style: normal;
   line-height: 1.35;
   text-align: left;
@@ -10892,7 +10892,7 @@ table.tbl tr.chase-perfect td:first-child {
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   background: var(--bg-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .pu-odd b {
   margin-left: 4px;
@@ -10908,7 +10908,7 @@ table.tbl tr.chase-perfect td:first-child {
     min-height: 70px;
   }
   .pu-icon {
-    font-size: 20px;
+    font-size: calc(var(--fs-h3) + 1px);
   }
 }
 
