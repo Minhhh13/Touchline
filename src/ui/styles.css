@@ -3840,7 +3840,9 @@ table.tbl.contracts .btn.sm {
   .celebrate,
   .pitch-wrap .slot .disc.eligible,
   .rating.reveal,
-  .pitch-wrap .slot .disc.reveal {
+  .pitch-wrap .slot .disc.reveal,
+  .draft-recap > *,
+  .recap-grade {
     animation: none;
   }
   .celebrate {
@@ -12527,4 +12529,117 @@ table.tbl.tv-compact .tv-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ draft recap */
+/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards, the next step */
+.draft-recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+.draft-recap > * {
+  animation: rise var(--dur-4) var(--ease-out) backwards;
+}
+.draft-recap > :nth-child(2) {
+  animation-delay: calc(var(--stagger) * 1);
+}
+.draft-recap > :nth-child(3) {
+  animation-delay: calc(var(--stagger) * 2);
+}
+.recap-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.recap-grade {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--primary-soft);
+  border: 3px solid var(--accent);
+  animation: recap-pop var(--dur-4) var(--ease-spring) backwards;
+  animation-delay: calc(var(--stagger) * 1);
+}
+.recap-grade.good {
+  border-color: var(--good);
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.recap-grade.warn {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+.recap-grade.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+}
+@keyframes recap-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.recap-verdict {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: 1.25;
+}
+.recap-tally .chip.pick-grade {
+  margin-left: 0;
+  padding: 1px 8px;
+  font-size: var(--fs-meta);
+}
+.recap-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+.recap-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--bg-3);
+  border: var(--border);
+}
+.recap-card b {
+  overflow-wrap: anywhere;
+}
+.recap-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-m);
+  background: var(--primary-soft);
+  color: var(--accent);
+}
+.recap-icon.good {
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.recap-icon.warn {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
