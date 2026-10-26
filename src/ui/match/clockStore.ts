@@ -57,6 +57,10 @@ export interface LiveClockState {
   celebrating: number
   /** The segment has played out. */
   done: boolean
+  /** Moments the dashboard waits for before it shows their minute (every strike and every foul behind a card, timing.ts), sorted; absent for none. */
+  cues?: number[]
+  /** How many of them the picture has reached. */
+  cued?: number
 }
 
 export const useLiveClock = create<LiveClockState>(() => ({ clock: 0, speed: 1, running: false, period: 330, at: 0, since: 0, spent: Infinity, stopAt: 95, end: 95, holds: [], revealed: 0, celebrating: -1, done: false }))
@@ -100,8 +104,8 @@ export function reanchor(s: Anchor, now: number): Pick<LiveClockState, 'at' | 's
   return { at: p.t, since: now, spent: p.hold ? p.hold.elapsed : Infinity }
 }
 
-/** What React shows at `now`: the whole minute, goals revealed, the celebration on, the segment over. */
-export function readout(s: Anchor & Pick<LiveClockState, 'stopAt'>, now: number, flightMs = GOAL_FLIGHT_MS): Pick<LiveClockState, 'clock' | 'revealed' | 'celebrating' | 'done'> {
+/** What React shows at `now`: the whole minute, goals revealed, the celebration on, the segment over (and the cues reached, when there are any). */
+export function readout(s: Anchor & Pick<LiveClockState, 'stopAt'> & Partial<Pick<LiveClockState, 'cues'>>, now: number, flightMs = GOAL_FLIGHT_MS): Pick<LiveClockState, 'clock' | 'revealed' | 'celebrating' | 'done' | 'cued'> {
   const p = timeline(s, now)
   let revealed = 0
   for (let i = 0; i < s.holds.length; i++) {
@@ -110,7 +114,21 @@ export function readout(s: Anchor & Pick<LiveClockState, 'stopAt'>, now: number,
     const over = h.t < p.t || (h.t === p.t && (!p.hold || p.hold.index > i || (p.hold.index === i && p.hold.elapsed >= Math.min(flightMs, h.ms))))
     if (over) revealed = i + 1
   }
-  return { clock: Math.min(s.stopAt, Math.floor(p.t + 1e-9)), revealed, celebrating: p.hold ? p.hold.index : -1, done: !p.hold && p.t >= s.end }
+  const out = { clock: Math.min(s.stopAt, Math.floor(p.t + 1e-9)), revealed, celebrating: p.hold ? p.hold.index : -1, done: !p.hold && p.t >= s.end }
+  if (!s.cues) return out
+  let cued = 0
+  while (cued < s.cues.length && s.cues[cued] <= p.t) cued++
+  return { ...out, cued }
+}
+
+/** Is a cue in or before the minute shown still to come? Then the dashboard holds that minute back, as it does for a goal. */
+export function cuePending(cues: number[], cued: number, clock: number, start: number): boolean {
+  for (let i = cued; i < cues.length; i++) {
+    const t = cues[i]
+    if (Math.floor(t) > clock) return false
+    if (t >= start) return true
+  }
+  return false
 }
 
 /** Is this goal still to be revealed (the ball not yet over the line)? */

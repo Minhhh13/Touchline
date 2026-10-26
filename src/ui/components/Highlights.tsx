@@ -19,6 +19,14 @@ import { minuteLabel } from '../format'
 
 /** Milliseconds per match minute of a moment's build-up. */
 export const HIGHLIGHT_MINUTE_MS = 300
+/** The minute before the moment and the moment's own minute play slower, so the move that makes it reads (about 2x and 1.5x the live 1x). */
+export const HIGHLIGHT_LEAD_MS = 1800
+export const HIGHLIGHT_MOMENT_MS = 2600
+
+/** How long the reel spends on minute `tick` of a moment at `minute`. */
+export function highlightMinuteMs(tick: number, minute: number): number {
+  return tick >= minute ? HIGHLIGHT_MOMENT_MS : tick === minute - 1 ? HIGHLIGHT_LEAD_MS : HIGHLIGHT_MINUTE_MS
+}
 /** Milliseconds a moment stays on screen once it has happened. */
 export const HIGHLIGHT_HOLD_MS = 1700
 
@@ -75,7 +83,8 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
       return
     }
     const building = tick <= m.minute
-    publishClock({ clock: tick, running: building && !paused, speed: 1, period: HIGHLIGHT_MINUTE_MS })
+    const period = highlightMinuteMs(tick, m.minute)
+    publishClock({ clock: tick, running: building && !paused, speed: 1, period })
     if (paused) return
     const t = setTimeout(() => {
       if (building) setTick(tick + 1)
@@ -83,7 +92,7 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
         setIndex(index + 1)
         setTick(buildUpFrom(moments, index + 1))
       }
-    }, building ? HIGHLIGHT_MINUTE_MS : HIGHLIGHT_HOLD_MS)
+    }, building ? period : HIGHLIGHT_HOLD_MS)
     return () => clearTimeout(t)
   }, [m, tick, paused, index, moments, end])
   // The live match screen starts its own clock; leave this one stopped

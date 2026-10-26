@@ -447,6 +447,7 @@ The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, 
 ### Pitch, ratings, positions, badges, flags
 
 - `Pitch`: the grass, `--pitch-line` markings, navy discs with the rating; the eligible slot pulses in `--pitch-highlight`; the selected slot rings in `--gold`.
+- The live pitch's caption (`.pitch-caption` in `LivePitch.tsx`): a pill centred 5 px from the top of the grass naming the side on the ball and its phase ("TX · Building from the back", "AVL · Corner"), on `--pitch-disc` with white 11 px semibold text and a 3 px left edge in that side's kit colour (`--caption-kit`), the same in both themes because it sits on the grass; it fades in over `--dur-2` and is still under reduced motion. It is `aria-hidden` (the commentary is what screen readers hear). A long ball, a switch, a ball in behind, a cross or a clearance in flight draws a faint dashed white trail (`.ball-trail`, 0.35 wide, at most half opacity) from where it was struck to the ball.
 - `Rating`: the band classes `r90` to `r70` over `--rating-base`; hidden ratings show "?" on `--bg-3` (whether one is hidden is `ratingShown` in `src/game/logic/ratingVisibility.ts`: in blind mode only while choosing); `reveal` flips the number in (`rating-reveal`).
 - `Pos`: the position code coloured by group (`--pos-*`).
 - `ClubBadge`: a disc in the club's approximate primary colour with its code and a ring in its secondary colour. This is the only way a club is pictured.
