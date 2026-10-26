@@ -4718,6 +4718,61 @@ table.tbl.contracts .btn.sm {
   align-items: center;
   gap: var(--space-2);
 }
+/*
+ * A short desktop window's pre-season: the title, the match-play chips and the buttons share one row and the checklist
+ * runs the full width under them, one line instead of three in a 440 px column (the panel 174 to about 120 px tall at
+ * 1280x720, so the tab body below gets the difference).
+ */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'title play btns' 'check check check';
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  .panel.cta:has(.briefing.checklist) > .cta-main,
+  .panel.cta:has(.briefing.checklist) > .cta-bar {
+    display: contents;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-fixture {
+    grid-area: title;
+  }
+  .panel.cta:has(.briefing.checklist) .briefing-wrap {
+    grid-area: check;
+  }
+  .panel.cta:has(.briefing.checklist) .match-play {
+    grid-area: play;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-bar .btns {
+    grid-area: btns;
+    flex-wrap: nowrap;
+  }
+}
+/* Up to 1440 px wide the friendly and the kick-off take their short labels ("Friendly", "Kick off") so the row fits */
+@media (min-width: 1100px) and (max-width: 1439px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) .btns .btn:not([data-testid='sim-big']) .lbl-long {
+    display: none;
+  }
+  .panel.cta:has(.briefing.checklist) .btns .btn:not([data-testid='sim-big']) .lbl-short {
+    display: inline;
+  }
+}
+/* Under 1280 px the buttons take a row of their own, under the title and the match-play chips */
+@media (min-width: 1100px) and (max-width: 1279px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'title play' 'btns btns' 'check check';
+  }
+  .panel.cta:has(.briefing.checklist) .match-play {
+    justify-self: end;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-bar .btns {
+    justify-content: flex-start;
+  }
+}
 .cta-bar {
   display: flex;
   flex-direction: column;
@@ -8562,12 +8617,14 @@ table.tbl.match-stats th {
    * The Dugout's pitch column is a size container, so the pitch also fits the height the column really has once the
    * pre-season checklist or a coach mark takes some (it ran 70 px past its box at 2000x860); 80 px is the panel's head
    * and padding. Without a container the cqh term reads the viewport and the dvh term above decides as before.
+   * The floor is 150 px: under 200 px the pitch shows its numbers only (28 px discs), so even a back five has room, and
+   * a short pre-season (the checklist, the youth intake and a coach mark at 2000x860) keeps the keeper in the box.
    */
   .app.shell .tab-body > .grid.dugout > .col:has(.pitch-wrap) {
     container-type: size;
   }
   .app.shell .tab-body > .grid.dugout .pitch-wrap {
-    max-width: max(200px, min(calc((100dvh - var(--shell-chrome, 340px)) * 0.75), calc((100cqh - 80px) * 0.75)));
+    max-width: max(150px, min(calc((100dvh - var(--shell-chrome, 340px)) * 0.75), calc((100cqh - 80px) * 0.75)));
   }
   .app.shell.bar-hidden .grid.dugout .pitch-wrap {
     --shell-chrome: 410px;
