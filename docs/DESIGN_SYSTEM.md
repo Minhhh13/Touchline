@@ -18,6 +18,7 @@ Where it lives:
 | Short labels in place of sentences | `src/ui/screenText.ts` (`modeLabel`, `versusReal`, `shownGames`), tested in `src/ui/__tests__/screenText.test.ts` |
 | Illustrations and neon art | `src/ui/components/Art.tsx` (`HeroArt`, `ModeArt`, `NeonFlow`, `ResultArt`), coloured by the `--art-*`, `--cyan` and `--magenta` tokens (section 7) |
 | Motion: tokens, View Transitions, count-ups, the celebration | `--dur-*`, `--ease-*`, `--stagger` in `styles.css` (the motion section); `src/ui/motion.ts`; `CountUp` in `bits.tsx`; `components/Celebrate.tsx`; section 12 |
+| Accessibility: activation keys, results as words, focus after a reel, keyboard reach for scroll boxes | `src/ui/a11y.ts`, `src/ui/scrollFocus.ts`; section 15; what is supported and how to test in [ACCESSIBILITY.md](ACCESSIBILITY.md) |
 
 The rule for everyone building screens: **use the tokens and the components below; no raw colours, no new one-off styles.** If a screen needs something this document does not cover, add it here and to `styles.css` first.
 
@@ -744,4 +745,20 @@ Rules:
 4. **Reduced motion keeps sound.** There is no slide, so no ticks; the season and landing sounds play, without the gold shimmer.
 5. **Silent without Web Audio.** No `AudioContext` (tests, headless runs, old browsers) means every call is a no-op.
 6. **Presentation only.** `Math.random` here varies a tick's pitch and fills the noise buffer; nothing reads or writes the game's RNG or state.
+
+## 15. Accessibility
+
+What the game supports, the audit and what is left are in [ACCESSIBILITY.md](ACCESSIBILITY.md). The rules for a new component or screen (first pass 2026-10-26):
+
+1. **A real control, or one that acts like it.** Anything pressed is a `<button>`, a link or a form field. Where only another element can sit (a table row), spread `pressable(action)` from `src/ui/a11y.ts` on it: Tab reaches it and Enter or Space presses it. A custom `role="button"` answers both keys (`isActivationKey`), and only when it can be pressed: a read-only picture takes no Tab stop.
+2. **Every control has a name.** An icon-only button carries `aria-label` (the Lucide icon inside hides itself); a select or input has a `<label>` or an `aria-label`; a group of segments or radios sits in a named `role="group"` or `role="radiogroup"`. `aria-pressed` is for toggle buttons; a `role="radio"` uses `aria-checked` only.
+3. **A label needs a role.** `aria-label` on a plain `<span>` or `<div>` is ignored by screen readers (axe: `aria-prohibited-attr`): give a mark that stands alone `role="img"` (a badge, an arrow, a grade, an icon with a label) and a box of parts `role="group"`. Key-value pairs are a `<dl className="kv">`.
+4. **Never colour alone.** A result shows its W, D or L beside the colour (`.res-letter`, the form letters); text on a club's colour takes `inkOn()` or `textColourFor()`, which always clear 4.5:1; a new colour pair is checked against both themes (section 3). Dimming text with `opacity` takes it under AA: mark an unavailable thing `aria-disabled` or use a dashed border instead.
+5. **Announce once, politely, from a region that is already there.** A live region that mounts with its text is often missed: keep an `sr-only` `aria-live="polite"` (or `role="status"`) element in the page and change its text. Say the moment, not the stream: a goal, a landing, a big moment, a toast; never a count-up or every game of a playback. A region that must stay audible behind a dialog carries `data-dialog-keep`.
+6. **Move the focus when the control that held it goes.** A reel's Skip button vanishes on landing: `useFocusOnLanding(landed, ref)` puts the focus on the result's first action (or the landed club's name, `tabIndex={-1}`, no ring of its own). A dialog uses `Modal` or `useDialog` (section 6), never its own focus code.
+7. **A box that scrolls is reachable.** A new box that scrolls inside itself either holds a control or joins `SCROLL_BOXES` in `src/ui/scrollFocus.ts`, which puts it in the Tab order while it scrolls.
+8. **Hover is never the only way.** A hover card or tip also opens from a tap or the keyboard (or its content is in the full card a tap opens) and closes on Escape.
+9. **Targets on a phone.** At 720 px and below, the way around the app (the top bar, fold heads, Info buttons) has a 44 px target; nothing is under 24 px. Grow the hit area with an invisible `::after` (as `.info-btn` and `.theme-switch` do) rather than the look, and keep it clear of its neighbour's.
+10. **Larger text.** New type sizes use the `--fs-*` tokens (rem). A phone row with text must wrap or give way (`minmax(0, 1fr)`, `flex-wrap`) at 150 % text, and an absolutely placed `<svg>` gets an explicit width, since it takes its width from its height. None of this may change the desktop fit at 100 %.
+11. **Motion.** As section 12: every new animation is added to a reduced-motion block.
 
