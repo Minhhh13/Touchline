@@ -1234,7 +1234,7 @@ select.input {
   .input,
   select.input,
   .step-head-row .season-pick {
-    font-size: 16px;
+    font-size: 16px; /* px: 16 px so iOS does not zoom */
   }
 }
 /* A form field: the label above, the control, then at most one short .help caption */
