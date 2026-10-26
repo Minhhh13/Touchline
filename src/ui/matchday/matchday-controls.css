@@ -681,3 +681,16 @@
     transition: none;
   }
 }
+
+/* ------------------------------------------------------------------ highlights: the level picker and its chips */
+.matchday select.md-highlights {
+  width: auto;
+  flex: none;
+  min-height: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 2px 26px 2px 8px;
+  font-size: var(--fs-sm);
+}
+.matchday .md-fast {
+  padding: 1px 6px;
+}

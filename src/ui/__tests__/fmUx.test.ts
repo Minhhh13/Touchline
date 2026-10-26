@@ -3,6 +3,9 @@ import { statsAt, statsSeries } from '@engine/matchStats'
 import { sinceMinute } from '../matchday/model'
 import { dugoutKey, isControlTarget, type DugoutKeyContext } from '../dugoutKeys'
 import { resultFeed, u } from './feeds'
+import { timeline, type LiveClockState } from '../match/clockStore'
+import { AFTER, boostAt, BUILD_UP, isMoment, levelAt, marginAt, parseLevel, QUIET_BOOST, watchedMinutes } from '../match/highlights'
+import type { MatchEvent } from '@engine/types'
 
 const get = (id: string) => u.index[id]
 
@@ -59,5 +62,61 @@ describe('the Dugout keyboard', () => {
     for (const t of ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A']) expect(isControlTarget(el(t))).toBe(true)
     expect(isControlTarget(el('DIV', 'radio'))).toBe(true)
     expect(isControlTarget(el('DIV', null, true))).toBe(true)
+  })
+})
+
+describe('highlight levels', () => {
+  const ev = (minute: number, type: MatchEvent['type'], side: 'home' | 'away' = 'home'): MatchEvent => ({ minute, type, side, text: '' })
+  it('Full watches every minute; Key watches the build-up to goals, reds and injuries; Extended adds cards and changes', () => {
+    const events = [ev(20, 'goal'), ev(55, 'yellow'), ev(60, 'substitution'), ev(80, 'red', 'away')]
+    expect(watchedMinutes(events, 'full').every(Boolean)).toBe(true)
+    const key = watchedMinutes(events, 'key')
+    for (let m = 20 - BUILD_UP; m <= 20 + AFTER; m++) expect(key[m]).toBe(true)
+    expect(key[10]).toBe(false)
+    expect(key[55]).toBe(false)
+    expect(key[80]).toBe(true)
+    expect(key[0]).toBe(true)
+    const ext = watchedMinutes(events, 'extended')
+    expect(ext[55]).toBe(true)
+    expect(ext[60]).toBe(true)
+    expect(ext[10]).toBe(false)
+    expect(isMoment(ev(30, 'kickoff'), 'extended')).toBe(false)
+  })
+
+  it('on real matches every goal is watched at every level, and Key shows far fewer minutes than the match', () => {
+    for (let i = 0; i < 8; i++) {
+      const feed = resultFeed(i)
+      for (const level of ['key', 'extended'] as const) {
+        const w = watchedMinutes(feed.events, level)
+        for (const e of feed.events) if (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal') expect(w[e.minute]).toBe(true)
+      }
+      const shown = watchedMinutes(feed.events, 'key').slice(0, 91).filter(Boolean).length
+      expect(shown).toBeLessThan(91)
+      expect(watchedMinutes(feed.events, 'key').filter(Boolean).length).toBeLessThanOrEqual(watchedMinutes(feed.events, 'extended').filter(Boolean).length)
+    }
+  })
+
+  it('winds Extended down to Key at three clear, boosts only quiet minutes, and reads unknown levels as Full', () => {
+    const events = [ev(10, 'goal'), ev(20, 'goal'), ev(30, 'goal'), ev(50, 'yellow', 'away')]
+    expect(marginAt(events, 25)).toEqual({ home: 2, away: 0, margin: 2 })
+    expect(levelAt(events, 'extended', 25)).toEqual({ level: 'extended', wound: false })
+    expect(levelAt(events, 'extended', 30)).toEqual({ level: 'key', wound: true })
+    expect(levelAt(events, 'full', 30)).toEqual({ level: 'full', wound: false })
+    // The yellow at 50 is watched in Extended, but not once the match has wound down to Key
+    expect(boostAt(events, 'extended', 50)).toBe(QUIET_BOOST)
+    expect(boostAt([ev(50, 'yellow', 'away')], 'extended', 50)).toBe(1)
+    expect(boostAt(events, 'full', 40)).toBe(1)
+    expect(boostAt(events, 'key', 40)).toBe(QUIET_BOOST)
+    expect(boostAt(events, 'key', 29)).toBe(1)
+    expect(parseLevel(null)).toBe('full')
+    expect(parseLevel('nonsense')).toBe('full')
+    expect(parseLevel('key')).toBe('key')
+  })
+
+  it('the clock runs boost times faster, and a missing boost is 1', () => {
+    const s: LiveClockState = { clock: 0, speed: 1, running: true, period: 300, at: 10, since: 1000, spent: Infinity, stopAt: 45, end: 46, holds: [], revealed: 0, celebrating: -1, done: false }
+    expect(timeline(s, 1300).t).toBeCloseTo(11)
+    expect(timeline({ ...s, boost: 1 }, 1300).t).toBeCloseTo(11)
+    expect(timeline({ ...s, boost: QUIET_BOOST }, 1300).t).toBeCloseTo(10 + QUIET_BOOST)
   })
 })

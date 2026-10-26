@@ -16,6 +16,7 @@ import { MENTALITY_HELP } from '@engine/tactics'
 import { textColourFor } from '../format'
 import { fractionalClock, useLiveClock } from '../match/clockStore'
 import { barClock, SHOUTS_CLOSED, type DrawerId } from './controls'
+import { HIGHLIGHT_LEVELS, type HighlightLevel } from '../match/highlights'
 import { clockText, skipLabel } from './model'
 import type { TopBarProps } from './types'
 import type { ManagerHand } from './useManagerHand'
@@ -110,7 +111,17 @@ export interface LivePlayback {
   simResult?: () => void
 }
 
-export function TopBar({ feed, clock, minute, home, away, label, hand, playback }: TopBarProps & { hand: ManagerHand; minute?: number; playback?: LivePlayback }) {
+/** The highlight level picker's state: the chosen level, and the score when Extended has wound down to Key. */
+export interface HighlightsControl {
+  level: HighlightLevel
+  setLevel(l: HighlightLevel): void
+  /** "3-0" while Extended plays as Key because a side is three clear. */
+  wound: string | null
+  /** The clock is fast-forwarding through a quiet minute. */
+  fast: boolean
+}
+
+export function TopBar({ feed, clock, minute, home, away, label, hand, playback, highlights }: TopBarProps & { hand: ManagerHand; minute?: number; playback?: LivePlayback; highlights?: HighlightsControl }) {
   // The minute the panels show: a goal counts once the ball is over the line
   const t = minute ?? clock.clock
   const score = scoreAt(feed.events, t)
@@ -146,6 +157,25 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback 
             </button>
           ))}
         </div>
+        {highlights && (
+          <select className="input sm md-highlights" value={highlights.level} onChange={(e) => highlights.setLevel(e.target.value as HighlightLevel)} aria-label="Highlights" title={HIGHLIGHT_LEVELS.find((l) => l.id === highlights.level)?.hint} data-testid="highlights">
+            {HIGHLIGHT_LEVELS.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        )}
+        {highlights?.fast && !clock.finished && (
+          <span className="chip info md-fast" data-testid="highlights-fast" title="A quiet spell: the clock runs fast to the next moment">
+            ⏩
+          </span>
+        )}
+        {highlights?.wound && (
+          <span className="chip" data-testid="highlights-wound" title="Extended highlights wind down to Key while a side is three goals clear">
+            Highlights wound down: {highlights.wound}
+          </span>
+        )}
         {!clock.finished && (
           <button className="btn sm" onClick={clock.skip} data-testid="skip-replay">
             {skipLabel(clock.stopAt)}
