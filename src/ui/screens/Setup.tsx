@@ -3,7 +3,7 @@ import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, 
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
-import { inLeague, leagueArticle } from '@game/logic/leagueNames'
+import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
@@ -298,7 +298,7 @@ export function Setup() {
   }
   const preview = buildSettings(true)
   // Until the week's league is in, the week has no season or host to state
-  const summary = fixed?.kind === 'weekly' && !week ? `Loading ${leagueArticle(leagueNameOf(fixed.leagueId))}${leagueNameOf(fixed.leagueId)}…` : summariseSetup(u, preview)
+  const summary = fixed?.kind === 'weekly' && !week ? `Loading ${leagueArticle(leagueNameOf(fixed.leagueId))}${leagueNameOf(fixed.leagueId)}…` : tidyLeagueArticles(summariseSetup(u, preview))
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady

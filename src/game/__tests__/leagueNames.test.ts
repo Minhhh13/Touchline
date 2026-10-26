@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
-import { inLeague, leagueArticle } from '../logic/leagueNames'
+import { inLeague, leagueArticle, tidyLeagueArticles } from '../logic/leagueNames'
+import { summariseSetup } from '../logic/setup'
+import { QUICK_RULES } from '@engine/draft'
 
 describe('league names in a sentence', () => {
   it('gives the article only to the leagues that take one in English', () => {
@@ -17,5 +19,14 @@ describe('league names in a sentence', () => {
     const u = loadTestUniverse(['england'])
     const named = Object.fromEntries(u.available.map((l) => [l.name, leagueArticle(l.name)]))
     expect(named).toEqual({ 'Premier League': 'the ', 'La Liga': '', 'Serie A': '', Bundesliga: 'the ', 'Ligue 1': '', Eredivisie: 'the ', 'Primeira Liga': 'the ' })
+  })
+
+  it("tidies the setup line's article and leaves the rest of it as it was", () => {
+    expect(tidyLeagueArticles('Touchline XI, 4-3-3, in the La Liga 2008-09, calibrated, seed X')).toBe('Touchline XI, 4-3-3, in La Liga 2008-09, calibrated, seed X')
+    expect(tidyLeagueArticles('in the Serie A 2010-11 · in the Ligue 1 2012-13')).toBe('in Serie A 2010-11 · in Ligue 1 2012-13')
+    const u = loadTestUniverse(['england'])
+    const line = summariseSetup(u, { mode: 'quick', seed: 'S', formationId: '4-3-3', teamName: 'Touchline XI', shortName: 'TXI', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'wolves', leagueSeason: 2020, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    expect(line).toContain('in the Premier League')
+    expect(tidyLeagueArticles(line)).toBe(line)
   })
 })
