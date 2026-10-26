@@ -10,10 +10,18 @@
  * nearest men close the ball down goal-side of it, so the press shows; in
  * possession the nearest offer a short option; everyone sways a little; a
  * keeper dives towards the shot he saves.
+ *
+ * Off the ball, as in Football Manager's 2D view, the man a pass is for makes
+ * his run before it is played: in the last moment of the passer's touch he
+ * sets off towards where the ball will arrive (furthest for a ball in behind,
+ * a switch or a cross), and he meets it there rather than waiting for it to
+ * reach his spot. The back line out of possession holds its depth (it sways
+ * across, never in and out), so it reads as a line.
  */
 import type { PitchPoint } from '@engine/matchDetail'
 import { metres, type PlacedPlayer } from './pitchGeometry'
-import type { BallKeyframe, BallState } from './possession'
+import type { BallKeyframe, BallState, PlayTag } from './possession'
+import type { Position } from '@engine/types'
 import { sceneAt, shapePoint, type Scene } from './shape'
 
 /** A fixed sway phase per man, from his id, so the picture is the same on every replay. */
@@ -33,6 +41,54 @@ export const PRESS = { pull: 0.7, reach: 20, goalSide: 2.2 }
 /** How the nearest team-mates come to offer an option: never closer than `gap` metres. */
 export const SUPPORT = { pull: 0.35, reach: 26, gap: 9 }
 
+/**
+ * The run before a pass: how far towards the ball's landing point the man it is for has gone by the
+ * moment it is struck (a share of the way from his place), by the kind of pass, and how long before
+ * the strike he sets off (match minutes, about a second at 1x).
+ */
+export const RUN = { lead: 0.22, through: 0.5, long: 0.38, switch: 0.38, cross: 0.42, forward: 0.28, other: 0.15 } as const
+export function runShare(play: PlayTag | undefined): number {
+  switch (play) {
+    case 'through':
+      return RUN.through
+    case 'long':
+      return RUN.long
+    case 'switch':
+      return RUN.switch
+    case 'cross':
+    case 'cutback':
+      return RUN.cross
+    case 'forward':
+      return RUN.forward
+    default:
+      return RUN.other
+  }
+}
+
+const BACK_LINE = new Set<Position>(['CB', 'LB', 'RB'])
+
+/**
+ * The pass this man is about to receive or is receiving: the keyframe it lands on and how far he is
+ * along his run to it (0..1). Before the strike (the passer's touch is the next keyframe, the pass the
+ * one after) he has set off by up to `runShare` of the way; through the pass he goes the rest.
+ */
+export function runTo(p: PlacedPlayer, path: BallKeyframe[], b: BallState, T: number): { to: BallKeyframe; w: number } | null {
+  const i = b.index
+  const next = b.next
+  if (!next) return null
+  const mine = (k: BallKeyframe | undefined) => !!k && k.kind === 'pass' && k.holder === p.psId && k.side === p.side
+  if (mine(next)) {
+    const lead = runShare(next.play)
+    return { to: next, w: lead + (1 - lead) * smoothStep(b.progress * 1.1) }
+  }
+  const after = path[i + 2]
+  if (next.kind === 'carry' && next.side === p.side && next.holder !== p.psId && mine(after)) {
+    const k = smoothStep((T - (next.t - RUN.lead)) / RUN.lead)
+    return k > 0 ? { to: after, w: runShare(after.play) * k } : null
+  }
+  return null
+}
+
 export function dotPosition(p: PlacedPlayer, path: BallKeyframe[], ball: BallState | null, T: number, phase: number, scene?: Scene): PitchPoint {
   const b = ball
   const sc = scene ?? sceneAt(path, b, T)
@@ -45,7 +101,9 @@ export function dotPosition(p: PlacedPlayer, path: BallKeyframe[], ball: BallSta
   const mine = (k: BallKeyframe | null | undefined) => !!k && k.holder === p.psId && k.side === p.side
   // On the ball: through a carry he has it at his feet; the receiver runs to meet the pass; the passer stays where he struck it
   const carrying = mine(cur) && mine(next) && next!.kind === 'carry'
-  const wIn = carrying ? 1 : mine(next) ? Math.min(1, f * 1.15) : 0
+  // A pass to him (or one about to be played to him): he runs to where it lands
+  const run = !carrying && p.position !== 'GK' ? runTo(p, path, b, T) : null
+  const wIn = carrying ? 1 : run ? run.w : mine(next) ? Math.min(1, f * 1.15) : 0
   const wOut = carrying ? 0 : mine(cur) ? (next ? 1 - smoothStep(f * 1.6) : 1) : 0
   const hold = Math.min(1, wIn + wOut)
   let x = base.x
@@ -72,7 +130,9 @@ export function dotPosition(p: PlacedPlayer, path: BallKeyframe[], ball: BallSta
       y += (b.y - y) * k
     }
     const sway = (1 - hold) * (1 - spW * 0.8)
-    x += Math.sin(T * 1.7 + phase) * 0.5 * sway
+    // The back line out of possession holds its depth: it sways across, not in and out
+    const line = p.side !== sc.poss && BACK_LINE.has(p.position) ? 1 - sc.settle * 0.85 : 1
+    x += Math.sin(T * 1.7 + phase) * 0.5 * sway * line
     y += Math.cos(T * 1.3 + phase) * 0.7 * sway
   }
   if (wOut > 0 && cur) {
@@ -80,10 +140,11 @@ export function dotPosition(p: PlacedPlayer, path: BallKeyframe[], ball: BallSta
     y += (cur.y - y) * wOut
   }
   if (wIn > 0) {
-    // Just behind the ball, the way he is facing (his side's attacking direction)
+    // Just behind the ball, the way he is facing (his side's attacking direction); on a run, just behind where the pass lands
     const behind = p.side === 'home' ? -1.1 : 1.1
-    x += (b.x + behind - x) * wIn
-    y += (b.y - y) * wIn
+    const at = run ? run.to : b
+    x += (at.x + behind - x) * wIn
+    y += (at.y - y) * wIn
   }
   const s = i >= 0 ? saveNear(path, i, T) : -1
   if (s >= 0 && path[s].holder === p.psId && hold < 0.5) {

@@ -366,10 +366,3 @@ export function highlightedMan(selected: string | null, focused: string | null):
   return focused ?? selected
 }
 
-/** Which side's dot to ring for a man: the user's side when he is in its XI (a player-season can only be on one), else the other. */
-export function highlightSide(feed: Pick<MatchFeed, 'home' | 'away'>, psId: string, userSide: 'home' | 'away'): 'home' | 'away' {
-  const other = userSide === 'home' ? 'away' : 'home'
-  const inSide = (s: 'home' | 'away') => feed[s].appearances.some((a) => a.psId === psId)
-  return inSide(userSide) || !inSide(other) ? userSide : other
-}
-

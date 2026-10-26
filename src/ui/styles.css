@@ -3842,8 +3842,7 @@ table.tbl.contracts .btn.sm {
   .rating.reveal,
   .pitch-wrap .slot .disc.reveal,
   .draft-recap > *,
-  .recap-grade,
-  .live-dot .dot-pick {
+  .recap-grade {
     animation: none;
   }
   .celebrate {
@@ -3855,7 +3854,8 @@ table.tbl.contracts .btn.sm {
   .topbar nav button,
   .theme-switch,
   .tabs-ink.ready,
-  .bar > span {
+  .bar > span,
+  .pitch-replay {
     transition: none;
   }
   .mode-card:hover,
@@ -6119,6 +6119,81 @@ table.tbl.contracts .btn.sm {
 }
 @media (prefers-reduced-motion: reduce) {
   .pitch-caption {
+    transition: none;
+  }
+}
+/* The live pitch's overlays, after Football Manager's 2D view: a name tag under the man on the ball, the pass line,
+   the shot's line by its xG band, the picked-out man's ring, and the goal replay's badge and cut. The loop sets
+   their attributes; colours come from the pitch tokens. */
+.live-pitch .dot-tag text {
+  font-family: var(--font-body);
+  letter-spacing: 0.01em;
+}
+.live-pitch .dot-tag.marked rect {
+  fill: var(--pitch-highlight);
+}
+.live-pitch .dot-tag.marked text {
+  fill: var(--on-primary);
+}
+.live-pitch .pitch-mark {
+  stroke: var(--pitch-highlight);
+}
+.live-pitch .shot-trail[data-band='mid'] {
+  stroke: var(--pitch-cover);
+}
+.live-pitch .shot-trail[data-band='high'] {
+  stroke: var(--pitch-bad);
+  stroke-width: 0.75;
+}
+.live-pitch .pitch-cut {
+  fill: var(--bg);
+}
+.pitch-replay {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translate(-50%, -4px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 3px 1px 9px;
+  border-radius: 999px;
+  border-left: 3px solid var(--pitch-highlight);
+  background: var(--pitch-disc);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.pitch-replay.on {
+  opacity: 0.96;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.pitch-replay-skip {
+  border: 0;
+  border-radius: 999px;
+  padding: 0 8px;
+  background: color-mix(in srgb, #fff 16%, transparent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  line-height: 15px;
+  cursor: pointer;
+}
+.pitch-replay-skip:hover,
+.pitch-replay-skip:focus-visible {
+  background: color-mix(in srgb, #fff 28%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pitch-replay {
     transition: none;
   }
 }
@@ -12554,6 +12629,119 @@ table.tbl.tv-compact .tv-name {
   white-space: nowrap;
 }
 
+/* ------------------------------------------------------------ draft recap */
+/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards, the next step */
+.draft-recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+.draft-recap > * {
+  animation: rise var(--dur-4) var(--ease-out) backwards;
+}
+.draft-recap > :nth-child(2) {
+  animation-delay: calc(var(--stagger) * 1);
+}
+.draft-recap > :nth-child(3) {
+  animation-delay: calc(var(--stagger) * 2);
+}
+.recap-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.recap-grade {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--primary-soft);
+  border: 3px solid var(--accent);
+  animation: recap-pop var(--dur-4) var(--ease-spring) backwards;
+  animation-delay: calc(var(--stagger) * 1);
+}
+.recap-grade.good {
+  border-color: var(--good);
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.recap-grade.warn {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+.recap-grade.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+}
+@keyframes recap-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.recap-verdict {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: 1.25;
+}
+.recap-tally .chip.pick-grade {
+  margin-left: 0;
+  padding: 1px 8px;
+  font-size: var(--fs-meta);
+}
+.recap-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+.recap-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--bg-3);
+  border: var(--border);
+}
+.recap-card b {
+  overflow-wrap: anywhere;
+}
+.recap-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-m);
+  background: var(--primary-soft);
+  color: var(--accent);
+}
+.recap-icon.good {
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.recap-icon.warn {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
 /* ------------------------------------------------------------ short windows (2026-10-26) */
 /* The season playback on a desktop, down to a 1280 x 720 window: the head and the tally slim down (the goals line joins
    the strip), the live table's rows shorten until all of them fit its box, and in the third column the position chart
@@ -13273,119 +13461,6 @@ table.tbl.tv-compact .tv-name {
   }
 }
 
-/* ------------------------------------------------------------ draft recap */
-/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards, the next step */
-.draft-recap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-2) 0;
-  max-width: 640px;
-  width: 100%;
-  margin: 0 auto;
-}
-.draft-recap > * {
-  animation: rise var(--dur-4) var(--ease-out) backwards;
-}
-.draft-recap > :nth-child(2) {
-  animation-delay: calc(var(--stagger) * 1);
-}
-.draft-recap > :nth-child(3) {
-  animation-delay: calc(var(--stagger) * 2);
-}
-.recap-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-.recap-grade {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  font-family: var(--font-display);
-  font-size: 40px;
-  font-weight: 800;
-  color: var(--text);
-  background: var(--primary-soft);
-  border: 3px solid var(--accent);
-  animation: recap-pop var(--dur-4) var(--ease-spring) backwards;
-  animation-delay: calc(var(--stagger) * 1);
-}
-.recap-grade.good {
-  border-color: var(--good);
-  color: var(--good);
-  background: color-mix(in srgb, var(--good) 14%, transparent);
-}
-.recap-grade.warn {
-  border-color: var(--warn);
-  color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 14%, transparent);
-}
-.recap-grade.bad {
-  border-color: var(--bad);
-  color: var(--bad);
-  background: color-mix(in srgb, var(--bad) 14%, transparent);
-}
-@keyframes recap-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.recap-verdict {
-  margin: 0;
-  font-size: var(--fs-h3);
-  line-height: 1.25;
-}
-.recap-tally .chip.pick-grade {
-  margin-left: 0;
-  padding: 1px 8px;
-  font-size: var(--fs-meta);
-}
-.recap-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-3);
-}
-.recap-card {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-3);
-  border-radius: var(--radius-m);
-  background: var(--bg-3);
-  border: var(--border);
-}
-.recap-card b {
-  overflow-wrap: anywhere;
-}
-.recap-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-m);
-  background: var(--primary-soft);
-  color: var(--accent);
-}
-.recap-icon.good {
-  color: var(--good);
-  background: color-mix(in srgb, var(--good) 14%, transparent);
-}
-.recap-icon.warn {
-  color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 14%, transparent);
-}
-
 /* ------------------------------------------------------------ ratings: overall and in a slot (TL-03) */
 /* A disc out of position carries its cost against his overall (−5), so the pitch's 84 and the card's 89 read as one
    number; the slot pickers print the same pair ("84 · can cover (89 overall, −5 out of position)") */
@@ -13589,38 +13664,10 @@ details.opposition {
 }
 
 /* ------------------------------------------------------------ the man picked out from the squad strip (2026-10-26) */
-/* On the live pitch: a soft glow, a ring and his surname over his dot, all moving with him (the pitch's fixed whites,
-   the ring in the selection colour); on the formation panels: a ring round his shirt */
-.live-dot .dot-pick-glow {
-  fill: color-mix(in srgb, var(--gold) 28%, transparent);
-  stroke: none;
-}
-.live-dot .dot-pick-ring {
-  fill: none;
-  stroke: var(--gold);
-  stroke-width: 0.55;
-}
-.live-dot .dot-pick-name {
-  fill: #fff;
-  stroke: rgba(0, 0, 0, 0.8);
-  stroke-width: 0.7;
-  paint-order: stroke;
-  font-family: var(--font-body);
-}
-.live-dot .dot-pick {
-  animation: dot-pick-in var(--dur-2) var(--ease-out);
-}
-@keyframes dot-pick-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* On the formation panels: a ring round his shirt, in the colour LivePitch's highlightId rings his dot with */
 .matchday .md-man.lit .md-shirt {
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--gold), 0 0 10px 2px color-mix(in srgb, var(--gold) 55%, transparent);
+  box-shadow: 0 0 0 2px var(--pitch-highlight), 0 0 10px 2px color-mix(in srgb, var(--pitch-highlight) 55%, transparent);
 }
 .matchday .md-man.lit .md-man-name {
   color: #fff;
