@@ -294,7 +294,12 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
                     <span className="goal-who">
                       <b>{g.playerName}</b>
                       {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
-                      {g.secondaryName ? <span className="muted"> · {g.secondaryName}</span> : null}
+                      {g.secondaryName ? (
+                        <>
+                          {' '}
+                          <span className="muted">· {g.secondaryName}</span>
+                        </>
+                      ) : null}
                     </span>
                     <span className="goal-min mono">{minuteLabel(g.minute)}</span>
                   </li>

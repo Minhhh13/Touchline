@@ -21,7 +21,7 @@ import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
-import { MODE_ICON, TWIST_ICON } from '../components/icons'
+import { MODE_ICON, PowerUpIcon, TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
@@ -37,6 +37,8 @@ import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
 import { canPickManager, quickManagerOptions } from '@game/logic/managers'
 import { ManagerPick } from '../components/ManagerPick'
+import { DraftRecap } from '../components/DraftRecap'
+import { draftRecap } from '@game/logic/draftRecap'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -395,7 +397,7 @@ export function Draft() {
                 <div className="col pu-log" data-testid="power-up-log" style={{ gap: 2 }}>
                   {puLog.map((l, i) => (
                     <div key={i} className="row small" style={{ gap: 8 }}>
-                      <span aria-hidden="true">{l.icon}</span>
+                      <PowerUpIcon kind={l.kind} size={14} />
                       <span>{l.text}</span>
                     </div>
                   ))}
@@ -461,20 +463,19 @@ export function Draft() {
             />
           )}
           {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
-          {!current && !managerChoice.length && (
+          {!current && !managerChoice.length && complete && <DraftRecap recap={draftRecap(u, d, get, ratingShown(d.rules, 'grades', { complete }))} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} cta={finishDraftLabel(game)} onCta={() => finishDraft()} />}
+          {!current && !managerChoice.length && !complete && (
             <div className="empty-state">
               <span className="empty-icon" aria-hidden="true">
                 <Dices size={26} />
               </span>
               <h3>
-                {complete ? 'All picks made' : isDynastySummer ? `${total - made} summer spin${total - made === 1 ? '' : 's'} to add depth` : 'Spin for a club and a season'}{' '}
-                {!complete && (
-                  <Info label="How the wheel works">
-                    {isDynastySummer ? 'Your squad carries over, best eleven on the pitch; each spin adds one player, and the summer market is open in the Dugout. ' : ''}The wheel only stops on squads with someone who fits a slot you still need, so there are no dead spins. Each player can be drafted once, whichever season you catch him in.
-                  </Info>
-                )}
+                {isDynastySummer ? `${total - made} summer spin${total - made === 1 ? '' : 's'} to add depth` : 'Spin for a club and a season'}{' '}
+                <Info label="How the wheel works">
+                  {isDynastySummer ? 'Your squad carries over, best eleven on the pitch; each spin adds one player, and the summer market is open in the Dugout. ' : ''}The wheel only stops on squads with someone who fits a slot you still need, so there are no dead spins. Each player can be drafted once, whichever season you catch him in.
+                </Info>
               </h3>
-              {!complete && <p className="muted small">Then pick one player from that squad.</p>}
+              <p className="muted small">Then pick one player from that squad.</p>
             </div>
           )}
           {current && spinning && !revealed && (
