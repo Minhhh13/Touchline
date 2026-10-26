@@ -12968,6 +12968,21 @@ table.tbl.hub td.name {
   border-bottom: 0;
   margin-bottom: 0;
 }
+/* On a phone the control beside the tabs is its icon (the word stays for screen readers), so the tab strip keeps the
+   room: "Tactics" ran under "Boxes" at 390 px */
+@media (max-width: 720px) {
+  .tabs-row .boxes-btn > span:not(.boxes-off) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tabs-row .boxes-btn > .boxes-chevron {
+    display: none;
+  }
+}
 /* A screen head with the control beside its own buttons */
 .head-actions {
   display: flex;
