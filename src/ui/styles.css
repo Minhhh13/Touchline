@@ -943,6 +943,68 @@ p {
     box-shadow: none;
   }
 }
+/* The one-line intake: the candidates as chips in the panel's head, shown only on a short desktop window (below) */
+.youth-line {
+  display: none;
+}
+.youth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 3px 4px 3px var(--space-2);
+  border: var(--border);
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.youth-chip:hover,
+.youth-chip:focus-visible {
+  border-color: var(--primary);
+}
+.youth-chip.home {
+  border-color: var(--gold);
+}
+.youth-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+/* A short desktop window (the coach mark showing at 1280 x 720 left the stacked intake only its head): one line, the
+   chips between the title and Pass this year, the cards hidden */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .youth-intake.panel {
+    padding-block: var(--space-2);
+  }
+  .youth-intake > .panel-head {
+    margin-bottom: 0;
+    flex-wrap: nowrap;
+    gap: var(--space-3);
+  }
+  .youth-intake > .panel-head > h3 {
+    flex: none;
+  }
+  .youth-intake .youth-line {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--space-2);
+  }
+  .youth-intake .youth-line > .youth-chip {
+    flex: 0 1 auto;
+  }
+  .youth-intake .youth-side {
+    flex: none;
+  }
+  .youth-intake .youth-terms,
+  .youth-intake .youth-list {
+    display: none;
+  }
+}
 /* On a short window the intake gives way first: the squad grid under it keeps at least 120 px, and the intake scrolls
    inside itself, down to its head */
 @media (min-width: 1100px) and (min-height: 600px) {

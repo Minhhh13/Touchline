@@ -354,8 +354,25 @@ export function Dugout() {
             <h3 className="icon-title">
               <GraduationCap size={20} aria-hidden="true" /> Youth intake
             </h3>
-            <span className="row" style={{ gap: 'var(--space-3)' }}>
-              <span className="small muted">Sign one free on a three-year deal</span>
+            {/* A short desktop window: the candidates as one line of chips in the head (CSS shows this or the cards below) */}
+            <span className="youth-line" data-testid="youth-line">
+              {game.youthIntake.candidates.map((id) => {
+                const p = u.index[id]
+                if (!p) return null
+                const home = p.clubId === game.settings.hostClubId
+                return (
+                  <button key={id} type="button" className={`youth-chip${home ? ' home' : ''}`} onClick={() => store.showToast(store.signYouth(id).message)} title={`${p.name}, ${p.age}, ${clubName(u, p.clubId)}${home ? ' · Homegrown' : ''}: sign him free on a three-year deal`} data-testid="youth-chip">
+                    <Pos p={p.positions[0]} />
+                    <span className="youth-chip-name">{p.name}</span>
+                    <span className="small muted">{p.age}</span>
+                    <Rating value={p.overall} />
+                    <span className="btn sm primary">Sign</span>
+                  </button>
+                )
+              })}
+            </span>
+            <span className="row youth-side" style={{ gap: 'var(--space-3)' }}>
+              <span className="small muted youth-terms">Sign one free on a three-year deal</span>
               <button className="btn ghost sm" onClick={() => store.showToast(store.signYouth(null).message)} data-testid="youth-pass">
                 Pass this year
               </button>
