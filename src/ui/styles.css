@@ -14397,3 +14397,21 @@ details.opposition {
     overflow-wrap: anywhere;
   }
 }
+/* Home's lockup on a narrow phone: it scales with its column (a size container), so it is never clipped by the hero
+   (it ran 27 px past a 320 px screen); at 390 px and up it stays 60 px tall. The lockup is a logotype drawn to its own
+   geometry: it opts out of a text-size adjustment (iOS text zoom), which grew its name but not its flag and ball */
+.tl-lockup {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+@media (max-width: 520px) {
+  .hero-content {
+    width: 100%;
+  }
+  .hero h1 {
+    container-type: inline-size;
+  }
+  .hero h1 .tl-lockup {
+    --h: min(60px, 19.5cqi);
+  }
+}
