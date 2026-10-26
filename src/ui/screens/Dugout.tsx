@@ -1387,7 +1387,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     {l.response && <span className="chip">{l.response}</span>}
                   </div>
                   <div className="bidrow">
-                    <input className="input" type="number" min={0.1} step={0.5} value={bid} onChange={(e) => setBids({ ...bids, [l.playerSeasonId]: Number(e.target.value) })} />
+                    <input className="input" type="number" min={0.1} step={0.5} value={bid} onChange={(e) => setBids({ ...bids, [l.playerSeasonId]: Number(e.target.value) })} aria-label={`Your bid for ${p.name}, in £ millions`} />
                     <span className="small muted">£M</span>
                     <button
                       className="btn sm primary"
