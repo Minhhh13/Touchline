@@ -44,7 +44,7 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
           )}
         </div>
       </div>
-      {r.grade && <Tip id="draft-recap">Each pick is graded against the best man his spin held for that slot: A is the best or close to it, D well short. The Hindsight XI is the best XI your spins held; a tick is your pick where you put him, S5 the spin a man came from.</Tip>}
+      {r.grade && <Tip id="draft-recap">Each pick is graded by the number on his pitch disc, against the best man his spin held for that slot: A is the best or close to it, D well short. The Hindsight XI is the best XI your spins held; a tick is your pick where you put him, S5 the spin a man came from.</Tip>}
       <div className="recap-cards">
         {r.best && best && (
           <div className="recap-card" data-testid="recap-best">
