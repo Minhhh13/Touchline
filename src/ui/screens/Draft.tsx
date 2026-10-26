@@ -5,7 +5,7 @@ import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoo
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
 import { tierOdds } from '@game/logic/tierOdds'
-import { bestPick, pickGrades, type PickGrade } from '@game/logic/pickGrades'
+import { bestPick, gradeNote, pickGrades, type PickGrade } from '@game/logic/pickGrades'
 import { ratingHidden, ratingShown, revealsOnPick } from '@game/logic/ratingVisibility'
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
@@ -431,7 +431,7 @@ export function Draft() {
                           {isIcons(h) ? <TierDot tier="icons" /> : tier && <TierDot tier={tier} />}
                           {isIcons(h) ? 'Icons' : seasonLabel(h.season)}
                           {grades.has(at) && (
-                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={`${grades.get(at)!.rating} in his slot; the best on that spin was ${grades.get(at)!.best} (${grades.get(at)!.bestName})`}>
+                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={gradeNote(grades.get(at)!, (id) => d.formation.slots.find((x) => x.id === id)?.position ?? id)}>
                               {grades.get(at)!.grade}
                             </span>
                           )}

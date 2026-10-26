@@ -1,7 +1,7 @@
 /**
  * The draft recap: what fills the Draft's middle box once every pick is made (it was an empty "All picks made" panel).
  * A grade for the whole draft from the pick grades, a one-line verdict, the best pick, the one that got away (the pick
- * furthest short of the best man on his spin), and how far the wheel travelled: clubs, nations and seasons. Pure and
+ * that left the most on the table against the best play on his spin), and how far the wheel travelled: clubs, nations and seasons. Pure and
  * draft-preserving, like `pickGrades`: it only reads the draft log, so nothing about a seed moves. The Hindsight XI
  * (`hindsight.ts`) is the best XI the same spins could have given.
  */
@@ -22,7 +22,7 @@ export interface DraftRecap {
   tally: Record<PickGrade, number>
   /** The pick to boast about (`bestPick`). */
   best: GradedPick | null
-  /** The pick furthest short of the best man on his spin, when that is 3 or more rating points (a B or worse). */
+  /** The pick that left the most on the table (`GradedPick.left`), when that is 2 or more XI points. */
   miss: GradedPick | null
   /** The graded XI's mean rating in the slots they were drafted into, one decimal; null without grades. */
   xiRating: number | null
@@ -43,29 +43,32 @@ export interface DraftRecap {
 
 const POINTS: Record<PickGrade, number> = { A: 4, B: 3, C: 2, D: 1 }
 
-/** The whole draft's grade from the mean of its pick grades: 3.5 and up an A, 2.75 a B, 2 a C, below that a D. */
+/**
+ * The whole draft's grade from the mean of its pick grades: 3.7 and up an A (an XI of A's with three B's at most), 3.2 a
+ * B, 2.5 a C, below that a D. Calibrated with `gradeFor` (round 5): the assistant's draft averages a B.
+ */
 export function draftGrade(grades: GradedPick[]): PickGrade | null {
   if (!grades.length) return null
   const mean = grades.reduce((s, g) => s + POINTS[g.grade], 0) / grades.length
-  return mean >= 3.5 ? 'A' : mean >= 2.75 ? 'B' : mean >= 2 ? 'C' : 'D'
+  return mean >= 3.7 ? 'A' : mean >= 3.2 ? 'B' : mean >= 2.5 ? 'C' : 'D'
 }
 
 export function recapVerdict(grade: PickGrade | null, tally: Record<PickGrade, number>, graded: number): string {
   if (!grade) return 'Squad ready'
-  if (tally.A === graded) return 'A perfect draft: the best man on every spin'
-  if (grade === 'A') return 'A sharp draft: the best man on almost every spin'
-  if (grade === 'B') return 'A good draft, a point or two left on the wheel'
+  if (tally.A === graded) return 'A perfect draft: the best play on every spin'
+  if (grade === 'A') return 'A sharp draft: the best play on almost every spin'
+  if (grade === 'B') return 'A good draft, a few points left on the wheel'
   if (grade === 'C') return 'A mixed draft: some spins got away'
   return 'A draft to forget, but the season is still to play'
 }
 
-export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'formation'> & { rules?: Pick<DraftRules, 'budget' | 'chain'> }, get: (id: string) => PlayerSeason | undefined, showGrades: boolean): DraftRecap {
+export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'formation'> & { rules?: Pick<DraftRules, 'budget' | 'chain' | 'draftMode' | 'modes'> }, get: (id: string) => PlayerSeason | undefined, showGrades: boolean): DraftRecap {
   const graded = showGrades ? pickGrades(u, d, get) : []
   const tally: Record<PickGrade, number> = { A: 0, B: 0, C: 0, D: 0 }
   for (const g of graded) tally[g.grade]++
   const grade = draftGrade(graded)
   let miss: GradedPick | null = null
-  for (const g of graded) if (g.best - g.rating >= 3 && (!miss || g.best - g.rating > miss.best - miss.rating)) miss = g
+  for (const g of graded) if (g.left >= 2 && (!miss || g.left > miss.left)) miss = g
   const picked = d.history.flatMap((h) => {
     const p = h.pickedId ? get(h.pickedId) : undefined
     return p ? [{ p, h }] : []
