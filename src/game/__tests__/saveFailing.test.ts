@@ -60,9 +60,13 @@ describe('O-14: a full storage', () => {
       expect(html).toContain(SAVE_FAILING_LINE)
       expect(html).toContain('role="alert"')
       expect(html).toContain('data-testid="save-banner-export"')
-      // On Your record itself the export is right there: no button to it
+      expect(html).toContain('Open Your record to export your save')
+      expect(html).not.toContain('disabled')
+      // On Your record itself the export is right there: the warning stays, its button has nowhere to go
       show({ screen: 'profile' })
-      expect(renderToString(createElement(SaveBanner))).not.toContain('save-banner-export')
+      const onProfile = renderToString(createElement(SaveBanner))
+      expect(onProfile).toContain(SAVE_FAILING_LINE)
+      expect(onProfile).toContain('disabled')
       expect('saveFailing' in persistedState(useStore.getState())).toBe(false)
     } finally {
       disk.full = false

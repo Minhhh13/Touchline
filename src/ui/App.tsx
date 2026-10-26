@@ -258,6 +258,7 @@ export function App() {
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
+        <SaveBanner />
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
             <House size={16} />
@@ -321,7 +322,7 @@ export function App() {
         {body}
       </ScreenBoundary>
       <Toast />
-      <SaveBanner />
+      {barHidden && <SaveBanner floating />}
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
         {offseason && (
           <div className="col">
