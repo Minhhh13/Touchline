@@ -30,7 +30,9 @@ import { useOnline } from '../../online/state'
 import { SignInPrompt } from '../online/SignInPrompt'
 import { MODE_TITLE } from '@game/logic/modes'
 import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
-import { weeklySeed } from '@engine/rng'
+import { previousWeeklySeed, weeklySeed } from '@engine/rng'
+import { weeklyRecord } from '@game/logic/weeklyRecord'
+import { WeeklyRecordBox } from '../components/WeeklyRecordBox'
 import { CapControl } from '../components/CapControl'
 import { ChainToggle } from '../components/ChainControl'
 import { CAP_NARROW_NOTE, CAP_PRESETS, DEFAULT_CAP_CHOICE, capBudget, capTotal, withCap, type CapChoice } from '@game/logic/cap'
@@ -91,7 +93,7 @@ function writeAdvanced(open: boolean): void {
 }
 
 export function Setup() {
-  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, pendingChallenge } = useStore()
+  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, pendingChallenge, profile } = useStore()
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
@@ -423,6 +425,7 @@ export function Setup() {
                     {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{formationName(weekPlan.formationId)}</b> from the same wheel{week ? <>, in {leagueArticle(leagueNameOf(week.leagueId))}<b>{leagueNameOf(week.leagueId)} {seasonLabel(week.season)}</b>, {week.difficulty} difficulty</> : ' (loading the league…)'}. Ends Sunday (UTC).
                   </div>
                 )}
+                {fixed?.kind === 'weekly' && weekPlan && <WeeklyRecordBox theme={weekPlan.theme} record={weeklyRecord(profile, weekPlan.seed, previousWeeklySeed)} />}
                 {fixed?.kind === 'daily' && (
                   <div className="notice" data-testid="daily-notice">
                     Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in {leagueArticle(leagueNameOf(fixed.leagueId))}<b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.

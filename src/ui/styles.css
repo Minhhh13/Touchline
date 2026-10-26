@@ -14393,3 +14393,19 @@ details.opposition {
     max-width: 860px;
   }
 }
+
+/* ------------------------------------------------------------ the Weekly setup's record (2026-10-26, round 5) */
+/* Under This week's rules: the theme's story, this week, the streak and last week, so the box is not one notice over an empty panel */
+.weekly-record {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  min-width: 0;
+}
+.weekly-record .weekly-story {
+  margin: 0;
+}
+.weekly-record .recap-card {
+  padding: var(--space-2) var(--space-3);
+}
