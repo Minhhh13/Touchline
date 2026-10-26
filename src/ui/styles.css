@@ -114,6 +114,10 @@
   --meter-sharpness: #c4b5fd;
   /* The middle band of a bar (condition 70-84, familiarity, attributes 65-79): gold, darkened in Daylight to keep 3:1 on the track */
   --meter-mid: var(--gold);
+  /* The Trophy Room's tier rings (bronze, silver, gold): 3:1 on the ring's fill in both themes */
+  --medal-bronze: #cd8a4a;
+  --medal-silver: #a9b6bd;
+  --medal-gold: var(--gold);
   /* The pitch is grass in both themes; what sits on it does not change with the theme */
   --pitch: #1d7a3f;
   --pitch-2: #1a6f39;
@@ -248,6 +252,11 @@
   --pos-att: #be123c;
   --meter-sharpness: #7c3aed;
   --meter-mid: #a16207;
+  --medal-bronze: #a8692e;
+  --medal-silver: #6f7c86;
+  --medal-gold: var(--gold-text);
+  /* The hairline under a Daylight secondary button */
+  --btn-hairline: 0 1px 2px rgba(10, 27, 81, 0.07);
   --shadow: 0 12px 32px -6px rgba(10, 27, 81, 0.18);
   /* Daylight panels carry a soft resting shadow (Floodlit panels stay flat) */
   --panel-shadow: 0 1px 2px rgba(10, 27, 81, 0.05), 0 6px 18px -10px rgba(10, 27, 81, 0.16);
@@ -1135,7 +1144,7 @@ p {
 }
 /* Daylight: secondary buttons carry a hairline shadow, so white on the off-white panel still reads as a control */
 :where(:root[data-theme='light']) .btn:not(.primary):not(.ghost):not(:disabled) {
-  box-shadow: 0 1px 2px rgba(10, 27, 81, 0.07);
+  box-shadow: var(--btn-hairline);
 }
 .btn.primary {
   background: var(--primary-grad);
@@ -4112,7 +4121,7 @@ table.tbl.contracts .btn.sm {
 }
 .tier-banner .tier.PERFECT,
 .tier-banner .tier.INVINCIBLE {
-  background: linear-gradient(180deg, #fff3c4, var(--gold));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 28%, var(--text)), var(--gold));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -6293,14 +6302,14 @@ dl.kv {
   background: var(--bg-2);
 }
 .badge-ring.bronze {
-  border-color: #cd8a4a;
+  border-color: var(--medal-bronze);
 }
 .badge-ring.silver {
-  border-color: #a9b6bd;
+  border-color: var(--medal-silver);
 }
 .badge-ring.gold {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent);
+  border-color: var(--medal-gold);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--medal-gold) 30%, transparent);
 }
 
 /* ------------------------------------------------------------ slot picker */
@@ -10582,7 +10591,7 @@ table.tbl tr.chase-perfect td:first-child {
   border-radius: var(--radius-m);
   border: var(--border-strong);
   background: var(--panel);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow);
 }
 .account-menu-head {
   display: flex;
