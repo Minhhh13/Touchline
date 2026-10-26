@@ -5548,7 +5548,7 @@ dl.kv {
 }
 .legend-row {
   display: grid;
-  grid-template-columns: 28px 36px minmax(0, 1.5fr) 32px minmax(0, 0.8fr) minmax(0, 1.3fr) auto 40px;
+  grid-template-columns: 28px 36px minmax(0, 1.5fr) 32px minmax(0, 0.8fr) minmax(0, 1.3fr) minmax(0, 0.8fr) 40px;
   grid-template-areas: 'n r name age pos club season star';
   gap: 8px;
   align-items: center;
@@ -5592,7 +5592,7 @@ dl.kv {
 /* A tablet: the positions give their column to the club */
 @media (max-width: 900px) {
   .legend-row {
-    grid-template-columns: 28px 36px minmax(0, 1.3fr) 32px minmax(0, 1.3fr) auto 40px;
+    grid-template-columns: 28px 36px minmax(0, 1.3fr) 32px minmax(0, 1.3fr) minmax(0, 0.8fr) 40px;
     grid-template-areas: 'n r name age club season star';
   }
   .legend-row > .lg-pos {
