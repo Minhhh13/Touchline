@@ -20,6 +20,7 @@ import { newArenaState } from './arena'
 import { chainRecord } from './chain'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { isSuperLeague } from './superLeague'
+import { inLeague } from './leagueNames'
 
 /** The place in the table a new manager is handed by default: mid-table, so the board's target is reachable. */
 export const DEFAULT_HOST_POSITION = 10
@@ -198,7 +199,7 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   // A quick draft's XI is the user's own team: only a managed season takes a club's place, so only it says "as"
   const host = s.mode === 'season' || s.mode === 'dynasty' ? `as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ` : ''
   // The Super League is no real league season, and its nineteen play at full strength whatever the opposition setting
-  const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, full strength` : `in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
+  const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, full strength` : `${inLeague(league)} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}${where}, seed ${s.seed}`]
   const r = s.rules
   if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
