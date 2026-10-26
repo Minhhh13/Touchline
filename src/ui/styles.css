@@ -4311,6 +4311,40 @@ table.tbl.contracts .btn.sm {
   .cta-bar .btns .btn.primary.big .mode-tag {
     display: none;
   }
+  /* Never clip a label: the buttons wrap to a second row before any of them would shrink below its text */
+  .cta-bar .btns {
+    flex-wrap: wrap;
+  }
+  .cta-bar .btns .btn {
+    flex: 1 0 auto;
+    min-height: 36px;
+  }
+  .cta-bar .btns .btn.primary.big {
+    flex: 3 0 auto;
+    min-width: max-content;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+/* Short labels on a narrow phone ("Kick off", "Play MW 6", "Friendly"); the long ones everywhere else */
+.cta-bar .lbl-short {
+  display: none;
+}
+@media (max-width: 480px) {
+  .cta-bar .lbl-long {
+    display: none;
+  }
+  .cta-bar .lbl-short {
+    display: inline;
+  }
+  /* Four or five buttons: the main one takes the first row, the friendly and the sims share the second */
+  .cta-bar .btns .btn.primary.big {
+    flex-basis: 100%;
+  }
+  .cta-bar .btns .btn:not(.primary) {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 }
 /* The start bar: the choice summary and the one button that matters. Fixed to the bottom on phones. */
 .bottom-bar {
@@ -9083,6 +9117,312 @@ table.tbl.match-stats th {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* ------------------------------------------------------------------------------------------------------------------
+   Online screens (World leaderboard, Account) inside the app shell: the shell fits the page and makes the last grid's
+   boxes take the height; a `.fit-panel` keeps its `.panel-head` and an optional `.fit-foot` in view and scrolls only
+   its `.fit-scroll` body (a board under a sticky header, your own row pinned at the foot). Stacked below 1100 px.
+   ------------------------------------------------------------------------------------------------------------------ */
+.fit-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fit-panel > .panel-head {
+  flex: none;
+}
+.fit-foot {
+  flex: none;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border);
+}
+.fit-foot.notice {
+  border-top: none;
+}
+.grid.world-grid {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+@media (min-width: 1100px) {
+  .app.shell .screen-body > .grid > .fit-panel {
+    overflow: hidden;
+  }
+  .app.shell .fit-panel > .fit-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+@media (max-width: 1099px) {
+  .grid.world-grid,
+  .grid.account-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fit-panel > .fit-scroll {
+    overflow-x: auto;
+  }
+}
+/* A table whose header stays in view while its panel scrolls */
+table.tbl.sticky-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+}
+
+/* World leaderboard: the board picker in the side panel */
+.world-boards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.world-board-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.world-board-pick span {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.world-board-pick:hover {
+  background: var(--bg-3);
+}
+.world-board-pick.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.world-weekly {
+  gap: var(--space-2);
+}
+.plain-list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The top bar's sign-in entry (online builds only): a `.theme-switch` round button; signed in and open in the
+   selection pattern; it does not spin on press like the sun and moon */
+.account-chip:active {
+  transform: scale(0.92);
+}
+/* Signed in: a pill of the same height with the flag and the name on the boards, opening the account menu */
+.account-menu-wrap {
+  position: relative;
+  flex: none;
+}
+.account-chip.signed-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  max-width: 170px;
+  padding: 0 12px 0 9px;
+  border-radius: var(--radius-pill);
+  border: var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-chip.signed-in:hover {
+  background: var(--bg-3);
+}
+.account-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 60;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border-radius: var(--radius-m);
+  border: var(--border-strong);
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.account-menu-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-bottom: var(--border);
+  margin-bottom: var(--space-1);
+}
+.account-menu-item {
+  text-align: left;
+  padding: 8px var(--space-2);
+  border-radius: var(--radius-s);
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
+  background: var(--bg-3);
+}
+/* Below 1360 px the nav needs the room: the signed-in entry is round like its neighbours, the name its label */
+@media (max-width: 1360px) {
+  .account-chip.signed-in {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .account-chip-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+@media (max-width: 720px) {
+  .account-chip.signed-in {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  .account-chip-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+/* The account flow on the Account screen */
+.account-promise {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+.code-input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3em;
+  font-size: 20px;
+}
+.name-check {
+  min-height: 1.3em;
+  color: var(--text-3);
+}
+.name-check.free {
+  color: var(--good);
+}
+.name-check.taken,
+.name-check.invalid {
+  color: var(--warn);
+}
+.flag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: var(--border);
+  border-radius: var(--radius-m);
+  padding: 4px;
+}
+.flag-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.flag-pick:hover {
+  background: var(--bg-3);
+}
+.flag-pick.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.saved-line {
+  font-size: var(--fs-sm);
+}
+.saved-line.good {
+  color: var(--good);
+}
+.saved-line.warn {
+  color: var(--warn);
+}
+.saved-line.busy,
+.saved-line.muted {
+  color: var(--text-3);
+}
+.account-chip.active {
+  color: var(--text);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.account-chip.syncing svg {
+  animation: account-sync 1.2s linear infinite;
+}
+@keyframes account-sync {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-chip.syncing svg {
+    animation: none;
+  }
+  .account-chip:active {
+    transform: none;
+  }
+}
+
+/* The Daily card's ranked line on Home (online builds with today's pin) */
+.ranked-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.ranked-tag.on {
+  color: var(--good);
+  font-weight: 600;
+}
+/* Home in an online build: five tiles (World leaderboard joins) stay on one row on a desktop */
+@media (min-width: 1100px) {
+  .home-tiles:has(> :nth-child(5)) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .home-tiles > :nth-child(5) {
+    animation-delay: calc(var(--stagger) * 7);
+  }
+}
+
 
 /* Power-ups: the tray of six one-use power-ups on a Quick Draft, their Info tips and the re-roll odds */
 .pu-grid {
@@ -10320,5 +10660,346 @@ table.tbl.hub td.name {
 @media (max-width: 720px) {
   .talks-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ the match report: one screen
+ * DESIGN_SYSTEM.md section 13. The head is one row (the match's name, Live and Report, the buttons); under it the
+ * scoreboard band, then three boxes side by side: the goals and the numbers; the pictures (Shot map, Momentum,
+ * Possession, Tactics as tabs); the player of the match over the ratings and the notes (tabs). Below 1100 px every
+ * pane stacks under its own heading and the page scrolls, as a phone does.
+ */
+.match-head {
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: 10px;
+}
+.match-head > .tabs {
+  margin: 0;
+  border-bottom: 0;
+}
+.match-title h2 {
+  margin: 0;
+}
+.report-dash,
+.report-col,
+.rp-box,
+.rp-flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.report-dash .tip {
+  margin: 0;
+}
+.report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.rp-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.rp-tabs,
+.rp-people > .rp-box-head {
+  display: none;
+}
+.rp-pane + .rp-pane {
+  border-top: var(--border);
+  padding-top: var(--space-3);
+}
+.rp-flow {
+  gap: 10px;
+}
+.rp-foot {
+  margin-top: 6px;
+}
+.rp-motm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border);
+}
+.rp-motm .num {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--good);
+}
+.rp-tactics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.rp-opponent {
+  margin-top: var(--space-4);
+}
+@media (min-width: 721px) and (max-width: 1099px) {
+  .rp-shots .shot-map,
+  .rp-tactics-grid {
+    max-width: 760px;
+  }
+}
+@media (min-width: 1100px) {
+  /* The page is the window's height less the top bar, and never scrolls; long lists scroll inside their box */
+  .app:has(> .page.report-page) {
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: clip;
+  }
+  .app.bar-hidden:has(> .page.report-page) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app > .page.report-page {
+    max-width: 1600px;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+    overflow: hidden;
+  }
+  .page.report-page > .match-head {
+    flex: none;
+    flex-wrap: nowrap;
+    margin: 0;
+  }
+  .app.bar-hidden .page.report-page > .match-head {
+    padding-right: 150px;
+  }
+  .page.report-page .match-title {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .page.report-page .match-title .small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .page.report-page > .match-head > .tabs {
+    flex: none;
+    margin-right: auto;
+  }
+  .report-dash {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .report-board {
+    flex: none;
+    padding: 8px var(--space-4);
+  }
+  .report-board .score {
+    font-size: 36px;
+  }
+  .report-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.5fr) minmax(340px, 1.05fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .report-col {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .report-col > .rp-goals {
+    flex: 1 1 0;
+    min-height: 110px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .report-col > .rp-stats,
+  .report-col > .tip {
+    flex: none;
+  }
+  .rp-stats h3 {
+    margin-bottom: var(--space-2);
+  }
+  .rp-stats table.tbl th,
+  .rp-stats table.tbl td {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  /* The ratings table keeps every column inside its box: tighter cells, and a long name wraps beside its chips */
+  .rp-ours table.tbl th,
+  .rp-ours table.tbl td {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  .rp-ours table.tbl td:first-child {
+    white-space: normal;
+  }
+  .rp-ours table.tbl td:first-child > .row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .rp-ours .rating-cell .bar {
+    width: 44px;
+  }
+  .rp-box {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .rp-box-head {
+    flex: none;
+    justify-content: space-between;
+  }
+  .rp-tabs,
+  .rp-people > .rp-box-head {
+    display: flex;
+  }
+  .rp-tabs {
+    flex-wrap: nowrap;
+    min-width: 0;
+    margin: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .rp-tabs button {
+    flex: none;
+    white-space: nowrap;
+  }
+  .rp-box > .rp-pane {
+    display: none;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .rp-box > .rp-pane.on {
+    display: flex;
+    flex-direction: column;
+  }
+  .rp-pane + .rp-pane {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .rp-pane-title {
+    display: none;
+  }
+  .rp-motm {
+    flex: none;
+  }
+  /* The shot map is sized by whichever of the box's width and height runs out first */
+  .rp-shots {
+    overflow: hidden;
+  }
+  .rp-shots .shot-map {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    container-type: size;
+  }
+  .rp-shots .shot-map > .pitch-svg {
+    flex: none;
+    width: min(100cqw, calc((100cqh - 30px) * 111 / 74));
+  }
+  .rp-shots .shot-map > .live-legend {
+    width: min(100cqw, calc((100cqh - 30px) * 111 / 74));
+    flex: none;
+  }
+  .rp-shots .rp-foot {
+    flex: none;
+    text-align: center;
+  }
+  /* Momentum over the xG story, each chart scaled into its share of the box */
+  .rp-flow > .mchart {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .rp-flow > .mchart:first-of-type {
+    flex: none;
+  }
+  .rp-flow > .mchart:last-of-type {
+    flex: 1 1 0;
+    min-height: 150px;
+  }
+  .rp-flow > .mchart:last-of-type > svg {
+    flex: 1 1 0;
+    min-height: 60px;
+  }
+  .rp-flow > .mchart > :not(svg) {
+    flex: none;
+  }
+  .rp-tactics-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+/* Setup's Modes row on a desktop: eleven cards in two rows of six, each its icon beside its name, so every name reads
+   whole ("Chain" for the Teammate chain; the card's tooltip and the Info tip keep the full line) */
+.qmode .lbl-short {
+  display: none;
+}
+@media (min-width: 1000px) {
+  .setup-modes-row {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 4px;
+  }
+  .setup-page .qmode,
+  .setup-page .qmode.pu-card {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 3px;
+    padding: 3px 4px;
+  }
+  .setup-page .qmode .micon,
+  .setup-page .qmode.pu-card .micon {
+    font-size: 13px;
+    flex: none;
+  }
+  .setup-page .qmode .ctitle {
+    letter-spacing: -0.01em;
+  }
+  .setup-page .qmode .ctitle {
+    min-width: 0;
+  }
+  .setup-page .qmode .lbl-long {
+    display: none;
+  }
+  .setup-page .qmode .lbl-short {
+    display: inline;
+  }
+}
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .setup-modes-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+/* Below the desktop the switch cards take a full row each, so Moneyball and the Teammate chain read whole beside their line */
+@media (max-width: 999px) {
+  .setup-modes-row .pu-setup .qmode.pu-card {
+    flex-basis: 100%;
+  }
+}
+/* An arena shoot-out on the report: one slim box above the scoreboard, so the boxes below keep the height */
+@media (min-width: 1100px) {
+  .page.report-page > [data-testid='shootout-reveal'] {
+    flex: none;
+    margin-bottom: 0 !important;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+  .page.report-page > [data-testid='shootout-reveal'] .panel-head {
+    margin-bottom: var(--space-2);
+  }
+  .page.report-page > [data-testid='shootout-reveal'] h2 {
+    font-size: var(--fs-h3);
   }
 }

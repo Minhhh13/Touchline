@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
-import { dailyGameSettings, dailySettings, defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
@@ -22,6 +22,9 @@ import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, type ChoiceOption, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
 import { clubName } from '../format'
+import { dailyStartSettings } from '../../online/daily'
+import { useOnline } from '../../online/state'
+import { SignInPrompt } from '../online/SignInPrompt'
 import { MODE_TITLE } from '@game/logic/modes'
 import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
 import { weeklySeed } from '@engine/rng'
@@ -89,6 +92,8 @@ export function Setup() {
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
+  // Today's pinned ranked Daily, when the online layer has read it (the local mapping otherwise)
+  const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const [leagueId, setLeagueId] = useState('england')
   const [europe, setEurope] = useState(false)
   const [teamName, setTeamName] = useState(DEFAULT_TEAM)
@@ -242,9 +247,9 @@ export function Setup() {
     // The week's challenge is fixed before its packs load; it starts once they are in
     if (weekPlan) return { kind: 'weekly', season: week?.season ?? 0, host: week?.host ?? '', formationId: weekPlan.formationId, leagueId: weekPlan.leagueId, wheelLeagues: weekPlan.wheelLeagues, difficulty: week?.difficulty ?? 'calibrated', rules: null, seed: weekPlan.seed }
     if (!isDaily) return null
-    // Every rule of the Daily comes from `dailySettings`, so it is the same wheel for everyone
-    const d = dailySettings(u, todaysDailySeed())
-    return { kind: 'daily', season: d.season, host: d.host, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty, rules: d.rules, seed: d.seed }
+    // Every rule of the Daily comes from `dailySettings` (or today's ranked pin, when it differs), so it is the same wheel for everyone
+    const d = dailyStartSettings(u, todaysDailySeed(), teamName.trim() || 'Touchline XI', pin).settings
+    return { kind: 'daily', season: d.leagueSeason, host: d.hostClubId, formationId: d.formationId, leagueId: d.leagueId, wheelLeagues: d.wheelLeagues, difficulty: d.difficulty ?? 'calibrated', rules: d.rules, seed: d.seed }
   })()
   const challenge = pendingChallenge?.challenge ?? null
   const fixedReady = !fixed || (fixed.wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(fixed.leagueId))
@@ -252,7 +257,7 @@ export function Setup() {
   /** The settings the Start button would send; a blank seed is drawn at that moment, so a preview names it as such. */
   const buildSettings = (preview: boolean): GameSettings => {
     const name = teamName.trim() || DEFAULT_TEAM
-    if (fixed?.kind === 'daily') return dailyGameSettings(u, fixed.seed, name)
+    if (fixed?.kind === 'daily') return dailyStartSettings(u, fixed.seed, name, pin).settings
     const weekly = fixed?.kind === 'weekly' ? weeklyGameSettings(u, fixed.seed, name) : null
     if (weekly) return weekly
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
@@ -337,6 +342,7 @@ export function Setup() {
             ← Back
           </button>
         </div>
+        {isManage && !challenge && <SignInPrompt id={mode} text={`Back up your saves: sign in to save this ${mode === 'dynasty' ? 'Dynasty' : 'Season'}, your records and Dailies to your account.`} />}
 
         {/* Numbered steps in two boxes, as 38-0 reads: formation, name and league on the left; the rules and Spin on the right */}
         <div className="setup-grid">
@@ -490,7 +496,7 @@ export function Setup() {
                         <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" title="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When none is left, the next spin is free and the chain starts again.">
                           <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
                           <span className="micon" aria-hidden="true">🔗</span>
-                          <span className="ctitle">Teammate chain</span>
+                          <span className="ctitle"><span className="lbl-long">Teammate chain</span><span className="lbl-short">Chain</span></span>
                           <span className="cline">{chain ? 'On: each pick played beside the last' : 'Each pick played beside the last'}</span>
                         </label>
                       </div>

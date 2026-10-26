@@ -184,6 +184,9 @@ export function HowTo() {
           ))}
           <li>Flag icons: flag-icons 7.6.0 by Panayiotis Lipiridis (github.com/lipis/flag-icons) · MIT</li>
         </ul>
+        <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="howto-privacy">
+          Privacy and fair play
+        </button>
       </section>
       </div>
     </div>

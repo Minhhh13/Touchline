@@ -276,18 +276,22 @@ export function Dugout() {
                 </button>
               ))}
             </div>
+            {/* On a narrow phone the labels shorten (`.lbl-short`) and the buttons wrap rather than clip */}
             <div className="btns">
               {preseason && game.friendliesPlayed < 3 && (
                 <button className="btn" onClick={() => store.playFriendly()}>
-                  Play friendly
+                  <span className="lbl-long">Play friendly</span>
+                  <span className="lbl-short">Friendly</span>
                 </button>
               )}
               <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
-                {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
+                <span className="lbl-long">{preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
+                <span className="lbl-short">{preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => store.simToNextBigMatch()} disabled={!!game.pendingEvent || !!bigNext} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
-                {bigNext ? `${bigNext.label} next` : simToLabel(game, u)}
+                <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
+                <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
               <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
                 Sim 5

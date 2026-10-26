@@ -20,6 +20,7 @@ import { lockerCount } from '@game/logic/endCase'
 import { AchievementIcon } from '../components/icons'
 import { clubName, ordinal, seasonLabel, tierName } from '../format'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
+import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
 import { useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
@@ -351,6 +352,7 @@ export function ProfileScreen() {
           </div>
         </div>
         <div className="col">
+          <AccountLink />
           <div className="panel col">
             <div className="panel-head" style={{ marginBottom: 0 }}>
               <span className="head-title">
