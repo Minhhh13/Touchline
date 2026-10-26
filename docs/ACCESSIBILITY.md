@@ -105,6 +105,7 @@ What they were, and the fix:
 - `scrollable-region-focusable` (3 to 5): the game-by-game lists of a head-to-head result and a Season summary, and the match day's stat flanks in an arena final's replay at 1280x720, scroll with nothing focusable inside; `.gbg-list` and `.md-flank > dl` joined `SCROLL_BOXES`. One more pass now runs 1.5 s after each burst of changes, for a box that starts to scroll with no DOM change of its own.
 - `select-name` (critical, 1): the World board's country filter; named "Country".
 - `target-size` (1): the Dynasty checklist's Info buttons at 390 px sat too close to each other; drawn at 24 px there.
+- `target-size` (6, found by the final smoke on one seed): the Dressing room's groups list names inline, and on a phone a long group wrapped to lines 19 px apart; each name is 24 px tall there now (three more seeds clean).
 - Left: `target-size` 2 at 1280x720, the match day's centre-backs' overlapping shirt buttons (section 4).
 
 Round 1's 37 states, rerun on both builds (Floodlit): 1280x720 1 before (the same shirt overlap; it depends on the formation drawn) and 0 after; 390x844 0 and 0. In Daylight at 390x844 after: 0.

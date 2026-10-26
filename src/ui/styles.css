@@ -14447,6 +14447,11 @@ html {
     align-items: center;
     min-height: 44px;
   }
+  /* The dressing room's groups list their names inline, and a group's names wrap to lines 19 px apart on a phone:
+     each name is 24 px tall, so the lines clear WCAG 2.5.8 (axe target-size) */
+  .room-group .link-btn {
+    min-height: 24px;
+  }
   .panel-head > * {
     min-width: 0;
     max-width: 100%;
