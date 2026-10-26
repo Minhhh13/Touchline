@@ -14382,3 +14382,16 @@ details.opposition {
     display: none;
   }
 }
+/* Squad complete on a phone or tablet: Simulate season stays at the foot of the screen while the prediction scrolls under it (it was about 1,000 px down at 390x844) */
+@media (max-width: 1099px) {
+  .page.fit .squad-complete > .sc-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-inline: calc(-1 * var(--panel-pad));
+    margin-bottom: calc(-1 * var(--panel-pad));
+    padding: var(--space-2) var(--panel-pad) max(var(--panel-pad), env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: var(--border);
+  }
+}
