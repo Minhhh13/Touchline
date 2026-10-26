@@ -13440,3 +13440,12 @@ table.tbl.tv-compact .tv-name {
   color: var(--text-2);
 }
 
+/* ------------------------------------------------------------ dialogs (TL-06) */
+/* A dialog takes the focus itself when it opens (so its title is read first): no ring round the whole box, the
+   controls inside keep theirs */
+.modal[role='dialog']:focus,
+.decision-sheet:focus,
+.md-drawer:focus {
+  outline: none;
+}
+

@@ -329,10 +329,10 @@ export function Dugout() {
                 <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
                 <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
-              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
+              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
                 Sim 5
               </button>
-              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent}>
+              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent} data-testid="sim-end">
                 Sim to end
               </button>
             </div>
@@ -1902,7 +1902,7 @@ function EventCard() {
   const get = playerLookup(game, u)
   const p = ev.playerSeasonId ? get(ev.playerSeasonId) : undefined
   return (
-    <div className="panel event-card" data-testid="event-card" style={{ marginBottom: 'var(--space-4)', borderColor: 'var(--warn)' }}>
+    <div className="panel event-card" data-testid="event-card" data-dialog-return="" style={{ marginBottom: 'var(--space-4)', borderColor: 'var(--warn)' }}>
       <div className="row between wrap">
         <div>
           <h3 className="icon-title" style={{ color: 'var(--warn)' }}>
