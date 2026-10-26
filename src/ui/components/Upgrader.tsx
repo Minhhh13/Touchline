@@ -1,69 +1,324 @@
-import { useEffect, useState } from 'react'
-import type { DraftUpgrade } from '@engine/draft'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { PlayerSeason } from '@engine/types'
 import { UPGRADE_BOOSTS, upgradeChance, upgradeGain, upgradeLoss, type UpgradeBoost } from '@engine/upgrader'
 import type { Tier } from '@game/logic/rarity'
 import { Modal, Pos } from './bits'
 import { POWER_UP_INFO } from '@engine/powerups'
 import { PowerUpButton } from './PowerUpButton'
+import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound/synth'
+import { quickSpinPref, usePref } from '../viewerPrefs'
+import { DIAL_FULL_MS, DIAL_HOLD_MS, DIAL_QUICK_MS, DIAL_REDUCED_MS, dialTravel, landingAngle, needleAngle, ticksPassed } from '../upgradeDial'
+import { SoundToggle } from './CaseReel'
 
 /** The dial's win arc takes a rarity colour by how big the gamble is. */
 const BOOST_TIER: Record<UpgradeBoost, Tier> = { 2: 'purple', 5: 'pink', 10: 'red' }
-/** How long the needle spins before the result shows. */
-export const DIAL_MS = 2400
+/** The three boosts as presets: how big a gamble each is. */
+const BOOST_NAME: Record<UpgradeBoost, string> = { 2: 'Safe', 5: 'Bold', 10: 'All in' }
+
+/** What the Upgrader shows of a gamble made: the logic's record of it (`DraftUpgrade`, `JanuaryUpgradeResult`). */
+export interface UpgradeShown {
+  id: string
+  boost: number
+  chance: number
+  roll: number
+  won: boolean
+  delta: number
+  locked?: boolean
+}
+
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
+
+const R = 96
+const C = 2 * Math.PI * R
+const MARKS = Array.from({ length: 100 }, (_, i) => i)
 
 /**
- * The dial: a ring with the winning share (`chance` per cent, from twelve o'clock clockwise) in the boost's rarity
- * colour and the rest dark. With a `roll` the needle spins a few turns and stops on it, inside the arc on a win.
+ * The Upgrader's dial, as an upgrader site draws one: a big ring with the win arc sized to the chance (from twelve
+ * o'clock clockwise, in the boost's rarity colour), a hundred marks, and a needle. Given a roll, the needle spins
+ * several turns with a long ease-out, ticking past the marks, and lands on that roll (`src/ui/upgradeDial.ts`): inside
+ * the arc on a win, then a glow and a shake; outside on a loss, then the dial dims. The roll is the logic's, made
+ * before the needle moves. `animate` false shows it landed (a reload); a change of `skip` lands at once; reduced
+ * motion skips the spin; Quick spin (Profile) runs the short one.
  */
-function Dial({ chance, tier, roll, spinning }: { chance: number; tier: Tier; roll: number | null; spinning: boolean }) {
-  const r = 52
-  const c = 2 * Math.PI * r
-  // The roll's middle, so a roll of 0 sits just past twelve o'clock and 99 just before it
-  const angle = roll === null ? 0 : 360 * 4 + (roll + 0.5) * 3.6
+export function UpgradeDial({ chance, tier, roll, won, animate, skip = 0, onLanded, verdict }: { chance: number; tier: Tier; roll: number | null; won: boolean; animate: boolean; skip?: number; onLanded?: () => void; /** The centre's text once landed: "+5", "-3". */ verdict?: string }) {
+  const [reduced] = useState(prefersReducedMotion)
+  const [quick] = usePref(quickSpinPref)
+  const needle = useRef<SVGGElement>(null)
+  const [phase, setPhase] = useState<'idle' | 'spinning' | 'landed'>(roll === null ? 'idle' : animate ? 'spinning' : 'landed')
+  const landedCb = useRef(onLanded)
+  const skipRef = useRef<() => void>(() => undefined)
+  useLayoutEffect(() => {
+    landedCb.current = onLanded
+  })
+  useEffect(armAudio, [])
+  useLayoutEffect(() => {
+    const setAngle = (a: number) => needle.current?.setAttribute('transform', `rotate(${a.toFixed(2)} 120 120)`)
+    if (roll === null) {
+      setAngle(0)
+      setPhase('idle')
+      return
+    }
+    if (!animate) {
+      setAngle(landingAngle(roll))
+      setPhase('landed')
+      return
+    }
+    let alive = true
+    let done = false
+    let raf = 0
+    let hold = 0
+    const travel = dialTravel(roll)
+    const total = reduced ? 0 : quick ? DIAL_QUICK_MS : DIAL_FULL_MS
+    setPhase('spinning')
+    const land = () => {
+      if (!alive || done) return
+      done = true
+      cancelAnimationFrame(raf)
+      setAngle(travel)
+      hold = window.setTimeout(() => {
+        if (!alive) return
+        setPhase('landed')
+        playUpgradeResult(won, reduced)
+        landedCb.current?.()
+      }, reduced ? 0 : DIAL_HOLD_MS)
+    }
+    skipRef.current = land
+    if (total === 0 || typeof requestAnimationFrame !== 'function') {
+      setAngle(0)
+      hold = window.setTimeout(land, DIAL_REDUCED_MS)
+    } else {
+      const start = performance.now()
+      let lastTick = 0
+      let lastSound = 0
+      const frame = (now: number) => {
+        if (!alive) return
+        const ms = now - start
+        const a = needleAngle(ms, total, roll)
+        setAngle(a)
+        const t = ticksPassed(a)
+        // One tick per mark passed, never closer than 28 ms (the fast start would be a buzz), higher while it is fast
+        if (t !== lastTick) {
+          lastTick = t
+          if (now - lastSound > 28) {
+            lastSound = now
+            playDialTick(0.92 + 0.28 * Math.max(0, 1 - ms / total))
+          }
+        }
+        if (ms >= total) land()
+        else raf = requestAnimationFrame(frame)
+      }
+      setAngle(0)
+      raf = requestAnimationFrame(frame)
+    }
+    return () => {
+      alive = false
+      cancelAnimationFrame(raf)
+      window.clearTimeout(hold)
+      skipRef.current = () => undefined
+    }
+    // One spin per roll: the roll arrives once, from the logic
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roll])
+  useEffect(() => {
+    if (skip) skipRef.current()
+  }, [skip])
+
+  const result = phase === 'landed' && roll !== null ? (won ? 'won' : 'lost') : ''
   return (
-    <div className={`upg-dial${spinning ? ' spinning' : ''}`} data-tier={tier} data-testid="upgrader-dial">
-      <svg viewBox="0 0 120 120" aria-hidden="true">
-        <circle className="upg-track" cx="60" cy="60" r={r} />
-        <circle className="upg-win" cx="60" cy="60" r={r} strokeDasharray={`${(chance / 100) * c} ${c}`} transform="rotate(-90 60 60)" />
+    <div className={`udial ${phase} ${result}${reduced ? ' reduced' : ''}`} data-tier={tier} data-testid="upgrader-dial" data-phase={phase} data-result={result || undefined}>
+      <svg viewBox="0 0 240 240" aria-hidden="true">
+        <circle className="udial-face" cx="120" cy="120" r="118" />
+        <circle className="udial-track" cx="120" cy="120" r={R} />
+        <circle className="udial-win" cx="120" cy="120" r={R} strokeDasharray={`${(chance / 100) * C} ${C}`} transform="rotate(-90 120 120)" />
+        {MARKS.map((i) => {
+          const a = (i * 3.6 * Math.PI) / 180
+          const major = i % 5 === 0
+          const r1 = major ? 106 : 108
+          const r2 = major ? 115 : 112
+          return <line key={i} className={`udial-mark${major ? ' major' : ''}${i < chance ? ' in' : ''}`} x1={120 + r1 * Math.sin(a)} y1={120 - r1 * Math.cos(a)} x2={120 + r2 * Math.sin(a)} y2={120 - r2 * Math.cos(a)} />
+        })}
+        <g ref={needle} className="udial-needle" transform="rotate(0 120 120)">
+          <line x1="120" y1="120" x2="120" y2="30" />
+          <polygon points="120,14 111,34 129,34" />
+        </g>
       </svg>
-      <div className="upg-needle" style={{ transform: `rotate(${angle}deg)`, transitionDuration: roll === null ? '0ms' : `${DIAL_MS}ms` }} />
-      <div className="upg-centre">
-        <b data-testid="upgrader-chance">{chance}%</b>
-        <span>to win</span>
+      <div className="udial-centre">
+        {phase === 'landed' && verdict ? (
+          <>
+            <b data-testid="upgrader-verdict">{verdict}</b>
+            <span>{won ? 'Upgraded' : 'Missed'}</span>
+          </>
+        ) : (
+          <>
+            <b data-testid="upgrader-chance">{chance}%</b>
+            <span>{phase === 'spinning' ? 'rolling…' : 'to win'}</span>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
 /**
- * The Player Upgrader: a panel by the reel and, when opened, a sheet to choose a drafted player and a boost with the
- * exact chance on a dial before confirming. The gamble itself is the store's (`upgradePlayer`); this only shows the
- * odds the engine uses (`upgradeChance`) and spins the needle onto the roll the engine made.
+ * The Upgrader's stage: choose one of `players` and a boost (three presets, each with its exact chance, the dial's
+ * arc following the choice), see what a win and a loss do, and spin. `onConfirm` asks the logic for the gamble; the
+ * dial then spins onto the roll it made (`result`) and the verdict shows. Used by the Gamble mode's sheet and by
+ * the January Upgrader. Tap the dial, the skip button, Space or Enter to land at once.
  */
-export function Upgrader({ players, ratingOf, available, result, hideRatings, onConfirm, tray, lockedId }: { players: PlayerSeason[]; ratingOf: (id: string) => number; available: boolean; result: DraftUpgrade | null | undefined; hideRatings: boolean; onConfirm: (id: string, boost: UpgradeBoost) => void; /** In the power-up tray: a tray button instead of a panel. */ tray?: boolean; /** The player under the Lock power-up, whose loss costs nothing. */ lockedId?: string | null }) {
-  const [open, setOpen] = useState(false)
+export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfirm, lockedId, doneLabel, onDone, onSpinning, back, intro }: { players: PlayerSeason[]; ratingOf: (id: string) => number; hideRatings: boolean; result: UpgradeShown | null | undefined; onConfirm: (id: string, boost: UpgradeBoost) => void; lockedId?: string | null; doneLabel: string; onDone: () => void; onSpinning?: (spinning: boolean) => void; /** A way back before the gamble is made. */ back?: ReactNode; intro?: ReactNode }) {
   const [chosen, setChosen] = useState<string | null>(null)
   const [boost, setBoost] = useState<UpgradeBoost>(5)
-  // The result is shown once the needle has landed; until then the sheet says it is spinning
-  const [shown, setShown] = useState(false)
-  const [rolling, setRolling] = useState(false)
+  // A result already there when the stage opened is shown landed; one made here spins first
+  const [rolled, setRolled] = useState(false)
+  const [landed, setLanded] = useState(!!result)
+  const [skip, setSkip] = useState(0)
+  const spinning = !!result && !landed
+  const spinCb = useRef(onSpinning)
+  useLayoutEffect(() => {
+    spinCb.current = onSpinning
+  })
   useEffect(() => {
-    if (!rolling || !result) return
-    const t = window.setTimeout(() => {
-      setRolling(false)
-      setShown(true)
-    }, DIAL_MS + 150)
-    return () => window.clearTimeout(t)
-  }, [rolling, result])
+    spinCb.current?.(spinning)
+  }, [spinning])
+  useEffect(() => {
+    if (!spinning) return
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== ' ' && e.key !== 'Enter') || e.repeat) return
+      e.preventDefault()
+      setSkip((n) => n + 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [spinning])
 
   const pick = chosen && players.some((p) => p.id === chosen) ? chosen : null
   const player = pick ? players.find((p) => p.id === pick) : undefined
   const base = pick ? ratingOf(pick) : 0
-  const chance = pick ? upgradeChance(base, boost) : 0
+  const chance = result ? result.chance : pick ? upgradeChance(base, boost) : upgradeChance(70, boost)
+  const shownBoost = (result?.boost ?? boost) as UpgradeBoost
   const resultPlayer = result ? players.find((p) => p.id === result.id) : undefined
-  const done = !!result && (shown || !open)
   const locked = !!pick && pick === lockedId
+  const verdict = result ? (result.locked ? '±0' : result.delta > 0 ? `+${result.delta}` : String(result.delta)) : undefined
+  const resultBase = result ? ratingOf(result.id) : 0
+
+  return (
+    <div className="upg-stage col" data-testid="upgrader-stage" data-state={result ? (landed ? 'landed' : 'spinning') : 'choose'}>
+      {!result && intro}
+      {!result && (
+        <div className="upg-players" role="listbox" aria-label="Your players">
+          {players.map((p) => (
+            <button key={p.id} type="button" role="option" aria-selected={pick === p.id} className={`upg-player${pick === p.id ? ' on' : ''}`} onClick={() => setChosen(p.id)} data-testid="upgrader-player">
+              <Pos p={p.positions[0]} />
+              <span className="nm">{p.name}</span>
+              {!hideRatings && <b>{ratingOf(p.id)}</b>}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="upg-main">
+        <div className="upg-dial-wrap" onClick={() => spinning && setSkip((n) => n + 1)}>
+          <UpgradeDial key={result ? 'rolled' : 'choose'} chance={chance} tier={BOOST_TIER[shownBoost] ?? 'pink'} roll={result ? result.roll : null} won={!!result?.won} animate={rolled} skip={skip} verdict={verdict} onLanded={() => setLanded(true)} />
+        </div>
+        <div className="upg-side col">
+          {!result && (
+            <>
+              <div className="upg-presets" role="group" aria-label="Boost">
+                {UPGRADE_BOOSTS.map((b) => (
+                  <button key={b} type="button" className={`upg-preset${boost === b ? ' on' : ''}`} data-tier={BOOST_TIER[b]} onClick={() => setBoost(b)} aria-pressed={boost === b} data-testid={`boost-${b}`}>
+                    <span className="upg-preset-boost">+{b}</span>
+                    <span className="upg-preset-name">{BOOST_NAME[b]}</span>
+                    <b className="upg-preset-chance">{pick ? `${upgradeChance(base, b)}%` : '–'}</b>
+                  </button>
+                ))}
+              </div>
+              {player ? (
+                <div className="upg-odds small col">
+                  <b className="upg-odds-name">{player.name}</b>
+                  <span className="upg-win-line">
+                    Win {chance}%: {hideRatings ? `+${upgradeGain(base, boost)}` : `${base} → ${base + upgradeGain(base, boost)}`}
+                  </span>
+                  <span className="upg-lose-line">
+                    Lose {100 - chance}%: {locked ? '🔒 locked, no change' : hideRatings ? `-${upgradeLoss(boost)}` : `${base} → ${base - upgradeLoss(boost)}`}
+                  </span>
+                </div>
+              ) : (
+                <span className="small muted">Pick a player: the higher he is already, the worse the odds.</span>
+              )}
+            </>
+          )}
+          {result && !landed && (
+            <div className="upg-rolling small" aria-live="polite">
+              <b>{resultPlayer?.name ?? 'Your player'}</b> at {result.chance}% for +{result.boost}…
+            </div>
+          )}
+          {result && landed && (
+            <div className={`upg-result ${result.won ? 'won' : 'lost'}`} data-testid="upgrader-result" data-won={result.won}>
+              <b>{result.won ? 'Upgraded!' : result.locked ? 'The lock held' : 'Downgraded'}</b>
+              <span>
+                {resultPlayer?.name ?? 'Your player'} {result.locked ? 'keeps his rating' : result.delta > 0 ? `+${result.delta}` : result.delta}
+                {!hideRatings && !result.locked && ` (${resultBase} → ${resultBase + result.delta})`}
+              </span>
+              <span className="small">
+                Rolled {result.roll} against {result.chance}%
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="row wrap upg-actions">
+        {!result ? (
+          <>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!pick}
+              onClick={() => {
+                if (!pick) return
+                unlockAudio()
+                setRolled(true)
+                setLanded(false)
+                onConfirm(pick, boost)
+              }}
+              data-testid="upgrader-confirm"
+            >
+              {pick ? `Upgrade at ${chance}%` : 'Choose a player'}
+            </button>
+            {back}
+          </>
+        ) : spinning ? (
+          <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="upgrader-skip">
+            Tap to skip
+          </button>
+        ) : (
+          <button type="button" className="btn primary" onClick={onDone} data-testid="upgrader-close">
+            {doneLabel}
+          </button>
+        )}
+        <span className="upg-sound">
+          <SoundToggle />
+        </span>
+      </div>
+      <div className="tiny-note small muted">In-game only: no money, nothing to buy. The chance shown is the exact chance.</div>
+    </div>
+  )
+}
+
+/**
+ * The Player Upgrader: a panel by the reel and, when opened, a sheet with the Upgrader's stage. The gamble itself is
+ * the store's (`upgradePlayer`); the stage only shows the odds the engine uses (`upgradeChance`) and spins the dial
+ * onto the roll the engine made.
+ */
+export function Upgrader({ players, ratingOf, available, result, hideRatings, onConfirm, tray, lockedId }: { players: PlayerSeason[]; ratingOf: (id: string) => number; available: boolean; result: UpgradeShown | null | undefined; hideRatings: boolean; onConfirm: (id: string, boost: UpgradeBoost) => void; /** In the power-up tray: a tray button instead of a panel. */ tray?: boolean; /** The player under the Lock power-up, whose loss costs nothing. */ lockedId?: string | null }) {
+  const [open, setOpen] = useState(false)
+  const [rolling, setRolling] = useState(false)
+  const resultPlayer = result ? players.find((p) => p.id === result.id) : undefined
+  const done = !!result && !rolling
   const summary = result ? (done ? `${resultPlayer?.name ?? 'Your player'}: ${result.won ? `won, +${result.delta}` : result.locked ? 'lost, the lock held' : `lost, ${result.delta}`} (${result.chance}% chance)` : 'The dial is spinning…') : 'Once per draft: gamble +2, +5 or +10 on a drafted player.'
 
   return (
@@ -71,76 +326,31 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
       {tray ? (
         <PowerUpButton icon={POWER_UP_INFO.upgrader.icon} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? (result.won ? `Won +${result.delta}` : result.locked ? 'Lock held' : `Lost ${result.delta}`) : 'Spinning…') : available ? 'Ready' : 'Draft a player'} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
       ) : (
-      <div className="row between">
-        <div>
-          <b>⬆️ Player Upgrader</b>
-          <div className="small muted">{summary}</div>
-        </div>
-        {!result && (
-          <button className="btn sm primary" disabled={!available} onClick={() => setOpen(true)} data-testid="upgrader-open" title={available ? undefined : 'Draft a player first'}>
-            Upgrade
-          </button>
-        )}
-      </div>
-      )}
-      <Modal open={open} onClose={() => !rolling && setOpen(false)} title="Player Upgrader" sheet testId="upgrader-sheet">
-        <div className="col" style={{ gap: 12 }}>
+        <div className="row between">
+          <div>
+            <b>⬆️ Player Upgrader</b>
+            <div className="small muted">{summary}</div>
+          </div>
           {!result && (
-            <>
-              <div className="small muted">Pick one of your players and a boost. Win and his rating rises by the boost; lose and it drops by half. He stays in your side either way. The higher he is already, the worse the odds.</div>
-              <div className="upg-players" role="listbox" aria-label="Drafted players">
-                {players.map((p) => (
-                  <button key={p.id} type="button" role="option" aria-selected={pick === p.id} className={`upg-player${pick === p.id ? ' on' : ''}`} onClick={() => setChosen(p.id)} data-testid="upgrader-player">
-                    <Pos p={p.positions[0]} />
-                    <span className="nm">{p.name}</span>
-                    {!hideRatings && <b>{ratingOf(p.id)}</b>}
-                  </button>
-                ))}
-              </div>
-              <div className="segmented" role="group" aria-label="Boost">
-                {UPGRADE_BOOSTS.map((b) => (
-                  <button key={b} type="button" className={boost === b ? 'active' : ''} onClick={() => setBoost(b)} data-testid={`boost-${b}`}>
-                    +{b}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          {(pick || result) && (
-            <div className="upg-stage">
-              <Dial chance={result ? result.chance : chance} tier={BOOST_TIER[(result?.boost ?? boost) as UpgradeBoost] ?? 'pink'} roll={result ? result.roll : null} spinning={rolling} />
-              {!result && player && (
-                <div className="col small" style={{ gap: 4 }}>
-                  <b>{player.name}</b>
-                  <span>
-                    Win ({chance}%): {hideRatings ? `+${upgradeGain(base, boost)}` : `${base} → ${base + upgradeGain(base, boost)}`}
-                  </span>
-                  <span>
-                    Lose ({100 - chance}%): {locked ? '🔒 locked, no change' : hideRatings ? `-${upgradeLoss(boost)}` : `${base} → ${base - upgradeLoss(boost)}`}
-                  </span>
-                </div>
-              )}
-              {result && shown && (
-                <div className={`upg-result ${result.won ? 'won' : 'lost'}`} data-testid="upgrader-result">
-                  <b>{result.won ? 'Upgraded!' : result.locked ? 'The lock held' : 'Downgraded'}</b>
-                  <span>
-                    {resultPlayer?.name ?? 'Your player'} {result.locked ? 'keeps his rating' : result.delta > 0 ? `+${result.delta}` : result.delta}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-          {!result ? (
-            <button className="btn primary" disabled={!pick} onClick={() => { if (pick) { setRolling(true); setShown(false); onConfirm(pick, boost) } }} data-testid="upgrader-confirm">
-              {pick ? `Spin at ${chance}%` : 'Choose a player'}
-            </button>
-          ) : (
-            <button className="btn" disabled={rolling} onClick={() => setOpen(false)} data-testid="upgrader-close">
-              {rolling ? 'Spinning…' : 'Back to the draft'}
+            <button className="btn sm primary" disabled={!available} onClick={() => setOpen(true)} data-testid="upgrader-open" title={available ? undefined : 'Draft a player first'}>
+              Upgrade
             </button>
           )}
-          <div className="tiny-note small muted">In-game only: no money, nothing to buy. The chance shown is the exact chance.</div>
         </div>
+      )}
+      <Modal open={open} onClose={() => !rolling && setOpen(false)} title="Player Upgrader" sheet testId="upgrader-sheet" className="upg-sheet">
+        <UpgraderStage
+          players={players}
+          ratingOf={ratingOf}
+          hideRatings={hideRatings}
+          result={result}
+          lockedId={lockedId}
+          onConfirm={onConfirm}
+          onSpinning={setRolling}
+          doneLabel="Back to the draft"
+          onDone={() => setOpen(false)}
+          intro={<div className="small muted">Pick one of your players and a boost. Win and his rating rises by the boost; lose and it drops by half. He stays in your side either way.</div>}
+        />
       </Modal>
     </div>
   )

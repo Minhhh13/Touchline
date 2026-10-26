@@ -23,7 +23,8 @@ import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveSt
 import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
-import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, reopenJanuary, toKickoff } from './logic/quick'
+import { januaryGambleMade } from './logic/januaryGamble'
+import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
@@ -167,6 +168,12 @@ interface Store {
   kickOff: (skip?: boolean) => void
   /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
   closeJanuary: (index: number | null) => void
+  /** Quick Draft's January spin: open the case (the window's one deal from then on); the reel then lands on the player drawn. */
+  januarySpin: () => void
+  /** After the January spin: bring its player into `slotId`, or keep the XI with null, and play the second half. No undo. */
+  closeJanuarySpin: (slotId: string | null) => void
+  /** Quick Draft's January Upgrader: one roll on one of the XI for the second half; `closeJanuary(null)` then plays it. */
+  januaryUpgrade: (playerSeasonId: string, boost: number) => void
   /** The game-by-game playback is over or skipped: show the summary (a season with a bench is recorded now). */
   endPlayback: () => void
   /** Quick bench: before game `revealed + 1` of the playback, put bench player `inId` into slot `slotId` (one of the three changes). */
@@ -352,6 +359,25 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
           }
         })
+      /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
+      const closeWindow = (fn: (game: Game, u: LoadedUniverse) => void) => {
+        const before = get().game
+        if (before?.phase !== 'january' || !before.quickJanuary) return
+        const from = before.quickJanuary.firstHalf.length
+        mutate(fn)
+        if (get().game?.phase === 'january') {
+          // The deal did not replay (the league data changed since the window opened): draw the window again rather than stay stuck
+          mutate((g, u) => reopenJanuary(g, u))
+          set({ toast: 'The league data changed since the window opened, so the first half and the window were drawn again.' })
+          return
+        }
+        if (get().game?.phase === 'summary') {
+          set({ playback: { from } })
+          if (get().game?.quickOpen) return
+          unlockFromGame()
+          get().recordResult()
+        }
+      }
       /** League loads run one after another so two callers never overwrite each other's universe. */
       let pendingLoad: Promise<unknown> = Promise.resolve()
       /**
@@ -669,23 +695,38 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
-        closeJanuary: (index) => {
-          const before = get().game
-          if (before?.phase !== 'january' || !before.quickJanuary) return
-          const from = before.quickJanuary.firstHalf.length
-          mutate((g, u) => closeJanuary(g, u, index))
-          if (get().game?.phase === 'january') {
-            // The deal did not replay (the league data changed since the window opened): draw the window again rather than stay stuck
-            mutate((g, u) => reopenJanuary(g, u))
-            set({ toast: 'The league data changed since the window opened, so the first half and the window were drawn again.' })
+        januarySpin: () =>
+          mutate((g, u) => {
+            try {
+              rollJanuarySpin(g, u)
+            } catch (e) {
+              set({ toast: e instanceof Error ? e.message : String(e) })
+            }
+          }),
+        januaryUpgrade: (id, boost) =>
+          mutate((g, u) => {
+            try {
+              rollJanuaryUpgrade(g, u, id, boost)
+            } catch (e) {
+              set({ toast: e instanceof Error ? e.message : String(e) })
+            }
+          }),
+        closeJanuarySpin: (slotId) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          // A slot he cannot take is a toast, never a failed close (which would draw the window again)
+          if (slotId !== null && !openSpinChoices(game, universe).some((c) => c.slotId === slotId)) {
+            set({ toast: 'He cannot play there' })
             return
           }
-          if (get().game?.phase === 'summary') {
-            set({ playback: { from } })
-            if (get().game?.quickOpen) return
-            unlockFromGame()
-            get().recordResult()
+          closeWindow((g, u) => closeJanuarySpin(g, u, slotId))
+        },
+        closeJanuary: (index) => {
+          if (index !== null && januaryGambleMade(get().game?.quickJanuary)) {
+            set({ toast: "The window's deal is made" })
+            return
           }
+          closeWindow((g, u) => closeJanuary(g, u, index))
         },
         endPlayback: () => {
           settleQuickSeason()

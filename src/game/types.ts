@@ -20,6 +20,7 @@ import type { WeeklyThemeId } from './logic/weeklyThemes'
 import type { RunInTemplate } from '@engine/scenario'
 import type { CaseDrop } from '@engine/endCase'
 import type { PowerUp } from '@engine/powerups'
+import type { Tier } from './logic/rarity'
 
 export type Mode = 'quick' | 'daily' | 'season' | 'dynasty' | 'arena' | 'weekly' | 'runin'
 /**
@@ -478,6 +479,40 @@ export interface QuickJanuary {
   firstHalfCaptainId?: string
   /** The deal taken, null for a pass; absent while the window is still open. */
   move?: JanuaryListing | null
+  /**
+   * The January spin (`src/game/logic/januaryGamble.ts`), once its case is opened: the player it landed on and, once
+   * the window closes, the slot he took (null: the XI was kept). Opening it is the window's one deal. Absent otherwise
+   * (and on older saves).
+   */
+  spin?: JanuarySpinResult
+  /** The January Upgrader, once rolled: the one gamble on one of the XI for the second half. Absent otherwise (and on older saves). */
+  upgrade?: JanuaryUpgradeResult
+}
+
+/** What the January spin landed on, and where he went. */
+export interface JanuarySpinResult {
+  /** The player-season the case landed on. */
+  playerSeasonId: string
+  /** The rarity tier he was drawn from (`januarySpinOdds`). */
+  tier: Tier
+  /** The slot he took when the window closed, null when the XI was kept; absent while the window is open. */
+  slotId?: string | null
+  /** The starter who made way. */
+  outId?: string
+}
+
+/** The January Upgrader's gamble as rolled: as the draft's Player Upgrader records it (`DraftUpgrade`), for the second half only. */
+export interface JanuaryUpgradeResult {
+  /** The XI player gambled on. */
+  id: string
+  boost: number
+  /** Whole per cent shown and used: `roll < chance` wins. */
+  chance: number
+  /** 0 to 99. */
+  roll: number
+  won: boolean
+  /** The change to his overall and every attribute from the second half on. */
+  delta: number
 }
 
 /** A drafted Teammate Chain: the club of every pick in order, and the picks that restarted it after a break. */
@@ -556,6 +591,8 @@ export interface QuickResult {
   moment?: string
   /** The January deal, when one was made: names kept so the summary reads without the window. */
   january?: { kind: JanuaryDealKind; inId: string; inName: string; outId: string; outName: string; fee: number; slotId: string }
+  /** The January spin or Upgrader, when one was used: names kept so the summary reads without the window. Absent otherwise (and on older saves). */
+  januaryGamble?: { kind: 'spin'; inId: string; inName: string; tier: Tier; outId?: string; outName?: string; slotId?: string } | { kind: 'upgrade'; id: string; name: string; boost: number; chance: number; won: boolean; delta: number }
   /** The Continental Cup run a top-four finish earned, when the option was on and a field could be drawn (saves before the post-season cups; new seasons leave it out). */
   europe?: QuickEuropeRun
   /** The post-season domestic cup, once played; null when the manager skipped it. Absent while it is still on offer (and on older saves). */

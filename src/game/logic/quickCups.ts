@@ -12,6 +12,7 @@ import { aiRatingOffset, aiTeamInput, buildAiClubs, buildContinentalClubs, cupRo
 import { getFormation } from '@engine/formations'
 import type { Lineup, Position } from '@engine/types'
 import { playerLookup } from './players'
+import { seasonEndLookup } from './januaryGamble'
 import { quickUserInput } from './quick'
 import { canPlayFor, fieldXI, injuredThrough, quickBenchRule } from './quickBench'
 import { sideScorers } from './gameByGame'
@@ -141,7 +142,8 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   if (problem) throw new Error(problem)
   const q = game.quickResult!
   const s = game.settings
-  const get = playerLookup(game, u)
+  // A January upgrade stays on him after the league season
+  const get = seasonEndLookup(game, u)
   const nameOf = (id: string) => get(id)?.name
   const rng = Rng.fromState(game.rngState).fork(comp === 'cup' ? 'quick-cup' : 'quick-continental')
   const field = quickCupField(game, u, comp)

@@ -6,7 +6,7 @@ import { CHALLENGE_TACTIC_VALUES, draftClosed, encodeChallenge, historyKey, isAr
 import type { Tactics } from '@engine/types'
 import { defaultTactics } from '@engine/tactics'
 import { createGame } from './setup'
-import { closeJanuary, closeQuickSeason, openJanuary, runQuickSeason } from './quick'
+import { closeJanuary, closeJanuarySpin, closeQuickSeason, openJanuary, rollJanuarySpin, rollJanuaryUpgrade, runQuickSeason } from './quick'
 import { cupReachLabel, playQuickCup, quickCupProblem, type QuickCupComp } from './quickCups'
 import { playerLookup } from './players'
 import { beginArena, changeTheDraw, closeArenaMatch, playArenaStep } from './arena'
@@ -14,7 +14,7 @@ import { arenaDay } from './arenaDaily'
 import { arenaClaimOf, claimStep, mirrorClaim, sameStep, stepText } from './arenaClaim'
 import { upgradePlayer } from '@engine/upgrader'
 import { giveArmband, lockPlayer } from '@engine/powerups'
-import type { ChallengePowerUp } from '@engine/challenge'
+import type { ChallengeJanuaryGamble, ChallengePowerUp } from '@engine/challenge'
 import type { DraftState } from '@engine/draft'
 import { managersOn, rollManagerSpin, setManager } from './managers'
 import { placeCaseIcon, rollEndCase } from './endCase'
@@ -72,6 +72,7 @@ export function seasonOf(game: Game): ChallengeSeason | undefined {
     // A second half that differs from the first, defaults included, is written even when it is all defaults
     ...(changed ? { t2: now ?? {} } : {}),
     ...(j?.move ? { j: [j.move.playerSeasonId, j.move.slotId] as [string, string] } : {}),
+    ...(j?.spin ? { jg: (j.spin.slotId ? ['s', j.spin.slotId] : ['s']) as ChallengeJanuaryGamble } : j?.upgrade ? { jg: ['u', j.upgrade.id, j.upgrade.boost] as ChallengeJanuaryGamble } : {}),
     ...(game.quickChanges?.length ? { s: game.quickChanges.map((c) => [c.from, c.slotId, c.inId] as [number, string, string]) } : {}),
     ...(game.manager ? { m: game.manager.id } : {}),
     ...(game.endCase?.sub ? { ic: game.endCase.sub.slotId } : {}),
@@ -230,12 +231,23 @@ export function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | u
   applyTactics(game, x?.t)
   // The bench changes travel as made; the season applies each at its matchweek (one that does not fit throws)
   if (x?.s?.length) game.quickChanges = x.s.map(([from, slotId, inId]) => ({ from, slotId, inId }))
-  if (!x?.t2 && !x?.j) {
+  if (!x?.t2 && !x?.j && !x?.jg) {
     runQuickSeason(game, u)
     return
   }
   openJanuary(game, u)
   if (x.t2) applyTactics(game, x.t2)
+  // The January spin opens the same case and the Upgrader rolls the same roll: named forks of the same halfway stream
+  if (x.jg?.[0] === 's') {
+    rollJanuarySpin(game, u)
+    closeJanuarySpin(game, u, x.jg[1] ?? null)
+    return
+  }
+  if (x.jg?.[0] === 'u') {
+    rollJanuaryUpgrade(game, u, x.jg[1], x.jg[2])
+    closeJanuary(game, u, null)
+    return
+  }
   let index: number | null = null
   if (x.j) {
     const [id, slotId] = x.j
