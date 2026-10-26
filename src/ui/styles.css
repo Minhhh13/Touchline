@@ -6336,7 +6336,7 @@ dl.kv {
   background: var(--primary-soft);
 }
 .sheet-group {
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
   margin: 10px 0 6px;
 }
 .sheet-out {
@@ -6345,7 +6345,7 @@ dl.kv {
 .sheet-out summary {
   cursor: pointer;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-base);
   padding: 6px 0;
   color: var(--text-2);
 }
@@ -6353,13 +6353,13 @@ dl.kv {
   min-width: 34px;
   text-align: center;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 18px; /* px: the slot disc */
   font-weight: 700;
 }
 .slot-chip {
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   padding: 5px 10px;
 }
 
