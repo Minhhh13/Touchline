@@ -30,6 +30,8 @@ import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
+import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { DRAFT } from '../boxSets'
 import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
 import { canPickManager, quickManagerOptions } from '@game/logic/managers'
@@ -102,6 +104,7 @@ export function Draft() {
     squadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [revealed])
 
+  const allBoxes = useBoxes(DRAFT)
   if (!u || !game || !d) return null
   const current = spinClubSeason(u, d)
   const iconsSpin = isIcons(d.current)
@@ -186,6 +189,15 @@ export function Draft() {
   }
   const sortedSquad = [...squad].sort((a, b) => (sort === 'rating' ? b.overall - a.overall : GROUPS.findIndex((g) => g.positions.includes(a.positions[0])) - GROUPS.findIndex((g) => g.positions.includes(b.positions[0])) || b.overall - a.overall))
 
+  // The Boxes control: the side boxes this draft has now (the reel and the landed squad always stay)
+  const benchBox = d.bench.length > 0 || !fillingStarters || places > 0
+  const boxes = allBoxes.only([...(complete ? [] : ['needs']), ...(d.history.length > 0 || puLog.length > 0 ? ['log'] : []), 'pitch', ...(benchBox ? ['bench'] : [])])
+  const pitchCol = boxes.on('pitch') || (benchBox && boxes.on('bench'))
+  const draftGrid = boxes.grid([
+    { track: '300px', ids: [] },
+    { track: 'minmax(0, 1fr)', ids: [] },
+    { track: '360px', ids: ['pitch', 'bench'] },
+  ])
   return (
     <div className="page">
       <div className="screen-head">
@@ -249,6 +261,7 @@ export function Draft() {
               )}
               {game.bonusSpins > 0 && <span className="chip gold">+{game.bonusSpins} bonus</span>}
               <CapChip d={d} />
+              <BoxesMenu groups={[boxes]} />
               <button className="btn ghost sm" onClick={() => go('home')}>
                 Home
               </button>
@@ -262,7 +275,7 @@ export function Draft() {
         </div>
       </div>
 
-      <div className={`grid draft fill ${hiddenAll ? 'hidden-ratings' : ''}`}>
+      <div className={`grid draft fill ${hiddenAll ? 'hidden-ratings' : ''} ${draftGrid.className}`} style={draftGrid.style}>
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
@@ -344,7 +357,7 @@ export function Draft() {
             )}
           </div>
           {/* Nothing left to need once the squad is complete ("Squad ready" says so above) */}
-          {!complete && (
+          {!complete && boxes.on('needs') && (
             <div className="panel tight">
               <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
                 {fillingStarters ? 'Still need' : `Bench · ${total - made} more pick${total - made === 1 ? '' : 's'}${places ? ', optional' : ''}`}
@@ -357,7 +370,7 @@ export function Draft() {
               {!fillingStarters && !dry && <Tip id="draft-bench">Bench picks can be anyone un-drafted; cover every position, injuries will come.</Tip>}
             </div>
           )}
-          {(d.history.length > 0 || puLog.length > 0) && (
+          {(d.history.length > 0 || puLog.length > 0) && boxes.on('log') && (
             <div className="panel tight">
               <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>
                 Draft log
@@ -559,7 +572,9 @@ export function Draft() {
         </div>
 
         {/* Pitch column */}
+        {pitchCol && (
         <div className="col draft-pitch">
+          {boxes.on('pitch') && (
           <div className="panel">
             <div className="panel-head">
               <h3>{formationName(game.settings.formationId)}</h3>
@@ -572,7 +587,8 @@ export function Draft() {
               </button>
             )}
           </div>
-          {(d.bench.length > 0 || !fillingStarters || places > 0) && (
+          )}
+          {benchBox && boxes.on('bench') && (
             <div className="panel" data-testid="draft-bench">
               <div className="panel-head">
                 <h3>Bench</h3>
@@ -595,6 +611,7 @@ export function Draft() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   )

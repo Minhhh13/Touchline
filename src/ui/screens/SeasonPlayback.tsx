@@ -27,6 +27,8 @@ import { Pos, Segmented } from '../components/bits'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
 import { money, ordinal } from '../format'
 import { sideNamer } from '@game/logic/superLeague'
+import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { PLAYBACK } from '../boxSets'
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -49,6 +51,7 @@ export function SeasonPlayback() {
   const [tabState, setTabState] = useState<{ at: string; tab: 'list' | 'table' | 'chart' }>({ at: 'play', tab: 'list' })
   const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
   const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
+  const allBoxes = useBoxes(PLAYBACK)
   if (!u || !game) return null
   // Watching a game's highlights pauses the playback on the game shown
   const watch = canShowHighlights(game)
@@ -73,9 +76,19 @@ export function SeasonPlayback() {
   const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(sideName(id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
   const janOpen = !!j && pb.done
   const at = janOpen ? 'jan' : 'play'
-  const tab = tabState.at === at ? tabState.tab : janOpen ? 'chart' : tabState.tab
-  const setTab = (t: 'list' | 'table' | 'chart') => setTabState({ at, tab: t })
   const benchOn = quickBenchRule(game) && !!game.draft && game.draft.bench.length > 0
+  // The Boxes control: the panes left on show (the January window, a decision, keeps its pane)
+  const boxes = allBoxes.only(['games', 'table', 'chart', ...(benchOn ? ['bench'] : [])])
+  const panes = { list: boxes.on('games'), table: boxes.on('table'), chart: janOpen || boxes.on('chart') || (benchOn && boxes.on('bench')) }
+  const paneIds = (['list', 'table', 'chart'] as const).filter((t) => panes[t])
+  const wanted = tabState.at === at ? tabState.tab : janOpen ? 'chart' : tabState.tab
+  const tab = panes[wanted] ? wanted : paneIds[0] ?? 'list'
+  const setTab = (t: 'list' | 'table' | 'chart') => setTabState({ at, tab: t })
+  const pbGrid = boxes.grid([
+    { track: 'minmax(0, 1fr)', ids: ['games'] },
+    { track: 'minmax(0, 1fr)', ids: ['table'] },
+    { track: 'minmax(0, 1fr)', ids: janOpen ? [] : ['chart', 'bench'] },
+  ])
   return (
     <div className="page fit" data-testid="season-playback">
       <div className="fit-head screen-head">
@@ -90,6 +103,7 @@ export function SeasonPlayback() {
         <div className="col fit-head-side" style={{ gap: 6 }}>
           <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end' }}>
             {game.manager && <ManagerChip manager={game.manager} />}
+            <BoxesMenu groups={[boxes]} />
             <span className="playback-mw" data-testid="playback-matchweek">
               Matchweek <b>{pb.revealed}</b> / {total}
             </span>
@@ -131,16 +145,19 @@ export function SeasonPlayback() {
         )}
       </div>
       <div className="pb-tabs segmented" role="tablist" aria-label="Season views">
-        {(['list', 'table', 'chart'] as const).map((t) => (
+        {paneIds.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)} data-testid={`pb-tab-${t}`}>
             {t === 'list' ? 'Games' : t === 'table' ? 'Table' : janOpen ? 'January' : 'Chart'}
           </button>
         ))}
       </div>
-      <div className="fit-grid c3 pb-grid" data-tab={tab}>
+      <div className={`fit-grid c3 pb-grid ${pbGrid.className}`} style={pbGrid.style} data-tab={tab}>
+        {panes.list && (
         <div className="fit-cell" data-pane="list">
           <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title="Game by game" onHighlights={watch} />
         </div>
+        )}
+        {panes.table && (
         <div className="panel fit-cell" data-pane="table">
           <div className="panel-head">
             <h3>Live table</h3>
@@ -148,11 +165,14 @@ export function SeasonPlayback() {
           </div>
           {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={sideName} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} /> : <p className="small muted">This season was saved before the live table: the game list has every result.</p>}
         </div>
+        )}
+        {panes.chart && (
         <div className="fit-cell fit-col" data-pane="chart">
           {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}
-          <PositionChart series={series} rivals={rivals} teams={teams} games={total} />
-          {benchOn && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
+          {boxes.on('chart') && <PositionChart series={series} rivals={rivals} teams={teams} games={total} />}
+          {benchOn && boxes.on('bench') && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
         </div>
+        )}
       </div>
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
     </div>

@@ -24,6 +24,8 @@ import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
 import { useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
+import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { PROFILE } from '../boxSets'
 
 const FILTER_KEY = 'touchline-record-filter'
 const RUNS_VIEW_KEY = 'touchline-runs-view'
@@ -76,6 +78,11 @@ export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
   const [soundOn, setSoundOn] = useSoundOn()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
+  // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
+  const boxes = useBoxes(PROFILE)
+  const on = boxes.on
+  const left = ['manager', 'cabinet', 'room', 'chase', 'achievements'].some(on)
+  const grid = boxes.grid([{ track: '1fr', ids: ['manager', 'cabinet', 'room', 'chase', 'achievements'] }, { track: '1fr', ids: [] }])
   const tipsSeen = tipsSeenCount(profile)
   const bests = profile.quickBests ?? emptyBests()
   const unlocked = Object.keys(profile.achievements).length
@@ -191,13 +198,18 @@ export function ProfileScreen() {
             <span>{profile.managerName ? `${profile.managerName}, manager` : 'Your record, trophies and settings'}</span>
           </div>
         </div>
-        <button className="btn ghost" onClick={() => go('home')}>
-          ← Home
-        </button>
+        <div className="head-actions">
+          <BoxesMenu groups={[boxes]} />
+          <button className="btn ghost" onClick={() => go('home')}>
+            ← Home
+          </button>
+        </div>
       </div>
       <div className="screen-body fill">
-      <div className="grid two">
+      <div className={`grid two ${grid.className}`} style={grid.style}>
+        {left && (
         <div className="col">
+          {on('manager') && (
           <div className="panel col">
             <h3 style={{ margin: 0 }}>Manager</h3>
             <label className="field">
@@ -260,6 +272,8 @@ export function ProfileScreen() {
               </span>
             </div>
           </div>
+          )}
+          {on('cabinet') && (
           <div className="panel" data-testid="trophy-cabinet">
             <h3>Trophy cabinet</h3>
             <div className="cabinet">
@@ -272,6 +286,8 @@ export function ProfileScreen() {
               ))}
             </div>
           </div>
+          )}
+          {on('room') && (
           <div className="panel col" data-testid="trophy-room">
             <div className="panel-head" style={{ marginBottom: 0 }}>
               <span className="head-title">
@@ -304,6 +320,8 @@ export function ProfileScreen() {
             {won.leagues.length > 0 && <div className="small muted" data-testid="leagues-won">Leagues won in: {won.leagues.map((id) => u?.available.find((l) => l.id === id)?.name ?? id).join(', ')}</div>}
             {cabinet.rebuilt && <div className="small muted" data-testid="cabinet-rebuilt">Counted from your 50 best seasons before the Trophy Room.</div>}
           </div>
+          )}
+          {on('chase') && (
           <div className="panel" data-testid="quick-bests">
             <h3>The 38-0 chase</h3>
             <div className="kv">
@@ -316,6 +334,8 @@ export function ProfileScreen() {
             </div>
             <p className="help" style={{ margin: '8px 0 0' }}>Quick Draft and Daily seasons in this browser. The goal: win every game.</p>
           </div>
+          )}
+          {on('achievements') && (
           <div className="panel">
             <div className="panel-head">
               <h3>Achievements</h3>
@@ -350,9 +370,12 @@ export function ProfileScreen() {
               })}
             </div>
           </div>
+          )}
         </div>
+        )}
         <div className="col">
           <AccountLink />
+          {on('save') && (
           <div className="panel col">
             <div className="panel-head" style={{ marginBottom: 0 }}>
               <span className="head-title">
@@ -373,6 +396,8 @@ export function ProfileScreen() {
               </button>
             </div>
           </div>
+          )}
+          {on('seasons') && (
           <div className="panel">
             <div className="panel-head">
               <h3>Best seasons</h3>
@@ -448,6 +473,8 @@ export function ProfileScreen() {
               </div>
             )}
           </div>
+          )}
+          {on('runs') && (
           <div className="panel" data-testid="best-runs">
             <div className="panel-head">
               <h3>Best runs</h3>
@@ -497,7 +524,8 @@ export function ProfileScreen() {
               </div>
             )}
           </div>
-          <RunInsTable />
+          )}
+          {on('runins') && <RunInsTable />}
         </div>
       </div>
       </div>
