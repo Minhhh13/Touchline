@@ -14339,3 +14339,57 @@ details.opposition {
   font-weight: 700;
 }
 
+
+/* ------------------------------------------------------------ a large screen (2026-10-26, round 5) */
+/* From 2200 px wide the pages take a wider cap instead of a 1600 px column between wide empty sides, and from 2200x1200
+   (1440p and ultrawide 1440) the type, space and control tokens step up by about a fifth, so a 27-inch window does not
+   read small. Only tokens move: every box keeps its fit rules, and the match day keeps its own fit (DESIGN_SYSTEM 13). */
+@media (min-width: 2200px) {
+  :root {
+    --page-max-lg: 2160px;
+  }
+  .app.shell > .page,
+  .app > .page.report-page,
+  .page.fit,
+  .app.shell > .page.dugout-page {
+    max-width: var(--page-max-lg);
+  }
+}
+@media (min-width: 3000px) {
+  :root {
+    --page-max-lg: 2560px;
+  }
+}
+@media (min-width: 2200px) and (min-height: 1200px) {
+  :root {
+    --fs-xs: 13px;
+    --fs-meta: 14px;
+    --fs-sm: 15px;
+    --fs-base: 17px;
+    --fs-h3: 23px;
+    --fs-h2: 29px;
+    --fs-h1: 38px;
+    --fs-hero: 76px;
+    --space-1: 5px;
+    --space-2: 10px;
+    --space-3: 14px;
+    --space-4: 20px;
+    --space-5: 28px;
+    --space-6: 38px;
+    --gutter: 24px;
+    --panel-pad: 20px;
+    --control-h: 48px;
+    --control-h-sm: 36px;
+    --control-h-lg: 62px;
+  }
+  /* The fixed side columns grow with the type, so the pitch and the log are not left narrow beside a wide middle */
+  .grid.draft {
+    grid-template-columns: 380px minmax(0, 1fr) 500px;
+  }
+  .grid.dugout {
+    grid-template-columns: minmax(0, 1fr) 500px;
+  }
+  .draft-recap {
+    max-width: 860px;
+  }
+}
