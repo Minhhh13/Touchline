@@ -14375,6 +14375,135 @@ details.opposition {
 }
 
 
+/* ------------------------------------------------------------ a large screen (2026-10-26, round 5) */
+/* From 2200 px wide the pages take a wider cap instead of a 1600 px column between wide empty sides, and from 2200x1200
+   (1440p and ultrawide 1440) the type, space and control tokens step up by about a fifth, so a 27-inch window does not
+   read small. Only tokens move: every box keeps its fit rules, and the match day keeps its own fit (DESIGN_SYSTEM 13). */
+@media (min-width: 2200px) {
+  :root {
+    --page-max-lg: 2160px;
+  }
+  .app.shell > .page,
+  .app > .page.report-page,
+  .page.fit,
+  .app.shell > .page.dugout-page {
+    max-width: var(--page-max-lg);
+  }
+}
+@media (min-width: 3000px) {
+  :root {
+    --page-max-lg: 2560px;
+  }
+}
+@media (min-width: 2200px) and (min-height: 1200px) {
+  :root {
+    --fs-xs: 0.8125rem;
+    --fs-meta: 0.875rem;
+    --fs-sm: 0.9375rem;
+    --fs-base: 1.0625rem;
+    --fs-h3: 1.4375rem;
+    --fs-h2: 1.8125rem;
+    --fs-h1: 2.375rem;
+    --fs-hero: 4.75rem;
+    --space-1: 5px;
+    --space-2: 10px;
+    --space-3: 14px;
+    --space-4: 20px;
+    --space-5: 28px;
+    --space-6: 38px;
+    --gutter: 24px;
+    --panel-pad: 20px;
+    --control-h: 48px;
+    --control-h-sm: 36px;
+    --control-h-lg: 62px;
+  }
+  /* The fixed side columns grow with the type, so the pitch and the log are not left narrow beside a wide middle */
+  .grid.draft {
+    grid-template-columns: 380px minmax(0, 1fr) 500px;
+  }
+  .grid.dugout {
+    grid-template-columns: minmax(0, 1fr) 500px;
+  }
+  .draft-recap {
+    max-width: 860px;
+  }
+}
+
+/* ------------------------------------------------------------ the Weekly setup's record (2026-10-26, round 5) */
+/* Under This week's rules: the theme's story, this week, the streak and last week, so the box is not one notice over an empty panel */
+.weekly-record {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  min-width: 0;
+}
+/* On a desktop the rules step gives way and scrolls inside itself, so Start Draft stays whole (1280 x 720) */
+@media (min-width: 1100px) {
+  .setup-page .setup-box > .setup-step:has(.weekly-record) {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+.weekly-record .weekly-story {
+  margin: 0;
+}
+.weekly-record .recap-card {
+  padding: var(--space-2) var(--space-3);
+}
+
+/* ------------------------------------------------------------ pre-season with the coach mark and the youth intake (2026-10-26, round 5) */
+/* The intake's inline bottom margin doubled the tab body's gap (16 px lost); on a short desktop window the coach mark
+   and the intake share one row, so the squad grid under them keeps the pitch whole (it scrolled 90 px at 1280 x 720) */
+@media (min-width: 1100px) {
+  .app.shell .tab-body:has(> .grid.dugout) > .youth-intake {
+    margin-bottom: 0 !important;
+  }
+}
+@media (min-width: 1100px) and (max-height: 940px) {
+  .app.shell .tab-body:has(> .tip):has(> .youth-intake):has(> .grid.dugout) {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+  }
+  .app.shell .tab-body:has(> .youth-intake):has(> .grid.dugout) > .tip {
+    grid-column: 1;
+    margin: 0;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake {
+    grid-column: 2;
+    align-self: stretch;
+  }
+  /* Half a row: the title and Pass this year on the first line, the candidates' chips under them */
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake > .panel-head {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-side {
+    margin-left: auto;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-line {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-line > .youth-chip {
+    flex: 1 1 0;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .youth-intake) > .grid.dugout {
+    grid-column: 1 / -1;
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout > .col > .panel:has(.pitch-wrap) {
+    padding-block: var(--space-2);
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout > .col > .panel:has(.pitch-wrap) > .panel-head {
+    margin-bottom: var(--space-1);
+  }
+}
+
 /* ------------------------------------------------------------ first run (onboarding, 2026-10-26) */
 /* Home's hero for a manager with nothing finished: the game in three steps and one button, in place of the figures and flags */
 .first-run {

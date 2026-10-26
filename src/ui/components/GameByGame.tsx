@@ -296,7 +296,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
                   <SkipForward size={14} aria-hidden="true" /> Skip
                 </button>
               ) : (
-                <button className="btn sm primary" onClick={replay.start} data-testid="replay-play" title="One game every fifth of a second">
+                <button className="btn sm" onClick={replay.start} data-testid="replay-play" title="One game every fifth of a second">
                   <Play size={14} aria-hidden="true" /> {replay.used ? 'Play the season again' : 'Play the season'}
                 </button>
               )}

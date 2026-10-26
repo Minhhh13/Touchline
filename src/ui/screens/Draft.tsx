@@ -5,10 +5,11 @@ import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoo
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
 import { tierOdds } from '@game/logic/tierOdds'
-import { bestPick, pickGrades, type PickGrade } from '@game/logic/pickGrades'
+import { bestPick, gradeNote, pickGrades, type PickGrade } from '@game/logic/pickGrades'
 import { ratingHidden, ratingShown, revealsOnPick } from '@game/logic/ratingVisibility'
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
+import { runInProjectedLineup } from '@game/logic/runin'
 import { PowerUpTray } from '../components/PowerUps'
 import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
@@ -91,6 +92,8 @@ export function Draft() {
   const chainDue = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && chainBreakDue(u, d), [u, d])
   // Position First: the open slots a spin could fill, offered on the pitch before each spin
   const choosable = useMemo(() => (u && d && positionFirst(d) && !d.current ? spinnableSlots(u, d).map((s) => s.id) : []), [u, d])
+  // A run-in's reinforcements go to the bench in the draft; the pitch shows the XI the job will start with
+  const runInXI = useMemo(() => (u && game ? runInProjectedLineup(game, u) : null), [u, game])
 
   // Speedrun: a clock per pick, paused while the reel runs (and while the Upgrader's dial turns). It is only the UI's; on expiry the assistant makes the pick
   // through the store (`speedrunPick`), a deterministic choice, so a replay of the same picks lands the same way
@@ -445,7 +448,7 @@ export function Draft() {
                           {isIcons(h) ? <TierDot tier="icons" /> : tier && <TierDot tier={tier} />}
                           {isIcons(h) ? 'Icons' : seasonLabel(h.season)}
                           {grades.has(at) && (
-                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={`${grades.get(at)!.rating} in his slot; the best on that spin was ${grades.get(at)!.best} (${grades.get(at)!.bestName})`}>
+                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={gradeNote(grades.get(at)!, (id) => d.formation.slots.find((x) => x.id === id)?.position ?? id)}>
                               {grades.get(at)!.grade}
                             </span>
                           )}
@@ -628,7 +631,8 @@ export function Draft() {
               <h3>{formationName(game.settings.formationId)}</h3>
               <span className={`chip ${Object.keys(d.lineup).length === 11 ? 'good' : ''}`}>{Object.keys(d.lineup).length}/11 starters</span>
             </div>
-            <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hideSquad} revealId={revealId} />
+            <Pitch formation={d.formation} lineup={runInXI ?? d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hideSquad} revealId={revealId} />
+            {runInXI && <p className="small muted" style={{ margin: '6px 0 0' }} data-testid="runin-xi-note">The XI you take the job with: the assistant's pick from the squad and your signings.</p>}
             {selected && suggestSlot(d, selected) && suggestSlot(d, selected) !== 'bench' && (
               <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(suggestSlot(d, selected) as string)}>
                 Put {selected.name} at {openSlots(d).find((s) => s.id === suggestSlot(d, selected))?.position}

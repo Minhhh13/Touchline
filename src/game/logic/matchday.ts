@@ -130,7 +130,7 @@ function scoreOnly(homeTeamId: string, awayTeamId: string, home: number, away: n
 
 /**
  * The league table as it stands at the user's minute: every match of the
- * round counts from the first minute at its current score, the user's at
+ * round counts for points and goals from the first minute at its current score (P only once it ends), the user's at
  * `userScore` (the user's match, home side first); movement against the table before the round. A knockout round
  * shows the league table as it stands, without arrows; a friendly has none.
  */
@@ -161,5 +161,11 @@ export function liveTable(game: Game, u: LoadedUniverse, ref: RoundRef, minute: 
     }
   }
   const table = computeTable(counted, teamIds(game), season.carryIn)
-  return table.map((r, i) => label(r, i, prevPos.get(r.teamId) ?? i + 1, !final && inRound.has(r.teamId)))
+  // Points and goal difference as it stands, but P counts finished games: a match in play is not a game played yet
+  // (at 1' the whole round read P 1)
+  return table.map((r, i) => {
+    const playing = !final && inRound.has(r.teamId)
+    const row = label(r, i, prevPos.get(r.teamId) ?? i + 1, playing)
+    return playing ? { ...row, played: row.played - 1 } : row
+  })
 }
