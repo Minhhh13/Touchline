@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Dices, Ghost, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
-import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
 import { tierOdds } from '@game/logic/tierOdds'
 import { bestPick, pickGrades, type PickGrade } from '@game/logic/pickGrades'
+import { ratingHidden, ratingShown, revealsOnPick } from '@game/logic/ratingVisibility'
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
 import { PowerUpTray } from '../components/PowerUps'
@@ -83,6 +84,18 @@ export function Draft() {
   const pickNo = d ? picksMade(d) : 0
   const [clock, setClock] = useState(SPEEDRUN_SECONDS)
   useEffect(() => setClock(SPEEDRUN_SECONDS), [pickNo])
+  // The "revealed" moment: a pick made without seeing his rating flips it in on the pitch and in the log, once, in this view
+  const [revealId, setRevealId] = useState<string | null>(null)
+  const picksSeen = useRef(pickNo)
+  useEffect(() => {
+    const before = picksSeen.current
+    picksSeen.current = pickNo
+    if (!d || pickNo <= before) return
+    const last = [...d.history].reverse().find((h) => h.pickedId)
+    setRevealId(last?.pickedId && revealsOnPick(d.rules, last.twist) ? last.pickedId : null)
+    const t = window.setTimeout(() => setRevealId(null), 1200)
+    return () => window.clearTimeout(t)
+  }, [pickNo])
   useEffect(() => {
     if (!speedrun || spinning) return
     const t = setInterval(() => setClock((c) => Math.max(0, c - 1)), 1000)
@@ -107,10 +120,10 @@ export function Draft() {
   const iconsSpin = isIcons(d.current)
   // Odds before each spin, and before a re-spin while one is showing and re-spins are left
   const oddsLabel = !d.current ? (positionFirst(d) && !targetSlot(d) ? 'Next spin, any open slot' : 'Next spin') : d.respinsLeft > 0 ? 'If you re-spin' : null
-  // A blind spin hides ratings like hard mode does, until the pick is made
+  // Blind mode and a blind spin hide the ratings of the players on offer until the pick; the squad always shows his
   const twist = d.twist ?? null
-  const hide = ratingsHidden(d.rules) || twist === 'blind'
-  const hiddenAll = ratingsHidden(d.rules)
+  const hide = ratingHidden(d.rules, 'offer', { twist })
+  const hideSquad = ratingHidden(d.rules, 'squad')
   const choosing = positionFirst(d) && !d.current && !isComplete(d)
   // Position First: the slot this spin fills, kept until the pick; the list lights up whoever can play there
   const target = targetSlot(d)
@@ -120,8 +133,8 @@ export function Draft() {
   const forced = forcedSlotOf(d)
   const surprise = d.surprise && d.surprise.atSpin === d.spins && !d.current ? d.surprise : null
   const complete = isComplete(d)
-  // Pick grades once the squad is complete (never while ratings are hidden): each XI pick against the best on its spin
-  const graded = complete && !hiddenAll ? pickGrades(u, d, get) : []
+  // Pick grades once the squad is complete (nothing left to choose, so blind mode shows them too): each XI pick against the best on its spin
+  const graded = ratingShown(d.rules, 'grades', { complete }) ? pickGrades(u, d, get) : []
   const grades = new Map(graded.map((g) => [g.spin, g]))
   const top = bestPick(graded)
   const gradeLine = top ? `Best pick: spin ${top.spin + 1}, ${get(top.pickedId)?.name ?? ''} (${top.grade}) · ${graded.filter((g) => g.grade === 'A').length} of ${graded.length} picks graded A` : null
@@ -147,9 +160,9 @@ export function Draft() {
       <NationFlag nation={nation} named /> {nationName(u, nation)}
     </>
   ) : null
-  // The ghost: what the challenger did on this spin number. Hidden under hard mode, and absent when the picks could not be resolved on this data
+  // The ghost: what the challenger did on this spin number. Hidden in blind mode while choosing, and absent when the picks could not be resolved on this data
   const challenge = game.settings.challenge
-  const ghost = challenge && !hiddenAll && d.current && d.spins > 0 ? challenge.picks[d.spins - 1] : undefined
+  const ghost = challenge && ratingShown(d.rules, 'ghost') && d.current && d.spins > 0 ? challenge.picks[d.spins - 1] : undefined
   const ghostPlayer = ghost?.id ? get(ghost.id) : undefined
   const ghostSameWheel = !!ghost && !!d.current && ghost.clubId === d.current.clubId && ghost.season === d.current.season
 
@@ -262,7 +275,7 @@ export function Draft() {
         </div>
       </div>
 
-      <div className={`grid draft fill ${hiddenAll ? 'hidden-ratings' : ''}`}>
+      <div className="grid draft fill">
         {/* Wheel column */}
         <div className="col">
           <div className="panel col">
@@ -405,8 +418,8 @@ export function Draft() {
                           )}
                         </span>
                       </span>
-                      {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
-                      {p && !hiddenAll && h.twist !== 'blind' && <Rating value={p.overall} />}
+                      {/* A pick is in the squad, so his rating shows, flipping in when it was hidden while choosing */}
+                      {p && <Rating value={p.overall} hidden={hideSquad} reveal={p.id === revealId} />}
                       {p && d.rules.chain && <ChainLogNote u={u} h={h} prevName={prevId ? get(prevId)?.name : undefined} name={p.name} />}
                     </li>
                   )
@@ -420,14 +433,14 @@ export function Draft() {
         {/* The power-ups sit over the landed squad, so the reel's column stays one box high on a desktop */}
         <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
           <LockerBar game={game} busy={spinning} />
-          {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hiddenAll} busy={spinning} onRerolled={() => setSelectedPlayer(null)} />}
+          {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hideSquad} busy={spinning} onRerolled={() => setSelectedPlayer(null)} />}
           {!powerUpsOn(d) && upgraderOn(d.rules) && d.upgradeRng && (
             <Upgrader
               players={upgradeCandidates(d).flatMap((id) => get(id) ?? [])}
               ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0}
               available={canUpgrade(d) && game.phase === 'draft'}
               result={d.upgrade}
-              hideRatings={hiddenAll}
+              hideRatings={hideSquad}
               onConfirm={(id, boost) => upgradePlayer(id, boost)}
             />
           )}
@@ -565,7 +578,7 @@ export function Draft() {
               <h3>{formationName(game.settings.formationId)}</h3>
               <span className={`chip ${Object.keys(d.lineup).length === 11 ? 'good' : ''}`}>{Object.keys(d.lineup).length}/11 starters</span>
             </div>
-            <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hide} />
+            <Pitch formation={d.formation} lineup={d.lineup} getPlayer={get} onSlotClick={onSlot} eligibleSlots={choosing ? choosable : selectedEligible} selectedSlot={target?.id ?? null} hideRatings={hideSquad} revealId={revealId} />
             {selected && suggestSlot(d, selected) && suggestSlot(d, selected) !== 'bench' && (
               <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(suggestSlot(d, selected) as string)}>
                 Put {selected.name} at {openSlots(d).find((s) => s.id === suggestSlot(d, selected))?.position}
@@ -581,7 +594,7 @@ export function Draft() {
               <div className="plist lined">
                 {d.bench.map((id) => {
                   const p = get(id)
-                  return p ? <PlayerRow key={id} p={p} hideRatings={hide} showClub /> : null
+                  return p ? <PlayerRow key={id} p={p} hideRatings={hideSquad} showClub /> : null
                 })}
                 {d.bench.length === 0 && <div className="muted small">{places ? (
                       <>

@@ -447,7 +447,7 @@ The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, 
 ### Pitch, ratings, positions, badges, flags
 
 - `Pitch`: the grass, `--pitch-line` markings, navy discs with the rating; the eligible slot pulses in `--pitch-highlight`; the selected slot rings in `--gold`.
-- `Rating`: the band classes `r90` to `r70` over `--rating-base`; hidden ratings show "?" on `--bg-3`.
+- `Rating`: the band classes `r90` to `r70` over `--rating-base`; hidden ratings show "?" on `--bg-3` (whether one is hidden is `ratingShown` in `src/game/logic/ratingVisibility.ts`: in blind mode only while choosing); `reveal` flips the number in (`rating-reveal`).
 - `Pos`: the position code coloured by group (`--pos-*`).
 - `ClubBadge`: a disc in the club's approximate primary colour with its code and a ring in its secondary colour. This is the only way a club is pictured.
 - `Flag`: the nation's emoji flag.
@@ -618,6 +618,7 @@ The owner asked for "some site animation" and "some nice touchup". Motion here i
 | Bars (`Bar`) | Grow from zero when they first appear | `@keyframes bar-grow` |
 | Toasts | Slide up with a small spring, slide away before they clear | `@keyframes toast-in` / `toast-out` |
 | Modals and sheets | Desktop: rise and fade; phone: the sheet slides up; the scrim fades on its own layer | `@keyframes modal-in`, `sheet-up`, `scrim-in` |
+| A blind pick landing | His rating, hidden while choosing, flips in once on his pitch disc and his draft-log row (rotateY from 90° and a fade, `--dur-4`, `--ease-spring`); only when it was hidden (`revealsOnPick`) | `.rating.reveal`, `.disc.reveal`, `@keyframes rating-reveal`, `Rating reveal`, `Pitch revealId` |
 | The league-pack load | A skeleton of the page (a hero block and four cards) with a light sweep, the logo and the caption in the hero block | `.loading-screen`, `.skeleton`, `@keyframes shimmer` |
 | The season summary | The W, D and L and the points count up from zero (`CountUp`); the tier pops in after a replay; a title (Champions, Invincible) gets a gold flare behind the name, the perfect season the flare and 28 pieces of confetti in gold and the two blues, clipped to the banner. It plays the first time a result is shown in a visit and on every replay, not on a revisit. | `useCountUp`, `countUpValue`, `Celebrate`, `celebrationFor`, `confettiPieces`, `useFirstReveal` |
 

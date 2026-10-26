@@ -3569,6 +3569,21 @@ table.tbl.contracts .btn.sm {
     transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1);
   }
 }
+/* A blind pick lands in the squad: his rating, hidden while choosing, flips in once (Rating reveal, the Pitch disc) */
+.rating.reveal,
+.pitch-wrap .slot .disc.reveal {
+  animation: rating-reveal var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes rating-reveal {
+  from {
+    opacity: 0;
+    transform: perspective(200px) rotateY(90deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .page,
   .hero-content > *,
@@ -3582,7 +3597,9 @@ table.tbl.contracts .btn.sm {
   .theme-switch svg,
   .skeleton::after,
   .celebrate,
-  .pitch-wrap .slot .disc.eligible {
+  .pitch-wrap .slot .disc.eligible,
+  .rating.reveal,
+  .pitch-wrap .slot .disc.reveal {
     animation: none;
   }
   .celebrate {
