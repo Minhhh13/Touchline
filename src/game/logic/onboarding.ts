@@ -79,11 +79,12 @@ export type FirstNext = 'daily' | 'quick'
 
 /**
  * The next steps the summary offers after the first result ever, a quick-like season: today's Daily (unless that
- * was it, or it is played today) and a new Quick Draft. Null for every later result, so a returning player's
- * summary is unchanged.
+ * was it, or it is played today) and a new Quick Draft. Null while a post-season cup is still on offer (the cup is
+ * the next step then, and leaving would drop it), and for every later result, so a returning player's summary is
+ * unchanged.
  */
-export function firstResultNext(p: ProfileBits, mode: Mode, dailyPlayedToday: boolean): FirstNext[] | null {
-  if (!isQuickLike(mode) || resultsFinished(p) !== 1) return null
+export function firstResultNext(p: ProfileBits, mode: Mode, dailyPlayedToday: boolean, cupWaiting = false): FirstNext[] | null {
+  if (cupWaiting || !isQuickLike(mode) || resultsFinished(p) !== 1) return null
   const out: FirstNext[] = []
   if (mode !== 'daily' && !dailyPlayedToday) out.push('daily')
   out.push('quick')

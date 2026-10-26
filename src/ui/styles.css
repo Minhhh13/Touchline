@@ -14395,3 +14395,32 @@ details.opposition {
     border-top: var(--border);
   }
 }
+/* The summary after the first result ever: today's Daily and a Quick Draft set up your way, side by side when there is room */
+.first-next h3 {
+  margin: 0 0 var(--space-2);
+}
+.first-next-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+.first-next-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.first-next-option p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.first-next-option b {
+  display: block;
+  color: var(--text);
+  font-size: var(--fs-base);
+}
+.first-next-option .btn {
+  gap: var(--space-2);
+}

@@ -93,6 +93,11 @@ describe('after the first result', () => {
     expect(firstResultNext(one, 'weekly', false)).toEqual(['daily', 'quick'])
   })
 
+  it('waits while a post-season cup is still on offer', () => {
+    expect(firstResultNext(one, 'quick', false, true)).toBeNull()
+    expect(firstResultNext(one, 'quick', false, false)).toEqual(['daily', 'quick'])
+  })
+
   it('offers a draft of your own after a first Daily', () => {
     expect(firstResultNext(one, 'daily', true)).toEqual(['quick'])
   })
