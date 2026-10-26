@@ -694,3 +694,19 @@
 .matchday .md-fast {
   padding: 1px 6px;
 }
+/* Key moments (the camera and the goal replays): one icon button, lit while it is on */
+.matchday .md-moments {
+  flex: none;
+  min-width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+}
+.matchday .md-moments.on {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  background: var(--primary-soft);
+}

@@ -3988,7 +3988,8 @@ table.tbl.contracts .btn.sm {
   .theme-switch,
   .tabs-ink.ready,
   .bar > span,
-  .event-more svg {
+  .event-more svg,
+  .pitch-replay {
     transition: none;
   }
   .mode-card:hover,
@@ -6252,6 +6253,81 @@ table.tbl.contracts .btn.sm {
 }
 @media (prefers-reduced-motion: reduce) {
   .pitch-caption {
+    transition: none;
+  }
+}
+/* The live pitch's overlays, after Football Manager's 2D view: a name tag under the man on the ball, the pass line,
+   the shot's line by its xG band, the picked-out man's ring, and the goal replay's badge and cut. The loop sets
+   their attributes; colours come from the pitch tokens. */
+.live-pitch .dot-tag text {
+  font-family: var(--font-body);
+  letter-spacing: 0.01em;
+}
+.live-pitch .dot-tag.marked rect {
+  fill: var(--pitch-highlight);
+}
+.live-pitch .dot-tag.marked text {
+  fill: var(--on-primary);
+}
+.live-pitch .pitch-mark {
+  stroke: var(--pitch-highlight);
+}
+.live-pitch .shot-trail[data-band='mid'] {
+  stroke: var(--pitch-cover);
+}
+.live-pitch .shot-trail[data-band='high'] {
+  stroke: var(--pitch-bad);
+  stroke-width: 0.75;
+}
+.live-pitch .pitch-cut {
+  fill: var(--bg);
+}
+.pitch-replay {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translate(-50%, -4px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 3px 1px 9px;
+  border-radius: 999px;
+  border-left: 3px solid var(--pitch-highlight);
+  background: var(--pitch-disc);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.pitch-replay.on {
+  opacity: 0.96;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.pitch-replay-skip {
+  border: 0;
+  border-radius: 999px;
+  padding: 0 8px;
+  background: color-mix(in srgb, #fff 16%, transparent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  line-height: 15px;
+  cursor: pointer;
+}
+.pitch-replay-skip:hover,
+.pitch-replay-skip:focus-visible {
+  background: color-mix(in srgb, #fff 28%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pitch-replay {
     transition: none;
   }
 }
