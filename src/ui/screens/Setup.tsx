@@ -7,7 +7,7 @@ import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
-import { InfoTip } from '../components/PowerUpButton'
+import { HoverTips, InfoTip } from '../components/PowerUpButton'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
@@ -463,10 +463,10 @@ export function Setup() {
                 {!isManage && (
                   <div className="setup-modes" data-testid="modes-panel">
                     <SectionHead title="Modes" info={`Mix and match, or none. ${MODE_CARDS.map((c) => `${MODE_INFO[c].title}: ${MODE_INFO[c].line}.`).join(' ')}`} testId="modes" right={<span className="small muted">{cardsOn.length ? `${cardsOn.length} on` : 'None on'}</span>} />
-                    <div className="setup-modes-row">
+                    <HoverTips className="setup-modes-row" testId="mode-tip">
                       <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} icons={MODE_ICON} onToggle={toggleMode} />
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" title={POWER_UPS.map((k) => `${POWER_UP_INFO[k].icon} ${POWER_UP_INFO[k].title}`).join(' · ')}>
+                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={`Six one-use boosts in a tray on the draft: ${POWER_UPS.map((k) => POWER_UP_INFO[k].title).join(', ')}`}>
                           <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
                             <Package size="1em" />
@@ -477,7 +477,7 @@ export function Setup() {
                         <InfoTip label="Power-ups" text="Six one-use power-ups in a tray on the draft: Upgrader, Re-roll season, Peek, Swap, Captain's armband and Lock. Odds are always shown first; in-game only." testId="power-ups-info" />
                       </div>
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" title="A power-up for your locker, or a rare Icon for this XI">
+                        <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" data-tip="A power-up for your locker, or a rare Icon for this XI">
                           <input type="checkbox" className="sr-only" checked={endCase} onChange={(e) => setEndCase(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
                             <Gift size="1em" />
@@ -489,20 +489,20 @@ export function Setup() {
                       </div>
                       {/* The casual rules as two more cards: Moneyball's salary cap (its presets under Advanced) and the Teammate Chain */}
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" title="Moneyball: every player carries a price by rating and position, and the draft may not spend more than the cap">
+                        <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" data-tip="Moneyball: every player carries a price by rating and position, and the draft may not spend more than the cap">
                           <input type="checkbox" className="sr-only" checked={capOn} onChange={(e) => setCapChoice({ ...cap, preset: e.target.checked ? 'moneyball' : 'off' })} />
                           <span className="micon" aria-hidden="true"><PoundSterling size="1em" /></span>
                           <span className="ctitle">Moneyball</span>
                           <span className="cline">{capOn && capCard !== undefined ? `${capTotal(capCard)} cap · ${CAP_PRESETS.find((p) => p.value === cap.preset)?.label ?? ''}` : 'Draft under a salary cap'}</span>
                         </label>
-                        <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" title="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When none is left, the next spin is free and the chain starts again.">
+                        <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" data-tip="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When none is left, the next spin is free and the chain starts again.">
                           <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
                           <span className="micon" aria-hidden="true"><Link size="1em" /></span>
                           <span className="ctitle"><span className="lbl-long">Teammate chain</span><span className="lbl-short">Chain</span></span>
                           <span className="cline">{chain ? 'On: each pick played beside the last' : 'Each pick played beside the last'}</span>
                         </label>
                       </div>
-                    </div>
+                    </HoverTips>
                   </div>
                 )}
                 <div className="setup-rules">
