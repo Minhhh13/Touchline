@@ -11894,7 +11894,7 @@ table.tbl.contracts-overview .link-btn.name {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.95fr);
   }
   .arena-hub .fit-head h1 {
-    font-size: 24px !important;
+    font-size: var(--fs-h2) !important;
   }
   .arena-hub .stat-strip .stat .value {
     font-size: calc(var(--fs-h2) - 2px);
