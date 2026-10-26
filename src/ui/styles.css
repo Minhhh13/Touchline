@@ -3842,7 +3842,8 @@ table.tbl.contracts .btn.sm {
   .rating.reveal,
   .pitch-wrap .slot .disc.reveal,
   .draft-recap > *,
-  .recap-grade {
+  .recap-grade,
+  .recap-hindsight {
     animation: none;
   }
   .celebrate {
@@ -8269,6 +8270,19 @@ table.tbl.match-stats th {
   .app.shell .grid.draft .draft-log {
     max-height: none;
   }
+  /* The draft recap scrolls inside the box on a short window (the Hindsight XI under the cards), its button kept in view */
+  .app.shell .grid.draft > .draft-squad > .draft-recap {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline: 2px;
+  }
+  .app.shell .grid.draft > .draft-squad > .draft-recap > .recap-go {
+    position: sticky;
+    bottom: 0;
+    flex: none;
+  }
   /* A pitch never taller than the box it sits in */
   .app.shell .grid.draft .pitch-wrap,
   .app.shell .grid.dugout .pitch-wrap {
@@ -12664,6 +12678,71 @@ table.tbl.tv-compact .tv-name {
 .recap-icon.warn {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+/* The Hindsight XI under the recap's cards: the best XI the same spins held, two or three men a row, your own picks ticked */
+.recap-hindsight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--bg-3);
+  border: var(--border);
+}
+.hs-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.hs-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 4px var(--space-3);
+}
+.hs-man {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-meta);
+}
+.hs-pos {
+  flex: none;
+  width: 2.4em;
+  font-weight: 700;
+  color: var(--text-3);
+}
+.hs-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hs-man:not(.yours) .hs-name {
+  font-weight: 600;
+}
+.hs-rating {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hs-tick {
+  flex: none;
+  color: var(--good);
+}
+.hs-spin {
+  flex: none;
+  min-width: 13px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 /* ------------------------------------------------------------ short windows (2026-10-26) */
