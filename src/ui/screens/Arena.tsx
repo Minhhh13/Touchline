@@ -21,6 +21,7 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Info, Segmented, Stat, Tabs, TeamBadge } from '../components/bits'
 import { OppositionReport } from './OppositionReport'
+import { distinctLabels } from '../screenText'
 import { TacticsTab } from './Dugout'
 
 type ArenaTab = 'team' | 'tactics' | 'draw'
@@ -100,8 +101,12 @@ export function Arena() {
           <div>
             <h1 style={{ fontSize: 26 }}>{game.settings.teamName}</h1>
             <div className="screen-meta" data-testid="arena-head">
-              <span className="chip info">{arenaFormatLabel(game.settings.arena)}</span>
-              <span className="chip">{info.label}</span>
+              {/* The format and the match, once each: a Final's "Cup Final" and "Cup final" read as one chip */}
+              {distinctLabels([arenaFormatLabel(game.settings.arena), info.label]).map((l, i) => (
+                <span key={l} className={`chip${i === 0 ? ' info' : ''}`}>
+                  {l}
+                </span>
+              ))}
               {gauntlet && <span className="chip">{a.step} of {GAUNTLET_RUNGS} climbed</span>}
             </div>
           </div>
@@ -221,17 +226,21 @@ export function Arena() {
           {tab === 'tactics' && <TacticsTab />}
         </div>
 
-        <div className="fit-cell fit-col">
-          <div className="panel">
+        {/* On a desktop this box never scrolls: the pitch takes the height the team talk, captain and calls leave (a size
+            container, so it shows whole), and the calls stay at the foot */}
+        <div className="fit-cell fit-col arena-side" data-testid="arena-side">
+          <div className="panel arena-pitch-panel">
             <div className="panel-head">
               <h3>{formation.name}</h3>
               <span className="small muted">
                 GK {strength.goalkeeping.toFixed(0)} · DEF {strength.defence.toFixed(0)} · MID {strength.midfield.toFixed(0)} · ATT {strength.attack.toFixed(0)}
               </span>
             </div>
-            <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={selectedSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
+            <div className="arena-pitch-box">
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={selectedSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
+            </div>
           </div>
-          <div className="panel col">
+          <div className="panel col arena-prep">
             <div className="field">
               Team talk
               <Segmented<TeamTalk>
@@ -275,11 +284,11 @@ export function Arena() {
           </div>
           <div className="panel col bottom-bar arena-actions" ref={barRef} data-testid="arena-actions">
             {problems.length > 0 && <div className="small" style={{ color: 'var(--warn)' }}>{problems[0]}: the assistant fills the gap at kick-off.</div>}
-            <div className="small muted">{opp ? `${info.label} v ${opp.club.name}.` : 'No opponent drawn.'}</div>
+            <div className="small muted arena-vs">{opp ? `${info.label} v ${opp.club.name}.` : 'No opponent drawn.'}</div>
             <button className="btn primary big block" onClick={() => store.playArenaStep(true)} disabled={!opp} data-testid="arena-live" title="Manage it through half time, the 70th minute and any shoot-out">
               Manage this one
             </button>
-            <div className="row wrap" style={{ gap: 8 }}>
+            <div className="row wrap arena-more-calls" style={{ gap: 8 }}>
               <button className="btn" onClick={() => store.playArenaStep(false)} disabled={!opp} data-testid="arena-sim" title="The assistant picks the side and plays the match, penalties included">
                 {cup ? 'Sim this tie' : 'Assistant plays it'}
               </button>

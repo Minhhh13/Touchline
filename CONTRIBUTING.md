@@ -7,7 +7,7 @@ Two people work on this repo in parallel, each with their own AI coding agent. T
 - All work starts from a GitHub issue: https://github.com/Minhhh13/Touchline/issues
 - Labels:
   - Type (these exist): `enhancement`, `bug`, `documentation`.
-  - Area (not created yet; create them as needed): `area:engine`, `area:game`, `area:ui`, `area:data`, `area:online`, `area:infra`.
+  - Area (these exist): `area:engine`, `area:game`, `area:ui`, `area:data`, `area:online`, `area:ops`; size `size:S`, `size:M`, `size:L`; `status:in-progress` on work being built; `accessibility`.
   - `roadmap` for planned features (not created yet), `good first issue` for small self-contained tasks, `help wanted` when the owner of an area wants a second pair of hands (both exist).
 - Prefer issues in an area nobody else is working in this week (see section 4).
 - No issue for what you want to do? Open one first with a short description and the files you expect to touch.
@@ -36,7 +36,7 @@ These files conflict constantly. Before touching one, check open PRs and say so 
 | `src/game/store.ts` | Every feature adds an action | Add actions at the end of their group; keep logic in `src/game/logic` |
 | `src/game/types.ts` | Every feature adds a save field | Append optional fields with a doc comment; never reorder |
 | `src/ui/screens/Dugout.tsx` | The season hub; 1,200+ lines of long JSX lines | Put new tabs and panels in their own file under `screens/` |
-| `src/ui/screens/Setup.tsx` | Due to be rewritten by the 38-0 setup work (`replica-setup`) | Coordinate first |
+| `src/ui/screens/Setup.tsx` | The one-page setup for every mode; each new rule or mode adds a card | Coordinate first |
 | `src/engine/match.ts` | Touched by match depth and visuals; ENGINE_VERSION | One match change in flight at a time |
 | `src/game/logic/week.ts`, `quick.ts` | The season loop | Small, surgical hooks |
 | `public/data/**`, `tsconfig.*.tsbuildinfo` | Generated | See section 7 |
@@ -45,12 +45,12 @@ Rules of thumb: put new code in new files, keep diffs surgical, never reflow lon
 
 ## 5. Checks before pushing
 
-Run all of these locally; CI runs the same four on every push and PR:
+Run all of these locally; CI runs them on every push and PR, then `npm run check:dist-keys`, `npm run build:verifier` and `npm run check:verifier`:
 
 ```bash
 npm ci                 # after pulling a lockfile change
 npm run typecheck      # tsc strict: no any, no unused symbols
-npm test               # Vitest, real data packs, about 25 s
+npm test               # Vitest, real data packs, about four minutes
 npm run build          # what Render runs
 ```
 
@@ -67,6 +67,7 @@ Also check:
 ## 6. Pull requests and review
 
 - Open a PR into `main` early (as a draft if unfinished). The title says what changes; the body says why, what you tested, and screenshots for UI.
+- PRs into `main` come either from a feature branch or from `claude/touchline-preview`, where finished branches are merged together and tried on the preview site first. After a squash merge, merge `main` back into `claude/touchline-preview` (the "Record main (#NN squash) as merged" commits) so the two stay level.
 - Link the issue (`Closes #N`). Mention any ENGINE_VERSION bump, save-field addition or data rebuild at the top of the body.
 - Keep PRs small: under about 400 changed lines of hand-written code where possible.
 - Every PR gets a review from the other person (or their agent, with the human approving). The reviewer checks:

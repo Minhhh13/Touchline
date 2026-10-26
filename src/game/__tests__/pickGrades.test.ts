@@ -10,8 +10,8 @@ import type { GameSettings } from '../types'
 
 const u = loadTestUniverse(['england'])
 
-function quick(seed: string): GameSettings {
-  return { mode: 'quick', seed, formationId: '4-3-3', teamName: 'Grade XI', shortName: 'GRD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'wolves', leagueSeason: 2020, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' }
+function quick(seed: string, ratings: 'season' | 'prime' = 'season'): GameSettings {
+  return { mode: 'quick', seed, formationId: '4-3-3', teamName: 'Grade XI', shortName: 'GRD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'wolves', leagueSeason: 2020, rules: { ...QUICK_RULES, leagues: ['england'], ratings }, jobSecurity: false, difficulty: 'calibrated' }
 }
 
 describe('pick grades', () => {
@@ -47,5 +47,21 @@ describe('pick grades', () => {
     }
     // The assistant's picks are usually the best on the wheel, so A dominates
     expect(counts.A).toBeGreaterThan(counts.D)
+  }, 60_000)
+
+  it('rates the rest of the squad as the draft rated the pick: under Prime ratings, every man at his best', () => {
+    for (const seed of ['grade-prime-1', 'grade-prime-2', 'grade-prime-3']) {
+      const g = createGame(quick(seed, 'prime'))
+      autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+      const get = playerLookup(g, u)
+      for (const gr of pickGrades(u, g.draft!, get)) {
+        const h = g.draft!.history[gr.spin]
+        const pos = g.draft!.formation.slots.find((s) => s.id === gr.slotId)!.position
+        const drafted = new Set(g.draft!.history.slice(0, gr.spin).map((x) => (x.pickedId ? get(x.pickedId)?.playerId : undefined)))
+        const best = Math.max(...u.clubSeasonByKey[`${h.clubId}@${h.season}`].squad.filter((p) => p.id === h.pickedId || !drafted.has(p.playerId)).map((p) => Math.round(ratingAt(get(p.id)!, pos))))
+        expect(gr.best).toBe(best)
+        expect(gr.rating).toBe(Math.round(ratingAt(get(h.pickedId!)!, pos)))
+      }
+    }
   }, 60_000)
 })

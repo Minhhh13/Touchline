@@ -23,7 +23,7 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, 
   if (u && isEstimated(u, p)) flags.push(<EstimatedChip key="est" compact />)
   return (
     <button type="button" className={`prow ${dim ? 'dim' : ''} ${selected ? 'selected' : ''} ${highlight ? 'fit' : ''} ${range && range.hi > range.lo && !hideRatings ? 'ranged' : ''}`} onClick={dim ? undefined : onClick} disabled={dim && !onClick}>
-      <Rating value={p.overall} hidden={hideRatings} range={range} />
+      <Rating value={p.overall} hidden={hideRatings} range={range} label="Overall" />
       <span className="col" style={{ gap: 2 }}>
         <span className="name">
           <Flag nation={p.nationality} /> {p.name}

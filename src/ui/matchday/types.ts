@@ -79,6 +79,8 @@ export interface SquadStripProps {
   squad: Record<string, SquadPlayer>
   selected: string | null
   onSelect(psId: string): void
+  /** A card took the keyboard's focus (its man is previewed on the pitch) or lost it (null). */
+  onFocusMan?(psId: string | null): void
   control: LiveControl | null
 }
 
@@ -102,6 +104,8 @@ export interface MatchdayData {
   ratings: Record<string, number>
   userSide: 'home' | 'away' | null
   selected: string | null
+  /** The man picked out on the pitches: the keyboard's preview, else the selection (`highlightedMan`). */
+  highlight: string | null
   select(psId: string): void
   /** Put a widget into a slot (the flanks' "View stats"). */
   show(slot: SlotId, id: WidgetId): void

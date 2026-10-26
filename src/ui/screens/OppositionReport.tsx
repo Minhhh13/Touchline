@@ -57,8 +57,10 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
           <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
         </span>
       </summary>
-      <div className="grid three">
-        <div className="col" style={{ gap: 6 }}>
+      {/* Three columns where the box is wide; in a narrow box (the arena hub's) the notes take the full width under the
+          units and the danger men, so no column runs into the next */}
+      <div className="grid three opp-grid">
+        <div className="col opp-units" style={{ gap: 6 }}>
           <div className="eyebrow">Units</div>
           <div className="kv">
             <dt>Rating</dt>
@@ -86,10 +88,10 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
             </dd>
           </div>
         </div>
-        <div className="col" style={{ gap: 6 }}>
+        <div className="col opp-danger" style={{ gap: 6 }}>
           <div className="eyebrow">Danger men</div>
           {stars.map((p) => (
-            <div key={p.id} className="row" style={{ gap: 8 }}>
+            <div key={p.id} className="row danger-row" style={{ gap: 8 }} data-testid="danger-row">
               <Rating value={p.overall} />
               <span className="danger-name" title={p.name}>{p.name}</span>
               <Pos p={p.positions[0]} />
@@ -101,7 +103,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
             </div>
           ))}
         </div>
-        <div className="col" style={{ gap: 6 }}>
+        <div className="col opp-notes" style={{ gap: 6 }}>
           <div className="eyebrow">Assistant's notes</div>
           <ul className="notes-list small">
             {tips.length ? tips.map((t, i) => <li key={i}>{t}</li>) : <li>Nothing stands out. Play your game.</li>}

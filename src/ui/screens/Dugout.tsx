@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Check, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
+import { Check, ChevronDown, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation } from '@engine/formations'
@@ -22,6 +22,7 @@ import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingIte
 import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
+import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { Pitch, PitchLegend } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
@@ -328,10 +329,10 @@ export function Dugout() {
                 <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
                 <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
-              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
+              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
                 Sim 5
               </button>
-              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent}>
+              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent} data-testid="sim-end">
                 Sim to end
               </button>
             </div>
@@ -349,24 +350,41 @@ export function Dugout() {
       <div className="tab-body fill" data-testid="tab-body">
       {tab === 'squad' && <Tip id="dugout-first">The bars are condition and sharpness, the face his morale; the arrow is his form. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
-        <div className="panel emphasis" style={{ marginBottom: 'var(--space-4)' }}>
+        <div className="panel emphasis youth-intake" style={{ marginBottom: 'var(--space-4)' }} data-testid="youth-intake">
           <div className="panel-head">
             <h3 className="icon-title">
               <GraduationCap size={20} aria-hidden="true" /> Youth intake
             </h3>
-            <span className="small muted">Sign one free on a three-year deal</span>
+            {/* A short desktop window: the candidates as one line of chips in the head (CSS shows this or the cards below) */}
+            <span className="youth-line" data-testid="youth-line">
+              {game.youthIntake.candidates.map((id) => {
+                const p = u.index[id]
+                if (!p) return null
+                const home = p.clubId === game.settings.hostClubId
+                return (
+                  <button key={id} type="button" className={`youth-chip${home ? ' home' : ''}`} onClick={() => store.showToast(store.signYouth(id).message)} title={`${p.name}, ${p.age}, ${clubName(u, p.clubId)}${home ? ' · Homegrown' : ''}: sign him free on a three-year deal`} data-testid="youth-chip">
+                    <Pos p={p.positions[0]} />
+                    <span className="youth-chip-name">{p.name}</span>
+                    <span className="small muted">{p.age}</span>
+                    <Rating value={p.overall} />
+                    <span className="btn sm primary">Sign</span>
+                  </button>
+                )
+              })}
+            </span>
+            <span className="row youth-side" style={{ gap: 'var(--space-3)' }}>
+              <span className="small muted youth-terms">Sign one free on a three-year deal</span>
+              <button className="btn ghost sm" onClick={() => store.showToast(store.signYouth(null).message)} data-testid="youth-pass">
+                Pass this year
+              </button>
+            </span>
           </div>
-          <div className="plist lined">
+          <div className="plist lined youth-list">
             {game.youthIntake.candidates.map((id) => {
               const p = u.index[id]
               if (!p) return null
               return <PlayerRow key={id} p={p} showClub onClick={() => store.showToast(store.signYouth(id).message)} right={<span className="btn sm primary">Sign</span>} extra={p.clubId === game.settings.hostClubId ? <span className="chip gold">Homegrown</span> : undefined} />
             })}
-          </div>
-          <div className="row" style={{ marginTop: 8 }}>
-            <button className="btn ghost sm" onClick={() => store.showToast(store.signYouth(null).message)}>
-              Pass this year
-            </button>
           </div>
         </div>
       )}
@@ -669,7 +687,8 @@ export function Dugout() {
 }
 
 /** One row of the slot picker: the player rated in the slot, his fit, the disc number and where he is now. */
-function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
+function SlotOptionRow({ o, at, onPick }: { o: SlotOption; at: Position; onPick?: () => void }) {
+  const rated = slotRating(o.p, at)
   const fitChip = o.fit === 'natural' ? <span className="chip good">fits</span> : o.fit === 'accomplished' ? <span className="chip warn">acc.</span> : <span className="chip bad">awk.</span>
   return (
     <PlayerRow
@@ -685,8 +704,9 @@ function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
         </>
       }
       right={
-        <span className="slot-disc" title="The number on his pitch disc in this slot">
+        <span className="slot-disc" title={slotRatingLine(rated, at, { attributes: true })} aria-label={slotRatingLine(rated, at)} data-testid="slot-disc">
           {o.disc}
+          {rated.cost > 0 && <span className="slot-disc-cost">−{rated.cost}</span>}
         </span>
       }
     />
@@ -710,11 +730,11 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
       <div className="sheet-meta">
         <span className="chip">{role}</span>
         <span className="small muted">Best first</span>
-        <Info label="About the numbers">Sorted by rating in the position. The number on the right is what his pitch disc would show in this slot.</Info>
+        <Info label="About the numbers">The badge on the left is his overall. The number on the right is his rating in this slot, the one his pitch disc would show: his overall less any out-of-position cost (the −N under it). Sorted best first by how his attributes suit the position.</Info>
       </div>
       {sheet.occupant ? (
         <div className="sheet-occupant">
-          <SlotOptionRow o={sheet.occupant} />
+          <SlotOptionRow o={sheet.occupant} at={sheet.slot.position} />
           <button className="btn sm" data-testid="sheet-to-bench" onClick={() => pick(sheet.occupant!.p.id, 'bench')}>
             To bench
           </button>
@@ -728,7 +748,7 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
       <div className="plist lined" data-testid="sheet-cover">
         {sheet.cover.length === 0 && <div className="muted small">No other natural or accomplished {sheet.slot.position}. Try out of position below.</div>}
         {sheet.cover.map((o) => (
-          <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+          <SlotOptionRow key={o.p.id} o={o} at={sheet.slot.position} onPick={() => pick(o.p.id)} />
         ))}
       </div>
       {sheet.outOfPosition.length > 0 && (
@@ -736,7 +756,7 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
           <summary>Out of position · {sheet.outOfPosition.length}</summary>
           <div className="plist lined">
             {sheet.outOfPosition.map((o) => (
-              <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+              <SlotOptionRow key={o.p.id} o={o} at={sheet.slot.position} onPick={() => pick(o.p.id)} />
             ))}
           </div>
         </details>
@@ -1891,39 +1911,45 @@ function WageSlider({ onMessage }: { onMessage: (m: string) => void }) {
   )
 }
 
+/**
+ * A dressing-room decision waiting on the manager, inline above the tabs. On a desktop it is one compact strip (the
+ * title, the story cut to fit, the choices with their hints as tooltips, on one line when they fit) so the squad list
+ * keeps its rows; "More" opens the whole story and each choice's hint. A phone shows it whole, as the page scrolls.
+ */
 function EventCard() {
   const store = useStore()
   const { universe: u, game } = store
+  const [open, setOpen] = useState(false)
   if (!u || !game?.pendingEvent) return null
   const ev = game.pendingEvent
   const get = playerLookup(game, u)
   const p = ev.playerSeasonId ? get(ev.playerSeasonId) : undefined
+  const who = p ? `${p.name} · ${p.positions.join('/')} · morale ${moraleWord(game.squad[p.id]?.morale ?? 70).toLowerCase()}` : null
   return (
-    <div className="panel event-card" data-testid="event-card" style={{ marginBottom: 'var(--space-4)', borderColor: 'var(--warn)' }}>
-      <div className="row between wrap">
-        <div>
-          <h3 className="icon-title" style={{ color: 'var(--warn)' }}>
-            <MessageSquare size={18} aria-hidden="true" /> {ev.title}
-          </h3>
-          <p style={{ marginBottom: 'var(--space-2)' }}>{ev.body}</p>
-          {p && (
-            <div className="small muted">
-              {p.name} · {p.positions.join('/')} · morale {moraleWord(game.squad[p.id]?.morale ?? 70).toLowerCase()}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="row wrap" style={{ marginTop: 'var(--space-2)', gap: 'var(--space-2)' }}>
+    <div className={`panel event-card${open ? ' open' : ''}`} data-testid="event-card" data-dialog-return="">
+      <div className="event-row">
+        <h3 className="icon-title event-title">
+          <MessageSquare size={18} aria-hidden="true" /> {ev.title}
+        </h3>
+        <p className="event-body" title={open ? undefined : ev.body}>
+          {ev.body}
+          {who && <span className="small muted event-who">{who}</span>}
+        </p>
+        <div className="event-choices">
         {ev.choices.map((c) => (
           <button key={c.id} className="btn event-choice" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
               <span>{c.label}</span>
-              <span className="small muted" style={{ fontWeight: 400 }}>
+              <span className="small muted event-hint" style={{ fontWeight: 400 }}>
                 {c.hint}
               </span>
             </span>
           </button>
         ))}
+        </div>
+        <button type="button" className="btn sm ghost event-more" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="event-more">
+          {open ? 'Less' : 'More'} <ChevronDown size={14} aria-hidden="true" />
+        </button>
       </div>
     </div>
   )

@@ -33,6 +33,8 @@ export interface ShareCardInput {
   lines?: string[]
   /** The Treble or a Double, one gold line under the record ("The Treble · League, Cup and Continental Cup"). */
   honour?: string
+  /** The draft's grade ("Draft grade B"), one accent line under the record. */
+  grade?: string
 }
 
 const STRIP_COLOUR: Record<'W' | 'D' | 'L', string> = { W: C.good, D: C.draw, L: C.bad }
@@ -154,6 +156,14 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     ctx.font = font(30, 700)
     ctx.fillText(fit(ctx, input.honour, W - 160), W / 2, y + 42)
     y += 42
+  }
+  // The draft's grade, as the recap gave it
+  if (input.grade) {
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.accent
+    ctx.font = font(26, 700)
+    ctx.fillText(fit(ctx, input.grade, W - 160), W / 2, y + 40)
+    y += 40
   }
   // Season Story: the one line that tells the season
   if (input.moment) {

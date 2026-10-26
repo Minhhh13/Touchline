@@ -31,6 +31,8 @@ import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
+import { costLabel, slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
 import { tierTable, type TierTable } from '@game/logic/rarity'
@@ -52,16 +54,19 @@ export function Draft() {
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
-  // A selected player belongs to the spin he was selected on
-  const [picked, setPicked] = useState<{ id: string; spin: number } | null>(null)
+  // A selected player belongs to the draft turn he was selected on (`draftTurnKey`): a pick or a Speedrun timeout drops him
+  const [picked, setPicked] = useState<{ id: string; turn: string } | null>(null)
+  // The Upgrader's dial is turning: the Speedrun clock waits for it as it waits for the reel
+  const [dialRolling, setDialRolling] = useState(false)
   const [sort, setSort] = useState<'rating' | 'position'>('rating')
   const d = game?.draft
   const get = useMemo(() => (game && u ? playerLookup(game, u) : () => undefined), [game, u])
 
   const spinning = !!d?.current && settled !== d.current
   const revealed = !!d?.current && settled === d.current
-  const selectedPlayer = picked && picked.spin === d?.spins ? picked.id : null
-  const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, spin: d.spins } : null)
+  const turn = d ? draftTurnKey(d) : ''
+  const selectedPlayer = picked && picked.turn === turn ? picked.id : null
+  const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, turn } : null)
 
   // The reel: the draft's leagues, their tiers, and what this spin could land on (recomputed per spin and per pick)
   const leagues = useMemo(() => (u && d ? reelLeagues(u, d.rules) : []), [u, d?.rules])
@@ -82,7 +87,7 @@ export function Draft() {
   // Position First: the open slots a spin could fill, offered on the pitch before each spin
   const choosable = useMemo(() => (u && d && positionFirst(d) && !d.current ? spinnableSlots(u, d).map((s) => s.id) : []), [u, d])
 
-  // Speedrun: a clock per pick, paused while the reel runs. It is only the UI's; on expiry the assistant makes the pick
+  // Speedrun: a clock per pick, paused while the reel runs (and while the Upgrader's dial turns). It is only the UI's; on expiry the assistant makes the pick
   // through the store (`speedrunPick`), a deterministic choice, so a replay of the same picks lands the same way
   const speedrun = !!d && hasMode(d.rules, 'speedrun') && !isComplete(d) && !dry
   const pickNo = d ? picksMade(d) : 0
@@ -100,17 +105,18 @@ export function Draft() {
     const t = window.setTimeout(() => setRevealId(null), 1200)
     return () => window.clearTimeout(t)
   }, [pickNo])
+  const paused = spinning || dialRolling
   useEffect(() => {
-    if (!speedrun || spinning) return
+    if (!speedrun || paused) return
     const t = setInterval(() => setClock((c) => Math.max(0, c - 1)), 1000)
     return () => clearInterval(t)
-  }, [speedrun, spinning])
+  }, [speedrun, paused])
   useEffect(() => {
-    if (!speedrun || spinning || clock > 0) return
+    if (!speedrun || paused || clock > 0) return
     setClock(SPEEDRUN_SECONDS)
     setSelectedPlayer(null)
     speedrunPick()
-  }, [clock, speedrun, spinning, speedrunPick])
+  }, [clock, speedrun, paused, speedrunPick])
 
   // On a phone the columns stack, so the landed squad would sit under the wheel: bring it on screen when it is revealed
   const squadRef = useRef<HTMLDivElement>(null)
@@ -451,9 +457,11 @@ export function Draft() {
         {/* The power-ups sit over the landed squad, so the reel's column stays one box high on a desktop */}
         <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
           <LockerBar game={game} busy={spinning} />
-          {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hideSquad} busy={spinning} onRerolled={() => setSelectedPlayer(null)} />}
+          {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hideSquad} busy={spinning} onRerolled={() => setSelectedPlayer(null)} onRolling={setDialRolling} />}
           {!powerUpsOn(d) && upgraderOn(d.rules) && d.upgradeRng && (
             <Upgrader
+              turn={turn}
+              onRolling={setDialRolling}
               players={upgradeCandidates(d).flatMap((id) => get(id) ?? [])}
               ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0}
               available={canUpgrade(d) && game.phase === 'draft'}
@@ -463,7 +471,7 @@ export function Draft() {
             />
           )}
           {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
-          {!current && !managerChoice.length && complete && <DraftRecap recap={draftRecap(u, d, get, ratingShown(d.rules, 'grades', { complete }))} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} cta={finishDraftLabel(game)} onCta={() => finishDraft()} />}
+          {!current && !managerChoice.length && complete && <DraftRecap recap={draftRecap(u, d, get, ratingShown(d.rules, 'grades', { complete }))} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} />}
           {!current && !managerChoice.length && !complete && (
             <div className="empty-state">
               <span className="empty-icon" aria-hidden="true">
@@ -539,11 +547,20 @@ export function Draft() {
                     Where does <b>{selected.name}</b> play? Tap a slot here or on the pitch.
                   </div>
                   <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
-                    {draftSlotChoices(d, selected).map((c) => (
-                      <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)}>
-                        <b>{c.label}</b> {hide ? '?' : c.rating} · {c.fit}
-                      </button>
-                    ))}
+                    {draftSlotChoices(d, selected).map((c) => {
+                      // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
+                      const r = slotRating(selected, c.position)
+                      return (
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingLine(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${c.fit}` : `${slotRatingLine(r, c.label)}, ${c.fit}`}>
+                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {c.fit}
+                          {!hide && r.cost > 0 && (
+                            <span className="slot-cost" data-testid="slot-cost">
+                              {' '}({r.overall} overall, {costLabel(r)})
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                     {canBench(d, selected) && (
                       <button type="button" className="btn sm primary" onClick={() => { pickPlayer(selected.id, 'bench'); setSelectedPlayer(null) }} data-testid="to-bench">
                         Send him to the bench
@@ -556,7 +573,7 @@ export function Draft() {
                 </div>
               )}
               {revealed && fillingStarters && (
-                <Tip id="draft-first-reveal">Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft.</Tip>
+                <Tip id="draft-first-reveal">The number by each player is his overall. Green fits means his natural position; amber can cover means he plays there at a penalty, shown as his number in that slot (the one on the pitch) and the cost against his overall. Re-spins are a budget for the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist lined draft-list">

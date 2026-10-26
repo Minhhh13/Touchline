@@ -923,6 +923,198 @@ p {
   max-width: 100%;
   text-align: left;
 }
+/* Pre-season's youth intake on a desktop: the candidates side by side, so the squad list under it keeps rows in view
+   (stacked, three to five rows left the squad list no height at 1280 x 720) */
+@media (min-width: 1100px) {
+  .youth-intake {
+    padding-block: var(--space-3);
+  }
+  .youth-intake > .panel-head {
+    margin-bottom: var(--space-2);
+  }
+  .youth-intake .youth-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-2);
+  }
+  .youth-intake .plist.lined.youth-list > .prow {
+    border: var(--border);
+    border-radius: var(--radius-s);
+    box-shadow: none;
+  }
+}
+/* The one-line intake: the candidates as chips in the panel's head, shown only on a short desktop window (below) */
+.youth-line {
+  display: none;
+}
+.youth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 3px 4px 3px var(--space-2);
+  border: var(--border);
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.youth-chip:hover,
+.youth-chip:focus-visible {
+  border-color: var(--primary);
+}
+.youth-chip.home {
+  border-color: var(--gold);
+}
+.youth-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+/* A short desktop window (the coach mark showing at 1280 x 720 left the stacked intake only its head): one line, the
+   chips between the title and Pass this year, the cards hidden */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .youth-intake.panel {
+    padding-block: var(--space-2);
+  }
+  .youth-intake > .panel-head {
+    margin-bottom: 0;
+    flex-wrap: nowrap;
+    gap: var(--space-3);
+  }
+  .youth-intake > .panel-head > h3 {
+    flex: none;
+  }
+  .youth-intake .youth-line {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--space-2);
+  }
+  .youth-intake .youth-line > .youth-chip {
+    flex: 0 1 auto;
+  }
+  .youth-intake .youth-side {
+    flex: none;
+  }
+  .youth-intake .youth-terms,
+  .youth-intake .youth-list {
+    display: none;
+  }
+}
+/* On a short window the intake gives way first: the squad grid under it keeps at least 120 px, and the intake scrolls
+   inside itself, down to its head */
+@media (min-width: 1100px) and (min-height: 600px) {
+  .app.shell .tab-body:has(> .grid.dugout) > .youth-intake {
+    flex-shrink: 1;
+    min-height: 60px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout {
+    flex: 1 1 0;
+    min-height: 120px;
+  }
+}
+/* A pending dressing-room decision (Dugout's EventCard): the title, the story, the choices with their hints */
+.event-card {
+  margin-bottom: var(--space-4);
+  border-color: var(--warn);
+}
+.event-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+.event-title {
+  margin: 0;
+  color: var(--warn);
+}
+.event-body {
+  flex: 1 1 100%;
+  margin: 0;
+}
+.event-who {
+  display: block;
+  margin-top: 2px;
+}
+.event-choices {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.event-more {
+  display: none;
+}
+.event-more svg {
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.event-card.open .event-more svg {
+  transform: rotate(180deg);
+}
+/* On a desktop the decision is one compact strip above the tabs, so the tab body keeps its rows (the full card left the
+   squad list two rows at 2000 x 860): the title, the story cut to the room left, the choices (hints as tooltips) on the
+   same line when they fit; More opens the whole story and the hints */
+@media (min-width: 1100px) {
+  .event-card {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  }
+  .event-row {
+    align-items: center;
+  }
+  .event-title {
+    flex: none;
+    font-size: var(--fs-base);
+  }
+  .event-body {
+    flex: 1 1 220px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-2);
+  }
+  .event-who {
+    display: inline;
+    margin: 0 0 0 var(--space-2);
+  }
+  .event-choices {
+    flex: 0 1 auto;
+  }
+  .event-more {
+    display: inline-flex;
+    flex: none;
+    gap: 4px;
+  }
+  .event-card:not(.open) .event-choice {
+    padding-block: 4px;
+  }
+  .event-card:not(.open) .event-hint {
+    display: none;
+  }
+  .event-card.open .event-title {
+    flex: 1 1 auto;
+  }
+  .event-card.open .event-body {
+    flex-basis: 100%;
+    order: 2;
+    white-space: normal;
+  }
+  .event-card.open .event-who {
+    display: block;
+    margin: 2px 0 0;
+  }
+  .event-card.open .event-choices {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
 /* Secondary is the default look; the class only makes the choice explicit */
 .btn:hover {
   border-color: var(--primary);
@@ -1955,14 +2147,16 @@ kbd {
 .pitch-wrap .slot.foot .sub {
   position: absolute;
   left: calc(50% + 27px);
-  max-width: 120px;
+  /* At most the room beside the disc to the pitch's edge, so a narrow pitch ends the name in an ellipsis, not a cut */
+  max-width: min(120px, calc(50cqw - 31px));
   text-align: left;
 }
+/* Name and role level with the top two-thirds of the disc, so the role ends above the goal line rather than on it */
 .pitch-wrap .slot.foot .label {
-  top: calc(50% - 8px);
+  top: calc(50% - 14px);
 }
 .pitch-wrap .slot.foot .sub {
-  top: calc(50% + 5px);
+  top: calc(50% - 1px);
 }
 @keyframes pulse {
   0%,
@@ -3842,7 +4036,8 @@ table.tbl.contracts .btn.sm {
   .rating.reveal,
   .pitch-wrap .slot .disc.reveal,
   .draft-recap > *,
-  .recap-grade {
+  .recap-grade,
+  .recap-hindsight {
     animation: none;
   }
   .celebrate {
@@ -3855,6 +4050,7 @@ table.tbl.contracts .btn.sm {
   .theme-switch,
   .tabs-ink.ready,
   .bar > span,
+  .event-more svg,
   .pitch-replay {
     transition: none;
   }
@@ -8345,6 +8541,14 @@ table.tbl.match-stats th {
   .app.shell .grid.draft .draft-log {
     max-height: none;
   }
+  /* The draft recap scrolls inside the box on a short window (the Hindsight XI under the cards); the button on is the left box's */
+  .app.shell .grid.draft > .draft-squad > .draft-recap {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline: 2px;
+  }
   /* A pitch never taller than the box it sits in */
   .app.shell .grid.draft .pitch-wrap,
   .app.shell .grid.dugout .pitch-wrap {
@@ -8571,6 +8775,42 @@ table.tbl.match-stats th {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   line-height: 1.05;
+}
+/* Squad complete's third box: the scouting report on the XI under the manager and the tactics */
+.sc-report {
+  gap: 8px;
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.sc-report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--fs-sm);
+}
+.sc-report-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.sc-report-list li > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+.sc-report-list li > svg.good {
+  color: var(--good);
+}
+.sc-report-list li > svg.warn {
+  color: var(--warn);
+}
+.sc-report-list b {
+  margin-right: 4px;
 }
 .sc-kicker {
   font-size: 11px;
@@ -8808,16 +9048,35 @@ table.tbl.match-stats th {
   color: var(--tier-gold);
   text-shadow: 0 0 10px var(--tier-gold);
 }
+/* An idle reel (the manager spin, the case, January's spin): a face-down card under the needle, the strip's next cards
+   ghosted either side. The card sits over the marker's line, so the "?" or the gift is never cut by it; the marker's
+   two points still show above and below the card */
 .mspin-idle {
+  --idle-step: calc(var(--card, 80px) + var(--gap, 8px));
+  --ghost: color-mix(in srgb, var(--reel-ink, #93a3d6) 16%, transparent);
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 50%;
+  width: var(--card, 80px);
+  height: calc(100% - 28px);
+  transform: translate(-50%, -50%);
+  border-radius: 10px;
   display: grid;
   place-items: center;
   font-family: var(--font-display, system-ui, sans-serif);
   font-size: 40px;
   font-weight: 700;
   color: var(--text-3);
-  z-index: 1;
+  background: linear-gradient(165deg, var(--navy-2), var(--navy));
+  border: 2px solid color-mix(in srgb, var(--reel-ink, #93a3d6) 45%, transparent);
+  box-shadow:
+    calc(-1 * var(--idle-step)) 0 0 0 var(--ghost),
+    var(--idle-step) 0 0 0 var(--ghost),
+    calc(-2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 9%, transparent),
+    calc(2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 9%, transparent),
+    calc(-3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 5%, transparent),
+    calc(3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 5%, transparent);
+  z-index: 4;
 }
 .mspin-sound {
   position: relative;
@@ -8865,9 +9124,84 @@ table.tbl.match-stats th {
     animation: none;
   }
 }
+/* Before its reel lands, a card waits in place: dashed, its reel named, short until a card lands (the guide below gets
+   the room), so the row is not an empty band */
 .mspin-card.hidden {
-  visibility: hidden;
+  min-height: 76px;
   animation: none;
+  border: 1px dashed var(--line);
+  box-shadow: none;
+  background: transparent;
+  place-content: center;
+}
+.mspin-wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  color: var(--text-3);
+}
+.mspin-card .manager-edge b {
+  color: var(--text);
+  font-weight: 600;
+}
+/* Under the reels: every style's edge on this XI, the landed styles lit; on a desktop it takes the rest of the window */
+.mspin-guide {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.mspin-guide .panel-head {
+  margin: 0;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.mspin-guide h3 {
+  margin: 0;
+}
+.mspin-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+.mspin-style {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-s);
+  border: var(--border);
+  background: var(--bg-3);
+}
+.mspin-style.landed {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.mspin-style-edge {
+  flex: none;
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.mspin-style-hint {
+  color: var(--text-2);
+}
+@media (min-width: 1100px) {
+  .mspin-styles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) and (min-height: 600px) {
+  .page.fit > .mspin-guide {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
 }
 .mspin-card .manager-name {
   font-size: 17px;
@@ -8965,6 +9299,79 @@ table.tbl.match-stats th {
   white-space: nowrap;
   font-weight: 700;
 }
+/* Beside the reel, the locker's counts; under the odds, what each item does. Each takes its tier's colour */
+.case-left {
+  gap: 12px;
+  min-width: 0;
+}
+.case-locker {
+  gap: 10px;
+}
+.case-locker h3 {
+  margin: 0;
+}
+.case-locker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 6px;
+}
+.case-locker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid color-mix(in srgb, var(--tier) 45%, var(--line));
+  background: color-mix(in srgb, var(--tier) 8%, var(--bg-2));
+  font-size: var(--fs-meta);
+}
+.case-locker-item svg {
+  flex: none;
+}
+.case-locker-item .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.case-locker-item .n {
+  margin-left: auto;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.case-locker-item.empty {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-3);
+}
+.case-locker-item.empty .n {
+  color: var(--text-3);
+}
+.case-guide {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.case-guide li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.case-guide-face {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--tier) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tier) 55%, transparent);
+  color: var(--text);
+}
 .case-icon-chip {
   background: var(--tier);
   color: var(--tier-ink);
@@ -8984,15 +9391,29 @@ table.tbl.match-stats th {
   color: var(--accent);
 }
 @media (min-width: 1100px) and (min-height: 600px) {
-  .case-grid {
+  /* Beats the shell's "every child of the page keeps its height" (flex-shrink: 0), so the boxes scroll, not the page */
+  .page.fit > .case-grid {
     flex: 1 1 auto;
     min-height: 0;
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: minmax(0, 1fr);
     align-items: start;
   }
-  .case-grid > .panel {
+  .case-grid > .panel,
+  .case-grid > .case-left > .case-locker {
     max-height: 100%;
     overflow: auto;
+  }
+  .case-grid > .case-left {
+    max-height: 100%;
+    min-height: 0;
+  }
+  .case-grid > .case-left > .case-main {
+    flex: none;
+  }
+  .case-grid > .case-left > .case-locker {
+    flex: 0 1 auto;
+    min-height: 0;
   }
 }
 @media (max-width: 720px) {
@@ -12630,7 +13051,7 @@ table.tbl.tv-compact .tv-name {
 }
 
 /* ------------------------------------------------------------ draft recap */
-/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards, the next step */
+/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards and the Hindsight XI (the button on is the left box's) */
 .draft-recap {
   display: flex;
   flex-direction: column;
@@ -12740,6 +13161,100 @@ table.tbl.tv-compact .tv-name {
 .recap-icon.warn {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+/* A short desktop window (1280 x 720): the recap tightens (a smaller grade disc, closer cards that sit three to a row,
+   slimmer padding), so the Hindsight XI starts above the fold of its box; the box still scrolls for the rest */
+@media (min-width: 1100px) and (max-height: 820px) {
+  .draft-recap {
+    gap: var(--space-3);
+    padding-block: 0;
+  }
+  .recap-head {
+    gap: var(--space-3);
+  }
+  .recap-grade {
+    width: 56px;
+    height: 56px;
+    font-size: 30px;
+  }
+  .recap-cards {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-2);
+  }
+  .recap-card,
+  .recap-hindsight {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+  .recap-card .recap-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+/* The Hindsight XI under the recap's cards: the best XI the same spins held, two or three men a row, your own picks ticked */
+.recap-hindsight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--bg-3);
+  border: var(--border);
+}
+.hs-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.hs-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 4px var(--space-3);
+}
+.hs-man {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-meta);
+}
+.hs-pos {
+  flex: none;
+  width: 2.4em;
+  font-weight: 700;
+  color: var(--text-3);
+}
+.hs-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hs-man:not(.yours) .hs-name {
+  font-weight: 600;
+}
+.hs-rating {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hs-tick {
+  flex: none;
+  color: var(--good);
+}
+.hs-spin {
+  flex: none;
+  min-width: 13px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 /* ------------------------------------------------------------ short windows (2026-10-26) */
@@ -13460,3 +13975,217 @@ table.tbl.tv-compact .tv-name {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------ ratings: overall and in a slot (TL-03) */
+/* A disc out of position carries its cost against his overall (−5), so the pitch's 84 and the card's 89 read as one
+   number; the slot pickers print the same pair ("84 · can cover (89 overall, −5 out of position)") */
+.pitch-wrap .slot .disc {
+  position: relative;
+}
+.pitch-wrap .slot .disc .disc-cost {
+  position: absolute;
+  top: -6px;
+  right: -12px;
+  min-width: 22px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1.5px solid var(--gold);
+  background: var(--pitch-disc);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+.pitch-mini .pitch-wrap .slot .disc .disc-cost {
+  display: none;
+}
+.slot-chip .slot-cost {
+  font-weight: 400;
+  color: var(--text-2);
+}
+/* A chip with the cost spelled out may be wider than a phone's row: it flows as one line of text and wraps inside
+   itself, never past the box */
+.slot-chip {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  height: auto;
+  line-height: 1.35;
+  border-radius: 14px;
+}
+.slot-disc {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+}
+.slot-disc .slot-disc-cost {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* ------------------------------------------------------------ dialogs (TL-06) */
+/* A dialog takes the focus itself when it opens (so its title is read first): no ring round the whole box, the
+   controls inside keep theirs */
+.modal[role='dialog']:focus,
+.decision-sheet:focus,
+.md-drawer:focus {
+  outline: none;
+}
+
+/* ------------------------------------------------------------ the arena hub's calls column and the opposition report (2026-10-26) */
+@media (min-width: 1100px) and (min-height: 600px) {
+  /*
+   * The third box never scrolls on a desktop: the pitch's panel takes the height the team talk, training, captain and
+   * the calls leave, and the pitch inside it is sized to that height (a size container, 3:4, so at most 75% of the
+   * height wide), so it shows whole with the calls at the foot. At 2000x870 the box scrolled 126 px and the pitch's
+   * top went out of view once it had been scrolled to the calls.
+   */
+  .arena-hub .arena-side > .arena-pitch-panel {
+    flex: 1 1 0;
+    min-height: 210px;
+    display: flex;
+    flex-direction: column;
+  }
+  .arena-hub .arena-pitch-panel > .panel-head {
+    flex: none;
+    margin-bottom: var(--space-2);
+  }
+  .arena-hub .arena-pitch-box {
+    flex: 1 1 0;
+    min-height: 0;
+    container-type: size;
+  }
+  .arena-hub .arena-pitch-box > .pitch-wrap {
+    max-width: min(100%, 75cqh);
+    margin-inline: auto;
+  }
+  .arena-hub .arena-side > .arena-prep,
+  .arena-hub .arena-side > .arena-actions {
+    flex: none;
+  }
+  /* The match prep in two columns: the team talk across, training and captain side by side */
+  .arena-hub .arena-prep {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+    padding-block: var(--space-3);
+  }
+  .arena-hub .arena-prep > .field:first-child {
+    grid-column: 1 / -1;
+  }
+  .arena-hub .arena-prep > .field:last-child:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .arena-hub .arena-actions {
+    gap: var(--space-2);
+    padding-block: var(--space-3);
+  }
+  .arena-hub .arena-actions > .btn.big {
+    min-height: 44px;
+    padding-block: 8px;
+  }
+}
+
+/* A short desktop window (1280x720): the prep and the calls slim down so the pitch keeps the room. The "v opponent"
+   line repeats the first box's heading, and the team talk's four buttons share one row */
+@media (min-width: 1100px) and (min-height: 600px) and (max-height: 820px) {
+  .arena-hub .arena-vs {
+    display: none;
+  }
+  .arena-hub .arena-prep .segmented {
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .arena-hub .arena-prep .segmented button {
+    flex: 1 1 auto;
+    min-height: 28px;
+    padding: 3px 6px;
+  }
+  .arena-hub .arena-prep .field {
+    gap: 4px;
+  }
+  .arena-hub .arena-prep .input {
+    min-height: 34px;
+    padding-block: 4px;
+  }
+  .arena-hub .arena-pitch-panel,
+  .arena-hub .arena-prep,
+  .arena-hub .arena-actions {
+    padding-block: var(--space-2);
+  }
+}
+/* A very small pitch (a short window's arena hub) shows the numbers only: the names would run into each other, and
+   each slot's tooltip still names him and his rating there */
+@container (max-width: 200px) {
+  .pitch-wrap .slot .label,
+  .pitch-wrap .slot .sub {
+    display: none;
+  }
+  .pitch-wrap .slot .disc {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    border-width: 1.5px;
+  }
+  .pitch-wrap .slot .disc .disc-cost {
+    display: none;
+  }
+}
+
+/* The opposition report: its own width decides the columns, so a narrow box (the arena hub's) never overlaps them */
+details.opposition {
+  container: opp / inline-size;
+}
+.grid.three.opp-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+}
+@container opp (max-width: 640px) {
+  .grid.three.opp-grid {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+  .grid.three.opp-grid > .opp-notes {
+    grid-column: 1 / -1;
+  }
+}
+@container opp (max-width: 420px) {
+  .grid.three.opp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* A danger man's row: rating, name, position, then Man-mark, which drops under the name when the column is narrow */
+.danger-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+  min-width: 0;
+}
+.danger-row .danger-name {
+  flex: 1 1 5em;
+}
+.danger-row > .btn {
+  margin-left: auto;
+  flex: none;
+}
+.opp-notes .notes-list li {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* ------------------------------------------------------------ the man picked out from the squad strip (2026-10-26) */
+/* On the formation panels: a ring round his shirt, in the colour LivePitch's highlightId rings his dot with */
+.matchday .md-man.lit .md-shirt {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--pitch-highlight), 0 0 10px 2px color-mix(in srgb, var(--pitch-highlight) 55%, transparent);
+}
+.matchday .md-man.lit .md-man-name {
+  color: #fff;
+  font-weight: 700;
+}
+

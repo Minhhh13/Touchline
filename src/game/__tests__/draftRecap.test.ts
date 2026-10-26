@@ -5,7 +5,7 @@ import { Rng } from '@engine/rng'
 import { createGame } from '../logic/setup'
 import { playerLookup } from '../logic/players'
 import { pickGrades, type GradedPick, type PickGrade } from '../logic/pickGrades'
-import { draftGrade, draftRecap, recapVerdict } from '../logic/draftRecap'
+import { draftGrade, draftGradeLine, draftRecap, recapVerdict } from '../logic/draftRecap'
 import type { GameSettings } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -68,5 +68,24 @@ describe('the draft recap', () => {
     expect(r.miss).toBeNull()
     expect(r.xiRating).toBeNull()
     expect(r.picks).toBeGreaterThanOrEqual(11)
+  })
+
+  it("prints the recap's own grade in the share line, for the quick modes only, without touching the game", () => {
+    for (const seed of ['recap-share-1', 'recap-share-2', 'recap-share-3']) {
+      const g = createGame(quick(seed))
+      autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+      const get = playerLookup(g, u)
+      const before = JSON.stringify(g)
+      const line = draftGradeLine(g, u, get)
+      expect(JSON.stringify(g)).toBe(before)
+      expect(line).toBe(`Draft grade ${draftRecap(u, g.draft!, get, true).grade}`)
+      expect(line).toMatch(/^Draft grade [ABCD]$/)
+      for (const mode of ['daily', 'weekly'] as const) expect(draftGradeLine({ ...g, settings: { ...g.settings, mode } }, u, get)).toBe(line)
+      for (const mode of ['season', 'dynasty', 'arena', 'runin'] as const) expect(draftGradeLine({ ...g, settings: { ...g.settings, mode } }, u, get)).toBeNull()
+      expect(draftGradeLine({ ...g, draft: null }, u, get)).toBeNull()
+    }
+    // An empty draft has nothing graded
+    const fresh = createGame(quick('recap-share-empty'))
+    expect(draftGradeLine(fresh, u, playerLookup(fresh, u))).toBeNull()
   })
 })

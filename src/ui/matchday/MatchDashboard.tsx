@@ -33,7 +33,7 @@ import { cueTimes, goalHolds } from '../match/possession'
 import { samplePlayers } from '../match/heat'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
-import { emptyDraft, type StopDraft } from './controls'
+import { emptyDraft, highlightedMan, nextSelection, type StopDraft } from './controls'
 import { ActiveDrawer } from './drawers/Drawers'
 import { useManagerHand } from './useManagerHand'
 import { elsewhereLines, resumeMinute, segmentStart, stopTarget } from './model'
@@ -140,6 +140,11 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const highlights = { level, setLevel, wound: score ? `${Math.max(score.home, score.away)}-${Math.min(score.home, score.away)}` : null, fast: boost > 1, keyMoments, setKeyMoments }
 
   const [selected, setSelected] = useState<string | null>(null)
+  // A tap on a man picks him out on the pitch and the formation panels; a second tap lets him go. Keyboard focus on a
+  // strip card previews him the same way until the focus moves on (display only)
+  const select = useCallback((psId: string) => setSelected((s) => nextSelection(s, psId)), [])
+  const [focused, setFocused] = useState<string | null>(null)
+  const highlight = highlightedMan(selected, focused)
   const friendly = !!ref.friendly
   const [slots, setSlots] = useState<SlotChoices>(() => resolveSlots(readChoices(), friendly))
   const show = useCallback((slot: SlotId, id: WidgetId) => {
@@ -154,7 +159,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const scores = useMemo(() => latestScores(game, u, ref, minute, whistle), [game, u, ref, minute, whistle])
   const table = useMemo(() => liveTable(game, u, ref, minute, scoreAt(feed.events, minute), userSide !== 'away', whistle), [game, u, ref, minute, feed.events, userSide, whistle])
 
-  const d: MatchdayData = { mode: live ? 'live' : 'replay', feed, mpath, series, samples, story, commentary, minute, final: whistle, home, away, ratings, userSide, selected, select: setSelected, show, scores, table, ref, ctx, live, game, u, getPlayer: get, getName }
+  const d: MatchdayData = { mode: live ? 'live' : 'replay', feed, mpath, series, samples, story, commentary, minute, final: whistle, home, away, ratings, userSide, selected, highlight, select, show, scores, table, ref, ctx, live, game, u, getPlayer: get, getName }
 
   // The manager's hand on the match in play (the top bar's and the strip's controls use it)
   const control: LiveControl | null = live
@@ -262,6 +267,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
       track={mpath}
       keepers={{ home: keeper, away: keeper }}
       keyMoments={keyMoments && !reduced}
+      highlightId={highlight}
     />
   )
   const momentum = <MomentumBar strip momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />
@@ -286,7 +292,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
         <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingHidden(game.settings.rules, 'squad') }} />
       )
     ) : null
-  const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} hand={hand} name={getName} condition={condition} />
+  const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={select} onFocusMan={setFocused} control={control} hand={hand} name={getName} condition={condition} />
   const banner = <CommentaryBanner d={d} />
   const slot = (id: SlotId) => <Slot key={id} slot={id} id={slots[id]} onChange={(w) => show(id, w)} d={d} compact={compact} />
 
