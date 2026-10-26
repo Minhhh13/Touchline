@@ -1590,6 +1590,17 @@ label.field,
     display: none;
   }
 }
+/* A key name in running text (How it works) */
+kbd {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  padding: 0 5px;
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg-2);
+  color: var(--text);
+}
 /* The opponent's place today on a fixture row */
 .fx-pos {
   flex: none;

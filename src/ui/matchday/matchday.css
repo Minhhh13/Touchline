@@ -493,6 +493,18 @@
 .matchday .md-banner.card {
   border-left-color: var(--gold);
 }
+/* The assistant's line: an --accent edge and a small tag, so it never reads as commentary */
+.matchday .md-banner.assistant {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.matchday .md-assistant-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-right: 4px;
+}
 .matchday .md-banner .min {
   flex: none;
   min-width: 44px;

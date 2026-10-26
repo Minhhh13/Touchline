@@ -146,7 +146,7 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
       </div>
       <div className="md-playback">
         {!clock.finished && (
-          <button className="btn sm" onClick={clock.toggle}>
+          <button className="btn sm" onClick={clock.toggle} title="P pauses and resumes">
             {clock.running ? 'Pause' : 'Resume'}
           </button>
         )}

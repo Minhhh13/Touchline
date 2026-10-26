@@ -27,6 +27,7 @@ import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
 import { matchPath } from '../match/epochs'
 import { useLiveClock } from '../match/clockStore'
+import { isControlTarget } from '../dugoutKeys'
 import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
 import { goalHolds } from '../match/possession'
 import { samplePlayers } from '../match/heat'
@@ -113,6 +114,19 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   useEffect(() => {
     setBoost(boost)
   }, [boost, setBoost])
+  // P pauses and resumes, except while typing or on a focused control
+  const toggleClock = clock.toggle
+  const canToggle = !clock.finished
+  useEffect(() => {
+    if (!canToggle) return
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== 'p' && e.key !== 'P') || e.ctrlKey || e.metaKey || e.altKey || isControlTarget(e.target as HTMLElement | null)) return
+      e.preventDefault()
+      toggleClock()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [canToggle, toggleClock])
   // Leaving the match (or a new segment) never carries a fast-forward over
   useEffect(() => () => useLiveClock.setState({ boost: 1 }), [])
   const score = levelNow.wound ? marginAt(feed.events, clock.clock) : null

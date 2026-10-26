@@ -6,6 +6,7 @@ import { resultFeed, u } from './feeds'
 import { timeline, type LiveClockState } from '../match/clockStore'
 import { AFTER, boostAt, BUILD_UP, isMoment, levelAt, marginAt, parseLevel, QUIET_BOOST, watchedMinutes } from '../match/highlights'
 import type { MatchEvent } from '@engine/types'
+import { ASSISTANT_HOLD, ASSISTANT_MINUTES, assistantCheckpoint, assistantLine, assistantText } from '../match/assistant'
 
 const get = (id: string) => u.index[id]
 
@@ -118,5 +119,39 @@ describe('highlight levels', () => {
     expect(timeline(s, 1300).t).toBeCloseTo(11)
     expect(timeline({ ...s, boost: 1 }, 1300).t).toBeCloseTo(11)
     expect(timeline({ ...s, boost: QUIET_BOOST }, 1300).t).toBeCloseTo(10 + QUIET_BOOST)
+  })
+})
+
+describe("the assistant's live line", () => {
+  it('shows for a few minutes after 15, 30, 60 and 80 only', () => {
+    expect(assistantCheckpoint(14)).toBeNull()
+    expect(assistantCheckpoint(15)).toBe(15)
+    expect(assistantCheckpoint(15 + ASSISTANT_HOLD - 1)).toBe(15)
+    expect(assistantCheckpoint(15 + ASSISTANT_HOLD)).toBeNull()
+    expect(assistantCheckpoint(45)).toBeNull()
+    expect(assistantCheckpoint(81)).toBe(80)
+  })
+
+  it('picks the xG gap first, then a struggling starter, then their danger man', () => {
+    const p = (name: string, rating: number) => ({ name, rating })
+    expect(assistantText({ xg: { ours: 1.1, theirs: 0.3 }, ours: [p('A Low', 5.5)], theirs: [] }, 30)).toBe("We're on top: xG 1.10 to 0.30. Keep the tempo up.")
+    expect(assistantText({ xg: { ours: 0.2, theirs: 0.9 }, ours: [], theirs: [] }, 30)).toMatch(/^They're making more chances: xG 0\.90 to 0\.20/)
+    expect(assistantText({ xg: { ours: 0.4, theirs: 0.3 }, ours: [p('Bernardo Silva', 6.0), p('X Good', 7)], theirs: [] }, 60)).toBe('Silva is struggling (6.0): one to think about at 70.')
+    expect(assistantText({ xg: { ours: 0.4, theirs: 0.3 }, ours: [p('Bernardo Silva', 6.0)], theirs: [] }, 15)).toBe('Tight so far: xG 0.40 to 0.30. Stay patient.')
+    expect(assistantText({ xg: { ours: 0.4, theirs: 0.3 }, ours: [p('A', 6.8)], theirs: [p('Harry Kane', 7.8), p('B', 6.5)] }, 60)).toBe('Their Kane (7.8) is the one causing problems.')
+  })
+
+  it('reads the match at its checkpoint only: the same line all through the hold, with the xG of that minute', () => {
+    for (let i = 0; i < 6; i++) {
+      const feed = resultFeed(i)
+      const series = statsSeries(feed, get)
+      for (const cp of ASSISTANT_MINUTES) {
+        const first = assistantLine(feed, series, 'home', cp, (id) => u.index[id]?.name)!
+        expect(first.minute).toBe(cp)
+        for (let m = cp; m < cp + ASSISTANT_HOLD; m++) expect(assistantLine(feed, series, 'home', m, (id) => u.index[id]?.name)).toEqual(first)
+        const at = statsAt(series, cp)
+        if (first.text.includes('xG')) expect(first.text).toContain(at.home.xg.toFixed(2))
+      }
+    }
   })
 })
