@@ -92,14 +92,16 @@ export class ScreenBoundary extends Component<{ children: ReactNode; screenKey: 
 }
 
 /**
- * Fetch every screen's chunk one at a time in idle moments, in the order given. Returns a cancel. On a first visit the
+ * Fetch every screen's chunk one at a time in idle moments, in the order given, each within 400 ms even when the page
+ * never goes idle (Home's art keeps a software-rendered page busy): all of them are in within seconds of Home, as
+ * the single bundle was. Returns a cancel. On a first visit the
  * page loads before the service worker takes it, so whatever came in until then is fetched once more through the
  * worker when it does (`cacheLoadedAssets`), from the HTTP cache: the next visit works offline.
  */
 export function prefetchScreens(screens: LazyScreen[]): () => void {
   let stopped = false
   const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
-  const idle = (fn: () => void) => (w.requestIdleCallback ? w.requestIdleCallback(fn, { timeout: 2000 }) : window.setTimeout(fn, 200))
+  const idle = (fn: () => void) => (w.requestIdleCallback ? w.requestIdleCallback(fn, { timeout: 400 }) : window.setTimeout(fn, 200))
   const queue = [...screens]
   const next = () => {
     if (stopped) return
