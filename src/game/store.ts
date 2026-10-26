@@ -3,7 +3,8 @@ import { persist } from 'zustand/middleware'
 import { produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
-import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
+import { loadUniverse as loadRawUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
+import { tidyUniverseNames } from './logic/playerNames'
 import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
 import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
@@ -55,6 +56,11 @@ import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
 import { creditCupRun, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
+
+/** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
+async function loadUniverse(ids: string[]): Promise<LoadedUniverse> {
+  return tidyUniverseNames(await loadRawUniverse(ids)).universe
+}
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'

@@ -5,16 +5,17 @@ import type { PickGrade } from '@game/logic/pickGrades'
 import type { PlayerSeason } from '@engine/types'
 import { countPhrase } from '../screenText'
 import { seasonLabel } from '../format'
+import { Tip } from './bits'
 
 const GRADE_CLASS: Record<PickGrade, string> = { A: 'good', B: 'info', C: 'warn', D: 'bad' }
 const GRADES: PickGrade[] = ['A', 'B', 'C', 'D']
 
 /**
  * The Draft's middle box once every pick is made: the draft's grade and verdict, the grade tally, the best pick, the one
- * that got away and how far the wheel travelled, the Hindsight XI (the best XI the same spins held), then the button on
- * to the next step. Display only (`draftRecap`).
+ * that got away and how far the wheel travelled, and the Hindsight XI (the best XI the same spins held). The button on
+ * to the next step is the left box's, so the screen's main action is in one place. Display only (`draftRecap`).
  */
-export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap; get: (id: string) => PlayerSeason | undefined; slotName: (slotId: string) => string; cta: string; onCta: () => void }) {
+export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: string) => PlayerSeason | undefined; slotName: (slotId: string) => string }) {
   const r = recap
   const best = r.best ? get(r.best.pickedId) : undefined
   const missed = r.miss ? get(r.miss.pickedId) : undefined
@@ -43,6 +44,7 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
           )}
         </div>
       </div>
+      {r.grade && <Tip id="draft-recap">Each pick is graded against the best man his spin held for that slot: A is the best or close to it, D well short. The Hindsight XI is the best XI your spins held; a tick is your pick where you put him, S5 the spin a man came from.</Tip>}
       <div className="recap-cards">
         {r.best && best && (
           <div className="recap-card" data-testid="recap-best">
@@ -90,9 +92,6 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
         </div>
       </div>
       {r.hindsight && <HindsightXI h={r.hindsight} slotName={slotName} />}
-      <button className="btn primary big block recap-go" onClick={onCta} data-testid="recap-go">
-        {cta}
-      </button>
     </div>
   )
 }

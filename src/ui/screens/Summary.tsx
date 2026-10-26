@@ -53,6 +53,7 @@ import { CupRuns } from '../components/CupRuns'
 import { ManagerChip } from '../components/ManagerPick'
 import { caseIconIn, caseLine } from '@game/logic/endCase'
 import { managerLine } from '@game/logic/managers'
+import { draftGradeLine } from '@game/logic/draftRecap'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
@@ -127,6 +128,9 @@ export function Summary() {
   const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES).filter((t) => !(modeLine && t === 'Hard'))
   if (modeLine) extraLines.push(modeLine)
   if (tags.length) extraLines.push(tags.join(' · '))
+  // The draft's grade, as the recap gave it when the last pick was made
+  const gradeLine = draftGradeLine(game, u, get)
+  if (gradeLine) extraLines.push(gradeLine)
   const powerLine = powerUpsShareLine(game.draft)
   if (powerLine) extraLines.push(powerLine)
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${nationName(u, game.settings.rules.onlyNation)}`)
@@ -264,6 +268,7 @@ export function Summary() {
         footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
         // The Treble or a Double in gold under the record
         ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : {}),
+        ...(gradeLine ? { grade: gradeLine } : {}),
         strip: story?.strip,
         moment: story?.moment,
         // A chained draft prints its chain of club codes under the record
