@@ -19,6 +19,7 @@ import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
 import { lockerCount } from '@game/logic/endCase'
 import { AchievementIcon } from '../components/icons'
 import { clubName, ordinal, seasonLabel, tierName } from '../format'
+import { countPhrase } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
@@ -303,14 +304,14 @@ export function ProfileScreen() {
               {badges.map((b) => {
                 const Icon = BADGE_ICON[b.badge.id] ?? Award
                 return (
-                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${b.badge.title}: ${b.value} ${b.badge.counts}`}>
+                  <div key={b.badge.id} className={`badge-tile ${b.value ? '' : 'locked'}`} data-testid="badge" data-tier={b.tier ?? 'none'} title={`${b.badge.title}: ${countPhrase(b.value, b.badge.counts)}`}>
                     <span className={`badge-ring ${b.tier ?? ''}`}>
                       <Icon size={20} aria-hidden="true" />
                     </span>
                     <span>
                       <div className="title">{b.badge.title}</div>
                       <div className="desc">
-                        {b.value} {b.badge.counts}
+                        {countPhrase(b.value, b.badge.counts)}
                       </div>
                       <div className="small muted">{b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress}</div>
                     </span>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Gift } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -72,7 +73,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
             <div className="reel-run item-reel idle" data-testid="case-idle">
               <div className="reel-window" aria-hidden="true">
                 <div className="reel-marker" />
-                <div className="mspin-idle">{revealed ? card.face : '🎁'}</div>
+                <div className="mspin-idle">{revealed ? card.face : <Gift size="1em" aria-hidden="true" />}</div>
               </div>
             </div>
           )}

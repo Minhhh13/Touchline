@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Skull, Smile, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
-import { POWER_UPS, POWER_UPS_ICON, POWER_UP_INFO } from '@engine/powerups'
+import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
 import { InfoTip } from '../components/PowerUpButton'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
@@ -21,6 +22,7 @@ import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, type ChoiceOption, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
+import { MODE_ICON } from '../components/icons'
 import { clubName } from '../format'
 import { dailyStartSettings } from '../../online/daily'
 import { useOnline } from '../../online/state'
@@ -45,29 +47,29 @@ const DEFAULT_TEAM = 'Touchline XI'
 
 const respinWord = (n: number) => (n === 0 ? 'No re-spins' : `${n} re-spin${n === 1 ? '' : 's'}`)
 const DIFFICULTY_OPTIONS: Array<ChoiceOption<DraftDifficulty>> = [
-  { value: 'easy', icon: '🙂', title: 'Easy', line: respinWord(DIFFICULTY_RESPINS.easy) },
-  { value: 'normal', icon: '⚖️', title: 'Normal', line: respinWord(DIFFICULTY_RESPINS.normal) },
-  { value: 'hard', icon: '💀', title: 'Hard', line: `${respinWord(DIFFICULTY_RESPINS.hard)} · blind` },
+  { value: 'easy', icon: Smile, title: 'Easy', line: respinWord(DIFFICULTY_RESPINS.easy) },
+  { value: 'normal', icon: Scale, title: 'Normal', line: respinWord(DIFFICULTY_RESPINS.normal) },
+  { value: 'hard', icon: Skull, title: 'Hard', line: `${respinWord(DIFFICULTY_RESPINS.hard)} · blind` },
 ]
 const RATINGS_SHOWN: Array<ChoiceOption<'on' | 'off'>> = [
-  { value: 'on', icon: '👁️', title: 'On', line: 'See every rating' },
-  { value: 'off', icon: '🙈', title: 'Off', line: 'Names only' },
+  { value: 'on', icon: Eye, title: 'On', line: 'See every rating' },
+  { value: 'off', icon: EyeOff, title: 'Off', line: 'Names only' },
 ]
 const DRAFT_MODE_OPTIONS: Array<ChoiceOption<DraftMode>> = [
-  { value: 'squad', icon: '🎡', title: 'Squad First', line: 'Spin, pick, place' },
-  { value: 'position', icon: '🎯', title: 'Position First', line: 'Pick a slot, then spin' },
+  { value: 'squad', icon: Users, title: 'Squad First', line: 'Spin, pick, place' },
+  { value: 'position', icon: Crosshair, title: 'Position First', line: 'Pick a slot, then spin' },
 ]
 /** Quick Draft bench places: off, or up to five extra picks the season can bring on (three changes, plus injury cover). */
 const BENCH_OPTIONS: Array<{ value: string; label: string }> = [{ value: '0', label: 'Off' }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))]
 /** Quick Draft managers: spin three and pick one, pick one of the real managers of the club-seasons drafted, or play without. */
 const MANAGER_OPTIONS: Array<ChoiceOption<'spin' | 'pick' | 'off'>> = [
-  { value: 'spin', icon: '🎰', title: 'Spin', line: 'Three reels of real managers: pick one' },
-  { value: 'pick', icon: '🧑‍💼', title: 'Pick', line: 'Pick a real manager from the clubs you drafted' },
-  { value: 'off', icon: '🚫', title: 'Off', line: 'No manager: the XI on its own' },
+  { value: 'spin', icon: FerrisWheel, title: 'Spin', line: 'Three reels of real managers: pick one' },
+  { value: 'pick', icon: UserRound, title: 'Pick', line: 'Pick a real manager from the clubs you drafted' },
+  { value: 'off', icon: Ban, title: 'Off', line: 'No manager: the XI on its own' },
 ]
 const RATINGS_MODE_OPTIONS: Array<ChoiceOption<RatingsMode>> = [
-  { value: 'season', icon: '📅', title: 'Season', line: 'As he was that season' },
-  { value: 'prime', icon: '⭐', title: 'Prime', line: 'At his career best' },
+  { value: 'season', icon: Calendar, title: 'Season', line: 'As he was that season' },
+  { value: 'prime', icon: Mountain, title: 'Prime', line: 'At his career best' },
 ]
 
 /** Whether this viewer last left More options open; a private window or blocked storage reads as closed. */
@@ -462,12 +464,12 @@ export function Setup() {
                   <div className="setup-modes" data-testid="modes-panel">
                     <SectionHead title="Modes" info={`Mix and match, or none. ${MODE_CARDS.map((c) => `${MODE_INFO[c].title}: ${MODE_INFO[c].line}.`).join(' ')}`} testId="modes" right={<span className="small muted">{cardsOn.length ? `${cardsOn.length} on` : 'None on'}</span>} />
                     <div className="setup-modes-row">
-                      <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} onToggle={toggleMode} />
+                      <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} icons={MODE_ICON} onToggle={toggleMode} />
                       <div className="pu-setup">
                         <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" title={POWER_UPS.map((k) => `${POWER_UP_INFO[k].icon} ${POWER_UP_INFO[k].title}`).join(' · ')}>
                           <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
-                            {POWER_UPS_ICON}
+                            <Package size="1em" />
                           </span>
                           <span className="ctitle">Power-ups</span>
                           <span className="cline">{powerUps ? 'On: six one-use boosts' : 'Six one-use boosts'}</span>
@@ -478,7 +480,7 @@ export function Setup() {
                         <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" title="A power-up for your locker, or a rare Icon for this XI">
                           <input type="checkbox" className="sr-only" checked={endCase} onChange={(e) => setEndCase(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
-                            🎁
+                            <Gift size="1em" />
                           </span>
                           <span className="ctitle">End case</span>
                           <span className="cline">{endCase ? 'On: one case after the draft' : 'One case after the draft'}</span>
@@ -489,13 +491,13 @@ export function Setup() {
                       <div className="pu-setup">
                         <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" title="Moneyball: every player carries a price by rating and position, and the draft may not spend more than the cap">
                           <input type="checkbox" className="sr-only" checked={capOn} onChange={(e) => setCapChoice({ ...cap, preset: e.target.checked ? 'moneyball' : 'off' })} />
-                          <span className="micon" aria-hidden="true">£</span>
+                          <span className="micon" aria-hidden="true"><PoundSterling size="1em" /></span>
                           <span className="ctitle">Moneyball</span>
                           <span className="cline">{capOn && capCard !== undefined ? `${capTotal(capCard)} cap · ${CAP_PRESETS.find((p) => p.value === cap.preset)?.label ?? ''}` : 'Draft under a salary cap'}</span>
                         </label>
                         <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" title="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When none is left, the next spin is free and the chain starts again.">
                           <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
-                          <span className="micon" aria-hidden="true">🔗</span>
+                          <span className="micon" aria-hidden="true"><Link size="1em" /></span>
                           <span className="ctitle"><span className="lbl-long">Teammate chain</span><span className="lbl-short">Chain</span></span>
                           <span className="cline">{chain ? 'On: each pick played beside the last' : 'Each pick played beside the last'}</span>
                         </label>
@@ -602,7 +604,7 @@ export function Setup() {
                             <div className="toggle-row">
                               <label className="toggle" data-testid="europe-toggle">
                                 <input type="checkbox" checked={europe} onChange={(e) => pickEurope(e.target.checked)} />
-                                🌍 European Nights
+                                <MapIcon size={14} aria-hidden="true" /> European Nights
                               </label>
                               <InfoTip label="European Nights" text={`The wheel draws from all ${u.available.length} leagues, not just yours.`} />
                             </div>
@@ -634,7 +636,7 @@ export function Setup() {
                                     if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                                   }}
                                 />
-                                🏆 Continental Cup
+                                <Globe size={14} aria-hidden="true" /> Continental Cup
                               </label>
                               <InfoTip label="Continental Cup" text={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'} />
                             </div>

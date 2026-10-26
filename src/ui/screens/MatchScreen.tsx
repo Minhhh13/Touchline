@@ -3,7 +3,7 @@ import { ArrowLeftRight, Bandage, ImageDown } from 'lucide-react'
 import { BoxesMenu, useBoxes, type Boxes } from '../components/Boxes'
 import { REPORT } from '../boxSets'
 import { useStore } from '@game/store'
-import { Bar, ClubBadge, Rating, Tabs, Tip } from '../components/bits'
+import { Bar, ClubBadge, Rating, Tabs, TeamBadge, Tip } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import type { PitchSide } from '../components/LivePitch'
 import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../components/MatchCharts'
@@ -262,7 +262,7 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
     <div className="report-dash">
       <div className="scoreboard report-board">
         <div className="team">
-          {res.homeTeamId !== USER_TEAM && <ClubBadge clubId={res.homeTeamId.replace(/^friendly-/, '')} size={34} />}
+          {res.homeTeamId !== USER_TEAM ? <ClubBadge clubId={res.homeTeamId.replace(/^friendly-/, '')} size={34} /> : <TeamBadge code={game?.settings.shortName} size={34} />}
           {homeName}
         </div>
         <div className="col" style={{ alignItems: 'center', gap: 2 }}>
@@ -275,7 +275,7 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
         </div>
         <div className="team away">
           {awayName}
-          {res.awayTeamId !== USER_TEAM && <ClubBadge clubId={res.awayTeamId.replace(/^friendly-/, '')} size={34} />}
+          {res.awayTeamId !== USER_TEAM ? <ClubBadge clubId={res.awayTeamId.replace(/^friendly-/, '')} size={34} /> : <TeamBadge code={game?.settings.shortName} size={34} />}
         </div>
       </div>
 

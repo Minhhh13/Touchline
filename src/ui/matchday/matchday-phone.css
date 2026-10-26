@@ -179,6 +179,15 @@
   .matchday .md-tool {
     padding: 5px 9px;
   }
+  /* A 32 px target for the board's tools and pickers on a phone */
+  .matchday .md-tool,
+  .matchday .md-ment .md-select,
+  .matchday select.md-highlights {
+    min-height: 32px;
+  }
+  .matchday select.md-highlights {
+    height: 32px;
+  }
   .matchday.compact .md-stop-grid {
     grid-template-columns: minmax(0, 1fr);
   }

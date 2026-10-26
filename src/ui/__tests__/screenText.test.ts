@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { developmentLists, modeLabel, shownGames, versusReal } from '../screenText'
+import { countPhrase, developmentLists, modeLabel, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -41,5 +41,17 @@ describe('development report lists', () => {
     expect(developmentLists('Improving: V. van Dijk 80→81, Rodri 85→86. Fading: J. Milner 74→73.')).toEqual({ improving: ['V. van Dijk 80→81', 'Rodri 85→86'], fading: ['J. Milner 74→73'] })
     expect(developmentLists('Fading: A. B. Cole 70→69.')).toEqual({ improving: [], fading: ['A. B. Cole 70→69'] })
     expect(developmentLists('Something else entirely.')).toBeNull()
+  })
+
+  it('makes a badge count singular for one, the first plural word only', () => {
+    expect(countPhrase(0, 'league titles')).toBe('0 league titles')
+    expect(countPhrase(1, 'league titles')).toBe('1 league title')
+    expect(countPhrase(1, 'leagues won in')).toBe('1 league won in')
+    expect(countPhrase(1, 'cups, season and arena')).toBe('1 cup, season and arena')
+    expect(countPhrase(1, 'different clubs titled')).toBe('1 different club titled')
+    expect(countPhrase(1, 'arena wins on Realistic over 85+ sides')).toBe('1 arena win on Realistic over 85+ sides')
+    expect(countPhrase(1, 'run-in briefs met')).toBe('1 run-in brief met')
+    expect(countPhrase(1, '100-point seasons')).toBe('1 100-point season')
+    expect(countPhrase(2, 'rungs in your best Gauntlet')).toBe('2 rungs in your best Gauntlet')
   })
 })

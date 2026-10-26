@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { Dice5, X, type LucideIcon } from 'lucide-react'
 import { seasonStop } from '@engine/era'
 import { randomTeamName } from '@game/logic/teamNames'
 import { seasonLabel } from '../format'
@@ -9,8 +10,8 @@ export interface ChoiceOption<T extends string> {
   title: string
   /** One short line under the title. */
   line: string
-  /** An icon above the title. */
-  icon?: string
+  /** A Lucide icon beside (or above) the title, never an emoji (DESIGN_SYSTEM.md section 7). */
+  icon?: LucideIcon
 }
 
 /** A row of option cards, one of them chosen: the setup screen's Difficulty, Show ratings, Draft mode and Player ratings. */
@@ -21,7 +22,7 @@ export function ChoiceCards<T extends string>({ label, options, value, onChange,
         <button key={o.value} type="button" role="radio" aria-checked={o.value === value} className={`choice-card ${o.value === value ? 'active' : ''}`} disabled={disabled} onClick={() => onChange(o.value)} data-value={o.value} title={o.line}>
           {o.icon && (
             <span className="cicon" aria-hidden="true">
-              {o.icon}
+              <o.icon size="1em" />
             </span>
           )}
           <span className="ctitle">{o.title}</span>
@@ -66,10 +67,12 @@ export function TeamNameField({ label = 'Team name', value, onChange, fallback, 
           title="Clear"
           data-testid={`${testId}-clear`}
         >
-          ✕<span className="name-btn-label">Clear</span>
+          <X size="1em" aria-hidden="true" />
+          <span className="name-btn-label">Clear</span>
         </button>
         <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={`Random ${label.toLowerCase()}`} title="Randomise" data-testid={`${testId}-random`}>
-          🎲<span className="name-btn-label">Randomise</span>
+          <Dice5 size="1em" aria-hidden="true" />
+          <span className="name-btn-label">Randomise</span>
         </button>
       </div>
     </div>
@@ -100,15 +103,16 @@ export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]
  * The Quick Draft's Modes row: icon cards that switch on and off, several at once. What a tap does to the others (Hard
  * linked to the difficulty, Underdog and Legends exclusive) is the caller's `toggleModeCard`; this only renders.
  */
-export function ModeCards<T extends string>({ cards, on, info, onToggle }: { cards: readonly T[]; on: readonly T[]; info: Record<T, { icon: string; title: string; line: string }>; onToggle: (card: T) => void }) {
+export function ModeCards<T extends string>({ cards, on, info, icons, onToggle }: { cards: readonly T[]; on: readonly T[]; info: Record<T, { icon: string; title: string; line: string }>; icons?: Record<T, LucideIcon>; onToggle: (card: T) => void }) {
   return (
     <div className="qmode-row" role="group" aria-label="Modes" data-testid="modes">
       {cards.map((c) => {
         const active = on.includes(c)
+        const Icon: LucideIcon | undefined = icons?.[c]
         return (
           <button key={c} type="button" className={`qmode ${active ? 'active' : ''}`} aria-pressed={active} onClick={() => onToggle(c)} data-testid={`mode-${c}`} title={info[c].line}>
             <span className="micon" aria-hidden="true">
-              {info[c].icon}
+              {Icon ? <Icon size="1em" /> : info[c].icon}
             </span>
             <span className="ctitle">{info[c].title}</span>
             <span className="cline">{info[c].line}</span>
