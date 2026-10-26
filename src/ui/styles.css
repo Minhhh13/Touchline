@@ -4102,6 +4102,37 @@ table.tbl.contracts .btn.sm {
     animation: none !important;
   }
 }
+/* Reduced motion, continued: hover and press transitions and an entrance the block above did not reach (a more
+   specific rule's own animation shorthand outranks it, as the other side's goal banner did) */
+@media (prefers-reduced-motion: reduce) {
+  .prow,
+  .pitch-wrap .slot .disc,
+  .reel-sound,
+  .udial,
+  .udial-win,
+  .tabs button,
+  .mode-art .neon-halo,
+  .mode-art .neon-core,
+  .mode-go,
+  .mode-go svg,
+  .mode-card-body .mode-text,
+  .qmode,
+  .jw-option,
+  .pu-btn,
+  .boxes-btn .boxes-chevron {
+    transition: none;
+  }
+  .qmode.active,
+  .jw-option:hover,
+  .jw-option:focus-visible,
+  .pu-btn:hover:not(:disabled) {
+    transform: none;
+  }
+  .goal-burst.theirs .banner,
+  .matchday .md-banner.key .txt {
+    animation: none;
+  }
+}
 
 /* ------------------------------------------------------------------ misc */
 .tier-banner {
