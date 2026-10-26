@@ -7,8 +7,9 @@ import { randomSeed } from '@engine/rng'
 import { arenaAgainSettings } from '@game/logic/arenaDaily'
 import { USER_TEAM } from '@engine/season'
 import { arenaBanner, arenaClubName, arenaClubShortName, arenaShareInput, cupWinnerName, gauntletLines, isBigCup, rungMark } from '@game/logic/arena'
-import { cupRoundCount, cupRoundName } from '@engine/cup'
+import { cupRoundCount } from '@engine/cup'
 import { Bracket } from '../components/Bracket'
+import { arenaBracketView } from '@game/logic/bracket'
 import { modeLabel, shareCardFooter } from '@game/logic/modes'
 import { playerLookup } from '@game/logic/players'
 import { Pitch } from '../components/Pitch'
@@ -277,10 +278,9 @@ export function ArenaSummary() {
           <div className="panel" data-testid="arena-bracket">
             <h3>The draw · {size} clubs</h3>
             <Bracket
-              rounds={Array.from({ length: cupRoundCount(size) }, (_, r) => cupRoundName(size, r).name)}
-              ties={a.bracket.rounds}
+              view={arenaBracketView(size, a.bracket.rounds)}
               nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
-              badgeOf={(k) => (k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k))}
+              badge={(k) => <ClubBadge clubId={k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k)} size={18} />}
               userId={USER_TEAM}
               seeds={a.bracket.seeds}
             />

@@ -1,0 +1,47 @@
+/**
+ * The pace of a cup run's reveal in its bracket (`components/CupNight.tsx`): the store has already played every tie,
+ * this only says how long each one waits before its score shows. The user's own tie gets its moment ("In play"), a
+ * hold after it lands, and a short pause opens each new round (the draw); once the user is out the rest of the cup
+ * runs through quickly. Presentation only, pure and tested; nothing here reads the game's RNG.
+ */
+import { USER_TEAM } from '@engine/season'
+import { inTie, tieAtStep, type BracketView } from '@game/logic/bracket'
+
+/** Milliseconds: a tie of the field, one once the user is out, the user's tie in play, the hold after it, a new round's draw. */
+export const CUP_REVEAL = { step: 240, fast: 140, live: 1000, hold: 600, round: 450 } as const
+
+function isMine(view: BracketView, at: { round: number; tie: number } | null, userId: string): boolean {
+  return !!at && inTie(view.rounds[at.round].ties[at.tie], userId)
+}
+
+/** Whether a tie the user lost is among the first `n` revealed. */
+export function userOutBy(view: BracketView, steps: number[][], n: number, userId: string = USER_TEAM): boolean {
+  for (let i = 0; i < n; i++) {
+    const at = tieAtStep(steps, i)
+    if (!at) break
+    const t = view.rounds[at.round].ties[at.tie]
+    if (inTie(t, userId) && t.winner !== undefined && t.winner !== userId) return true
+  }
+  return false
+}
+
+/** How long step `n` waits before its tie is shown; 0 past the end. */
+export function revealDelay(view: BracketView, steps: number[][], n: number, userId: string = USER_TEAM): number {
+  const here = tieAtStep(steps, n)
+  if (!here) return 0
+  const prev = n > 0 ? tieAtStep(steps, n - 1) : null
+  const ms = isMine(view, here, userId) ? CUP_REVEAL.live : isMine(view, prev, userId) ? CUP_REVEAL.hold : userOutBy(view, steps, n, userId) ? CUP_REVEAL.fast : CUP_REVEAL.step
+  return ms + (prev && prev.round !== here.round ? CUP_REVEAL.round : 0)
+}
+
+/** The whole reveal's length in ms (what Skip saves). */
+export function revealLength(view: BracketView, steps: number[][], userId: string = USER_TEAM): number {
+  let total = 0
+  for (let n = 0; tieAtStep(steps, n); n++) total += revealDelay(view, steps, n, userId)
+  return total
+}
+
+/** The user's tie is the one in play at step `n` (the moment before its score lands). */
+export function userInPlay(view: BracketView, steps: number[][], n: number, userId: string = USER_TEAM): boolean {
+  return isMine(view, tieAtStep(steps, n), userId)
+}

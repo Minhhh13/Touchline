@@ -653,6 +653,27 @@ export interface QuickCupTie {
 export interface QuickCupRun {
   ties: QuickCupTie[]
   reached: QuickCupReach
+  /**
+   * Every tie of every round, first round to final, in the order drawn: the whole bracket for the summary. The rounds
+   * after the user went out are played on from the same fork, after every draw the run itself took, so no result moves.
+   * Absent on runs played before the bracket (the summary then shows the user's path alone).
+   */
+  bracket?: QuickBracketTie[][]
+}
+
+/** One tie of a post-season cup's bracket. Sides are club ids, or `USER_TEAM` for the user. */
+export interface QuickBracketTie {
+  home: string
+  away: string
+  /** Goals over the whole tie, extra time included. */
+  hg: number
+  ag: number
+  /** The tie went to extra time after a draw over ninety minutes. */
+  et?: true
+  /** The shoot-out, after a draw over 120 minutes. */
+  pens?: { home: number; away: number }
+  /** The side that went through. */
+  winner: string
 }
 
 export interface QuickEuropeRun {
@@ -786,4 +807,26 @@ export interface Cabinet {
   rebuilt?: boolean
   /** Ids of the last results credited (`resultId`), newest last, so a result that missed a full top 50 is not credited again. */
   recent?: string[]
+  /**
+   * The honours board: every Treble and Double season, newest first (at most `HONOURS_CAP`), one entry per season with
+   * its best honour. Optional (absent on cabinets before the bracket); read with `??`, filled by `normaliseCabinet`.
+   */
+  honours?: HonourEntry[]
+}
+
+/** A Treble (league, Cup and Continental Cup) or a Double (the league and one cup), on the Trophy Room's honours board. */
+export interface HonourEntry {
+  /** The season's result id (`resultId`): a Double that becomes a Treble replaces its own entry. */
+  id: string
+  kind: 'treble' | 'double'
+  /** The cups won beside the league. */
+  cups: Array<'cup' | 'continental'>
+  teamName: string
+  mode: Mode
+  leagueId: string
+  leagueSeason: number
+  /** A Quick Draft season in the Super League (its league is no real one). */
+  superLeague?: true
+  /** The day it was won, YYYY-MM-DD. */
+  date?: string
 }

@@ -77,6 +77,8 @@ export function SeasonPlayback() {
   const benchOn = quickBenchRule(game) && !!game.draft && game.draft.bench.length > 0
   // The Boxes control: the panes left on show (the January window, a decision, keeps its pane)
   const boxes = allBoxes.only(['games', 'table', 'chart', ...(benchOn ? ['bench'] : [])])
+  // The bench shares the third column with the chart: that column takes a little more width, so the pitch can sit beside the bench
+  const benchShown = benchOn && boxes.on('bench')
   const panes = { list: boxes.on('games'), table: boxes.on('table'), chart: janOpen || boxes.on('chart') || (benchOn && boxes.on('bench')) }
   const paneIds = (['list', 'table', 'chart'] as const).filter((t) => panes[t])
   const wanted = tabState.at === at ? tabState.tab : janOpen ? 'chart' : tabState.tab
@@ -85,10 +87,10 @@ export function SeasonPlayback() {
   const pbGrid = boxes.grid([
     { track: 'minmax(0, 1fr)', ids: ['games'] },
     { track: 'minmax(0, 1fr)', ids: ['table'] },
-    { track: 'minmax(0, 1fr)', ids: janOpen ? [] : ['chart', 'bench'] },
+    { track: benchShown ? 'minmax(0, 1.25fr)' : 'minmax(0, 1fr)', ids: janOpen ? [] : ['chart', 'bench'] },
   ])
   return (
-    <div className="page fit" data-testid="season-playback">
+    <div className="page fit pb-page" data-testid="season-playback">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{j && pb.done ? 'January' : 'The season'}</h1>
@@ -149,7 +151,7 @@ export function SeasonPlayback() {
           </button>
         ))}
       </div>
-      <div className={`fit-grid c3 pb-grid ${pbGrid.className}`} style={pbGrid.style} data-tab={tab}>
+      <div className={`fit-grid c3 pb-grid ${benchShown ? 'pb-bench' : ''} ${pbGrid.className}`} style={pbGrid.style} data-tab={tab}>
         {panes.list && (
         <div className="fit-cell" data-pane="list">
           <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title="Game by game" onHighlights={watch} />
@@ -167,8 +169,8 @@ export function SeasonPlayback() {
         {panes.chart && (
         <div className="fit-cell fit-col" data-pane="chart">
           {j && pb.done && <JanuaryWindow key={j.listings.map((l) => l.playerSeasonId).join()} game={game} u={u} j={j} />}
-          {boxes.on('chart') && <PositionChart series={series} rivals={rivals} teams={teams} games={total} />}
-          {benchOn && boxes.on('bench') && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
+          {boxes.on('chart') && <PositionChart series={series} rivals={rivals} teams={teams} games={total} fill />}
+          {benchShown && <BenchPanel game={game} u={u} results={results} revealed={pb.revealed} onChoose={pb.pause} />}
         </div>
         )}
       </div>
@@ -200,7 +202,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
   const canPlay = canPlayFor(game)
   const targets = choosing && chosenP ? formation.slots.filter((s) => view.lineup[s.id] && canPlay(chosenP, s.position)).map((s) => s.id) : []
   return (
-    <div className="panel col" data-testid="bench-panel">
+    <div className="panel col bench-panel" data-testid="bench-panel">
       <div className="panel-head">
         <h3>{view.next === null ? 'The XI and the bench' : `For matchweek ${view.next}`}</h3>
         <span className={`chip ${view.changesLeft ? '' : 'warn'}`} data-testid="changes-left">
@@ -208,7 +210,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
         </span>
       </div>
       <div className="grid two bench-grid">
-        <div className={choosing ? '' : 'pitch-mini'} {...(choosing ? {} : { inert: true })}>
+        <div className={`bench-pitch ${choosing ? '' : 'pitch-mini'}`} {...(choosing ? {} : { inert: true })}>
           <Pitch formation={formation} lineup={fielded} getPlayer={get} hideRatings={hide} eligibleSlots={targets} onSlotClick={choosing ? (slotId) => { benchChange(revealed, slotId, inId!); setInId(null) } : undefined} />
         </div>
         <div className="col" style={{ gap: 6 }}>

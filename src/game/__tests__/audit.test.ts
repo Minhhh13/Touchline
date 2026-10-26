@@ -21,8 +21,9 @@ import { runQuickSeason } from '../logic/quick'
 import { storyForGame } from '../logic/story'
 import { modeLabel } from '../logic/modes'
 import { arenaVerdictOf, challengeHeadline } from '../logic/arenaClaim'
-import type { Cabinet, Game, GameSettings, Profile } from '../types'
-import { creditH2H, creditH2HOnline, emptyCabinet, normaliseCabinet } from '../logic/cabinet'
+import type { Cabinet, Game, GameSettings, Profile, QuickCupRun } from '../types'
+import { creditH2H, creditH2HOnline, emptyCabinet, fileHonour, normaliseCabinet } from '../logic/cabinet'
+import { quickCupBracket } from '../logic/bracket'
 import { maskedView, setAssignment, setRecruitFocus } from '../logic/scouting'
 import { contractDemand } from '../logic/contracts'
 import { requestOptions } from '../logic/board'
@@ -215,6 +216,17 @@ describe('audit fixes: season and squad', () => {
     expect(cab.h2hOnline).toEqual({ played: 0, won: 0 })
     expect(cab.h2h.played).toBe(2)
     expect(creditH2HOnline(oldCabinet as unknown as Cabinet, true).h2hOnline).toEqual({ played: 1, won: 1 })
+    // Nor an honours board before the cup brackets: it reads empty, and a Treble files the first entry
+    delete oldCabinet.honours
+    expect(normaliseCabinet(oldCabinet as Partial<Cabinet>).honours).toEqual([])
+    expect(fileHonour(oldCabinet as unknown as Cabinet, { id: 'g-1', kind: 'treble', cups: ['cup', 'continental'], teamName: 'Old XI', mode: 'quick', leagueId: 'england', leagueSeason: 2025 }).honours).toHaveLength(1)
+    // A post-season cup run from before the bracket keeps no bracket: the summary shows the user's own ties alone
+    const oldRun: QuickCupRun = { ties: [{ round: 'R16', opponentId: 'arsenal', home: true, gf: 2, ga: 1, scorers: [], won: true }, { round: 'QF', opponentId: 'chelsea', home: false, gf: 0, ga: 1, scorers: [], won: false }], reached: 'QF' }
+    const oldQuick = normaliseGame({ ...n, quickResult: { ...(n.quickResult ?? {}), cup: oldRun } } as unknown as Game)!
+    expect(oldQuick.quickResult!.cup!.bracket).toBeUndefined()
+    const path = quickCupBracket(oldQuick.quickResult!.cup!, 'cup')
+    expect(path.pathOnly).toBe(true)
+    expect(path.rounds.map((r) => r.ties.length)).toEqual([1, 1, 0, 0])
   })
 
   it('a quick save from before Season Story opens and still tells its story', () => {
