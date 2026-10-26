@@ -14421,3 +14421,46 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+/* The Dugout on a phone: its own small controls reach 44 px too (the tables' selects, the roles' selects, the squad
+   views, a small button's width), a player's name link grows an invisible target, and at 200 % text the squad's
+   toolbar, the role pickers and the planner's need chips give way rather than run past the window */
+@media (max-width: 720px) {
+  .input.sm,
+  table.tbl select.input.sm,
+  .role-pick select.input,
+  .segmented.squad-views-seg button {
+    min-height: 44px;
+  }
+  .btn.sm {
+    min-width: 44px;
+  }
+  .link-btn {
+    position: relative;
+  }
+  .link-btn::after {
+    content: '';
+    position: absolute;
+    inset: -10px -2px;
+  }
+  .panel-head > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .role-pick,
+  .role-pick select.input {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .row.between:has(> .chip.warn) {
+    flex-wrap: wrap;
+  }
+  .row.between > .chip.warn {
+    white-space: normal;
+    max-width: 100%;
+  }
+  /* The checklist's lines sit close: its Info buttons are drawn at 24 px so their own box clears WCAG 2.5.8 */
+  .briefing .brief .info-btn {
+    width: 24px;
+    height: 24px;
+  }
+}
