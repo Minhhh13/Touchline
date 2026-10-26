@@ -14440,7 +14440,12 @@ html {
   .link-btn::after {
     content: '';
     position: absolute;
-    inset: -10px -2px;
+    inset: -12px -2px;
+  }
+  .skip-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
   .panel-head > * {
     min-width: 0;
