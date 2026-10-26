@@ -7,7 +7,7 @@
  */
 
 /** The boxes that may scroll inside themselves. A new self-scrolling box either holds a control or joins this list. */
-export const SCROLL_BOXES = '.tbl-wrap, .screen-body, .draft-log, .case-odds, .md-table, .md-slot-body, .rp-goals, .fit-cell, .fit-scroll, .tab-body, .summary-body, table.tbl'
+export const SCROLL_BOXES = '.tbl-wrap, .screen-body, .draft-log, .case-odds, .md-table, .md-slot-body, .rp-goals, .fit-cell, .fit-scroll, .tab-body, .summary-body, table.tbl, .gbg-list'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
 

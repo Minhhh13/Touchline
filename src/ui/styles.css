@@ -14311,3 +14311,8 @@ details.opposition {
 .app > .page#main:focus {
   outline: none;
 }
+/* The Gauntlet's rungs still ahead: a dashed outline, not a fade (60% opacity took the numbers under 4.5:1) */
+.chip.rung-ahead {
+  border-style: dashed;
+  background: transparent;
+}
