@@ -102,7 +102,7 @@ export function Setup() {
   const [draftDifficulty, setDraftDifficulty] = useState<DraftDifficulty>(modeBase.difficulty ?? 'normal')
   const [showRatings, setShowRatings] = useState(true)
   const [draftMode, setDraftMode] = useState<DraftMode>('squad')
-  const [ratingsMode, setRatingsMode] = useState<RatingsMode>('season')
+  const [ratingsMode, setRatingsMode] = useState<RatingsMode>('prime')
   const [eraPreset, setEraPreset] = useState<EraPreset>('all')
   const [customEra, setCustomEra] = useState<[number, number] | null>(null)
   // Classic seasons (1992-93 to 2007-08, estimated ratings): off unless asked for, never on the Daily
