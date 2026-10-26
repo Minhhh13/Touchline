@@ -4,6 +4,7 @@ import { UPGRADE_BOOSTS, upgradeChance, upgradeGain, upgradeLoss, type UpgradeBo
 import type { Tier } from '@game/logic/rarity'
 import { Modal, Pos } from './bits'
 import { POWER_UP_INFO } from '@engine/powerups'
+import { PowerUpIcon } from './icons'
 import { PowerUpButton } from './PowerUpButton'
 import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound/synth'
 import { quickSpinPref, usePref } from '../viewerPrefs'
@@ -314,9 +315,20 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
  * the store's (`upgradePlayer`); the stage only shows the odds the engine uses (`upgradeChance`) and spins the dial
  * onto the roll the engine made.
  */
-export function Upgrader({ players, ratingOf, available, result, hideRatings, onConfirm, tray, lockedId }: { players: PlayerSeason[]; ratingOf: (id: string) => number; available: boolean; result: UpgradeShown | null | undefined; hideRatings: boolean; onConfirm: (id: string, boost: UpgradeBoost) => void; /** In the power-up tray: a tray button instead of a panel. */ tray?: boolean; /** The player under the Lock power-up, whose loss costs nothing. */ lockedId?: string | null }) {
-  const [open, setOpen] = useState(false)
+export function Upgrader({ players, ratingOf, available, result, hideRatings, onConfirm, tray, lockedId, turn = '', onRolling }: { players: PlayerSeason[]; ratingOf: (id: string) => number; available: boolean; result: UpgradeShown | null | undefined; hideRatings: boolean; onConfirm: (id: string, boost: UpgradeBoost) => void; /** In the power-up tray: a tray button instead of a panel. */ tray?: boolean; /** The player under the Lock power-up, whose loss costs nothing. */ lockedId?: string | null; /** The draft turn (`draftTurnKey`): the sheet shows only on the turn it was opened on. */ turn?: string; /** The dial is turning in the open sheet. */ onRolling?: (rolling: boolean) => void }) {
+  // The turn the sheet was opened on; a later turn (a pick, a Speedrun timeout) closes it
+  const [openOn, setOpenOn] = useState<string | null>(null)
+  const open = openOn !== null && openOn === turn
+  const setOpen = (on: boolean) => setOpenOn(on ? turn : null)
   const [rolling, setRolling] = useState(false)
+  const rollingCb = useRef(onRolling)
+  useLayoutEffect(() => {
+    rollingCb.current = onRolling
+  })
+  useEffect(() => {
+    rollingCb.current?.(open && rolling)
+  }, [open, rolling])
+  useEffect(() => () => rollingCb.current?.(false), [])
   const resultPlayer = result ? players.find((p) => p.id === result.id) : undefined
   const done = !!result && !rolling
   const summary = result ? (done ? `${resultPlayer?.name ?? 'Your player'}: ${result.won ? `won, +${result.delta}` : result.locked ? 'lost, the lock held' : `lost, ${result.delta}`} (${result.chance}% chance)` : 'The dial is spinning…') : 'Once per draft: gamble +2, +5 or +10 on a drafted player.'
@@ -324,7 +336,7 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
   return (
     <div className={tray ? 'pu-upgrader' : 'panel tight upg-panel'} data-testid="upgrader">
       {tray ? (
-        <PowerUpButton icon={POWER_UP_INFO.upgrader.icon} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? (result.won ? `Won +${result.delta}` : result.locked ? 'Lock held' : `Lost ${result.delta}`) : 'Spinning…') : available ? 'Ready' : 'Draft a player'} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
+        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? (result.won ? `Won +${result.delta}` : result.locked ? 'Lock held' : `Lost ${result.delta}`) : 'Spinning…') : available ? 'Ready' : 'Draft a player'} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
       ) : (
         <div className="row between">
           <div>

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Formation, PlayerSeason, SquadPlayer } from '@engine/types'
 import { describeFit } from '@engine/positions'
-import { discRating } from '@game/logic/slotSheet'
+import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { FIT_AMBER, FIT_RED, fitRingColour } from '../format'
 import { surname } from '../match/shirts'
 import { labelRoom } from '../matchday/model'
+import { isActivationKey } from '../a11y'
 
 /** Rough text widths (px per character) of the slot label and its role line (both 11px), to pick a form that fits. */
 const NAME_CH = 6.4
@@ -75,8 +76,9 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const st = id && getState ? getState(id) : undefined
         const eligible = eligibleSlots?.includes(slot.id)
         const warn = !!(st && (st.injury || st.suspension > 0))
-        // The slot picker lists the same number (discRating), so the sheet and the disc agree
-        const eff = p ? discRating(p, slot.position) : 0
+        // The number in this slot (overall less the out-of-position cost): the slot pickers lead with the same one, so they agree
+        const rated = p ? slotRating(p, slot.position) : null
+        const eff = rated?.inSlot ?? 0
         // Accomplished is a small out-of-position cost (amber, acc.); awkward or worse a big one (red, awk.)
         const fit = p ? describeFit(p, slot.position) : 'natural'
         // The fit colour gives way to the injured/suspended red ring and the selected/eligible highlights; the label still names the fit
@@ -94,9 +96,15 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const name = p ? (p.name.length * NAME_CH <= room ? p.name : surname(p.name)) : ''
         const sub = (role + fitNote).length * SUB_CH <= room ? role : roleCodes?.[slot.id] ?? role
         return (
-          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}` : undefined} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
+          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingLine(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role={onSlotClick ? 'button' : 'img'} tabIndex={onSlotClick ? 0 : undefined} aria-label={`${slot.position} ${p ? `${p.name}${rated && !hideRatings ? `, ${slotRatingLine(rated, slot.position)}` : ''}` : 'empty'}`} onKeyDown={(e) => { if (onSlotClick && isActivationKey(e.key)) { e.preventDefault(); onSlotClick(slot.id) } }}>
             <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
+              {/* Out of position: the cost against his overall, so 84 here and 89 on his card read as one number */}
+              {rated && !hideRatings && rated.cost > 0 && (
+                <span className="disc-cost" style={{ borderColor: fit === 'accomplished' ? FIT_AMBER : FIT_RED }} aria-hidden="true" data-testid="disc-cost">
+                  −{rated.cost}
+                </span>
+              )}
             </div>
             <div className="label">{name}</div>
             {p && (
@@ -116,7 +124,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
 export function PitchLegend() {
   return (
     <div className="pitch-legend" data-testid="pitch-legend">
-      <span>Disc: rating in that slot</span>
+      <span>Disc: rating in that slot · −N: out-of-position cost against his overall</span>
       <span>
         <i className="ring" /> natural
       </span>

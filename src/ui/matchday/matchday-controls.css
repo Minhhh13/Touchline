@@ -672,6 +672,19 @@
   border: 1px solid var(--line);
   min-width: 0;
 }
+/* The stop's choices (team talk, mentality, pressing...) on one row each: four talks wrapped "Fire up" onto a line of
+   its own in a 264 px column at 1280x720; the buttons share the row and give up side padding instead */
+.matchday .md-stop-grid > .col .segmented {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  width: 100%;
+}
+.matchday .md-stop-grid > .col .segmented button {
+  flex: 1 1 auto;
+  padding-inline: 4px;
+  white-space: nowrap;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .matchday .md-drawer {
@@ -693,4 +706,20 @@
 }
 .matchday .md-fast {
   padding: 1px 6px;
+}
+/* Key moments (the camera and the goal replays): one icon button, lit while it is on */
+.matchday .md-moments {
+  flex: none;
+  min-width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+}
+.matchday .md-moments.on {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  background: var(--primary-soft);
 }

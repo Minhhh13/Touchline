@@ -3,12 +3,15 @@ import { persist } from 'zustand/middleware'
 import { produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
-import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
+import { DEFAULT_LEAGUE } from '@engine/universe'
+import { loadLeague, loadPacks as loadRawPacks, warmClassicPacks } from './packs'
+import { tidyUniverseNames } from './logic/playerNames'
 import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
 import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
+import { needsClassic } from './logic/era'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame, normaliseProfile } from './logic/save'
 import { isQuickLike } from './logic/modes'
@@ -53,8 +56,15 @@ import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, cha
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
-import { creditCupRun, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { passQuickCup } from './logic/summaryCall'
+import { leaguesBeforeSkip } from './logic/cupSkip'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
+
+/** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
+async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUniverse> {
+  return tidyUniverseNames(await loadRawPacks(ids, classic)).universe
+}
 
 /** localStorage key the whole game is persisted under. */
 export const SAVE_KEY = 'touchline-save-v1'
@@ -91,6 +101,8 @@ interface Store {
   /** League packs currently merged into `universe`. */
   loadedLeagues: string[]
   loadingLeagues: boolean
+  /** Whether `universe` holds the classic seasons: they load on demand (a classic game, the Classic toggle, Explore), never at start. */
+  classicLoaded: boolean
   screen: Screen
   setupMode: Mode
   /** The format the arena's setup opens on (Home's Cup Final or Gauntlet card); not persisted. */
@@ -119,8 +131,10 @@ interface Store {
 
   loadData: () => Promise<void>
   /** Make sure these league packs are loaded and merged into the universe. */
-  /** Load any of the given leagues not loaded yet. Resolves true when all of them are available. */
-  ensureLeagues: (ids: string[]) => Promise<boolean>
+  /** Load any of the given leagues not loaded yet, with every loaded league's classic seasons when `classic`. Resolves true when all of them are available. */
+  ensureLeagues: (ids: string[], classic?: boolean) => Promise<boolean>
+  /** Load the classic seasons of the loaded leagues; `quiet` drops the toast when they cannot load (a screen that only shows them). */
+  ensureClassic: (quiet?: boolean) => Promise<boolean>
   go: (screen: Screen, mode?: Mode) => void
   /** Open the arena's setup on a format. */
   openArenaSetup: (format: 'cup' | 'gauntlet') => void
@@ -180,7 +194,7 @@ interface Store {
   /** Quick Draft after the league: play the domestic cup or the Continental Cup through (loading every league first for the Continental Cup). Resolves true when it was played. */
   playCup: (comp: QuickCupComp) => Promise<boolean>
   /** Quick Draft after the league: pass on a cup. */
-  skipCup: (comp: QuickCupComp) => void
+  skipCup: (comp: QuickCupComp) => Promise<void>
 
   playFriendly: () => void
   startSeason: () => void
@@ -415,6 +429,7 @@ export const useStore = create<Store>()(
         loadError: null,
         loadedLeagues: [],
         loadingLeagues: false,
+        classicLoaded: false,
         screen: 'home',
         setupMode: 'quick',
         arenaSetupFormat: 'cup',
@@ -437,21 +452,34 @@ export const useStore = create<Store>()(
           set({ loading: true, loadError: null })
           try {
             // The default league must load; whatever the saved game or head-to-head needs on top is best effort.
+            // The classic seasons load only when the saved game opted into them (packs.ts): never on a plain start
             const { game, h2h } = get()
-            const base = await loadUniverse([DEFAULT_LEAGUE])
+            const base = await loadPacks([DEFAULT_LEAGUE], false)
             const gameNeeds = game ? leaguesFor(game, base.available.map((l) => l.id)) : []
             const h2hNeeds = h2h ? [h2h.leagueId ?? DEFAULT_LEAGUE, ...(h2h.wheelLeagues ?? [])] : []
             const extra = [...new Set([...gameNeeds, ...h2hNeeds])].filter((id) => id !== DEFAULT_LEAGUE)
-            const results = await Promise.allSettled(extra.map((id) => fetchLeague(id)))
+            const results = await Promise.allSettled(extra.map((id) => loadLeague(id, false)))
             const failed = extra.filter((_, i) => results[i].status === 'rejected')
             const ids = [DEFAULT_LEAGUE, ...extra.filter((id) => !failed.includes(id))]
-            const u = ids.length > 1 ? await loadUniverse(ids) : base
-            const next: Partial<Store> = { universe: u, loading: false, loadedLeagues: ids }
-            if (failed.length) {
-              const names = failed.map((id) => base.available.find((l) => l.id === id)?.name ?? id).join(', ')
+            const wantClassic = !!game && needsClassic(game)
+            let u = base
+            let classic = false
+            if (wantClassic) {
+              try {
+                u = await loadPacks(ids, true)
+                classic = true
+              } catch {
+                // Parked below, like a game whose league did not load
+              }
+            }
+            if (!classic && ids.length > 1) u = await loadPacks(ids, false)
+            const next: Partial<Store> = { universe: u, loading: false, loadedLeagues: ids, classicLoaded: classic }
+            const classicFailed = wantClassic && !classic
+            if (failed.length || classicFailed) {
+              const names = [...failed.map((id) => base.available.find((l) => l.id === id)?.name ?? id), ...(classicFailed ? ['the classic seasons'] : [])].join(', ')
               next.toast = `Could not load ${names}. Check your connection and reload to get it back.`
               // Never render a game against a half-loaded universe: park it until its leagues load
-              if (game && gameNeeds.some((id) => failed.includes(id))) {
+              if (game && (classicFailed || gameNeeds.some((id) => failed.includes(id)))) {
                 next.game = null
                 next.parked = { ...get().parked, [slotOf(game)]: game }
                 if (get().screen === 'game') next.screen = 'home'
@@ -462,22 +490,46 @@ export const useStore = create<Store>()(
               }
             }
             set(next)
+            // Fetch the classic packs (no parsing) once the start is over, so the service worker has them for an offline Classic draft
+            if (!classic && typeof window !== 'undefined') window.setTimeout(() => warmClassicPacks(ids, u.available), 8000)
           } catch (e) {
             set({ loading: false, loadError: e instanceof Error ? e.message : String(e) })
           }
         },
-        ensureLeagues: (ids) => {
+        ensureLeagues: (ids, classic) => {
           const run = async (): Promise<boolean> => {
+            const withClassic = get().classicLoaded || !!classic
             const missing = ids.filter((id) => !get().loadedLeagues.includes(id))
-            if (!missing.length) return true
+            if (!missing.length && withClassic === get().classicLoaded) return true
             set({ loadingLeagues: true })
             try {
               const all = [...new Set([...get().loadedLeagues, ...missing])]
-              const u = await loadUniverse(all)
-              set({ universe: u, loadedLeagues: all, loadingLeagues: false })
+              const u = await loadPacks(all, withClassic)
+              set({ universe: u, loadedLeagues: all, loadingLeagues: false, classicLoaded: withClassic })
               return true
             } catch (e) {
               set({ loadingLeagues: false, toast: `Could not load league data: ${e instanceof Error ? e.message : String(e)}` })
+              return false
+            }
+          }
+          const result = pendingLoad.then(run, run)
+          pendingLoad = result.catch(() => undefined)
+          return result
+        },
+        ensureClassic: (quiet) => {
+          if (get().classicLoaded) return Promise.resolve(true)
+          if (!quiet) return get().ensureLeagues(get().loadedLeagues, true)
+          // A screen that only shows them: no toast, and the other screens' Start buttons do not wait on it
+          const run = async (): Promise<boolean> => {
+            if (get().classicLoaded) return true
+            const all = get().loadedLeagues
+            try {
+              const u = await loadPacks(all, true)
+              // A league added meanwhile keeps its place: merge again over what is loaded now
+              if (get().loadedLeagues.join() !== all.join()) return false
+              set({ universe: u, classicLoaded: true })
+              return true
+            } catch {
               return false
             }
           }
@@ -509,7 +561,7 @@ export const useStore = create<Store>()(
             set({ toast: `This challenge needs a league this build does not have (${unknown.join(', ')}).` })
             return false
           }
-          if (!(await get().ensureLeagues(needs))) return false
+          if (!(await get().ensureLeagues(needs, !arena && !!payload.s.r.classic))) return false
           const u = get().universe
           if (!u) return false
           // The host must have played that league season, or the quick season would run against the wrong clubs
@@ -562,7 +614,7 @@ export const useStore = create<Store>()(
           const ids = leaguesFor(target, (get().universe?.available ?? []).map((l) => l.id))
           // Load what the game needs before showing it, so the squad is never rendered against a half-loaded universe
           void get()
-            .ensureLeagues(ids)
+            .ensureLeagues(ids, needsClassic(target))
             .then((ok) => {
               // The assistant takes a resumed match's stops only under its own Auto-play, never because the last game had him on
               if (ok) set({ game: target, parked: next, screen: 'game', digest: null, playback: null, liveAuto: assistantTakesStops(target) })
@@ -769,9 +821,19 @@ export const useStore = create<Store>()(
           unlockFromGame()
           return true
         },
-        skipCup: (comp) => {
+        skipCup: async (comp) => {
+          const first = get()
+          if (!first.game || !first.universe) return
+          // The Continental Cup is offered before the other leagues are in (Play loads them): Skip loads them too, or it only toasts
+          const load = leaguesBeforeSkip(first.game, first.universe, comp)
+          if (load.length && !(await get().ensureLeagues(load))) return
           const { game, universe } = get()
           if (!game || !universe) return
+          // A cup on offer can be passed even when its field is not loaded yet (passQuickCup); otherwise say why not
+          if (quickCupStatus(game, universe, comp).state === 'open') {
+            mutate((g, u) => void passQuickCup(g, u, comp))
+            return
+          }
           const problem = quickCupProblem(game, universe, comp)
           if (problem) {
             set({ toast: problem })
@@ -1221,8 +1283,8 @@ export const useStore = create<Store>()(
         },
         h2hFinish: () => {
           const { h2h, universe, profile } = get()
-          if (!h2h || !universe || !h2hComplete(h2h.draft)) return
-          const first = !h2h.result
+          // Played once: a second tap (a double-click before the summary shows) must not replay the season on the moved stream
+          if (!h2h || !universe || !h2hComplete(h2h.draft) || h2h.result) return
           set({
             h2h: produce(h2h, (h) => {
               const rng = Rng.fromState(h.rngState)
@@ -1230,8 +1292,8 @@ export const useStore = create<Store>()(
               h.rngState = rng.getState()
             }),
           })
-          // A hot-seat season leaves one mark in the cabinet, the first time it is played
-          if (first) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
+          // A hot-seat season leaves one mark in the cabinet
+          set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         creditH2HRoom: (won) => {
@@ -1263,7 +1325,7 @@ export const useStore = create<Store>()(
           }
           if (mode === 'park' || (current.phase === 'match' && current.live)) return false
           // Load what the game needs before it becomes active, as resumeGame does
-          if (!(await get().ensureLeagues(leaguesFor(game, (get().universe?.available ?? []).map((l) => l.id))))) return false
+          if (!(await get().ensureLeagues(leaguesFor(game, (get().universe?.available ?? []).map((l) => l.id)), needsClassic(game)))) return false
           const now = get().game
           if (now && slotOf(now) === slot) {
             if (now.phase === 'match' && now.live) return false

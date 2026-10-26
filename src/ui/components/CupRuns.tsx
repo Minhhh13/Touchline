@@ -9,6 +9,7 @@ import { ClubBadge } from './bits'
 import { CupNight } from './CupNight'
 import { ordinal } from '../format'
 import { isSuperLeague, sideNamer } from '@game/logic/superLeague'
+import { summaryMainCall } from '@game/logic/summaryCall'
 
 function CupIcon({ comp, size }: { comp: QuickCupComp; size: number }) {
   const Icon = ICON[comp]
@@ -32,6 +33,8 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
   // An older season's in-league Continental Cup run has its own panel; a finish outside the places says what it needed
   const showEuro = euro.state !== 'none' || euro.reason.startsWith('A top-')
   if ((cup.state === 'none' || isSuperLeague(game.settings)) && !showEuro) return null
+  // One bright call on the summary: the first cup still to play (`summaryMainCall`), the other one secondary
+  const call = summaryMainCall(game, u)
   return (
     <div className="panel col cup-nights" data-testid="cup-nights">
       <div className="sc-head">
@@ -40,14 +43,14 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
       </div>
       <div className="cup-cards">
         {/* The Super League has no domestic cup: only its Continental Cup follows the league */}
-        {!isSuperLeague(game.settings) && <CupCard comp="cup" game={game} u={u} onReveal={onReveal} />}
-        {showEuro && <CupCard comp="continental" game={game} u={u} onReveal={onReveal} />}
+        {!isSuperLeague(game.settings) && <CupCard comp="cup" game={game} u={u} onReveal={onReveal} main={call === 'cup'} />}
+        {showEuro && <CupCard comp="continental" game={game} u={u} onReveal={onReveal} main={call === 'continental'} />}
       </div>
     </div>
   )
 }
 
-function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp, revealing: boolean) => void }) {
+function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp, revealing: boolean) => void; main: boolean }) {
   const { playCup, skipCup, loadingLeagues } = useStore()
   const status = quickCupStatus(game, u, comp)
   const [busy, setBusy] = useState(false)
@@ -90,7 +93,7 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
             {comp === 'cup' ? 'Sixteen of the league’s clubs, one-off ties, extra time and penalties if level, a final at a neutral ground.' : isSuperLeague(game.settings) ? `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place against the next ${QUICK_CUP_ENTRANTS - 1} greatest sides in the data: four knockout rounds to a final.` : `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place among the best sides of the other leagues that season: four knockout rounds to a final.`}
           </p>
           <div className="cup-choice">
-            <button className="btn primary" onClick={() => void play()} disabled={busy || loadingLeagues} data-testid={`cup-${comp}-play`}>
+            <button className={`btn ${main ? 'primary' : ''}`} onClick={() => void play()} disabled={busy || loadingLeagues} data-testid={`cup-${comp}-play`}>
               {busy ? 'Drawing the ties…' : comp === 'cup' ? 'Play the Cup' : 'Play the Continental Cup'}
             </button>
             <button className="btn ghost" onClick={() => skipCup(comp)} disabled={busy} data-testid={`cup-${comp}-pass`}>
@@ -133,7 +136,7 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
         const scorers = scorersLabel(t.scorers)
         return (
           <li key={t.round} className={`gbg-game cup-tie ${o} ${i === 0 ? 'newest' : ''}`} data-testid="cup-tie" data-outcome={o}>
-            <span className={`gbg-badge ${o}`} aria-label={t.won ? 'Through' : 'Out'}>
+            <span className={`gbg-badge ${o}`} role="img" aria-label={t.won ? 'Through' : 'Out'}>
               {o}
             </span>
             <ClubBadge clubId={t.opponentId} size={22} />

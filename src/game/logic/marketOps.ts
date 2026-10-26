@@ -193,6 +193,9 @@ export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: str
   if (game.captainId === playerSeasonId) game.captainId = undefined
   if (game.promisedStart === playerSeasonId) game.promisedStart = undefined
   if (game.markTarget === playerSeasonId) game.markTarget = undefined
+  // A set-piece duty goes with him (the match already skips a taker who is not on the pitch; the Tactics tab and the briefing read it)
+  const sp = game.tactics.setPieces
+  if (sp) for (const k of ['penalties', 'freeKicks', 'corners'] as const) if (sp[k] === playerSeasonId) delete sp[k]
   if (game.dataHub) delete game.dataHub[playerSeasonId]
   // Nobody can buy a player we no longer have
   for (const o of game.window?.offers ?? []) if (o.playerSeasonId === playerSeasonId && o.status === 'open') o.status = 'withdrawn'

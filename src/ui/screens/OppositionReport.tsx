@@ -51,16 +51,20 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
   return (
     <details className="panel opposition" open={startOpen} style={{ marginBottom: 'var(--space-4)' }}>
       <summary className="panel-head">
-        <h3>Opposition report: {club.name}</h3>
+        <h3>
+          Opposition report<span className="opp-of">: {club.name}</span>
+        </h3>
         <span className="small muted">
           {neutral ? 'Neutral' : home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
           <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
         </span>
       </summary>
-      <div className="grid three">
-        <div className="col" style={{ gap: 6 }}>
+      {/* Three columns where the box is wide; in a narrow box (the arena hub's) the notes take the full width under the
+          units and the danger men, so no column runs into the next */}
+      <div className="grid three opp-grid">
+        <div className="col opp-units" style={{ gap: 6 }}>
           <div className="eyebrow">Units</div>
-          <div className="kv">
+          <dl className="kv">
             <dt>Rating</dt>
             <dd>{strength.overall.toFixed(1)}</dd>
             <dt>GK / DEF</dt>
@@ -84,12 +88,12 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
               {injured > 0 && <Bandage size={13} className="ic-injury" aria-hidden="true" />}
               {injured}
             </dd>
-          </div>
+          </dl>
         </div>
-        <div className="col" style={{ gap: 6 }}>
+        <div className="col opp-danger" style={{ gap: 6 }}>
           <div className="eyebrow">Danger men</div>
           {stars.map((p) => (
-            <div key={p.id} className="row" style={{ gap: 8 }}>
+            <div key={p.id} className="row danger-row" style={{ gap: 8 }} data-testid="danger-row">
               <Rating value={p.overall} />
               <span className="danger-name" title={p.name}>{p.name}</span>
               <Pos p={p.positions[0]} />
@@ -101,7 +105,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
             </div>
           ))}
         </div>
-        <div className="col" style={{ gap: 6 }}>
+        <div className="col opp-notes" style={{ gap: 6 }}>
           <div className="eyebrow">Assistant's notes</div>
           <ul className="notes-list small">
             {tips.length ? tips.map((t, i) => <li key={i}>{t}</li>) : <li>Nothing stands out. Play your game.</li>}

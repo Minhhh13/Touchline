@@ -25,6 +25,8 @@ export interface GoalHold {
   key: string
   /** The user's own goal (full celebration), conceded (short and subdued) or neither side is the user's (a full one). */
   tone: 'ours' | 'theirs' | 'neutral'
+  /** Milliseconds at the end of the hold that replay the goal (keyMoments.ts); absent for none. Part of `ms`. */
+  replay?: number
 }
 
 /** Milliseconds from the strike to the ball crossing the line: the score changes then. */
@@ -129,6 +131,14 @@ export function cuePending(cues: number[], cued: number, clock: number, start: n
     if (t >= start) return true
   }
   return false
+}
+
+/** A new anchor at `now` just past the hold the clock is in (Skip replay): the match carries on from the kick-off. Null outside a hold. */
+export function skipHold(s: Anchor, now: number): Pick<LiveClockState, 'at' | 'since' | 'spent'> | null {
+  const p = timeline(s, now)
+  if (!p.hold) return null
+  const h = s.holds[p.hold.index]
+  return { at: h.t, since: now, spent: h.ms }
 }
 
 /** Is this goal still to be revealed (the ball not yet over the line)? */

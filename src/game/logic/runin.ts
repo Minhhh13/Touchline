@@ -171,6 +171,20 @@ export function beginRunIn(game: Game, u: LoadedUniverse): void {
   game.rngState = rng.getState()
 }
 
+/**
+ * The XI a run-in's job will start with, while the reinforcements are still being drafted: the draft's pitch shows the
+ * club's men until the job starts (the picks go to the bench, and `beginRunIn` picks the XI again), so this plays the
+ * same two steps on a copy (the draft into the squad, then `autoPick`) and returns that lineup. Null outside a run-in's
+ * draft or before the first pick. Pure: the game is not touched, and the copy's draw for contract years is thrown away.
+ */
+export function runInProjectedLineup(game: Game, u: LoadedUniverse): Game['lineup'] | null {
+  if (game.settings.mode !== 'runin' || game.phase !== 'draft' || !game.draft || !game.draft.history.some((h) => h.pickedId)) return null
+  const copy = JSON.parse(JSON.stringify(game)) as Game
+  moveDraftToSquad(copy, Rng.fromState(copy.rngState))
+  autoPick(copy, u, false)
+  return copy.lineup
+}
+
 /** The table at the takeover, as the run-in carried it in; null outside a run-in. */
 export function takeoverTable(season: Pick<SeasonState, 'fixtures' | 'ai' | 'carryIn'>): ReturnType<typeof seasonTable> | null {
   if (!season.carryIn) return null

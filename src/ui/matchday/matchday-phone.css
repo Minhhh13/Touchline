@@ -142,6 +142,16 @@
   .matchday.compact .md-crumb .muted {
     display: none;
   }
+  /* The crumb's Boxes control has a taller phone target (styles.css) that the crumb's overflow cut by 5 px: the crumb
+     lets it show, and the label ends in an ellipsis itself ("Matchweek 12 · Derby day · …") */
+  .matchday.compact .md-crumb {
+    overflow: visible;
+  }
+  .matchday.compact .md-crumb > b {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .matchday.compact .md-playback {
     gap: 4px;
   }
@@ -186,6 +196,10 @@
     min-height: 32px;
   }
   .matchday select.md-highlights {
+    height: 32px;
+  }
+  .matchday .md-moments {
+    min-width: 32px;
     height: 32px;
   }
   .matchday.compact .md-stop-grid {

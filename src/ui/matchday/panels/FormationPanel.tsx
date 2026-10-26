@@ -39,11 +39,14 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
           const name = s.psId ? d.getName(s.psId) : undefined
           const rating = s.psId ? d.ratings[s.psId] : undefined
           const selected = !!s.psId && d.selected === s.psId
+          // Picked out from the squad strip (selected, or the keyboard's preview): a ring on his shirt
+          const lit = !!s.psId && d.highlight === s.psId
           return (
             <button
               key={s.slotId}
               type="button"
-              className={`md-man ${s.out ? 'out' : ''} ${selected ? 'selected' : ''}`}
+              className={`md-man ${s.out ? 'out' : ''} ${selected ? 'selected' : ''} ${lit ? 'lit' : ''}`}
+              data-lit={lit ? 'yes' : undefined}
               style={{ left: `${left}%`, top: `${top}%`, maxWidth: gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}% - 4px))` }}
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}

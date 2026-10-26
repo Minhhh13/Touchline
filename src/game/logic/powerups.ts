@@ -4,11 +4,14 @@
  */
 import type { DraftState } from '@engine/draft'
 import { ICONS_SEASON } from '@engine/icons'
-import { ARMBAND_BOOST, POWER_UP_INFO, POWER_UPS, POWER_UPS_ICON, powerUpUsed } from '@engine/powerups'
+import { ARMBAND_BOOST, POWER_UP_INFO, POWER_UPS, POWER_UPS_ICON, powerUpUsed, type PowerUp } from '@engine/powerups'
 
 export interface PowerUpLogLine {
   /** The history row it belongs to (0-based), for ordering beside the draft log. */
   at: number
+  /** Which power-up, for the screen's picture. */
+  kind: PowerUp
+  /** Its emoji, for text. */
   icon: string
   text: string
 }
@@ -18,24 +21,25 @@ export function powerUpLog(d: DraftState, nameOf: (playerSeasonId: string) => st
   const slotName = (id: string) => d.formation.slots.find((s) => s.id === id)?.position ?? id
   const lines: PowerUpLogLine[] = (d.powerUps ?? []).map((x) => {
     const icon = POWER_UP_INFO[x.kind].icon
+    const kind = x.kind
     switch (x.kind) {
       case 'reroll':
-        return { at: x.at, icon, text: `Spin ${x.at + 1}: season re-rolled, ${seasonText(x.from)} to ${seasonText(x.to)} (1 in ${x.options})` }
+        return { at: x.at, kind, icon, text: `Spin ${x.at + 1}: season re-rolled, ${seasonText(x.from)} to ${seasonText(x.to)} (1 in ${x.options})` }
       case 'peek':
-        return { at: x.at, icon, text: `Peeked at spin ${x.at + 1}: ${x.season === ICONS_SEASON ? 'the Icons collection' : seasonText(x.season)}` }
+        return { at: x.at, kind, icon, text: `Peeked at spin ${x.at + 1}: ${x.season === ICONS_SEASON ? 'the Icons collection' : seasonText(x.season)}` }
       case 'swap':
-        return { at: x.at, icon, text: `Swapped ${slotName(x.from)} and ${slotName(x.to)}` }
+        return { at: x.at, kind, icon, text: `Swapped ${slotName(x.from)} and ${slotName(x.to)}` }
       case 'armband':
-        return { at: x.at, icon, text: `Armband to ${nameOf(x.id)} (+${ARMBAND_BOOST})` }
+        return { at: x.at, kind, icon, text: `Armband to ${nameOf(x.id)} (+${ARMBAND_BOOST})` }
       case 'lock':
-        return { at: x.at, icon, text: `Locked ${nameOf(x.id)}` }
+        return { at: x.at, kind, icon, text: `Locked ${nameOf(x.id)}` }
     }
   })
   const up = d.upgrade
   if (up) {
     const at = Math.max(0, d.history.findIndex((h) => h.pickedId === up.id))
     const outcome = up.won ? `won, +${up.delta}` : up.locked ? 'lost, the lock held' : `lost, ${up.delta}`
-    lines.push({ at, icon: POWER_UP_INFO.upgrader.icon, text: `Upgrader +${up.boost} on ${nameOf(up.id)}: ${outcome} (${up.chance}%)` })
+    lines.push({ at, kind: 'upgrader', icon: POWER_UP_INFO.upgrader.icon, text: `Upgrader +${up.boost} on ${nameOf(up.id)}: ${outcome} (${up.chance}%)` })
   }
   return lines
 }

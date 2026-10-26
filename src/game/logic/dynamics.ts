@@ -51,7 +51,7 @@ export function influenceOf(game: Game, p: PlayerSeason, s: SquadPlayer): { scor
     [(p.attributes.mentality - 60) * 0.6, `Mentality ${p.attributes.mentality}`],
     [Math.max(0, Math.min(p.age, 33) - 20) * 1.2, p.age >= 30 ? `Veteran, ${p.age}` : `Age ${p.age}`],
     [(p.overall - 70) * 0.7, p.overall >= 85 ? `Star, rated ${p.overall}` : `Rated ${p.overall}`],
-    [seasons * 5 + Math.min(s.seasonStats.apps, 38) * 0.2, seasons ? `${seasons} season${seasons === 1 ? '' : 's'} here` : `${s.seasonStats.apps} apps`],
+    [seasons * 5 + Math.min(s.seasonStats.apps, 38) * 0.2, seasons ? `${seasons} season${seasons === 1 ? '' : 's'} here` : `${s.seasonStats.apps} app${s.seasonStats.apps === 1 ? '' : 's'}`],
     [STATUS_WEIGHT[status], STATUS_LABEL[status]],
   ]
   const score = Math.round(parts.reduce((a, [v]) => a + v, 0) * 10) / 10

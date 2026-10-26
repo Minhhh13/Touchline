@@ -11,7 +11,7 @@ import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
 import { weeklyStartSettings } from '../../online/daily'
 import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
-import { Segmented } from '../components/bits'
+import { Info, Segmented } from '../components/bits'
 import { ordinal, seasonLabel } from '../format'
 import { CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
@@ -284,7 +284,7 @@ function WeeklyPlay({ weekKey }: { weekKey: string }) {
 /** W-D-L in the result colours: wins green, draws amber, defeats red. */
 function Wdl({ won, drawn, lost }: { won: number; drawn: number; lost: number }) {
   return (
-    <span className="wdl" aria-label={`${won} won, ${drawn} drawn, ${lost} lost`}>
+    <span className="wdl" role="img" aria-label={`${won} won, ${drawn} drawn, ${lost} lost`}>
       <span className="res-w">{won}</span>-<span className="res-d">{drawn}</span>-<span className="res-l">{lost}</span>
     </span>
   )
@@ -541,6 +541,10 @@ export function WorldBoard() {
   useEffect(() => {
     if (configured) void api.startOnline()
   }, [configured])
+  const help =
+    tab === 'chase'
+      ? "Ranked by points (as points short of the league's maximum, so a 34-game season stands beside a 38-game one), then goal difference; your best run counts. Quick Draft seeds are your own, so only a wheel the server deals counts here: no grinding seeds offline. The replay is the official result."
+      : "Every score here was replayed by the server from the picks, with the game's own engine: the replay is the official result. The seed is public, so a run can be rehearsed; each account posts once per day and per week, and the picks stay hidden until posting closes."
   return (
     <div className="page world-page">
       <div className="screen-head">
@@ -564,6 +568,10 @@ export function WorldBoard() {
           <aside className="panel fit-panel" data-testid="world-side">
             <div className="panel-head">
               <h3>Boards</h3>
+              {/* A short desktop window: the help below becomes this tip, so the box never shows half a line above its foot */}
+              <span className="world-help-tip">
+                <Info label="How the boards are ranked">{help}</Info>
+              </span>
             </div>
             <div className="fit-scroll col">
               <div className="world-boards" role="tablist" aria-label="Boards">
@@ -594,11 +602,7 @@ export function WorldBoard() {
               {tab === 'alltime' && <Segmented value={order} onChange={setOrder} options={[{ value: 'points', label: 'Total points' }, { value: 'streak', label: 'Best streak' }]} />}
               {tab === 'chase' && <Segmented value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: 'This week', testId: 'chase-scope-week' }, { value: 'alltime', label: 'All time', testId: 'chase-scope-alltime' }]} />}
               {tab === 'chase' && <ChasePlay />}
-              {tab === 'chase' ? (
-                <p className="help">Ranked by points (as points short of the league's maximum, so a 34-game season stands beside a 38-game one), then goal difference; your best run counts. Quick Draft seeds are your own, so only a wheel the server deals counts here: no grinding seeds offline. The replay is the official result.</p>
-              ) : (
-              <p className="help">Every score here was replayed by the server from the picks, with the game's own engine: the replay is the official result. The seed is public, so a run can be rehearsed; each account posts once per day and per week, and the picks stay hidden until posting closes.</p>
-              )}
+              <p className="help world-help">{help}</p>
             </div>
             {!session && (
               <div className="fit-foot">

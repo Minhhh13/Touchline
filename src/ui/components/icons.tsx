@@ -1,7 +1,8 @@
-import { BadgeCheck, CircleArrowUp, Coins, Dog, Skull, Timer, Tornado, Armchair, Bandage, Banknote, BrickWall, CalendarCheck, CircleCheck, Circle, CircleDot, Crown, Dumbbell, EyeOff, Footprints, Gem, Globe, Hand, Handshake, Heart, History, Info as InfoGlyph, Landmark, Mail, Medal, MessageSquare, RectangleVertical, ScrollText, Shield, Sparkles, Sprout, Star, Target, ArrowDownToLine, TriangleAlert, Trophy, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowBigUpDash, ArrowLeftRight, Backpack, Copyright, Eye, Lock, Repeat, BadgeCheck, CircleArrowUp, Coins, Dog, Skull, Timer, Tornado, Armchair, Bandage, Banknote, BrickWall, CalendarCheck, CircleCheck, Circle, CircleDot, Crown, Dumbbell, EyeOff, Footprints, Gem, Globe, Hand, Handshake, Heart, History, Info as InfoGlyph, Landmark, Mail, Medal, MessageSquare, RectangleVertical, ScrollText, Shield, Sparkles, Sprout, Star, Target, ArrowDownToLine, TriangleAlert, Trophy, Zap, type LucideIcon } from 'lucide-react'
 import type { NewsItem } from '@engine/season'
 import type { Twist } from '@engine/draft'
 import type { ModeCard } from '@engine/modes'
+import { POWER_UPS, type PowerUp } from '@engine/powerups'
 import type { BriefingItem } from '@game/logic/briefing'
 
 /** The Inbox's picture for each kind of news; the same meanings as the digest's groups (DESIGN_SYSTEM.md section 7). */
@@ -99,4 +100,38 @@ export function BriefingIcon({ item, size = 16 }: { item: Pick<BriefingItem, 'do
   if (item.done !== undefined) return item.done ? <CircleCheck size={size} aria-hidden="true" /> : <Circle size={size} aria-hidden="true" />
   const Icon = { block: Mail, warn: TriangleAlert, info: InfoGlyph, ok: CircleCheck }[item.level]
   return <Icon size={size} aria-hidden="true" />
+}
+
+/**
+ * Each power-up's picture on the tray, the locker, the draft log, the case reel and its odds (the emoji in
+ * `POWER_UP_INFO.icon` stay for share text only): an arrow up for the Upgrader, a repeat for the season re-roll, an eye
+ * for Peek, two arrows for Swap, the C of the armband, a padlock for Lock.
+ */
+export const POWER_UP_ICON: Record<PowerUp, LucideIcon> = {
+  upgrader: ArrowBigUpDash,
+  reroll: Repeat,
+  peek: Eye,
+  swap: ArrowLeftRight,
+  armband: Copyright,
+  lock: Lock,
+}
+
+/** The locker's own picture. */
+export const LOCKER_ICON: LucideIcon = Backpack
+
+export function PowerUpIcon({ kind, size = 16 }: { kind: PowerUp; size?: number | string }) {
+  const Icon = POWER_UP_ICON[kind]
+  return <Icon size={size} aria-hidden="true" />
+}
+
+const CASE_KEYS = new Set<string>([...POWER_UPS, 'icon'])
+
+/** Whether a reel card's key is a case item (a power-up or the Icon), whose picture is an icon rather than its text face. */
+export function isCaseItemKey(key: string): key is PowerUp | 'icon' {
+  return CASE_KEYS.has(key)
+}
+
+/** A case item's picture: the power-up's icon, or a star for the Icon. */
+export function CaseItemIcon({ item, size = 16 }: { item: PowerUp | 'icon'; size?: number | string }) {
+  return item === 'icon' ? <Star size={size} aria-hidden="true" /> : <PowerUpIcon kind={item} size={size} />
 }

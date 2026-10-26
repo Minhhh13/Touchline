@@ -63,7 +63,8 @@ describe('cloud restores go through the store', () => {
     useStore.setState({ ensureLeagues: ensure })
     const cloud = { ...createGame({ ...seasonSettings('CLOUD-4'), leagueId: 'spain', wheelLeagues: ['spain'] }), id: active.id }
     expect(await useStore.getState().importCloudGame('season', cloud, 'replace')).toBe(false)
-    expect(ensure).toHaveBeenCalledWith(expect.arrayContaining(['spain']))
+    // A standard game asks for no classic seasons (they load on demand, packs.ts)
+    expect(ensure).toHaveBeenCalledWith(expect.arrayContaining(['spain']), false)
     expect(useStore.getState().game).toBe(active)
     useStore.setState({ ensureLeagues: real })
   })

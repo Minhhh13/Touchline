@@ -426,7 +426,8 @@ function lookupsFor(game: Game, u: LoadedUniverse, club: AiClub, userIsHome: boo
  */
 export function playArenaStep(game: Game, u: LoadedUniverse, live: boolean): void {
   const a = game.arena
-  if (!a || a.over || a.pending || game.live) return
+  // Only from the hub: with the last match's report still up, closeArenaMatch (a bonus spin, the summary) comes first
+  if (!a || a.over || a.pending || game.live || game.phase !== 'week') return
   const opp = nextArenaOpponent(game, u)
   if (!opp) return
   if (lineupProblems(game, u).length || !live) autoPick(game, u, live)
