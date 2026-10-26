@@ -14473,3 +14473,9 @@ html {
     white-space: normal;
   }
 }
+/* The match charts' head rows (the xG race: home, title, away) wrap at 200 % text on a phone */
+@media (max-width: 720px) {
+  .mchart > .row.between {
+    flex-wrap: wrap;
+  }
+}
