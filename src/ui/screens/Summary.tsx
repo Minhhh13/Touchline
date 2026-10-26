@@ -37,6 +37,7 @@ import { challengeFromGame, claimCupsLine, claimOf, verdictLine } from '@game/lo
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
+import { draftAgainSettings } from '@game/logic/setup'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
@@ -461,7 +462,7 @@ export function Summary() {
             <ImageDown size={16} aria-hidden="true" /> Download share card
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: randomSeed() })}>
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))}>
               <Dices size={16} aria-hidden="true" /> Draft again
             </button>
           )}

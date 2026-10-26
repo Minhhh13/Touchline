@@ -32,5 +32,27 @@ describe('QA fixes', () => {
     st().h2hFinish()
     expect(st().h2h).toBe(done)
     expect(st().profile.cabinet).toBe(cabinet)
+  }, 60_000)
+})
+
+describe('QA-5: Draft again on the summary', () => {
+  it('draws a Crazy formation from the new seed, keeps any other shape, and drops the challenge', async () => {
+    const { draftAgainSettings } = await import('../logic/setup')
+    const { crazyFormation } = await import('@engine/modes')
+    const { QUICK_RULES } = await import('@engine/draft')
+    const s = { mode: 'quick' as const, seed: 'qa-again-0', formationId: '4-3-3', teamName: 'QA', shortName: 'QAA', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2024, rules: { ...QUICK_RULES, leagues: ['england'], modes: ['crazy' as const] }, jobSecurity: false, difficulty: 'calibrated' as const, challenge: { name: 'x', picks: [], claim: { pts: 1, w: 0, d: 1, l: 0, gf: 0, ga: 0, pos: 1 }, verified: 'yes' as const, data: 'd', engine: '4' } }
+    // Over many seeds a fresh Crazy draw lands on other shapes; the old code kept 4-3-3 every time
+    const shapes = new Set<string>()
+    for (let i = 0; i < 40; i++) {
+      const again = draftAgainSettings(s as never, `qa-again-${i}`)
+      expect(again.formationId).toBe(crazyFormation(`qa-again-${i}`))
+      expect(again.challenge).toBeUndefined()
+      expect(again.seed).toBe(`qa-again-${i}`)
+      shapes.add(again.formationId)
+    }
+    expect(shapes.size).toBeGreaterThan(3)
+    const plain = draftAgainSettings({ ...s, rules: { ...QUICK_RULES, leagues: ['england'] } } as never, 'qa-again-x')
+    expect(plain.formationId).toBe('4-3-3')
+    expect({ ...plain, seed: s.seed }).toEqual({ ...s, rules: { ...QUICK_RULES, leagues: ['england'] }, challenge: undefined, seed: s.seed })
   })
 })
