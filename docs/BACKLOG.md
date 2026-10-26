@@ -30,33 +30,38 @@ Rules every item keeps: no `ENGINE_VERSION` bump and no seeded outcome moved; no
 | 7 | The keeper's role ran over the goal line on the Draft's pitch (and the playback's bench pitch at 1280x720), and on a 200 px pitch his name ran past the edge, cut ("D. Henderso"). Name and role sit higher beside the disc, at most as wide as the room to the edge | Polish | Low | S | Low |
 | 8 | Dynasty pre-season: the youth intake's stacked candidates left the squad list 44 px at 2000x860 and nothing at 1280x720 (tab body clipped by 154 px). Candidates side by side; on a short window the intake gives way first (found in the re-audit) | Bug | High | S | Low |
 
-## Pending owner decisions (not taken)
+## Round 3 (2026-10-26): done
 
-- The draft grade in the share text and on the Summary banner ("Draft A").
-- The duplicate "On to kick-off": the Draft's left box and the recap both carry it. Keep both, or drop the recap's?
-- Home's waiting-games labels: mode first ("Quick Draft · Touchline XI") or team first.
-- The pending decision as a dialog instead of the inline strip (round 1's question 4; round 2 kept it inline).
-- Whether the Hindsight XI's gap ("1.7 short") should also go in the share text.
+| # | Item | Kind | Impact | Effort | Risk |
+| --- | --- | --- | --- | --- | --- |
+| 1 | The owner's decision: the draft's grade in the quick-season share text and on the share card ("Draft grade B", the recap's own grade; `draftGradeLine`). The Hindsight XI gap stays out | Feel | Medium | S | Low |
+| 2 | The owner's decision: one "On to kick-off" on the Draft, the left box's; the recap keeps its content and, up to 820 px tall, tightens so the Hindsight XI starts above its box's fold (140 to 92 px of box scroll at 1280x720 with the coach mark; none from 1366x768) | Polish | Medium | S | Low |
+| 3 | 54 names with a stray ",NN" ("D. Cousin,20"): cleaned when the store loads the universe (`tidyUniverseNames`), so every screen, match text, the news, the share text and challenge views read "D. Cousin"; packs, stamps and the verifier unchanged; seeded games proven identical but for the names. Root cause and the rebuild fix in `docs/DATA.md` | Data | Medium | S | Low |
+| 4 | A coach mark on the recap: what A to D mean, how to read the Hindsight XI's ticks and S5 tags (`draft-recap`, the eighth tip) | Clarity | Low | S | Low |
+| 5 | Pre-season's youth intake is one 60 px line of chips on a desktop window up to 940 px tall: whole at 1280x720 with the coach mark (it scrolled 119 px inside itself), and the squad grid 165 to 286 px at 2000x860, 235 to 356 at 2000x930 | Polish | Medium | S | Low |
+| 6 | Phone match day: the crumb clipped its Boxes button's phone target by 5 px; it shows now, and a long round label ends in an ellipsis | Polish | Low | S | Low |
+| 7 | The arena's first field pass ran on the click (a 470 to 580 ms long task for a Giants cup): worked out in idle slices while the run drafts (`useArenaWarmup`, `arenaWarmup.ts`), now 56 to 98 ms; every run plays the same warmed or cold | Perf | Medium | M | Low |
 
-## Next (ranked for round 3)
+The owner's other two answers stood as they were: Home's waiting games stay mode first, and the Dugout's pending decision stays inline as the strip with More.
+
+## Next (ranked for round 4)
 
 | # | Item | Kind | Impact | Effort | Risk | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 54 player names carry a stray ",NN" from the European Soccer Database, nation UNK: "D. Cousin,20" (Hull 2008-10), "B. McCarthy,27", "P. Kenny,30", in all seven packs (5 England, 16 Portugal). Strip `/,\d+$/` in `scripts/import` and re-match the nation, then rebuild | Data | Medium | S | Medium | A rebuild: new `generatedAt`, `packHashes.json`, pins re-baselined, deploy after 00:00 UTC; the data owner's call |
-| 2 | Two rating bases on one screen: pick grades, the recap and the Hindsight XI use `ratingAt` (attributes in the position), the pitch disc and slot picker `discRating` (overall × fit): the recap says "D. Rice 84 at CB" beside 88 on the pitch. Rate the recap with whatever TL-03 settles on | Clarity | Medium | S | Low | Wait for TL-03 (`slotSheet.ts`, Pitch); then `pickGrades.ts`, `hindsight.ts` |
-| 3 | A coach mark for the recap: what A to D mean, and how to read the Hindsight XI's ticks and S5 spin tags | Clarity | Low | S | Low | `tips.ts` |
-| 4 | Pre-season Dugout at 1280x720 with the coach mark showing: the youth intake shrinks to its head. A one-line intake (candidates as chips with Sign) would keep both whole | Polish | Low | S | Low | `Dugout.tsx` |
-| 5 | A synthesised sting when the recap's grade lands (gold for an A), on the reel's sound settings | Feel | Medium | S | Low | `src/ui/sound/` |
-| 6 | The arena giants pass blocks the page about 0.9 s the first time: idle slices, as the pre-season odds do | Perf | Medium | M | Medium | `giantsOf` memo; must not change the field |
-| 7 | Squad complete: open the tactics by default on a tall desktop window (the third box still has room at 1920x1080 and up) | Polish | Low | S | Low | `KickOff.tsx` |
-| 8 | Live match data always on: a slim momentum and xG strip pinned on the dashboard | Feel | Medium | M | Low | The match-day agent's files |
-| 9 | Match day on a phone: the crumb ("Matchweek 1 · Derby day") is clipped by 5 px at 390 wide | Polish | Low | S | Low | `matchday/` (match-day agent) |
+| 1 | Fix the ",NN" names at the source: strip the suffix from the ESD's `player_name` in `build.mjs` and `enrich-nations.mjs`, rerun the enrichment so the 40-odd `UNK` nations among them re-match, rebuild, then drop `tidyUniverseNames` | Data | Medium | S | Medium | A rebuild: new `generatedAt`, `packHashes.json`, pins re-baselined, deploy after 00:00 UTC; the data owner's call (`docs/DATA.md` section 6) |
+| 2 | Dynasty pre-season at 2000x860 with the coach mark: the pitch box is still about 60 px short (the keeper cut; the pitch's 200 px floor wins over its box), and on a pitch that small the labels run together ("Box-to-Box87Box-to-Box") | Polish | Medium | S | Low | The floor is the Dugout's CSS; the labels are `Pitch` (pdf-ui agent) |
+| 3 | Two rating bases on one screen: the recap and the Hindsight XI use `ratingAt`, the pitch disc `discRating` ("D. Rice 84 at CB" beside 88) | Clarity | Medium | S | Low | Wait for TL-03 (`slotSheet.ts`, Pitch); then `pickGrades.ts`, `hindsight.ts` |
+| 4 | A synthesised sting when the recap's grade lands (gold for an A), on the reel's sound settings | Feel | Medium | S | Low | `src/ui/sound/` |
+| 5 | Arena hub at 1280x720: the sticky calls' box reads as a panel inside a panel (two borders 20 px apart), and the opposition report's title wraps to three lines | Polish | Low | S | Low | Owned elsewhere (`Arena.tsx`, OppositionReport, the hub's CSS) |
+| 6 | Live match data always on: a slim momentum and xG strip pinned on the dashboard | Feel | Medium | M | Low | The match-day agent's files |
+| 7 | Squad complete: open the tactics by default on a tall desktop window | Polish | Low | S | Low | `KickOff.tsx` |
+| 8 | World board at 1280x720: the help line under the boards shows half a line above the sign-in foot (it scrolls, but reads as cut) | Polish | Low | S | Low | `src/ui/online/WorldBoard.tsx` |
+| 9 | Old Dynasty saves keep ",NN" in their aged copies (`customPlayers`) and stored texts; a `normaliseGame` pass could tidy the copies | Data | Low | S | Low | Only if a player reports it; the rebuild in #1 does not reach saves either |
 | 10 | Season playback: the faint "Into the top four" chip, truncated club names in game rows (known U19) | Polish | Low | S | Low | The fit-short agent's files |
-| 11 | Arena hub at 1280x720: the opposition report's title wraps to three lines | Polish | Low | S | Low | Owned elsewhere (Arena.tsx, OppositionReport) |
 
 ## Owned by other agents (do not take)
 
-Since 2026-10-26 the main session has given these to other agents: stale draft-turn modals (TL-02: `PowerUps.tsx`, `Upgrader.tsx`, the Draft's modals); rating labels across the card, slot preview and pitch (TL-03: `slotSheet.ts`, `Pitch`, `PlayerRow`); odds rounding (TL-08: `SpinOdds` and the other odds panels); Modal dialog semantics (TL-06: `bits.tsx` Modal, the digest); `Arena.tsx` and the OppositionReport layout; the player highlight on the live pitch (`matchday/SquadStrip`, `LivePitch`); and every engine and logic fix on the ENGINE_VERSION 5 branch (auto-subs, fixtures in `season.ts`, `autoPickLineup` and the assistant's placement, `development.ts`). Round 2 touched none of them except two lines of the pitch slot's CSS (the keeper's label, d9ff866) and `DraftRecap.tsx`, which only `Draft.tsx` renders (its call is unchanged). Round 1 touched `PowerUps.tsx`, `Upgrader.tsx` and `Draft.tsx` (the power-up icons in 8fc9b95, the draft recap in 2b2f41f) and the arena hub's CSS (3890fe1) before that, each in its own commit.
+Since 2026-10-26 the main session has given these to other agents: stale draft-turn modals (TL-02: `PowerUps.tsx`, `Upgrader.tsx`, the Draft's modals); rating labels across the card, slot preview and pitch (TL-03: `slotSheet.ts`, `Pitch`, `PlayerRow`); odds rounding (TL-08: `SpinOdds` and the other odds panels); Modal dialog semantics (TL-06: `bits.tsx` Modal, the digest); `Arena.tsx` and the OppositionReport layout; the player highlight on the live pitch (`matchday/SquadStrip`, `LivePitch`); and every engine and logic fix on the ENGINE_VERSION 5 branch (auto-subs, fixtures in `season.ts`, `autoPickLineup` and the assistant's placement, `development.ts`). Round 3 touched none of them except one line of `Draft.tsx` (the recap's call, which lost its button props, 075594b) and a CSS rule in `matchday-phone.css` (the crumb, 5d2a09d, allowed as tiny); the arena work is a hook in `App.tsx` and new modules, not `Arena.tsx`. Round 2 touched none of them except two lines of the pitch slot's CSS (the keeper's label, d9ff866) and `DraftRecap.tsx`, which only `Draft.tsx` renders (its call is unchanged). Round 1 touched `PowerUps.tsx`, `Upgrader.tsx` and `Draft.tsx` (the power-up icons in 8fc9b95, the draft recap in 2b2f41f) and the arena hub's CSS (3890fe1) before that, each in its own commit.
 
 ## Research notes (round 1)
 
@@ -69,3 +74,9 @@ Since 2026-10-26 the main session has given these to other agents: stale draft-t
 - **38-0**: its pages sell the Monte Carlo verdict and the reveal of how good the XI was; the tips page weights the keeper heaviest (1.3×) and says even a flawless XI converts a perfect season about two times in three. The Hindsight XI answers the question every 38-0 player asks after the last spin ("what could I have had?") from the same spins, with no new draw. Sources: [38-0 tips](https://38-0-game.com/tips), [38-0 how to play](https://38-0.app/how-to-play), [Product Hunt](https://www.producthunt.com/p/38-0-pro/38-0-pro).
 - **Football Manager**: decisions belong in context, not in front of the game; round 2 kept the dressing-room decision inline and made it small rather than a dialog, until the owner decides.
 - The re-audit of https://touchline.quest (main, read only) at 2000x860, 2000x930, 1280x720 and 390x844: Home, Setup, the draft, the manager spin, the case, Squad complete, the playback, January, the summary, Explore, Profile, How it works, Head-to-head, a Dynasty pre-season Dugout and a live match to half time. No page error and no desktop page scroll anywhere; found the youth intake crowding (fixed), the stray ",NN" names (round 3 #1), the keeper's role on the playback's bench pitch at 1280x720 (fixed by #7) and the phone crumb (round 3 #9).
+
+## Research notes (round 3)
+
+- The re-audit of https://touchline.quest (main, read only, built 14:58 UTC) at 2000x860, 2000x930, 1280x720 and 390x844: Home, Setup, the draft, the recap, the manager spin, the case, the playback, January, the summary, a Season pre-season Dugout, a live match to half time, Explore, World, Profile, How it works, Head-to-head, the arena's setup and its hub, in both themes where the screen has its own colours (Home, Setup, the draft, the recap, the summary, the Dugout, the hub) and Floodlit elsewhere. No page error and no desktop page scroll anywhere. Found: the recap's sticky button covering the Hindsight XI at 1280x720 (gone with decision 2), the youth intake scrolled to its head at 1280x720 (round 3 #5), the phone crumb (#6), the pre-season pitch box and labels (round 4 #2), the arena hub's double border (round 4 #5) and the World board's half line (round 4 #8). The audit's other flags were false positives: the reel's clipped strips, the season drum's labels inside their window, sticky table heads over scrolled rows, and phone navigation labels hidden by design.
+- Measured on this branch's build against the round 2 build (`vite preview`, the same steps): the arena click, the youth intake and the recap at 1280x720, 1366x768, 1920x1080, 2000x860, 2000x930 and 390x844, the phone crumb, the share text and card, and Explore's search for the faulty names ("D. Cousin,20" before, "D. Cousin" after). No page error.
+
