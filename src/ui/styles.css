@@ -7732,7 +7732,7 @@ dl.kv {
   border-color: color-mix(in srgb, var(--gold) 55%, var(--line));
 }
 .h2h-side .record {
-  font-size: 28px;
+  font-size: calc(var(--fs-h1) * 0.875);
   margin-top: 0;
 }
 .h2h-side .banner-stats {
@@ -7920,7 +7920,7 @@ dl.kv {
 .cabinet-n {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 26px;
+  font-size: calc(var(--fs-h2) + 2px);
   line-height: 1;
 }
 .ach .icon {
@@ -7986,7 +7986,7 @@ dl.kv {
 .howto-lead {
   margin: 0;
   color: var(--text-2);
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 .howto-steps {
   list-style: none;
@@ -8086,7 +8086,7 @@ dl.kv {
   background: var(--primary-soft);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 17px;
+  font-size: calc(var(--fs-h3) - 2px);
 }
 .howto-timeline small {
   font-family: var(--font-body);
@@ -8189,7 +8189,7 @@ table.tbl.match-stats th {
 }
 @media (max-width: 720px) {
   .tier-banner .tier {
-    font-size: 40px;
+    font-size: calc(var(--fs-h1) * 1.25);
   }
   .banner-meta {
     flex-direction: column;
@@ -8204,7 +8204,7 @@ table.tbl.match-stats th {
   }
   .banner-actions .btn {
     padding: 8px 10px;
-    font-size: 14px;
+    font-size: var(--fs-base);
     white-space: normal;
   }
   .banner-actions .btn:not(.primary) svg {
@@ -8232,10 +8232,10 @@ table.tbl.match-stats th {
   }
   .report-board .score {
     white-space: nowrap;
-    font-size: 36px;
+    font-size: calc(var(--fs-h1) * 1.125);
   }
   .report-board .team {
-    font-size: 15px;
+    font-size: calc(var(--fs-base) + 1px);
     line-height: 1.15;
     min-width: 0;
     overflow-wrap: anywhere;
