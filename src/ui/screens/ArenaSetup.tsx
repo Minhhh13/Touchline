@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, slotOf } from '@game/store'
+import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
 import { shortNameFor } from '@game/logic/setup'
 import { ARENA_FIELDS, arenaNeedsAllLeagues, colourClubs, CUP_SQUAD, cupGameSettings, DEFAULT_CUP_SIZE, DEFAULT_DECADE, GAUNTLET_SQUAD, GAUNTLET_SQUAD_CAP, gauntletGameSettings, latestCompleteSeason, summariseArena } from '@game/logic/arena'
@@ -305,7 +306,7 @@ export function ArenaSetup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={4} title="Spin" />
               <div className="small muted" data-testid="arena-summary">
-                {preview ? summariseArena(u, preview) : 'Loading league data…'}
+                {preview ? summariseArena(u, preview) : <LeagueWait needs={needs} />}
                 {' · '}
                 <button
                   type="button"
@@ -318,8 +319,9 @@ export function ArenaSetup() {
                   change
                 </button>
               </div>
+              <LeagueRetry needs={needs} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !preview} data-testid="arena-start">
-                {!ready ? 'Loading league data…' : gauntlet ? 'Draft for the Gauntlet' : final ? 'Draft for the final' : 'Draft for the Cup'}
+                {!ready ? <LeagueWait needs={needs} /> : gauntlet ? 'Draft for the Gauntlet' : final ? 'Draft for the final' : 'Draft for the Cup'}
               </button>
             </section>
           </div>

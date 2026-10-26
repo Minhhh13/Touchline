@@ -5430,6 +5430,18 @@ dl.kv {
   cursor: pointer;
   font-size: inherit;
 }
+/* Offline, beside a start button whose league never loaded: the line and Retry (LeagueRetry, O-10 in docs/QA.md) */
+.league-retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.league-retry > .small {
+  flex: 1 1 200px;
+  min-width: 0;
+}
 .spin-btn {
   width: 100%;
   min-height: 56px;

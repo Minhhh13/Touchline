@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
+import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { APP_NAME } from '../brand'
 import { getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
@@ -184,8 +185,9 @@ export function H2HSetup() {
           </div>
         </div>
         <div className="h2h-start">
+          <LeagueRetry needs={[leagueId, ...wheelLeagues]} />
           <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues || !host0 || !host1} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
-            {ready ? 'Start the head-to-head' : 'Loading league data…'}
+            {ready ? 'Start the head-to-head' : <LeagueWait needs={[leagueId, ...wheelLeagues]} />}
           </button>
         </div>
       </div>

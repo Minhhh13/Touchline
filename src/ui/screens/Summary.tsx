@@ -3,6 +3,8 @@ import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, La
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
+import { nextSeasonLeagues } from '@game/logic/leagueLoad'
+import { LeagueRetry } from '../components/LeagueRetry'
 import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
 import { FirstNext } from '../components/FirstNext'
 import { continentalRun } from '@game/logic/week'
@@ -486,6 +488,7 @@ export function Summary() {
               <RotateCcw size={16} aria-hidden="true" /> Run it back
             </button>
           )}
+          {continuing && <LeagueRetry needs={nextSeasonLeagues(game, u.available.map((l) => l.id))} />}
           {continuing && (
             <button className="btn primary" onClick={() => nextSeason()} disabled={loadingLeagues}>
               {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `Continue with ${clubName(u, game.settings.hostClubId)} →`}

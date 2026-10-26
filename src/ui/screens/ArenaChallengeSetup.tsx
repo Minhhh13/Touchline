@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { slotOf, useStore } from '@game/store'
+import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { isArenaPayload } from '@engine/challenge'
 import { cupRoundName } from '@engine/cup'
 import { shortNameFor } from '@game/logic/setup'
@@ -63,8 +64,9 @@ export function ArenaChallengeSetup() {
         <div className="small muted" data-testid="arena-summary">
           {summariseArena(u, settings)}
         </div>
+        <LeagueRetry needs={[settings.leagueId, ...settings.wheelLeagues]} />
         <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues} data-testid="arena-challenge-start">
-          {ready ? `Take on ${ch.name}` : 'Loading league data…'}
+          {ready ? `Take on ${ch.name}` : <LeagueWait needs={[settings.leagueId, ...settings.wheelLeagues]} />}
         </button>
       </div>
     </div>
