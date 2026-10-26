@@ -133,7 +133,7 @@ export function Explore() {
           <div className="panel">
             <div className="panel-head">
               <h3>League table</h3>
-              <select className="input" style={{ width: 'auto' }} value={season} onChange={(e) => { setSeason(Number(e.target.value)); setClubId('') }}>
+              <select className="input" style={{ width: 'auto' }} aria-label="Season" value={season} onChange={(e) => { setSeason(Number(e.target.value)); setClubId('') }}>
                 {seasons.map((s) => (
                   <option key={s} value={s}>
                     {seasonLabel(s)}

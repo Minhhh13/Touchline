@@ -1016,7 +1016,7 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
               const current = t.setPieces?.[sp.key] ?? ''
               return (
                 <Instruction key={sp.key} label={sp.label} help={sp.hint}>
-                  <select className="input" value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
+                  <select className="input" aria-label={`${sp.label} taker`} value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
                     <option value="">Auto: best on the pitch</option>
                     {xi.map((p) => (
                       <option key={p.id} value={p.id}>
