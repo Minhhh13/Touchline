@@ -8266,6 +8266,17 @@ table.tbl.match-stats th {
   .app.shell .grid.dugout .pitch-wrap {
     --shell-chrome: 470px;
   }
+  /*
+   * The Dugout's pitch column is a size container, so the pitch also fits the height the column really has once the
+   * pre-season checklist or a coach mark takes some (it ran 70 px past its box at 2000x860); 80 px is the panel's head
+   * and padding. Without a container the cqh term reads the viewport and the dvh term above decides as before.
+   */
+  .app.shell .tab-body > .grid.dugout > .col:has(.pitch-wrap) {
+    container-type: size;
+  }
+  .app.shell .tab-body > .grid.dugout .pitch-wrap {
+    max-width: max(200px, min(calc((100dvh - var(--shell-chrome, 340px)) * 0.75), calc((100cqh - 80px) * 0.75)));
+  }
   .app.shell.bar-hidden .grid.dugout .pitch-wrap {
     --shell-chrome: 410px;
   }
@@ -9057,9 +9068,18 @@ table.tbl.match-stats th {
     max-height: none;
     overflow: auto;
   }
-  .page.fit .pitch {
-    max-width: 330px;
-    margin: 0 auto;
+  /*
+   * A pitch in a box (Squad complete): its wrapper takes the box's spare height as a size container, and the pitch is
+   * never taller than that (3:4, so 75% of the height wide), so the keeper and the bench below stay in view.
+   */
+  .page.fit .pitch-fit {
+    flex: 1 1 0;
+    min-height: 220px;
+    container-type: size;
+  }
+  .page.fit .pitch-fit > .pitch-wrap {
+    max-width: min(100%, 75cqh);
+    margin-inline: auto;
   }
   .page.fit .sc-grid {
     grid-template-columns: minmax(0, 1fr);

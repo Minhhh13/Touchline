@@ -77,7 +77,7 @@ export function KickOff() {
         </div>
         <div className="panel col fit-cell">
           <h3>Your XI · {formation.name}</h3>
-          <div inert>
+          <div inert className="pitch-fit" data-testid="kickoff-pitch">
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={hide} />
           </div>
           {quickBenchRule(game) && game.bench.length > 0 && (
