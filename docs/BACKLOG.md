@@ -29,10 +29,14 @@ Rules every item keeps: no `ENGINE_VERSION` bump and no seeded outcome moved; no
 | 6 | A synthesised sting when the recap's grade lands (gold for an A), on the reel's sound settings | Feel | Medium | S | Low | `src/ui/sound/` |
 | 7 | The Draft's keeper label sits on the pitch's bottom edge at 2000x860 (the name over the goal line) | Polish | Low | S | Low | `Pitch.tsx` foot slot |
 | 8 | The arena giants pass blocks the page about 0.9 s the first time (known issue): run it in idle slices, as the pre-season odds do | Perf | Medium | M | Medium | `giantsOf` memo; must not change the field |
-| 9 | Arena hub at 1280x720: the opposition report's title wraps to three lines | Polish | Low | S | Low | `Arena.tsx` |
+| 9 | Arena hub at 1280x720: the opposition report's title wraps to three lines | Polish | Low | S | Low | Owned elsewhere since 2026-10-26 (Arena.tsx and OppositionReport layout) |
 | 10 | Live match data always on (FM26's top complaint is a match day that feels like spectating): a slim momentum and xG strip pinned on the dashboard | Feel | Medium | M | Low | The match-day agent's files |
 | 11 | Season playback: the faint "Into the top four" chip, truncated club names in game rows (known U19) | Polish | Low | S | Low | The fit-short agent's files |
 | 12 | First Quick Draft coach mark for the recap and pick grades (what A to D mean) | Clarity | Low | S | Low | `tips.ts` |
+
+## Owned by other agents (do not take)
+
+Since 2026-10-26 the main session has given these to other agents: stale draft-turn modals (TL-02: `PowerUps.tsx`, `Upgrader.tsx`, the Draft's modals); rating labels across the card, slot preview and pitch (TL-03: `slotSheet.ts`, `Pitch`, `PlayerRow`); odds rounding (TL-08: `SpinOdds` and the other odds panels); Modal dialog semantics (TL-06: `bits.tsx` Modal, the digest); `Arena.tsx` and the OppositionReport layout; the player highlight on the live pitch (`matchday/SquadStrip`, `LivePitch`); and every engine and logic fix on the ENGINE_VERSION 5 branch (auto-subs, fixtures in `season.ts`, `autoPickLineup` and the assistant's placement, `development.ts`). Round 1 touched `PowerUps.tsx`, `Upgrader.tsx` and `Draft.tsx` (the power-up icons in 8fc9b95, the draft recap in 2b2f41f) and the arena hub's CSS (3890fe1) before that, each in its own commit.
 
 ## Research notes (round 1)
 
