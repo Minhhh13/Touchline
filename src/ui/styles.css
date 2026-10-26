@@ -3271,6 +3271,12 @@ table.tbl.contracts .btn.sm {
   height: 100%;
   border-bottom: var(--border);
 }
+/* The subject layer sits over the sky and is always drawn whole (Art.tsx `split`), however short the strip */
+.mode-art .mode-scene.scene-subject {
+  position: absolute;
+  inset: 0;
+  border-bottom: 0;
+}
 /* The neon in the picture brightens on hover; the drawing itself stays put */
 .mode-art .neon-halo,
 .mode-art .neon-core {
@@ -3485,6 +3491,13 @@ table.tbl.contracts .btn.sm {
     inset: 0;
     border-bottom: 0;
     border-right: var(--border);
+  }
+  /* The square picture shows the middle of the scene: the subject layer is drawn twice as wide, its sides clipped */
+  .mode-art .mode-scene.scene-subject {
+    inset: 0 -50%;
+    width: auto;
+    border-right: 0;
+    clip-path: inset(0 25%);
   }
   .mode-icon {
     left: auto;
@@ -8269,6 +8282,36 @@ table.tbl.match-stats th {
     margin-top: 0;
   }
   .app.shell .page.home .hero-flags {
+    grid-area: 2 / 2;
+    align-self: center;
+    margin-top: clamp(2px, 0.8dvh, 8px);
+  }
+}
+/*
+ * A game to continue adds the resume strip above the mode cards, and their pictures were the one thing left to give
+ * way (a 45 px sliver at 1280x720). With the strip shown, the hero takes the short window's side-by-side layout up to
+ * 1000 px tall, so the pictures keep a real height.
+ */
+@media (min-width: 1100px) and (max-height: 1000px) {
+  .app.shell .page.home:has(.resume-card) .hero-content {
+    max-width: none;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    align-items: end;
+    column-gap: 56px;
+  }
+  .app.shell .page.home:has(.resume-card) .hero h1 {
+    grid-area: 1 / 1;
+  }
+  .app.shell .page.home:has(.resume-card) .hero .tag {
+    grid-area: 2 / 1;
+  }
+  .app.shell .page.home:has(.resume-card) .hero-stats {
+    grid-area: 1 / 2;
+    margin-top: 0;
+  }
+  .app.shell .page.home:has(.resume-card) .hero-flags {
     grid-area: 2 / 2;
     align-self: center;
     margin-top: clamp(2px, 0.8dvh, 8px);
