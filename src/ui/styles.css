@@ -13384,3 +13384,59 @@ table.tbl.tv-compact .tv-name {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
+
+/* ------------------------------------------------------------ ratings: overall and in a slot (TL-03) */
+/* A disc out of position carries its cost against his overall (−5), so the pitch's 84 and the card's 89 read as one
+   number; the slot pickers print the same pair ("84 · can cover (89 overall, −5 out of position)") */
+.pitch-wrap .slot .disc {
+  position: relative;
+}
+.pitch-wrap .slot .disc .disc-cost {
+  position: absolute;
+  top: -6px;
+  right: -12px;
+  min-width: 22px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1.5px solid var(--gold);
+  background: var(--pitch-disc);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+.pitch-mini .pitch-wrap .slot .disc .disc-cost {
+  display: none;
+}
+.slot-chip .slot-cost {
+  font-weight: 400;
+  color: var(--text-2);
+}
+/* A chip with the cost spelled out may be wider than a phone's row: it flows as one line of text and wraps inside
+   itself, never past the box */
+.slot-chip {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  height: auto;
+  line-height: 1.35;
+  border-radius: 14px;
+}
+.slot-disc {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+}
+.slot-disc .slot-disc-cost {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+

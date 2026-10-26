@@ -41,7 +41,7 @@ export function TeamBadge({ code, size = 32 }: { code?: string; size?: number })
  * A rating badge. `range` shows what the club can see of a player it has not scouted (`src/game/logic/scouting.ts`):
  * "62–70", coloured by the middle of the range; an exact range (lo = hi) reads as the plain number.
  */
-export function Rating({ value, size, hidden, range, reveal }: { value: number; size?: 'lg'; hidden?: boolean; range?: { lo: number; hi: number }; /** Flip the number in: a pick whose rating was hidden while choosing has just landed in the squad. */ reveal?: boolean }) {
+export function Rating({ value, size, hidden, range, reveal, label }: { value: number; size?: 'lg'; hidden?: boolean; range?: { lo: number; hi: number }; /** Flip the number in: a pick whose rating was hidden while choosing has just landed in the squad. */ reveal?: boolean; /** What the number is, for its tooltip: "Overall" on a player row. */ label?: string }) {
   const v = Math.round(value)
   if (!hidden && range && range.hi > range.lo) {
     return (
@@ -51,7 +51,7 @@ export function Rating({ value, size, hidden, range, reveal }: { value: number; 
     )
   }
   return (
-    <span className={`rating ${hidden ? 'hidden' : ratingBand(v)} ${size ?? ''}${reveal && !hidden ? ' reveal' : ''}`}>
+    <span className={`rating ${hidden ? 'hidden' : ratingBand(v)} ${size ?? ''}${reveal && !hidden ? ' reveal' : ''}`} title={label && !hidden ? `${label} ${v}` : undefined}>
       {hidden ? '?' : v}
     </span>
   )

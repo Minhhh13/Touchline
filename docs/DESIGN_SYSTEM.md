@@ -482,8 +482,17 @@ The open `Lockup` at 40 px high (32 px on a phone), playing its shine on hover, 
 - `Rating`: the band classes `r90` to `r70` over `--rating-base`; hidden ratings show "?" on `--bg-3` (whether one is hidden is `ratingShown` in `src/game/logic/ratingVisibility.ts`: in blind mode only while choosing); `reveal` flips the number in (`rating-reveal`).
 - `Pos`: the position code coloured by group (`--pos-*`).
 - `ClubBadge`: a disc in the club's approximate primary colour with its code and a ring in its secondary colour. This is the only way a club is pictured.
-- `Flag`: the nation's emoji flag.
+- `Flag`, `NationFlag`, `LeagueFlag` (`Flag.tsx`): the drawn SVG flags from `public/flags`, never an emoji.
 - The substitution board (`SubBoard`, inside the match day's Substitutions sheet, `.md-drawer.board`): the XI on a `VerticalPitch` as `.sub-slot` buttons (shirt with number, surname with a text shadow, the role code and condition heart on a `--pitch-disc` tab) and the bench as `.sub-bench-card`s on `--panel-2`. While a man is held each open slot glows with a 1 px border, a soft fill and an outer glow in `--pitch-fit` (natural), `--pitch-cover` (can cover) or `--pitch-bad` (out of position), the same fixed colours in both themes because they sit on the grass, and carries his role rating as a small tab in that colour; the slot under the pointer grows 8 per cent. Off the grass the same three meanings use the theme tokens: `--good`, `--meter-mid` and `--bad` (bench cards when a starter is held, the preview's fit word). The held card or slot takes the selection pattern (`--primary`, or `--pitch-highlight` on the grass); a staged man carries the on-arrow and a `--pitch-highlight` ring on his tab. The dragged man follows the pointer as a `--float-bg` pill with `--shadow`. Slots and cards set `touch-action: none` so a finger drags rather than scrolls. Desktop: a 940 px sheet, the pitch `clamp(250px, 100dvh − 336px, 470px)` high beside the preview, the bench and the changes, so the sheet fits the window from 1280 by 720 with no page scroll; a phone (720 px and below) gets a full-height sheet with the pitch on top and three bench cards a row under it.
+
+### Ratings: overall and in a slot
+
+A player has one rating people know and one number per slot; every screen names which it is showing (`src/game/logic/slotRating.ts`, pure):
+
+- **Overall**: the `Rating` badge on a player row, the player card and every list (its tooltip reads "Overall 89"). It never changes with the slot.
+- **In a slot**: his overall less the out-of-position cost (`discRating`: overall times the fit factor). It is the number on his pitch disc, and the headline of every slot picker: the Draft's slot chips (`RW 84 · can cover (89 overall, −5 out of position)`; `LW 89 · fits` in a natural position), the Dugout's slot sheet (the number on the right, the `−5` under it) and the end case's Icon chips. On the pitch an out-of-position disc carries a small `−N` badge (`.disc-cost`, its border the fit colour) and the tooltip "84 at RW (89 overall, −5 out of position)". In his natural position the two numbers are the same, so a card, a chip and a disc never disagree without saying why.
+- **Attributes for a position** (`ratingAt`): TouchLine's own weighting of his attributes for that position, which orders the slot sheet and the end case. It is never printed bare: only in a chip's tooltip, as "Attributes for RW: 75". (Before 2026-10-26 the Draft chip printed it as the headline, so Özil read 89 on his row, "RW 80" on the chip and 89 on the disc.)
+- The Gauntlet and the Cup draft with the same Draft chips and play on the same `Pitch`, so the arena reads the same way. Blind ratings hide all three.
 
 ### Selection, hover, focus, disabled
 

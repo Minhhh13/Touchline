@@ -31,6 +31,7 @@ import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
+import { costLabel, slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
@@ -546,11 +547,20 @@ export function Draft() {
                     Where does <b>{selected.name}</b> play? Tap a slot here or on the pitch.
                   </div>
                   <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
-                    {draftSlotChoices(d, selected).map((c) => (
-                      <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)}>
-                        <b>{c.label}</b> {hide ? '?' : c.rating} · {c.fit}
-                      </button>
-                    ))}
+                    {draftSlotChoices(d, selected).map((c) => {
+                      // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
+                      const r = slotRating(selected, c.position)
+                      return (
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingLine(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${c.fit}` : `${slotRatingLine(r, c.label)}, ${c.fit}`}>
+                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {c.fit}
+                          {!hide && r.cost > 0 && (
+                            <span className="slot-cost" data-testid="slot-cost">
+                              {' '}({r.overall} overall, {costLabel(r)})
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                     {canBench(d, selected) && (
                       <button type="button" className="btn sm primary" onClick={() => { pickPlayer(selected.id, 'bench'); setSelectedPlayer(null) }} data-testid="to-bench">
                         Send him to the bench
@@ -563,7 +573,7 @@ export function Draft() {
                 </div>
               )}
               {revealed && fillingStarters && (
-                <Tip id="draft-first-reveal">Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft.</Tip>
+                <Tip id="draft-first-reveal">The number by each player is his overall. Green fits means his natural position; amber can cover means he plays there at a penalty, shown as his number in that slot (the one on the pitch) and the cost against his overall. Re-spins are a budget for the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist lined draft-list">
