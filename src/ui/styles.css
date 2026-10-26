@@ -8419,7 +8419,7 @@ table.tbl.match-stats th {
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
   animation: restore-in var(--dur-2) var(--ease-out) backwards;
@@ -8760,7 +8760,7 @@ table.tbl.match-stats th {
     padding: 24px var(--space-3) var(--space-3);
   }
   .app.shell .page.home .mode-card h3 {
-    font-size: 20px;
+    font-size: calc(var(--fs-h3) + 1px);
   }
   .app.shell .page.home .mode-go,
   .app.shell .page.home .mode-card.daily > .btn {
@@ -8833,13 +8833,13 @@ table.tbl.match-stats th {
     height: 40px !important;
   }
   .app.shell .stat-strip .stat .value {
-    font-size: 22px;
+    font-size: calc(var(--fs-h2) - 2px);
   }
   .app.shell .panel.cta {
     padding: var(--space-3) var(--space-4);
   }
   .app.shell .screen-head h1 {
-    font-size: 30px;
+    font-size: calc(var(--fs-h1) - 2px);
   }
 }
 /* The head-to-head result's two sides share the narrow result box on a desktop */
@@ -8852,11 +8852,11 @@ table.tbl.match-stats th {
     padding: var(--space-3) var(--space-2);
   }
   .app.shell .page.summary .h2h-side .record {
-    font-size: 22px;
+    font-size: calc(var(--fs-h2) - 2px);
     gap: 8px;
   }
   .app.shell .page.summary .h2h-side h3 {
-    font-size: 18px;
+    font-size: calc(var(--fs-h3) - 1px);
   }
 }
 
