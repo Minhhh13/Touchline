@@ -848,11 +848,6 @@ p {
     border-top: var(--border-strong);
     box-shadow: var(--shadow);
   }
-  /* 16px keeps iOS from zooming into a field on focus */
-  .input,
-  select.input {
-    font-size: 16px;
-  }
 }
 
 /* ------------------------------------------------------------------ panels */
@@ -1164,6 +1159,14 @@ select.input {
 .input:focus {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+@media (max-width: 720px) {
+  /* 16px keeps iOS from zooming into a field on focus; after the base rule above, so it wins */
+  .input,
+  select.input,
+  .step-head-row .season-pick {
+    font-size: 16px;
+  }
 }
 /* A form field: the label above, the control, then at most one short .help caption */
 label.field,
