@@ -141,11 +141,14 @@ export function ArenaSummary() {
           <Stat label="Played" value={a.log.length} />
           <Stat label="Goals" value={`${a.log.reduce((x, s) => x + s.gf, 0)}-${a.log.reduce((x, s) => x + s.ga, 0)}`} />
         </div>
-        <div className="blocks" aria-hidden="true">
-          {a.log.map((s, i) => (
-            <span key={i} style={{ background: won(s) ? 'var(--good)' : 'var(--bad)' }} />
-          ))}
-        </div>
+        {/* The Gauntlet's ladder below marks every rung, so its blocks would say the same thing twice */}
+        {!gauntlet && (
+          <div className="blocks" aria-hidden="true">
+            {a.log.map((s, i) => (
+              <span key={i} style={{ background: won(s) ? 'var(--good)' : 'var(--bad)' }} />
+            ))}
+          </div>
+        )}
         {gauntlet && (
           <div className="row" style={{ justifyContent: 'center' }}>
             <GauntletLadder u={u} a={a} />
@@ -280,7 +283,7 @@ export function ArenaSummary() {
             <Bracket
               view={arenaBracketView(size, a.bracket.rounds)}
               nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
-              badge={(k) => <ClubBadge clubId={k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k)} size={18} />}
+              badge={(k) => (k === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={clubIdOfKey(k)} size={18} />)}
               userId={USER_TEAM}
               seeds={a.bracket.seeds}
             />

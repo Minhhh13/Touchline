@@ -22,6 +22,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Info, Segmented, Stat, Tabs, TeamBadge } from '../components/bits'
 import { OppositionReport } from './OppositionReport'
 import { distinctLabels } from '../screenText'
+import { splitSeason } from '../arenaText'
 import { TacticsTab } from './Dugout'
 
 type ArenaTab = 'team' | 'tactics' | 'draw'
@@ -59,6 +60,7 @@ export function Arena() {
   const seeded = cup && opp && a.bracket?.seeds.includes(opp.key)
   const rung = a.step + 1
   const billing = gauntlet && opp ? rungLabels(rung, opp.real).billing : undefined
+  const oppName = opp ? splitSeason(opp.club.name) : null
   // A challenge's ghost: the challenger's result on this step, and on every rung or round
   const ghost = game.settings.challenge?.arena ? game.settings.challenge : undefined
   const changeDraw = () => {
@@ -129,7 +131,11 @@ export function Arena() {
               <div className="row between" style={{ gap: 8 }}>
                 <div className="row" style={{ gap: 10 }}>
                   <ClubBadge clubId={clubIdOfKey(opp.key)} size={40} />
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>{opp.club.name}</div>
+                  {/* The season stays on one line: a narrow box broke "2023-24" at its hyphen */}
+                  <div style={{ fontWeight: 700, fontSize: 18 }}>
+                    {oppName?.club}
+                    {oppName?.season && <> <span style={{ whiteSpace: 'nowrap' }}>{oppName.season}</span></>}
+                  </div>
                 </div>
                 {gauntlet && (
                   <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined} data-testid="arena-lifeline" title="Once a run: swap this rung's club for another from the same band">
@@ -177,7 +183,7 @@ export function Arena() {
               <Bracket
                 view={arenaBracketView(size, a.bracket.rounds)}
                 nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
-                badge={(k) => <ClubBadge clubId={k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k)} size={18} />}
+                badge={(k) => (k === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={clubIdOfKey(k)} size={18} />)}
                 userId={USER_TEAM}
                 seeds={a.bracket.seeds}
               />
