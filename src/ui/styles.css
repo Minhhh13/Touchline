@@ -14311,6 +14311,65 @@ details.opposition {
 .app > .page#main:focus {
   outline: none;
 }
+/* Phones: Apple's 44 pt target for what is tapped most. Buttons, small buttons, the chip buttons, the segmented
+   choices, tabs and form fields grow to 44 px tall (an icon-only small button to 44 wide); round icon buttons keep their
+   look and take the room from an invisible ::after, clear of their neighbours. Phone-only: the desktop fit is untouched */
+@media (max-width: 720px) {
+  .btn,
+  .btn.sm,
+  .cta-bar .btns .btn,
+  .chip-btn,
+  .segmented button,
+  .tabs button,
+  .input,
+  select.input,
+  input[type='range'] {
+    min-height: 44px;
+  }
+  .btn.sm:has(> svg:only-child),
+  .name-btn,
+  .segmented button {
+    min-width: 44px;
+  }
+  .step-head-row .season-pick {
+    min-height: 44px;
+  }
+  .brand {
+    min-height: 44px;
+  }
+  .theme-switch::after {
+    inset: -6px;
+  }
+  .info-btn::after {
+    inset: -14px;
+  }
+  .star[role='button']::after {
+    inset: -13px;
+  }
+  .reel-sound::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+  .boxes-btn::after {
+    inset: -10px -4px;
+  }
+  .linklike {
+    position: relative;
+  }
+  .linklike::after {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
+  }
+  .tbl tr.clickable > td {
+    height: 44px;
+  }
+  details > summary {
+    min-height: 44px;
+    align-content: center;
+  }
+}
 /* The Gauntlet's rungs still ahead: a dashed outline, not a fade (60% opacity took the numbers under 4.5:1) */
 .chip.rung-ahead {
   border-style: dashed;
