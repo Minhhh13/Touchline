@@ -70,3 +70,34 @@ describe('QA-7: a player who leaves gives up his set-piece duties', () => {
     expect(g.tactics.setPieces).toEqual({})
   })
 })
+
+describe('QA-9: an arena match is played only from the hub', () => {
+  it('a second Sim while the report is up plays nothing, so the bonus spin after rung 2 is never skipped', async () => {
+    const { gauntletGameSettings } = await import('../logic/arena')
+    useStore.setState({ universe: u, loadedLeagues: ['england'], game: null, parked: {}, toast: null })
+    let checked = 0
+    for (let i = 0; i < 20 && checked < 3; i++) {
+      st().startGame(gauntletGameSettings(u, { teamName: 'QA', formationId: '4-3-3', wheelLeagues: ['england'], difficulty: 'calibrated', seed: `qa-fix-arena-${i}`, hardMode: false, twists: true }, 'QAA'))
+      st().autoDraftRest()
+      st().finishDraft()
+      st().playArenaStep(false)
+      const once = st().game!
+      expect(once.phase).toBe('match')
+      st().playArenaStep(false)
+      expect(st().game).toBe(once)
+      // Rung 1 won: close it, win rung 2, and the bonus spin is due when the report closes
+      if (!once.arena!.over) {
+        st().closeMatch()
+        st().playArenaStep(false)
+        if (!st().game!.arena!.over) {
+          st().playArenaStep(false)
+          expect(st().game!.arena!.log.length).toBe(2)
+          st().closeMatch()
+          expect(st().game!.phase).toBe('draft')
+          checked++
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0)
+  }, 60_000)
+})
