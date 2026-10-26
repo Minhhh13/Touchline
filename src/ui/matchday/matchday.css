@@ -1357,6 +1357,13 @@
     gap: 6px;
   }
 }
+/* 800 px high and less (1280x720, 1366x768): the widget row's 140 px floor left the live pitch about 200 px high and a
+   replay's (under the Live and Report tabs) under 150; the row gives 30 px more to the pitch, its pictures sized by the slot */
+@media (min-width: 1200px) and (max-height: 800px) {
+  .matchday.fit .md-widgets {
+    --md-widget-h: clamp(118px, 18vh, 150px);
+  }
+}
 /* The app's top bar folded away: the restore pill sits in the top-right corner, in the competition line's row, clear of the board's controls */
 @media (min-width: 1200px) {
   .app.bar-hidden > .page.matchday-page {
