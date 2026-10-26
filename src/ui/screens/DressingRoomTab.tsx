@@ -1,5 +1,6 @@
 import { Crown, Users, Smile } from 'lucide-react'
 import { useStore } from '@game/store'
+import type { Boxes } from '../components/Boxes'
 import { surnameOf } from '@game/logic/talks'
 import { atmosphereOf, hierarchy, squadGroups, TIER_LABEL, TIER_ORDER } from '@game/logic/dynamics'
 import { happinessOf } from '@game/logic/happiness'
@@ -16,7 +17,8 @@ const surname = surnameOf
  * every player's happiness. A view only; every number comes from
  * `src/game/logic/dynamics.ts` and `happiness.ts`.
  */
-export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }) {
+/** `boxes` is the Dugout's Boxes control for this tab: an unticked box is left out and the others widen. */
+export function DressingRoomTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
   const { universe: u, game } = useStore()
   if (!u || !game) return null
   const get = playerLookup(game, u)
@@ -25,8 +27,11 @@ export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }
   const atmos = atmosphereOf(game, u)
   const mood = rows.map((r) => ({ r, h: happinessOf(game.squad[r.id]) })).sort((a, b) => a.h.morale - b.h.morale || a.r.id.localeCompare(b.r.id))
   const atmosColour = atmos.value >= 65 ? 'var(--good)' : atmos.value >= 50 ? 'var(--meter-mid)' : 'var(--bad)'
+  const on = (id: string) => boxes?.on(id) ?? true
+  const grid = boxes?.grid([{ track: 'minmax(0, 1fr)', ids: ['hierarchy'] }, { track: 'minmax(0, 1fr)', ids: ['groups'] }, { track: 'minmax(0, 1fr)', ids: ['happiness'] }]) ?? { className: '', style: undefined }
   return (
-    <div className="grid three fill squad-views" data-testid="dressing-room">
+    <div className={`grid three fill squad-views ${grid.className}`} style={grid.style} data-testid="dressing-room">
+      {on('hierarchy') && (
       <div className="panel" data-testid="hierarchy">
         <div className="panel-head">
           <span className="head-title">
@@ -61,6 +66,8 @@ export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }
           )
         })}
       </div>
+      )}
+      {on('groups') && (
       <div className="panel" data-testid="groups">
         <div className="panel-head">
           <span className="head-title">
@@ -106,6 +113,8 @@ export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }
           ))}
         </div>
       </div>
+      )}
+      {on('happiness') && (
       <div className="panel" data-testid="happiness-list">
         <div className="panel-head">
           <span className="head-title">
@@ -127,6 +136,7 @@ export function DressingRoomTab({ onPlayer }: { onPlayer: (id: string) => void }
           ))}
         </div>
       </div>
+      )}
     </div>
   )
 }
