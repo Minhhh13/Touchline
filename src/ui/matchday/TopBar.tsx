@@ -10,6 +10,7 @@
  * report while a stop is still ahead).
  */
 import { useEffect, useRef } from 'react'
+import { Clapperboard } from 'lucide-react'
 import type { Mentality } from '@engine/types'
 import { scoreAt } from '@engine/matchFeed'
 import { MENTALITY_HELP } from '@engine/tactics'
@@ -119,6 +120,9 @@ export interface HighlightsControl {
   wound: string | null
   /** The clock is fast-forwarding through a quiet minute. */
   fast: boolean
+  /** Key moments on the pitch (the camera on big chances, goal replays): the viewer's setting. */
+  keyMoments?: boolean
+  setKeyMoments?(on: boolean): void
 }
 
 export function TopBar({ feed, clock, minute, home, away, label, hand, playback, highlights }: TopBarProps & { hand: ManagerHand; minute?: number; playback?: LivePlayback; highlights?: HighlightsControl }) {
@@ -165,6 +169,11 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
               </option>
             ))}
           </select>
+        )}
+        {highlights?.setKeyMoments && (
+          <button type="button" className={`btn sm md-moments ${highlights.keyMoments ? 'on' : ''}`} onClick={() => highlights.setKeyMoments?.(!highlights.keyMoments)} aria-pressed={!!highlights.keyMoments} aria-label="Key moments: the camera on big chances and goal replays" title={highlights.keyMoments ? 'Key moments on: the camera leans in on big chances and goals are replayed' : 'Key moments off: no camera moves or goal replays'} data-testid="key-moments">
+            <Clapperboard size={15} aria-hidden="true" />
+          </button>
         )}
         {highlights?.fast && !clock.finished && (
           <span className="chip info md-fast" data-testid="highlights-fast" title="A quiet spell: the clock runs fast to the next moment">

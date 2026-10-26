@@ -47,6 +47,7 @@ import type { LiveControl, MatchdayData, SideView } from './types'
 import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { MATCHDAY_COMPACT, matchdayBoxes, readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
+import { keyMomentsPref, usePref } from '../viewerPrefs'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
@@ -95,7 +96,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const start = live ? resumeMinute(live.mp) : 0
   // Every goal holds the clock for its celebration: ours the full one, theirs a short one (from the same strike moments the ball path uses)
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
-  const holds = useMemo(() => mpath.epochs.flatMap((e) => goalHolds(feed.events, e.from, e.to, { userSide: userSide ?? undefined, reduced })).sort((a, b) => a.t - b.t), [mpath, feed.events, userSide, reduced])
+  // Key moments (a per-viewer setting, on by default): each goal's hold ends with its replay
+  const [keyMoments, setKeyMoments] = usePref(keyMomentsPref)
+  const holds = useMemo(() => mpath.epochs.flatMap((e) => goalHolds(feed.events, e.from, e.to, { userSide: userSide ?? undefined, reduced, replay: keyMoments })).sort((a, b) => a.t - b.t), [mpath, feed.events, userSide, reduced, keyMoments])
   // Every chance, save and foul behind a card is a cue: its minute's commentary and panels wait until the pitch has shown it
   const cues = useMemo(() => mpath.epochs.flatMap((e) => cueTimes(feed.events, e.from, e.to)).sort((a, b) => a - b), [mpath, feed.events])
   const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
@@ -134,7 +137,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   // Leaving the match (or a new segment) never carries a fast-forward over
   useEffect(() => () => useLiveClock.setState({ boost: 1 }), [])
   const score = levelNow.wound ? marginAt(feed.events, clock.clock) : null
-  const highlights = { level, setLevel, wound: score ? `${Math.max(score.home, score.away)}-${Math.min(score.home, score.away)}` : null, fast: boost > 1 }
+  const highlights = { level, setLevel, wound: score ? `${Math.max(score.home, score.away)}-${Math.min(score.home, score.away)}` : null, fast: boost > 1, keyMoments, setKeyMoments }
 
   const [selected, setSelected] = useState<string | null>(null)
   const friendly = !!ref.friendly
@@ -258,6 +261,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
       labels={{ ...numbers.home, ...numbers.away }}
       track={mpath}
       keepers={{ home: keeper, away: keeper }}
+      keyMoments={keyMoments && !reduced}
     />
   )
   const momentum = <MomentumBar strip momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />
