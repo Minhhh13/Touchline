@@ -1251,6 +1251,15 @@
   .page.matchday-page {
     padding-bottom: 8px;
   }
+}
+/* From 2200 px wide the board takes the large screens' page cap (styles.css, round 5) like every other page: at 1680 px
+   it sat in a column a third of a 2560 window wide, and the pitch, sized by the centre column's width, stayed small */
+@media (min-width: 2200px) {
+  .page.matchday-page {
+    max-width: var(--page-max-lg, 2160px);
+  }
+}
+@media (min-width: 1200px) {
   .matchday.fit {
     height: var(--md-fit, auto);
     min-height: 0;
