@@ -16,6 +16,7 @@ import { clubName, seasonLabel } from '../format'
 import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
 import { Pos, Rating } from './bits'
+import { CaseItemIcon, isCaseItemKey, PowerUpIcon } from './icons'
 
 /**
  * The end-of-draft case (`DraftRules.endCase`): the odds of each rarity first, then one case reel landing on what the
@@ -73,7 +74,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
             <div className="reel-run item-reel idle" data-testid="case-idle">
               <div className="reel-window" aria-hidden="true">
                 <div className="reel-marker" />
-                <div className="mspin-idle">{revealed ? card.face : <Gift size="1em" aria-hidden="true" />}</div>
+                <div className="mspin-idle">{revealed && isCaseItemKey(card.key) ? <CaseItemIcon item={card.key} size="1em" /> : <Gift size="1em" aria-hidden="true" />}</div>
               </div>
             </div>
           )}
@@ -90,7 +91,9 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
           {revealed && c.drop.kind === 'powerup' && (
             <div className="col case-result" data-testid="case-result" data-tier={card.tier} style={{ gap: 8 }}>
               <div className="row wrap" style={{ gap: 8 }}>
-                <span className="case-face" aria-hidden="true">{POWER_UP_INFO[c.drop.powerUp].icon}</span>
+                <span className="case-face" aria-hidden="true">
+                  <PowerUpIcon kind={c.drop.powerUp} size="1em" />
+                </span>
                 <b className="case-name">{POWER_UP_INFO[c.drop.powerUp].title}</b>
                 <TierChip tier={card.tier} />
                 <span className="chip">{CASE_RARITY_LABEL[c.drop.rarity]}</span>
@@ -107,7 +110,9 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
           {revealed && c.drop.kind === 'icon' && icon && (
             <div className="col case-result" data-testid="case-result" data-tier="icons" style={{ gap: 8 }}>
               <div className="row wrap" style={{ gap: 8 }}>
-                <span className="case-face icon" aria-hidden="true">★</span>
+                <span className="case-face icon" aria-hidden="true">
+                  <CaseItemIcon item="icon" size="1em" />
+                </span>
                 <b className="case-name" data-testid="case-icon-name">{icon.name}</b>
                 <Rating value={icon.overall} hidden={hide} />
                 {icon.positions.slice(0, 3).map((p) => (
@@ -150,9 +155,12 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                   </td>
                   <td className="mono">{odds[r]}%</td>
                   <td className="small">
-                    {CASE_ITEMS.filter((x) => x.rarity === r)
-                      .map((x) => `${caseItemCard(x.item).face} ${caseItemCard(x.item).label} ${x.weight}%`)
-                      .join(' · ')}
+                    {CASE_ITEMS.filter((x) => x.rarity === r).map((x, i) => (
+                      <span key={x.item} className="case-odds-item">
+                        {i > 0 && ' · '}
+                        <CaseItemIcon item={x.item} size={13} /> {caseItemCard(x.item).label} {x.weight}%
+                      </span>
+                    ))}
                   </td>
                 </tr>
               ))}

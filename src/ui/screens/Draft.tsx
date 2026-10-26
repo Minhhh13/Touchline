@@ -21,7 +21,7 @@ import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
-import { MODE_ICON, TWIST_ICON } from '../components/icons'
+import { MODE_ICON, PowerUpIcon, TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
@@ -397,7 +397,7 @@ export function Draft() {
                 <div className="col pu-log" data-testid="power-up-log" style={{ gap: 2 }}>
                   {puLog.map((l, i) => (
                     <div key={i} className="row small" style={{ gap: 8 }}>
-                      <span aria-hidden="true">{l.icon}</span>
+                      <PowerUpIcon kind={l.kind} size={14} />
                       <span>{l.text}</span>
                     </div>
                   ))}

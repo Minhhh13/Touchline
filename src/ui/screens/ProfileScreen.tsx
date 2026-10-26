@@ -17,7 +17,7 @@ import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
 import { lockerCount } from '@game/logic/endCase'
-import { AchievementIcon } from '../components/icons'
+import { AchievementIcon, PowerUpIcon } from '../components/icons'
 import { clubName, ordinal, seasonLabel, tierName } from '../format'
 import { countPhrase } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
@@ -255,7 +255,16 @@ export function ProfileScreen() {
               <span>
                 Locker <Info label="About the locker">Power-ups from end-of-draft cases. Unpack one in a Quick Draft played without the power-up tray; each works once, as the tray's does.</Info>
               </span>
-              <span className="small">{POWER_UPS.filter((k) => lockerCount(profile, k) > 0).map((k) => `${POWER_UP_INFO[k].icon} ${POWER_UP_INFO[k].title} ×${lockerCount(profile, k)}`).join(' · ') || 'Empty: open a case at the end of a Quick Draft'}</span>
+              <span className="small">
+                {POWER_UPS.some((k) => lockerCount(profile, k) > 0)
+                  ? POWER_UPS.filter((k) => lockerCount(profile, k) > 0).map((k, i) => (
+                      <span key={k} className="case-odds-item">
+                        {i > 0 && ' · '}
+                        <PowerUpIcon kind={k} size={13} /> {POWER_UP_INFO[k].title} ×{lockerCount(profile, k)}
+                      </span>
+                    ))
+                  : 'Empty: open a case at the end of a Quick Draft'}
+              </span>
             </div>
             <div className="toolbar">
               <button

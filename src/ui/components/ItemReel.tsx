@@ -5,6 +5,7 @@ import { playLanding } from '../sound/synth'
 import { OVERSHOOT, reelKeyframes, reelPosition, type ReelTiming } from '../reelCurve'
 import { NeonFlow } from './Art'
 import { REDUCED_MS } from './CaseReel'
+import { CaseItemIcon, isCaseItemKey } from './icons'
 
 function prefersReducedMotion(): boolean {
   try {
@@ -17,7 +18,7 @@ function prefersReducedMotion(): boolean {
 function Card({ c, landed }: { c: ItemCard; landed?: boolean }) {
   return (
     <div className={`reel-card item-card${landed ? ' landed' : ''}`} data-tier={c.tier}>
-      <span className="code">{c.face}</span>
+      <span className="code">{isCaseItemKey(c.key) ? <CaseItemIcon item={c.key} size="0.9em" /> : c.face}</span>
       <span className="item-lbl">{c.label}</span>
     </div>
   )

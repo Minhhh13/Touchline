@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { assistantChoice, autoDraft, chooseSlot, closeBench, fillingXI, isComplete, newDraft, pick, QUICK_RULES, spin, spinClubSeason, spinnableSlots, upgraderOn, type DraftRules, type DraftState, type QuickMode } from '@engine/draft'
-import { ARMBAND_BOOST, armbandId, canLock, canPeek, canReroll, canSwap, draftBoost, giveArmband, lockPlayer, lockedId, peekedSeason, peekNext, powerUpUsed, rerollOptions, rerollSeason, swapSlots, swapTargets, usePeek } from '@engine/powerups'
+import { ARMBAND_BOOST, POWER_UP_INFO, armbandId, canLock, canPeek, canReroll, canSwap, draftBoost, giveArmband, lockPlayer, lockedId, peekedSeason, peekNext, powerUpUsed, rerollOptions, rerollSeason, swapSlots, swapTargets, usePeek } from '@engine/powerups'
 import { canUpgrade, upgradeCandidates, upgradePlayer } from '@engine/upgrader'
 import { decodeChallenge, encodeChallenge, isChallengePowerUps, isRulesDiff } from '@engine/challenge'
 import { getFormation } from '@engine/formations'
@@ -352,6 +352,9 @@ describe('power-ups in links, the log and the share text', () => {
     expect(lines.length).toBe(d.powerUps!.length + 1)
     expect(lines.some((l) => l.text.startsWith('Upgrader +10'))).toBe(true)
     expect(lines.some((l) => l.text.startsWith('Armband to'))).toBe(true)
+    // Each line names its power-up, so the screen draws its icon (the emoji stay for text)
+    for (const l of lines) expect(l.icon).toBe(POWER_UP_INFO[l.kind].icon)
+    expect(lines.find((l) => l.text.startsWith('Upgrader'))!.kind).toBe('upgrader')
     const share = powerUpsShareLine(d)!
     expect(share).toContain('Power-ups')
     expect(share).toContain('©️')

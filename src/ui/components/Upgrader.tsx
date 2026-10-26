@@ -4,6 +4,7 @@ import { UPGRADE_BOOSTS, upgradeChance, upgradeGain, upgradeLoss, type UpgradeBo
 import type { Tier } from '@game/logic/rarity'
 import { Modal, Pos } from './bits'
 import { POWER_UP_INFO } from '@engine/powerups'
+import { PowerUpIcon } from './icons'
 import { PowerUpButton } from './PowerUpButton'
 import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound/synth'
 import { quickSpinPref, usePref } from '../viewerPrefs'
@@ -324,7 +325,7 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
   return (
     <div className={tray ? 'pu-upgrader' : 'panel tight upg-panel'} data-testid="upgrader">
       {tray ? (
-        <PowerUpButton icon={POWER_UP_INFO.upgrader.icon} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? (result.won ? `Won +${result.delta}` : result.locked ? 'Lock held' : `Lost ${result.delta}`) : 'Spinning…') : available ? 'Ready' : 'Draft a player'} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
+        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? (result.won ? `Won +${result.delta}` : result.locked ? 'Lock held' : `Lost ${result.delta}`) : 'Spinning…') : available ? 'Ready' : 'Draft a player'} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
       ) : (
         <div className="row between">
           <div>

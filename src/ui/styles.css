@@ -10176,6 +10176,18 @@ table.tbl tr.chase-perfect td:first-child {
   font-size: 22px;
   line-height: 1;
 }
+/* The power-ups' pictures are Lucide icons sized by the text around them */
+.pu-icon svg,
+.case-face svg {
+  width: 1em;
+  height: 1em;
+}
+.case-odds-item svg,
+.pu-log svg,
+.locker-btn svg,
+.notice svg {
+  vertical-align: -2px;
+}
 .pu-title {
   font-size: 12px;
   font-weight: 700;
