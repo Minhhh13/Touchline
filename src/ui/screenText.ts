@@ -44,3 +44,16 @@ export function developmentLists(body: string): { improving: string[]; fading: s
   const fading = part('Fading')
   return improving.length || fading.length ? { improving, fading } : null
 }
+
+/**
+ * A count and the plural phrase it counts ("league titles", "cups, season and arena"), with the phrase's first plural
+ * word made singular for a count of one: "1 league title", "1 cup, season and arena", "1 run-in brief met".
+ */
+export function countPhrase(n: number, plural: string): string {
+  if (n !== 1) return `${n} ${plural}`
+  const words = plural.split(' ')
+  const at = words.findIndex((w) => /[a-z]s[,.]?$/.test(w))
+  if (at < 0) return `${n} ${plural}`
+  words[at] = words[at].replace(/s([,.]?)$/, '$1')
+  return `${n} ${words.join(' ')}`
+}

@@ -8,14 +8,21 @@ export function Privacy() {
   const go = useStore((s) => s.go)
   const online = onlineAvailable()
   return (
-    <div className="page" style={{ maxWidth: 860 }} data-testid="privacy-page">
-      <div className="row between wrap" style={{ marginBottom: 10 }}>
-        <h1>Privacy and fair play</h1>
+    <div className="page privacy" data-testid="privacy-page">
+      <div className="screen-head">
+        <div className="screen-title">
+          <h1>Privacy and fair play</h1>
+          <div className="screen-meta">
+            <span>What is kept, where, and the leaderboard rules</span>
+          </div>
+        </div>
         <button className="btn ghost" onClick={() => go('home')}>
           ← Home
         </button>
       </div>
-      <div className="col">
+      {/* One screen on a desktop (a shell screen): the boxes flow into columns and scroll together inside the body */}
+      <div className="screen-body scroll-whole fill">
+      <div className="privacy-grid">
         <div className="panel">
           <h3>The short version</h3>
           <p>{APP_NAME} is a free, non-commercial fan game with no ads and no tracking. You never need an account: every mode works signed out and offline, and your games are saved in this browser. Signing in is optional and only adds cloud saves, the world leaderboard and short challenge links.</p>
@@ -62,6 +69,7 @@ export function Privacy() {
           <h3>Player data</h3>
           <p>Ratings are reworked from community datasets derived from EA Sports FC and FIFA ratings (Kaggle: FC 24 and FC 26 CC0, FC 25 Apache 2.0, FC 27 a non-commercial snapshot), the European Soccer Database (ODbL), openfootball results (public domain) and Wikidata (CC0). The ratings originate with EA Sports; {APP_NAME} is not affiliated with EA, any league or any club, and uses no real crests, kits, logos or photos.</p>
         </div>
+      </div>
       </div>
     </div>
   )

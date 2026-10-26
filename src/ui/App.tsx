@@ -180,7 +180,7 @@ export function App() {
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
   // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
   // Setup and the match day keep their own layouts
-  let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto' || screen === 'world' || screen === 'account'
+  let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto' || screen === 'privacy' || screen === 'world' || screen === 'account'
   if (screen === 'game' && game) {
     // An arena shoot-out waiting for its takers is a shell screen too (`.page.fit`)
     shell = game.phase !== 'match' || !!game.arena?.pending

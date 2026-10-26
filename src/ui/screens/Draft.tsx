@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Dices, Ghost, Trophy } from 'lucide-react'
+import { Dices, Ghost, Package, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
@@ -10,7 +10,7 @@ import { ratingHidden, ratingShown, revealsOnPick } from '@game/logic/ratingVisi
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
 import { PowerUpTray } from '../components/PowerUps'
-import { POWER_UPS_ICON, powerUpsOn, trayKinds } from '@engine/powerups'
+import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
 import { bestFit, describeFit } from '@engine/positions'
@@ -21,7 +21,7 @@ import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, EstimatedChip, Info, Pos, Rating, Segmented, Tip } from '../components/bits'
-import { TWIST_ICON } from '../components/icons'
+import { MODE_ICON, TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
@@ -240,14 +240,17 @@ export function Draft() {
           </div>
           {((modeCards.length > 0 && (modeCards.length > 1 || modeCards[0] !== 'hard')) || powerUpsOn(d)) && (
             <div className="pill-list" data-testid="draft-modes" style={{ marginTop: 6 }}>
-              {modeCards.map((c) => (
-                <span key={c} className="chip" title={MODE_INFO[c].line}>
-                  {MODE_INFO[c].icon} {MODE_INFO[c].title}
-                </span>
-              ))}
+              {modeCards.map((c) => {
+                const Icon = MODE_ICON[c]
+                return (
+                  <span key={c} className="chip" title={MODE_INFO[c].line}>
+                    <Icon size={12} aria-hidden="true" /> {MODE_INFO[c].title}
+                  </span>
+                )
+              })}
               {powerUpsOn(d) && (
                 <span className="chip" title="Six one-use power-ups in the tray under the reel">
-                  {POWER_UPS_ICON} Power-ups
+                  <Package size={12} aria-hidden="true" /> Power-ups
                 </span>
               )}
             </div>

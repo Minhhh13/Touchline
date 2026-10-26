@@ -9,7 +9,7 @@ export function TableView({ rows, teamName, teamCode, compact, highlightTop, nam
   const savedCode = useStore((s) => s.game?.settings.shortName)
   const code = teamCode ?? savedCode
   return (
-    <table className="tbl">
+    <table className={`tbl${compact ? ' tv-compact' : ''}`}>
       <thead>
         <tr>
           <th>#</th>
@@ -30,10 +30,10 @@ export function TableView({ rows, teamName, teamCode, compact, highlightTop, nam
           return (
             <tr key={r.teamId} className={me ? 'me' : ''} style={highlightTop && i === 0 ? { fontWeight: 700 } : undefined}>
               <td>{i + 1}</td>
-              <td>
+              <td className="tv-club" title={name}>
                 <span className="row" style={{ gap: 8 }}>
                   {me ? <TeamBadge code={code} size={22} /> : <ClubBadge clubId={r.teamId} size={22} />}
-                  {name}
+                  <span className="tv-name">{name}</span>
                 </span>
               </td>
               <td className="num">{r.played}</td>
