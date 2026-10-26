@@ -8479,18 +8479,13 @@ table.tbl.match-stats th {
   .app.shell .grid.draft .draft-log {
     max-height: none;
   }
-  /* The draft recap scrolls inside the box on a short window (the Hindsight XI under the cards), its button kept in view */
+  /* The draft recap scrolls inside the box on a short window (the Hindsight XI under the cards); the button on is the left box's */
   .app.shell .grid.draft > .draft-squad > .draft-recap {
     flex: 0 1 auto;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
     padding-inline: 2px;
-  }
-  .app.shell .grid.draft > .draft-squad > .draft-recap > .recap-go {
-    position: sticky;
-    bottom: 0;
-    flex: none;
   }
   /* A pitch never taller than the box it sits in */
   .app.shell .grid.draft .pitch-wrap,
@@ -12994,7 +12989,7 @@ table.tbl.tv-compact .tv-name {
 }
 
 /* ------------------------------------------------------------ draft recap */
-/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards, the next step */
+/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards and the Hindsight XI (the button on is the left box's) */
 .draft-recap {
   display: flex;
   flex-direction: column;
