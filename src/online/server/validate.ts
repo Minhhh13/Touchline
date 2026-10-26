@@ -10,7 +10,7 @@ import { weekStartOf } from '../weekly'
 
 /** Every operation the Phase 1 function answers. Challenge codes are not here: `create_challenge` and
  * `get_challenge` are database functions the client calls directly (the opener's replay decides, as today). */
-export const OPS = ['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'account.delete'] as const
+export const OPS = ['status', 'daily.pin', 'daily.submit', 'weekly.pin', 'weekly.submit', 'chase.start', 'chase.submit', 'account.delete'] as const
 export type Op = (typeof OPS)[number]
 
 /** The largest request body accepted, in UTF-8 bytes (a ranked payload is at most 8000 characters). */
@@ -23,7 +23,8 @@ export type ServerRequest =
   | { op: 'status' }
   | { op: 'daily.pin'; date?: string }
   | { op: 'weekly.pin'; week?: string }
-  | { op: 'daily.submit' | 'weekly.submit'; encoded: string; teamName: string; shortName: string }
+  | { op: 'daily.submit' | 'weekly.submit' | 'chase.submit'; encoded: string; teamName: string; shortName: string }
+  | { op: 'chase.start'; leagueId: string; formationId: string; engine: string; data: string }
   | { op: 'account.delete'; confirm: typeof DELETE_CONFIRMATION }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string }
@@ -37,6 +38,8 @@ const ALLOWED: Record<Op, readonly string[]> = {
   'weekly.pin': ['week'],
   'daily.submit': ['encoded', 'teamName', 'shortName'],
   'weekly.submit': ['encoded', 'teamName', 'shortName'],
+  'chase.start': ['leagueId', 'formationId', 'engine', 'data'],
+  'chase.submit': ['encoded', 'teamName', 'shortName'],
   'account.delete': ['confirm'],
 }
 
@@ -80,13 +83,22 @@ export function parseRequest(text: string): Parsed<ServerRequest> {
       if (typeof raw.week !== 'string' || !weekStartOf(raw.week)) return bad('week is an ISO week such as 2026-W43')
       return { ok: true, value: { op: 'weekly.pin', week: raw.week } }
     }
+    case 'chase.start': {
+      const { leagueId, formationId, engine, data } = raw
+      if (typeof leagueId !== 'string' || !LEAGUE_RE.test(leagueId)) return bad('leagueId is a league id such as england')
+      if (typeof formationId !== 'string' || !FORMATION_RE.test(formationId)) return bad('formationId is a shape such as 4-3-3')
+      if (typeof engine !== 'string' || !ENGINE_RE.test(engine)) return bad('engine is the engine version the client runs')
+      if (typeof data !== 'string' || !STAMP_RE.test(data)) return bad('data is the data stamp the client runs')
+      return { ok: true, value: { op: 'chase.start', leagueId, formationId, engine, data } }
+    }
     case 'daily.submit':
-    case 'weekly.submit': {
+    case 'weekly.submit':
+    case 'chase.submit': {
       const { encoded, teamName, shortName } = raw
       if (typeof encoded !== 'string' || encoded.length < 1 || encoded.length > 8100) return bad('encoded is the run payload (at most 8000 characters)')
       if (typeof teamName !== 'string' || teamName.length > 64) return bad('teamName is text')
       if (typeof shortName !== 'string' || shortName.length > 8) return bad('shortName is text')
-      return { ok: true, value: { op: op as 'daily.submit' | 'weekly.submit', encoded, teamName, shortName } }
+      return { ok: true, value: { op: op as 'daily.submit' | 'weekly.submit' | 'chase.submit', encoded, teamName, shortName } }
     }
     case 'account.delete':
       if (raw.confirm !== DELETE_CONFIRMATION) return bad(`account.delete needs confirm: "${DELETE_CONFIRMATION}"`)
@@ -98,6 +110,7 @@ export function parseRequest(text: string): Parsed<ServerRequest> {
 export const STAMP_RE = /^[0-9A-Za-z._:-]{1,40}$/
 const ENGINE_RE = /^[0-9A-Za-z._-]{1,16}$/
 const LEAGUE_RE = /^[a-z][a-z0-9-]{1,30}$/
+const FORMATION_RE = /^[0-9a-z-]{3,16}$/
 
 /** The live site's `build.json`, or null when it is not one. */
 export function parseBuildInfo(raw: unknown): BuildInfo | null {

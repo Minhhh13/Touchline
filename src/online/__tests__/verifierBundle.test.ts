@@ -15,6 +15,8 @@ import { dailyGameSettings } from '@game/logic/setup'
 import { challengeFromGame } from '@game/logic/challenge'
 import { puzzleOf, settingsHash, verifyDaily, type PuzzlePin, type Verdict } from '../server/dailyVerify'
 import { weeklyGameSettings } from '../weekly'
+import { chaseGameSettings } from '../chase'
+import { verifyChase, type ChaseAttempt } from '../server/chaseVerify'
 import { autoPlayed } from './serverHarness'
 
 interface Bundle {
@@ -23,6 +25,8 @@ interface Bundle {
   verifyDaily: typeof verifyDaily
   dailyGameSettings: typeof dailyGameSettings
   weeklyGameSettings: typeof weeklyGameSettings
+  chaseGameSettings: typeof chaseGameSettings
+  verifyChase: typeof verifyChase
 }
 interface Builder {
   buildVerifier(o: { minify: boolean; outfile: string }): Promise<{ outfile: string; bytes: number }>
@@ -79,5 +83,20 @@ describe('the verifier bundle', () => {
       verdicts.push(fromBundle)
     }
     expect(verdicts.map((v) => (v.ok ? 'ranked' : v.code))).toEqual(['ranked', 'invalid_picks', 'ranked'])
+  }, 120000)
+
+  it('maps and verifies 38-0 chase runs as the source does', () => {
+    for (const code of ['K7Q2MX9A3B', 'AAAAAAAAAB', 'ZZZZ2222YY']) {
+      for (const f of ['4-3-3', '5-3-2']) expect(bundle.settingsHash(bundle.chaseGameSettings(u, code, 'england', f)!)).toBe(settingsHash(chaseGameSettings(u, code, 'england', f)!))
+    }
+    const attempt: ChaseAttempt = { code: 'K7Q2MX9A3B', seed: 'chase-K7Q2MX9A3B', leagueId: 'england', formationId: '4-3-3', engineVersion: ENGINE_VERSION, dataVersion: u.generatedAt, createdAt: '2026-10-26T10:00:00Z', expiresAt: '2026-10-28T10:00:00Z', submittedAt: null }
+    const g = autoPlayed(u, chaseGameSettings(u, attempt.code, 'england', '4-3-3', 'Parity FC')!)
+    const c = challengeFromGame(g, u, 'Parity')!
+    const now = new Date('2026-10-26T12:00:00Z')
+    for (const p of [c, { ...c, p: [[null, null], [null, null], ...c.p] as typeof c.p }]) {
+      const b = { encoded: encodeChallenge(p), teamName: g.settings.teamName, shortName: g.settings.shortName }
+      expect(bundle.verifyChase(u, attempt, b, now, () => false)).toEqual(verifyChase(u, attempt, b, now, () => false))
+    }
+    expect(bundle.verifyChase(u, attempt, { encoded: encodeChallenge(c), teamName: g.settings.teamName, shortName: g.settings.shortName }, now, () => false).ok).toBe(true)
   }, 120000)
 })
