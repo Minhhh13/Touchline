@@ -7770,6 +7770,16 @@ table.tbl.contracts .btn.sm {
   grid-column: 3;
   grid-row: 1;
 }
+/* A name never breaks inside itself ("E. / Konsa"): the line breaks only between the scorer and the assist */
+.goal-list .goal-who > b,
+.goal-list .goal-who > .muted {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
 .notes-list {
   list-style: none;
   margin: 0;
