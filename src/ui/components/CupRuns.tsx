@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
-import { Globe, Medal, type LucideIcon } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Globe, Medal, Network, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game, QuickCupRun } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { cupReachLabel, cupRoundLabel, cupScoreLabel, QUICK_CONTINENTAL_PLACES, QUICK_CUP_ENTRANTS, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
 import { scorersLabel } from '@game/logic/gameByGame'
 import { ClubBadge } from './bits'
+import { CupNight } from './CupNight'
 import { ordinal } from '../format'
 import { isSuperLeague, sideNamer } from '@game/logic/superLeague'
 
@@ -14,22 +15,16 @@ function CupIcon({ comp, size }: { comp: QuickCupComp; size: number }) {
   return <Icon size={size} aria-hidden="true" />
 }
 
-/** Milliseconds between two ties of a cup run as it is revealed. */
-export const TIE_STEP_MS = 1100
-
 const TITLE: Record<QuickCupComp, string> = { cup: 'The Cup', continental: 'Continental Cup' }
 /** The cups' pictures, Lucide's meanings (DESIGN_SYSTEM.md section 7): Medal the cup, Globe the Continental Cup. */
 const ICON: Record<QuickCupComp, LucideIcon> = { cup: Medal, continental: Globe }
 
-function useReducedMotion(): boolean {
-  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
 /**
- * The post-season cups of a Quick Draft, under the league result: for each cup a card to play it or skip it, then the
- * run revealed tie by tie, newest at the top, ending on the trophy or the round it went out in. The store plays the
- * cups; this only paces the reveal. `onReveal` tells the summary when each cup's reveal starts and ends (both cups can
- * reveal at once), so its banner keeps each trophy back until that cup's last tie is shown.
+ * The post-season cups of a Quick Draft, under the league result: for each cup a card to play it or skip it. Played,
+ * the cup night opens on its bracket and reveals the ties round by round (`CupNight`), ending on the trophy or the
+ * round it went out in; the card then lists the user's ties, newest at the top, with the bracket a click away. The
+ * store plays the cups; this only paces the reveal. `onReveal` tells the summary when each cup's reveal starts and
+ * ends, so its banner keeps each trophy back until that cup's last tie is shown.
  */
 export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp, revealing: boolean) => void }) {
   const cup = quickCupStatus(game, u, 'cup')
@@ -55,37 +50,32 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
 function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; u: LoadedUniverse; onReveal: (comp: QuickCupComp, revealing: boolean) => void }) {
   const { playCup, skipCup, loadingLeagues } = useStore()
   const status = quickCupStatus(game, u, comp)
-  const reduced = useReducedMotion()
-  // Ties shown of a run played on this screen; null shows the whole run (a run played before, or reduced motion)
-  const [shown, setShown] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  // The cup night's modal: 'reveal' as the cup is played, 'view' to look at the finished bracket again
+  const [night, setNight] = useState<'reveal' | 'view' | null>(null)
+  const [revealing, setRevealing] = useState(false)
   const run = status.state === 'played' ? status.run : null
-  const total = run?.ties.length ?? 0
-  const revealing = !!run && shown !== null && shown < total
-  useEffect(() => {
-    if (!revealing) return
-    const t = setTimeout(() => setShown((n) => (n === null ? null : n + 1)), TIE_STEP_MS)
-    return () => clearTimeout(t)
-  }, [revealing, shown])
-  useEffect(() => {
-    if (run && shown !== null && shown >= total) onReveal(comp, false)
-  }, [run, shown, total, onReveal, comp])
+  const endReveal = useCallback(() => {
+    setRevealing(false)
+    onReveal(comp, false)
+  }, [onReveal, comp])
   const play = async () => {
     setBusy(true)
-    // Nothing of the run shows until the reveal starts on the first tie
-    setShown(0)
+    // Nothing of the run shows until its bracket opens on the draw
+    setRevealing(true)
     onReveal(comp, true)
     const ok = await playCup(comp)
     setBusy(false)
-    if (!ok || reduced) {
-      setShown(null)
-      onReveal(comp, false)
+    if (!ok) {
+      endReveal()
       return
     }
-    setShown(1)
+    setNight('reveal')
   }
-  const skipReveal = () => setShown(total)
-  const n = shown ?? total
+  const close = () => {
+    setNight(null)
+    if (revealing) endReveal()
+  }
   return (
     <div className={`cup-card ${comp}`} data-testid={`cup-${comp}`}>
       <div className="row between wrap" style={{ gap: 8 }}>
@@ -93,11 +83,6 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
           <CupIcon comp={comp} size={18} /> {TITLE[comp]}
         </h3>
         {run && !revealing && <span className={`chip ${run.reached === 'W' ? 'gold' : ''}`} data-testid={`cup-${comp}-reached`}>{run.reached === 'W' ? 'Winners' : `Out in the ${cupReachLabel(run.reached, comp)}`}</span>}
-        {revealing && (
-          <button className="btn sm ghost" onClick={skipReveal} data-testid={`cup-${comp}-skip-reveal`}>
-            Skip to the end
-          </button>
-        )}
       </div>
       {status.state === 'open' && (
         <>
@@ -120,12 +105,21 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
           {comp === 'continental' ? `Finish in the top ${QUICK_CONTINENTAL_PLACES} to play it.` : status.reason + '.'}
         </p>
       )}
-      {run && <TieList comp={comp} run={run} shown={n} nameOf={sideNamer(game, u)} />}
-      {run && !revealing && run.reached === 'W' && (
-        <div className="cup-trophy" data-testid={`cup-${comp}-trophy`}>
-          <CupIcon comp={comp} size={16} /> {comp === 'cup' ? 'Cup winners' : 'Champions of the continent'}
+      {run && revealing && <p className="small muted" style={{ margin: 0 }}>The ties are being played…</p>}
+      {run && !revealing && <TieList comp={comp} run={run} shown={run.ties.length} nameOf={sideNamer(game, u)} />}
+      {run && !revealing && (
+        <div className="cup-foot">
+          {run.reached === 'W' && (
+            <span className="cup-trophy" data-testid={`cup-${comp}-trophy`}>
+              <CupIcon comp={comp} size={16} /> {comp === 'cup' ? 'Cup winners' : 'Champions of the continent'}
+            </span>
+          )}
+          <button className="btn sm" onClick={() => setNight('view')} data-testid={`cup-${comp}-bracket-open`}>
+            <Network size={14} aria-hidden="true" /> See the bracket
+          </button>
         </div>
       )}
+      {run && night && <CupNight game={game} u={u} comp={comp} run={run} reveal={night === 'reveal'} onClose={close} onRevealEnd={revealing ? endReveal : undefined} />}
     </div>
   )
 }

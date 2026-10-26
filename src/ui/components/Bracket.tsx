@@ -1,45 +1,133 @@
-import type { CupTie } from '@engine/cup'
-import { ClubBadge } from './bits'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { inTie, type BracketTie, type BracketView } from '@game/logic/bracket'
+import { TrophyArt, type TrophyKind } from './TrophyArt'
+
+/** What a reveal has shown so far: ties whose step is below `shown` are played; the tie at `shown` is the one in play. */
+export interface BracketReveal {
+  /** `steps[round][tie]`, from `revealSteps`. */
+  steps: number[][]
+  shown: number
+  /** The user's tie is in play (its moment before the score lands). */
+  live?: boolean
+}
 
 /**
- * A knockout's rounds side by side (stacked on a phone): every tie drawn so
- * far with its score, the side that went through in bold and your tie
- * outlined; a round not yet drawn says when it will be.
+ * A knockout drawn as a bracket (the view from `src/game/logic/bracket.ts`): the rounds side by side, the ties of each
+ * round in tree order with lines joining the two that meet next, your route outlined in the primary colour, the
+ * winner of each tie in bold, the score with extra time and penalties, and the winner beside the final. A round not
+ * drawn yet shows empty slots. Below 560 px of its own width it stacks the rounds. With `reveal` the ties fill in one
+ * after another (the store has already played them; this only shows them). The box scrolls inside itself.
  */
-export function Bracket({ rounds, ties, nameOf, badgeOf, userId, seeds = [] }: { rounds: string[]; ties: CupTie[][]; nameOf: (key: string) => string; badgeOf: (key: string) => string; userId: string; seeds?: string[] }) {
+export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, trophy, testId = 'bracket', tieTestId = `${testId}-tie`, meTestId = `${testId}-me` }: { view: BracketView; nameOf: (id: string) => string; badge: (id: string) => ReactNode; userId: string; seeds?: string[]; reveal?: BracketReveal; trophy?: TrophyKind; testId?: string; tieTestId?: string; meTestId?: string }) {
+  const box = useRef<HTMLDivElement>(null)
   const seeded = new Set(seeds)
-  const side = (key: string, t: CupTie, align: 'left' | 'right') => (
-    <span className="row" style={{ gap: 6, justifyContent: align === 'right' ? 'flex-end' : 'flex-start', fontWeight: t.winner === key ? 700 : 400, minWidth: 0 }}>
-      {align === 'left' && <ClubBadge clubId={badgeOf(key)} size={16} />}
-      <span style={{ overflowWrap: 'break-word' }}>
-        {nameOf(key)}
-        {seeded.has(key) && <span className="muted small" title="Seeded"> (s)</span>}
-      </span>
-      {align === 'right' && <ClubBadge clubId={badgeOf(key)} size={16} />}
-    </span>
-  )
+  const tree = !view.pathOnly
+  const at = reveal ? reveal.shown : Number.MAX_SAFE_INTEGER
+  const played = (r: number, i: number) => !reveal || (reveal.steps[r]?.[i] ?? 0) < at
+  const inPlay = (r: number, i: number) => !!reveal && reveal.steps[r]?.[i] === at
+  // A round's sides show once the reveal reaches it (the draw), every tie of it at once
+  const drawn = (r: number) => !reveal || !view.rounds[r].ties.length || Math.min(...reveal.steps[r]) <= at
+  const champion = view.champion && (!reveal || at >= Math.max(0, ...reveal.steps.flat()) + 1) ? view.champion : undefined
+  // Keep the tie in play in sight, on a phone and in a long bracket
+  useEffect(() => {
+    if (!reveal) return
+    const el = box.current?.querySelector<HTMLElement>('[data-in-play="true"]')
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [reveal?.shown, reveal])
+
+  const side = (t: BracketTie, which: 'home' | 'away', show: boolean, done: boolean) => {
+    const id = t[which]
+    const goals = which === 'home' ? t.hg : t.ag
+    const pens = t.pens?.[which]
+    const won = done && t.winner === id
+    const lost = done && t.winner !== undefined && t.winner !== id
+    return (
+      <div className={`br-side ${won ? 'won' : ''} ${lost ? 'lost' : ''} ${id === userId ? 'you' : ''}`}>
+        {show ? badge(id) : <span className="br-blank-badge" aria-hidden="true" />}
+        <span className="br-name" title={show ? nameOf(id) : undefined}>
+          {show ? nameOf(id) : '?'}
+          {show && seeded.has(id) && <span className="muted small" title="Seeded"> (s)</span>}
+        </span>
+        <span className="br-goals">{done && goals !== undefined ? goals : ''}</span>
+        {done && pens !== undefined && <span className="br-pens" title="Penalties">{pens}</span>}
+      </div>
+    )
+  }
+
+  const tieCard = (t: BracketTie | undefined, r: number, i: number) => {
+    if (!t) return <div className="br-tie empty" aria-hidden="true" />
+    const show = drawn(r)
+    // Your route shows only as far as the reveal has drawn it
+    const me = show && inTie(t, userId)
+    const done = played(r, i) && t.winner !== undefined
+    const live = inPlay(r, i) && me && !!reveal?.live
+    const extra = done ? (t.pens ? 'pens' : t.et ? 'aet' : '') : ''
+    return (
+      <div className={`br-tie ${me ? 'me' : ''} ${done ? 'done' : 'open'} ${reveal && done ? 'landed' : ''} ${live ? 'live' : ''}`} data-testid={me ? meTestId : tieTestId} data-me={me ? 'true' : undefined} data-played={done ? 'true' : 'false'} data-in-play={inPlay(r, i) ? 'true' : undefined}>
+        {side(t, 'home', show, done)}
+        {side(t, 'away', show, done)}
+        {extra && <span className="br-extra">{extra}</span>}
+        {live && <span className="br-live small">In play</span>}
+      </div>
+    )
+  }
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }} data-testid="bracket">
-      {rounds.map((name, r) => (
-        <div key={name} className="col" style={{ gap: 4 }} data-testid={`bracket-round-${r}`}>
-          <h3 style={{ fontSize: 15 }}>{name}</h3>
-          {!ties[r] && <div className="small muted">Drawn after the {rounds[r - 1]?.toLowerCase() ?? 'previous round'}</div>}
-          {ties[r]?.map((t, i) => {
-            const me = t.home === userId || t.away === userId
-            const played = t.hg !== undefined && t.ag !== undefined
-            return (
-              <div key={i} className={`fixture ${me ? 'me' : ''}`} style={{ gridTemplateColumns: '1fr auto 1fr', gap: 6 }} data-testid={me ? 'bracket-me' : undefined}>
-                {side(t.home, t, 'right')}
-                <span className="sc" style={{ fontSize: 15, minWidth: 44 }}>
-                  {played ? `${t.hg}-${t.ag}` : 'v'}
-                  {t.pens && <div className="small muted">{`${t.pens.home}-${t.pens.away} pens`}</div>}
-                </span>
-                {side(t.away, t, 'left')}
+    <div className={`bracket ${tree ? 'tree' : 'path'}`} ref={box} data-testid={testId} data-rounds={view.rounds.length}>
+      <div className="br-grid" style={{ ['--br-rows' as string]: String(view.rounds[0]?.slots ?? 1) }}>
+        {view.rounds.map((round, r) => {
+          const slots = tree ? round.slots : Math.max(1, round.ties.length)
+          const route = drawn(r) ? round.ties.findIndex((t) => inTie(t, userId)) : -1
+          const routeWon = route >= 0 && played(r, route) && round.ties[route].winner === userId
+          const pairs: number[][] = []
+          for (let i = 0; i < slots; i += 2) pairs.push(i + 1 < slots ? [i, i + 1] : [i])
+          return (
+            <div key={round.name} className={`br-col ${r === 0 ? 'first' : ''} ${r === view.rounds.length - 1 && !tree ? 'last' : ''}`} data-testid={`${testId}-round-${r}`} style={{ gridColumn: r + 1 }}>
+              <div className="br-head">
+                <span className="br-round">{round.name}</span>
+                {!round.ties.length && round.pending && <span className="br-pending small muted">{round.pending}</span>}
               </div>
-            )
-          })}
-        </div>
-      ))}
+              <div className="br-body">
+                {pairs.map((pair) => {
+                  const through = pair.findIndex((i) => i === route)
+                  return (
+                    <div key={pair[0]} className={`br-pair ${pair.length === 2 ? 'two' : ''}`} data-path={through >= 0 && routeWon ? through : undefined}>
+                      {pair.map((i) => (
+                        <div key={i} className={`br-slot ${i === route ? 'path' : ''} ${i === route && routeWon ? 'through' : ''}`}>
+                          {tieCard(round.ties[i], r, i)}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+        {tree && (
+          <div className="br-col last champ" style={{ gridColumn: view.rounds.length + 1 }} data-testid={`${testId}-winner`}>
+            <div className="br-head">
+              <span className="br-round">Winner</span>
+            </div>
+            <div className="br-body">
+              <div className="br-pair">
+                <div className={`br-slot ${champion === userId ? 'path through' : ''}`}>
+                  <div className={`br-champ ${champion ? 'crowned' : ''} ${champion === userId ? 'me' : ''}`} data-champion={champion ?? ''}>
+                    {trophy && <TrophyArt kind={trophy} size={champion ? 52 : 40} muted={!champion} />}
+                    {champion ? (
+                      <span className="br-champ-name">
+                        {badge(champion)} {nameOf(champion)}
+                      </span>
+                    ) : (
+                      <span className="small muted">To be decided</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

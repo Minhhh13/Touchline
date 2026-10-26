@@ -4,7 +4,7 @@
  * React, no store, no RNG.
  */
 import type { SeasonTier } from '@engine/types'
-import type { Cabinet, Game, LeaderboardEntry, Mode, Profile } from '../types'
+import type { Cabinet, Game, HonourEntry, LeaderboardEntry, Mode, Profile } from '../types'
 
 export function emptyCabinet(): Cabinet {
   return {
@@ -29,6 +29,7 @@ export function emptyCabinet(): Cabinet {
     h2h: { played: 0 },
     h2hOnline: { played: 0, won: 0 },
     runIns: { played: 0, met: 0 },
+    honours: [],
   }
 }
 
@@ -48,7 +49,68 @@ export function normaliseCabinet(c: Partial<Cabinet>): Cabinet {
     h2h: { ...e.h2h, ...(c.h2h ?? {}) },
     h2hOnline: { played: 0, won: 0, ...(c.h2hOnline ?? {}) },
     runIns: { ...e.runIns, ...(c.runIns ?? {}) },
+    honours: Array.isArray(c.honours) ? c.honours.filter(isHonour).slice(0, HONOURS_CAP) : [],
   }
+}
+
+/** Seasons the honours board keeps, newest first. */
+export const HONOURS_CAP = 30
+
+function isHonour(h: unknown): h is HonourEntry {
+  const x = h as Partial<HonourEntry> | null
+  return !!x && typeof x === 'object' && typeof x.id === 'string' && (x.kind === 'treble' || x.kind === 'double') && Array.isArray(x.cups) && typeof x.teamName === 'string'
+}
+
+/** What a season's trophies make: the Treble (league, Cup and Continental Cup), a Double (the league and one cup), or nothing. */
+export function honourOf(league: boolean, cup: boolean, continental: boolean): 'treble' | 'double' | null {
+  if (league && cup && continental) return 'treble'
+  return league && (cup || continental) ? 'double' : null
+}
+
+/** The honours board entry a season earns, or null: a title and at least one cup. Pure. */
+export function honourEntry(game: Pick<Game, 'id' | 'year' | 'settings' | 'history'>, won: { league: boolean; cup: boolean; continental: boolean }, date?: string): HonourEntry | null {
+  const kind = honourOf(won.league, won.cup, won.continental)
+  if (!kind) return null
+  return {
+    id: resultId(game),
+    kind,
+    cups: [...(won.cup ? (['cup'] as const) : []), ...(won.continental ? (['continental'] as const) : [])],
+    teamName: game.settings.teamName,
+    mode: game.settings.mode,
+    leagueId: game.history.at(-1)?.leagueId ?? game.settings.leagueId,
+    leagueSeason: game.settings.leagueSeason,
+    ...(game.settings.mode === 'quick' && game.settings.rules.superLeague === true ? { superLeague: true as const } : {}),
+    ...(date ? { date } : {}),
+  }
+}
+
+/** The honour's name on the summary and the honours board: "The Treble", "The Double" (league and Cup), "League and Continental double". */
+export function honourLabel(kind: 'treble' | 'double', cups: ReadonlyArray<'cup' | 'continental'>): string {
+  if (kind === 'treble') return 'The Treble'
+  return cups.includes('cup') ? 'The Double' : 'League and Continental double'
+}
+
+/** What the honour is made of: "League, Cup and Continental Cup", "League and Cup". */
+export function honourDetail(cups: ReadonlyArray<'cup' | 'continental'>): string {
+  const names = ['League', ...(cups.includes('cup') ? ['Cup'] : []), ...(cups.includes('continental') ? ['Continental Cup'] : [])]
+  return names.length === 3 ? `${names[0]}, ${names[1]} and ${names[2]}` : names.join(' and ')
+}
+
+/** The share text's line: "👑 The Treble: League, Cup and Continental Cup", "🏆 The Double: League and Cup". */
+export function honourLine(kind: 'treble' | 'double', cups: ReadonlyArray<'cup' | 'continental'>): string {
+  return `${kind === 'treble' ? '👑' : '🏆'} ${kind === 'treble' ? 'The Treble' : 'The Double'}: ${honourDetail(cups)}`
+}
+
+/**
+ * File a season on the honours board, newest first: once per season, so a Double that the second cup turns into a
+ * Treble replaces its own entry (keeping its place) rather than adding one, and a lesser honour never replaces a better.
+ */
+export function fileHonour(cabinet: Cabinet, entry: HonourEntry): Cabinet {
+  const list = cabinet.honours ?? []
+  const have = list.find((h) => h.id === entry.id)
+  if (have && (have.kind === 'treble' || entry.kind === 'double')) return cabinet
+  const honours = have ? list.map((h) => (h.id === entry.id ? { ...entry, ...(have.date && !entry.date ? { date: have.date } : {}) } : h)) : [entry, ...list].slice(0, HONOURS_CAP)
+  return { ...cabinet, honours }
 }
 
 /**
@@ -108,7 +170,7 @@ function addOnce(list: string[], id: string | undefined): string[] {
  * dedupe), `newDaily` when the result filed a daily day for the first time,
  * `newWeekly` a Weekly Challenge week.
  */
-export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: boolean; newWeekly?: boolean } = {}): Cabinet {
+export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: boolean; newWeekly?: boolean; date?: string } = {}): Cabinet {
   const rec = finishedRecord(game)
   if (!rec) return cabinet
   const mode = game.settings.mode
@@ -135,7 +197,9 @@ export function creditGame(cabinet: Cabinet, game: Game, opts: { newDaily?: bool
     c.hostsTitled = addOnce(c.hostsTitled, last?.hostClubId ?? game.settings.hostClubId)
     c.nationsTitled = addOnce(c.nationsTitled, game.settings.rules.onlyNation)
   }
-  return c
+  // The honours board: a Treble or a Double this result already holds (a quick season's post-season cups file theirs as they are won)
+  const honour = honourEntry(game, { league: title, cup, continental: euro }, opts.date)
+  return honour ? fileHonour(c, honour) : c
 }
 
 /**

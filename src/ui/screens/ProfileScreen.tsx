@@ -9,7 +9,7 @@ import { MODE_TITLE, arenaFormatLabel, isQuickLike } from '@game/logic/modes'
 import { arenaClubName, groupRunsByLadder } from '@game/logic/arena'
 import { arenaTierLabel } from '@engine/knockout'
 import { capTotal } from '@game/logic/cap'
-import { BOARD_FILTERS, filterBoard, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
+import { BOARD_FILTERS, filterBoard, honourDetail, honourLabel, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
 import { RunInsTable } from '../components/RunInsTable'
 import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
@@ -286,6 +286,30 @@ export function ProfileScreen() {
                   <span className="small muted">{label}</span>
                 </div>
               ))}
+            </div>
+            {/* The honours board: every Treble and Double season, newest first */}
+            <div className="honours" data-testid="honours-board">
+              <h4 className="honours-head">
+                <Crown size={16} aria-hidden="true" /> Honours board
+              </h4>
+              {(cabinet.honours ?? []).length === 0 ? (
+                <p className="small muted" style={{ margin: 0 }}>Win the league and a cup in the same season for a Double; add the Continental Cup for the Treble.</p>
+              ) : (
+                <ol className="honours-list">
+                  {(cabinet.honours ?? []).map((h) => (
+                    <li key={h.id} className={`honour-row ${h.kind}`} data-testid="honour-row" data-kind={h.kind}>
+                      <span className={`honour-icon ${h.kind}`}>{h.kind === 'treble' ? <Crown size={18} aria-hidden="true" /> : <Trophy size={16} aria-hidden="true" />}</span>
+                      <span className="honour-main">
+                        <b>{honourLabel(h.kind, h.cups)}</b> <span className="small muted">{honourDetail(h.cups)}</span>
+                        <span className="honour-meta small muted">
+                          {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {MODE_TITLE[h.mode] ?? h.mode}
+                          {h.date ? ` · ${h.date}` : ''}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
           </div>
           )}

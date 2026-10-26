@@ -53,7 +53,7 @@ import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, cha
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
-import { addCupTrophies, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { creditCupRun, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
 /** localStorage key the whole game is persisted under. */
@@ -762,9 +762,9 @@ export const useStore = create<Store>()(
           const after = get().game?.quickResult
           if (!after || after === before.quickResult) return false
           const profile = get().profile
-          // The Trophy Room's cabinet takes the cup, `trophies` mirrors its five counts for older builds
+          // The Trophy Room's cabinet takes the cup (and a Treble or Double on the honours board), `trophies` mirrors its five counts for older builds
           const cab = normaliseCabinet(profile.cabinet ?? rebuildCabinet(profile))
-          const cabinet = { ...cab, ...addCupTrophies(trophiesOf(cab), before.quickResult, after, comp) }
+          const cabinet = creditCupRun(cab, before.quickResult, get().game!, comp, new Date().toISOString().slice(0, 10))
           set({ profile: { ...profile, cabinet, trophies: trophiesOf(cabinet) } })
           unlockFromGame()
           return true
@@ -1183,7 +1183,7 @@ export const useStore = create<Store>()(
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
           if (weekly && weekly.streak >= 4 && !achievements['weekly-streak-4']) achievements['weekly-streak-4'] = new Date().toISOString().slice(0, 10)
           // Trophy Room: the cabinet takes the credit, `trophies` mirrors its five counts for older builds
-          const cabinet = creditGame(profile.cabinet ?? rebuildCabinet(profile), game, { newDaily, newWeekly })
+          const cabinet = creditGame(profile.cabinet ?? rebuildCabinet(profile), game, { newDaily, newWeekly, date: entry.date })
           // The 38-0 chase: best record, longest perfect run and perfect seasons of every quick season (Quick Draft, the Daily, the Weekly)
           const q = game.quickResult
           const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests

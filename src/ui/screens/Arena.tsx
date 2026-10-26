@@ -10,6 +10,7 @@ import { cupRoundCount, cupRoundName } from '@engine/cup'
 import { USER_TEAM } from '@engine/season'
 import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
 import { Bracket } from '../components/Bracket'
+import { arenaBracketView } from '@game/logic/bracket'
 import { GAUNTLET_RUNGS, rungBandLabel, rungLabels } from '@engine/gauntlet'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { arenaFormatLabel } from '@game/logic/modes'
@@ -169,10 +170,9 @@ export function Arena() {
                 </div>
               )}
               <Bracket
-                rounds={Array.from({ length: cupRoundCount(size) }, (_, r) => cupRoundName(size, r).name)}
-                ties={a.bracket.rounds}
+                view={arenaBracketView(size, a.bracket.rounds)}
                 nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
-                badgeOf={(k) => (k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k))}
+                badge={(k) => <ClubBadge clubId={k === USER_TEAM ? game.settings.hostClubId : clubIdOfKey(k)} size={18} />}
                 userId={USER_TEAM}
                 seeds={a.bracket.seeds}
               />

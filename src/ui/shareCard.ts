@@ -30,6 +30,8 @@ export interface ShareCardInput {
   banner?: { text: string; colour?: string }
   /** Up to six lines drawn in place of the W/D/L row and the points line (knockout ties, a ladder). */
   lines?: string[]
+  /** The Treble or a Double, one gold line under the record ("The Treble · League, Cup and Continental Cup"). */
+  honour?: string
 }
 
 const STRIP_COLOUR: Record<'W' | 'D' | 'L', string> = { W: C.good, D: C.draw, L: C.bad }
@@ -143,6 +145,14 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     ctx.fillStyle = C.text
     ctx.font = font(28, 600, BODY)
     ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 392)
+  }
+  // The Treble or a Double, in gold
+  if (input.honour) {
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.gold
+    ctx.font = font(30, 700)
+    ctx.fillText(fit(ctx, input.honour, W - 160), W / 2, y + 42)
+    y += 42
   }
   // Season Story: the one line that tells the season
   if (input.moment) {
