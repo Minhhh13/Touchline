@@ -33,31 +33,32 @@ function quickGame(seed: string) {
 // change (as FM depth's '4' was) re-pins it on purpose rather than failing for an unrelated reason.
 // Re-pinned for the 2026-10-25 data rebuild (2008-14 left and right positions un-swapped, finite
 // hidden traits): the same draws, but the players behind them changed, so seven clubs' goal tallies
-// moved by one or two while every won/drawn/lost count stayed put.
-const BASELINE_ENGINE = '4'
+// moved by one or two while every won/drawn/lost count stayed put. Re-pinned for ENGINE_VERSION '5' (the playtest fixes:
+// new fixtures, the assistant's placement and the keeper rule moved the whole season).
+const BASELINE_ENGINE = '5'
 const BASELINE_TABLE = [
-  'chelsea:79/22/13/3/63/25',
-  'user:75/22/9/7/93/35',
-  'arsenal:74/22/8/8/71/39',
-  'aston-villa:73/22/7/9/66/36',
-  'liverpool:67/18/13/7/76/45',
-  'manchester-united:60/15/15/8/60/38',
-  'manchester-city:60/16/12/10/61/40',
-  'everton:57/17/6/15/43/50',
-  'brighton:52/13/13/12/52/55',
-  'nottingham-forest:47/13/8/17/43/50',
-  'wolverhampton-wanderers:47/12/11/15/35/47',
-  'newcastle-united:46/12/10/16/61/61',
-  'tottenham-hotspur:44/12/8/18/55/82',
-  'crystal-palace:43/12/7/19/45/62',
-  'bournemouth:43/12/7/19/56/78',
-  'sunderland:42/10/12/16/54/67',
-  'brentford:39/10/9/19/53/82',
-  'west-ham-united:32/8/8/22/46/74',
-  'fulham:30/4/18/16/35/62',
-  'leeds-united:27/5/12/21/37/77',
+  'user:79/24/7/7/78/34',
+  'chelsea:74/22/8/8/68/36',
+  'manchester-city:73/22/7/9/67/41',
+  'nottingham-forest:63/18/9/11/50/38',
+  'newcastle-united:62/18/8/12/68/52',
+  'liverpool:60/18/6/14/57/51',
+  'manchester-united:58/17/7/14/51/41',
+  'tottenham-hotspur:56/17/5/16/69/68',
+  'arsenal:55/15/10/13/46/42',
+  'sunderland:55/17/4/17/57/57',
+  'aston-villa:52/14/10/14/53/56',
+  'brighton:49/12/13/13/50/57',
+  'crystal-palace:49/14/7/17/42/52',
+  'everton:46/11/13/14/42/42',
+  'bournemouth:44/11/11/16/55/58',
+  'brentford:44/12/8/18/50/59',
+  'wolverhampton-wanderers:43/11/10/17/39/51',
+  'fulham:35/8/11/19/41/64',
+  'leeds-united:33/9/6/23/50/90',
+  'west-ham-united:29/9/2/27/41/85',
 ]
-const BASELINE_RNG = { a: 1559925814, b: 500370932, c: 2083791800, d: 1089738077 }
+const BASELINE_RNG = { a: 1685216537, b: -1095636338, c: 305574909, d: 1204024426 }
 
 describe('a quick season recorded game by game', () => {
   const g = quickGame('game-by-game')
@@ -68,7 +69,7 @@ describe('a quick season recorded game by game', () => {
     expect(ENGINE_VERSION).toBe(BASELINE_ENGINE)
     expect(q.table.map((r) => `${r.teamId}:${r.points}/${r.won}/${r.drawn}/${r.lost}/${r.goalsFor}/${r.goalsAgainst}`)).toEqual(BASELINE_TABLE)
     expect(g.rngState).toEqual(BASELINE_RNG)
-    expect(q.topScorer).toEqual({ playerSeasonId: 's7826@2012@manchester-united', goals: 27 })
+    expect(q.topScorer).toEqual({ playerSeasonId: 's200104@2020@tottenham-hotspur', goals: 19 })
   })
 
   it('keeps one game per matchweek, in order, and the games add up to the season record exactly', () => {
