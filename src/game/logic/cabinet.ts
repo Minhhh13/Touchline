@@ -27,6 +27,7 @@ export function emptyCabinet(): Cabinet {
     cups: { runs: 0, won: 0, bySize: {} },
     giantKills: 0,
     h2h: { played: 0 },
+    h2hOnline: { played: 0, won: 0 },
     runIns: { played: 0, met: 0 },
   }
 }
@@ -45,6 +46,7 @@ export function normaliseCabinet(c: Partial<Cabinet>): Cabinet {
     gauntlet: { ...e.gauntlet, ...(c.gauntlet ?? {}) },
     cups: { ...e.cups, ...(c.cups ?? {}), bySize: { ...(c.cups?.bySize ?? {}) } },
     h2h: { ...e.h2h, ...(c.h2h ?? {}) },
+    h2hOnline: { played: 0, won: 0, ...(c.h2hOnline ?? {}) },
     runIns: { ...e.runIns, ...(c.runIns ?? {}) },
   }
 }
@@ -185,6 +187,17 @@ export const GIANT_STRENGTH = 85
 export function creditH2H(cabinet: Cabinet): Cabinet {
   const c = normaliseCabinet(cabinet)
   c.h2h.played += 1
+  return c
+}
+
+/**
+ * A finished online head-to-head room this device held a seat in: its own shelf, never the hot-seat's `h2h` nor the
+ * league and cup counts (so `profile.trophies` is untouched). `won`: this device's manager finished higher.
+ */
+export function creditH2HOnline(cabinet: Cabinet, won: boolean): Cabinet {
+  const c = normaliseCabinet(cabinet)
+  const shelf = c.h2hOnline ?? { played: 0, won: 0 }
+  c.h2hOnline = { played: shelf.played + 1, won: shelf.won + (won ? 1 : 0) }
   return c
 }
 

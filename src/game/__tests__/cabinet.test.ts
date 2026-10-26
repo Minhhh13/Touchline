@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame } from '../logic/setup'
 import { runQuickSeason } from '../logic/quick'
-import { boardGroup, countsAsLeagueSeason, creditGame, creditH2H, emptyCabinet, filterBoard, finishedRecord, leaguesWon, normaliseCabinet, rebuildCabinet, trophiesOf } from '../logic/cabinet'
+import { boardGroup, countsAsLeagueSeason, creditGame, creditH2H, creditH2HOnline, emptyCabinet, filterBoard, finishedRecord, leaguesWon, normaliseCabinet, rebuildCabinet, trophiesOf } from '../logic/cabinet'
 import { BADGES, badgeProgress, badgeStates, badgeTier, topBadges } from '@engine/badges'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
@@ -148,6 +148,17 @@ describe('creditGame', () => {
     for (const m of ['quick', 'daily', 'season', 'dynasty'] as const) expect(countsAsLeagueSeason(m)).toBe(true)
     expect(creditH2H(creditH2H(emptyCabinet())).h2h.played).toBe(2)
     expect(creditH2H(emptyCabinet()).league).toBe(0)
+  })
+
+  it('online head-to-head rooms count on their own shelf, apart from the hot-seat and the trophies', () => {
+    const c = creditH2HOnline(creditH2HOnline(creditH2HOnline(emptyCabinet(), true), false), true)
+    expect(c.h2hOnline).toEqual({ played: 3, won: 2 })
+    expect(c.h2h.played).toBe(0)
+    expect(trophiesOf(c)).toEqual(trophiesOf(emptyCabinet()))
+    expect(creditH2H(c).h2hOnline).toEqual({ played: 3, won: 2 })
+    expect(creditH2HOnline(creditH2H(emptyCabinet()), false)).toMatchObject({ h2h: { played: 1 }, h2hOnline: { played: 1, won: 0 } })
+    // A profile rebuilt from an older save starts the shelf at zero (rooms never reach the leaderboard)
+    expect(rebuildCabinet({ trophies: { league: 2, cup: 0, continental: 0, doubles: 0, trebles: 0 }, leaderboard: [], dailyResults: {} }).h2hOnline).toEqual({ played: 0, won: 0 })
   })
 
   it('normaliseCabinet fills whatever an imported cabinet lacks', () => {

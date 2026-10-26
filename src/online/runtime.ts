@@ -92,8 +92,8 @@ export class Runtime {
       visible: () => document.visibilityState === 'visible',
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
-      // A finished room leaves one mark in this device's Trophy Room, as a hot-seat season does
-      onFinished: () => useStore.getState().creditH2HRoom(),
+      // A finished room leaves one mark on this device's Trophy Room online shelf (apart from the hot-seat's)
+      onFinished: (room, seat) => useStore.getState().creditH2HRoom(room.result?.winner === seat),
       signedIn: () => this.signedIn,
     })
     report({ configured: true, started: true })

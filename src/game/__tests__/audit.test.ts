@@ -21,7 +21,8 @@ import { runQuickSeason } from '../logic/quick'
 import { storyForGame } from '../logic/story'
 import { modeLabel } from '../logic/modes'
 import { arenaVerdictOf, challengeHeadline } from '../logic/arenaClaim'
-import type { Game, GameSettings, Profile } from '../types'
+import type { Cabinet, Game, GameSettings, Profile } from '../types'
+import { creditH2H, creditH2HOnline, emptyCabinet, normaliseCabinet } from '../logic/cabinet'
 import { maskedView, setAssignment, setRecruitFocus } from '../logic/scouting'
 import { contractDemand } from '../logic/contracts'
 import { requestOptions } from '../logic/board'
@@ -207,6 +208,13 @@ describe('audit fixes: season and squad', () => {
     expect(p.dailyStreak).toBe(2)
     // A profile from before the end-of-draft case has an empty locker
     expect(p.inventory).toEqual({})
+    // A Trophy Room cabinet from before online head-to-head rooms: the online shelf reads empty, the hot-seat's count stays
+    const oldCabinet: Record<string, unknown> = { ...creditH2H(creditH2H(emptyCabinet())) }
+    delete oldCabinet.h2hOnline
+    const cab = normaliseCabinet(oldCabinet as Partial<Cabinet>)
+    expect(cab.h2hOnline).toEqual({ played: 0, won: 0 })
+    expect(cab.h2h.played).toBe(2)
+    expect(creditH2HOnline(oldCabinet as unknown as Cabinet, true).h2hOnline).toEqual({ played: 1, won: 1 })
   })
 
   it('a quick save from before Season Story opens and still tells its story', () => {

@@ -16,7 +16,7 @@ import { capOfGame } from './logic/cap'
 import { advanceStreak, fileStreakResult, streakDay } from './logic/streaks'
 import { dailyArenaResult } from './logic/arenaDaily'
 import { weeklyGameSettings, weeklyPlan } from './logic/weekly'
-import { alreadyCredited, creditArena, creditGame, creditH2H, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
+import { alreadyCredited, creditArena, creditGame, creditH2H, creditH2HOnline, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
@@ -267,8 +267,8 @@ interface Store {
   h2hAuto: () => void
   h2hFinish: () => void
   abandonH2H: () => void
-  /** A finished online head-to-head room this device held a seat in: one mark in the Trophy Room, as a hot-seat season. */
-  creditH2HRoom: () => void
+  /** A finished online head-to-head room this device held a seat in: one mark on the Trophy Room's online shelf (`won`: this device's manager finished higher). */
+  creditH2HRoom: (won: boolean) => void
   recordResult: () => void
   setManagerName: (name: string) => void
   /** The favourite club on the profile (a club id), or null to clear it. Display only; synced with the profile. */
@@ -1234,9 +1234,9 @@ export const useStore = create<Store>()(
           if (first) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
-        creditH2HRoom: () => {
+        creditH2HRoom: (won) => {
           const { profile } = get()
-          set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
+          set({ profile: { ...profile, cabinet: creditH2HOnline(profile.cabinet ?? rebuildCabinet(profile), won) } })
         },
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
         setFavouriteClub: (clubId) => {
