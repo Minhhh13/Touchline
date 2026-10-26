@@ -6793,6 +6793,11 @@ dl.kv {
   margin: 0;
   line-height: 1.1;
 }
+/* The landed club's name takes the focus after the reel (`useFocusOnLanding`) so it is read first; like a dialog's box,
+   a focus target that is not a control draws no ring of its own */
+.club-head h2[tabindex='-1']:focus {
+  outline: none;
+}
 .club-sub {
   display: flex;
   flex-wrap: wrap;

@@ -143,7 +143,7 @@ export interface Opponent {
 export function RunningStrip({ results, upTo }: { results: QuickGameResult[]; upTo: number }) {
   const t = foldResults(results, upTo)
   return (
-    <div className="gbg-strip mono" data-testid="running-strip" aria-live="polite">
+    <div className="gbg-strip mono" data-testid="running-strip">
       <span>
         <b>P</b> {t.played}
       </span>
@@ -213,7 +213,7 @@ export function SeasonTally({ results, upTo }: { results: QuickGameResult[]; upT
     { key: 'pts', label: 'Points', value: t.points },
   ]
   return (
-    <div className="tally" data-testid="season-tally" aria-live="polite">
+    <div className="tally" data-testid="season-tally">
       <div className="tally-boxes">
         {boxes.map((b) => (
           <div key={b.key} className={`tally-box ${b.key}`} data-testid={`tally-${b.key}`}>

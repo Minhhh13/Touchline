@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpCircle, Dices, ShoppingBag, SkipForward } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game, QuickJanuary } from '@game/types'
@@ -23,6 +23,7 @@ import { armAudio, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { money, ordinal } from '../format'
+import { useFocusOnLanding } from '../a11y'
 
 type Stage = 'halfway' | 'market' | 'spin' | 'upgrade'
 
@@ -227,6 +228,9 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
   }, [spinning])
   const choices = landed ? openSpinChoices(game, u) : []
   const chosen = choices.find((c) => c.slotId === slot) ?? null
+  // Landed in this view: the focus goes to his first slot, or Keep my XI when he fits none (the Skip that held it is gone)
+  const action = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(opened && landed, action)
   const empty = odds.every((o) => o.p === 0)
   return (
     <div className="jw-spin col" data-testid="january-spin" data-landed={landed || undefined}>
@@ -285,6 +289,10 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
           </div>
         </>
       )}
+      {/* The reel is hidden from screen readers: the landing is said once, here */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="january-spin-live">
+        {opened && landed && p ? `${p.name} landed. ${choices.length ? 'Choose his slot, or keep your XI' : 'He fits no slot of your XI'}` : ''}
+      </span>
       {spinning && (
         <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="january-spin-skip">
           Tap to skip
@@ -298,10 +306,10 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
           </div>
           <PlayerRow p={p} showClub hideRatings={hide} />
           <div className="jw-slots" role="listbox" aria-label="His slot">
-            {choices.map((c) => {
+            {choices.map((c, i) => {
               const gain = c.rating - c.outRating
               return (
-                <button key={c.slotId} type="button" role="option" aria-selected={slot === c.slotId} className={`jw-slot${slot === c.slotId ? ' on' : ''}`} onClick={() => setSlot(slot === c.slotId ? null : c.slotId)} data-testid="january-spin-choice">
+                <button ref={i === 0 ? action : undefined} key={c.slotId} type="button" role="option" aria-selected={slot === c.slotId} className={`jw-slot${slot === c.slotId ? ' on' : ''}`} onClick={() => setSlot(slot === c.slotId ? null : c.slotId)} data-testid="january-spin-choice">
                   <span className="jw-slot-pos">{c.label}</span>
                   <span className="jw-slot-out">for {c.outName}</span>
                   {hide ? (
@@ -321,7 +329,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
             <button type="button" className="btn primary" disabled={!chosen} onClick={() => chosen && closeJanuarySpin(chosen.slotId)} data-testid="january-spin-sign">
               {chosen ? `Bring ${p.name.split(/\s+/).slice(-1)[0]} in for ${chosen.outName.split(/\s+/).slice(-1)[0]}` : 'Choose a slot'}
             </button>
-            <button type="button" className="btn" onClick={() => closeJanuarySpin(null)} data-testid="january-spin-keep">
+            <button ref={choices.length ? undefined : action} type="button" className="btn" onClick={() => closeJanuarySpin(null)} data-testid="january-spin-keep">
               Keep my XI
             </button>
           </div>

@@ -144,11 +144,19 @@ export function Toast() {
       clearTimeout(t)
     }
   }, [toast, show])
-  if (!toast) return null
+  // The status region is always in the page, so a screen reader hears each message (a region that mounts with its text
+  // is often missed); the floating box is the picture of it
   return (
-    <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} role="status" data-dialog-keep="">
-      {toast}
-    </div>
+    <>
+      <div className="sr-only" role="status" data-dialog-keep="" data-testid="toast-live">
+        {toast ?? ''}
+      </div>
+      {toast && (
+        <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} aria-hidden="true" data-dialog-keep="">
+          {toast}
+        </div>
+      )}
+    </>
   )
 }
 
