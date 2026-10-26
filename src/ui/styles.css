@@ -8148,6 +8148,61 @@ dl.kv {
   text-overflow: ellipsis;
   vertical-align: bottom;
 }
+/* The side's code shows only in the narrow layout below (each goal on a line of its own) */
+.goal-list .goal-side {
+  display: none;
+}
+/* A narrow goals box (the report's left column at 1280 px, about 260 px): either side of the minute each name had about
+   85 px ("Cristiano Ro...", "(pen)" on a line of its own). There each goal takes the line after its minute, led by its
+   side's code on the side's colours, and only the name gives way */
+.rp-goals {
+  container: rp-goals / inline-size;
+}
+@container rp-goals (max-width: 360px) {
+  .goal-list li {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+  .goal-list .goal-min {
+    grid-column: 1;
+    text-align: left;
+  }
+  .goal-list li.home .goal-who,
+  .goal-list li.away .goal-who {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 4px;
+    min-width: 0;
+    text-align: left;
+  }
+  .goal-list .goal-who > b {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .goal-list .goal-kind {
+    flex: none;
+    white-space: nowrap;
+  }
+  .goal-list .goal-who > .muted {
+    flex: 1 0 100%;
+    padding-left: 38px;
+  }
+  .goal-list li {
+    align-items: baseline;
+  }
+  .goal-list .goal-side {
+    box-shadow: inset 0 0 0 1px var(--line-2);
+    display: inline-block;
+    flex: none;
+    min-width: 34px;
+    padding: 0 4px;
+    border-radius: var(--radius-s);
+    font-size: var(--fs-meta);
+    font-weight: 700;
+    text-align: center;
+  }
+}
 .notes-list {
   list-style: none;
   margin: 0;
@@ -8242,6 +8297,23 @@ table.tbl.match-stats th {
   }
   .report-board .clock {
     white-space: nowrap;
+  }
+  /* The badge stands over the name, so the name has the column's whole width: beside it "Touchline XI" broke inside
+     its first word ("Touchli / ne XI") at 390 px */
+  .report-board .team,
+  .report-board .team.away {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+  }
+  .report-board .team.away {
+    flex-direction: column-reverse;
+  }
+  /* Three short columns: the phone's sideways-scrolling table (display: block) left it in two thirds of its box */
+  table.tbl.match-stats {
+    display: table;
   }
   .tbl .hide-phone {
     display: none;
