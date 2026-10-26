@@ -48,7 +48,7 @@ import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_B
 import { ContractCard, ContractTalks } from '../components/ContractTalks'
 import { dugoutKey, isControlTarget } from '../dugoutKeys'
 import { PositionChart } from '../components/LiveLeague'
-import { filterNews, INBOX_FILTERS, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
+import { EVEN_BAND, filterNews, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 
 type Tab = DugoutTab
 
@@ -136,6 +136,7 @@ export function Dugout() {
 
   const tabList: Array<{ id: Tab; label: string; alert?: boolean; badge?: number }> = [
     { id: 'squad', label: 'Squad' },
+    ...(done ? [] : [{ id: 'next' as const, label: 'Next match' }]),
     { id: 'tactics', label: 'Tactics' },
     { id: 'dressing', label: 'Dressing room' },
     { id: 'planner', label: 'Planner' },
@@ -303,7 +304,6 @@ export function Dugout() {
 
       {/* The tab's content: on a desktop it scrolls inside itself under the fixed header, briefing and tab bar */}
       <div className="tab-body fill" data-testid="tab-body">
-      {!done && !preseason && next && tab === 'squad' && <OppositionReport clubId={next.clubId} home={next.home} />}
       {tab === 'squad' && <Tip id="dugout-first">The bars are condition and sharpness, the face his morale; the arrow is his form. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
         <div className="panel emphasis" style={{ marginBottom: 'var(--space-4)' }}>
@@ -465,28 +465,11 @@ export function Dugout() {
                 })}
               </div>
             </div>
-            <div className="panel">
-              <div className="panel-head">
-                <span className="head-title">
-                  <h3>Team talk</h3>
-                  <Info label="About team talks">Calm settles nerves when the odds are against you. Encourage is a safe, small lift. Demand keeps favourites honest and pressures underdogs. Fire up is high variance.</Info>
-                </span>
-              </div>
-              <Segmented<TeamTalk>
-                value={game.teamTalk}
-                onChange={store.setTeamTalk}
-                options={[
-                  { value: 'calm', label: 'Calm', hint: 'Settles nerves when the odds are against you' },
-                  { value: 'encourage', label: 'Encourage', hint: 'Safe, small lift' },
-                  { value: 'demand', label: 'Demand', hint: 'Keeps favourites honest, pressures underdogs' },
-                  { value: 'fire-up', label: 'Fire up', hint: 'High variance' },
-                ]}
-              />
-            </div>
           </div>
         </div>
       )}
 
+      {tab === 'next' && <NextMatchTab />}
       {tab === 'tactics' && <TacticsTab />}
       {tab === 'dressing' && <DressingRoomTab onPlayer={onPlayerClick} />}
       {tab === 'planner' && <PlannerTab onPlayer={onPlayerClick} />}
@@ -698,6 +681,67 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
     </Modal>
   )
 }
+
+/**
+ * The Next match tab: the opposition report open across the top, then our XI against theirs unit by unit and the
+ * team talk with its hint, so the Squad tab keeps the list, the pitch and the depth chart at full height.
+ */
+function NextMatchTab() {
+  const store = useStore()
+  const { universe: u, game } = store
+  if (!u || !game?.season) return null
+  const next = nextOpponent(game)
+  const rows = next ? matchUp(game, u, next.clubId) : null
+  const talk = TALKS.find((t) => t.value === game.teamTalk)
+  return (
+    <div className="next-match" data-testid="next-match">
+      {next ? <OppositionReport clubId={next.clubId} home={next.home} open /> : <div className="notice">A free weekend: no opponent this matchweek. The talk carries to the next match.</div>}
+      <div className="grid two">
+        {rows && next && (
+          <div className="panel" data-testid="match-up">
+            <div className="panel-head">
+              <span className="head-title">
+                <h3>Unit against unit</h3>
+                <Info label="About the match-up">Your XI's unit ratings now (condition, morale and form included) against theirs. An edge of more than {EVEN_BAND} points either way is marked.</Info>
+              </span>
+              <span className="small muted">You v {clubShort(u, next.clubId)}</span>
+            </div>
+            <div className="matchup">
+              {rows.map((r) => (
+                <div key={r.label} className="matchup-row">
+                  <span className="matchup-label">{r.label}</span>
+                  <b className="mono">{r.ours.toFixed(1)}</b>
+                  <span className="matchup-bar" aria-hidden="true">
+                    <span style={{ width: `${Math.max(4, Math.min(96, 50 + (r.ours - r.theirs) * 5))}%` }} />
+                  </span>
+                  <b className="mono">{r.theirs.toFixed(1)}</b>
+                  <span className={`chip ${r.edge === 'ahead' ? 'good' : r.edge === 'behind' ? 'bad' : ''}`}>{r.edge === 'ahead' ? 'Edge' : r.edge === 'behind' ? 'Behind' : 'Even'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="panel" data-testid="team-talk">
+          <div className="panel-head">
+            <span className="head-title">
+              <h3>Team talk</h3>
+              <Info label="About team talks">Calm settles nerves when the odds are against you. Encourage is a safe, small lift. Demand keeps favourites honest and pressures underdogs. Fire up is high variance.</Info>
+            </span>
+          </div>
+          <Segmented<TeamTalk> value={game.teamTalk} onChange={store.setTeamTalk} options={TALKS} />
+          {talk && <p className="help">{talk.hint}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const TALKS: Array<{ value: TeamTalk; label: string; hint: string }> = [
+  { value: 'calm', label: 'Calm', hint: 'Settles nerves when the odds are against you' },
+  { value: 'encourage', label: 'Encourage', hint: 'Safe, small lift' },
+  { value: 'demand', label: 'Demand', hint: 'Keeps favourites honest, pressures underdogs' },
+  { value: 'fire-up', label: 'Fire up', hint: 'High variance' },
+]
 
 /** The Table tab's right box: league position after each matchweek, the clubs around us faint, the board's target dashed. */
 function SeasonSoFar({ table }: { table: TableRow[] }) {

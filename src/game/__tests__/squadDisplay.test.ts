@@ -5,8 +5,9 @@ import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE, rolesFor } from '@engine/roles'
 import { playerLookup, squadPlayers } from '../logic/players'
 import { teamStrength } from '../logic/squad'
-import { filterNews, formTitle, formTrend, FORM_BAND, inboxGroup, INBOX_FILTERS, minutesLast3, positionHistory, positionStory, ratingBand, roleFit, roleOptions, sparkPoints, teamFamiliarity, windowCountdown } from '../logic/squadDisplay'
+import { EVEN_BAND, filterNews, matchUp, formTitle, formTrend, FORM_BAND, inboxGroup, INBOX_FILTERS, minutesLast3, positionHistory, positionStory, ratingBand, roleFit, roleOptions, sparkPoints, teamFamiliarity, windowCountdown } from '../logic/squadDisplay'
 import { seasonGame } from './seasonGame'
+import { nextOpponent } from '../logic/week'
 
 const u = loadTestUniverse(['england'])
 
@@ -168,5 +169,31 @@ describe('the league position by matchweek', () => {
       expect(positionStory(fresh.season!.fixtures, ids).series).toEqual([])
       expect(squadPlayers(g, u).length).toBeGreaterThan(10)
     }
+  }, 60_000)
+})
+
+describe('the next match', () => {
+  it('sets our units against the opponent unit by unit, marking only edges beyond the even band', () => {
+    let ahead = 0
+    let behind = 0
+    for (const seed of ['next-1', 'next-2', 'next-3', 'next-4']) {
+      const g = seasonGame(u, seed, 3)
+      const next = nextOpponent(g)
+      if (!next) continue
+      const rows = matchUp(g, u, next.clubId)!
+      expect(rows.map((r) => r.label)).toEqual(['Our attack v their defence', 'Midfield v midfield', 'Our defence v their attack', 'Our keeper v their attack', 'Overall'])
+      const us = teamStrength(g, u)
+      expect(rows[0].ours).toBeCloseTo(us.attack, 1)
+      expect(rows[4].ours).toBeCloseTo(us.overall, 1)
+      for (const r of rows) {
+        const gap = r.ours - r.theirs
+        if (r.edge === 'ahead') ahead++
+        if (r.edge === 'behind') behind++
+        expect(r.edge).toBe(gap > EVEN_BAND + 0.051 ? 'ahead' : gap < -EVEN_BAND - 0.051 ? 'behind' : r.edge)
+        expect(r.theirs).toBeGreaterThan(30)
+      }
+    }
+    expect(ahead + behind).toBeGreaterThan(0)
+    expect(matchUp(seasonGame(u, 'next-1', 0), u, 'not-a-club')).toBeNull()
   }, 60_000)
 })

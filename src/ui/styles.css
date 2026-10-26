@@ -1532,6 +1532,64 @@ label.field,
   letter-spacing: 0.06em;
   color: var(--warn);
 }
+/* The Next match tab: the opposition report open on top, then the match-up and the talk side by side */
+.next-match {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.next-match > .opposition {
+  margin-bottom: 0 !important;
+}
+.matchup {
+  display: flex;
+  flex-direction: column;
+}
+.matchup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px minmax(60px, 120px) 40px 64px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px 0;
+}
+.matchup-row + .matchup-row {
+  border-top: var(--border);
+}
+.matchup-row .mono {
+  text-align: right;
+  font-size: var(--fs-sm);
+}
+.matchup-row .chip {
+  justify-self: end;
+}
+.matchup-label {
+  font-size: var(--fs-sm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The bar splits at the middle: our share to the left in --primary, theirs the rest */
+.matchup-bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.matchup-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+@media (max-width: 520px) {
+  .matchup-row {
+    grid-template-columns: minmax(0, 1fr) 34px 34px 56px;
+  }
+  .matchup-bar {
+    display: none;
+  }
+}
 /* The opponent's place today on a fixture row */
 .fx-pos {
   flex: none;

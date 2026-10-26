@@ -3,8 +3,10 @@
  * and sparkline, the squad list's views, role fit and options, the XI's familiarity, the inbox filters, the window
  * countdown and the league position by matchweek. Pure: nothing here draws a number or changes the game.
  */
-import { computeTable, positionOf, USER_TEAM, type CarryRow, type NewsItem } from '@engine/season'
-import { roleRating } from '@engine/ratings'
+import { aiTeamInput, computeTable, positionOf, USER_TEAM, type CarryRow, type NewsItem } from '@engine/season'
+import { computeTeamStrength, roleRating } from '@engine/ratings'
+import type { LoadedUniverse } from '@engine/universe'
+import { teamStrength } from './squad'
 import { rolesFor } from '@engine/roles'
 import type { Fixture, PlayerSeason, Position, SquadPlayer } from '@engine/types'
 import type { Window } from '@engine/market'
@@ -188,4 +190,28 @@ export function positionStory(fixtures: Fixture[], teamIds: string[], carryIn?: 
           .sort((a, b) => a.at - b.at)
           .map(({ teamId, series: s }) => ({ teamId, series: s }))
   return { matchweeks: h.matchweeks, series, rivals }
+}
+
+// ---------------------------------------------------------------- the next match
+
+export type Edge = 'ahead' | 'even' | 'behind'
+/** Within this many rating points a unit match-up reads as even. */
+export const EVEN_BAND = 1.5
+
+export interface MatchUpRow {
+  label: string
+  ours: number
+  theirs: number
+  edge: Edge
+}
+
+/** Our XI against the next opponent's, unit against unit: our attack on their defence, midfield on midfield, our defence on their attack, and the two sides overall. Null when the club is not in this season. */
+export function matchUp(game: Game, u: LoadedUniverse, clubId: string): MatchUpRow[] | null {
+  const club = game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]
+  if (!club) return null
+  const input = aiTeamInput(u, club, game.season?.aiOffset ?? 0)
+  const them = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
+  const us = teamStrength(game, u)
+  const row = (label: string, ours: number, theirs: number): MatchUpRow => ({ label, ours: Math.round(ours * 10) / 10, theirs: Math.round(theirs * 10) / 10, edge: ours - theirs > EVEN_BAND ? 'ahead' : theirs - ours > EVEN_BAND ? 'behind' : 'even' })
+  return [row('Our attack v their defence', us.attack, them.defence), row('Midfield v midfield', us.midfield, them.midfield), row('Our defence v their attack', us.defence, them.attack), row('Our keeper v their attack', us.goalkeeping, them.attack), row('Overall', us.overall, them.overall)]
 }
