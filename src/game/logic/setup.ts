@@ -148,16 +148,6 @@ export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
   ]
 }
 
-/**
- * The summary's Draft again: the same settings on a new seed, without the challenge. Under Crazy the formation is
- * drawn again from the new seed (`startFormation`), as Start would have drawn it; otherwise the shape is kept. Pure.
- */
-export function draftAgainSettings(s: GameSettings, seed: string): GameSettings {
-  const { challenge: _challenge, ...rest } = s
-  void _challenge
-  return { ...rest, seed, formationId: startFormation(s.rules, seed, s.formationId) }
-}
-
 /** The 2 to 3 letter code shown on the scoreboard, from the initials of the team name. */
 export function shortNameFor(name: string): string {
   const short = name

@@ -39,7 +39,7 @@ import { challengeFromGame, claimCupsLine, claimOf, verdictLine } from '@game/lo
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
-import { draftAgainSettings } from '@game/logic/setup'
+import { draftAgainSettings } from '@game/logic/draftAgain'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'

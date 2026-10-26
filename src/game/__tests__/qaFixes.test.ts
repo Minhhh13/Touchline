@@ -39,7 +39,7 @@ describe('QA fixes', () => {
 
 describe('QA-5: Draft again on the summary', () => {
   it('draws a Crazy formation from the new seed, keeps any other shape, and drops the challenge', async () => {
-    const { draftAgainSettings } = await import('../logic/setup')
+    const { draftAgainSettings } = await import('../logic/draftAgain')
     const { crazyFormation } = await import('@engine/modes')
     const { QUICK_RULES } = await import('@engine/draft')
     const s = { mode: 'quick' as const, seed: 'qa-again-0', formationId: '4-3-3', teamName: 'QA', shortName: 'QAA', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2024, rules: { ...QUICK_RULES, leagues: ['england'], modes: ['crazy' as const] }, jobSecurity: false, difficulty: 'calibrated' as const, challenge: { name: 'x', picks: [], claim: { pts: 1, w: 0, d: 1, l: 0, gf: 0, ga: 0, pos: 1 }, verified: 'yes' as const, data: 'd', engine: '4' } }
