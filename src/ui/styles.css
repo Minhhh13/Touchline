@@ -4414,7 +4414,7 @@ table.tbl.contracts .btn.sm {
 }
 .digest-results .chip {
   padding: 3px 8px 3px 4px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .digest-results .chip.cup {
   border-style: dashed;
@@ -4445,13 +4445,13 @@ table.tbl.contracts .btn.sm {
   padding-left: 18px;
   display: grid;
   gap: 2px;
-  font-size: 13.5px;
+  font-size: calc(var(--fs-sm) + 0.5px);
 }
 .kv {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 14px;
-  font-size: 13.5px;
+  font-size: calc(var(--fs-sm) + 0.5px);
 }
 .kv dt {
   color: var(--text-3);
@@ -4514,7 +4514,7 @@ dl.kv {
 }
 .formations .fname {
   font-family: var(--font-display);
-  font-size: 17px;
+  font-size: calc(var(--fs-h3) - 2px);
   line-height: 1.1;
 }
 /* On a small tile the numbers never break at a hyphen and a word after them ("Diamond") takes its own, smaller line */
@@ -4527,10 +4527,10 @@ dl.kv {
   color: var(--text-2);
 }
 .formations.with-blurbs .fname {
-  font-size: 20px;
+  font-size: calc(var(--fs-h3) + 1px);
 }
 .formations .fblurb {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-3);
 }
 /* The mini pitch on each tile: drawn from the formation's slot coordinates (src/game/logic/formationThumb.ts) */
@@ -4562,7 +4562,7 @@ dl.kv {
     display: contents;
   }
   .formations.with-blurbs .fname {
-    font-size: 18px;
+    font-size: calc(var(--fs-h3) - 1px);
     align-self: center;
   }
   .formations.with-blurbs .fblurb {
@@ -4600,7 +4600,7 @@ dl.kv {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 .achievements {
@@ -4629,7 +4629,7 @@ dl.kv {
   color: var(--text-3);
 }
 .ach .icon {
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
 }
 .ach .title {
   font-weight: 700;
@@ -4667,7 +4667,7 @@ dl.kv {
   grid-template-columns: 18px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   padding: 2px 0;
 }
 /* A briefing line's button sits right after its text, not at the far edge of a wide panel */
@@ -4849,7 +4849,7 @@ dl.kv {
     flex: 1 1 auto;
     min-width: 0;
     order: -1;
-    font-size: 15px;
+    font-size: calc(var(--fs-base) + 1px);
     padding: 10px 12px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5112,7 +5112,7 @@ dl.kv {
     text-align: center;
   }
   .setup-page .choice-card .ctitle {
-    font-size: 15px;
+    font-size: calc(var(--fs-base) + 1px);
   }
   .setup-page .choice-card .cline {
     position: absolute;
@@ -5209,7 +5209,7 @@ dl.kv {
   .setup-formation .pitch-mini .pitch-wrap .slot .disc {
     width: 24px;
     height: 24px;
-    font-size: 9px;
+    font-size: 9px; /* px: drawn to the pitch disc */
   }
 }
 .setup-sub {
@@ -5220,7 +5220,7 @@ dl.kv {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 .setup-opt {
@@ -5266,10 +5266,10 @@ dl.kv {
 }
 .choice-card .ctitle {
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: var(--fs-h3);
 }
 .choice-card .cline {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-3);
 }
 /* The Quick Draft's Modes row: toggle cards, several on at once */
@@ -5299,7 +5299,7 @@ dl.kv {
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 .qmode .micon {
-  font-size: 26px;
+  font-size: calc(var(--fs-h2) + 2px);
   line-height: 1.1;
   filter: grayscale(0.7);
   opacity: 0.8;
@@ -5315,10 +5315,10 @@ dl.kv {
 }
 .qmode .ctitle {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: calc(var(--fs-h3) - 1px);
 }
 .qmode .cline {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 /* On the selected card's tint --text-3 falls to 4.2:1 (axe, 390 px); --text-2 keeps the line AA */
@@ -5340,7 +5340,7 @@ dl.kv {
 .pitch-mini .pitch-wrap .slot .disc {
   width: 30px;
   height: 30px;
-  font-size: 10px;
+  font-size: 10px; /* px: drawn to the pitch disc */
 }
 .season-range {
   position: relative;
@@ -5407,7 +5407,7 @@ dl.kv {
 .toggle.era-classic {
   min-height: 0;
   padding: 2px 10px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .toggle.era-classic input {
   width: 15px;
@@ -5418,7 +5418,7 @@ dl.kv {
     padding: 8px;
   }
   .choice-card .ctitle {
-    font-size: 17px;
+    font-size: calc(var(--fs-h3) - 2px);
   }
 }
 .linklike {
@@ -5435,7 +5435,7 @@ dl.kv {
   min-height: 56px;
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-m);
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
   font-weight: 700;
 }
 .conf {
@@ -5460,7 +5460,7 @@ dl.kv {
 .listing .price {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 26px;
+  font-size: calc(var(--fs-h2) + 2px);
   text-align: right;
   line-height: 1;
 }
@@ -5511,7 +5511,7 @@ dl.kv {
   border-radius: var(--radius-s);
   border: var(--border);
   background: var(--panel-2);
-  font-size: 13.5px;
+  font-size: calc(var(--fs-sm) + 0.5px);
 }
 .fixture.me {
   border-color: color-mix(in srgb, var(--primary) 50%, var(--line));
@@ -5521,13 +5521,13 @@ dl.kv {
 }
 .fixture .sc {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: calc(var(--fs-h3) - 1px);
   min-width: 56px;
   text-align: center;
 }
 .fixture .mw {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 /* The single short caption under a control; anything longer goes into an Info tooltip */
 .help {
@@ -5554,7 +5554,7 @@ dl.kv {
   align-items: center;
   padding: 6px 8px;
   border-bottom: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: calc(var(--fs-sm) + 0.5px);
 }
 .legend-row > :nth-child(1) {
   grid-area: n;
@@ -5624,7 +5624,7 @@ dl.kv {
   border-radius: var(--radius-m);
   border: 1px solid color-mix(in srgb, var(--info) 40%, var(--line));
   background: var(--info-soft);
-  font-size: 13.5px;
+  font-size: calc(var(--fs-sm) + 0.5px);
 }
 .notice.warn {
   border-color: color-mix(in srgb, var(--warn) 40%, var(--line));
@@ -5636,7 +5636,7 @@ dl.kv {
 }
 
 .star {
-  font-size: 18px;
+  font-size: calc(var(--fs-h3) - 1px);
   color: var(--text-3);
   line-height: 1;
 }
