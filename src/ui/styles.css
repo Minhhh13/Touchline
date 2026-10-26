@@ -10939,7 +10939,7 @@ table.tbl tr.chase-perfect td:first-child {
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 .team-row {
@@ -10964,12 +10964,12 @@ table.tbl tr.chase-perfect td:first-child {
   .name-btn {
     min-width: 40px;
     justify-content: center;
-    font-size: 15px;
+    font-size: calc(var(--fs-base) + 1px);
   }
 }
 /* Option cards with an icon */
 .choice-card .cicon {
-  font-size: 18px;
+  font-size: calc(var(--fs-h3) - 1px);
   line-height: 1.1;
 }
 .toggle-grid {
@@ -11001,7 +11001,7 @@ table.tbl tr.chase-perfect td:first-child {
   padding: 8px 12px;
 }
 .qmode.pu-card .micon {
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
 }
 .qmode.pu-card .cline {
   margin-left: auto;
@@ -11043,10 +11043,10 @@ table.tbl tr.chase-perfect td:first-child {
     padding: 8px 4px;
   }
   .qmode:not(.pu-card) .ctitle {
-    font-size: 15px;
+    font-size: calc(var(--fs-base) + 1px);
   }
   .qmode:not(.pu-card) .micon {
-    font-size: 22px;
+    font-size: calc(var(--fs-h2) - 2px);
   }
 }
 /* The setup's two boxes on a desktop, with quick-modes' Modes row, icon cards and name dice folded in: everything compact so
@@ -11095,7 +11095,7 @@ table.tbl tr.chase-perfect td:first-child {
   }
   .setup-page .qmode .micon,
   .setup-page .qmode.pu-card .micon {
-    font-size: 16px;
+    font-size: calc(var(--fs-base) + 2px);
   }
   .setup-page .qmode .ctitle {
     font-size: var(--fs-xs);
@@ -11119,10 +11119,10 @@ table.tbl tr.chase-perfect td:first-child {
     gap: 6px;
   }
   .setup-page .choice-card .cicon {
-    font-size: 15px;
+    font-size: calc(var(--fs-base) + 1px);
   }
   .setup-page .choice-card .ctitle {
-    font-size: 14px;
+    font-size: var(--fs-base);
     white-space: nowrap;
   }
   .setup-page .qinfo-btn {
@@ -11221,7 +11221,7 @@ table.tbl tr.chase-perfect td:first-child {
     gap: 0;
   }
   .pu-tray .pu-icon {
-    font-size: 16px;
+    font-size: calc(var(--fs-base) + 2px);
   }
   .pu-tray .pu-title {
     font-size: var(--fs-xs);
@@ -11231,7 +11231,7 @@ table.tbl tr.chase-perfect td:first-child {
     max-width: 100%;
   }
   .pu-tray .pu-status {
-    font-size: 10px;
+    font-size: calc(var(--fs-xs) - 1px);
   }
   .spin-odds {
     gap: var(--space-1);
@@ -11286,11 +11286,11 @@ table.tbl tr.chase-perfect td:first-child {
     padding: var(--space-3);
   }
   .app.shell .grid.draft .reel-hub .year {
-    font-size: 26px;
+    font-size: 26px; /* px: the reel geometry */
   }
   .app.shell .grid.draft .spin-btn {
     min-height: 46px;
-    font-size: 20px;
+    font-size: calc(var(--fs-h3) + 1px);
   }
   .app.shell .grid.draft > .col:first-child {
     gap: var(--space-2);
