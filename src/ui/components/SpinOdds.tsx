@@ -12,7 +12,7 @@ export function SpinOdds({ odds, label }: { odds: readonly TierOdds[]; label: st
   if (!odds.length) return null
   const shown = shownOdds(odds.map((o) => o.p))
   return (
-    <div className="spin-odds" data-testid="spin-odds" data-exact={shown.exact ? 'yes' : 'no'} aria-label={`${label}, ${shown.note}: ${odds.map((o, i) => `${DISPLAY_TIER_INFO[o.tier].colour} ${shown.labels[i]}`).join(', ')}`}>
+    <div className="spin-odds" data-testid="spin-odds" data-exact={shown.exact ? 'yes' : 'no'} role="img" aria-label={`${label}, ${shown.note}: ${odds.map((o, i) => `${DISPLAY_TIER_INFO[o.tier].colour} ${shown.labels[i]}`).join(', ')}`}>
       <div className="spin-odds-head">
         <span className="lbl">{label}</span>
         <span className="muted small" data-testid="spin-odds-note" title={shown.exact ? 'These are the exact chances' : 'Each chance rounded to a tenth of a per cent; together they make exactly 100%'}>

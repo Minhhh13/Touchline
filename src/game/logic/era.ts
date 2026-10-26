@@ -1,5 +1,6 @@
 import type { LoadedUniverse } from '@engine/universe'
 import { isClassicSeason } from '@engine/universe'
+import type { LeagueInfo } from '@engine/types'
 
 /**
  * Classic seasons (1992-93 to 2007-08, estimated ratings) for the screens: where
@@ -7,6 +8,21 @@ import { isClassicSeason } from '@engine/universe'
  * estimated. The Setup's Classic toggle becomes `DraftRules.classic` through
  * `setupRules` (`setup.ts`). Pure, so the screens decide nothing.
  */
+
+/**
+ * Whether a game needs the classic seasons in the universe to be shown or played: only one that opted in can hold a
+ * classic pick, play a classic league season or take a classic job (every other pool leaves them out), and the store
+ * loads the classic packs on demand for exactly these (`packs.ts`).
+ */
+export function needsClassic(game: { settings: { rules: { classic?: boolean } } }): boolean {
+  return !!game.settings.rules.classic
+}
+
+/** The first classic season among the wheel's leagues by the data index, loaded or not (the Classic toggle shows before its pack loads). */
+export function classicFromIndex(available: LeagueInfo[], leagues: string[]): number | undefined {
+  const seasons = available.filter((l) => leagues.includes(l.id) && l.classicFrom !== undefined).map((l) => l.classicFrom!)
+  return seasons.length ? Math.min(...seasons) : undefined
+}
 
 /** The first classic season among the wheel's leagues, when one of them has classic seasons loaded. */
 export function classicFromFor(u: LoadedUniverse, leagues: string[]): number | undefined {

@@ -33,6 +33,12 @@ export interface DraftRecap {
   picks: number
   /** The best XI the same spins could have given (`hindsightXI`); null without grades, under a cap or a chain. */
   hindsight: Hindsight | null
+  /**
+   * The picks no grade covers (a run-in's reinforcements, bench picks, every pick with grades hidden), in spin order:
+   * the recap lists them when the draft has no grade, so a draft of signings is not an empty box. `rating` is his
+   * overall as the draft rated him, null with grades hidden.
+   */
+  ungraded: Array<{ spin: number; id: string; rating: number | null }>
 }
 
 const POINTS: Record<PickGrade, number> = { A: 4, B: 3, C: 2, D: 1 }
@@ -77,6 +83,10 @@ export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'f
     seasons: seasons.length ? [Math.min(...seasons), Math.max(...seasons)] : null,
     picks: picked.length,
     hindsight: showGrades ? hindsightXI(u, d, get) : null,
+    ungraded: d.history.flatMap((h, spin) => {
+      const p = h.pickedId ? get(h.pickedId) : undefined
+      return p && !graded.some((g) => g.spin === spin) ? [{ spin, id: p.id, rating: showGrades ? p.overall : null }] : []
+    }),
   }
 }
 

@@ -69,6 +69,7 @@ export function SeasonPlayback() {
   const before = tableAfterGame(tables, results, pb.revealed - 1)
   const gap = gapLine(table, USER_TEAM)
   const moment = momentAt(tables, results, pb.revealed, USER_TEAM)
+  const momentText = moment === 'top' ? 'Top of the league!' : moment === 'top4' ? 'Into the top four' : moment === 'perfect' ? `${chase.won}-0 and counting` : perfectOverLabel(chase.perfectRun)
   const teams = table.length || total / 2 + 1
   const series = tables.length ? positionSeries(tables, results, USER_TEAM, pb.revealed) : results.slice(0, pb.revealed).map((r) => r.position)
   const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(sideName(id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
@@ -139,10 +140,14 @@ export function SeasonPlayback() {
           </span>
         )}
         {moment && pb.revealed > 0 && (
-          <span key={`m${pb.revealed}`} className={`moment ${moment}`} data-testid="playback-moment" data-moment={moment} role="status">
-            {moment === 'top' ? 'Top of the league!' : moment === 'top4' ? 'Into the top four' : moment === 'perfect' ? `${chase.won}-0 and counting` : perfectOverLabel(chase.perfectRun)}
+          <span key={`m${pb.revealed}`} className={`moment ${moment}`} data-testid="playback-moment" data-moment={moment}>
+            {momentText}
           </span>
         )}
+        {/* One short line for a screen reader: the big moments and the end, never every game (the tally is not live) */}
+        <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="playback-live">
+          {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${game.quickResult?.points ?? 0} points.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${momentText}` : ''}
+        </span>
       </div>
       <div className="pb-tabs segmented" role="tablist" aria-label="Season views">
         {paneIds.map((t) => (

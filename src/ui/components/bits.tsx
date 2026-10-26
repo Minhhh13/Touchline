@@ -9,6 +9,7 @@ import { tipSeen, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
+import { resultsLabel } from '../a11y'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -143,11 +144,19 @@ export function Toast() {
       clearTimeout(t)
     }
   }, [toast, show])
-  if (!toast) return null
+  // The status region is always in the page, so a screen reader hears each message (a region that mounts with its text
+  // is often missed); the floating box is the picture of it
   return (
-    <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} role="status" data-dialog-keep="">
-      {toast}
-    </div>
+    <>
+      <div className="sr-only" role="status" data-dialog-keep="" data-testid="toast-live">
+        {toast ?? ''}
+      </div>
+      {toast && (
+        <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} aria-hidden="true" data-dialog-keep="">
+          {toast}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -256,8 +265,9 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 }
 
 export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
+  // The letters show; a screen reader hears the words ("W" alone reads as "double-u")
   return (
-    <span className="form">
+    <span className="form" role="img" aria-label={resultsLabel(form, 'Form')}>
       {form.map((f, i) => (
         <span key={i} className={f}>
           {f}
@@ -277,7 +287,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, className = '', 
         <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
-            <span className="tab-badge" data-testid={`badge-${t.id}`} aria-label={`${t.badge} new`}>
+            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={`${t.badge} new`}>
               {t.badge > 99 ? '99+' : t.badge}
             </span>
           ) : (

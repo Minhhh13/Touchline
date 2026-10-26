@@ -96,7 +96,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
       {!on('records') ? null : records ? (
         <div className="panel">
           <h3>Season records</h3>
-          <div className="kv">
+          <dl className="kv">
             <dt>Biggest win</dt>
             <dd>{records.bigWin}</dd>
             <dt>Heaviest defeat</dt>
@@ -119,7 +119,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
             <dd>
               {records.scoredIn} of {records.played}
             </dd>
-          </div>
+          </dl>
         </div>
       ) : (
         <div className="panel">

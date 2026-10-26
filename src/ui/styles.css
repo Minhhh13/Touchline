@@ -129,14 +129,15 @@
   --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --fs-xs: 11px;
-  --fs-meta: 12px;
-  --fs-sm: 13px;
-  --fs-base: 14px;
-  --fs-h3: 19px;
-  --fs-h2: 24px;
-  --fs-h1: 32px;
-  --fs-hero: 64px;
+  /* In rem (the same 11 to 64 px at the browser's default 16 px), so the type scale follows a reader's larger default text */
+  --fs-xs: 0.6875rem;
+  --fs-meta: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.875rem;
+  --fs-h3: 1.1875rem;
+  --fs-h2: 1.5rem;
+  --fs-h1: 2rem;
+  --fs-hero: 4rem;
   /* Space, shape, elevation */
   --space-1: 4px;
   --space-2: 8px;
@@ -1355,6 +1356,13 @@ label.field,
 }
 .outcome-word {
   font-weight: 700;
+}
+/* The W, D or L beside a coloured score, so the result never rests on colour alone (WCAG 1.4.1) */
+.res-letter {
+  margin-left: 0.35em;
+  font-size: 0.78em;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 /* A long club name in a fixture or cup row gives way with an ellipsis rather than pushing the row wider */
 .fixture > span {
@@ -3250,6 +3258,13 @@ table.tbl.contracts .btn.sm {
     stroke-dashoffset: 0;
   }
 }
+/* A dash offset repaints the page on the main thread every frame (most of a throttled phone's main thread on Home):
+   on a touch screen the light makes three runs on arrival and then rests */
+@media (hover: none) {
+  .art .neon-run {
+    animation-iteration-count: 3;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .art .neon-run {
     display: none;
@@ -4436,6 +4451,10 @@ table.tbl.contracts .btn.sm {
   margin: 0;
   font-weight: 600;
 }
+/* A key-value list is a real <dl> (screen readers pair each term with its value); it keeps the old div's spacing */
+dl.kv {
+  margin-block: 0;
+}
 .formations {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
@@ -4717,6 +4736,61 @@ table.tbl.contracts .btn.sm {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+}
+/*
+ * A short desktop window's pre-season: the title, the match-play chips and the buttons share one row and the checklist
+ * runs the full width under them, one line instead of three in a 440 px column (the panel 174 to about 120 px tall at
+ * 1280x720, so the tab body below gets the difference).
+ */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'title play btns' 'check check check';
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  .panel.cta:has(.briefing.checklist) > .cta-main,
+  .panel.cta:has(.briefing.checklist) > .cta-bar {
+    display: contents;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-fixture {
+    grid-area: title;
+  }
+  .panel.cta:has(.briefing.checklist) .briefing-wrap {
+    grid-area: check;
+  }
+  .panel.cta:has(.briefing.checklist) .match-play {
+    grid-area: play;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-bar .btns {
+    grid-area: btns;
+    flex-wrap: nowrap;
+  }
+}
+/* Up to 1440 px wide the friendly and the kick-off take their short labels ("Friendly", "Kick off") so the row fits */
+@media (min-width: 1100px) and (max-width: 1439px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) .btns .btn:not([data-testid='sim-big']) .lbl-long {
+    display: none;
+  }
+  .panel.cta:has(.briefing.checklist) .btns .btn:not([data-testid='sim-big']) .lbl-short {
+    display: inline;
+  }
+}
+/* Under 1280 px the buttons take a row of their own, under the title and the match-play chips */
+@media (min-width: 1100px) and (max-width: 1279px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'title play' 'btns btns' 'check check';
+  }
+  .panel.cta:has(.briefing.checklist) .match-play {
+    justify-self: end;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-bar .btns {
+    justify-content: flex-start;
+  }
 }
 .cta-bar {
   display: flex;
@@ -5237,6 +5311,10 @@ table.tbl.contracts .btn.sm {
 .qmode .cline {
   font-size: 11px;
   color: var(--text-3);
+}
+/* On the selected card's tint --text-3 falls to 4.2:1 (axe, 390 px); --text-2 keeps the line AA */
+.qmode.active .cline {
+  color: var(--text-2);
 }
 .speedrun-clock.low {
   border-color: var(--danger);
@@ -6850,6 +6928,11 @@ table.tbl.contracts .btn.sm {
 .club-head h2 {
   margin: 0;
   line-height: 1.1;
+}
+/* The landed club's name takes the focus after the reel (`useFocusOnLanding`) so it is read first; like a dialog's box,
+   a focus target that is not a control draws no ring of its own */
+.club-head h2[tabindex='-1']:focus {
+  outline: none;
 }
 .club-sub {
   display: flex;
@@ -8562,12 +8645,14 @@ table.tbl.match-stats th {
    * The Dugout's pitch column is a size container, so the pitch also fits the height the column really has once the
    * pre-season checklist or a coach mark takes some (it ran 70 px past its box at 2000x860); 80 px is the panel's head
    * and padding. Without a container the cqh term reads the viewport and the dvh term above decides as before.
+   * The floor is 150 px: under 200 px the pitch shows its numbers only (28 px discs), so even a back five has room, and
+   * a short pre-season (the checklist, the youth intake and a coach mark at 2000x860) keeps the keeper in the box.
    */
   .app.shell .tab-body > .grid.dugout > .col:has(.pitch-wrap) {
     container-type: size;
   }
   .app.shell .tab-body > .grid.dugout .pitch-wrap {
-    max-width: max(200px, min(calc((100dvh - var(--shell-chrome, 340px)) * 0.75), calc((100cqh - 80px) * 0.75)));
+    max-width: max(150px, min(calc((100dvh - var(--shell-chrome, 340px)) * 0.75), calc((100cqh - 80px) * 0.75)));
   }
   .app.shell.bar-hidden .grid.dugout .pitch-wrap {
     --shell-chrome: 410px;
@@ -9695,6 +9780,10 @@ table.tbl.match-stats th {
   border-color: var(--danger);
   color: var(--danger);
 }
+/* On its own red tint --danger reads 4.4:1; mixed toward --text it clears AA in both themes */
+.moment.broke {
+  color: color-mix(in srgb, var(--danger) 72%, var(--text));
+}
 @keyframes moment-pop {
   0% {
     transform: scale(0.7);
@@ -9777,6 +9866,10 @@ table.tbl.match-stats th {
 .lt-pos {
   color: var(--text-3);
   text-align: right;
+}
+/* Your row's tint takes --text-3 to 4.2:1; --text-2 keeps the place AA */
+.lt-row.me .lt-pos {
+  color: var(--text-2);
 }
 .lt-club {
   display: flex;
@@ -10334,6 +10427,21 @@ table.tbl.match-stats th {
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
+  }
+}
+/*
+ * The World board's side box: its help text is a tip in the box's head on a desktop window up to 940 px tall, where the
+ * text ran on under the sign-in foot and showed half a line at 1280x720; a taller window has the room to show it.
+ */
+.world-help-tip {
+  display: none;
+}
+@media (min-width: 1100px) and (max-height: 940px) {
+  .world-grid .world-help-tip {
+    display: inline-flex;
+  }
+  .world-grid .world-help {
+    display: none;
   }
 }
 @media (max-width: 1099px) {
@@ -11180,6 +11288,32 @@ table.tbl tr.chase-perfect td:first-child {
     padding: var(--space-2) var(--space-3);
   }
 }
+/* The head-to-head draft on a desktop: both managers' pitches in view in the third box, the panels sharing its height
+   and each pitch sized to what its panel leaves (a size container, 3:4), so Manager 2's XI is not under the fold */
+@media (min-width: 1100px) {
+  .app.shell .grid.draft > .col.draft-pitch:has(.h2h-pitch-box) {
+    overflow: hidden;
+  }
+  .app.shell .grid.draft > .col.draft-pitch:has(.h2h-pitch-box) > .panel {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* The manager on the clock gets the bigger pitch */
+  .app.shell .grid.draft > .col.draft-pitch:has(.h2h-pitch-box) > .panel.emphasis {
+    flex-grow: 1.6;
+  }
+  .app.shell .grid.draft .h2h-pitch-box {
+    flex: 1 1 0;
+    min-height: 0;
+    container-type: size;
+  }
+  .app.shell .grid.draft .h2h-pitch-box > .pitch-wrap {
+    max-width: min(100%, 75cqh);
+    margin-inline: auto;
+  }
+}
 /* Head-to-head setup on a desktop fits one screen: the two managers and the league side by side as three boxes (Start
    under the league), each formation tile small with its picture beside the name, the how-it-works steps as titles only */
 @media (min-width: 1100px) {
@@ -11212,6 +11346,16 @@ table.tbl tr.chase-perfect td:first-child {
   }
   .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:first-child > * {
     grid-column: 1 / -1;
+  }
+  /* Difficulty's two choices on one row in its half-width cell (they stacked at 1280x720, out of line with Season) */
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child .segmented {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child .segmented button {
+    flex: 1 1 auto;
+    padding-inline: 6px;
+    white-space: nowrap;
   }
   .app.shell .screen-body:has(.h2h-league) .h2h-start {
     grid-column: 3;
@@ -11491,8 +11635,9 @@ html {
   padding: var(--space-2) 0;
   border-bottom: var(--border);
 }
+/* A spare position reads as secondary by its dashed rule, not by fading (0.72 opacity put its numbers at 3.5:1) */
 .plan-row.spare {
-  opacity: 0.72;
+  border-bottom-style: dashed;
 }
 .plan-names {
   display: flex;
@@ -12896,6 +13041,21 @@ table.tbl.hub td.name {
   border-bottom: 0;
   margin-bottom: 0;
 }
+/* On a phone the control beside the tabs is its icon (the word stays for screen readers), so the tab strip keeps the
+   room: "Tactics" ran under "Boxes" at 390 px */
+@media (max-width: 720px) {
+  .tabs-row .boxes-btn > span:not(.boxes-off) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tabs-row .boxes-btn > .boxes-chevron {
+    display: none;
+  }
+}
 /* A screen head with the control beside its own buttons */
 .head-actions {
   display: flex;
@@ -14122,6 +14282,33 @@ table.tbl.tv-compact .tv-name {
     padding-block: var(--space-2);
   }
 }
+/*
+ * The arena hub's calls on a desktop: the column never scrolls (above), so the calls need no card of their own; they
+ * sit at the column's foot under the team talk's panel rather than in a second panel beside it (it read as a panel in
+ * a panel at 1280x720). The selects of a three-field prep take a smaller face so "Choose a captain" is whole.
+ */
+@media (min-width: 1100px) and (min-height: 600px) {
+  .arena-hub .arena-side > .arena-actions {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+    padding-inline: 0;
+    padding-bottom: 0;
+  }
+  .arena-hub .arena-prep select.input {
+    padding-inline: 10px 6px;
+    font-size: var(--fs-sm);
+  }
+  /* A tall window's pitch is as wide as the column allows and no more: it sits in the middle of its box, not on top of an empty half */
+  .arena-hub .arena-pitch-box {
+    display: grid;
+    align-content: center;
+  }
+}
+/* The hub's first box already names the opponent, so its report is just "Opposition report" (no wrap to three lines) */
+.arena-hub .opposition .opp-of {
+  display: none;
+}
 /* A very small pitch (a short window's arena hub) shows the numbers only: the names would run into each other, and
    each slot's tooltip still names him and his rating there */
 @container (max-width: 200px) {
@@ -14423,4 +14610,76 @@ details.opposition {
 }
 .first-next-option .btn {
   gap: var(--space-2);
+}
+
+/* ------------------------------------------------------------------------------- accessibility pass (2026-10-26) */
+/* docs/ACCESSIBILITY.md. Phones only, so the desktop's one-screen fit is untouched. */
+@media (max-width: 720px) {
+  /* Touch targets of 44 px (Apple's minimum; WCAG 2.5.8 asks 24) where they are the way around the app: the top bar's
+     pills, its round buttons and the fold heads. The round buttons keep their look and take the room from an ::after */
+  .topbar nav button {
+    min-height: 44px;
+  }
+  .theme-switch,
+  .fold-head {
+    position: relative;
+  }
+  .theme-switch::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+  }
+  .fold-head {
+    min-height: 44px;
+  }
+  .info-btn::after {
+    inset: -13px;
+  }
+  /* The setup cards' "i" sits beside its card: 32 px, clear of the card's own target */
+  .qinfo-btn {
+    position: relative;
+  }
+  .qinfo-btn::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+  /* Larger text (iOS text size, a reader's default font size): rows and heads wrap or give way rather than run off
+     the screen. A player row's name column may shrink below its content; the manager guide's edge wraps under its name;
+     the season picker shares its line or takes its own */
+  .prow {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+  .mspin-styles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mspin-style > .row {
+    flex-wrap: wrap;
+  }
+  .step-head-row {
+    flex-wrap: wrap;
+  }
+  .step-head-row .season-pick {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Home's three figures wrap to a second line rather than run off the hero (its text column may be narrower than
+     the lockup, which the hero clips) */
+  .hero-content {
+    min-width: 0;
+  }
+  .hero-stats {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+}
+@media (max-width: 520px) {
+  /* A mode card that grows taller with larger text: the picture's subject layer is an absolutely placed <svg>, which
+     takes its width from its height (2:1) rather than from its insets, so it ran 80 px into the text. Its width is
+     set outright, twice the square, as the clip-path expects */
+  .mode-art .mode-scene.scene-subject {
+    inset: 0 auto 0 -50%;
+    width: 200%;
+  }
 }

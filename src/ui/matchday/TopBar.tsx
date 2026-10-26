@@ -136,7 +136,7 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
   return (
     <div className="md-topbar" role="group" aria-label={label}>
       <Tools hand={hand} />
-      <div className={`scoreboard ${flash ? 'flash' : ''}`} aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
+      <div className={`scoreboard ${flash ? 'flash' : ''}`} role="group" aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
         <span className="md-sb-code" style={{ background: home.colour, color: textColourFor(home.colour) }} title={home.name}>
           {home.code}
         </span>
@@ -147,6 +147,10 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           {away.code}
         </span>
         <ClockFace minute={clock.clock} state={state} />
+        {/* Said once each time the score changes (the GOAL! banner mounts with its text, which a screen reader may miss) */}
+        <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="score-live">
+          {score.home + score.away > 0 ? `${home.name} ${score.home}, ${away.name} ${score.away}` : ''}
+        </span>
       </div>
       <div className="md-playback">
         {!clock.finished && (

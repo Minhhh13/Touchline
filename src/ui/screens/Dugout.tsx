@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useAfterPaint } from '../afterPaint'
 import { Check, ChevronDown, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
@@ -138,6 +139,8 @@ export function Dugout() {
   const headBoxes = useBoxes(DUGOUT_HEAD, seasonOver ? ['club-header'] : undefined)
   const tabKey = tab === 'market' && game?.window ? 'window' : tab
   const tabBoxes = useBoxes(DUGOUT_TABS[tabKey] ?? NO_BOXES, game ? tabPresent(tabKey, game) : undefined)
+  // Simulating weeks runs long on a phone: the button says so in the frame it is tapped, then the weeks play
+  const [simming, afterPaint] = useAfterPaint()
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
@@ -325,14 +328,14 @@ export function Dugout() {
                 <span className="lbl-short">{preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
-              <button className="btn" data-testid="sim-big" onClick={() => store.simToNextBigMatch()} disabled={!!game.pendingEvent || !!bigNext} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
+              <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatch())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
                 <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
                 <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
-              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
-                Sim 5
+              <button className="btn" onClick={() => afterPaint(() => store.simWeeks(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
+                {simming ? 'Simulating…' : 'Sim 5'}
               </button>
-              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent} data-testid="sim-end">
+              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && afterPaint(() => store.simToEnd())} disabled={!!game.pendingEvent || simming} data-testid="sim-end">
                 Sim to end
               </button>
             </div>
@@ -403,7 +406,7 @@ export function Dugout() {
                 </button>
                 <span className="segmented squad-views-seg" role="radiogroup" aria-label="Squad list view" data-testid="squad-view">
                   {SQUAD_VIEWS.map((v) => (
-                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} aria-pressed={view === v.id} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
+                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
                       {v.label}
                     </button>
                   ))}
@@ -481,7 +484,7 @@ export function Dugout() {
             <div className="panel">
               <div className="panel-head">
                 <h3>{formation.name}</h3>
-                <span className="unit-strip" aria-label="Unit ratings">
+                <span className="unit-strip" role="group" aria-label="Unit ratings">
                   {(
                     [
                       ['GK', strength.goalkeeping],
@@ -584,6 +587,7 @@ export function Dugout() {
                     </span>
                     <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
                       {r ? `${r.homeGoals} - ${r.awayGoals}` : 'v'}
+                      {gf !== null && ga !== null && <span className="res-letter">{outcomeOf(gf, ga)}</span>}
                     </span>
                     <span className="row" style={{ gap: 6 }}>
                       {home ? <ClubBadge clubId={opp} size={18} /> : null} {home ? <FxName full={clubName(u, opp)} short={clubShort(u, opp)} /> : <span className="fx-name">{game.settings.teamName}</span>} {home ? oppPos : null}
@@ -704,7 +708,7 @@ function SlotOptionRow({ o, at, onPick }: { o: SlotOption; at: Position; onPick?
         </>
       }
       right={
-        <span className="slot-disc" title={slotRatingLine(rated, at, { attributes: true })} aria-label={slotRatingLine(rated, at)} data-testid="slot-disc">
+        <span className="slot-disc" title={slotRatingLine(rated, at, { attributes: true })} role="img" aria-label={slotRatingLine(rated, at)} data-testid="slot-disc">
           {o.disc}
           {rated.cost > 0 && <span className="slot-disc-cost">−{rated.cost}</span>}
         </span>
@@ -881,6 +885,7 @@ function SeasonStrip({ table }: { table: TableRow[] }) {
               {c.ties.map((t) => (
                 <span key={t.comp + t.round} className={`chip ss-tie ${t.outcome ? outcomeClass(t.outcome) : ''}`}>
                   {t.comp === 'cup' ? 'Cup' : 'CC'}
+                  {t.outcome && <span className="res-letter">{t.outcome}</span>}
                 </span>
               ))}
             </span>
@@ -1036,7 +1041,7 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
               const current = t.setPieces?.[sp.key] ?? ''
               return (
                 <Instruction key={sp.key} label={sp.label} help={sp.hint}>
-                  <select className="input" value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
+                  <select className="input" aria-label={sp.label} value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
                     <option value="">Auto: best on the pitch</option>
                     {xi.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1128,10 +1133,12 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
 
 /** One instruction: its label and an Info holding what the current choice does, then the control. */
 function Instruction({ label, help, children }: { label: string; help: string; children: React.ReactNode }) {
+  // A named group, so a screen reader hears "Mentality" before the radio buttons or the select inside it
+  const id = useId()
   return (
-    <div className="instruction">
+    <div className="instruction" role="group" aria-labelledby={id}>
       <span className="instruction-label">
-        {label} <Info label={`About ${label.toLowerCase()}`}>{help}</Info>
+        <span id={id}>{label}</span> <Info label={`About ${label.toLowerCase()}`}>{help}</Info>
       </span>
       {children}
     </div>
@@ -1335,7 +1342,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
           </div>
         </div>
         {windowCountdown(w).last && tickerLines(w).length > 0 && (
-          <div className="deadline-ticker" data-testid="deadline-ticker" aria-label="Deadline day: the latest market news">
+          <div className="deadline-ticker" data-testid="deadline-ticker" role="group" aria-label="Deadline day: the latest market news">
             <span className="deadline-tag">Deadline day</span>
             <span className="deadline-track">
               <span className="deadline-run">{tickerLines(w).join('  ·  ')}</span>
@@ -1585,7 +1592,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
       {on('board') && (
       <div className="panel">
         <h3>Board</h3>
-        <div className="kv tight">
+        <dl className="kv tight">
           <dt>You replace</dt>
           <dd data-testid="you-replace">
             <span className="row" style={{ gap: 6 }}>
@@ -1606,7 +1613,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
           <dd>{host?.rivals.map((r) => clubName(u, r)).join(', ') || 'None'}</dd>
           <dt>Difficulty</dt>
           <dd title={season.aiOffset > 0 ? `Rivals play ${season.aiOffset} rating points below their real strength` : 'Real squads at full strength'}>{season.aiOffset > 0 ? `Calibrated (−${season.aiOffset})` : 'Realistic'}</dd>
-        </div>
+        </dl>
         {season.objectives && season.objectives.length > 0 && (
           <>
             <h4 className="head-title" style={{ marginTop: 'var(--space-4)' }}>
@@ -1649,7 +1656,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
             <Info label="About finances">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</Info>
           </span>
         </div>
-        <div className="kv tight">
+        <dl className="kv tight">
           <dt>Transfer budget</dt>
           <dd>{money(game.finances.budget)}</dd>
           <dt>Wage bill</dt>
@@ -1662,7 +1669,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
           <dd>{money(game.finances.spent)}</dd>
           <dt>Wages paid</dt>
           <dd>{money(game.finances.wagesPaid)}{game.finances.bonusesPaid ? ` (bonuses ${money(game.finances.bonusesPaid)})` : ''}</dd>
-        </div>
+        </dl>
         <WageSlider onMessage={setClubMsg} />
       </div>
       )}

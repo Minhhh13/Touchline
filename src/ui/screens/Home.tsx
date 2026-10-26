@@ -212,7 +212,7 @@ export function Home() {
             )}
           </dl>
           {u && (
-            <div className="row wrap hero-flags" aria-label="Leagues">
+            <div className="row wrap hero-flags" role="group" aria-label="Leagues">
               {u.available.map((l) => (
                 <LeagueFlag key={l.id} leagueId={l.id} label={l.name} size={24} />
               ))}
@@ -341,7 +341,7 @@ export function Home() {
       </div>
 
       {/* The casual modes: one sitting each, beside the four ways to play above */}
-      <div className="home-tiles casual" data-testid="casual-row" aria-label="More ways to play">
+      <div className="home-tiles casual" data-testid="casual-row" role="group" aria-label="More ways to play">
         <Tile icon={Zap} testId="arena-daily-card" title="Daily Arena" meta={streakMeta(arenaDone ? `Played: ${arenaDone.label}` : null, profile.arenaDaily?.streak, u ? dailyArenaLine(u, arenaToday) : 'Same draw for everyone')} onClick={playArenaDaily} disabled={!dailyReady} />
         <Tile icon={CalendarRange} testId="weekly-card" title="Weekly Challenge" meta={streakMeta(weekDone ? `Played: ${weekDone.points} pts` : null, profile.weekly?.streak, weekPlan ? `${weeklyThemeName(weekPlan.theme) || 'This week'} · ends Sunday` : 'One themed wheel a week')} onClick={playWeekly} disabled={!u} />
         <Tile icon={Award} testId="arena-cup-card" title="The Cup" meta="Draft 16, win a knockout" onClick={() => openArenaSetup('cup')} />

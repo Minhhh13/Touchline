@@ -25,7 +25,7 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
-import { versusReal } from '../screenText'
+import { runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
@@ -358,9 +358,9 @@ export function Summary() {
               <span className="vp-sep" aria-hidden="true">·</span>
               <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
             </span>
-            {(runs || bests.longestPerfectRun) ? (
+            {runsSummary(runs, bests.longestPerfectRun) ? (
               <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-                {[runs, bests.longestPerfectRun ? `${runs ? 'your' : 'Your'} best run ${bests.longestPerfectRun}-0` : null].filter(Boolean).join(' · ')}
+                {runsSummary(runs, bests.longestPerfectRun)}
               </span>
             ) : null}
           </div>
@@ -759,7 +759,7 @@ export function Summary() {
             <div className="panel-head">
               <h3>Your XI</h3>
               {q && (
-                <span className="unit-strip" aria-label="Unit ratings">
+                <span className="unit-strip" role="group" aria-label="Unit ratings">
                   {(
                     [
                       ['GK', q.strength.goalkeeping],
