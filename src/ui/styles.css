@@ -13255,7 +13255,7 @@ table.tbl.tv-compact .tv-name {
   height: 72px;
   border-radius: 50%;
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: 40px; /* px: the grade disc */
   font-weight: 800;
   color: var(--text);
   background: var(--primary-soft);
@@ -13348,7 +13348,7 @@ table.tbl.tv-compact .tv-name {
   .recap-grade {
     width: 56px;
     height: 56px;
-    font-size: 30px;
+    font-size: 30px; /* px: the grade disc */
   }
   .recap-cards {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -13425,7 +13425,7 @@ table.tbl.tv-compact .tv-name {
   flex: none;
   min-width: 13px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 10px; /* px: the 13 px spin mark */
   font-weight: 700;
 }
 
