@@ -10,6 +10,8 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason } from '@engine/types'
 import { bestPick, pickGrades, type GradedPick, type PickGrade } from './pickGrades'
 import { hindsightXI, type Hindsight } from './hindsight'
+import { isQuickLike } from './modes'
+import type { Game } from '../types'
 
 export interface DraftRecap {
   /** The whole draft's grade (the mean of the pick grades, A = 4 to D = 1); null when no pick is graded or grades are hidden. */
@@ -76,4 +78,16 @@ export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'f
     picks: picked.length,
     hindsight: showGrades ? hindsightXI(u, d, get) : null,
   }
+}
+
+/**
+ * The draft's grade as the share text and the share card print it ("Draft grade B"): the recap's own grade, so the
+ * share says what the player saw when the draft ended. Quick Draft, the Daily and the Weekly only (the modes whose
+ * summary follows a draft the player made), and only while the game keeps its draft; null otherwise or with no
+ * graded pick. Pure, reads the draft log only.
+ */
+export function draftGradeLine(game: Pick<Game, 'settings' | 'draft'>, u: LoadedUniverse, get: (id: string) => PlayerSeason | undefined): string | null {
+  if (!game.draft || !isQuickLike(game.settings.mode)) return null
+  const grade = draftGrade(pickGrades(u, game.draft, get))
+  return grade ? `Draft grade ${grade}` : null
 }
