@@ -354,7 +354,7 @@ export function SavedStatus({ testId = 'sync-status' }: { testId?: string }) {
   return (
     <span className={`saved-line ${line.tone}`} data-testid={testId}>
       {line.text}
-      {message && line.tone === 'warn' && <span className="muted"> · {message}</span>}
+      {message && line.tone === 'warn' && status !== 'offline' && <span className="muted"> · {message}</span>}
     </span>
   )
 }

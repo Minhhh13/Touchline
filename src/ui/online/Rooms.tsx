@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, Repeat, Swords, Trophy, Wifi, type LucideIcon } from 'lucide-react'
+import { CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, Repeat, Swords, Trophy, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { ENGINE_VERSION } from '@engine/version'
 import { getFormation } from '@engine/formations'
@@ -257,7 +257,7 @@ export function RoomScreen() {
   let body: React.ReactNode
   if (!ui) body = <RoomMessage icon={<Wifi size={26} />} title="No room open" line="Make a room or open one with its code from Head-to-head." />
   else if (ui.missing) body = <RoomMessage icon={<DoorOpen size={26} />} title="No room has that code" line={`Check the code, or ask for a new link: rooms are deleted ${ROOM_KEEP_HOURS} hours after they end.`} testId="room-missing" />
-  else if (!view) body = <RoomMessage icon={<Hourglass size={26} />} title="Opening the room…" line={ui.error ?? 'Reading the room from the server.'} testId="room-loading" />
+  else if (!view) body = ui.errorCode === 'network' ? <RoomMessage icon={<WifiOff size={26} />} title="No connection to the room" line="The room opens by itself when this device is back online." testId="room-loading" /> : <RoomMessage icon={<Hourglass size={26} />} title="Opening the room…" line={ui.error ?? 'Reading the room from the server.'} testId="room-loading" />
   else if (versionNote) body = <RoomMessage icon={<Lock size={26} />} title={versionNote.title} line={versionNote.line} testId="room-version" action={versionNote.older ? <button className="btn primary" onClick={() => go('h2h')}>Make a new room</button> : <button className="btn primary" onClick={() => location.reload()}>Reload</button>} />
   else if (missingLeagues.length) body = <RoomMessage icon={<Hourglass size={26} />} title="Loading league data…" line="The room's wheel needs these leagues on this device." />
   else if (view.status === 'waiting') body = ui.seat === null ? <RoomJoin view={view} /> : <RoomWaiting view={view} />
