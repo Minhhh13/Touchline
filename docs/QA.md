@@ -67,6 +67,7 @@ Regression tests: `src/game/__tests__/qaFixes.test.ts` (QA-1, 5, 7, 9), `src/ui/
 | O-11 | Low (a11y) | the 21 `table.tbl` (`display: block; overflow-x: auto` under 720 px) | On a phone each table scrolls sideways with no focusable content | `tabIndex={0}` and an `aria-label` on the tables that can overflow, or a wrapper that takes focus |
 | O-12 | Low (a11y) | `bits.tsx` `Info` (18x18), Setup's "change" link (49x19), the dashboard's Boxes control (95x20) | Tap targets under 24x24 px (WCAG 2.2 target size; Apple asks for 44) | A 24 px minimum hit area (padding or a pseudo-element) |
 | O-13 | Known | club badge kit colours (`inkOn`) | Arsenal, Sunderland, Stoke and other red kits give badge text 4.35 to 4.48:1 against 4.5 (already in HANDOVER section 7) | A darker kit shade for text on the badge |
+| O-15 | Low | `src/ui/screens/Draft.tsx:274` (the head's `<span className="row">`: Speedrun clock, bonus spins, `CapChip`, Boxes, Home) | At 320 px a capped draft (a Gauntlet with Moneyball, seed `qa-cap-g`, £0M of £223M) puts the chip, Boxes and Home on one row that does not wrap: the layout grows to 377 px and the whole draft renders zoomed out (found by the 320 px monkey from the Cup bracket save) | `className="row wrap"` on that span |
 | O-14 | Low | `saveStorage.ts` `onError` in `store.ts` | With the storage full the toast shows on the first refused write and then every twentieth; the rest of the time nothing says that nothing is being saved | A persistent banner while writes fail |
 
 ## 4. Coverage notes
