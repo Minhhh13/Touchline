@@ -54,23 +54,90 @@ Regression tests: `src/game/__tests__/qaFixes.test.ts` (QA-1, 5, 7, 9), `src/ui/
 
 | Id | Severity | Where | What happens, and how to see it | Proposed patch |
 | --- | --- | --- | --- | --- |
-| O-1 | Low | `src/engine/scenario.ts:48` `scaleRow`, used by `projectedCarryIn` (line 99) and `jobOf` | A run-in's carried table scales each club's real row on its own, so the league's columns do not add up: Hull 2014-15, survival, seed `qa-runin-0`: 210 wins against 211 losses, 139 draws, 718 goals for against 720 against at matchweek 28 (`qaModes.test.ts`, the run-in sweep, with the carry-in check switched back on) | After scaling every row, reconcile league-wide: while wins ≠ losses, move one result on the row with the largest rounding remainder (a win to a draw, or a draw to a loss) and the same for goals. It changes run-in tables, so it needs an ENGINE_VERSION bump and new run-in pins |
-| O-2 | Low (iOS) | `src/ui/shareCard.ts:620` `downloadDataUrl`, `src/ui/screens/ProfileScreen.tsx:66` `exportSave` | Download share card and Export save use `<a download>`. A WKWebView only saves a download when the app handles it (`WKDownload`), so in the Capacitor app both are likely to do nothing, or to open the image or JSON in the web view with no way back; check on a device | Where `navigator.canShare({ files })` holds, share a `File` (`navigator.share({ files: [new File([blob], name, { type })] })`); in the Capacitor app use the Share and Filesystem plugins |
-| O-3 | High (iOS) | `src/ui/styles.css` (`.topbar`, `.app`), with `viewport-fit=cover` in `index.html` | No `env(safe-area-inset-top)`, `-left` or `-right` anywhere: in a full-screen WKWebView the top bar sits under the status bar and the notch, and landscape content runs under the sensor housing (the bottom bars already pad `safe-area-inset-bottom`) | `.topbar { padding-top: max(8px, env(safe-area-inset-top)) }` and `.app { padding-inline: env(safe-area-inset-left) env(safe-area-inset-right) }`, or Capacitor's `ios.contentInset: 'always'`; for the iOS agent to choose |
+| O-1 | Low; open, needs a bump: patch below | `src/engine/scenario.ts:48` `scaleRow`, used by `projectedCarryIn` (line 99) and `jobOf` | A run-in's carried table scales each club's real row on its own, so the league's columns do not add up: Hull 2014-15, survival, seed `qa-runin-0`: 210 wins against 211 losses, 139 draws, 718 goals for against 720 against at matchweek 28 (`qaModes.test.ts`, the run-in sweep, with the carry-in check switched back on) | After scaling every row, reconcile league-wide: while wins ≠ losses, move one result on the row with the largest rounding remainder (a win to a draw, or a draw to a loss) and the same for goals. It changes run-in tables, so it needs an ENGINE_VERSION bump and new run-in pins |
+| O-2 | Low (iOS); **fixed** on `polish-qaopen` (web share fallback) | `src/ui/shareCard.ts:620` `downloadDataUrl`, `src/ui/screens/ProfileScreen.tsx:66` `exportSave` | Download share card and Export save use `<a download>`. A WKWebView only saves a download when the app handles it (`WKDownload`), so in the Capacitor app both are likely to do nothing, or to open the image or JSON in the web view with no way back; check on a device | Where `navigator.canShare({ files })` holds, share a `File` (`navigator.share({ files: [new File([blob], name, { type })] })`); in the Capacitor app use the Share and Filesystem plugins |
+| O-3 | High (iOS); fixed on `ios-native` (1ad033d, safe-area tokens), not on main | `src/ui/styles.css` (`.topbar`, `.app`), with `viewport-fit=cover` in `index.html` | No `env(safe-area-inset-top)`, `-left` or `-right` anywhere: in a full-screen WKWebView the top bar sits under the status bar and the notch, and landscape content runs under the sensor housing (the bottom bars already pad `safe-area-inset-bottom`) | `.topbar { padding-top: max(8px, env(safe-area-inset-top)) }` and `.app { padding-inline: env(safe-area-inset-left) env(safe-area-inset-right) }`, or Capacitor's `ios.contentInset: 'always'`; for the iOS agent to choose |
 | O-4 | Low (a11y) | `src/ui/screens/OppositionReport.tsx:63` | The Units list is a div of dt and dd (axe: dlitem) on the Next match tab and the arena hub | `<dl className="kv">` (the `dl.kv` rule from QA-6 keeps its spacing) |
 | O-5 | Low (a11y) | `src/ui/components/bits.tsx:279` (tab badge), `src/ui/screens/Draft.tsx:263` (pick count), `:421` (Icons badge), `:433` (twist in the draft log), `src/ui/matchday/SquadStrip.tsx:32`, `src/ui/components/SpinOdds.tsx:11`, `src/ui/components/PlayerRow.tsx:22` (champion chip) | aria-label on a span or div with no role: never announced (axe: aria-prohibited-attr). The render sweep filters exactly these (`OPEN_ARIA` in `qaSsr.ts`) | `role="img"` on the glyphs (badge, count, Icons, twist, chip), `role="group"` on the strip and the odds |
 | O-6 | Low (a11y) | `src/ui/screens/Draft.tsx:411` | The draft log scrolls with no focusable content (axe: scrollable-region-focusable) | `<ol className="draft-log" tabIndex={0} aria-label="Draft log">` |
-| O-7 | Low | `src/ui/matchday/MatchDashboard.tsx:96` (`start = resumeMinute(live.mp)`) | A reload (or iOS killing the backgrounded web view) at a stop replays the segment from its start before the stop panel returns: about 50 s at 4x, three and a half minutes at 1x. Skip replay gets straight back. Seen on a Season at half time | Remember per viewer (sessionStorage, keyed by `liveMatchKey(game.live)` and the clock) that the segment was seen, and start the clock at the stop when it was |
-| O-8 | Low (iOS) | `src/ui/matchday/matchday*.css` (`.md-select`, 12px; `select.md-highlights`, 13px) | The dashboard's mentality and highlights selects are under 16px, so iOS zooms into them on focus | 16px on phones, if the control row can take the height |
-| O-9 | Medium (iOS) | the save in `localStorage` (`src/game/saveStorage.ts`) | Capacitor's own storage guide warns that iOS may clear a web view's `localStorage` when the device runs low on space; an app-store player has no export habit and no cloud save offline | Mirror the save to Capacitor Preferences or a file (the persist storage is one object to wrap); for the iOS agent |
-| O-10 | Low | `src/ui/screens/Setup.tsx` and `H2H.tsx` start buttons; `ensureLeagues` in `store.ts` | Offline, a league whose pack never loaded leaves Start on "Loading league data…" for good after one toast; a Dynasty that qualified for Europe cannot start its summer offline (every pack is needed) | Remember a failed load and label the button "Not downloaded: connect to load it" with a Retry; precache every pack in the service worker for the app build |
+| O-7 | Low; **fixed** on `polish-qaopen` | `src/ui/matchday/MatchDashboard.tsx:96` (`start = resumeMinute(live.mp)`) | A reload (or iOS killing the backgrounded web view) at a stop replays the segment from its start before the stop panel returns: about 50 s at 4x, three and a half minutes at 1x. Skip replay gets straight back. Seen on a Season at half time | Remember per viewer (sessionStorage, keyed by `liveMatchKey(game.live)` and the clock) that the segment was seen, and start the clock at the stop when it was |
+| O-8 | Low (iOS); **fixed** on `polish-qaopen` | `src/ui/matchday/matchday*.css` (`.md-select`, 12px; `select.md-highlights`, 13px) | The dashboard's mentality and highlights selects are under 16px, so iOS zooms into them on focus | 16px on phones, if the control row can take the height |
+| O-9 | Medium (iOS); **eased** on `polish-qaopen` (persistent storage); the native mirror is for the iOS wrapper | the save in `localStorage` (`src/game/saveStorage.ts`) | Capacitor's own storage guide warns that iOS may clear a web view's `localStorage` when the device runs low on space; an app-store player has no export habit and no cloud save offline | Mirror the save to Capacitor Preferences or a file (the persist storage is one object to wrap); for the iOS agent |
+| O-10 | Low; **fixed** on `polish-qaopen` (the label and Retry; precaching every pack is left) | `src/ui/screens/Setup.tsx` and `H2H.tsx` start buttons; `ensureLeagues` in `store.ts` | Offline, a league whose pack never loaded leaves Start on "Loading league data…" for good after one toast; a Dynasty that qualified for Europe cannot start its summer offline (every pack is needed) | Remember a failed load and label the button "Not downloaded: connect to load it" with a Retry; precache every pack in the service worker for the app build |
 | O-11 | Low (a11y) | the 21 `table.tbl` (`display: block; overflow-x: auto` under 720 px) | On a phone each table scrolls sideways with no focusable content | `tabIndex={0}` and an `aria-label` on the tables that can overflow, or a wrapper that takes focus |
-| O-12 | Low (a11y) | `bits.tsx` `Info` (18x18), Setup's "change" link (49x19), the dashboard's Boxes control (95x20) | Tap targets under 24x24 px (WCAG 2.2 target size; Apple asks for 44) | A 24 px minimum hit area (padding or a pseudo-element) |
-| O-13 | Known | club badge kit colours (`inkOn`) | Arsenal, Sunderland, Stoke and other red kits give badge text 4.35 to 4.48:1 against 4.5 (already in HANDOVER section 7) | A darker kit shade for text on the badge |
-| O-15 | Low | `src/ui/screens/Draft.tsx:274` (the head's `<span className="row">`: Speedrun clock, bonus spins, `CapChip`, Boxes, Home) | At 320 px a capped draft (a Gauntlet with Moneyball, seed `qa-cap-g`, £0M of £223M) puts the chip, Boxes and Home on one row that does not wrap: the layout grows to 377 px and the whole draft renders zoomed out (found by the 320 px monkey from the Cup bracket save) | `className="row wrap"` on that span |
-| O-14 | Low | `saveStorage.ts` `onError` in `store.ts` | With the storage full the toast shows on the first refused write and then every twentieth; the rest of the time nothing says that nothing is being saved | A persistent banner while writes fail |
+| O-12 | Low (a11y); **fixed** (phones by the second accessibility pass, every width on `polish-qaopen`) | `bits.tsx` `Info` (18x18), Setup's "change" link (49x19), the dashboard's Boxes control (95x20) | Tap targets under 24x24 px (WCAG 2.2 target size; Apple asks for 44) | A 24 px minimum hit area (padding or a pseudo-element) |
+| O-13 | Known; **fixed** by the first accessibility pass (`inkOn` clears 4.5:1 on every kit colour) | club badge kit colours (`inkOn`) | Arsenal, Sunderland, Stoke and other red kits give badge text 4.35 to 4.48:1 against 4.5 (already in HANDOVER section 7) | A darker kit shade for text on the badge |
+| O-15 | Low; **fixed** by the second accessibility pass (#78) | `src/ui/screens/Draft.tsx:274` (the head's `<span className="row">`: Speedrun clock, bonus spins, `CapChip`, Boxes, Home) | At 320 px a capped draft (a Gauntlet with Moneyball, seed `qa-cap-g`, £0M of £223M) puts the chip, Boxes and Home on one row that does not wrap: the layout grows to 377 px and the whole draft renders zoomed out (found by the 320 px monkey from the Cup bracket save) | `className="row wrap"` on that span |
+| O-14 | Low; **fixed** on `polish-qaopen` | `saveStorage.ts` `onError` in `store.ts` | With the storage full the toast shows on the first refused write and then every twentieth; the rest of the time nothing says that nothing is being saved | A persistent banner while writes fail |
 
 Since the merge with the release line (improve-r5, 2026-10-26): the accessibility passes had already fixed O-4 (the Units list is a `dl.kv`), O-5 (every glyph and group named there has its role), O-6 and O-11 (`scrollFocus.ts` puts the draft log, `table.tbl` and the match-day panels in the Tab order while they scroll, so QA-8's fixed `tabIndex={0}` on the panels was dropped for it), and QA-3, QA-6 and QA-12 overlapped theirs (one version kept each). QA-4's boundary is now the one `ScreenBoundary` in `lazyScreens.tsx`, which also tells a chunk that did not load from a render error. The render sweep's `OPEN_ARIA` filter in `qaSsr.ts` no longer has anything to filter.
+
+### Open items on `polish-qaopen` (2026-10-26)
+
+Each was reproduced against the release build (ec520f3, engine 5) with Playwright before the fix, and checked again after it; every fix has a Vitest test.
+
+| Id | Reproduced | Fix | Test |
+| --- | --- | --- | --- |
+| O-2 | Chromium has no "download goes nowhere" case, so by the code path: `<a download>` was the only route, for the card and the export alike | `src/ui/saveFile.ts`: a plain browser keeps the download; an iOS home-screen web app (`navigator.standalone`), an embedded iOS web view (no `Safari/` in the user agent) or a browser without `<a download>` opens the share sheet with the file (`navigator.share({ files })`) when `navigator.canShare` takes it, the save as JSON or else as plain text with the same name; any failure but the player closing the sheet falls back to the download. `downloadDataUrl` (every share card) and Export save go through it. No Capacitor code | `saveFile.test.ts` |
+| O-7 | Season saved at half time: Skip to half time, reload in the same tab: the panel back in 4.4 s (round 5's sessionStorage mark works); a fresh web view with the same localStorage (what iOS restores after killing a backgrounded app): the half replayed, no panel after 20 s | `matchday/resume.ts` keeps the mark in localStorage (sessionStorage when localStorage refuses it) and reads the mark for the segment on screen first | `matchResume.test.ts` |
+| O-8 | 390 px, live match at half time: the mentality select 12px, highlights 13px | `matchday-phone.css`: every match-day select 16px under 720 px (the row already had a 32 px control height) | `qaOpenCss.test.ts` |
+| O-9 | (no eviction to see in Chromium) | `src/ui/persistStorage.ts`: after the first finished result (the Trophy Room's per-mode counts and the arena runs) the app asks `navigator.storage.persist()` once per device (`touchline-persist-asked`); Your record's Save data box says whether the save is protected, with Protect my save when it is not. Mirroring the save to native storage stays with the iOS wrapper | `persistStorage.test.ts` |
+| O-10 | Offline, a league never loaded: Start read "Loading league data…" for good | the store keeps `failedLeagues` and `classicFailed` (transient); `src/game/logic/leagueLoad.ts` says ready, loading or missing; Setup, the arena, the Run-in, the arena challenge and head-to-head read "Not downloaded: connect to load it" with a Retry (`components/LeagueRetry.tsx`) that also runs when the device comes back online; a Dynasty summer that needs a missing league shows the same Retry. Precaching every pack in the service worker (perf-r2 precaches the built assets) is an owner decision: about 10 MB of packs (before compression) on a first visit | `leagueLoad.test.ts` |
+| O-12 | 1280x720: the setup cards' "i" 18x18, "change" 49x19, Advanced 582x19, the dashboard's Boxes 95x20 and its selects 22 to 23 px tall, the summary's Share text 21 px, chip buttons 23 px (phones were already fixed by #78) | `styles.css`: a pseudo-element gives those a 24 px hit area at every width without moving the layout; `matchday.css`: the selects take a 24 px minimum height | `qaOpenCss.test.ts` |
+| O-13 | already fixed: `inkOn` picks black for the mid reds (a11y test over every kit colour) | none needed | `a11y.test.ts` |
+| O-14 | (the QA hunt's full-storage flow) | the store's transient `saveFailing`, set by the quota error and cleared by the next accepted write; `components/SaveBanner.tsx` keeps a Not saving pill in the top bar beside the brand (it opens Your record, where Export save is; icon only under 360 px; floating top left while the bar is hidden), so it never covers a control | `saveFailing.test.ts` |
+| O-15 | 320x568, the Gauntlet cap draft with bonus spins and the Speedrun clock added: no widening (`scrollWidth` 320) | already fixed by #78 (`.draft-progress > .row > .row` wraps under 720 px) | `qaOpenCss.test.ts` pins it |
+
+### O-1: proposed patch for the next engine bump (not applied)
+
+`scaleRow` scales each club's real row on its own, so the league's columns do not reconcile: Hull 2014-15 survival (`qa-runin-0`) carries 210 wins against 211 losses and 718 goals for against 720 against at matchweek 28. The fix reconciles the whole table after scaling, moving the fewest results and goals, on the rows whose rounding moved them most. It changes run-in tables (projected positions, gaps and points in the catalogue, the carried rows in every run-in), so it needs ENGINE_VERSION `'6'`, a line in `docs/GAME_DESIGN.md` section 15, new run-in pins (`src/engine/__tests__/scenario*.test.ts`, `src/game/__tests__/runin*.test.ts` and the pins files) and a new edge bundle (the verifier bundles `src/engine`). The catalogue's membership does not move (`fits` reads the real rows). Tried on a scratch copy (not committed) over the 60 league seasons the catalogue draws from in England, Spain, Italy and Germany: 58 did not add up before; after it every one does, and no row moved by more than one result or one goal.
+
+In `src/engine/scenario.ts`, beside `scaleRow`:
+
+```ts
+/**
+ * Every club's real row scaled back to `n` of `played` matches, reconciled league-wide so the carried table is one a
+ * league could have: wins equal losses (then draws are even, since clubs × n is), goals for equal goals against. Each
+ * row is scaled by `scaleRow`; then, while wins exceed losses, a win becomes a draw on the row whose win was rounded up
+ * most (while losses exceed wins, a loss becomes a draw likewise), and the goal surplus comes off the rows whose goals
+ * for (or against) were rounded up most, never below their wins (or losses). Ties go to the higher-placed row. Pure.
+ */
+export function scaleTable(rows: LeagueSeasonRow[], played: number, n: number): Record<string, CarryRow> {
+  const out = rows.map((r) => scaleRow(r, played, n))
+  const exact = (x: number) => (x * n) / played
+  const excess = (i: number, k: 'won' | 'lost' | 'goalsFor' | 'goalsAgainst') => out[i][k] - exact(rows[i][k])
+  const pick = (k: 'won' | 'lost' | 'goalsFor' | 'goalsAgainst', ok: (i: number) => boolean) => {
+    let best = -1
+    for (let i = 0; i < out.length; i++) if (ok(i) && (best < 0 || excess(i, k) > excess(best, k))) best = i
+    return best
+  }
+  const total = (k: keyof CarryRow) => out.reduce((a, r) => a + r[k], 0)
+  for (let gap = total('won') - total('lost'); gap !== 0; gap = total('won') - total('lost')) {
+    const k = gap > 0 ? 'won' : 'lost'
+    const i = pick(k, (j) => out[j][k] > 0)
+    if (i < 0) break
+    out[i][k]--
+    out[i].drawn++
+  }
+  for (let gap = total('goalsFor') - total('goalsAgainst'); gap !== 0; gap = total('goalsFor') - total('goalsAgainst')) {
+    const k = gap > 0 ? 'goalsFor' : 'goalsAgainst'
+    const floor = gap > 0 ? 'won' : 'lost'
+    const i = pick(k, (j) => out[j][k] > out[j][floor])
+    if (i < 0) break
+    out[i][k]--
+  }
+  return Object.fromEntries(rows.map((r, i) => [r.clubId, out[i]]))
+}
+```
+
+Then `projectedCarryIn` and `jobOf` build their carry from it, the host keyed as `USER_TEAM`:
+
+```ts
+const scaled = scaleTable(rows, played, n)
+return Object.fromEntries(rows.map((r) => [r.clubId === hostClubId ? USER_TEAM : r.clubId, scaled[r.clubId]]))
+```
+
+and the test that goes with it: over every catalogue job in every loaded league, the carried rows give Σwon = Σlost, an even Σdrawn, Σ(won + drawn + lost) = clubs × takeover, ΣgoalsFor = ΣgoalsAgainst, each row's `won + drawn + lost = takeover`, and no row more than one result or one goal from its own `scaleRow`; then switch the run-in sweep's carry-in check in `qaSeasonHarness.ts` back on (it checks the carried table with the played fixtures).
 
 ## 4. Coverage notes
 
