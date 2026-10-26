@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { movement, zoneOf, type LiveRow } from '@game/logic/liveTable'
 import { ClubBadge } from './bits'
 
-/** Height of one live-table row in px: rows slide between places by this much (FLIP by transform). */
+/** Height of one live-table row in px: rows slide between places by this much (FLIP by transform). The stylesheet can
+ * make the rows shorter (`--lt-row`, the season playback's compact rows on a short window); the default is this. */
 const ROW_H = 26
+/** A length of `n` rows, in the stylesheet's row height. */
+const rows = (n: number) => `calc(${n} * var(--lt-row, ${ROW_H}px))`
 
 /**
  * The live league table beside the playback: every club after the game shown, the user's row highlighted. Rows keep
@@ -21,8 +24,9 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
     const body = bodyRef.current
     const box = body?.closest('.fit-cell')
     if (!body || !box || mine < 0 || box.scrollHeight <= box.clientHeight) return
-    const top = body.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop + mine * ROW_H
-    if (top < box.scrollTop + ROW_H || top > box.scrollTop + box.clientHeight - 2 * ROW_H) box.scrollTo({ top: Math.max(0, top - box.clientHeight / 2), behavior: 'smooth' })
+    const rowH = body.querySelector('.lt-row')?.getBoundingClientRect().height || ROW_H
+    const top = body.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop + mine * rowH
+    if (top < box.scrollTop + rowH || top > box.scrollTop + box.clientHeight - 2 * rowH) box.scrollTo({ top: Math.max(0, top - box.clientHeight / 2), behavior: 'smooth' })
   }, [mine])
   const byClub = [...table].sort((a, b) => a.teamId.localeCompare(b.teamId))
   const place = new Map(table.map((r, i) => [r.teamId, i]))
@@ -33,7 +37,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
     { key: 'releg', from: teams - 3, to: teams },
   ]
   return (
-    <div className={`live-table ${slide ? '' : 'no-slide'}`} data-testid="live-table">
+    <div className={`live-table ${slide ? '' : 'no-slide'}`} style={{ ['--lt-n' as string]: String(teams) }} data-testid="live-table">
       <div className="lt-head small muted">
         <span>#</span>
         <span />
@@ -42,9 +46,9 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
         <span className="num">GD</span>
         <span className="num">Pts</span>
       </div>
-      <div className="lt-body" ref={bodyRef} style={{ height: teams * ROW_H }}>
+      <div className="lt-body" ref={bodyRef} style={{ height: rows(teams) }}>
         {zones.map((z) => (
-          <div key={z.key} className={`lt-zone ${z.key}`} style={{ top: z.from * ROW_H, height: (z.to - z.from) * ROW_H }} aria-hidden="true" />
+          <div key={z.key} className={`lt-zone ${z.key}`} style={{ top: rows(z.from), height: rows(z.to - z.from) }} aria-hidden="true" />
         ))}
         {byClub.map((r) => {
           const i = place.get(r.teamId) ?? 0
@@ -52,7 +56,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
           const gd = r.goalsFor - r.goalsAgainst
           const me = r.teamId === userId
           return (
-            <div key={r.teamId} className={`lt-row ${me ? 'me' : ''} ${zoneOf(i + 1, teams) ?? ''}`} style={{ transform: `translateY(${i * ROW_H}px)` }} data-testid={me ? 'live-table-me' : 'live-table-row'} data-place={i + 1}>
+            <div key={r.teamId} className={`lt-row ${me ? 'me' : ''} ${zoneOf(i + 1, teams) ?? ''}`} style={{ transform: `translateY(${rows(i)})` }} data-testid={me ? 'live-table-me' : 'live-table-row'} data-place={i + 1}>
               <span className="lt-pos">{i + 1}</span>
               <span className="lt-move" aria-label={move > 0 ? `Up ${move}` : move < 0 ? `Down ${-move}` : undefined}>
                 {move > 0 ? <ArrowUp size={12} className="up" /> : move < 0 ? <ArrowDown size={12} className="down" /> : null}
@@ -77,10 +81,24 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
  * (it draws itself on as each game lands; reduced motion shows it at once) and the leading rivals' lines faint.
  * `unit` names the x axis ("Game" on the playback, "MW" on the Dugout's Table tab); `target` draws the board's
  * expectation as a dashed line; `first` is the x label of the first point (a run-in starts after the takeover).
+ * `fill` draws it to the proportions of the box the stylesheet gives it (the season playback, where it gives way to the
+ * bench), so a short wide box gets a short wide chart rather than a small one with empty sides.
  */
-export function PositionChart({ series, rivals, teams, games, unit = 'Game', target, first = 1, title = 'League position by game' }: { series: number[]; rivals: Array<{ teamId: string; name: string; series: number[] }>; teams: number; games: number; unit?: string; target?: number; first?: number; title?: string }) {
+export function PositionChart({ series, rivals, teams, games, unit = 'Game', target, first = 1, title = 'League position by game', fill = false }: { series: number[]; rivals: Array<{ teamId: string; name: string; series: number[] }>; teams: number; games: number; unit?: string; target?: number; first?: number; title?: string; fill?: boolean }) {
   const W = 360
-  const H = 220
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const [fillH, setFillH] = useState(220)
+  useEffect(() => {
+    const el = svgRef.current
+    if (!fill || !el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect()
+      if (r.width > 0 && r.height > 0) setFillH(Math.round(Math.min(440, Math.max(90, (W * r.height) / r.width))))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fill])
+  const H = fill ? fillH : 220
   const x0 = 22
   const x1 = W - 8
   const y0 = 8
@@ -96,6 +114,12 @@ export function PositionChart({ series, rivals, teams, games, unit = 'Game', tar
     { key: 'releg', from: teams - 2, to: teams },
   ]
   const last = series.length - 1
+  // The axis's places, thinned on a short chart so no two labels touch (the last place always stays)
+  const ticks = [1, 4, 6, teams - 3 + 1, teams].reduce<number[]>((kept, p) => {
+    const prev = kept[kept.length - 1]
+    if (prev === undefined || y(p) - y(prev) >= 9) return [...kept, p]
+    return p === teams && prev !== 1 ? [...kept.slice(0, -1), p] : kept
+  }, [])
   return (
     <div className="mchart pos-chart" data-testid="position-chart">
       <div className="row between small">
@@ -108,12 +132,12 @@ export function PositionChart({ series, rivals, teams, games, unit = 'Game', tar
           ))}
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={last >= 0 ? `Position after ${unit.toLowerCase()} ${last + first}: ${series[last]}` : title}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={last >= 0 ? `Position after ${unit.toLowerCase()} ${last + first}: ${series[last]}` : title}>
         {bands.map((b) => {
           const r = band(b.from, b.to)
           return <rect key={b.key} className={`pc-band ${b.key}`} x={x0} y={r.y} width={x1 - x0} height={r.h} />
         })}
-        {[1, 4, 6, teams - 3 + 1, teams].map((p) => (
+        {ticks.map((p) => (
           <text key={p} x={x0 - 6} y={y(p) + 3} fontSize="8" textAnchor="end" fill="var(--text-3)">
             {p}
           </text>

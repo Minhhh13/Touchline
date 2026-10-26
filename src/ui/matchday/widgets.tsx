@@ -16,7 +16,7 @@ export { MATCHDAY_COMPACT, SLOT_IDS, WIDGETS, defaultSlots, matchdayBoxes, readC
 export type { SlotChoices, SlotId, WidgetId } from './widgetIds'
 
 function XgStoryWidget({ d, compact }: PanelProps) {
-  return <XgStory story={d.story} events={d.feed.events} minute={d.minute} span={Math.max(95, d.feed.lastMinute)} home={d.home} away={d.away} dense={compact} bare />
+  return <XgStory story={d.story} events={d.feed.events} minute={d.minute} span={Math.max(95, d.feed.lastMinute)} home={d.home} away={d.away} dense={compact} bare fill={!compact} />
 }
 
 function Formations({ d }: PanelProps) {

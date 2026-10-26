@@ -3,6 +3,7 @@
  * attempt, a marker on every goal, filling to the clock. Shared by the live
  * dashboard and the report (`data-testid=xg-race`).
  */
+import { useEffect, useRef, useState } from 'react'
 import type { XgStep } from '@engine/matchStats'
 import { scoreAt } from '@engine/matchFeed'
 import type { MatchEvent } from '@engine/types'
@@ -22,11 +23,27 @@ export interface XgStoryProps {
   dense?: boolean
   /** In a slot whose header already names it: no title in the chart. */
   bare?: boolean
+  /** Drawn at the size of the box the stylesheet gives it, one unit a pixel (the dashboard's widget row), so its type stays legible however short the slot. */
+  fill?: boolean
 }
 
-export function XgStory({ story, events, minute, span, home, away, dense = false, bare = false }: XgStoryProps) {
-  const W = 300
-  const H = dense ? 100 : 150
+export function XgStory({ story, events, minute, span, home, away, dense = false, bare = false, fill = false }: XgStoryProps) {
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null)
+  useEffect(() => {
+    const el = svgRef.current
+    if (!fill || !el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect()
+      const w = Math.round(r.width)
+      const h = Math.round(r.height)
+      if (w > 80 && h > 40) setBox((b) => (b && b.w === w && b.h === h ? b : { w, h }))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fill])
+  const W = fill && box ? box.w : 300
+  const H = fill && box ? box.h : dense ? 100 : 150
   const px = 24
   const py = 8
   const pw = W - px - 8
@@ -56,7 +73,7 @@ export function XgStory({ story, events, minute, span, home, away, dense = false
           <Swatch colour={away.colour} />
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Expected goals: ${home.code} ${hNow.toFixed(2)}, ${away.code} ${aNow.toFixed(2)}`}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Expected goals: ${home.code} ${hNow.toFixed(2)}, ${away.code} ${aNow.toFixed(2)}`}>
         {[0, yMax / 2, yMax].map((t) => (
           <g key={t}>
             <line x1={px} y1={Y(t)} x2={px + pw} y2={Y(t)} stroke="var(--line)" strokeWidth="1" />

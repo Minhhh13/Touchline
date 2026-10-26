@@ -4,7 +4,7 @@
  * copy of the RNG state the league season ended on, so the league result, the RNG state and the other cup are the
  * same whether a cup is played, skipped, or played first or second.
  */
-import type { Game, QuickCupReach, QuickCupRound, QuickCupRun, QuickCupTie, QuickResult } from '../types'
+import type { Cabinet, Game, QuickBracketTie, QuickCupReach, QuickCupRound, QuickCupRun, QuickCupTie, QuickResult } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
@@ -17,6 +17,7 @@ import { quickUserInput } from './quick'
 import { canPlayFor, fieldXI, injuredThrough, quickBenchRule } from './quickBench'
 import { sideScorers } from './gameByGame'
 import { isSuperLeague, quickLeague, superContinentalField } from './superLeague'
+import { fileHonour, honourEntry, trophiesOf } from './cabinet'
 
 export type QuickCupComp = 'cup' | 'continental'
 
@@ -89,7 +90,7 @@ const SCORER_WEIGHT: Record<Position, number> = { GK: 0, CB: 1, LB: 1, RB: 1, DM
  * forward more often than a defender, minutes 91 to 120) and a shoot-out if it is still level. AI-against-AI ties are
  * settled the same way, so the field's winners come out of the same rules.
  */
-function playTie(rng: Rng, tie: CupTie, home: MatchTeamInput, away: MatchTeamInput, neutral: boolean, userSlots: Array<{ id: string; w: number }>, nameOf: (id: string) => string | undefined): QuickCupTie | null {
+function playTie(rng: Rng, tie: CupTie, home: MatchTeamInput, away: MatchTeamInput, neutral: boolean, userSlots: Array<{ id: string; w: number }>, nameOf: (id: string) => string | undefined): { user: QuickCupTie | null; tie: QuickBracketTie } {
   const res = simulateMatch({ rng, home, away, neutral, detail: 'summary' })
   let hg = res.homeGoals
   let ag = res.awayGoals
@@ -114,9 +115,10 @@ function playTie(rng: Rng, tie: CupTie, home: MatchTeamInput, away: MatchTeamInp
   const winner = hg > ag ? tie.homeTeamId : ag > hg ? tie.awayTeamId : pens!.home > pens!.away ? tie.homeTeamId : tie.awayTeamId
   tie.result = { ...res, homeGoals: hg, awayGoals: ag, ...(pens ? { penalties: pens } : {}) }
   tie.winnerId = winner
-  if (!userIn) return null
+  const kept: QuickBracketTie = { home: tie.homeTeamId, away: tie.awayTeamId, hg, ag, ...(et ? { et: true as const } : {}), ...(pens ? { pens: { home: pens.home, away: pens.away } } : {}), winner }
+  if (!userIn) return { user: null, tie: kept }
   const f = (h: number, a: number) => (userHome ? { for: h, against: a } : { for: a, against: h })
-  return {
+  const user: QuickCupTie = {
     round: tie.round,
     opponentId: userHome ? tie.awayTeamId : tie.homeTeamId,
     home: userHome,
@@ -128,14 +130,16 @@ function playTie(rng: Rng, tie: CupTie, home: MatchTeamInput, away: MatchTeamInp
     scorers,
     won: winner === USER_TEAM,
   }
+  return { user, tie: kept }
 }
 
 /**
  * Play a post-season cup through: sixteen entrants drawn at random (the user always among them), single ties round
  * by round to a neutral final, the field's ties played too so every round is drawn from real winners. The user's side
  * is the XI and tactics the league season ended with (no substitutes when a bench played between games, as in the
- * league; a starter still injured after the last league game is covered from that bench), the AI clubs carry the league's calibration. The run stops when the user goes out. Writes the run to
- * `QuickResult` and the trophies' achievements to `game.unlocked`; `Game.rngState` is never touched.
+ * league; a starter still injured after the last league game is covered from that bench), the AI clubs carry the league's calibration. The user's run ends when he goes out; the rest of the field plays on to
+ * the final for the bracket (`QuickCupRun.bracket`), after every draw the run took. Writes the run to `QuickResult` and
+ * the trophies' achievements to `game.unlocked`; `Game.rngState` is never touched.
  */
 export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp): void {
   const problem = quickCupProblem(game, u, comp)
@@ -157,23 +161,25 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   const rounds = quickCupRounds(comp)
   const ties = drawFirstRound([USER_TEAM, ...Object.keys(field)], rng, rounds)
   const mine: QuickCupTie[] = []
+  const bracket: QuickBracketTie[][] = []
   for (let r = 0; r < rounds.length; r++) {
     const round = rounds[r].round
-    let out = false
+    const kept: QuickBracketTie[] = []
     for (const tie of ties.filter((t) => t.round === round)) {
       const home = tie.homeTeamId === USER_TEAM ? user : aiTeamInput(u, field[tie.homeTeamId], offset)
       const away = tie.awayTeamId === USER_TEAM ? user : aiTeamInput(u, field[tie.awayTeamId], offset)
-      const t = playTie(rng, tie, home, away, round === 'F', userSlots, nameOf)
-      if (t) {
-        mine.push(t)
-        if (!t.won) out = true
-      }
+      const played = playTie(rng, tie, home, away, round === 'F', userSlots, nameOf)
+      if (played.user) mine.push(played.user)
+      kept.push(played.tie)
     }
-    if (out || r === rounds.length - 1) break
+    bracket.push(kept)
+    if (r === rounds.length - 1) break
+    // Once the user is out the rest of the cup plays on, so the bracket reaches its final: every draw from here comes
+    // after the last one the run took, on a fork nothing else reads, so the run and every other result stay as they were
     ties.push(...drawNextRound(ties, rounds[r + 1].round, rng, rounds))
   }
   const last = mine.at(-1)!
-  const run: QuickCupRun = { ties: mine, reached: last.round === 'F' && last.won ? 'W' : last.round }
+  const run: QuickCupRun = { ties: mine, reached: last.round === 'F' && last.won ? 'W' : last.round, bracket }
   if (comp === 'cup') q.cup = run
   else q.continentalCup = run
   for (const id of cupUnlocks(q)) if (!game.unlocked.includes(id)) game.unlocked.push(id)
@@ -233,6 +239,20 @@ export function addCupTrophies(t: Trophies, before: QuickResult, after: QuickRes
     doubles: t.doubles + (comp === 'cup' && league ? 1 : 0),
     trebles: t.trebles + (league && cup && euro ? 1 : 0),
   }
+}
+
+/**
+ * The Trophy Room after a cup run (`playCup` in the store): the counts as `addCupTrophies` adds them and, when the run
+ * completes a Treble or a Double with the league, the season on the honours board (a Double the second cup turns into
+ * a Treble replaces its own entry). `before` is the quick result as it was before the run. Pure.
+ */
+export function creditCupRun(cabinet: Cabinet, before: QuickResult, game: Game, comp: QuickCupComp, date?: string): Cabinet {
+  const after = game.quickResult
+  if (!after) return cabinet
+  const c: Cabinet = { ...cabinet, ...addCupTrophies(trophiesOf(cabinet), before, after, comp) }
+  if (wonCup(before, comp) || !wonCup(after, comp)) return c
+  const honour = honourEntry(game, { league: after.position === 1, cup: wonCup(after, 'cup'), continental: wonCup(after, 'continental') }, date)
+  return honour ? fileHonour(c, honour) : c
 }
 
 const ROUND_NAME: Record<QuickCupReach, string> = { R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }
