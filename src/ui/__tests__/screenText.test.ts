@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countPhrase, developmentLists, modeLabel, shownGames, versusReal } from '../screenText'
+import { countPhrase, developmentLists, distinctLabels, modeLabel, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -55,3 +55,13 @@ describe('development report lists', () => {
     expect(countPhrase(2, 'rungs in your best Gauntlet')).toBe('2 rungs in your best Gauntlet')
   })
 })
+
+describe('distinctLabels', () => {
+  it("says the arena hub's step once, in sentence case", () => {
+    expect(distinctLabels(['Cup Final', 'Cup final'])).toEqual(['Cup final'])
+    expect(distinctLabels(['Cup final', 'Cup Final'])).toEqual(['Cup final'])
+    expect(distinctLabels(['The Cup · 16 clubs', 'Round of 16'])).toEqual(['The Cup · 16 clubs', 'Round of 16'])
+    expect(distinctLabels(['The Gauntlet', 'Rung 3', ''])).toEqual(['The Gauntlet', 'Rung 3'])
+  })
+})
+

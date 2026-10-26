@@ -8,6 +8,7 @@ import { createGame, beginSeason } from '../logic/setup'
 import { autoPick, assignPlayer, lineupProblems } from '../logic/squad'
 import { squadPlayers } from '../logic/players'
 import { assignmentNote, discRating, draftSlotChoices, slotLabel, slotSheet, surname, whereabouts, whereaboutsLabel } from '../logic/slotSheet'
+import { costLabel, slotRating, slotRatingLine } from '../logic/slotRating'
 import type { Game, GameSettings } from '../types'
 // The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
 vi.hoisted(() => {
@@ -222,6 +223,11 @@ describe('the Draft slot chips', () => {
         expect(chips.map((c) => c.slotId)).toEqual(slots.map((s) => s.id))
         for (const c of chips) {
           expect(c.rating).toBe(Math.round(ratingAt(p, c.position)))
+          // The chip leads with the pitch disc's number, and its cost against the overall
+          const r = slotRating(p, c.position)
+          expect(r.inSlot).toBe(discRating(p, c.position))
+          expect(r.overall - r.cost).toBe(r.inSlot)
+          expect(r.cost === 0).toBe(c.fit === 'fits')
           expect(c.fit).toBe(p.positions.includes(c.position) ? 'fits' : 'can cover')
           const copy = JSON.parse(JSON.stringify(d)) as typeof d
           pick(u, copy, p.id, c.slotId)
@@ -234,3 +240,35 @@ describe('the Draft slot chips', () => {
     expect(checked).toBeGreaterThan(0)
   })
 })
+
+describe('the rating scheme: overall, in a slot, attributes for a position', () => {
+  it('in a slot is the pitch disc, the overall less the out-of-position cost, and the line names all three', () => {
+    let natural = 0
+    let out = 0
+    for (const p of Object.values(u.index).slice(0, 400)) {
+      for (const pos of ['GK', 'CB', 'LB', 'DM', 'CM', 'AM', 'RW', 'ST'] as const) {
+        const r = slotRating(p, pos)
+        expect(r.inSlot).toBe(discRating(p, pos))
+        expect(r.overall).toBe(p.overall)
+        expect(r.cost).toBe(Math.max(0, p.overall - r.inSlot))
+        expect(r.attributes).toBe(Math.round(ratingAt(p, pos)))
+        if (p.positions.includes(pos)) {
+          natural++
+          expect(r.cost).toBe(0)
+          expect(slotRatingLine(r, pos)).toBe(`${p.overall} at ${pos} (his overall, natural position)`)
+        } else if (r.cost > 0) {
+          out++
+          expect(slotRatingLine(r, pos)).toBe(`${r.inSlot} at ${pos} (${p.overall} overall, −${r.cost} out of position)`)
+          expect(costLabel(r)).toBe(`−${r.cost} out of position`)
+        }
+      }
+    }
+    expect(natural).toBeGreaterThan(100)
+    expect(out).toBeGreaterThan(100)
+  })
+
+  it('names the attribute rating as such when asked', () => {
+    expect(slotRatingLine({ inSlot: 84, overall: 89, cost: 5, attributes: 75 }, 'RW', { attributes: true })).toBe('84 at RW (89 overall, −5 out of position). Attributes for RW: 75')
+  })
+})
+

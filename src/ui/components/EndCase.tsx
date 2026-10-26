@@ -10,6 +10,7 @@ import { CASE_RARITY_LABEL, CASE_TIER, caseIconChoices, lockerCount } from '@gam
 import { caseGuide } from '@game/logic/caseGuide'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
+import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { armAudio, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
@@ -42,7 +43,12 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   const odds = caseRarityOdds()
   const get = playerLookup(game, u)
   const icon = c.drop.kind === 'icon' ? get(c.drop.id) : undefined
-  const choices = c.drop.kind === 'icon' ? caseIconChoices(game, u) : []
+  // Each choice with the Icon's and the outgoing man's numbers in the slot, as their pitch discs would show them
+  const choices = (c.drop.kind === 'icon' ? caseIconChoices(game, u) : []).map((x) => {
+    const pos = game.draft?.formation.slots.find((s) => s.id === x.slotId)?.position
+    const out = get(x.outId)
+    return { ...x, slot: icon && pos ? slotRating(icon, pos) : null, outSlot: out && pos ? slotRating(out, pos) : null }
+  })
   // The Icon is still on offer; the starter making way is in the squad
   const hide = ratingHidden(game.settings.rules, 'offer')
   const card = caseDropCard(c.drop)
@@ -129,8 +135,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               </span>
               <div className="case-slots row wrap" style={{ gap: 6 }}>
                 {choices.map((x) => (
-                  <button key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot">
-                    <b>{x.label}</b> {hide ? '?' : x.rating} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outRating})`}
+                  <button key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingLine(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingLine(x.outSlot, x.label)}` : ''}`}>
+                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
                   </button>
                 ))}
               </div>

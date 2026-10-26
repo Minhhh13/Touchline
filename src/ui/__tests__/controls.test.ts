@@ -14,9 +14,11 @@ import {
   conditionBand,
   draftChanges,
   emptyDraft,
+  highlightedMan,
   instructionDiff,
   landing,
   moraleBand,
+  nextSelection,
   openDrawer,
   PHONE_TABS,
   phoneTabs,
@@ -329,3 +331,17 @@ describe('phone tabs', () => {
     expect(tabAfter(PHONE_TABS, 'commentary').id).toBe('events')
   })
 })
+
+describe('the man picked out on the strip', () => {
+  it('a tap picks him and a second tap lets him go; another man takes his place', () => {
+    expect(nextSelection(null, 'a')).toBe('a')
+    expect(nextSelection('a', 'a')).toBeNull()
+    expect(nextSelection('a', 'b')).toBe('b')
+  })
+  it('keyboard focus previews a man over the selection, and the selection comes back on blur', () => {
+    expect(highlightedMan('a', null)).toBe('a')
+    expect(highlightedMan('a', 'b')).toBe('b')
+    expect(highlightedMan(null, null)).toBeNull()
+  })
+})
+

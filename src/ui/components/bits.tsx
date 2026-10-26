@@ -8,6 +8,7 @@ import { useStore } from '@game/store'
 import { tipSeen, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
+import { useDialog } from '../useDialog'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -41,7 +42,7 @@ export function TeamBadge({ code, size = 32 }: { code?: string; size?: number })
  * A rating badge. `range` shows what the club can see of a player it has not scouted (`src/game/logic/scouting.ts`):
  * "62–70", coloured by the middle of the range; an exact range (lo = hi) reads as the plain number.
  */
-export function Rating({ value, size, hidden, range, reveal }: { value: number; size?: 'lg'; hidden?: boolean; range?: { lo: number; hi: number }; /** Flip the number in: a pick whose rating was hidden while choosing has just landed in the squad. */ reveal?: boolean }) {
+export function Rating({ value, size, hidden, range, reveal, label }: { value: number; size?: 'lg'; hidden?: boolean; range?: { lo: number; hi: number }; /** Flip the number in: a pick whose rating was hidden while choosing has just landed in the squad. */ reveal?: boolean; /** What the number is, for its tooltip: "Overall" on a player row. */ label?: string }) {
   const v = Math.round(value)
   if (!hidden && range && range.hi > range.lo) {
     return (
@@ -51,7 +52,7 @@ export function Rating({ value, size, hidden, range, reveal }: { value: number; 
     )
   }
   return (
-    <span className={`rating ${hidden ? 'hidden' : ratingBand(v)} ${size ?? ''}${reveal && !hidden ? ' reveal' : ''}`}>
+    <span className={`rating ${hidden ? 'hidden' : ratingBand(v)} ${size ?? ''}${reveal && !hidden ? ' reveal' : ''}`} title={label && !hidden ? `${label} ${v}` : undefined}>
       {hidden ? '?' : v}
     </span>
   )
@@ -96,23 +97,23 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
   )
 }
 
-/** A dialog; `sheet` makes it a bottom sheet on a phone (<= 720px wide) and an ordinary centred modal on wider screens. */
+/**
+ * A dialog; `sheet` makes it a bottom sheet on a phone (<= 720px wide) and an ordinary centred modal on wider screens.
+ * A proper modal dialog (`useDialog`): `role="dialog"`, `aria-modal`, named by its title (`aria-labelledby`), the focus
+ * moved in on opening and back to the opener on closing, Tab kept inside, Escape closes it, the page behind `inert`.
+ */
 export function Modal({ open, onClose, title, children, wide, sheet, testId, className }: { open: boolean; onClose?: () => void; title?: string; children: ReactNode; wide?: boolean; sheet?: boolean; testId?: string; className?: string }) {
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose?.()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  const backRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  useDialog(backRef, boxRef, open, onClose)
   if (!open) return null
   return (
-    <div className={`modal-back ${sheet ? 'sheet-back' : ''}`} onClick={onClose}>
-      <div className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
+    <div ref={backRef} className={`modal-back ${sheet ? 'sheet-back' : ''}`} onClick={onClose}>
+      <div ref={boxRef} className={`modal ${sheet ? 'sheet' : ''} ${className ?? ''}`} style={wide ? { width: 'min(960px, 100%)' } : undefined} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} data-testid={testId}>
         {title && (
           <div className="panel-head">
-            <h2>{title}</h2>
+            <h2 id={titleId}>{title}</h2>
             {onClose && (
               <button className="btn sm ghost" onClick={onClose} aria-label="Close">
                 ✕
@@ -144,7 +145,7 @@ export function Toast() {
   }, [toast, show])
   if (!toast) return null
   return (
-    <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} role="status">
+    <div key={toast} className={`toast ${leaving === toast ? 'leaving' : ''}`} role="status" data-dialog-keep="">
       {toast}
     </div>
   )
