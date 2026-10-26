@@ -51,7 +51,9 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
   return (
     <details className="panel opposition" open={startOpen} style={{ marginBottom: 'var(--space-4)' }}>
       <summary className="panel-head">
-        <h3>Opposition report: {club.name}</h3>
+        <h3>
+          Opposition report<span className="opp-of">: {club.name}</span>
+        </h3>
         <span className="small muted">
           {neutral ? 'Neutral' : home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
           <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />

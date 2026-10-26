@@ -14179,6 +14179,33 @@ table.tbl.tv-compact .tv-name {
     padding-block: var(--space-2);
   }
 }
+/*
+ * The arena hub's calls on a desktop: the column never scrolls (above), so the calls need no card of their own; they
+ * sit at the column's foot under the team talk's panel rather than in a second panel beside it (it read as a panel in
+ * a panel at 1280x720). The selects of a three-field prep take a smaller face so "Choose a captain" is whole.
+ */
+@media (min-width: 1100px) and (min-height: 600px) {
+  .arena-hub .arena-side > .arena-actions {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+    padding-inline: 0;
+    padding-bottom: 0;
+  }
+  .arena-hub .arena-prep select.input {
+    padding-inline: 10px 6px;
+    font-size: var(--fs-sm);
+  }
+  /* A tall window's pitch is as wide as the column allows and no more: it sits in the middle of its box, not on top of an empty half */
+  .arena-hub .arena-pitch-box {
+    display: grid;
+    align-content: center;
+  }
+}
+/* The hub's first box already names the opponent, so its report is just "Opposition report" (no wrap to three lines) */
+.arena-hub .opposition .opp-of {
+  display: none;
+}
 /* A very small pitch (a short window's arena hub) shows the numbers only: the names would run into each other, and
    each slot's tooltip still names him and his rating there */
 @container (max-width: 200px) {
