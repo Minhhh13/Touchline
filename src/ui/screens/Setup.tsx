@@ -3,6 +3,7 @@ import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, 
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
@@ -298,7 +299,7 @@ export function Setup() {
   }
   const preview = buildSettings(true)
   // Until the week's league is in, the week has no season or host to state
-  const summary = fixed?.kind === 'weekly' && !week ? `Loading the ${leagueNameOf(fixed.leagueId)}…` : summariseSetup(u, preview)
+  const summary = fixed?.kind === 'weekly' && !week ? `Loading ${leagueArticle(leagueNameOf(fixed.leagueId))}${leagueNameOf(fixed.leagueId)}…` : tidyLeagueArticles(summariseSetup(u, preview))
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
@@ -420,17 +421,17 @@ export function Setup() {
                 <StepHead n={3} title={fixed.kind === 'daily' ? "Today's rules" : fixed.kind === 'weekly' ? "This week's rules" : 'The rules'} />
                 {fixed?.kind === 'weekly' && weekPlan && (
                   <div className="notice" data-testid="weekly-notice">
-                    {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{formationName(weekPlan.formationId)}</b> from the same wheel{week ? <>, in the <b>{leagueNameOf(week.leagueId)} {seasonLabel(week.season)}</b>, {week.difficulty} difficulty</> : ' (loading the league…)'}. Ends Sunday (UTC).
+                    {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{formationName(weekPlan.formationId)}</b> from the same wheel{week ? <>, in {leagueArticle(leagueNameOf(week.leagueId))}<b>{leagueNameOf(week.leagueId)} {seasonLabel(week.season)}</b>, {week.difficulty} difficulty</> : ' (loading the league…)'}. Ends Sunday (UTC).
                   </div>
                 )}
                 {fixed?.kind === 'daily' && (
                   <div className="notice" data-testid="daily-notice">
-                    Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in the <b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
+                    Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in {leagueArticle(leagueNameOf(fixed.leagueId))}<b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
                   </div>
                 )}
                 {fixed?.kind === 'challenge' && challenge && (
                   <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
-                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts in the {leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}, {formationName(fixed.formationId)} ({tierName(challenge.claim.t)}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
+                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts {inLeague(leagueNameOf(fixed.leagueId))} {seasonLabel(fixed.season)}, {formationName(fixed.formationId)} ({tierName(challenge.claim.t)}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
                     Same seed, same wheel, {fixed.difficulty} difficulty
                     {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
                     {fixed.rules?.twists ? ', twists on' : ', no twists'}

@@ -672,6 +672,19 @@
   border: 1px solid var(--line);
   min-width: 0;
 }
+/* The stop's choices (team talk, mentality, pressing...) on one row each: four talks wrapped "Fire up" onto a line of
+   its own in a 264 px column at 1280x720; the buttons share the row and give up side padding instead */
+.matchday .md-stop-grid > .col .segmented {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  width: 100%;
+}
+.matchday .md-stop-grid > .col .segmented button {
+  flex: 1 1 auto;
+  padding-inline: 4px;
+  white-space: nowrap;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .matchday .md-drawer {

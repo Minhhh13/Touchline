@@ -217,7 +217,7 @@ export function ArenaSummary() {
                         </div>
                         <div className="small muted">
                           {s.neutral ? 'Neutral ground' : s.home ? 'Home' : 'Away'} · real {s.realStrength.toFixed(1)}
-                          {s.offset > 0 ? `, played at ${(s.realStrength - s.offset).toFixed(1)}` : ''} · {s.live ? 'managed live' : 'the assistant'}
+                          {s.offset > 0 ? `, played at ${(s.realStrength - s.offset).toFixed(1)}` : ''} · {s.live ? 'managed live' : 'simmed'}
                         </div>
                       </span>
                     </span>
