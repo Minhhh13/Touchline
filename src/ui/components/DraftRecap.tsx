@@ -1,5 +1,6 @@
-import { Compass, Sparkles, Trophy } from 'lucide-react'
+import { Check, Compass, History, Sparkles, Trophy } from 'lucide-react'
 import type { DraftRecap as Recap } from '@game/logic/draftRecap'
+import type { Hindsight } from '@game/logic/hindsight'
 import type { PickGrade } from '@game/logic/pickGrades'
 import type { PlayerSeason } from '@engine/types'
 import { countPhrase } from '../screenText'
@@ -10,7 +11,8 @@ const GRADES: PickGrade[] = ['A', 'B', 'C', 'D']
 
 /**
  * The Draft's middle box once every pick is made: the draft's grade and verdict, the grade tally, the best pick, the one
- * that got away and how far the wheel travelled, then the button on to the next step. Display only (`draftRecap`).
+ * that got away and how far the wheel travelled, the Hindsight XI (the best XI the same spins held), then the button on
+ * to the next step. Display only (`draftRecap`).
  */
 export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap; get: (id: string) => PlayerSeason | undefined; slotName: (slotId: string) => string; cta: string; onCta: () => void }) {
   const r = recap
@@ -87,9 +89,43 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
           </div>
         </div>
       </div>
+      {r.hindsight && <HindsightXI h={r.hindsight} slotName={slotName} />}
       <button className="btn primary big block recap-go" onClick={onCta} data-testid="recap-go">
         {cta}
       </button>
+    </div>
+  )
+}
+
+/** The best XI the same spins could have given, slot by slot, your own picks ticked, and the gap to your XI. */
+function HindsightXI({ h, slotName }: { h: Hindsight; slotName: (slotId: string) => string }) {
+  const perfect = h.gap <= 0
+  return (
+    <div className="recap-hindsight" data-testid="recap-hindsight">
+      <div className="hs-head">
+        <span className="recap-icon" aria-hidden>
+          <History size={18} />
+        </span>
+        <div className="col" style={{ gap: 2, minWidth: 0 }}>
+          <span className="eyebrow">Hindsight XI</span>
+          <b data-testid="hindsight-line">{perfect ? 'You made the most of every spin' : `${h.rating.toFixed(1)} with what the wheel gave you`}</b>
+          <span className="small muted">
+            {perfect ? `Your XI, ${h.yours.toFixed(1)} in its slots, is the best these spins held` : `Yours ${h.yours.toFixed(1)}, ${h.gap.toFixed(1)} short. Ticked: your pick where you put him (${h.kept} of ${h.xi.length}); S5: the spin he was on`}
+          </span>
+        </div>
+      </div>
+      {!perfect && (
+        <ol className="hs-grid" aria-label="Hindsight XI">
+          {h.xi.map((p) => (
+            <li key={p.slotId} className={`hs-man${p.yours ? ' yours' : ''}`} title={p.yours ? 'Your pick, in your slot' : `From spin ${p.spin + 1}`}>
+              <span className="hs-pos">{slotName(p.slotId)}</span>
+              <span className="hs-name">{p.name}</span>
+              <span className="hs-rating">{p.rating}</span>
+              {p.yours ? <Check size={13} className="hs-tick" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   )
 }
