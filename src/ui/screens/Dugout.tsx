@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Check, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, Trophy, UserMinus, X } from 'lucide-react'
+import { Check, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation } from '@engine/formations'
@@ -28,7 +28,9 @@ import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, TeamBadge, Tip, useViewerFlag } from '../components/bits'
 import { BriefingIcon, NewsIcon } from '../components/icons'
-import { AttributePanel, SQUAD_COLUMNS } from '../components/AttributePanel'
+import { SQUAD_COLUMNS } from '../components/AttributePanel'
+import { PlayerCardModal } from '../components/PlayerCard'
+import { careerSeasons } from '@game/logic/playerCard'
 import { LeagueFlag } from '../components/Flag'
 import { roleCode } from '../match/shirts'
 import { clubName, clubShort, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
@@ -1855,6 +1857,8 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
   const s = game.squad[id]
   if (!p) return null
   const formation = getFormation(game.tactics.formationId)
+  const dev = game.development?.[p.id]
+  const share = s ? recentShare(s) : null
   if (talks && s) {
     return (
       <Modal open onClose={onClose} title={`Contract talks: ${p.name}`} wide testId="talks-modal">
@@ -1863,132 +1867,86 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
     )
   }
   return (
-    <Modal open onClose={onClose} title={p.name}>
-      <div className="player-head">
-        <Rating value={p.overall} size="lg" />
-        <span>
-          {p.positions.map((x) => (
-            <Pos key={x} p={x} />
-          ))}
-        </span>
-        <span className="chip">{p.age} years</span>
-        <span className="chip" title={personalityOf(p).blurb} data-testid="personality">{personalityOf(p).label}</span>
-        <span className="chip">
-          {clubName(u, p.clubId)} {seasonLabel(p.season)}
-        </span>
-        <span className="chip">{money(p.value)}</span>
-        <span className="chip">{wage(p.wage)}</span>
-        {p.accolades.includes('Champion') && (
-          <span className="chip gold icon-chip">
-            <Trophy size={12} aria-hidden="true" /> Title winner
-          </span>
-        )}
-        {game.development?.[p.id] && game.development[p.id].base !== p.overall && (
-          <span className={`chip icon-chip ${p.overall > game.development[p.id].base ? 'good' : 'warn'}`} title="Rating change since the start of the season">
-            {p.overall > game.development[p.id].base ? <TrendingUp size={12} aria-hidden="true" /> : <TrendingDown size={12} aria-hidden="true" />} {Math.abs(p.overall - game.development[p.id].base)} this season
-          </span>
-        )}
-      </div>
-      <AttributePanel p={p} state={s} />
-      <div className="grid two" style={{ marginTop: 'var(--space-4)' }}>
-        {s && (
-          <div className="col" style={{ gap: 'var(--space-2)' }}>
-            <div className="meter-row">
-              <span className="small">Morale</span>
-              <Bar value={s.morale} colour="var(--info)" />
-              <span className="mono small">{meterValue(s.morale)}</span>
-            </div>
-            <div className="meter-row">
-              <span className="small">Sharpness</span>
-              <Bar value={s.sharpness} colour="var(--meter-sharpness)" />
-              <span className="mono small">{meterValue(s.sharpness)}</span>
-            </div>
-            <div className="meter-row">
-              <span className="small">Familiarity</span>
-              <Bar value={s.familiarity} colour="var(--meter-mid)" />
-              <span className="mono small">{meterValue(s.familiarity)}</span>
-            </div>
-            <div className="kv" style={{ marginTop: 'var(--space-2)' }}>
-              <dt>Season</dt>
-              <dd>
-                {s.seasonStats.apps} apps ({s.seasonStats.starts} starts) · {s.seasonStats.goals} goals · {s.seasonStats.assists} assists
-              </dd>
-              <dt>Average rating</dt>
-              <dd>{s.seasonStats.apps ? (s.seasonStats.ratingSum / s.seasonStats.apps).toFixed(2) : '–'}</dd>
-              <dt>Form</dt>
-              <dd>{s.recentRatings.length ? s.recentRatings.map((r) => r.toFixed(1)).join(' · ') : '–'}</dd>
-              <dt>Discipline</dt>
-              <dd>
-                {s.yellowCards} yellow{s.yellowCards === 1 ? '' : 's'}
-                {s.suspension ? ` · suspended ${s.suspension}` : ''}
-              </dd>
-              {s.injury && (
-                <>
-                  <dt>Injury</dt>
-                  <dd>
-                    {s.injury.description}, {s.injury.weeksOut} wk
-                  </dd>
-                </>
-              )}
-              <dt>Contract</dt>
-              <dd>{game.contracts[p.id]?.loan ? 'On loan until the summer' : `${game.contracts[p.id]?.years ?? 1} season(s)`}</dd>
-              <dt>Status</dt>
-              <dd data-testid="player-status">
-                {STATUS_LABEL[statusOf(game, p.id)]}
-                {(() => {
-                  const share = recentShare(s)
-                  return share === null ? ' · no minutes recorded yet' : ` · ${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`
-                })()}
-              </dd>
-            </div>
-          </div>
-        )}
-        {s && <HappinessCard s={s} />}
-      </div>
-      {s && (
-        <div className="row wrap" style={{ marginTop: 'var(--space-4)', gap: 'var(--space-2)' }}>
-          {formation.slots
-            .filter((sl) => p.positions.some((pp) => pp === sl.position))
-            .map((sl) => (
-              <button key={sl.id} className="btn sm" onClick={() => { store.assign(p.id, sl.id); onClose() }}>
-                Start at {sl.position}
-              </button>
-            ))}
-          <button className="btn sm" onClick={() => { store.assign(p.id, 'bench'); onClose() }}>
-            To bench
-          </button>
-          <button className="btn sm" onClick={() => { store.setCaptain(p.id); onClose() }}>
-            Make captain
-          </button>
-        </div>
-      )}
-      {s && game.season && (
-        <div className="grid two" style={{ marginTop: 'var(--space-4)' }}>
-          <div className="card">
-            <div className="row between wrap" style={{ gap: 'var(--space-2)' }}>
-              <span className="head-title">
-                <b>Have a word</b>
-                <Info label="About conversations">One conversation a week. Hover a choice for how he is likely to take it.</Info>
-              </span>
-              <span className="small muted">Morale {moraleWord(s.morale)}</span>
-            </div>
-            {game.talks?.[p.id] === game.season.matchweek ? (
-              <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>You spoke to him this week.</div>
-            ) : (
-              <div className="row wrap" style={{ marginTop: 'var(--space-2)', gap: 'var(--space-2)' }}>
-                {(Object.keys(TALK_LABEL) as TalkKind[]).map((k) => (
-                  <button key={k} className="btn sm" title={TALK_LABEL[k].hint} onClick={() => setTalkMsg(store.talk(p.id, k).message)}>
-                    {TALK_LABEL[k].label}
+    <PlayerCardModal
+      title={p.name}
+      onClose={onClose}
+      p={p}
+      seasons={careerSeasons(u, p.playerId)}
+      state={s}
+      headChips={
+        <>
+          <span className="chip">{money(p.value)}</span>
+          <span className="chip">{wage(p.wage)}</span>
+          {dev && dev.base !== p.overall && (
+            <span className={`chip icon-chip ${p.overall > dev.base ? 'good' : 'warn'}`} title="Rating change since the start of the season">
+              {p.overall > dev.base ? <TrendingUp size={12} aria-hidden="true" /> : <TrendingDown size={12} aria-hidden="true" />} {Math.abs(p.overall - dev.base)} this season
+            </span>
+          )}
+          {s && (
+            <span className="chip info" data-testid="player-status" title={share === null ? 'No minutes recorded yet' : `${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}>
+              {STATUS_LABEL[statusOf(game, p.id)]}
+              {share === null ? '' : ` · ${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}
+            </span>
+          )}
+          {s?.injury && <span className="chip bad">{s.injury.description}, {s.injury.weeksOut} wk</span>}
+          {s && (s.yellowCards > 0 || s.suspension > 0) && (
+            <span className={`chip ${s.suspension ? 'bad' : 'warn'}`}>
+              {s.yellowCards} yellow{s.yellowCards === 1 ? '' : 's'}
+              {s.suspension ? ` · suspended ${s.suspension}` : ''}
+            </span>
+          )}
+        </>
+      }
+      headExtra={<span className="chip" title={personalityOf(p).blurb} data-testid="personality">{personalityOf(p).label}</span>}
+      actions={
+        s && (
+          <>
+            <span className="pc-actions-group">
+              {formation.slots
+                .filter((sl) => p.positions.some((pp) => pp === sl.position))
+                .map((sl) => (
+                  <button key={sl.id} className="btn sm" onClick={() => { store.assign(p.id, sl.id); onClose() }}>
+                    Start at {sl.position}
                   </button>
                 ))}
-              </div>
+              <button className="btn sm" onClick={() => { store.assign(p.id, 'bench'); onClose() }}>
+                To bench
+              </button>
+              <button className="btn sm" onClick={() => { store.setCaptain(p.id); onClose() }}>
+                Make captain
+              </button>
+            </span>
+            {game.season && (
+              <span className="pc-actions-group pc-talk">
+                <span className="head-title">
+                  <b>Have a word</b>
+                  <Info label="About conversations">One conversation a week. Hover a choice for how he is likely to take it.</Info>
+                </span>
+                {talkMsg ? (
+                  <span className="small pc-talk-msg" role="status">{talkMsg}</span>
+                ) : game.talks?.[p.id] === game.season.matchweek ? (
+                  <span className="small muted">You spoke to him this week.</span>
+                ) : (
+                  (Object.keys(TALK_LABEL) as TalkKind[]).map((k) => (
+                    <button key={k} className="btn sm" title={TALK_LABEL[k].hint} onClick={() => setTalkMsg(store.talk(p.id, k).message)}>
+                      {TALK_LABEL[k].label}
+                    </button>
+                  ))
+                )}
+              </span>
             )}
-            {talkMsg && <div className="notice" style={{ marginTop: 'var(--space-2)' }}>{talkMsg}</div>}
-          </div>
-          <ContractCard id={p.id} onTalks={() => setTalks(true)} />
-        </div>
-      )}
-    </Modal>
+          </>
+        )
+      }
+      panels={
+        s
+          ? [
+              { id: 'happiness', label: 'Happiness', content: <HappinessCard s={s} /> },
+              { id: 'contract', label: 'Contract', content: <ContractCard id={p.id} onTalks={() => setTalks(true)} /> },
+            ]
+          : undefined
+      }
+    />
   )
 }
 

@@ -5470,12 +5470,16 @@ table.tbl.contracts .btn.sm {
   }
 }
 
-/* FM-style attribute panel */
+/* FM-style attribute panel: three even columns, and every row the same grid (label | bar | value) so all bar tracks match */
 .attr-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-2) var(--space-4);
   min-width: 0;
+}
+/* On the player card the three columns are always even */
+.player-card .attr-panel {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .attr-group {
   min-width: 0;
@@ -5488,47 +5492,58 @@ table.tbl.contracts .btn.sm {
   color: var(--text-3);
 }
 .attr-row {
-  gap: 8px;
-  margin-bottom: 4px;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 20px;
+  margin-bottom: 2px;
 }
 .attr-row .bar {
-  flex: 1;
-  width: auto;
-  min-width: 30px;
+  width: 100%;
+  min-width: 0;
+  /* A fixed 0 to 100 track with faint ticks at 50 and 75, so bars compare across players */
+  background-image: linear-gradient(90deg, transparent calc(50% - 0.5px), var(--line-2) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px)), linear-gradient(90deg, transparent calc(75% - 0.5px), var(--line-2) calc(75% - 0.5px) calc(75% + 0.5px), transparent calc(75% + 0.5px));
 }
 .attr-label {
-  width: 84px;
-  flex: none;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .attr-value {
-  width: 24px;
+  justify-self: end;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
   text-align: right;
-  flex: none;
 }
-.attr-word {
-  width: 56px;
-  text-align: right;
-  flex: none;
-}
-.attr-pips {
-  display: inline-flex;
-  gap: 3px;
-  flex: 1;
-}
-.attr-pips .pip {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.attr-badge {
+  display: inline-block;
+  min-width: 44px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--text-2);
   background: var(--bg-3);
 }
-.attr-pips .pip.good {
-  background: var(--good);
+.attr-badge.good {
+  color: var(--good);
+  background: var(--good-soft);
 }
-.attr-pips .pip.warn {
-  background: var(--meter-mid);
+.attr-badge.bad {
+  color: var(--bad);
+  background: var(--bad-soft);
 }
-.attr-pips .pip.bad {
-  background: var(--bad);
+.attr-badge.low {
+  color: var(--text-3);
+}
+.attr-note {
+  margin: 4px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
 }
 
 /* ------------------------------------------------------------------ live pitch and charts */
@@ -7085,10 +7100,6 @@ table.tbl.contracts .btn.sm {
   max-height: 620px;
   overflow: auto;
 }
-.career-tbl {
-  max-height: 420px;
-  overflow: auto;
-}
 .link-btn {
   border: 0;
   padding: 0;
@@ -7493,8 +7504,7 @@ table.tbl.match-stats th {
   .profile-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .explore-list,
-  .career-tbl {
+  .explore-list {
     max-height: none;
   }
   .howto-sources {
@@ -10660,6 +10670,535 @@ table.tbl.hub td.name {
 @media (max-width: 720px) {
   .talks-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ player card (PlayerCard.tsx) */
+/* One dialog for the Dugout squad and Explore: a head strip over three boxes, the career table its only scroller */
+.modal.card-modal {
+  width: min(1240px, 100%);
+  height: min(calc(100vh - 32px), 820px);
+  max-height: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) 20px;
+}
+.modal.card-modal > .panel-head {
+  flex: none;
+  margin-bottom: var(--space-2);
+}
+.player-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.pc-head {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pc-pos {
+  display: inline-flex;
+  gap: 4px;
+}
+.pc-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.pc-box {
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel-2);
+  border: var(--border);
+  border-radius: var(--radius-m);
+  padding: var(--space-3);
+}
+.pc-profile {
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+.pc-career {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.pc-career-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.pc-career-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* Career and the other features' cards as small tabs in the third box */
+.pc-tabs {
+  display: flex;
+  gap: var(--space-3);
+  border-bottom: var(--border);
+}
+.pc-tabs button {
+  padding: 2px 0 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pc-tabs button:hover {
+  color: var(--text);
+}
+.pc-tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+.pc-tabs button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.pc-panel > .card {
+  background: none;
+  border: 0;
+  padding: var(--space-1) 0 0;
+}
+.pc-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.pc-attrs .pc-title {
+  margin-bottom: 6px;
+}
+.pc-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.pc-key {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.pc-key i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--good);
+}
+.pc-key i.cover {
+  margin-left: 4px;
+  background: color-mix(in srgb, var(--good) 35%, transparent);
+  box-shadow: inset 0 0 0 1px var(--good);
+}
+.pc-empty {
+  margin: var(--space-2) 0;
+}
+/* Rating by season and the form graph */
+.pc-chart,
+.pc-form,
+.pc-map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.pc-map {
+  max-height: 172px;
+}
+.pc-grid {
+  stroke: var(--line);
+  stroke-width: 0.6;
+}
+.pc-axis {
+  fill: var(--text-3);
+  font-family: var(--mono);
+  font-size: 8px;
+}
+.pc-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.pc-line.est {
+  stroke-dasharray: 3 2.5;
+}
+.pc-dot {
+  fill: var(--accent);
+  stroke: var(--panel-2);
+  stroke-width: 1;
+}
+.pc-dot.est {
+  fill: var(--panel-2);
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.pc-dot.peak {
+  fill: var(--meter-mid);
+}
+.pc-dot.peak.est {
+  fill: var(--panel-2);
+  stroke: var(--meter-mid);
+}
+.pc-chart-val {
+  fill: var(--text-2);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+}
+.pc-chart-val.peak {
+  fill: var(--meter-mid);
+  font-weight: 800;
+}
+.pc-club-tick {
+  stroke: var(--line-2);
+  stroke-width: 1;
+  stroke-dasharray: 1 2;
+}
+.pc-avg {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.pc-form-dot {
+  stroke: var(--panel-2);
+  stroke-width: 1;
+  fill: var(--meter-mid);
+}
+.pc-form-dot.good,
+.pc-form-last.good {
+  fill: var(--good);
+}
+.pc-form-dot.bad,
+.pc-form-last.bad {
+  fill: var(--bad);
+}
+.pc-form-last {
+  fill: var(--meter-mid);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+.pc-form-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* The position map: the pitch keeps its fixed greens and whites in both themes */
+.pc-pitch {
+  fill: var(--pitch);
+  stroke: var(--pitch-line);
+  stroke-width: 0.6;
+}
+.pc-pitch-line {
+  fill: none;
+  stroke: var(--pitch-line);
+  stroke-width: 0.5;
+}
+.pc-spot circle {
+  fill: rgba(255, 255, 255, 0.14);
+}
+.pc-spot-val {
+  font-family: var(--mono);
+  font-size: 3.6px;
+  font-weight: 700;
+  fill: rgba(255, 255, 255, 0.6);
+}
+.pc-spot-pos {
+  font-size: 3.2px;
+  font-weight: 600;
+  fill: rgba(255, 255, 255, 0.55);
+}
+.pc-spot.natural circle {
+  fill: var(--good);
+  stroke: #fff;
+  stroke-width: 0.5;
+}
+.pc-spot.natural .pc-spot-val {
+  font-size: 4.4px;
+  font-weight: 800;
+  fill: var(--on-status);
+}
+.pc-spot.cover circle {
+  fill: color-mix(in srgb, var(--good) 38%, var(--pitch));
+  stroke: var(--good);
+  stroke-width: 0.6;
+}
+.pc-spot.cover .pc-spot-val {
+  font-size: 4.2px;
+  fill: #fff;
+}
+.pc-spot.natural .pc-spot-pos,
+.pc-spot.cover .pc-spot-pos {
+  fill: #fff;
+}
+.pc-spot.unsuited {
+  opacity: 0.55;
+}
+/* Form as coloured pills (also the squad list's form vocabulary) */
+.form-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.form-pill {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--meter-mid);
+  background: color-mix(in srgb, var(--meter-mid) 16%, transparent);
+}
+.form-pill.good {
+  color: var(--good);
+  background: var(--good-soft);
+}
+.form-pill.bad {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.pc-season-line {
+  margin-top: 2px;
+}
+/* The squad meters under the attributes */
+.pc-meters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border);
+}
+.pc-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pc-meter-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+}
+.pc-meter-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* The career table: fixed columns, so it never needs a sideways scroll */
+.player-card table.pc-tbl {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+  overflow: visible;
+}
+.pc-tbl th.c-season {
+  width: 80px;
+}
+.pc-season-short {
+  display: none;
+}
+.pc-tbl th.c-age {
+  width: 44px;
+}
+.pc-tbl th.c-ovr {
+  width: 92px;
+}
+.pc-tbl th.c-value {
+  width: 68px;
+}
+.pc-tbl th.c-star {
+  width: 84px;
+}
+.player-card table.pc-tbl th,
+.player-card table.pc-tbl td {
+  padding: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc-tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-2);
+}
+.pc-tbl th.c-star,
+.pc-tbl td.c-star {
+  text-align: center;
+}
+.pc-tbl tr.best td {
+  font-weight: 700;
+}
+.pc-club {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pc-club-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pc-star {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.pc-star:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.pc-star:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.pc-star.on {
+  color: var(--gold-text);
+}
+.pc-actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+.pc-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.pc-talk-msg {
+  color: var(--text-2);
+  max-width: 560px;
+}
+/* Squad rows: the morale face's cell in the state line (the form arrow's rules sit with FormBits above) */
+.state-face {
+  display: flex;
+  justify-content: center;
+  height: 5px;
+  align-items: center;
+}
+.state-face svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+/* Narrow windows and phones: the boxes stack and the whole sheet scrolls, full height */
+@media (max-width: 1100px) {
+  .modal.card-modal {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .pc-body {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+  }
+  .player-card {
+    flex: none;
+  }
+  .pc-profile,
+  .pc-career-scroll {
+    overflow: visible;
+  }
+  .pc-chart,
+  .pc-map,
+  .pc-form {
+    max-width: 420px;
+  }
+}
+@media (max-width: 720px) {
+  .modal.card-modal {
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding: var(--space-3) var(--gutter) calc(var(--space-5) + env(safe-area-inset-bottom));
+  }
+  .attr-panel,
+  .player-card .attr-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pc-meters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pc-tbl thead th {
+    position: static;
+  }
+}
+@media (max-width: 520px) {
+  .pc-tbl .c-value {
+    display: none;
+  }
+  .player-card table.pc-tbl th,
+  .player-card table.pc-tbl td {
+    padding: 5px 4px;
+  }
+  .player-card table.pc-tbl th {
+    letter-spacing: 0;
+    font-size: 10px;
+  }
+  .pc-tbl th.c-season {
+    width: 54px;
+  }
+  .pc-season-long {
+    display: none;
+  }
+  .pc-season-short {
+    display: inline;
+  }
+  .pc-tbl th.c-age {
+    width: 34px;
+  }
+  .pc-tbl th.c-ovr {
+    width: 84px;
+  }
+  .pc-tbl th.c-star {
+    width: 68px;
   }
 }
 

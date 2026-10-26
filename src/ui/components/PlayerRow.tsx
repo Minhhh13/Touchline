@@ -11,6 +11,7 @@ import { FormArrow, MotmStar, Sparkline } from './FormBits'
 
 /**
  * `showLabels` prints Cond, Shp and Mor under the two state bars and the morale face (the Key toggle), for screens that cannot hover; `highlight` marks a row that fits the slot being filled (Position First).
+ * With `state`, the name line carries one form arrow (`FormArrow`, from `squadDisplay.formTrend`), the sparkline and the MOTM star; the morale face (`data-testid="morale-face"`) replaces the morale bar.
  * `hideChampion` drops the title-winner flag where the whole list shares it (a champion squad on the draft).
  */
 export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, hideRatings, showClub, extra, showLabels, hideChampion, range }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; highlight?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode; showLabels?: boolean; hideChampion?: boolean; range?: { lo: number; hi: number } }) {
@@ -47,7 +48,9 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, 
           <span className="state-bars" title={`Condition ${meterValue(state.condition)} · Sharpness ${meterValue(state.sharpness)} · Morale ${meterValue(state.morale)}`}>
             <Bar value={state.condition} colour={conditionColour(state.condition)} />
             <Bar value={state.sharpness} colour="var(--meter-sharpness)" />
-            <MoraleFace value={state.morale} />
+            <span className="state-face" data-testid="morale-face">
+              <MoraleFace value={state.morale} />
+            </span>
           </span>
         )}
         {state && showLabels && (

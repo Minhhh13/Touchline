@@ -11,7 +11,7 @@ export function FormArrow({ s }: { s: Pick<SquadPlayer, 'recentRatings' | 'seaso
   if (!t) return null
   const title = formTitle(t)
   return (
-    <span className={`form-arrow ${t.dir}`} title={title} aria-label={title} data-testid="form-arrow">
+    <span className={`form-arrow ${t.dir}`} title={title} aria-label={title} data-testid="form-arrow" data-dir={t.dir}>
       {ARROW[t.dir]}
     </span>
   )
