@@ -11897,7 +11897,7 @@ table.tbl.contracts-overview .link-btn.name {
     font-size: 24px !important;
   }
   .arena-hub .stat-strip .stat .value {
-    font-size: 22px;
+    font-size: calc(var(--fs-h2) - 2px);
   }
   .arena-hub .pitch-wrap {
     max-width: max(220px, calc((100dvh - 470px) * 0.75));
