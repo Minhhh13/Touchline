@@ -376,7 +376,9 @@ export function H2HScreen() {
                   {picksMade(d.drafts[i])}/{d.drafts[i].rules.squadSize}
                 </span>
               </div>
-              <Pitch formation={d.drafts[i].formation} lineup={d.drafts[i].lineup} getPlayer={(id) => u.index[id]} onSlotClick={(s) => onSlot(i, s)} eligibleSlots={picking === i ? eligible : []} hideRatings={ratingHidden(d.drafts[i].rules, 'squad')} />
+              <div className="h2h-pitch-box">
+                <Pitch formation={d.drafts[i].formation} lineup={d.drafts[i].lineup} getPlayer={(id) => u.index[id]} onSlotClick={(s) => onSlot(i, s)} eligibleSlots={picking === i ? eligible : []} hideRatings={ratingHidden(d.drafts[i].rules, 'squad')} />
+              </div>
               {selected && picking === i && suggestSlot(d.drafts[i], selected) && suggestSlot(d.drafts[i], selected) !== 'bench' && (
                 <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(i, suggestSlot(d.drafts[i], selected) as string)}>
                   Put {selected.name} at {d.drafts[i].formation.slots.find((s) => s.id === suggestSlot(d.drafts[i], selected))?.position}

@@ -11252,6 +11252,32 @@ table.tbl tr.chase-perfect td:first-child {
     padding: var(--space-2) var(--space-3);
   }
 }
+/* The head-to-head draft on a desktop: both managers' pitches in view in the third box, the panels sharing its height
+   and each pitch sized to what its panel leaves (a size container, 3:4), so Manager 2's XI is not under the fold */
+@media (min-width: 1100px) {
+  .app.shell .grid.draft > .col.draft-pitch:has(.h2h-pitch-box) {
+    overflow: hidden;
+  }
+  .app.shell .grid.draft > .col.draft-pitch:has(.h2h-pitch-box) > .panel {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* The manager on the clock gets the bigger pitch */
+  .app.shell .grid.draft > .col.draft-pitch:has(.h2h-pitch-box) > .panel.emphasis {
+    flex-grow: 1.6;
+  }
+  .app.shell .grid.draft .h2h-pitch-box {
+    flex: 1 1 0;
+    min-height: 0;
+    container-type: size;
+  }
+  .app.shell .grid.draft .h2h-pitch-box > .pitch-wrap {
+    max-width: min(100%, 75cqh);
+    margin-inline: auto;
+  }
+}
 /* Head-to-head setup on a desktop fits one screen: the two managers and the league side by side as three boxes (Start
    under the league), each formation tile small with its picture beside the name, the how-it-works steps as titles only */
 @media (min-width: 1100px) {
