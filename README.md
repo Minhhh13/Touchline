@@ -153,7 +153,7 @@ npm run build      # tsc -b && vite build, output in dist/
 npm run preview    # serve the production build
 ```
 
-The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand, plus 8,903 classic Premier League player-seasons of 1992-93 to 2007-08 in `public/data/england/players-classic.json` (1.2 MB). To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
+The player database ships in the repository (`public/data/<league>/` plus `public/data/leagues.json`): 69,155 player-seasons across seven leagues, 1.1 to 1.5 MB per league (format 3, with the five depth columns), loaded on demand, plus 8,903 classic Premier League player-seasons of 1992-93 to 2007-08 in `public/data/england/players-classic.json` (1.2 MB, loaded only when a game, the Classic toggle or Explore asks for them). To rebuild it from the public datasets (downloads several large archives on the first run, needs `unzip` and `node:sqlite`):
 
 ```bash
 node scripts/import/build.mjs
