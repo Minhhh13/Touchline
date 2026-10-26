@@ -11285,6 +11285,16 @@ table.tbl tr.chase-perfect td:first-child {
   .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:first-child > * {
     grid-column: 1 / -1;
   }
+  /* Difficulty's two choices on one row in its half-width cell (they stacked at 1280x720, out of line with Season) */
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child .segmented {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+  .app.shell .screen-body:has(.h2h-league) .h2h-league > .grid.two > .col:last-child .segmented button {
+    flex: 1 1 auto;
+    padding-inline: 6px;
+    white-space: nowrap;
+  }
   .app.shell .screen-body:has(.h2h-league) .h2h-start {
     grid-column: 3;
     grid-row: 2;
