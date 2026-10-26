@@ -15,7 +15,7 @@ import { teamStrength } from '@game/logic/squad'
 import { SELL_ON_OPTIONS, SQUAD_CAP, closedWindowLine, sellOnValue, suggestedStatus } from '@game/logic/marketOps'
 import { canFullScout, focusActive, maskedView } from '@game/logic/scouting'
 import { recentShare, statusOf } from '@game/logic/week'
-import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
+import { EXPECTED_SHARE, RECENT_WEEKS, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
@@ -2002,9 +2002,9 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
             </span>
           )}
           {s && (
-            <span className="chip info" data-testid="player-status" title={share === null ? 'No minutes recorded yet' : `${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}>
+            <span className="chip info" data-testid="player-status" title={share === null ? 'No minutes recorded yet' : `${Math.round(share * 100)}% of the minutes over the last ${RECENT_WEEKS} matchweeks; his status expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}>
               {STATUS_LABEL[statusOf(game, p.id)]}
-              {share === null ? '' : ` · ${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}
+              {share === null ? '' : ` · ${Math.round(share * 100)}% of minutes lately, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}
             </span>
           )}
           {s?.injury && <span className="chip bad">{s.injury.description}, {s.injury.weeksOut} wk</span>}
