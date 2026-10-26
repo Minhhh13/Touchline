@@ -12,6 +12,13 @@ import { Explore } from './screens/Explore'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
+import { Arena } from './screens/Arena'
+import { ArenaSetup } from './screens/ArenaSetup'
+import { ArenaChallengeSetup } from './screens/ArenaChallengeSetup'
+import { isArenaPayload } from '@engine/challenge'
+import { ArenaSummary } from './screens/ArenaSummary'
+import { RunInSetup } from './screens/RunInSetup'
+import { RunInSummary } from './screens/RunInSummary'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
@@ -27,7 +34,7 @@ import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dic
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
@@ -163,16 +170,17 @@ export function App() {
   // Setup and the match day keep their own layouts
   let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto'
   if (screen === 'game' && game) {
-    shell = game.phase !== 'match'
+    // An arena shoot-out waiting for its takers is a shell screen too (`.page.fit`)
+    shell = game.phase !== 'match' || !!game.arena?.pending
     if (game.phase === 'draft') body = <Draft />
     else if (game.phase === 'kickoff') body = <KickOff />
     // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
     // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
     else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
     else if (game.phase === 'match') body = <MatchScreen />
-    else if (game.phase === 'summary') body = <Summary />
-    else body = <Dugout />
-  } else if (screen === 'setup') body = <Setup />
+    else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
+    else body = game.arena ? <Arena /> : <Dugout />
+  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />
@@ -193,7 +201,7 @@ export function App() {
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
-              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : 'Dugout'}</span>
+              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
             </button>
           )}
           <button className={screen === 'h2h' ? 'active' : ''} onClick={() => nav('h2h')}>

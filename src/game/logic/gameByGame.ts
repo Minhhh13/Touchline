@@ -1,5 +1,5 @@
 import type { Fixture, MatchEvent } from '@engine/types'
-import { computeTable, positionOf } from '@engine/season'
+import { computeTable, positionOf, type CarryRow } from '@engine/season'
 import { ordinal } from '@engine/universe'
 import type { QuickGameResult, QuickScorer } from '../types'
 
@@ -9,15 +9,16 @@ const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
  * The user's games of a simulated season, game by game: score, scorers and the
  * league position after each matchweek. Pure bookkeeping over fixtures that
  * already carry their results, so it never touches the RNG; the table is
- * computed once per matchweek, not per fixture.
+ * computed once per matchweek, not per fixture, over the rows a run-in carried
+ * in (`carryIn`).
  */
-export function recordUserGames(fixtures: Fixture[], teamIds: string[], userId: string, nameOf: (playerSeasonId: string) => string | undefined): QuickGameResult[] {
+export function recordUserGames(fixtures: Fixture[], teamIds: string[], userId: string, nameOf: (playerSeasonId: string) => string | undefined, carryIn?: Record<string, CarryRow>): QuickGameResult[] {
   const played = fixtures.filter((f) => f.result)
   const mine = played.filter((f) => f.homeTeamId === userId || f.awayTeamId === userId).sort((a, b) => a.matchweek - b.matchweek)
   const positions = new Map<number, number>()
   for (const f of mine) {
     if (positions.has(f.matchweek)) continue
-    const table = computeTable(played.filter((x) => x.matchweek <= f.matchweek), teamIds)
+    const table = computeTable(played.filter((x) => x.matchweek <= f.matchweek), teamIds, carryIn)
     positions.set(f.matchweek, positionOf(table, userId))
   }
   return mine.map((f) => {

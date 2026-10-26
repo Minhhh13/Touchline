@@ -5,7 +5,7 @@
  */
 import type { Game } from '../types'
 import type { NewsItem, Competition } from '@engine/season'
-import { computeTable, positionOf, roundsFor, USER_TEAM } from '@engine/season'
+import { positionOf, roundsFor, seasonTable, USER_TEAM } from '@engine/season'
 import { newsTotal } from './news'
 
 /** Title prefix of the inbox item recording a decision the assistant took during a simulation. */
@@ -69,7 +69,7 @@ export interface SimDigest {
 export function digestSnapshot(game: Game | null): DigestSnapshot | null {
   if (!game?.season) return null
   const season = game.season
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   return { matchweek: season.matchweek, newsTotal: newsTotal(game), position: positionOf(table, USER_TEAM), confidence: season.confidence }
 }
 
@@ -135,7 +135,7 @@ export function buildDigest(before: DigestSnapshot, game: Game): SimDigest | nul
     }
     decisions.push({ title, choice: n.body, ...(outcome !== undefined ? { outcome } : {}) })
   })
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   return {
     fromMatchweek: from,
     toMatchweek: to,

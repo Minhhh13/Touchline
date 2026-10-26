@@ -8,7 +8,7 @@ import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE } from '@engine/roles'
-import { computeTable, positionOf, USER_TEAM } from '@engine/season'
+import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
 import { staffWages, STAFF, STAFF_ROLES, staffTier } from '@engine/staff'
 import { TRAINING_LABEL } from '@engine/training'
 import type { Objective } from '@engine/objectives'
@@ -105,7 +105,7 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
     case 'goals': {
       if (mw < PACE_FROM_MATCHWEEK) return null
       const target = o.target ?? 0
-      const gf = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)]).find((r) => r.teamId === USER_TEAM)?.goalsFor ?? 0
+      const gf = seasonTable(season).find((r) => r.teamId === USER_TEAM)?.goalsFor ?? 0
       const pace = Math.round((gf / mw) * season.matchweeks)
       return pace < target ? `On pace for ${pace} of the ${target} league goals asked (${gf} so far)` : null
     }
@@ -116,6 +116,11 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
       const pace = Math.round((best / mw) * season.matchweeks)
       return pace < target ? `Best under-21 on pace for ${pace} of the ${target} starts asked (${best} so far)` : null
     }
+    case 'title':
+    case 'top-four':
+    case 'survive':
+      // A run-in's brief: the takeover banner shows where it stands every week
+      return null
   }
 }
 
@@ -224,7 +229,7 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
   }
 
   const next = nextOpponent(game)
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   const where = next ? ` for ${u.clubById[next.clubId]?.shortName ?? next.clubId} (${positionOf(table, next.clubId)}${ordinalSuffix(positionOf(table, next.clubId))})` : ''
   items.push({ id: 'knobs', level: 'ok', text: `Training ${TRAINING_LABEL[game.training]}, team talk ${TALK_LABEL[game.teamTalk]}${where}`, action: { label: 'Tactics', tab: 'tactics' } })
   return items

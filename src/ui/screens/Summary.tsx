@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Briefcase, Check, ChevronDown, Copy, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
-import { USER_TEAM, computeTable, tierBlurb } from '@engine/season'
+import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
+import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
+import { realityLine, storyForGame } from '@game/logic/story'
+import { SeasonStoryPanel } from '../components/SeasonStory'
+import { capLine } from '@game/logic/cap'
+import { inRecordBooks } from '@game/logic/records'
+import { chainCodes, chainLine } from '@game/logic/chain'
 import { shareText } from '@engine/awards'
 import { powerUpsShareLine } from '@game/logic/powerups'
 import { getFormation } from '@engine/formations'
@@ -32,7 +38,7 @@ import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
-import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
+import { europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { CupRuns } from '../components/CupRuns'
@@ -63,7 +69,7 @@ export function Summary() {
   const record = q ? { won: q.won, drawn: q.drawn, lost: q.lost, points: q.points, position: q.position, goalsFor: q.goalsFor, goalsAgainst: q.goalsAgainst } : last ? { won: last.won, drawn: last.drawn, lost: last.lost, points: last.points, position: last.position, goalsFor: last.goalsFor, goalsAgainst: last.goalsAgainst } : null
   const table: TableRow[] = useMemo(() => {
     if (q) return q.table.map((r) => ({ ...r, played: (q.table.length - 1) * 2, form: [] }))
-    if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+    if (season) return seasonTable(season)
     return []
   }, [q, season])
   // Every game of a quick season, game by game; the replay is UI state only
@@ -77,7 +83,8 @@ export function Summary() {
   // The Super League has no real seasons to measure against, no real side replaced and no real champion
   const superOn = !!game && isSuperLeague(game.settings)
   // Where this season sits against every complete real season of the league with the same number of matches
-  const bench = useMemo(() => (!u || !record || season?.sacked || superOn ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, superOn, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked])
+  // A run-in's ten games (or a sacked season) are no full season to put in the record books
+  const bench = useMemo(() => (!u || !record || !game || !inRecordBooks(game) || superOn ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, superOn, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked, season?.carryIn])
   const challenge = game?.settings.challenge
   const ghostLineup = useMemo(() => Object.fromEntries((challenge?.picks ?? []).flatMap((p) => (p.id && p.slotId ? [[p.slotId, p.id] as [string, string]] : []))), [challenge])
   // How the club you replaced actually did that season, when a complete real table exists
@@ -89,6 +96,8 @@ export function Summary() {
     if (!cs?.complete) return null
     return u.tables[leagueId]?.[leagueSeason]?.find((r) => r.clubId === hostClubId) ?? null
   }, [u, hostClubId, leagueSeason, leagueId, superOn])
+  // Season Story: when the season was decided, its runs and the one line that tells it
+  const story = useMemo(() => (u && game ? storyForGame(game, u) : null), [game, u])
   if (!u || !game || !record) return null
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
@@ -125,8 +134,16 @@ export function Summary() {
   if (runs) extraLines.push(runs)
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
-  const bestLine = bestWinLine(q?.results, sideName)
-  if (bestLine) extraLines.push(bestLine)
+  // The Moneyball wheel brags in money: what the cap bought, and the points each £M of it earned
+  const capText = capLine(game, record.points)
+  if (capText) extraLines.push(capText)
+  // The Teammate Chain: how many links held, or how often it broke
+  const chainText = chainLine(game)
+  if (chainText) extraLines.push(chainText)
+  // Season Story's moment (its fallback is the best win), then, for a managed season, how the real club did
+  if (story) extraLines.push(story.moment)
+  const managed = game.settings.mode === 'season' || game.settings.mode === 'dynasty' || game.settings.mode === 'runin'
+  if (managed && realRow) extraLines.push(realityLine(realRow, clubName(u, game.settings.hostClubId), record))
   // January business and the European run of a quick season, when there were any
   const janLine = januaryLine(q?.january)
   if (janLine) extraLines.push(janLine)
@@ -156,9 +173,9 @@ export function Summary() {
     leagueSeason: game.settings.leagueSeason,
     ...(superOn ? { where: leagueName, tierText: tierName(tier, record.position, true) } : {}),
     // A quick season's XI is the user's team, never "as" the club whose place it takes
-    hostClubName: game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? clubName(u, game.settings.hostClubId) : '',
-    mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
-    seed: game.settings.mode === 'daily' ? undefined : game.settings.seed,
+    hostClubName: managed ? clubName(u, game.settings.hostClubId) : '',
+    mode: modeLabel(game, 'share'),
+    seed: isSharedPuzzle(game.settings.mode) ? undefined : game.settings.seed,
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
     bootName: q ? get(q.topScorer?.playerSeasonId ?? '')?.name : game.awards?.goldenBoot?.name,
     bootGoals: q ? q.topScorer?.goals : game.awards?.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
@@ -210,6 +227,7 @@ export function Summary() {
     })
   }
   const makeCard = async () => {
+    const codes = chainCodes(u, game)
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
@@ -220,7 +238,11 @@ export function Summary() {
         formation,
         lineup: game.lineup,
         getPlayer: get,
-        footer: `${game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`}${estimated ? ' · estimated ratings' : ''}`,
+        footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
+        strip: story?.strip,
+        moment: story?.moment,
+        // A chained draft prints its chain of club codes under the record
+        ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${record.points} points · finished ${ordinal(record.position)}`, ...codes] } : {}),
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
@@ -229,7 +251,7 @@ export function Summary() {
     }
   }
 
-  const modeName = game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'
+  const modeName = modeLabel(game, 'heading')
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
@@ -304,6 +326,11 @@ export function Summary() {
             {superOn ? superTierBlurb(tier, record.position, table.length || 20) : tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
           </p>
         )}
+        {!replay.playing && story && (
+          <p className="tier-blurb" data-testid="moment">
+            {story.moment}
+          </p>
+        )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!q && !replay.playing && (
           <div className="record">
@@ -376,7 +403,7 @@ export function Summary() {
           <button className="btn" onClick={makeCard}>
             <ImageDown size={16} aria-hidden="true" /> Download share card
           </button>
-          {!isManage && game.settings.mode !== 'daily' && (
+          {!isManage && !isSharedPuzzle(game.settings.mode) && (
             <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: randomSeed() })}>
               <Dices size={16} aria-hidden="true" /> Draft again
             </button>
@@ -425,6 +452,8 @@ export function Summary() {
         />
       )}
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
+      {story && !replay.playing && <SeasonStoryPanel story={story} opponentName={(id) => sideName(id)} />}
+      {!q && story && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} compact fold={8} />}
 
       {q?.january && (
         <div className="panel" data-testid="january-summary">

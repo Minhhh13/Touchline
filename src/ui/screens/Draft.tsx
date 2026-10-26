@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Dices, Ghost, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
-import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
+import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, ratingsHidden, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
 import { tierOdds } from '@game/logic/tierOdds'
@@ -23,6 +23,10 @@ import { TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
+import { finishDraftLabel } from '@game/logic/modes'
+import { challengeHeadline } from '@game/logic/arenaClaim'
+import { CapChip, CapChips } from '../components/CapControl'
+import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
 import { tierTable, type TierTable } from '@game/logic/rarity'
@@ -67,6 +71,8 @@ export function Draft() {
 
   // A one-nation wheel can run out of eligible players; checked after every pick, not only on a spin
   const dry = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && !canSpin(u, d), [u, d])
+  // Teammate Chain: whether the next spin is a free one because no teammate of the last pick is left on the wheel
+  const chainDue = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && chainBreakDue(u, d), [u, d])
   // Position First: the open slots a spin could fill, offered on the pitch before each spin
   const choosable = useMemo(() => (u && d && positionFirst(d) && !d.current ? spinnableSlots(u, d).map((s) => s.id) : []), [u, d])
 
@@ -178,12 +184,12 @@ export function Draft() {
     <div className="page">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : 'The draft'}</h1>
+          <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : game.settings.mode === 'runin' ? 'Reinforcements' : 'The draft'}</h1>
           <div className="screen-meta">
             <span>
               {game.settings.teamName} · {formationName(game.settings.formationId)}
             </span>
-            {challenge && <span className="chip info">vs {challenge.name} · {challenge.claim.pts} pts</span>}
+            {challenge && <span className="chip info">vs {challenge.name} · {challengeHeadline(challenge, game.settings.arena?.format)}</span>}
             {d.rules.onlyClub && <span className="chip">{clubName(u, d.rules.onlyClub)} only</span>}
             {nation && <span className="chip">{nationLabel} only</span>}
             {(d.rules.fromSeason || d.rules.toSeason) && (
@@ -198,6 +204,7 @@ export function Draft() {
             ))}
             {d.rules.classic && <span className="chip">Classic seasons</span>}
             {d.rules.twists && <span className="chip">Twists</span>}
+            {d.rules.chain && <span className="chip">Teammate chain</span>}
             <span className="mono">seed {game.settings.seed}</span>
           </div>
           {((modeCards.length > 0 && (modeCards.length > 1 || modeCards[0] !== 'hard')) || powerUpsOn(d)) && (
@@ -235,6 +242,7 @@ export function Draft() {
                 </span>
               )}
               {game.bonusSpins > 0 && <span className="chip gold">+{game.bonusSpins} bonus</span>}
+              <CapChip d={d} />
               <button className="btn ghost sm" onClick={() => go('home')}>
                 Home
               </button>
@@ -275,6 +283,7 @@ export function Draft() {
                     : `${challenge.name}'s spin ${d.spins} is not in this data`}
               </div>
             )}
+            {!complete && !dry && (!spinning || revealed) && <ChainStatus u={u} d={d} due={chainDue} />}
             {!complete && dry && (
               <div className="notice">
                 No one left to draft for {nationLabel ?? 'this draft'}.{' '}
@@ -283,7 +292,7 @@ export function Draft() {
             )}
             {!complete && dry && !fillingStarters && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'On to kick-off' : isDynastySummer ? 'Into the new season' : `Go to pre-season with ${made}`}
+                {finishDraftLabel(game, made)}
               </button>
             )}
             {surprise && !complete && (
@@ -324,7 +333,7 @@ export function Draft() {
             )}
             {complete && (
               <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'On to kick-off' : isDynastySummer ? 'Into the new season' : 'Go to pre-season'}
+                {finishDraftLabel(game)}
               </button>
             )}
           </div>
@@ -362,6 +371,9 @@ export function Draft() {
                   const p = h.pickedId ? get(h.pickedId) : undefined
                   const TwistIcon = h.twist ? TWIST_ICON[h.twist] : null
                   const tier = tiers[`${h.clubId}@${h.season}`]
+                  // The pick before this one, for the chain's link
+                  const at = d.history.length - 1 - i
+                  const prevId = d.rules.chain ? d.history.slice(0, at).reverse().find((x) => x.pickedId)?.pickedId : undefined
                   return (
                     <li key={i}>
                       {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={22} />}
@@ -379,6 +391,7 @@ export function Draft() {
                       </span>
                       {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
                       {p && !hiddenAll && h.twist !== 'blind' && <Rating value={p.overall} />}
+                      {p && d.rules.chain && <ChainLogNote u={u} h={h} prevName={prevId ? get(prevId)?.name : undefined} name={p.name} />}
                     </li>
                   )
                 })}
@@ -518,7 +531,7 @@ export function Draft() {
                         showClub={iconsSpin}
                         hideChampion={current.champions}
                         onClick={() => onPick(p)}
-                        extra={taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}
+                        extra={<><ChainChip u={u} d={d} p={p} show={!taken && !foreign} /><CapChips d={d} p={p} show={!taken && !foreign && chainAllows(d, p)} />{taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}</>}
                         right={ok ? <span className={`btn sm ${selectedPlayer === p.id ? 'primary' : ''}`}>{fillingStarters && slots.length ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )

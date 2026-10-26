@@ -4,13 +4,19 @@ import { produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { loadUniverse, DEFAULT_LEAGUE, fetchLeague } from '@engine/universe'
-import { Rng, dailySeed, previousDailySeed, type RngState } from '@engine/rng'
+import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
 import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame, normaliseProfile } from './logic/save'
+import { isQuickLike } from './logic/modes'
+import { capOfGame } from './logic/cap'
+import { advanceStreak, fileStreakResult, streakDay } from './logic/streaks'
+import { dailyArenaResult } from './logic/arenaDaily'
+import { weeklyGameSettings, weeklyPlan } from './logic/weekly'
+import { alreadyCredited, creditArena, creditGame, creditH2H, creditRunIn, emptyCabinet, finishedRecord, normaliseCabinet, rebuildCabinet, reconcileTrophies, resultId, trophiesOf } from './logic/cabinet'
 import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
@@ -38,8 +44,12 @@ import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft 
 import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
 import { QUICK_RULES } from '@engine/draft'
-import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
+import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
+import { storyForGame } from './logic/story'
+import { simToNextStop, type StopReason } from './logic/seasonHighlights'
+import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
+import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
@@ -83,6 +93,8 @@ interface Store {
   loadingLeagues: boolean
   screen: Screen
   setupMode: Mode
+  /** The format the arena's setup opens on (Home's Cup Final or Gauntlet card); not persisted. */
+  arenaSetupFormat: 'cup' | 'gauntlet'
   game: Game | null
   /** Saved games of other kinds, parked while another game is active (one per slot). */
   parked: Record<string, Game>
@@ -96,6 +108,8 @@ interface Store {
   digest: SimDigest | null
   /** Transient UI: 'ticker' shows the live match, 'report' the summary. */
   matchView: 'ticker' | 'report'
+  /** Why the last Sim to the next big match stopped, for the game, year and matchweek it stopped at (transient, never saved). */
+  simStop: { stop: StopReason; gameId: string; year: number; matchweek: number } | null
   /** Transient: the live match plays on through its stops with the assistant making the calls (Auto-play, "Finish the match", "Auto from here"). Never saved. */
   liveAuto: boolean
   /** A challenge link opened and verified, waiting on the Setup screen for a team name (transient, never saved). */
@@ -108,11 +122,15 @@ interface Store {
   /** Load any of the given leagues not loaded yet. Resolves true when all of them are available. */
   ensureLeagues: (ids: string[]) => Promise<boolean>
   go: (screen: Screen, mode?: Mode) => void
+  /** Open the arena's setup on a format. */
+  openArenaSetup: (format: 'cup' | 'gauntlet') => void
   showToast: (text: string | null) => void
   /** Open a challenge link (`#c=...`): decode it, load its leagues, replay it and go to Setup. Resolves false with a toast when it cannot be opened. */
   openChallenge: (encoded: string) => Promise<boolean>
 
   startGame: (settings: GameSettings) => void
+  /** The week's challenge: load its packs, then start it with this team name. Resolves false when the packs could not load. */
+  startWeekly: (seed: string, teamName?: string) => Promise<boolean>
   abandonGame: () => void
   /** Swap a parked game back in, parking the current one. */
   resumeGame: (slot: string) => void
@@ -179,7 +197,17 @@ interface Store {
   setMatchPlay: (mode: MatchPlayMode) => void
   simToEnd: () => void
   simWeeks: (n: number) => void
+  /** Sim 5's weeks until the next derby, title decider, cup semi-final or final, open run-in, January window or board alarm; that week is not played. */
+  simToNextBigMatch: () => void
   closeMatch: () => void
+  /** Arena: kick off the next match, managed live (the two stops) or played by the assistant. */
+  playArenaStep: (live: boolean) => void
+  /** Arena: the shoot-out of a level live match, in the manager's order with his keeper. */
+  takePenalties: (order: string[], keeperId: string) => { ok: boolean; message: string }
+  /** The Gauntlet's lifeline: once a run, swap the next rung's club for its alternate. */
+  changeTheDraw: () => void
+  /** Arena: the assistant plays every match left and drafts every bonus spin, to the summary. */
+  simArenaToEnd: () => void
   setMatchView: (v: 'ticker' | 'report') => void
   dismissDigest: () => void
   /** The Inbox was opened: everything posted so far counts as read. */
@@ -252,6 +280,7 @@ const defaultProfile: Profile = {
   seasonsSimulated: 0,
   theme: 'auto',
   managerName: '',
+  cabinet: emptyCabinet(),
 }
 
 /** Consecutive refused writes; the toast shows on the first and then every twentieth. */
@@ -347,6 +376,7 @@ export const useStore = create<Store>()(
         loadingLeagues: false,
         screen: 'home',
         setupMode: 'quick',
+        arenaSetupFormat: 'cup',
         game: null,
         parked: {},
         shortlist: [],
@@ -356,6 +386,7 @@ export const useStore = create<Store>()(
         offseason: null,
         digest: null,
         matchView: 'ticker',
+        simStop: null,
         liveAuto: false,
         pendingChallenge: null,
         playback: null,
@@ -415,6 +446,7 @@ export const useStore = create<Store>()(
         },
         // Any navigation drops a challenge waiting on the Setup screen, so a later Quick Draft starts clean
         go: (screen, mode) => set({ screen, pendingChallenge: null, ...(mode ? { setupMode: mode } : {}) }),
+        openArenaSetup: (format) => set({ screen: 'setup', setupMode: 'arena', arenaSetupFormat: format, pendingChallenge: null }),
         showToast: (text) => set({ toast: text }),
         openChallenge: async (encoded) => {
           let payload: ChallengePayload
@@ -424,9 +456,13 @@ export const useStore = create<Store>()(
             set({ toast: e instanceof Error ? e.message : String(e) })
             return false
           }
-          // A challenger who played the Continental Cup or the Super League needs every league loaded for the replay to check it
-          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(payload.c.eu || payload.s.r.superLeague ? (get().universe?.available ?? []).map((l) => l.id) : [])])]
+
           const known = (get().universe?.available ?? []).map((l) => l.id)
+          // An arena field drawn from every league (the champions, the giants, Europe) needs every pack, as its setup does
+          const arena = isArenaPayload(payload) ? payload : null
+          // So does a quick challenger who played the Continental Cup or the Super League, for the replay to check it
+          const everyLeague = arena ? arena.arena.f === 'cup' && arenaNeedsAllLeagues({ arena: { format: 'cup', field: arena.arena.fd } }) : !!(payload.c?.eu || payload.s.r.superLeague)
+          const needs = [...new Set([payload.s.l, ...payload.s.wl, ...(everyLeague ? known : [])])]
           const unknown = needs.filter((id) => !known.includes(id))
           if (unknown.length) {
             set({ toast: `This challenge needs a league this build does not have (${unknown.join(', ')}).` })
@@ -442,13 +478,16 @@ export const useStore = create<Store>()(
             return false
           }
           const outcome = replayChallenge(u, payload)
-          set({ pendingChallenge: { payload, challenge: challengeSettings(payload, outcome) }, screen: 'setup', setupMode: 'quick' })
+          set({ pendingChallenge: { payload, challenge: challengeSettings(payload, outcome) }, screen: 'setup', setupMode: arena ? 'arena' : 'quick' })
           return true
         },
 
         startGame: (settings) => {
           settleQuickSeason()
           const game = createGame(settings)
+          // The Run-in inherits a real squad: the draft opens seeded with it and four spins to make
+          const u = get().universe
+          if (settings.mode === 'runin' && u) seedRunInDraft(game, u)
           const { game: current, parked } = get()
           const next = { ...parked }
           // Park a game of a different kind rather than losing it; a finished one is dropped.
@@ -459,6 +498,17 @@ export const useStore = create<Store>()(
         abandonGame: () => {
           settleQuickSeason()
           set({ game: null, screen: 'home', offseason: null, digest: null, playback: null })
+        },
+        startWeekly: async (seed, teamName) => {
+          const u0 = get().universe
+          if (!u0) return false
+          const plan = weeklyPlan(u0, seed)
+          if (!(await get().ensureLeagues([...new Set([plan.leagueId, ...plan.wheelLeagues])]))) return false
+          const u = get().universe
+          const settings = u ? weeklyGameSettings(u, seed, teamName) : null
+          if (!settings) return false
+          get().startGame(settings)
+          return true
         },
         resumeGame: (slot) => {
           settleQuickSeason()
@@ -564,8 +614,10 @@ export const useStore = create<Store>()(
             if (canCloseBench(g.draft)) closeBench(g.draft)
             // A one-nation wheel that has run dry may close with a full XI short of the squad size
             if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
-            // Quick Draft and the Daily stop at the tactics step before the season
-            if (g.settings.mode === 'quick' || g.settings.mode === 'daily') toKickoff(g, u)
+            if (g.settings.mode === 'arena') beginArena(g, u)
+            else if (g.settings.mode === 'runin') beginRunIn(g, u)
+            // Quick Draft, the Daily and the Weekly stop at the tactics step before the season
+            else if (isQuickLike(g.settings.mode)) toKickoff(g, u)
             else beginSeason(g, u)
           })
           const { game } = get()
@@ -654,8 +706,10 @@ export const useStore = create<Store>()(
           const after = get().game?.quickResult
           if (!after || after === before.quickResult) return false
           const profile = get().profile
-          const trophies = addCupTrophies(profile.trophies ?? { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }, before.quickResult, after, comp)
-          set({ profile: { ...profile, trophies } })
+          // The Trophy Room's cabinet takes the cup, `trophies` mirrors its five counts for older builds
+          const cab = normaliseCabinet(profile.cabinet ?? rebuildCabinet(profile))
+          const cabinet = { ...cab, ...addCupTrophies(trophiesOf(cab), before.quickResult, after, comp) }
+          set({ profile: { ...profile, cabinet, trophies: trophiesOf(cabinet) } })
           unlockFromGame()
           return true
         },
@@ -675,7 +729,7 @@ export const useStore = create<Store>()(
           set({ matchView: 'ticker', liveAuto: false })
         },
         advanceLive: (opts, hold = false) => {
-          mutate((g, u) => advanceLiveMatch(g, u, opts, false, hold))
+          mutate((g, u) => (g.arena ? advanceArenaMatch(g, u, opts, hold) : advanceLiveMatch(g, u, opts, false, hold)))
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
@@ -684,12 +738,12 @@ export const useStore = create<Store>()(
         interveneLive: (change) => {
           let out: InPlayOutcome | null = null
           mutate((g, u) => {
-            out = changeLiveMatch(g, u, change)
+            out = g.arena ? changeArenaMatch(g, u, change) : changeLiveMatch(g, u, change)
           })
           return out
         },
         completeLive: () => {
-          mutate((g, u) => completeLiveMatch(g, u))
+          mutate((g, u) => (g.arena ? completeArenaMatch(g, u) : completeLiveMatch(g, u)))
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
@@ -748,9 +802,53 @@ export const useStore = create<Store>()(
           }
         },
         simToEnd: () => get().simWeeks(40),
+        simToNextBigMatch: () => {
+          const out: { stop: StopReason | null } = { stop: null }
+          mutate((g, u) => {
+            out.stop = simToNextStop(g, u)
+          })
+          const after = get().game
+          const stop = out.stop
+          set({ matchView: 'report', simStop: stop && after?.season ? { stop, gameId: after.id, year: after.year, matchweek: after.season.matchweek } : null })
+          if (after?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
         closeMatch: () => {
-          mutate((g, u) => closeLiveMatch(g, u))
+          mutate((g, u) => (g.arena ? closeArenaMatch(g) : closeLiveMatch(g, u)))
           // Leaving the final match of the season closes the season
+          if (get().game?.phase === 'summary') {
+            unlockFromGame()
+            get().recordResult()
+          }
+        },
+        playArenaStep: (live) => {
+          mutate((g, u) => {
+            playArenaStep(g, u, live)
+            if (live && g.live) byHand(g)
+          })
+          // Either way the match opens on its replay dashboard (one screen); the report is a tab away
+          set({ matchView: 'ticker' })
+        },
+        takePenalties: (order, keeperId) => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = takePenalties(g, u, order, keeperId)
+          })
+          if (!out.ok) set({ toast: out.message })
+          return out
+        },
+        changeTheDraw: () => {
+          let out = { ok: false, message: 'No game' }
+          mutate((g, u) => {
+            out = changeTheDraw(g, u)
+          })
+          if (!out.ok) set({ toast: out.message })
+        },
+        simArenaToEnd: () => {
+          mutate((g, u) => simArenaToEnd(g, u))
+          set({ matchView: 'report' })
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
@@ -765,26 +863,55 @@ export const useStore = create<Store>()(
           mutate((g) => void (g.newsSeen = newsTotal(g)))
         },
 
-        setTactics: (t) => mutate((g) => void Object.assign(g.tactics, t)),
-        setRole: (slotId, roleId) => mutate((g) => void (g.tactics.roles[slotId] = roleId)),
-        setFormation: (id) => mutate((g, u) => setFormation(g, u, id)),
-        assign: (id, slot) => mutate((g, u) => assignPlayer(g, u, id, slot)),
+        setTactics: (t) =>
+          mutate((g) => {
+            Object.assign(g.tactics, t)
+            byHand(g)
+          }),
+        setRole: (slotId, roleId) =>
+          mutate((g) => {
+            g.tactics.roles[slotId] = roleId
+            byHand(g)
+          }),
+        setFormation: (id) =>
+          mutate((g, u) => {
+            setFormation(g, u, id)
+            byHand(g)
+          }),
+        assign: (id, slot) =>
+          mutate((g, u) => {
+            assignPlayer(g, u, id, slot)
+            byHand(g)
+          }),
         playInSlot: (id, slot) => {
           const { game, universe } = get()
           if (!game || !universe) return
           // Worded from the lineup as it stands, before the swap runs
           const note = assignmentNote(game, universe, id, slot)
-          mutate((g, u) => assignPlayer(g, u, id, slot))
+          mutate((g, u) => {
+            assignPlayer(g, u, id, slot)
+            byHand(g)
+          })
           if (note) set({ toast: note })
         },
         autoPick: () => mutate((g, u) => autoPick(g, u, false)),
-        setTeamTalk: (t) => mutate((g) => void (g.teamTalk = t)),
-        setTraining: (t) => mutate((g) => void (g.training = t)),
+        setTeamTalk: (t) =>
+          mutate((g) => {
+            g.teamTalk = t
+            byHand(g)
+          }),
+        setTraining: (t) =>
+          mutate((g) => {
+            // The arena's hub offers the focus too: a change shapes the next match and the recovery, so it is the manager's
+            if (g.training !== t) byHand(g)
+            g.training = t
+          }),
         setCaptain: (id) =>
           mutate((g) => {
             // An empty id takes the armband off
             if (id) g.captainId = id
             else delete g.captainId
+            byHand(g)
           }),
         setStatus: (id, status) => mutate((g, u) => setSquadStatus(g, u, id, status)),
 
@@ -797,7 +924,11 @@ export const useStore = create<Store>()(
           unlockFromGame()
           return out
         },
-        setMarkTarget: (id) => mutate((g) => void (g.markTarget = id)),
+        setMarkTarget: (id) =>
+          mutate((g) => {
+            g.markTarget = id
+            byHand(g)
+          }),
         signYouth: (id) => {
           let out = { ok: false, message: 'No game' }
           mutate((g, u) => {
@@ -916,10 +1047,34 @@ export const useStore = create<Store>()(
         recordResult: () => {
           const { game, profile, universe } = get()
           if (!game || !universe || game.phase !== 'summary') return
-          const rec = game.quickResult ?? (game.history.at(-1) ? { points: game.history.at(-1)!.points, won: game.history.at(-1)!.won, drawn: game.history.at(-1)!.drawn, lost: game.history.at(-1)!.lost, position: game.history.at(-1)!.position, tier: game.history.at(-1)!.tier } : null)
+          // The arena files a run on its own table and shelves: no leaderboard row, no daily streak, no season counted
+          if (game.arena) {
+            const run = arenaRunEntry(game, new Date().toISOString().slice(0, 10))
+            if (!run || alreadyCredited(profile, run.id) || profile.arenaRuns?.some((e) => e.id === run.id)) return
+            // The Daily Arena: the first run filed for its day counts towards its own streak, never the Daily's
+            let arenaDaily = profile.arenaDaily
+            let newArenaDaily = false
+            const arenaAchievements = { ...profile.achievements }
+            if (game.settings.arena?.daily && game.arena) {
+              const filed = fileStreakResult(profile.arenaDaily, game.settings.seed, dailyArenaResult(game.arena), previousArenaDailySeed, arenaDailySeed(), arenaDailySeed(new Date(Date.now() - 86400000)))
+              arenaDaily = filed.book
+              newArenaDaily = filed.filed
+              if (arenaDaily.streak >= 7 && !arenaAchievements['arena-regular']) arenaAchievements['arena-regular'] = new Date().toISOString().slice(0, 10)
+            }
+            set({ profile: { ...profile, arenaRuns: sortArenaRuns([...(profile.arenaRuns ?? []), run]), cabinet: creditArena(profile.cabinet ?? rebuildCabinet(profile), game, { newArenaDaily }), achievements: arenaAchievements, ...(arenaDaily ? { arenaDaily } : {}) } })
+            return
+          }
+          // A run-in files on its own table and shelf, against the real club: no leaderboard row, no season counted
+          if (game.settings.mode === 'runin') {
+            const row = runInEntry(game, universe, new Date().toISOString().slice(0, 10))
+            if (!row || alreadyCredited(profile, row.id) || profile.runIns?.some((e) => e.id === row.id)) return
+            set({ profile: { ...profile, runIns: [row, ...(profile.runIns ?? [])].slice(0, RUN_IN_LOG_CAP), cabinet: creditRunIn(profile.cabinet ?? rebuildCabinet(profile), game, row.met) } })
+            return
+          }
+          const rec = finishedRecord(game)
           if (!rec) return
           const entry: LeaderboardEntry = {
-            id: `${game.id}-${game.year}`,
+            id: resultId(game),
             date: new Date().toISOString().slice(0, 10),
             mode: game.settings.mode,
             teamName: game.settings.teamName,
@@ -931,6 +1086,7 @@ export const useStore = create<Store>()(
             tier: rec.tier,
             seed: game.settings.seed,
             leagueSeason: game.settings.leagueSeason,
+            leagueId: game.history.at(-1)?.leagueId ?? game.settings.leagueId,
             hostClubId: game.settings.hostClubId,
             xi: Object.values(game.lineup),
             nation: game.settings.rules.onlyNation,
@@ -938,38 +1094,44 @@ export const useStore = create<Store>()(
             ...(isSuperLeague(game.settings) ? { superLeague: true as const } : {}),
             ...(caseIconIn(game) ? { caseIcon: true as const } : {}),
           }
-          if (profile.leaderboard.some((e) => e.id === entry.id)) return
+          const cap = capOfGame(game)
+          if (cap) Object.assign(entry, cap)
+          const moment = storyForGame(game, universe)?.moment
+          if (moment) entry.moment = moment
+          // Once per result: the leaderboard holds the best 50, the cabinet remembers the last few credited beyond them
+          if (alreadyCredited(profile, entry.id)) return
           const leaderboard = [...profile.leaderboard, entry].sort((a, b) => b.points - a.points || a.lost - b.lost).slice(0, 50)
           let { dailyStreak, lastDailyDate } = profile
           const dailyResults = { ...profile.dailyResults }
+          let newDaily = false
           if (game.settings.mode === 'daily') {
             // The result belongs to the day the puzzle was set, not the day it was finished
-            const today = previousDailySeed(game.settings.seed) ? game.settings.seed : dailySeed()
+            const today = streakDay(game.settings.seed, previousDailySeed, dailySeed())
             if (!dailyResults[today]) {
-              const yesterday = previousDailySeed(today) ?? dailySeed(new Date(Date.now() - 86400000))
-              dailyStreak = lastDailyDate === yesterday ? dailyStreak + 1 : 1
-              lastDailyDate = today
+              const book = advanceStreak({ streak: dailyStreak, last: lastDailyDate }, today, previousDailySeed, dailySeed(new Date(Date.now() - 86400000)))
+              dailyStreak = book.streak
+              lastDailyDate = book.last
               dailyResults[today] = { points: rec.points, tier: rec.tier }
+              newDaily = true
             }
+          }
+          // The Weekly Challenge: its own book, filed under the seed's week; it never touches the Daily's results
+          let weekly = profile.weekly
+          let newWeekly = false
+          if (game.settings.mode === 'weekly') {
+            const filed = fileStreakResult(profile.weekly, game.settings.seed, { points: rec.points, tier: rec.tier }, previousWeeklySeed, weeklySeed(), weeklySeed(new Date(Date.now() - 7 * 86400000)))
+            weekly = filed.book
+            newWeekly = filed.filed
           }
           const achievements = { ...profile.achievements }
           if (dailyStreak >= 7 && !achievements['daily-streak-7']) achievements['daily-streak-7'] = new Date().toISOString().slice(0, 10)
-          // Trophy cabinet
-          const trophies = { ...(profile.trophies ?? { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }) }
-          const last = game.history.at(-1)
-          const league = rec.position === 1
-          const cup = !!last?.cupWon
-          // A quick season's Continental Cup run counts as the managed modes' trophy does
-          const euro = !!last?.continentalWon || game.quickResult?.europe?.reached === 'W'
-          if (league) trophies.league++
-          if (cup) trophies.cup++
-          if (euro) trophies.continental++
-          if (league && cup) trophies.doubles++
-          if (league && cup && euro) trophies.trebles++
-          // The 38-0 chase: best record, longest perfect run and perfect seasons of every quick season (Quick Draft and the Daily)
+          if (weekly && weekly.streak >= 4 && !achievements['weekly-streak-4']) achievements['weekly-streak-4'] = new Date().toISOString().slice(0, 10)
+          // Trophy Room: the cabinet takes the credit, `trophies` mirrors its five counts for older builds
+          const cabinet = creditGame(profile.cabinet ?? rebuildCabinet(profile), game, { newDaily, newWeekly })
+          // The 38-0 chase: best record, longest perfect run and perfect seasons of every quick season (Quick Draft, the Daily, the Weekly)
           const q = game.quickResult
           const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests
-          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies, seasonsSimulated: profile.seasonsSimulated + 1, ...(quickBests ? { quickBests } : {}) } })
+          set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies: trophiesOf(cabinet), cabinet, seasonsSimulated: profile.seasonsSimulated + 1, ...(weekly ? { weekly } : {}), ...(quickBests ? { quickBests } : {}) } })
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
@@ -1002,8 +1164,9 @@ export const useStore = create<Store>()(
           set({ h2h: produce(h2h, (h) => void h2hAutoPick(universe, h.draft)) })
         },
         h2hFinish: () => {
-          const { h2h, universe } = get()
+          const { h2h, universe, profile } = get()
           if (!h2h || !universe || !h2hComplete(h2h.draft)) return
+          const first = !h2h.result
           set({
             h2h: produce(h2h, (h) => {
               const rng = Rng.fromState(h.rngState)
@@ -1011,6 +1174,8 @@ export const useStore = create<Store>()(
               h.rngState = rng.getState()
             }),
           })
+          // A hot-seat season leaves one mark in the cabinet, the first time it is played
+          if (first) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
@@ -1039,7 +1204,11 @@ export const useStore = create<Store>()(
         const game = normaliseGame(p.game)
         // A match reloaded mid-way under Auto-play carries on with the assistant at the stops
         const liveAuto = assistantTakesStops(game)
-        return { ...current, ...p, profile: p.profile ? normaliseProfile(p.profile, defaultProfile) : current.profile, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
+        const saved = p.profile ? normaliseProfile(p.profile, defaultProfile) : null
+        // A profile from before the Trophy Room gets its cabinet rebuilt once, from the trophies and the leaderboard
+        // (read from the persisted profile itself: the defaults `normaliseProfile` spreads under it carry an empty cabinet)
+        const profile = saved ? { ...saved, cabinet: p.profile?.cabinet ? reconcileTrophies(normaliseCabinet(p.profile.cabinet), saved.trophies) : rebuildCabinet(saved) } : current.profile
+        return { ...current, ...p, profile, game, parked, liveAuto, shortlist: Array.isArray(p.shortlist) ? p.shortlist : [], screen: game || p.h2h ? (p.screen ?? 'home') : 'home' }
       },
     },
   ),
@@ -1095,9 +1264,9 @@ export function wipeSave(): void {
   localStorage.removeItem(SAVE_KEY)
 }
 
-/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup or the Super League. */
+/** Every league a saved game needs loaded: its own, its wheel's, and all of them for a Continental Cup, the Super League or an arena field drawn from every league. */
 function leaguesFor(game: Game, allLeagues: string[]): string[] {
-  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup || game.settings.rules?.superLeague
+  const wantsAll = game.settings.continental || game.qualifiedContinental || game.season?.continental || game.quickResult?.continentalCup || game.settings.rules?.superLeague || arenaNeedsAllLeagues(game.settings)
   return [...new Set([game.settings.leagueId ?? DEFAULT_LEAGUE, ...(game.settings.wheelLeagues ?? []), ...(wantsAll ? allLeagues : [])])]
 }
 
@@ -1106,7 +1275,12 @@ export function todaysDailySeed(): string {
   return dailySeed()
 }
 
-/** Save slot of a game: quick drafts and dailies share one, season and dynasty have their own. */
+/** Save slot of a game: quick drafts, dailies and weeklies share one, season, dynasty and the arena (every format, the Daily Arena too) have their own. */
 export function slotOf(game: Game): string {
-  return game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'quick' : game.settings.mode
+  return isQuickLike(game.settings.mode) ? 'quick' : game.settings.mode
+}
+
+/** A manager's own decision while an arena run is under way: the run no longer counts as the assistant's (challenge verification reads it). */
+function byHand(g: Game): void {
+  if (g.arena && !g.arena.over) g.arena.handManaged = true
 }

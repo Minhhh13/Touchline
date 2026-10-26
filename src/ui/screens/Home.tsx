@@ -1,7 +1,13 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Trophy, type LucideIcon } from 'lucide-react'
-import { useStore, todaysDailySeed } from '@game/store'
+import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Timer, Trophy, Zap, type LucideIcon } from 'lucide-react'
+import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailySettings } from '@game/logic/setup'
+import { modeLabel } from '@game/logic/modes'
+import { arenaStatus } from '@game/logic/arena'
+import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
+import { weeklyPlan } from '@game/logic/weekly'
+import { weeklyThemeName } from '@game/logic/weeklyThemes'
+import { arenaDailySeed, weeklySeed } from '@engine/rng'
 import { seasonLabel, formationName } from '../format'
 import { TeamBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
@@ -45,9 +51,9 @@ function GoLabel() {
   )
 }
 
-function Tile({ icon: Icon, title, meta, onClick }: { icon: LucideIcon; title: string; meta: string; onClick: () => void }) {
+function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: LucideIcon; title: string; meta: string; onClick: () => void; testId?: string; disabled?: boolean }) {
   return (
-    <button type="button" className="home-tile" onClick={onClick}>
+    <button type="button" className="home-tile" onClick={onClick} data-testid={testId} disabled={disabled}>
       <span className="tile-icon">
         <Icon size={20} />
       </span>
@@ -60,9 +66,10 @@ function Tile({ icon: Icon, title, meta, onClick }: { icon: LucideIcon; title: s
 }
 
 export function Home() {
-  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues } = useStore()
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
+  const openArenaSetup = (format: 'cup' | 'gauntlet') => withViewTransition(() => openArenaNow(format))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
@@ -70,17 +77,45 @@ export function Home() {
   const dailyReady = !!u && loadedLeagues.includes('england')
   const daily = dailyReady ? dailySettings(u, todaysDailySeed()) : null
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
-  const dailyUnderWay = !!game && game.settings.mode === 'daily' && game.settings.seed === todaysDailySeed() && game.phase !== 'summary'
+  const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
+  const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)
   const playDaily = () => {
     if (!u || !dailyReady) return
-    if (dailyUnderWay) {
+    if (isTodaysDaily(game)) {
       go('game')
       return
     }
+    // Parked by an arena run or a Weekly: today's puzzle comes back as it was left
+    if (isTodaysDaily(parked.quick)) return resumeGame('quick')
     // The button opens the Daily setup, as the card does: the team name, today's puzzle, and Start Draft there
     go('setup', 'daily')
   }
   const achievements = Object.keys(profile.achievements).length
+  // The Daily Arena: today's run continues wherever it is (active or parked); any other unfinished arena run is only dropped on a yes
+  const arenaSeed = arenaDailySeed()
+  const arenaToday = dailyArenaSettings(arenaSeed)
+  const arenaDone = profile.arenaDaily?.results[arenaSeed]
+  const isTodaysArena = (g: typeof game) => !!g && !!g.settings.arena?.daily && g.settings.seed === arenaSeed && g.phase !== 'summary'
+  const arenaUnderWay = isTodaysArena(game) ? 'active' : isTodaysArena(parked.arena) ? 'parked' : null
+  const playArenaDaily = () => {
+    if (!u || !dailyReady) return
+    if (arenaUnderWay === 'active') return go('game')
+    if (arenaUnderWay === 'parked') return resumeGame('arena')
+    const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
+    if (open && !confirm(`Start today's arena? Your current ${modeLabel(open, 'short')} run (${open.settings.teamName}) will be abandoned.`)) return
+    startGame(dailyArenaGameSettings(u, arenaSeed))
+  }
+  // The Weekly Challenge: its setup names the team and loads the week's packs; this week's run under way continues
+  const weekSeed = weeklySeed()
+  const weekPlan = u ? weeklyPlan(u, weekSeed) : null
+  const weekDone = profile.weekly?.results[weekSeed]
+  const isThisWeek = (g: typeof game) => !!g && g.settings.mode === 'weekly' && g.settings.seed === weekSeed && g.phase !== 'summary'
+  const playWeekly = () => {
+    if (isThisWeek(game)) return go('game')
+    if (isThisWeek(parked.quick)) return resumeGame('quick')
+    go('setup', 'weekly')
+  }
+  const streakMeta = (done: string | null, streak: number | undefined, fallback: string) => (done ? `${done}${streak ? ` · streak ${streak}` : ''}` : streak ? `Streak ${streak} · ${fallback}` : fallback)
   return (
     <div className="page home">
       <section className="hero">
@@ -133,10 +168,10 @@ export function Home() {
             <TeamBadge code={game.settings.shortName} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
-                {game.settings.teamName} · {game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : game.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${game.year}`}
+                {game.settings.teamName} · {modeLabel(game, 'short')}
               </div>
               <div className="small muted">
-                {game.phase === 'draft' ? 'Drafting' : game.phase === 'kickoff' ? 'Kick-off' : game.phase === 'january' ? 'January window' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
+                {game.arena ? arenaStatus(game) : game.phase === 'draft' ? 'Drafting' : game.phase === 'kickoff' ? 'Kick-off' : game.phase === 'january' ? 'January window' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
               </div>
             </div>
           </div>
@@ -157,9 +192,9 @@ export function Home() {
             <TeamBadge code={g.settings.shortName} size={36} />
             <div>
               <div style={{ fontWeight: 700 }}>
-                {g.settings.teamName} · {g.settings.mode === 'quick' ? 'Quick draft' : g.settings.mode === 'daily' ? 'Daily challenge' : g.settings.mode === 'season' ? 'Season' : `Dynasty · Year ${g.year}`} (parked)
+                {g.settings.teamName} · {modeLabel(g, 'short')} (parked)
               </div>
-              <div className="small muted">{g.phase === 'draft' ? 'Drafting' : g.phase === 'kickoff' ? 'Kick-off' : g.phase === 'january' ? 'January window' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
+              <div className="small muted">{g.arena ? arenaStatus(g) : g.phase === 'draft' ? 'Drafting' : g.phase === 'kickoff' ? 'Kick-off' : g.phase === 'january' ? 'January window' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
             </div>
           </div>
           <div className="row">
@@ -234,6 +269,15 @@ export function Home() {
             <GoLabel />
           </span>
         </button>
+      </div>
+
+      {/* The casual modes: one sitting each, beside the four ways to play above */}
+      <div className="home-tiles casual" data-testid="casual-row" aria-label="More ways to play">
+        <Tile icon={Zap} testId="arena-daily-card" title="Daily Arena" meta={streakMeta(arenaDone ? `Played: ${arenaDone.label}` : null, profile.arenaDaily?.streak, u ? dailyArenaLine(u, arenaToday) : 'Same draw for everyone')} onClick={playArenaDaily} disabled={!dailyReady} />
+        <Tile icon={CalendarRange} testId="weekly-card" title="Weekly Challenge" meta={streakMeta(weekDone ? `Played: ${weekDone.points} pts` : null, profile.weekly?.streak, weekPlan ? `${weeklyThemeName(weekPlan.theme) || 'This week'} · ends Sunday` : 'One themed wheel a week')} onClick={playWeekly} disabled={!u} />
+        <Tile icon={Award} testId="arena-cup-card" title="The Cup" meta="Draft 16, win a knockout" onClick={() => openArenaSetup('cup')} />
+        <Tile icon={ChevronsUp} testId="arena-gauntlet-card" title="The Gauntlet" meta="Climb 15 rungs, lose once and out" onClick={() => openArenaSetup('gauntlet')} />
+        <Tile icon={Timer} testId="runin-card" title="Run-in" meta="Take over at MW 28, ten games left" onClick={() => go('setup', 'runin')} />
       </div>
 
       <div className="home-tiles">

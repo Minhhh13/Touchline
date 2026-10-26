@@ -22,13 +22,21 @@ import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, type ChoiceOption, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
 import { clubName } from '../format'
+import { MODE_TITLE } from '@game/logic/modes'
+import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
+import { weeklySeed } from '@engine/rng'
+import { CapControl } from '../components/CapControl'
+import { ChainToggle } from '../components/ChainControl'
+import { CAP_NARROW_NOTE, CAP_PRESETS, DEFAULT_CAP_CHOICE, capBudget, capTotal, withCap, type CapChoice } from '@game/logic/cap'
 
-const MODE_TITLE: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily Challenge', season: 'Season', dynasty: 'Dynasty' }
 const MODE_LINE: Record<Mode, string> = {
   quick: 'Spin, draft an XI, watch its season.',
   daily: 'One wheel for everyone today.',
   season: 'Draft a squad, manage every matchweek.',
   dynasty: 'Draft a squad, build a club for years.',
+  arena: 'Draft a squad, then one knockout sitting.',
+  weekly: 'One themed wheel for everyone this week.',
+  runin: 'Take over a real club for the last ten games.',
 }
 const DEFAULT_TEAM = 'Touchline XI'
 
@@ -111,6 +119,9 @@ export function Setup() {
   const [endCase, setEndCase] = useState(true)
   // Twists default on for a quick draft and off for a managed season; null means the default for the mode
   const [twistsChoice, setTwistsChoice] = useState<boolean | null>(null)
+  // The casual rules: Moneyball's salary cap and the Teammate Chain (Quick Draft, Season and Dynasty)
+  const [cap, setCap] = useState<CapChoice>(DEFAULT_CAP_CHOICE)
+  const [chain, setChain] = useState(false)
   const [leagueSeason, setLeagueSeason] = useState(() => {
     if (!u) return 2025
     const complete = u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)
@@ -137,6 +148,13 @@ export function Setup() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [u])
+  // The week's challenge plays in the week's league (all seven on a European Nights week): load them on arrival
+  useEffect(() => {
+    if (u && mode === 'weekly') {
+      const plan = weeklyPlan(u, weeklySeed())
+      void ensureLeagues([plan.leagueId, ...plan.wheelLeagues])
+    }
+  }, [u, mode, ensureLeagues])
 
   const superLeague = superOn && mode === 'quick'
   const wheelLeagues = useMemo(() => ((europe || superLeague) && u ? u.available.map((l) => l.id) : [leagueId]), [europe, superLeague, leagueId, u])
@@ -212,13 +230,17 @@ export function Setup() {
     moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // The daily puzzle and a challenge link fix everything but the team name and the picks: formation, league, host club,
-  // season, difficulty and the draft rules are not the player's to choose.
-  const fixed = ((): { kind: 'daily' | 'challenge'; season: number; host: string; formationId: string; leagueId: string; wheelLeagues: string[]; difficulty: 'calibrated' | 'realistic'; rules: DraftRules | null; seed: string } | null => {
+  // The daily puzzle, the Weekly and a challenge link fix everything but the team name and the picks: formation, league,
+  // host club, season, difficulty and the draft rules are not the player's to choose.
+  const weekPlan = mode === 'weekly' ? weeklyPlan(u, weeklySeed()) : null
+  const week = weekPlan ? weeklySettings(u, weekPlan.seed) : null
+  const fixed = ((): { kind: 'daily' | 'challenge' | 'weekly'; season: number; host: string; formationId: string; leagueId: string; wheelLeagues: string[]; difficulty: 'calibrated' | 'realistic'; rules: DraftRules | null; seed: string } | null => {
     if (pendingChallenge) {
       const c = pendingChallenge.payload
       return { kind: 'challenge', season: c.s.ls, host: c.s.h, formationId: c.s.f, leagueId: c.s.l, wheelLeagues: c.s.wl, difficulty: c.s.d, rules: rulesFromPayload(c), seed: c.s.seed }
     }
+    // The week's challenge is fixed before its packs load; it starts once they are in
+    if (weekPlan) return { kind: 'weekly', season: week?.season ?? 0, host: week?.host ?? '', formationId: weekPlan.formationId, leagueId: weekPlan.leagueId, wheelLeagues: weekPlan.wheelLeagues, difficulty: week?.difficulty ?? 'calibrated', rules: null, seed: weekPlan.seed }
     if (!isDaily) return null
     // Every rule of the Daily comes from `dailySettings`, so it is the same wheel for everyone
     const d = dailySettings(u, todaysDailySeed())
@@ -231,9 +253,11 @@ export function Setup() {
   const buildSettings = (preview: boolean): GameSettings => {
     const name = teamName.trim() || DEFAULT_TEAM
     if (fixed?.kind === 'daily') return dailyGameSettings(u, fixed.seed, name)
+    const weekly = fixed?.kind === 'weekly' ? weeklyGameSettings(u, fixed.seed, name) : null
+    if (weekly) return weekly
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
-    const rules: DraftRules = fixed?.rules ?? { ...chosen, onlyClub: club, onlyNation: nation }
+    const rules: DraftRules = fixed?.rules ?? withCap({ ...chosen, onlyClub: club, onlyNation: nation, ...(chain ? { chain: true } : {}) }, cap)
     const seedText = fixed ? fixed.seed : seed.trim() || (preview ? 'drawn when you start' : randomSeed())
     // Crazy draws the formation from the seed (a blank seed draws it at Start); a challenge carries the one its challenger had
     const crazy = !fixed && modesOf(rules).includes('crazy')
@@ -260,14 +284,26 @@ export function Setup() {
   }
   const start = () => {
     // Today's puzzle shares the Quick Draft's save slot: ask before an unfinished quick draft or Daily is dropped (as Home's Daily button used to)
-    if (fixed?.kind === 'daily' && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start today's puzzle? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    const puzzle = fixed?.kind === 'daily' ? "today's puzzle" : fixed?.kind === 'weekly' ? "this week's challenge" : null
+    if (puzzle && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start ${puzzle}? Your current ${MODE_TITLE[game.settings.mode]} (${game.settings.teamName}) will be abandoned.`)) return
     startGame(buildSettings(false))
   }
   const preview = buildSettings(true)
-  const summary = summariseSetup(u, preview)
+  // Until the week's league is in, the week has no season or host to state
+  const summary = fixed?.kind === 'weekly' && !week ? `Loading the ${leagueNameOf(fixed.leagueId)}…` : summariseSetup(u, preview)
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
-  const ready = fixed ? fixedReady : leagueReady
+  const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady
+  const capOn = cap.preset !== 'off'
+  const capCard = capBudget(cap, isManage ? squadSize : QUICK_RULES.squadSize)
+  const setCapChoice = (c: CapChoice) => {
+    setCap(c)
+    // The cap goes with neither one club nor one nation (`capFits`)
+    if (c.preset !== 'off') {
+      setOnlyClub('')
+      setOnlyNation('')
+    }
+  }
   const hard = draftDifficulty === 'hard'
   const crazyOn = !fixed && !isManage && modes.includes('crazy')
   // Crazy with a seed typed in shows the shape that seed draws; with a blank seed the shape is drawn at Start
@@ -372,7 +408,12 @@ export function Setup() {
           <div className="panel setup-box">
             {fixed && (
               <section className="setup-step">
-                <StepHead n={3} title={fixed.kind === 'daily' ? "Today's rules" : 'The rules'} />
+                <StepHead n={3} title={fixed.kind === 'daily' ? "Today's rules" : fixed.kind === 'weekly' ? "This week's rules" : 'The rules'} />
+                {fixed?.kind === 'weekly' && weekPlan && (
+                  <div className="notice" data-testid="weekly-notice">
+                    {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{formationName(weekPlan.formationId)}</b> from the same wheel{week ? <>, in the <b>{leagueNameOf(week.leagueId)} {seasonLabel(week.season)}</b>, {week.difficulty} difficulty</> : ' (loading the league…)'}. Ends Sunday (UTC).
+                  </div>
+                )}
                 {fixed?.kind === 'daily' && (
                   <div className="notice" data-testid="daily-notice">
                     Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in the <b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
@@ -384,6 +425,8 @@ export function Setup() {
                     Same seed, same wheel, {fixed.difficulty} difficulty
                     {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
                     {fixed.rules?.twists ? ', twists on' : ', no twists'}
+                    {fixed.rules?.budget !== undefined ? `, ${capTotal(fixed.rules.budget)} cap` : ''}
+                    {fixed.rules?.chain ? ', teammate chain' : ''}
                     {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
                   {fixed.rules?.classic ? ', classic seasons (estimated ratings)' : ''}
                     {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
@@ -435,6 +478,21 @@ export function Setup() {
                           <span className="cline">{endCase ? 'On: one case after the draft' : 'One case after the draft'}</span>
                         </label>
                         <InfoTip label="End case" text="One case when the draft is done: a power-up for your locker (unpack it in a later Quick Draft without the tray), or with a 5% chance an Icon, an all-time great who can take a drafted starter's place this season (a non-standard season). The odds are shown on the case." testId="end-case-info" />
+                      </div>
+                      {/* The casual rules as two more cards: Moneyball's salary cap (its presets under Advanced) and the Teammate Chain */}
+                      <div className="pu-setup">
+                        <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" title="Moneyball: every player carries a price by rating and position, and the draft may not spend more than the cap">
+                          <input type="checkbox" className="sr-only" checked={capOn} onChange={(e) => setCapChoice({ ...cap, preset: e.target.checked ? 'moneyball' : 'off' })} />
+                          <span className="micon" aria-hidden="true">£</span>
+                          <span className="ctitle">Moneyball</span>
+                          <span className="cline">{capOn && capCard !== undefined ? `${capTotal(capCard)} cap · ${CAP_PRESETS.find((p) => p.value === cap.preset)?.label ?? ''}` : 'Draft under a salary cap'}</span>
+                        </label>
+                        <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" title="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When none is left, the next spin is free and the chain starts again.">
+                          <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
+                          <span className="micon" aria-hidden="true">🔗</span>
+                          <span className="ctitle">Teammate chain</span>
+                          <span className="cline">{chain ? 'On: each pick played beside the last' : 'Each pick played beside the last'}</span>
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -616,6 +674,8 @@ export function Setup() {
                           <span className="help">{opposition === 'calibrated' ? 'An average draft finishes mid-table.' : 'Full strength. Brutal.'}</span>
                         </div>
                         )}
+                        <CapControl value={cap} onChange={setCapChoice} squadSize={isManage ? squadSize : QUICK_RULES.squadSize} note={CAP_NARROW_NOTE} />
+                        {isManage && <ChainToggle value={chain} onChange={setChain} />}
                         <label className="field">
                           One-club mode
                           <select
@@ -624,6 +684,7 @@ export function Setup() {
                             onChange={(e) => {
                               setOnlyClub(e.target.value)
                               if (e.target.value) setOnlyNation('')
+                              if (e.target.value) setCap((c) => ({ ...c, preset: 'off' }))
                             }}
                           >
                             <option value="">Off: every club</option>
@@ -642,6 +703,7 @@ export function Setup() {
                             onChange={(e) => {
                               setOnlyNation(e.target.value)
                               if (e.target.value) setOnlyClub('')
+                              if (e.target.value) setCap((c) => ({ ...c, preset: 'off' }))
                             }}
                           >
                             <option value="">Off: every nationality</option>

@@ -6,6 +6,8 @@
  */
 import type { Formation, MatchEvent, PlayerSeason, TableRow } from '@engine/types'
 import type { SeasonTier } from '@engine/types'
+import type { BadgeState, BadgeTier } from '@engine/badges'
+import type { Cabinet } from '@game/types'
 import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, clothStops, pennantPath } from './brand'
 import { tierName } from './format'
 
@@ -20,7 +22,17 @@ export interface ShareCardInput {
   getPlayer: (id: string) => PlayerSeason | undefined
   footer: string
   hideRatings?: boolean
+  /** Season Story: one cell per game under the record, up to 46. */
+  strip?: Array<'W' | 'D' | 'L'>
+  /** Season Story: one line under the strip. */
+  moment?: string
+  /** Replaces the tier label (an arena result names its own round). */
+  banner?: { text: string; colour?: string }
+  /** Up to six lines drawn in place of the W/D/L row and the points line (knockout ties, a ladder). */
+  lines?: string[]
 }
+
+const STRIP_COLOUR: Record<'W' | 'D' | 'L', string> = { W: C.good, D: C.draw, L: C.bad }
 
 const TIER_COLOUR: Partial<Record<SeasonTier, string>> = {
   PERFECT: C.gold,
@@ -86,46 +98,66 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
   ctx.font = font(24, 400, BODY)
   ctx.fillText(fit(ctx, input.subtitle, W - 120), W / 2, 134)
 
-  ctx.fillStyle = TIER_COLOUR[input.tier] ?? C.text
+  ctx.fillStyle = input.banner?.colour ?? TIER_COLOUR[input.tier] ?? C.text
   ctx.font = font(72)
-  ctx.fillText(fit(ctx, tierName(input.tier, input.position), W - 120), W / 2, 228)
+  ctx.fillText(fit(ctx, input.banner?.text ?? tierName(input.tier, input.position), W - 120), W / 2, 228)
 
-  // Record: wins, draws, defeats in the status colours
-  const rec = [
-    { t: `${input.row.won}W`, c: C.good },
-    { t: `${input.row.drawn}D`, c: C.draw },
-    { t: `${input.row.lost}L`, c: C.bad },
-  ]
-  ctx.font = font(52)
-  const widths = rec.map((r) => ctx.measureText(r.t).width)
-  const gap = 40
-  let x = W / 2 - (widths.reduce((a, b) => a + b, 0) + gap * 2) / 2
-  for (let i = 0; i < rec.length; i++) {
-    ctx.fillStyle = rec[i].c
-    ctx.textAlign = 'left'
-    ctx.fillText(rec[i].t, x, 306)
-    x += widths[i] + gap
-  }
-  // The season as blocks, one per match, as on the summary screen
-  const games = [...Array<string>(input.row.won).fill(C.good), ...Array<string>(input.row.drawn).fill(C.draw), ...Array<string>(input.row.lost).fill(C.bad)]
-  const block = Math.min(18, Math.floor((W - 180) / Math.max(1, games.length)) - 5)
-  const blocksW = games.length * (block + 5) - 5
-  games.forEach((c, i) => {
-    ctx.fillStyle = c
-    roundRect(ctx, W / 2 - blocksW / 2 + i * (block + 5), 330, block, block, 3)
-    ctx.fill()
-  })
-  ctx.textAlign = 'center'
-  ctx.fillStyle = C.text
-  ctx.font = font(28, 600, BODY)
   const ord = (n: number) => n + (['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 > 3 ? 0 : n % 10] ?? 'th')
-  ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 392)
+  // The caller's own lines (knockout ties, a ladder) in place of the record; `y` is the baseline of the last thing drawn
+  let y = 392
+  const lines = (input.lines ?? []).slice(0, 6)
+  if (lines.length) {
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.text
+    ctx.font = font(30, 600, BODY)
+    lines.forEach((l, i) => ctx.fillText(fit(ctx, l, W - 160), W / 2, 290 + i * 42))
+    y = 290 + (lines.length - 1) * 42
+  } else {
+    // Record: wins, draws, defeats in the status colours
+    const rec = [
+      { t: `${input.row.won}W`, c: C.good },
+      { t: `${input.row.drawn}D`, c: C.draw },
+      { t: `${input.row.lost}L`, c: C.bad },
+    ]
+    ctx.font = font(52)
+    const widths = rec.map((r) => ctx.measureText(r.t).width)
+    const gap = 40
+    let x = W / 2 - (widths.reduce((a, b) => a + b, 0) + gap * 2) / 2
+    for (let i = 0; i < rec.length; i++) {
+      ctx.fillStyle = rec[i].c
+      ctx.textAlign = 'left'
+      ctx.fillText(rec[i].t, x, 306)
+      x += widths[i] + gap
+    }
+    // The season as blocks, one per match: in the order played when the Season Story strip is given, as on the summary screen otherwise
+    const strip = (input.strip ?? []).slice(0, 46)
+    const games = strip.length ? strip.map((o) => STRIP_COLOUR[o]) : [...Array<string>(input.row.won).fill(C.good), ...Array<string>(input.row.drawn).fill(C.draw), ...Array<string>(input.row.lost).fill(C.bad)]
+    const block = Math.min(18, Math.floor((W - 180) / Math.max(1, games.length)) - 5)
+    const blocksW = games.length * (block + 5) - 5
+    games.forEach((c, i) => {
+      ctx.fillStyle = c
+      roundRect(ctx, W / 2 - blocksW / 2 + i * (block + 5), 330, block, block, 3)
+      ctx.fill()
+    })
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.text
+    ctx.font = font(28, 600, BODY)
+    ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 392)
+  }
+  // Season Story: the one line that tells the season
+  if (input.moment) {
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.text2
+    ctx.font = font(26, 600, BODY)
+    ctx.fillText(fit(ctx, input.moment, W - 160), W / 2, y + 40)
+    y += 40
+  }
 
-  // The pitch: grass stays green, the frame and lines are neutral
+  // The pitch: grass stays green, the frame and lines are neutral; pushed down (and shortened) by whatever sits above it
   const px = 90
-  const py = 420
+  const py = Math.max(420, y + 28)
   const pw = W - 180
-  const ph = 716
+  const ph = 1136 - py
   ctx.fillStyle = C.pitch
   roundRect(ctx, px, py, pw, ph, 22)
   ctx.fill()
@@ -431,6 +463,139 @@ export async function renderMatchCard(input: MatchCardInput): Promise<string> {
   ctx.font = font(20, 400, body)
   ctx.fillText(input.footer, W / 2, H - 120)
   drawLockup(ctx, W / 2, H - 62, 48)
+  return canvas.toDataURL('image/png')
+}
+
+export interface ManagerCardInput {
+  name: string
+  seasons: number
+  cabinet: Pick<Cabinet, 'league' | 'cup' | 'continental' | 'doubles' | 'trebles' | 'perfect'>
+  /** Up to six badges, best first (`topBadges`). */
+  badges: Array<Pick<BadgeState, 'tier' | 'progress'> & { badge: Pick<BadgeState['badge'], 'icon' | 'title'> }>
+  /** Up to three best seasons, already worded: a title line and a detail line each. */
+  best: Array<{ title: string; detail: string }>
+  dataStamp: string
+}
+
+const RING_COLOUR: Record<BadgeTier, string> = { bronze: '#cd8a4a', silver: '#c9d3d8', gold: C.gold }
+
+/**
+ * The Trophy Room's manager card, 1080 by 1350: the name and seasons
+ * simulated, a 3 by 2 grid of trophy counts, the top six badges with their
+ * tier rings, three best seasons and the footer. Returns a data URL.
+ */
+export function renderManagerCard(input: ManagerCardInput): string {
+  const W = 1080
+  const H = 1350
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createLinearGradient(0, 0, 0, H)
+  g.addColorStop(0, C.panel)
+  g.addColorStop(1, C.bg)
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, W, H)
+  ctx.fillStyle = 'rgba(37, 99, 235, 0.12)'
+  ctx.beginPath()
+  ctx.arc(W / 2, -220, 700, 0, Math.PI * 2)
+  ctx.fill()
+  const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
+  const body = BODY
+
+  ctx.textAlign = 'center'
+  ctx.fillStyle = C.text2
+  ctx.font = font(26, 600, body)
+  ctx.fillText('MANAGER CARD', W / 2, 70)
+  ctx.fillStyle = C.text
+  ctx.font = font(84)
+  ctx.fillText(fit(ctx, input.name.toUpperCase(), W - 140), W / 2, 160)
+  ctx.fillStyle = C.text2
+  ctx.font = font(28, 400, body)
+  ctx.fillText(`${input.seasons} season${input.seasons === 1 ? '' : 's'} simulated`, W / 2, 205)
+
+  // Trophy counts, 3 by 2
+  const c = input.cabinet
+  const trophies: Array<[string, string, number]> = [
+    ['🏆', 'League titles', c.league],
+    ['🥇', 'Cups', c.cup],
+    ['🌍', 'Continental Cups', c.continental],
+    ['🏆🏆', 'Doubles', c.doubles],
+    ['👑', 'Trebles', c.trebles],
+    ['💎', 'Perfect seasons', c.perfect],
+  ]
+  const cellW = (W - 180) / 3
+  trophies.forEach(([icon, label, n], i) => {
+    const x = 90 + (i % 3) * cellW
+    const y = 240 + Math.floor(i / 3) * 170
+    ctx.fillStyle = 'rgba(255,255,255,0.05)'
+    roundRect(ctx, x + 10, y, cellW - 20, 150, 16)
+    ctx.fill()
+    ctx.globalAlpha = n ? 1 : 0.45
+    // An emoji takes the fill's alpha too, so not the cell's 5% white
+    ctx.fillStyle = C.text
+    ctx.font = font(40, 400, body)
+    ctx.fillText(icon, x + cellW / 2, y + 50)
+    ctx.fillStyle = n ? C.gold : C.text
+    ctx.font = font(56)
+    ctx.fillText(String(n), x + cellW / 2, y + 108)
+    ctx.fillStyle = C.text2
+    ctx.font = font(22, 400, body)
+    ctx.fillText(label, x + cellW / 2, y + 138)
+    ctx.globalAlpha = 1
+  })
+
+  // Badges with their tier rings, 3 by 2
+  ctx.fillStyle = C.text
+  ctx.font = font(34)
+  ctx.fillText('TROPHY ROOM', W / 2, 620)
+  input.badges.slice(0, 6).forEach((b, i) => {
+    const cx = 90 + (i % 3) * cellW + cellW / 2
+    const cy = 700 + Math.floor(i / 3) * 190
+    ctx.globalAlpha = b.tier ? 1 : 0.45
+    ctx.beginPath()
+    ctx.arc(cx, cy, 52, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(8,20,14,0.9)'
+    ctx.fill()
+    ctx.lineWidth = 8
+    ctx.strokeStyle = b.tier ? RING_COLOUR[b.tier] : 'rgba(255,255,255,0.25)'
+    ctx.stroke()
+    ctx.fillStyle = C.text
+    ctx.font = font(44, 400, body)
+    ctx.fillText(b.badge.icon, cx, cy + 16)
+    ctx.font = font(28)
+    ctx.fillText(fit(ctx, b.badge.title, cellW - 20), cx, cy + 88)
+    ctx.fillStyle = b.tier ? RING_COLOUR[b.tier] : C.text3
+    ctx.font = font(20, 400, body)
+    ctx.fillText(fit(ctx, b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress, cellW - 20), cx, cy + 116)
+    ctx.globalAlpha = 1
+  })
+
+  // Best seasons
+  ctx.fillStyle = C.text
+  ctx.font = font(34)
+  ctx.fillText('BEST SEASONS', W / 2, 1060)
+  if (!input.best.length) {
+    ctx.fillStyle = C.text3
+    ctx.font = font(26, 400, body)
+    ctx.fillText('Nothing yet. Spin the wheel.', W / 2, 1106)
+  }
+  input.best.slice(0, 3).forEach((s, i) => {
+    const y = 1104 + i * 58
+    ctx.fillStyle = C.text
+    ctx.font = font(30)
+    ctx.fillText(fit(ctx, s.title, W - 180), W / 2, y)
+    ctx.fillStyle = C.text2
+    ctx.font = font(20, 400, body)
+    ctx.fillText(fit(ctx, s.detail, W - 180), W / 2, y + 24)
+  })
+
+  ctx.fillStyle = C.text3
+  ctx.font = font(22, 400, body)
+  ctx.fillText(input.dataStamp, W / 2, H - 70)
+  ctx.fillStyle = C.good
+  ctx.font = font(34)
+  ctx.fillText('TOUCHLINE', W / 2, H - 28)
   return canvas.toDataURL('image/png')
 }
 
