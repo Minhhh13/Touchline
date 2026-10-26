@@ -6,9 +6,11 @@ import { conditionColour, seasonLabel, clubShort, meterValue } from '../format'
 import { useStore } from '@game/store'
 import { RedCard } from './icons'
 import { isEstimated } from '@game/logic/era'
+import { MoraleFace } from '../matchday/MoraleFace'
+import { FormArrow, MotmStar, Sparkline } from './FormBits'
 
 /**
- * `showLabels` prints Cond, Mor and Shp under the three state bars (the Key toggle), for screens that cannot hover; `highlight` marks a row that fits the slot being filled (Position First).
+ * `showLabels` prints Cond, Shp and Mor under the two state bars and the morale face (the Key toggle), for screens that cannot hover; `highlight` marks a row that fits the slot being filled (Position First).
  * `hideChampion` drops the title-winner flag where the whole list shares it (a champion squad on the draft).
  */
 export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, hideRatings, showClub, extra, showLabels, hideChampion, range }: { p: PlayerSeason; state?: SquadPlayer; right?: ReactNode; onClick?: () => void; dim?: boolean; selected?: boolean; highlight?: boolean; hideRatings?: boolean; showClub?: boolean; extra?: ReactNode; showLabels?: boolean; hideChampion?: boolean; range?: { lo: number; hi: number } }) {
@@ -25,6 +27,9 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, 
         <span className="name">
           <Flag nation={p.nationality} /> {p.name}
           {flags}
+          {state && <MotmStar count={state.seasonStats.motm} />}
+          {state && <FormArrow s={state} />}
+          {state && <Sparkline ratings={state.recentRatings} />}
         </span>
         <span className="meta">
           {p.positions.map((pos) => (
@@ -39,17 +44,17 @@ export function PlayerRow({ p, state, right, onClick, dim, selected, highlight, 
           {extra}
         </span>
         {state && (
-          <span className="state-bars" title={`Condition ${meterValue(state.condition)} · Morale ${meterValue(state.morale)} · Sharpness ${meterValue(state.sharpness)}`}>
+          <span className="state-bars" title={`Condition ${meterValue(state.condition)} · Sharpness ${meterValue(state.sharpness)} · Morale ${meterValue(state.morale)}`}>
             <Bar value={state.condition} colour={conditionColour(state.condition)} />
-            <Bar value={state.morale} colour="var(--info)" />
             <Bar value={state.sharpness} colour="var(--meter-sharpness)" />
+            <MoraleFace value={state.morale} />
           </span>
         )}
         {state && showLabels && (
           <span className="state-bars state-labels" data-testid="state-labels" aria-hidden="true">
             <span>Cond</span>
-            <span>Mor</span>
             <span>Shp</span>
+            <span>Mor</span>
           </span>
         )}
       </span>

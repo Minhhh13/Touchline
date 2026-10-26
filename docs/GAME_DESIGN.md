@@ -95,7 +95,7 @@ Seven coach marks (`TIP_IDS` in `src/game/logic/tips.ts`; seven is the ceiling) 
 | --- | --- | --- |
 | `draft-first-reveal` | above the landed squad, while the XI is being filled | Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft. |
 | `draft-bench` | under the needs panel once the XI is full (and the wheel has not run dry) | Bench picks can be anyone un-drafted; cover every position, injuries will come. |
-| `dugout-first` | top of the Squad tab | The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one. |
+| `dugout-first` | top of the Squad tab | The bars are condition and sharpness, the face his morale; the arrow is his form. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one. |
 | `tactics-first` | top of the Tactics tab | A role moves a player's quality between units; rating in role is what the engine uses, and the team rating updates as you change it. |
 | `halftime-first` | inside the half-time panel (not at the 70th minute) | A talk, four instructions and up to three substitutions; No changes plays on. |
 | `report-first` | above the match report's tactical notes | xG is the chances each side created; the notes are the exact modifiers your instructions produced. |

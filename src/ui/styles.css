@@ -1459,6 +1459,106 @@ label.field,
 .state-bars .bar {
   height: 5px;
 }
+/* The morale face sits in the third cell of the state line, after condition and sharpness */
+.state-bars {
+  align-items: center;
+}
+.state-bars .md-morale {
+  display: block;
+}
+/* Form on a squad row: the arrow (last three against the season), the last-five sparkline, the MOTM star */
+.form-arrow {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-3);
+}
+.form-arrow.up {
+  color: var(--good);
+}
+.form-arrow.down {
+  color: var(--danger);
+}
+.spark {
+  flex: none;
+  display: block;
+}
+.spark-line {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+.spark-dot {
+  fill: var(--meter-mid);
+}
+.spark-dot.good {
+  fill: var(--good);
+}
+.spark-dot.bad {
+  fill: var(--danger);
+}
+.chip.motm-chip {
+  padding: 0 6px;
+  gap: 2px;
+}
+@media (max-width: 720px) {
+  .prow .spark {
+    display: none;
+  }
+}
+/* Inbox: the filter chips over the feed and the pinned row while something waits on the manager */
+.inbox-filters {
+  gap: 6px;
+  margin-bottom: var(--space-2);
+}
+.inbox-filters .chip-btn {
+  font-size: var(--fs-meta);
+  padding: 3px 10px;
+}
+.needs-you {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-m);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+  background: var(--warn-soft);
+}
+.needs-you-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--warn);
+}
+/* The opponent's place today on a fixture row */
+.fx-pos {
+  flex: none;
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+/* The squad list's view switch: a compact segmented control in the panel head */
+.segmented.squad-views-seg {
+  flex-wrap: nowrap;
+  padding: 2px;
+  gap: 2px;
+}
+.segmented.squad-views-seg button {
+  min-height: 26px;
+  padding: 2px 9px;
+  font-size: var(--fs-meta);
+}
+.rating-word.good {
+  color: var(--good);
+}
+.rating-word.mid {
+  color: var(--text);
+}
+.rating-word.bad {
+  color: var(--danger);
+}
 .state-labels span {
   font-size: 10px;
   line-height: 1;
@@ -6245,6 +6345,32 @@ table.tbl.contracts .btn.sm {
 }
 .role-name {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/* His familiarity with the system, a thin bar under his name; the XI's mean in the panel head */
+.role-fam-bar {
+  width: 120px;
+  max-width: 100%;
+}
+.role-fam-bar .bar {
+  height: 4px;
+}
+.role-head-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.role-fam {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.role-fam .bar {
+  width: 64px;
+  height: 5px;
 }
 .role-pick {
   display: inline-flex;
@@ -8503,6 +8629,29 @@ table.tbl.match-stats th {
 }
 .pc-rival-key {
   font-size: 11px;
+}
+.pc-target line {
+  stroke: var(--text-2);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.pc-target text {
+  fill: var(--text-2);
+}
+/* The Dugout's Table tab: the table and, beside it, the season so far as a position chart */
+.grid.table-grid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+}
+.grid.table-grid .pos-chart svg {
+  width: 100%;
+  height: auto;
+  max-height: max(220px, calc(100dvh - 470px));
+  display: block;
+}
+@media (max-width: 1050px) {
+  .grid.table-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* The summary's lead: the record against 38-0, wins, draws and losses in their own colours */
