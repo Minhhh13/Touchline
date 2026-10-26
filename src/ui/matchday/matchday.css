@@ -418,6 +418,16 @@
   font-weight: 700;
   line-height: 1.15;
 }
+.matchday .md-since {
+  flex: none;
+  font-size: 10px;
+  line-height: 1.25;
+  padding-top: 2px;
+  border-top: 1px dashed var(--line);
+}
+.matchday .md-flank.away .md-since {
+  text-align: right;
+}
 .matchday .md-view-stats {
   flex: none;
   width: 100%;
