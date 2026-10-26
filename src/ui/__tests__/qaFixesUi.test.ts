@@ -109,3 +109,20 @@ describe('QA-8: ARIA states and keyboard-reachable scroll panels', () => {
     for (const b of bodies) expect(b[2]).toContain('tabindex="0"')
   })
 })
+
+describe('QA-11: a game link that arrives damaged', () => {
+  it('reads past punctuation glued to its end and says so when it still cannot be read', async () => {
+    const { readGameHash } = await import('../gameHash')
+    expect(readGameHash('#c=eyJ2IjoxfQ')).toEqual({ link: { kind: 'c', payload: 'eyJ2IjoxfQ' }, damaged: false })
+    expect(readGameHash('#c=eyJ2IjoxfQ).')).toEqual({ link: { kind: 'c', payload: 'eyJ2IjoxfQ' }, damaged: false })
+    expect(readGameHash('#s=K7Q2MX9A!')).toEqual({ link: { kind: 's', code: 'K7Q2MX9A' }, damaged: false })
+    expect(readGameHash('#h=K7Q2MX9A%29')).toEqual({ link: { kind: 'h', code: 'K7Q2MX9A' }, damaged: false })
+    // Damaged inside, or a short code that is not one: say so (the page used to ignore it without a word)
+    expect(readGameHash('#c=eyJ2Ij oxfQ')).toEqual({ link: null, damaged: true })
+    expect(readGameHash('#s=K7Q2MX91')).toEqual({ link: null, damaged: true })
+    // Anything else is not a game link at all
+    expect(readGameHash('')).toEqual({ link: null, damaged: false })
+    expect(readGameHash('#top')).toEqual({ link: null, damaged: false })
+    expect(readGameHash('#access_token=abc')).toEqual({ link: null, damaged: false })
+  })
+})

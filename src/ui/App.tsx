@@ -38,7 +38,7 @@ import { WorldBoard } from './online/WorldBoard'
 import { AccountChip } from './online/AccountChip'
 import { AccountScreen } from './online/AccountPanel'
 import { RoomScreen } from './online/Rooms'
-import { parseGameHash } from '../online/core/codes'
+import { DAMAGED_LINK_TOAST, readGameHash } from './gameHash'
 import { onlineAvailable, openRoom, resolveShort } from '../online/api'
 
 export function App() {
@@ -100,7 +100,12 @@ export function App() {
   useEffect(() => {
     if (!universe) return
     const open = () => {
-      const h = parseGameHash(location.hash)
+      const { link: h, damaged } = readGameHash(location.hash)
+      if (damaged) {
+        history.replaceState(null, '', location.pathname + location.search)
+        useStore.getState().showToast(DAMAGED_LINK_TOAST)
+        return
+      }
       if (!h) return
       // A head-to-head room link (`#h=K7Q2MX9A`) opens the room screen, which keeps the hash while it is open
       if (h.kind === 'h') {
