@@ -101,7 +101,8 @@ export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]
 
 /**
  * The Quick Draft's Modes row: icon cards that switch on and off, several at once. What a tap does to the others (Hard
- * linked to the difficulty, Underdog and Legends exclusive) is the caller's `toggleModeCard`; this only renders.
+ * linked to the difficulty, Underdog and Legends exclusive) is the caller's `toggleModeCard`; this only renders. Each card
+ * carries its line as `data-tip`, which the `HoverTips` around the row shows on hover, focus or a tap.
  */
 export function ModeCards<T extends string>({ cards, on, info, icons, onToggle }: { cards: readonly T[]; on: readonly T[]; info: Record<T, { icon: string; title: string; line: string }>; icons?: Record<T, LucideIcon>; onToggle: (card: T) => void }) {
   return (
@@ -110,7 +111,7 @@ export function ModeCards<T extends string>({ cards, on, info, icons, onToggle }
         const active = on.includes(c)
         const Icon: LucideIcon | undefined = icons?.[c]
         return (
-          <button key={c} type="button" className={`qmode ${active ? 'active' : ''}`} aria-pressed={active} onClick={() => onToggle(c)} data-testid={`mode-${c}`} title={info[c].line}>
+          <button key={c} type="button" className={`qmode ${active ? 'active' : ''}`} aria-pressed={active} onClick={() => onToggle(c)} data-testid={`mode-${c}`} data-tip={info[c].line}>
             <span className="micon" aria-hidden="true">
               {Icon ? <Icon size="1em" /> : info[c].icon}
             </span>

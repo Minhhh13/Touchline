@@ -10037,13 +10037,19 @@ table.tbl tr.chase-perfect td:first-child {
   outline: 2px solid var(--primary, var(--accent));
   outline-offset: 1px;
 }
+.qinfo-btn:hover,
+.qinfo-btn[aria-expanded='true'] {
+  border-color: var(--primary);
+  color: var(--text);
+}
+/* InfoTip's bubble is portalled to <body> and fixed to the window beside its button (placeTip in tipPlacement.ts sets
+   left, top, width and max-height), so the rules box's overflow never squeezes or clips it */
 .qinfo-bubble {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  right: -4px;
-  width: max-content;
-  max-width: min(240px, 70vw);
+  position: fixed;
+  z-index: 60;
+  max-width: calc(100vw - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 8px 10px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-s);
