@@ -645,7 +645,7 @@ p {
   color: var(--text-2);
   padding: 6px 12px;
   border-radius: var(--radius-pill);
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
   transition: background var(--dur-1) ease, color var(--dur-1) ease, border-color var(--dur-1) ease, transform var(--dur-1) var(--ease-out);
@@ -694,7 +694,7 @@ p {
   }
   .topbar nav button {
     padding: 6px 10px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
 }
 /* The sun and moon: flips Light and Dark and stores the choice on the profile */
@@ -793,10 +793,10 @@ p {
     grid-template-columns: 1fr;
   }
   h1 {
-    font-size: 30px;
+    font-size: calc(var(--fs-h1) - 2px);
   }
   h2 {
-    font-size: 22px;
+    font-size: calc(var(--fs-h2) - 2px);
   }
   .page {
     padding: var(--space-3) var(--gutter) 80px;
@@ -829,10 +829,10 @@ p {
     height: 34px;
   }
   .scoreboard .score {
-    font-size: 40px;
+    font-size: calc(var(--fs-h1) * 1.25);
   }
   .scoreboard .team {
-    font-size: 16px;
+    font-size: calc(var(--fs-base) + 2px);
   }
   .page.has-bottom-bar {
     /* The fixed bar's measured height plus a gap; 150px until it is measured */
