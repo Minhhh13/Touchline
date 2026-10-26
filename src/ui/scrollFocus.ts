@@ -57,9 +57,18 @@ export function syncScrollFocus(root: ParentNode = document): void {
 export function watchScrollFocus(root: HTMLElement = document.body, wait = 500): () => void {
   if (typeof MutationObserver === 'undefined') return () => undefined
   let timer: ReturnType<typeof setTimeout> | null = null
+  let settle: ReturnType<typeof setTimeout> | null = null
+  // One more pass a little after each burst: a box can start to scroll with no DOM change of its own (a web font or
+  // a count-up's last width landing), which the observer never sees
+  const recheck = () => {
+    settle = null
+    syncScrollFocus(root)
+  }
   const run = () => {
     timer = null
     syncScrollFocus(root)
+    if (settle !== null) clearTimeout(settle)
+    settle = setTimeout(recheck, wait * 3)
   }
   const schedule = () => {
     if (timer === null) timer = setTimeout(run, wait)
@@ -72,5 +81,6 @@ export function watchScrollFocus(root: HTMLElement = document.body, wait = 500):
     mo.disconnect()
     window.removeEventListener('resize', schedule)
     if (timer !== null) clearTimeout(timer)
+    if (settle !== null) clearTimeout(settle)
   }
 }
