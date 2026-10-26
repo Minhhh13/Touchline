@@ -285,3 +285,15 @@ export function cardSeries(perMinute: number[]): number[] {
   out[out.length - 1] = perMinute[perMinute.length - 1]
   return out
 }
+
+/**
+ * What the play since a stop has produced for both sides (the "since the shout" read-out): expected goals and shots
+ * between minute `from` and the clock, read from the decided series up to the clock only. Null until the clock passes `from`.
+ */
+export function sinceMinute(series: StatsSeries, from: number, minute: number): { home: { xg: number; shots: number }; away: { xg: number; shots: number } } | null {
+  if (minute <= from) return null
+  const a = statsAt(series, from)
+  const b = statsAt(series, minute)
+  const side = (x: TeamStatLine, y: TeamStatLine) => ({ xg: Math.max(0, Math.round((y.xg - x.xg) * 100) / 100), shots: Math.max(0, y.shots - x.shots) })
+  return { home: side(a.home, b.home), away: side(a.away, b.away) }
+}

@@ -27,6 +27,8 @@ import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
 import { matchPath } from '../match/epochs'
 import { useLiveClock } from '../match/clockStore'
+import { isControlTarget } from '../dugoutKeys'
+import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
 import { goalHolds } from '../match/possession'
 import { samplePlayers } from '../match/heat'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
@@ -99,6 +101,36 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const pending = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock.clock && h.t >= start)
   const minute = pending ? Math.max(start, clock.clock - 1) : clock.clock
   const whistle = clock.finished && final
+
+  // Highlights: the clock runs fast through the quiet minutes (a UI clock change only; the segment is already decided)
+  const [level, setLevelState] = useState<HighlightLevel>(readLevel)
+  const setLevel = useCallback((l: HighlightLevel) => {
+    setLevelState(l)
+    writeLevel(l)
+  }, [])
+  const levelNow = levelAt(feed.events, level, clock.clock)
+  const boost = clock.running ? boostAt(feed.events, level, clock.clock) : 1
+  const setBoost = clock.setBoost
+  useEffect(() => {
+    setBoost(boost)
+  }, [boost, setBoost])
+  // P pauses and resumes, except while typing or on a focused control
+  const toggleClock = clock.toggle
+  const canToggle = !clock.finished
+  useEffect(() => {
+    if (!canToggle) return
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== 'p' && e.key !== 'P') || e.ctrlKey || e.metaKey || e.altKey || isControlTarget(e.target as HTMLElement | null)) return
+      e.preventDefault()
+      toggleClock()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [canToggle, toggleClock])
+  // Leaving the match (or a new segment) never carries a fast-forward over
+  useEffect(() => () => useLiveClock.setState({ boost: 1 }), [])
+  const score = levelNow.wound ? marginAt(feed.events, clock.clock) : null
+  const highlights = { level, setLevel, wound: score ? `${Math.max(score.home, score.away)}-${Math.min(score.home, score.away)}` : null, fast: boost > 1 }
 
   const [selected, setSelected] = useState<string | null>(null)
   const friendly = !!ref.friendly
@@ -202,7 +234,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
         simResult: !final && onSimToEnd ? () => onSimToEnd() : undefined,
       }
     : undefined
-  const top = <TopBar feed={feed} clock={clock} minute={minute} home={home} away={away} label={label} control={control} hand={hand} playback={playback} />
+  const top = <TopBar feed={feed} clock={clock} minute={minute} home={home} away={away} label={label} control={control} hand={hand} playback={playback} highlights={highlights} />
   const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} hideRatings={ratingsHidden(game.settings.rules)} /> : null
   const pitch = (
     <LivePitch
@@ -282,4 +314,19 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
       {stop}
     </div>
   )
+}
+
+function readLevel(): HighlightLevel {
+  try {
+    return parseLevel(localStorage.getItem(HIGHLIGHTS_KEY))
+  } catch {
+    return 'full'
+  }
+}
+function writeLevel(l: HighlightLevel): void {
+  try {
+    localStorage.setItem(HIGHLIGHTS_KEY, l)
+  } catch {
+    // Private window or blocked storage: the level is simply not remembered
+  }
 }

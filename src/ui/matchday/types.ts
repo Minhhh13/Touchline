@@ -34,6 +34,8 @@ export interface MatchClockApi {
   pause(): void
   resume(): void
   setSpeed(s: Speed): void
+  /** The highlights' fast-forward through quiet minutes (1 for none): not a speed, never remembered. */
+  setBoost(b: number): void
   skip(): void
 }
 

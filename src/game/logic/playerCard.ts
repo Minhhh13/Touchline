@@ -124,29 +124,6 @@ export function formBand(r: number): 'good' | 'mid' | 'bad' {
   return r >= 7.5 ? 'good' : r < 6 ? 'bad' : 'mid'
 }
 
-export interface FormTrend {
-  dir: 'up' | 'flat' | 'down'
-  /** Mean of the last three ratings. */
-  last3: number
-  /** Season average. */
-  avg: number
-  /** "Form rising: 7.4 over the last 3, 6.8 this season" */
-  title: string
-}
-
-/** The squad row's arrow: the last three ratings against the season average, with a ±0.3 flat band. Null until three games and a season average exist. */
-export function formTrend(s: Pick<SquadPlayer, 'recentRatings' | 'seasonStats'>): FormTrend | null {
-  const r = s.recentRatings
-  if (r.length < 3 || s.seasonStats.apps <= 0) return null
-  const last = r.slice(-3)
-  const last3 = last.reduce((x, y) => x + y, 0) / last.length
-  const avg = s.seasonStats.ratingSum / s.seasonStats.apps
-  const diff = last3 - avg
-  const dir = diff > 0.3 ? 'up' : diff < -0.3 ? 'down' : 'flat'
-  const word = dir === 'up' ? 'rising' : dir === 'down' ? 'falling' : 'steady'
-  return { dir, last3, avg, title: `Form ${word}: ${last3.toFixed(1)} over the last 3, ${avg.toFixed(1)} this season` }
-}
-
 export interface FormPoint {
   index: number
   rating: number

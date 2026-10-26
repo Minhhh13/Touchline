@@ -12,6 +12,7 @@ import { minuteLabel } from '../../format'
 import { changeText, latestLine, type CommentaryLine } from '../../match/commentary'
 import { momentumScale } from '../../match/charts'
 import { surname } from '../../match/shirts'
+import { assistantCheckpoint, assistantLine } from '../../match/assistant'
 import { ChangeIcon, EventIcon, SubIcon } from '../icons'
 import { keyItems, momentumSpells, statRows } from '../model'
 import type { PanelProps } from '../types'
@@ -241,6 +242,23 @@ export function CommentaryBanner({ d }: PanelProps) {
     for (let i = lines.length - 1; i >= 0; i--) if (['goal', 'card', 'injury', 'sub'].includes(lines[i].kind)) return lines[i]
     return null
   }, [lines])
+  // The assistant's word at 15, 30, 60 and 80 minutes, for a few minutes, unless a moment since has taken the banner
+  const cp = assistantCheckpoint(d.minute)
+  const side = d.userSide
+  const assist = useMemo(() => (cp !== null && side ? assistantLine(d.feed, d.series, side, cp, d.getName) : null), [cp, side, d.feed, d.series, d.getName])
+  if (assist && (!line || line.kind === 'play' || line.minute < assist.minute)) {
+    return (
+      <div className="md-banner assistant key" data-testid="assistant-line">
+        <span className="min mono">{minuteLabel(assist.minute)}</span>
+        <span className="txt" key={`a${assist.minute}`}>
+          <b className="md-assistant-tag">Assistant</b> {assist.text}
+        </span>
+        <span className="sr-only" aria-live="polite">
+          {`Assistant: ${assist.text}`}
+        </span>
+      </div>
+    )
+  }
   const tone = line?.kind === 'goal' ? 'goal' : line?.kind === 'card' ? 'card' : ''
   const moment = !!line && line.kind !== 'play'
   return (

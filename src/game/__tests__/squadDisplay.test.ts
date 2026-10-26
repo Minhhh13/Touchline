@@ -1,0 +1,281 @@
+import { describe, expect, it } from 'vitest'
+import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { computeTable, positionOf, USER_TEAM, type NewsItem } from '@engine/season'
+import { getFormation } from '@engine/formations'
+import { DEFAULT_ROLE, rolesFor } from '@engine/roles'
+import { playerLookup, squadPlayers } from '../logic/players'
+import { teamStrength } from '../logic/squad'
+import { topAttributes, doneDeals, EVEN_BAND, filterNews, matchUp, seasonStrip, tableBand, tickerLines, formTitle, formTrend, FORM_BAND, inboxGroup, INBOX_FILTERS, minutesLast3, positionHistory, positionStory, ratingBand, roleFit, roleOptions, sparkPoints, teamFamiliarity, windowCountdown } from '../logic/squadDisplay'
+import { seasonGame } from './seasonGame'
+import { nextOpponent } from '../logic/week'
+
+const u = loadTestUniverse(['england'])
+
+const stats = (ratings: number[]) => ({ recentRatings: ratings, seasonStats: { apps: ratings.length, starts: ratings.length, goals: 0, assists: 0, minutes: 90 * ratings.length, ratingSum: ratings.reduce((a, b) => a + b, 0), cleanSheets: 0, motm: 0 } })
+
+describe('form on a squad row', () => {
+  it('reads the last three ratings against the season average with a ±0.3 band', () => {
+    expect(formTrend(stats([7, 7]))).toBeNull()
+    expect(formTrend(stats([7, 7, 7]))!.dir).toBe('flat')
+    const up = formTrend({ recentRatings: [7.5, 7.6, 7.7], seasonStats: { ...stats([]).seasonStats, apps: 10, ratingSum: 68 } })!
+    expect(up.dir).toBe('up')
+    expect(formTitle(up)).toBe('Form rising: 7.6 over the last 3, 6.8 this season')
+    const down = formTrend({ recentRatings: [6.0, 6.1, 6.2], seasonStats: { ...stats([]).seasonStats, apps: 10, ratingSum: 70 } })!
+    expect(down.dir).toBe('down')
+    expect(formTitle(down)).toMatch(/^Form falling: 6\.1/)
+    // Exactly the band is still steady
+    const edge = formTrend({ recentRatings: [7.3, 7.3, 7.3], seasonStats: { ...stats([]).seasonStats, apps: 10, ratingSum: 70 } })!
+    expect(edge.recent - edge.season).toBeCloseTo(FORM_BAND, 5)
+    expect(edge.dir).toBe('flat')
+  })
+
+  it('over a played season every row gets an arrow that agrees with its numbers', () => {
+    let arrows = 0
+    for (const seed of ['form-1', 'form-2', 'form-3']) {
+      const g = seasonGame(u, seed, 8)
+      for (const s of Object.values(g.squad)) {
+        const t = formTrend(s)
+        if (!t) {
+          expect(s.recentRatings.length < 3 || s.seasonStats.apps < 3).toBe(true)
+          continue
+        }
+        arrows++
+        const gap = t.recent - t.season
+        expect(t.dir).toBe(gap > FORM_BAND ? 'up' : gap < -FORM_BAND ? 'down' : 'flat')
+      }
+    }
+    expect(arrows).toBeGreaterThan(20)
+  }, 60_000)
+
+  it('bands ratings and draws the sparkline on a fixed scale inside its box', () => {
+    expect(ratingBand(7.5)).toBe('good')
+    expect(ratingBand(7.49)).toBe('mid')
+    expect(ratingBand(6)).toBe('mid')
+    expect(ratingBand(5.9)).toBe('bad')
+    expect(sparkPoints([])).toEqual([])
+    const pts = sparkPoints([4, 6, 7, 8, 10, 6.5], 40, 14)
+    expect(pts).toHaveLength(5)
+    expect(pts[0].r).toBe(6)
+    for (const p of pts) {
+      expect(p.x).toBeGreaterThanOrEqual(0)
+      expect(p.x).toBeLessThanOrEqual(40)
+      expect(p.y).toBeGreaterThanOrEqual(0)
+      expect(p.y).toBeLessThanOrEqual(14)
+    }
+    // Higher ratings sit higher (smaller y); out-of-scale ratings clamp to the edge
+    expect(pts[2].y).toBeLessThan(pts[1].y)
+    expect(sparkPoints([10, 12])[0].y).toBe(sparkPoints([10, 12])[1].y)
+  })
+
+  it('sums the minutes of the last three matchweeks, and has none on an old save', () => {
+    expect(minutesLast3({ recentMinutes: [90, 90, 0, 45, 90, 20] })).toBe(155)
+    expect(minutesLast3({ recentMinutes: [] })).toBe(0)
+    expect(minutesLast3({})).toBeNull()
+  })
+})
+
+describe('roles', () => {
+  it('grades the fit by the gap between his effective rating in the role and his overall', () => {
+    expect(roleFit(80, 80)).toBe('suits')
+    expect(roleFit(79, 80)).toBe('suits')
+    expect(roleFit(78.9, 80)).toBe('fair')
+    expect(roleFit(76, 80)).toBe('fair')
+    expect(roleFit(75.9, 80)).toBe('poor')
+    expect(roleFit(84, 80)).toBe('suits')
+  })
+
+  it('labels every role option with his rating there, and the default role matches the engine', () => {
+    const g = seasonGame(u, 'roles-1', 2)
+    const get = playerLookup(g, u)
+    const formation = getFormation(g.tactics.formationId)
+    const strength = teamStrength(g, u)
+    for (const slot of formation.slots) {
+      const p = get(g.lineup[slot.id])!
+      const opts = roleOptions(p, slot.position)
+      expect(opts.map((o) => o.id)).toEqual(rolesFor(slot.position).map((r) => r.id))
+      for (const o of opts) {
+        expect(o.rating).toBeGreaterThan(20)
+        expect(o.rating).toBeLessThan(100)
+      }
+      const ev = strength.slots.find((s) => s.slotId === slot.id)!
+      const chosen = opts.find((o) => o.id === (g.tactics.roles[slot.id] ?? DEFAULT_ROLE[slot.position]))!
+      expect(chosen.rating).toBe(Math.round(ev.base))
+    }
+    expect(roleOptions(undefined, 'CB').every((o) => o.rating === null)).toBe(true)
+  }, 60_000)
+
+  it("averages the XI's familiarity", () => {
+    const g = seasonGame(u, 'roles-2', 0)
+    const xi = Object.values(g.lineup).map((id) => g.squad[id].familiarity)
+    expect(teamFamiliarity(g)).toBeCloseTo(xi.reduce((a, b) => a + b, 0) / xi.length, 6)
+    expect(teamFamiliarity({ lineup: {}, squad: g.squad })).toBeNull()
+  })
+})
+
+describe('the inbox filters', () => {
+  it('put every kind in exactly one filter, and All keeps the feed in order with its indexes', () => {
+    const kinds: NewsItem['kind'][] = ['result', 'injury', 'suspension', 'board', 'transfer', 'award', 'event', 'cup', 'training', 'info']
+    for (const k of kinds) expect(INBOX_FILTERS.some((f) => f.id === inboxGroup(k))).toBe(true)
+    expect(inboxGroup('result')).toBe('matches')
+    expect(inboxGroup('cup')).toBe('matches')
+    expect(inboxGroup('transfer')).toBe('market')
+    expect(inboxGroup('board')).toBe('board')
+    expect(inboxGroup('injury')).toBe('squad')
+    const g = seasonGame(u, 'inbox-1', 6)
+    const news = g.season!.news
+    expect(filterNews(news, 'all').map((x) => x.i)).toEqual(news.map((_, i) => i))
+    const total = (['matches', 'squad', 'market', 'board'] as const).reduce((s, f) => s + filterNews(news, f).length, 0)
+    expect(total).toBe(news.length)
+    expect(filterNews(news, 'matches').length).toBeGreaterThan(0)
+    for (const { n, i } of filterNews(news, 'squad')) expect(news[i]).toBe(n)
+  }, 60_000)
+})
+
+describe('deadline day', () => {
+  it('lists signings at the fee bid (or the loan fee) and sales at the accepted offer, and the ticker takes the newest lines', () => {
+    const base = { asking: 10, opening: 10, suitors: 0, listedDay: 0, tags: [] }
+    const w = {
+      listings: [
+        { ...base, playerSeasonId: 'a', status: 'signed' as const, bid: 9 },
+        { ...base, playerSeasonId: 'b', status: 'signed' as const, loan: true, loanFee: 1.5 },
+        { ...base, playerSeasonId: 'c', status: 'gone' as const },
+        { ...base, playerSeasonId: 'd', status: 'available' as const },
+      ],
+      offers: [
+        { playerSeasonId: 'e', fromClubId: 'arsenal', amount: 22, day: 2, status: 'accepted' as const },
+        { playerSeasonId: 'f', fromClubId: 'chelsea', amount: 5, day: 2, status: 'rejected' as const },
+      ],
+      log: ['7', '6', '5', '4', '3', '2', '1'],
+    }
+    expect(doneDeals(w)).toEqual([
+      { dir: 'in', playerSeasonId: 'a', fee: 9, loan: false },
+      { dir: 'in', playerSeasonId: 'b', fee: 1.5, loan: true },
+      { dir: 'out', playerSeasonId: 'e', fee: 22, loan: false, clubId: 'arsenal' },
+    ])
+    expect(tickerLines(w)).toEqual(['7', '6', '5', '4', '3'])
+    expect(tickerLines({ log: [] })).toEqual([])
+  })
+})
+
+describe('the window countdown', () => {
+  it('counts the market days left after today and says so on the last', () => {
+    expect(windowCountdown({ day: 0, days: 7 })).toEqual({ daysLeft: 6, label: 'Window shuts in 6 days', last: false })
+    expect(windowCountdown({ day: 5, days: 7 }).label).toBe('Window shuts in 1 day')
+    expect(windowCountdown({ day: 6, days: 7 })).toEqual({ daysLeft: 0, label: 'Window shuts today', last: true })
+  })
+})
+
+describe('the league position by matchweek', () => {
+  it('matches the table recomputed at each matchweek, ends at the table today, and covers every played matchweek', () => {
+    for (const seed of ['pos-1', 'pos-2']) {
+      const g = seasonGame(u, seed, 10)
+      const s = g.season!
+      const ids = [USER_TEAM, ...Object.keys(s.ai)]
+      const h = positionHistory(s.fixtures, ids)
+      expect(h.matchweeks).toEqual(Array.from({ length: s.matchweek }, (_, i) => i + 1))
+      const now = computeTable(s.fixtures, ids)
+      for (const id of ids) {
+        expect(h.byTeam[id]).toHaveLength(h.matchweeks.length)
+        expect(h.byTeam[id][h.byTeam[id].length - 1]).toBe(positionOf(now, id))
+        for (const p of h.byTeam[id]) {
+          expect(p).toBeGreaterThanOrEqual(1)
+          expect(p).toBeLessThanOrEqual(ids.length)
+        }
+      }
+      const at5 = computeTable(s.fixtures.filter((f) => f.matchweek <= 5), ids)
+      expect(h.byTeam[USER_TEAM][4]).toBe(positionOf(at5, USER_TEAM))
+      // Each matchweek's positions are a permutation of 1..n
+      for (let k = 0; k < h.matchweeks.length; k++) expect(new Set(ids.map((id) => h.byTeam[id][k])).size).toBe(ids.length)
+      const story = positionStory(s.fixtures, ids)
+      expect(story.series).toEqual(h.byTeam[USER_TEAM])
+      expect(story.rivals).toHaveLength(2)
+      for (const r of story.rivals) expect(r.teamId).not.toBe(USER_TEAM)
+      // Before a ball is kicked there is nothing to draw
+      const fresh = seasonGame(u, seed, 0)
+      expect(positionStory(fresh.season!.fixtures, ids).series).toEqual([])
+      expect(squadPlayers(g, u).length).toBeGreaterThan(10)
+    }
+  }, 60_000)
+})
+
+describe('the next match', () => {
+  it('sets our units against the opponent unit by unit, marking only edges beyond the even band', () => {
+    let ahead = 0
+    let behind = 0
+    for (const seed of ['next-1', 'next-2', 'next-3', 'next-4']) {
+      const g = seasonGame(u, seed, 3)
+      const next = nextOpponent(g)
+      if (!next) continue
+      const rows = matchUp(g, u, next.clubId)!
+      expect(rows.map((r) => r.label)).toEqual(['Our attack v their defence', 'Midfield v midfield', 'Our defence v their attack', 'Our keeper v their attack', 'Overall'])
+      const us = teamStrength(g, u)
+      expect(rows[0].ours).toBeCloseTo(us.attack, 1)
+      expect(rows[4].ours).toBeCloseTo(us.overall, 1)
+      for (const r of rows) {
+        const gap = r.ours - r.theirs
+        if (r.edge === 'ahead') ahead++
+        if (r.edge === 'behind') behind++
+        expect(r.edge).toBe(gap > EVEN_BAND + 0.051 ? 'ahead' : gap < -EVEN_BAND - 0.051 ? 'behind' : r.edge)
+        expect(r.theirs).toBeGreaterThan(30)
+      }
+    }
+    expect(ahead + behind).toBeGreaterThan(0)
+    expect(matchUp(seasonGame(u, 'next-1', 0), u, 'not-a-club')).toBeNull()
+  }, 60_000)
+})
+
+describe('the season calendar strip', () => {
+  it('has a cell per matchweek with the result from the score, the band from today\'s table and the cup ties after it', () => {
+    let ties = 0
+    for (const seed of ['strip-1', 'strip-2']) {
+      const g = seasonGame(u, seed, 14)
+      const s = g.season!
+      const ids = [USER_TEAM, ...Object.keys(s.ai)]
+      const table = computeTable(s.fixtures, ids)
+      const cells = seasonStrip(g, table)
+      expect(cells.map((c) => c.matchweek)).toEqual(Array.from({ length: s.matchweeks }, (_, i) => i + 1))
+      for (const c of cells) {
+        const f = s.fixtures.find((x) => x.matchweek === c.matchweek && (x.homeTeamId === USER_TEAM || x.awayTeamId === USER_TEAM))
+        if (!f) {
+          expect(c.opp).toBeNull()
+          continue
+        }
+        expect(c.home).toBe(f.homeTeamId === USER_TEAM)
+        if (c.matchweek <= s.matchweek) {
+          const r = f.result!
+          const gf = c.home ? r.homeGoals : r.awayGoals
+          const ga = c.home ? r.awayGoals : r.homeGoals
+          expect(c.outcome).toBe(gf > ga ? 'W' : gf < ga ? 'L' : 'D')
+        } else expect(c.outcome).toBeUndefined()
+        expect(c.band).toBe(tableBand(positionOf(table, c.opp!), ids.length))
+        ties += c.ties.length
+        for (const t of c.ties) if (t.outcome) expect(['W', 'L']).toContain(t.outcome)
+      }
+    }
+    expect(ties).toBeGreaterThan(0)
+    expect(tableBand(4, 20)).toBe('top')
+    expect(tableBand(5, 20)).toBe('mid')
+    expect(tableBand(17, 20)).toBe('bottom')
+    expect(tableBand(16, 20)).toBe('mid')
+  }, 60_000)
+})
+
+describe('the hover card', () => {
+  it("lists a player's three best attributes, a keeper's goalkeeping first and an outfielder's never", () => {
+    let keepers = 0
+    for (const p of Object.values(u.index).slice(0, 3000)) {
+      const top = topAttributes(p)
+      expect(top).toHaveLength(3)
+      if (p.positions[0] === 'GK') {
+        keepers++
+        expect(top[0].key).toBe('goalkeeping')
+      } else {
+        expect(top.some((a) => a.key === 'goalkeeping')).toBe(false)
+        expect(top[0].value).toBeGreaterThanOrEqual(top[1].value)
+        expect(top[1].value).toBeGreaterThanOrEqual(top[2].value)
+        for (const k of ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical', 'mentality'] as const) if (!top.some((a) => a.key === k)) expect(p.attributes[k]).toBeLessThanOrEqual(top[2].value)
+      }
+    }
+    expect(keepers).toBeGreaterThan(50)
+  })
+})

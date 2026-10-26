@@ -5,6 +5,7 @@ import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoo
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
 import { tierOdds } from '@game/logic/tierOdds'
+import { bestPick, pickGrades, type PickGrade } from '@game/logic/pickGrades'
 import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
 import { PowerUpTray } from '../components/PowerUps'
@@ -119,6 +120,11 @@ export function Draft() {
   const forced = forcedSlotOf(d)
   const surprise = d.surprise && d.surprise.atSpin === d.spins && !d.current ? d.surprise : null
   const complete = isComplete(d)
+  // Pick grades once the squad is complete (never while ratings are hidden): each XI pick against the best on its spin
+  const graded = complete && !hiddenAll ? pickGrades(u, d, get) : []
+  const grades = new Map(graded.map((g) => [g.spin, g]))
+  const top = bestPick(graded)
+  const gradeLine = top ? `Best pick: spin ${top.spin + 1}, ${get(top.pickedId)?.name ?? ''} (${top.grade}) · ${graded.filter((g) => g.grade === 'A').length} of ${graded.length} picks graded A` : null
   // A Quick Draft bench: the XI's eleven picks, then up to `places` more, optional
   const places = benchPlaces(d.rules)
   const total = places ? 11 + places : d.rules.squadSize
@@ -366,6 +372,11 @@ export function Draft() {
                   ))}
                 </div>
               )}
+              {gradeLine && (
+                <div className="small muted" data-testid="best-pick" style={{ marginBottom: 'var(--space-2)' }}>
+                  {gradeLine}
+                </div>
+              )}
               <ol className="draft-log">
                 {[...d.history].reverse().map((h, i) => {
                   const p = h.pickedId ? get(h.pickedId) : undefined
@@ -382,6 +393,11 @@ export function Draft() {
                         <span className="when">
                           {isIcons(h) ? <TierDot tier="icons" /> : tier && <TierDot tier={tier} />}
                           {isIcons(h) ? 'Icons' : seasonLabel(h.season)}
+                          {grades.has(at) && (
+                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={`${grades.get(at)!.rating} in his slot; the best on that spin was ${grades.get(at)!.best} (${grades.get(at)!.bestName})`}>
+                              {grades.get(at)!.grade}
+                            </span>
+                          )}
                           {h.twist && TwistIcon && (
                             <span className="log-twist" title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
                               <TwistIcon size={12} aria-hidden="true" />
@@ -583,3 +599,5 @@ export function Draft() {
     </div>
   )
 }
+
+const GRADE_CLASS: Record<PickGrade, string> = { A: 'good', B: 'info', C: 'warn', D: 'bad' }

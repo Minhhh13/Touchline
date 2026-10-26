@@ -94,7 +94,7 @@ export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, aut
   useLayoutEffect(() => {
     const now = performance.now()
     const { start: from, autoStart: go } = mounted.current
-    const anchor = { at: Math.min(from, end), since: now, spent: Infinity, running: go && from < end, speed: readSpeed(), period, stopAt, end, holds }
+    const anchor = { at: Math.min(from, end), since: now, spent: Infinity, running: go && from < end, speed: readSpeed(), boost: 1, period, stopAt, end, holds }
     useLiveClock.setState({ ...anchor, ...readout(anchor, now, flight) })
     done.current = false
     setArmed(true)
@@ -184,6 +184,11 @@ export function useMatchClock({ start, stopAt, final, period = PITCH_PERIOD, aut
       const s = useLiveClock.getState()
       useLiveClock.setState({ ...reanchor(s, performance.now()), speed: v })
       saveSpeed(v)
+    },
+    setBoost: (b: number) => {
+      const s = useLiveClock.getState()
+      if ((s.boost ?? 1) === b) return
+      useLiveClock.setState({ ...reanchor(s, performance.now()), boost: b })
     },
     skip: () => {
       const s = useLiveClock.getState()

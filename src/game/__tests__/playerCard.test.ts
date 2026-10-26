@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { canCover, POSITIONS, ratingAt } from '@engine/positions'
 import type { PlayerSeason } from '@engine/types'
-import { attributeColumns, careerSeasons, formBand, formSeries, formTrend, positionMap, seasonScale, seasonSeries, shortSeason, traitWord } from '../logic/playerCard'
+import { attributeColumns, careerSeasons, formBand, formSeries, positionMap, seasonScale, seasonSeries, shortSeason, traitWord } from '../logic/playerCard'
+import { formTitle, formTrend } from '../logic/squadDisplay'
 import { squadPlayers } from '../logic/players'
 import { seasonGame } from './seasonGame'
 
@@ -106,7 +107,7 @@ describe('player card: form', () => {
     expect(formBand(5.99)).toBe('bad')
   })
 
-  it('points the arrow from the last three against the season average, with a ±0.3 band', () => {
+  it('points the squad row arrow (squadDisplay.formTrend) from the last three against the season average, with a ±0.3 band', () => {
     const stats = (avg: number, apps = 10) => ({ apps, starts: apps, minutes: apps * 90, goals: 0, assists: 0, ratingSum: avg * apps, motm: 0, cleanSheets: 0, yellows: 0, reds: 0 })
     expect(formTrend({ recentRatings: [7, 7], seasonStats: stats(6.5) })).toBeNull()
     expect(formTrend({ recentRatings: [7, 7, 7], seasonStats: stats(6.5, 0) })).toBeNull()
@@ -114,7 +115,7 @@ describe('player card: form', () => {
     expect(formTrend({ recentRatings: [8, 6.5, 6.5, 6.5], seasonStats: stats(7) })!.dir).toBe('down')
     const flat = formTrend({ recentRatings: [7.2, 6.9, 7.1], seasonStats: stats(7) })!
     expect(flat.dir).toBe('flat')
-    expect(flat.title).toBe('Form steady: 7.1 over the last 3, 7.0 this season')
+    expect(formTitle(flat)).toBe('Form steady: 7.1 over the last 3, 7.0 this season')
   })
 
   it('reads a real season: at most six stored ratings, and an arrow for every regular', () => {

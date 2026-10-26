@@ -37,6 +37,8 @@ export interface LiveClockState {
   clock: number
   /** 1, 2 or 4. */
   speed: number
+  /** The highlights' fast-forward on top of the speed (1 through watched minutes); absent means 1. */
+  boost?: number
   running: boolean
   /** Milliseconds per minute at 1x. */
   period: number
@@ -66,11 +68,11 @@ export interface TimelinePoint {
   hold: { index: number; elapsed: number } | null
 }
 
-type Anchor = Pick<LiveClockState, 'at' | 'since' | 'spent' | 'running' | 'speed' | 'period' | 'end' | 'holds'>
+type Anchor = Pick<LiveClockState, 'at' | 'since' | 'spent' | 'running' | 'speed' | 'boost' | 'period' | 'end' | 'holds'>
 
 /** Where the match stands at real time `now`: the minute, and the goal hold it is in, if any. Pure. */
 export function timeline(s: Anchor, now: number): TimelinePoint {
-  const ms = s.period / Math.max(0.01, s.speed)
+  const ms = s.period / Math.max(0.01, s.speed * (s.boost ?? 1))
   let t = s.at
   let left = s.running ? Math.max(0, now - s.since) : 0
   for (let i = 0; i < s.holds.length; i++) {
@@ -126,5 +128,5 @@ export function publishClock(state: Pick<LiveClockState, 'clock' | 'speed' | 'ru
   const prev = useLiveClock.getState()
   const same = state.clock === prev.clock && prev.end === state.clock + 1 && prev.holds.length === 0
   const base = same ? reanchor(prev, now) : { at: state.clock, since: now, spent: Infinity }
-  useLiveClock.setState({ ...base, speed: state.speed, period: state.period, running: state.running, clock: state.clock, stopAt: state.clock, end: state.clock + 1, holds: [], revealed: 0, celebrating: -1, done: false })
+  useLiveClock.setState({ ...base, speed: state.speed, boost: 1, period: state.period, running: state.running, clock: state.clock, stopAt: state.clock, end: state.clock + 1, holds: [], revealed: 0, celebrating: -1, done: false })
 }

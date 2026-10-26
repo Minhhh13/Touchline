@@ -418,6 +418,16 @@
   font-weight: 700;
   line-height: 1.15;
 }
+.matchday .md-since {
+  flex: none;
+  font-size: 10px;
+  line-height: 1.25;
+  padding-top: 2px;
+  border-top: 1px dashed var(--line);
+}
+.matchday .md-flank.away .md-since {
+  text-align: right;
+}
 .matchday .md-view-stats {
   flex: none;
   width: 100%;
@@ -482,6 +492,18 @@
 }
 .matchday .md-banner.card {
   border-left-color: var(--gold);
+}
+/* The assistant's line: an --accent edge and a small tag, so it never reads as commentary */
+.matchday .md-banner.assistant {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.matchday .md-assistant-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-right: 4px;
 }
 .matchday .md-banner .min {
   flex: none;
