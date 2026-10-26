@@ -12726,7 +12726,7 @@ table.tbl.hub td.name {
     padding: 8px var(--space-4);
   }
   .report-board .score {
-    font-size: 36px;
+    font-size: calc(var(--fs-h1) * 1.125);
   }
   .report-grid {
     flex: 1 1 auto;
@@ -12887,7 +12887,7 @@ table.tbl.hub td.name {
   }
   .setup-page .qmode .micon,
   .setup-page .qmode.pu-card .micon {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     flex: none;
   }
   .setup-page .qmode .ctitle {
