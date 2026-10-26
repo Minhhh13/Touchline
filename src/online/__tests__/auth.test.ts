@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkDisplayName, consumeAuthRedirect, maskEmail, sendEmailCode, sessionOf, signInWithGoogle, signOut, verifyEmailCode, type AuthLike, type SessionLike } from '../auth'
+import { checkDisplayName, consumeAuthRedirect, friendly, maskEmail, sendEmailCode, sessionOf, signInWithGoogle, signOut, verifyEmailCode, type AuthLike, type SessionLike } from '../auth'
 import { parseAuthRedirect } from '../core/authUrl'
 
 /** A fake of the supabase-js auth slice: records calls, answers as scripted. */
@@ -87,3 +87,25 @@ describe('sign-in', () => {
     expect(checkDisplayName('Nguyễn Minh')).toEqual({ ok: true, name: 'Nguyễn Minh' })
   })
 })
+
+describe('auth failures in the player\'s words', () => {
+  it('reads every browser\'s dropped connection, a failed email and a server outage, and keeps other messages', () => {
+    const offline = 'No connection: try again when you are back online.'
+    expect(friendly({ message: 'Load failed', status: 0 })).toBe(offline)
+    expect(friendly({ message: 'Failed to fetch', status: 0 })).toBe(offline)
+    expect(friendly({ message: 'NetworkError when attempting to fetch resource.' })).toBe(offline)
+    expect(friendly({ message: 'Error sending magic link email', status: 500 })).toMatch(/email could not be sent/)
+    expect(friendly({ message: 'HTTP 502', status: 502 })).toMatch(/did not answer/)
+    expect(friendly({ message: 'Token has expired or is invalid', status: 403 })).toMatch(/wrong or has expired/)
+    expect(friendly({ message: 'For security purposes, you can only request this after 41 seconds.', status: 429 })).toMatch(/Too many/)
+    expect(friendly({ message: 'Signups not allowed for otp', status: 422 })).toBe('Signups not allowed for otp')
+  })
+
+  it('says so when the email code cannot be sent offline', async () => {
+    const auth = { signInWithOtp: async () => ({ error: { message: 'Load failed', status: 0 } }) } as unknown as AuthLike
+    expect(await sendEmailCode(auth, 'minh@example.com', 'https://touchline.quest/')).toEqual({ ok: false, message: 'No connection: try again when you are back online.' })
+    const throws = { signInWithOtp: async () => { throw new TypeError('Load failed') } } as unknown as AuthLike
+    expect(await sendEmailCode(throws, 'minh@example.com', 'https://touchline.quest/')).toMatchObject({ ok: false, message: expect.stringMatching(/No connection/) })
+  })
+})
+
