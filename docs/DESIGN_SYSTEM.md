@@ -721,27 +721,47 @@ How to build one: give the screen a head that stays, then a `.screen-body.fill` 
 
 ## 14. Sound
 
-The case reel has sound, in the spirit of a Counter-Strike case opening but none of its audio: every sound is synthesised in the browser with the Web Audio API (oscillators, gain envelopes and a burst of white noise), so no audio file ships and no recording is copied. The code is `src/ui/sound/`: `schedule.ts` (pure: the bezier and the tick times), `synth.ts` (the context, the master gain and the voices), `reel.ts` (one reel run's sound), `prefs.ts` (the setting).
+TouchLine's sounds are synthesised in the browser with the Web Audio API: oscillators, FM pairs, gain envelopes and bands of seeded noise. No audio file ships and no recording, sample or game sound is copied. The code is `src/ui/sound/`:
 
-| Moment | Sound | How |
+- `scores.ts` (pure): the palette. Every sound is a score, a list of voices (`tone`, `fm`, `noise`), each with a start, a linear attack, a hold and an exponential fall. `scoreFor(request)` builds one, the same every time for the same request (cosmetic variation comes from `seeded` in `noise.ts`, never `Math.random` or the game's RNG).
+- `noise.ts` (pure): seeded white and pink noise, each buffer scaled to a peak of exactly 1, and the small `seeded` generator.
+- `render.ts`: a score into Web Audio nodes on any context (the live one, or an `OfflineAudioContext` to render a file), the looped noise bank and the safety net.
+- `match.ts` (pure): when the match-day dashboard sounds (`matchSoundCues`, `goalMoments`, `dueMatchSounds`); `useMatchSounds.ts` the dashboard's one hook.
+- `synth.ts`: the context, `MASTER_GAIN`, the gesture unlock, `playSound(request, delay)`, and the reel's own tick, whoosh and pop; `reel.ts` one reel run; `schedule.ts` (pure) the reel's tick times; `prefs.ts` the two switches; `boot.ts` arms it all once from `App.tsx`.
+
+### The palette
+
+| Sound | When | How |
 |---|---|---|
-| A card crossing the marker | A short tick, pitch varied by about 8 % either way | 40 ms of white noise through a band-pass at about 3.2 kHz. The tick times come from the strip's own position function (`reelPosition`) and the measured card boundaries (`tickTimes`), in both directions, so the overshoot's return ticks too (or, when it crosses no boundary, one settle tick halfway back); each frame reads the slide's `currentTime` and puts the next ticks on the audio clock 60 ms ahead, so they are dense at the start (capped at one per 15 ms, a rattle rather than a buzz) and sparse at the end, and stop on a skip |
-| The season drum | A whoosh as it rolls and a soft pop as it stops on the season | Noise through a band-pass sweeping 320 Hz to 2.4 kHz; a sine dropping 540 to 190 Hz |
-| The reveal | Every landing sound below plays at the reveal: the strip at rest, then the 400 ms hold (150 ms on a quick spin), then the glow and the sound together | `land()` in `CaseReel.tsx` calls `ReelSound.land` |
-| Landing: blue | A plain chime | One sine note, E5, with a quiet bell overtone |
-| Landing: purple, pink | A brighter two-note chime | Purple D5 then A5 (sine), pink F5 then C6 (triangle) |
-| Landing: red | A rising arpeggio | C5 E5 G5 C6, 75 ms apart |
-| Landing: gold | A shimmer and a sting, with the card's existing light sweep | A quick G arpeggio into a held G major chord over a low thump, and eight high pings on top |
-| The Upgrader's needle | A tick each time it passes one of the dial's twenty marks, higher while it is fast | The reel's tick (`playDialTick`), at most one per 28 ms, from the needle's own angle each frame (`src/ui/upgradeDial.ts`); none with reduced motion |
-| The Upgrader's verdict: a win | A sting, with the dial's glow and shake | A low thump, a rising C major arpeggio into a held chord, and six high pings (dropped with reduced motion) (`playUpgradeResult`) |
-| The Upgrader's verdict: a loss | A falling "wah-wah", with the dial dimming | Two sliding triangle notes, G4 to F♯4 and F4 to E4, into a long groan from E♭4 to F♯3 over a low sine (`playUpgradeResult`) |
+| The referee's whistle | Kick-off (the clock starting from 0 or 46), half time (the end of the 45th minute), full time (the whistle) | A pea whistle by FM: a sine carrier at about 2.95 kHz whose pitch the pea swings 150 Hz either way 46 times a second, with an 11 Hz wobble on top, a quick bend up as the breath arrives and a small drop as it leaves, a quiet second harmonic and a breath of band-passed noise. One long blast for a kick-off, two for half time, three (short, short, long) for full time. None at the 70-minute stop (that is the manager's, not the referee's) |
+| A goal | As the ball crosses the line in the goal's hold (`GOAL_FLIGHT_MS` after the burst; at once with reduced motion), and again, smaller, as it hits the net in the replay | The net: a sine thud falling 96 to 46 Hz, a slap of low noise and the swish of the mesh. The roar: four bands of pink noise (a rumble under 260 Hz, the voices around 500 Hz and 1.1 kHz rising as they swell, the shouts above 2.6 kHz), each breathing on a slow tremolo, rising over about 0.4 s, held about a second and falling over two. Our goal the full roar, a neutral one a little less, theirs a short subdued one without the shouts |
+| A near miss | At the strike of a chance worth 0.08 xG or more | The crowd's "ooh": six low triangle voices (G3 to C4, detuned) sliding down through a low-pass, over an "oo" vowel of band-passed pink noise; louder and a touch higher for a bigger chance, and for the home side (or the user's) |
+| A save | At the strike of a saved shot | The gloves (a short low thump and a slap of noise), then a smaller "ooh" |
+| A card | At the foul behind a booking (one per minute's cards) | A short peep of the whistle and the card flicked out (a tick of high noise); a red adds a dark low stab (two sawtooths a semitone apart, low-passed, over a sub) |
+| A substitution | At the change's minute | A two-note chime, G5 then C6; quieter for the other side's |
+| The reel's landing | At the reveal (`ReelSound.land`) | Rising with rarity in pitch, level and voices: blue a plain chime (E5); purple D5 then A5; pink F5 then C6 in triangle with a sparkle; red an arpeggio C5 to E6; gold an arpeggio into a held G major sting up to G6 over a soft thump, with a shimmer of high pings. The Icons card plays gold's |
+| A pick | A player picked into the squad (the Draft's pick count going up) | A soft thock and a rising two-note blip, E5 then B5 |
+| The Upgrader's verdict | The dial's result | A win: a soft thump, a rising C major arpeggio into a held chord, a shimmer. A loss: a falling "wah-wah", G4 to F♯4 and F4 to E4, into a long groan |
+| The Cup won | The trophy lifted (`CupLift`), and a league title's flourish on the summary (`Celebrate`) | A brass fanfare in C ("ta-ta-ta-taaa, ta-taaa": low-passed sawtooths doubled an octave down) into a held chord, with timpani, a cymbal swell and crash, and a shimmer |
+| The Treble | The Treble lifted, and the perfect season's flourish | The Cup's phrase, then the same a tone higher into a longer D major chord over a timpani roll and a crowd's roar, and a longer shimmer |
+| The draft's grade | The grade on the recap (`DraftRecap`), on its pop's peak (0.24 s in), once per visit | A stamp (a low thud and a slap), then A a bright arpeggio with a shimmer, B a rising two-note chime, C one plain note, D a falling minor pair |
+| A click | A primary button (`.btn.primary`) pressed | A 20 ms bright tick, very quiet. A button inside `data-sound="off"` stays silent |
+| The reel's ticks, whoosh and pop | As before (below) | Unchanged |
 
-Rules:
+The reel's own sounds: a tick each time a card crosses the marker (40 ms of white noise band-passed at about 3.2 kHz, pitch varied by about 8 %, timed from the strip's position function and the measured card boundaries, both ways, capped at one per 15 ms and stopped on a skip; on the Upgrader's dial, one per mark), a whoosh as the season drum rolls (noise swept 320 Hz to 2.4 kHz) and a pop as it stops (a sine 540 to 190 Hz).
 
-1. **Quiet.** One master gain at 0.35 (`MASTER_GAIN`); no sound is louder than a click.
-2. **After a gesture.** The context is created or resumed only inside a pointer or key gesture (capture-phase listeners from `armAudio`), so the Spin click is the one that unlocks it; nothing plays before.
-3. **On by default, the viewer's choice.** The speaker button beside the reel (`sound-toggle`, Lucide `Volume2` / `VolumeX`) and Sound in Profile (`sound-on` / `sound-off`) are the same setting, kept per device in `localStorage` under `touchline-sound` (not in the save). Off creates no context and plays nothing.
-4. **Reduced motion keeps sound.** There is no slide, so no ticks; the season and landing sounds play, without the gold shimmer.
-5. **Silent without Web Audio.** No `AudioContext` (tests, headless runs, old browsers) means every call is a no-op.
-6. **Presentation only.** `Math.random` here varies a tick's pitch and fills the noise buffer; nothing reads or writes the game's RNG or state.
+### Loudness
 
+1. **One master, normalised scores.** The master gain is 0.35 (`MASTER_GAIN`). Each score is normalised so its bound, the most its voices can add up to at any moment, is exactly its level, and no level is above `MAX_LEVEL` (0.9). In the bound an oscillator counts in full; a noise band counts by `sourceBound`, the most its filter lets through of noise peaking at 1 (measured over the very buffers the game uses, and checked against the Web Audio biquads by `soundPalette.test.ts`); independent noise bands add in quadrature, as their peaks do. Levels set the balance: the goal's roar is the loudest match sound, the whistle well under it, the landings rise from blue to gold, a click is barely there.
+2. **Never clips.** The loudest sound peaks near −14 dBFS in the offline renders; even two at full level stay under the safety net's knee. The net (`safetyNet`, a waveshaper after the master: the identity up to 0.8, then a soft bend that never reaches 0.98) only acts on a pile of sounds at once. No compressor: its make-up gain would move every sound.
+3. **No clicks.** Every envelope starts and ends on silence (0.0001), and its gain is silent before its first event too.
+
+### Rules
+
+1. **After a gesture.** The context is created or resumed only inside a real (trusted) pointer, key or touch gesture, and only once the page has had one (`navigator.userActivation`); `boot.ts` listens for them app-wide in the capture phase, so the Spin click, the Play button before a live match and a primary button all unlock it. Nothing plays before; a script's synthetic clicks never do.
+2. **On by default, the viewer's choice.** Sound (the speaker beside the reel, `sound-toggle`, and Sound in Profile, `sound-on` / `sound-off`) is the master switch, per device under `touchline-sound`: off creates no context and plays nothing. Match sounds (Profile, `match-sound-on` / `match-sound-off`, shown while Sound is on) is the one category switch, under `touchline-match-sound`: off silences the whistle, the crowd, the net, cards and substitutions and keeps the rest. Neither is in the save.
+3. **In time with the picture.** The match's sounds read the same clock as the live pitch (`timeline` over `useLiveClock`) every frame: a cue sounds when the clock passes it, a goal when its hold passes the ball crossing the line. A clock that goes back (a change in play) plays nothing, a skip plays only the last whistle it passes, the crowd never comes closer than 350 ms in a fast-forward, and the stretch since the last frame is still heard when the whistle closes the dashboard.
+4. **Reduced motion keeps sound.** It drops the shimmers and the reel's ticks (there is no slide), and a goal's net sounds the moment its still frame shows (there is no flight and no replay). `prefers-reduced-data` changes nothing: no sound is downloaded.
+5. **Silent without Web Audio.** No `AudioContext` (tests, headless runs without one, old browsers) makes every call a no-op that returns nothing.
+6. **Presentation only.** Nothing reads or writes the game's RNG or state; the match's sounds only read the clock and the events the dashboard already shows. `Math.random` only varies a reel tick's pitch and fills its noise.
+7. **Hear them.** The offline renders (one WAV per sound) come from a small harness that bundles `scores.ts` and `render.ts` and runs them in an `OfflineAudioContext` through the same master and safety net.
