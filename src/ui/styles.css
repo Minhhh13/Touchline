@@ -1075,7 +1075,8 @@ p {
     font-size: var(--fs-base);
   }
   .event-body {
-    flex: 1 1 220px;
+    /* Shrinks first, so four long choices and More stay on the title's line at 1280 wide */
+    flex: 1 1 96px;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
