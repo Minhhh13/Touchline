@@ -3188,6 +3188,13 @@ table.tbl.contracts .btn.sm {
     stroke-dashoffset: 0;
   }
 }
+/* A dash offset repaints the page on the main thread every frame (most of a throttled phone's main thread on Home):
+   on a touch screen the light makes three runs on arrival and then rests */
+@media (hover: none) {
+  .art .neon-run {
+    animation-iteration-count: 3;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .art .neon-run {
     display: none;

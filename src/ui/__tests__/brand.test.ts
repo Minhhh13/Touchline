@@ -158,6 +158,17 @@ describe('the lockup', () => {
     expect(moving.length).toBeGreaterThan(stops / 2)
   })
 
+  it('flutters for ever on a desktop and for a few loops on a touch screen, then rests on the same cloth', () => {
+    const always = lockupFlagSvg('w', true)
+    const few = lockupFlagSvg('w', true, 3)
+    expect(always.match(/repeatCount="indefinite"/g)?.length).toBe(always.match(/<animate /g)?.length)
+    expect(few.match(/repeatCount="3"/g)?.length).toBe(few.match(/<animate /g)?.length)
+    expect(few).not.toContain('indefinite')
+    // No fill="freeze": once the loops are over the shape and the folds go back to their resting values
+    expect(few).not.toContain('freeze')
+    expect(few.replace(/repeatCount="3"/g, 'repeatCount="indefinite"')).toBe(always)
+  })
+
   it('folds the cloth: two or three light and dark bands from the pole to the tip, in every frame', () => {
     const lum = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)).reduce((a, b, i) => a + b * [0.2126, 0.7152, 0.0722][i], 0)
     const red = lum(MARK.red)

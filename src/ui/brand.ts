@@ -498,6 +498,8 @@ interface ClothOptions {
   strength?: number
   /** Animate the wave (the lockup): the shape and the folds step through the same frames. */
   wave?: boolean
+  /** How many loops the wave plays before the cloth comes to rest (its resting shape and folds); for ever when absent. */
+  loops?: number
 }
 
 /**
@@ -517,7 +519,7 @@ export function pennantCloth(id: string, p: Pennant, o: ClothOptions = {}): { de
   const frames = o.wave ? phases.map((ph) => clothStops(flying, ph, k)) : []
   const stops = rest
     .map(([off, c], i) => {
-      const anim = o.wave ? `<animate attributeName="stop-color" dur="${W.dur}s" repeatCount="indefinite" values="${frames.map((f) => f[i][1]).join(';')}"/>` : ''
+      const anim = o.wave ? `<animate attributeName="stop-color" dur="${W.dur}s" repeatCount="${repeatOf(o.loops)}" values="${frames.map((f) => f[i][1]).join(';')}"/>` : ''
       return anim ? `<stop offset="${off}" stop-color="${c}">${anim}</stop>` : `<stop offset="${off}" stop-color="${c}"/>`
     })
     .join('')
@@ -527,7 +529,7 @@ export function pennantCloth(id: string, p: Pennant, o: ClothOptions = {}): { de
   // Lit along the upper edge, shaded underneath; it follows the cloth's box as it waves
   const under = `<linearGradient id="${id}-pu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="${r2(0.34 * k)}"/><stop offset="0.16" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.52" stop-color="${C.shade}" stop-opacity="0"/><stop offset="1" stop-color="${C.shade}" stop-opacity="${r2(0.42 * k)}"/></linearGradient>`
   const pole = `<linearGradient id="${id}-pp" x1="${p.x}" y1="0" x2="${r2(p.x + len * 0.16)}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.shade}" stop-opacity="${r2(0.5 * k)}"/><stop offset="1" stop-color="${C.shade}" stop-opacity="0"/></linearGradient>`
-  const anim = o.wave ? pennantWave(p) : ''
+  const anim = o.wave ? pennantWave(p, o.loops) : ''
   const shape = `<path id="${id}-pc" d="${pennantPath(p)}">${anim}</path>`
   const use = (fill: string) => `<use href="#${id}-pc" fill="url(#${id}-${fill})"/>`
   return { defs: fold + under + pole + shape, body: use('pf') + use('pu') + use('pp') }
@@ -615,11 +617,16 @@ export function markSvg(id: string, px: number, o: MarkSvgOptions): string {
  * the pole never moves. Without it (reduced motion, the icons) the pennant
  * keeps its resting shape.
  */
-export function pennantWave(p: Pennant): string {
+export function pennantWave(p: Pennant, loops?: number): string {
   const W = LOCKUP.wave
   const flying = { ...p, amp: W.amp }
   const values = Array.from({ length: W.frames + 1 }, (_, i) => pennantPath(flying, 28, ((i % W.frames) / W.frames) * 2 * Math.PI))
-  return `<animate attributeName="d" dur="${W.dur}s" repeatCount="indefinite" values="${values.join(';')}"/>`
+  return `<animate attributeName="d" dur="${W.dur}s" repeatCount="${repeatOf(loops)}" values="${values.join(';')}"/>`
+}
+
+/** A SMIL repeatCount: a whole number of loops, or for ever. */
+function repeatOf(loops: number | undefined): string {
+  return loops !== undefined && loops > 0 ? String(Math.round(loops)) : 'indefinite'
 }
 
 /**
@@ -628,8 +635,8 @@ export function pennantWave(p: Pennant): string {
  * variable --tl-ink (white on dark, the text navy on light). `wave` adds the
  * pennant's flutter, its folds moving with it (the pole stays still).
  */
-export function lockupFlagSvg(id: string, wave = false): string {
-  const cloth = pennantCloth(`${id}-pen`, LOCKUP.pennant, { wave, strength: MARK.cloth.strength.lockup })
+export function lockupFlagSvg(id: string, wave = false, loops?: number): string {
+  const cloth = pennantCloth(`${id}-pen`, LOCKUP.pennant, { wave, loops, strength: MARK.cloth.strength.lockup })
   const pole = poleSvg(`${id}-pole`, LOCKUP.pole, '#ffffff', 'round', LOCKUP.finial, true)
   return `<defs>${cloth.defs}${pole.defs}</defs>${cloth.body}${pole.body}`
 }
