@@ -45,7 +45,8 @@ import { StopPanel, type StopActions } from './StopPanel'
 import { TopBar } from './TopBar'
 import type { LiveControl, MatchdayData, SideView } from './types'
 import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
-import { readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
+import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { MATCHDAY_COMPACT, matchdayBoxes, readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
@@ -139,6 +140,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
     setSlots((s) => ({ ...s, [slot]: id }))
     writeChoice(slot, id)
   }, [])
+  // The Boxes control (display only, per viewer): the desktop board's boxes, and the stacked board's
+  const boxes = useBoxes(matchdayBoxes(slots))
+  const compactBoxes = useBoxes(MATCHDAY_COMPACT)
 
   const ratings = useMemo(() => ratingsAt(feed, minute), [feed, minute])
   const scores = useMemo(() => latestScores(game, u, ref, minute, whistle), [game, u, ref, minute, whistle])
@@ -174,6 +178,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   d.hand = hand
 
   const compact = useMediaQuery('(max-width: 1199px)')
+  const on = boxes.on
   // On a desktop the whole board fits the window: its height is the viewport less what stands above and below it
   const root = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -212,6 +217,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
       <span className="muted">
         {feed.home.name} v {feed.away.name} · {live ? 'live' : 'replay'}
       </span>
+      <BoxesMenu groups={[compact ? compactBoxes : boxes]} className="md-boxes" />
     </div>
   )
   // Auto-play: the assistant answers the stops for the rest of this match ("Auto from here", "Finish the match", or the saved mode)
@@ -279,36 +285,58 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
 
   // Stacked, the momentum chart sits in a half-width box: the full chart (its own proportions, scale and spells), not the wide strip squashed
   const momentumBox = <MomentumBar momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />
-  if (compact) return <CompactLayout d={d} crumb={crumb} top={top} pitch={pitch} stop={stop} banner={banner} momentum={momentumBox} strip={strip} drawer={drawer} friendly={friendly} />
+  if (compact) return <CompactLayout d={d} crumb={crumb} top={top} pitch={pitch} stop={stop} banner={compactBoxes.on('commentary') ? banner : null} momentum={momentumBox} strip={strip} drawer={drawer} friendly={friendly} pulse={compactBoxes.on('pulse')} panels={compactBoxes.on('panels')} />
 
+  // Unticked boxes leave the board and the rest take the room: the side columns, the widget row and the stats flanks close up
+  const top3 = (['A', 'B', 'C'] as const).filter((id) => on(`slot-${id}`))
+  const left = on('home-xi') || on('slot-L')
+  const right = on('away-xi') || on('slot-R')
+  const mainGrid = boxes.grid([
+    { track: 'minmax(240px, 0.9fr)', ids: ['home-xi', 'slot-L'] },
+    { track: 'minmax(0, 2.6fr)', ids: [] },
+    { track: 'minmax(240px, 0.9fr)', ids: ['away-xi', 'slot-R'] },
+  ])
+  const pitchGrid = boxes.grid([
+    { track: '104px', ids: ['stats'] },
+    { track: 'minmax(0, 1fr)', ids: [] },
+    { track: '104px', ids: ['stats'] },
+  ])
   return (
     <div className="matchday fit" ref={root}>
       {crumb}
       {top}
-      <div className="md-main">
-        <div className="md-side">
-          <div className="md-side-inner">
-            <FormationPanel d={d} side="home" />
-            {slot('L')}
+      <div className={`md-main ${mainGrid.className}`} style={mainGrid.style}>
+        {left && (
+          <div className="md-side">
+            <div className="md-side-inner">
+              {on('home-xi') && <FormationPanel d={d} side="home" />}
+              {on('slot-L') && slot('L')}
+            </div>
           </div>
-        </div>
+        )}
         <div className="md-centre">
-          <div className="md-widgets">{(['A', 'B', 'C'] as const).map(slot)}</div>
-          <div className="md-pitch-row">
-            <StatsFlank d={d} side="home" />
+          {top3.length > 0 && (
+            <div className="md-widgets" style={top3.length < 3 ? { gridTemplateColumns: `repeat(${top3.length}, minmax(0, 1fr))` } : undefined}>
+              {top3.map(slot)}
+            </div>
+          )}
+          <div className={`md-pitch-row ${pitchGrid.className}`} style={pitchGrid.style}>
+            {on('stats') && <StatsFlank d={d} side="home" />}
             <div className="md-pitch">{pitch}</div>
-            <StatsFlank d={d} side="away" />
+            {on('stats') && <StatsFlank d={d} side="away" />}
           </div>
-          {momentum}
+          {on('momentum') && momentum}
         </div>
-        <div className="md-side">
-          <div className="md-side-inner">
-            <FormationPanel d={d} side="away" />
-            {slot('R')}
+        {right && (
+          <div className="md-side">
+            <div className="md-side-inner">
+              {on('away-xi') && <FormationPanel d={d} side="away" />}
+              {on('slot-R') && slot('R')}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-      {banner}
+      {on('commentary') && banner}
       {strip}
       {drawer}
       {stop}
