@@ -749,7 +749,7 @@ export function Summary() {
             <div className="panel-head">
               <h3>Your XI</h3>
               {q && (
-                <span className="unit-strip" aria-label="Unit ratings">
+                <span className="unit-strip" role="group" aria-label="Unit ratings">
                   {(
                     [
                       ['GK', q.strength.goalkeeping],

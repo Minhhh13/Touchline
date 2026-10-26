@@ -39,11 +39,17 @@ export function PlayerPeek({ p, s, children }: { p: PlayerSeason | undefined; s?
     const top = a.bottom + gap + c.offsetHeight > vh - gap ? Math.max(gap, a.top - gap - c.offsetHeight) : a.bottom + gap
     setPos({ left, top })
     const close = () => setOpen(false)
+    // Hover content can be dismissed without moving the mouse (WCAG 1.4.13)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
     window.addEventListener('scroll', close, true)
     window.addEventListener('resize', close)
+    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('scroll', close, true)
       window.removeEventListener('resize', close)
+      window.removeEventListener('keydown', onKey)
     }
   }, [open])
   if (!p) return <>{children}</>

@@ -62,7 +62,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
       <div className="grid three opp-grid">
         <div className="col opp-units" style={{ gap: 6 }}>
           <div className="eyebrow">Units</div>
-          <div className="kv">
+          <dl className="kv">
             <dt>Rating</dt>
             <dd>{strength.overall.toFixed(1)}</dd>
             <dt>GK / DEF</dt>
@@ -86,7 +86,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
               {injured > 0 && <Bandage size={13} className="ic-injury" aria-hidden="true" />}
               {injured}
             </dd>
-          </div>
+          </dl>
         </div>
         <div className="col opp-danger" style={{ gap: 6 }}>
           <div className="eyebrow">Danger men</div>

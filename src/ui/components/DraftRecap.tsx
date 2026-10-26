@@ -23,7 +23,7 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
     <div className="draft-recap" data-testid="draft-recap">
       <div className="recap-head">
         {r.grade && (
-          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" aria-label={`Draft grade ${r.grade}`}>
+          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" role="img" aria-label={`Draft grade ${r.grade}`}>
             {r.grade}
           </span>
         )}
@@ -121,7 +121,7 @@ function HindsightXI({ h, slotName }: { h: Hindsight; slotName: (slotId: string)
               <span className="hs-pos">{slotName(p.slotId)}</span>
               <span className="hs-name">{p.name}</span>
               <span className="hs-rating">{p.rating}</span>
-              {p.yours ? <Check size={13} className="hs-tick" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
+              {p.yours ? <Check size={13} className="hs-tick" role="img" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
             </li>
           ))}
         </ol>

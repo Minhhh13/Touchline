@@ -9,6 +9,7 @@ import { tipSeen, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
+import { resultsLabel } from '../a11y'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -256,8 +257,9 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 }
 
 export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
+  // The letters show; a screen reader hears the words ("W" alone reads as "double-u")
   return (
-    <span className="form">
+    <span className="form" role="img" aria-label={resultsLabel(form, 'Form')}>
       {form.map((f, i) => (
         <span key={i} className={f}>
           {f}
@@ -277,7 +279,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, className = '', 
         <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
-            <span className="tab-badge" data-testid={`badge-${t.id}`} aria-label={`${t.badge} new`}>
+            <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={`${t.badge} new`}>
               {t.badge > 99 ? '99+' : t.badge}
             </span>
           ) : (

@@ -266,7 +266,7 @@ export function Draft() {
         </div>
         <div className="draft-progress">
           <div className="row between" style={{ gap: 'var(--space-2)' }}>
-            <span className="draft-count" data-testid="pick-count" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
+            <span className="draft-count" data-testid="pick-count" role="img" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
               {places && !fillingStarters ? (
                 <>
                   <span className="eyebrow">Bench</span> <b>{d.bench.length}</b> / {places}
@@ -424,7 +424,7 @@ export function Draft() {
                   const prevId = d.rules.chain ? d.history.slice(0, at).reverse().find((x) => x.pickedId)?.pickedId : undefined
                   return (
                     <li key={i}>
-                      {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={22} />}
+                      {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} role="img" aria-label="Icons collection">★</span> : <ClubBadge clubId={h.clubId} size={22} />}
                       <span className="who">
                         <span className={p ? 'name' : 'muted'}>{p ? p.name : h.skipped ? 'Skipped' : 'Re-spun'}</span>
                         <span className="when">
@@ -436,7 +436,7 @@ export function Draft() {
                             </span>
                           )}
                           {h.twist && TwistIcon && (
-                            <span className="log-twist" title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
+                            <span className="log-twist" title={TWIST_INFO[h.twist].title} role="img" aria-label={TWIST_INFO[h.twist].title}>
                               <TwistIcon size={12} aria-hidden="true" />
                             </span>
                           )}

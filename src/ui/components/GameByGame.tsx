@@ -315,7 +315,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
           const isNewest = r.matchweek === newestWeek
           return (
             <li key={r.matchweek} className={`gbg-game ${o} ${isNewest && order === 'newest' ? 'newest' : ''}`} data-testid="gbg-game" data-outcome={o} data-matchweek={r.matchweek} ref={isNewest ? newestRef : undefined}>
-              <span className={`gbg-badge ${o}`} aria-label={o === 'W' ? 'Won' : o === 'D' ? 'Drawn' : 'Lost'}>
+              <span className={`gbg-badge ${o}`} role="img" aria-label={o === 'W' ? 'Won' : o === 'D' ? 'Drawn' : 'Lost'}>
                 {o}
               </span>
               <ClubBadge clubId={opp.clubId} size={22} />
