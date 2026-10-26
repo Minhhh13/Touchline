@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Check, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
+import { Check, ChevronDown, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation } from '@engine/formations'
@@ -1891,39 +1891,45 @@ function WageSlider({ onMessage }: { onMessage: (m: string) => void }) {
   )
 }
 
+/**
+ * A dressing-room decision waiting on the manager, inline above the tabs. On a desktop it is one compact strip (the
+ * title, the story cut to fit, the choices with their hints as tooltips, on one line when they fit) so the squad list
+ * keeps its rows; "More" opens the whole story and each choice's hint. A phone shows it whole, as the page scrolls.
+ */
 function EventCard() {
   const store = useStore()
   const { universe: u, game } = store
+  const [open, setOpen] = useState(false)
   if (!u || !game?.pendingEvent) return null
   const ev = game.pendingEvent
   const get = playerLookup(game, u)
   const p = ev.playerSeasonId ? get(ev.playerSeasonId) : undefined
+  const who = p ? `${p.name} · ${p.positions.join('/')} · morale ${moraleWord(game.squad[p.id]?.morale ?? 70).toLowerCase()}` : null
   return (
-    <div className="panel event-card" data-testid="event-card" style={{ marginBottom: 'var(--space-4)', borderColor: 'var(--warn)' }}>
-      <div className="row between wrap">
-        <div>
-          <h3 className="icon-title" style={{ color: 'var(--warn)' }}>
-            <MessageSquare size={18} aria-hidden="true" /> {ev.title}
-          </h3>
-          <p style={{ marginBottom: 'var(--space-2)' }}>{ev.body}</p>
-          {p && (
-            <div className="small muted">
-              {p.name} · {p.positions.join('/')} · morale {moraleWord(game.squad[p.id]?.morale ?? 70).toLowerCase()}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="row wrap" style={{ marginTop: 'var(--space-2)', gap: 'var(--space-2)' }}>
+    <div className={`panel event-card${open ? ' open' : ''}`} data-testid="event-card">
+      <div className="event-row">
+        <h3 className="icon-title event-title">
+          <MessageSquare size={18} aria-hidden="true" /> {ev.title}
+        </h3>
+        <p className="event-body" title={open ? undefined : ev.body}>
+          {ev.body}
+          {who && <span className="small muted event-who">{who}</span>}
+        </p>
+        <div className="event-choices">
         {ev.choices.map((c) => (
           <button key={c.id} className="btn event-choice" title={c.hint} onClick={() => store.resolveEvent(c.id)}>
             <span className="col" style={{ gap: 0, alignItems: 'flex-start' }}>
               <span>{c.label}</span>
-              <span className="small muted" style={{ fontWeight: 400 }}>
+              <span className="small muted event-hint" style={{ fontWeight: 400 }}>
                 {c.hint}
               </span>
             </span>
           </button>
         ))}
+        </div>
+        <button type="button" className="btn sm ghost event-more" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="event-more">
+          {open ? 'Less' : 'More'} <ChevronDown size={14} aria-hidden="true" />
+        </button>
       </div>
     </div>
   )

@@ -923,6 +923,102 @@ p {
   max-width: 100%;
   text-align: left;
 }
+/* A pending dressing-room decision (Dugout's EventCard): the title, the story, the choices with their hints */
+.event-card {
+  margin-bottom: var(--space-4);
+  border-color: var(--warn);
+}
+.event-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+.event-title {
+  margin: 0;
+  color: var(--warn);
+}
+.event-body {
+  flex: 1 1 100%;
+  margin: 0;
+}
+.event-who {
+  display: block;
+  margin-top: 2px;
+}
+.event-choices {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.event-more {
+  display: none;
+}
+.event-more svg {
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.event-card.open .event-more svg {
+  transform: rotate(180deg);
+}
+/* On a desktop the decision is one compact strip above the tabs, so the tab body keeps its rows (the full card left the
+   squad list two rows at 2000 x 860): the title, the story cut to the room left, the choices (hints as tooltips) on the
+   same line when they fit; More opens the whole story and the hints */
+@media (min-width: 1100px) {
+  .event-card {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  }
+  .event-row {
+    align-items: center;
+  }
+  .event-title {
+    flex: none;
+    font-size: var(--fs-base);
+  }
+  .event-body {
+    flex: 1 1 220px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-2);
+  }
+  .event-who {
+    display: inline;
+    margin: 0 0 0 var(--space-2);
+  }
+  .event-choices {
+    flex: 0 1 auto;
+  }
+  .event-more {
+    display: inline-flex;
+    flex: none;
+    gap: 4px;
+  }
+  .event-card:not(.open) .event-choice {
+    padding-block: 4px;
+  }
+  .event-card:not(.open) .event-hint {
+    display: none;
+  }
+  .event-card.open .event-title {
+    flex: 1 1 auto;
+  }
+  .event-card.open .event-body {
+    flex-basis: 100%;
+    order: 2;
+    white-space: normal;
+  }
+  .event-card.open .event-who {
+    display: block;
+    margin: 2px 0 0;
+  }
+  .event-card.open .event-choices {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
 /* Secondary is the default look; the class only makes the choice explicit */
 .btn:hover {
   border-color: var(--primary);
@@ -3857,7 +3953,8 @@ table.tbl.contracts .btn.sm {
   .topbar nav button,
   .theme-switch,
   .tabs-ink.ready,
-  .bar > span {
+  .bar > span,
+  .event-more svg {
     transition: none;
   }
   .mode-card:hover,
