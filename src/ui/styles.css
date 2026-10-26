@@ -13098,7 +13098,7 @@ table.tbl.hub td.name {
 .matchday .md-crumb .boxes-btn {
   min-height: 20px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   line-height: 18px;
 }
 /* The draft's progress box makes room for the control: the count never wraps, the box widens past 240 px if it must */
