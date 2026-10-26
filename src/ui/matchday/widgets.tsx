@@ -12,7 +12,7 @@ import { XgStory } from './panels/XgStory'
 import type { PanelProps } from './types'
 import { SLOT_WIDGETS, WIDGET_LABEL, type SlotId, type WidgetId } from './widgetIds'
 
-export { SLOT_IDS, WIDGETS, defaultSlots, readChoices, resolveSlots, writeChoice } from './widgetIds'
+export { MATCHDAY_COMPACT, SLOT_IDS, WIDGETS, defaultSlots, matchdayBoxes, readChoices, resolveSlots, writeChoice } from './widgetIds'
 export type { SlotChoices, SlotId, WidgetId } from './widgetIds'
 
 function XgStoryWidget({ d, compact }: PanelProps) {
