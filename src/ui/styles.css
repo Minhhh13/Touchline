@@ -1459,6 +1459,349 @@ label.field,
 .state-bars .bar {
   height: 5px;
 }
+/* The morale face sits in the third cell of the state line, after condition and sharpness */
+.state-bars {
+  align-items: center;
+}
+.state-bars .md-morale {
+  display: block;
+}
+/* Form on a squad row: the arrow (last three against the season), the last-five sparkline, the MOTM star */
+.form-arrow {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-3);
+}
+.form-arrow.up {
+  color: var(--good);
+}
+.form-arrow.down {
+  color: var(--danger);
+}
+.spark {
+  flex: none;
+  display: block;
+}
+.spark-line {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+.spark-dot {
+  fill: var(--meter-mid);
+}
+.spark-dot.good {
+  fill: var(--good);
+}
+.spark-dot.bad {
+  fill: var(--danger);
+}
+.chip.motm-chip {
+  padding: 0 6px;
+  gap: 2px;
+}
+@media (max-width: 720px) {
+  .prow .spark {
+    display: none;
+  }
+}
+/* Inbox: the filter chips over the feed and the pinned row while something waits on the manager */
+.inbox-filters {
+  gap: 6px;
+  margin-bottom: var(--space-2);
+}
+.inbox-filters .chip-btn {
+  font-size: var(--fs-meta);
+  padding: 3px 10px;
+}
+.needs-you {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-m);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+  background: var(--warn-soft);
+}
+.needs-you-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--warn);
+}
+/* The Next match tab: the opposition report open on top, then the match-up and the talk side by side */
+.next-match {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.next-match > .opposition {
+  margin-bottom: 0 !important;
+}
+.matchup {
+  display: flex;
+  flex-direction: column;
+}
+.matchup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px minmax(60px, 120px) 40px 64px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px 0;
+}
+.matchup-row + .matchup-row {
+  border-top: var(--border);
+}
+.matchup-row .mono {
+  text-align: right;
+  font-size: var(--fs-sm);
+}
+.matchup-row .chip {
+  justify-self: end;
+}
+.matchup-label {
+  font-size: var(--fs-sm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The bar splits at the middle: our share to the left in --primary, theirs the rest */
+.matchup-bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.matchup-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+@media (max-width: 520px) {
+  .matchup-row {
+    grid-template-columns: minmax(0, 1fr) 34px 34px 56px;
+  }
+  .matchup-bar {
+    display: none;
+  }
+}
+/* The Fixtures tab's season calendar: ten matchweek cells a row on a desktop, five on a phone */
+.season-strip {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: var(--space-3);
+}
+.ss-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 4px;
+  min-width: 0;
+  border-radius: var(--radius-s);
+  border: var(--border);
+  background: var(--panel-2);
+}
+.ss-cell.band-top {
+  background: color-mix(in srgb, var(--danger) 9%, var(--panel-2));
+}
+.ss-cell.band-bottom {
+  background: color-mix(in srgb, var(--good) 9%, var(--panel-2));
+}
+.ss-cell.free {
+  opacity: 0.6;
+}
+.ss-cell.next {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.ss-mw {
+  font-size: 10px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.ss-opp {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.ss-ha {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.ss-chips {
+  display: inline-flex;
+  gap: 2px;
+  min-height: 18px;
+}
+.ss-chips .chip {
+  padding: 0 5px;
+  font-size: 10px;
+}
+@media (max-width: 720px) {
+  .season-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+/* Deadline day on the Market tab: the latest market news running along one line */
+.deadline-ticker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: 5px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent);
+  background: var(--bad-soft);
+  overflow: hidden;
+}
+.deadline-tag {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bad);
+}
+.deadline-track {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.deadline-run {
+  display: inline-block;
+  font-size: var(--fs-sm);
+  animation: deadline-run 30s linear 1.5s infinite;
+}
+/* Starts in view, runs out to the left, comes back in from the right */
+@keyframes deadline-run {
+  0% {
+    transform: translateX(0);
+  }
+  70% {
+    transform: translateX(-100%);
+  }
+  70.01% {
+    transform: translateX(60vw);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deadline-run {
+    animation: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+/* The hover card: fixed under (or over) the name, clamped to the window, gone when the mouse leaves */
+.peek-anchor {
+  display: inline-flex;
+  min-width: 0;
+}
+.peek-card {
+  color: var(--float-text);
+  position: fixed;
+  z-index: 60;
+  width: 240px;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line-2);
+  background: var(--float-bg);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--fs-sm);
+}
+.peek-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.peek-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: var(--fs-meta);
+}
+/* The card sits on --float-bg in both themes, so its quiet text is the float ink at 70%, not --text-3 */
+.peek-card .muted,
+.peek-meta {
+  color: color-mix(in srgb, var(--float-text) 70%, transparent);
+}
+.chip.pick-grade {
+  margin-left: 2px;
+}
+.peek-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.peek-attrs {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: var(--fs-meta);
+}
+/* A pick's grade in the finished draft log */
+.chip.pick-grade {
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* A key name in running text (How it works) */
+kbd {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  padding: 0 5px;
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg-2);
+  color: var(--text);
+}
+/* The opponent's place today on a fixture row */
+.fx-pos {
+  flex: none;
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+/* The squad list's view switch: a compact segmented control in the panel head */
+.segmented.squad-views-seg {
+  flex-wrap: nowrap;
+  padding: 2px;
+  gap: 2px;
+}
+.segmented.squad-views-seg button {
+  min-height: 26px;
+  padding: 2px 9px;
+  font-size: var(--fs-meta);
+}
+.rating-word.good {
+  color: var(--good);
+}
+.rating-word.mid {
+  color: var(--text);
+}
+.rating-word.bad {
+  color: var(--danger);
+}
 .state-labels span {
   font-size: 10px;
   line-height: 1;
@@ -6279,6 +6622,32 @@ table.tbl.contracts .btn.sm {
 }
 .role-name {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/* His familiarity with the system, a thin bar under his name; the XI's mean in the panel head */
+.role-fam-bar {
+  width: 120px;
+  max-width: 100%;
+}
+.role-fam-bar .bar {
+  height: 4px;
+}
+.role-head-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.role-fam {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.role-fam .bar {
+  width: 64px;
+  height: 5px;
 }
 .role-pick {
   display: inline-flex;
@@ -8537,6 +8906,29 @@ table.tbl.match-stats th {
 }
 .pc-rival-key {
   font-size: 11px;
+}
+.pc-target line {
+  stroke: var(--text-2);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.pc-target text {
+  fill: var(--text-2);
+}
+/* The Dugout's Table tab: the table and, beside it, the season so far as a position chart */
+.grid.table-grid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+}
+.grid.table-grid .pos-chart svg {
+  width: 100%;
+  height: auto;
+  max-height: max(220px, calc(100dvh - 470px));
+  display: block;
+}
+@media (max-width: 1050px) {
+  .grid.table-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* The summary's lead: the record against 38-0, wins, draws and losses in their own colours */

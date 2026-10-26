@@ -152,6 +152,9 @@ export function HowTo() {
             </span>
           </div>
           <p className="help">A perfect 38-0 is possible with an elite, balanced side and good management. It is meant to be rare.</p>
+          <p className="help" data-testid="howto-keys">
+            Keys: <kbd>Space</kbd> plays the matchweek and <kbd>1</kbd> to <kbd>0</kbd> open the Dugout's tabs; <kbd>P</kbd> pauses a match; <kbd>Esc</kbd> closes a window. Highlights on the match's top bar run the quiet minutes fast.
+          </p>
         </Section>
 
         <Section wide Icon={CalendarDays} title="Season mode" lead="Your squad takes one real club’s place in a real league season; the others field their real squads of that year.">

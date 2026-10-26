@@ -14,10 +14,10 @@ import { ordinal } from '../format'
  * or Continental opponent is found in the season; an arena opponent is passed
  * in as `club` with its `aiOffset`, and has no table position or form.
  */
-export function OppositionReport({ clubId, home, club: given, aiOffset, neutral }: { clubId: string; home: boolean; club?: AiClub; aiOffset?: number; neutral?: boolean }) {
+export function OppositionReport({ clubId, home, club: given, aiOffset, neutral, open }: { clubId: string; home: boolean; club?: AiClub; aiOffset?: number; neutral?: boolean; /** Start open whatever the window (the Dugout's Next match tab, where it is the subject). */ open?: boolean }) {
   const { universe: u, game, setMarkTarget } = useStore()
   // Open on a tall desktop; folded on a phone or a short window, where it would push the squad out of sight
-  const [startOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px) and (min-height: 900px)').matches)
+  const [startOpen] = useState(() => !!open || typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px) and (min-height: 900px)').matches)
   const data = useMemo(() => {
     if (!u || !game || (!game.season && !given)) return null
     const club = given ?? game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]

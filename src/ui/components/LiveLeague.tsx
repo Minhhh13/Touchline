@@ -75,8 +75,10 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
 /**
  * League position by game: 1st at the top, last at the bottom, zone bands behind, the user's line thick and bright
  * (it draws itself on as each game lands; reduced motion shows it at once) and the leading rivals' lines faint.
+ * `unit` names the x axis ("Game" on the playback, "MW" on the Dugout's Table tab); `target` draws the board's
+ * expectation as a dashed line; `first` is the x label of the first point (a run-in starts after the takeover).
  */
-export function PositionChart({ series, rivals, teams, games }: { series: number[]; rivals: Array<{ teamId: string; name: string; series: number[] }>; teams: number; games: number }) {
+export function PositionChart({ series, rivals, teams, games, unit = 'Game', target, first = 1, title = 'League position by game' }: { series: number[]; rivals: Array<{ teamId: string; name: string; series: number[] }>; teams: number; games: number; unit?: string; target?: number; first?: number; title?: string }) {
   const W = 360
   const H = 220
   const x0 = 22
@@ -97,7 +99,7 @@ export function PositionChart({ series, rivals, teams, games }: { series: number
   return (
     <div className="mchart pos-chart" data-testid="position-chart">
       <div className="row between small">
-        <span className="muted">League position by game</span>
+        <span className="muted">{title}</span>
         <span className="row small" style={{ gap: 10 }}>
           {rivals.map((r) => (
             <span key={r.teamId} className="pc-rival-key muted">
@@ -106,7 +108,7 @@ export function PositionChart({ series, rivals, teams, games }: { series: number
           ))}
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={last >= 0 ? `Position after game ${last + 1}: ${series[last]}` : 'League position by game'}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={last >= 0 ? `Position after ${unit.toLowerCase()} ${last + first}: ${series[last]}` : title}>
         {bands.map((b) => {
           const r = band(b.from, b.to)
           return <rect key={b.key} className={`pc-band ${b.key}`} x={x0} y={r.y} width={x1 - x0} height={r.h} />
@@ -116,14 +118,22 @@ export function PositionChart({ series, rivals, teams, games }: { series: number
             {p}
           </text>
         ))}
+        {target !== undefined && target >= 1 && target <= teams && (
+          <g className="pc-target" data-testid="position-target">
+            <line x1={x0} x2={x1} y1={y(target)} y2={y(target)} />
+            <text x={x1} y={y(target) - 3} fontSize="8" textAnchor="end">
+              Target {target}
+            </text>
+          </g>
+        )}
         {rivals.map((r) => (r.series.length > 1 ? <path key={r.teamId} d={path(r.series)} className="pc-rival" fill="none" /> : null))}
         {series.length > 1 && <path key={series.length} d={path(series)} className="pc-user" fill="none" pathLength={1} style={{ ['--pc-from' as string]: String(1 / (series.length - 1)) }} />}
         {last >= 0 && <circle cx={x(last)} cy={y(series[last])} r="4" className="pc-dot" />}
         <text x={x0} y={H - 4} fontSize="8" fill="var(--text-3)">
-          Game 1
+          {unit} {first}
         </text>
         <text x={x1} y={H - 4} fontSize="8" textAnchor="end" fill="var(--text-3)">
-          {games}
+          {games + first - 1}
         </text>
       </svg>
     </div>

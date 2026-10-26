@@ -95,7 +95,7 @@ Seven coach marks (`TIP_IDS` in `src/game/logic/tips.ts`; seven is the ceiling) 
 | --- | --- | --- |
 | `draft-first-reveal` | above the landed squad, while the XI is being filled | Green fits means his natural position; amber can cover means he plays there at a penalty, which is the number you will see on the pitch. Re-spins are a budget for the whole draft. |
 | `draft-bench` | under the needs panel once the XI is full (and the wheel has not run dry) | Bench picks can be anyone un-drafted; cover every position, injuries will come. |
-| `dugout-first` | top of the Squad tab | The three bars are condition, morale and sharpness. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one. |
+| `dugout-first` | top of the Squad tab | The bars are condition and sharpness, the face his morale; the arrow is his form. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one. |
 | `tactics-first` | top of the Tactics tab | A role moves a player's quality between units; rating in role is what the engine uses, and the team rating updates as you change it. |
 | `halftime-first` | inside the half-time panel (not at the 70th minute) | A talk, four instructions and up to three substitutions; No changes plays on. |
 | `report-first` | above the match report's tactical notes | xG is the chances each side created; the notes are the exact modifiers your instructions produced. |
@@ -867,6 +867,27 @@ FM-depth batch 2. Every rule is a pure function in `src/game/logic/{scouting,con
 ### Inbox
 
 A rolling feed of up to `NEWS_CAP` (120) items, newest first: results, injuries, suspensions, board, transfers, awards, events, cup, training, info. Every item goes through `postNews` (`src/game/logic/news.ts`), which trims the feed to the cap and counts the item in `game.newsTotal`, the number of items ever posted this season (an optional save field; an older save starts it from the feed's length). `game.newsSeen` (optional) is `newsTotal` when the Inbox tab was last opened; `beginSeason` sets `newsTotal` to the opening items and `newsSeen` to 0, so a new season's opening news is unread, and a save without `newsSeen` counts as everything read. The unread count is `newsTotal − newsSeen`, measured on the counter rather than the feed's length because the feed stops growing at the cap. The Inbox tab shows that count as a badge (`99+` above 99; it takes the place of the pending-event dot). Opening the tab writes `newsSeen` (only when something is unread or the field is missing, so a visit to a read inbox never rewrites the save), marks the unread rows, says `n new since your last visit`, and draws a divider under the last new item when older items follow it; a batch that arrives while the tab is open (a sim run from it) moves the marking to that batch.
+
+### The Dugout at a glance (display only)
+
+Pure readings in `src/game/logic/squadDisplay.ts`; nothing draws a number or changes the game, so no ENGINE_VERSION bump.
+
+| Piece | Rule |
+| --- | --- |
+| Form arrow | Mean of the last three `recentRatings` against `ratingSum / apps`: above by more than `FORM_BAND` (0.3) ▲ in `--good`, below by more ▼ in `--danger`, else ▶ in `--text-3`. None before three ratings and three appearances. |
+| Sparkline | The last five ratings on a fixed 5 to 9 scale (40 × 14), dots ≥ 7.5 `--good`, under 6 `--danger`, else `--meter-mid`; hidden on a phone. |
+| Squad views | Overview (apps, goals, assists, average), Form (last rating, average, MOTM), Fitness (condition, stamina, minutes over the last three matchweeks from `recentMinutes`), Contract (years or loan, wage, status, value); per viewer under `touchline-squad-view` (the old `touchline.squad.stamina` on opens Fitness). |
+| Role fit | His effective rating in the role (condition and form included) against his overall: within 1 Suits, up to 4 below Fair, more Poor. Each role option shows `roleRating` there, rounded. The panel head shows the XI's mean familiarity. |
+| Next match | The opposition report, then `matchUp`: our attack on their defence, midfield on midfield, our defence and keeper on their attack, overall; more than `EVEN_BAND` (1.5) either way is Edge or Behind. The team talk moved here from the Squad tab. |
+| Season calendar | One cell a matchweek (`seasonStrip`): opponent, venue, W/D/L from the score, cup ties after it, upcoming cells tinted by the opponent's band today (top four, bottom four). Scores only, so a compacted save draws the same. |
+| Position chart | `positionHistory` recomputes the table after every matchweek with a result; the Table tab draws ours with the two clubs placed nearest now and the board's target dashed. |
+| Inbox filters | Matches (result, cup), Market (transfer), Board (board, info), Squad (the rest). A Needs you row is pinned while an event is pending or offers are open. |
+| Window | "Window shuts in N days" (market days after today) on the Market head and the next-match box, red on the last day; on the last day a ticker of the newest five log lines; Done deals lists signings (the bid, or the loan fee) and accepted offers. |
+| Hover card | `PlayerPeek` after 350 ms of a mouse over a name (depth chart, contracts, league stats): rating, positions, age, club-season, the sparkline, arrow and morale face in a squad, and `topAttributes` (the best three of the eight classic attributes; a keeper's goalkeeping first, never an outfielder's). Not on market rows, where scouting masks the numbers. |
+| Pick grades | `pickGrades` (`src/game/logic/pickGrades.ts`), on a complete draft with ratings shown: each XI pick's `ratingAt` in his slot against the best `ratingAt` there in the spun club-season's squad, leaving out players drafted earlier; within 1 an A, 3 a B, 6 a C, more a D. The Icons case, bench picks and re-spins are not graded. It reads the draft log only. |
+| Keys | Space plays the matchweek (not while a decision is pending), 1 to 9 and 0 open the first ten tabs; nothing fires on a focused control, with a modal open or with a modifier (`src/ui/dugoutKeys.ts`). P pauses the match. |
+
+On the match day (`src/ui/match/highlights.ts`, `src/ui/match/assistant.ts`): **highlight levels** Full match, Extended and Key moments. Key watches each goal, penalty, red card, injury and chance of `shotXg` ≥ 0.25 with its three-minute build-up and the minute after; Extended adds yellows, substitutions and shots of 0.08 or more, and plays as Key once a side is three clear (`CRUISE_MARGIN`). The rest runs `QUIET_BOOST` (10) times faster through a `boost` on the clock store, never stored as the speed; goal holds and the stops are unchanged, and the segment is decided before it is shown. **The assistant's line** shows for four minutes from 15, 30, 60 and 80 (unless a moment takes the banner): an xG gap of 0.5 or more, else our lowest-rated starter at 6.2 or under (from 30), else their best at 7.5 or more, else the state of play, read at the checkpoint only. After a shout at 70 each stats flank shows "Since 70'": that side's xG and shots since the 70th minute.
 
 ### While you were away
 
