@@ -12,22 +12,23 @@ const CACHE_MAX = 24
 
 type Cancel = () => void
 
-/** Run `fn` when the browser is idle (or on the next turn where it cannot say), so sampling never blocks a frame for long. */
-function whenIdle(fn: () => void, delay = 0): Cancel {
-  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void }
-  let idle: number | null = null
-  const t = window.setTimeout(() => {
-    if (w.requestIdleCallback) idle = w.requestIdleCallback(fn, { timeout: 250 })
-    else fn()
-  }, delay)
-  return () => {
-    window.clearTimeout(t)
-    if (idle !== null) w.cancelIdleCallback?.(idle)
-  }
+/**
+ * Seasons sampled between two checks of the clock, and the main-thread time one slice may take. A 4x-throttled phone
+ * samples about one season a millisecond, so a slice stays under a frame and never shows as a long task; between two
+ * slices the page gets a turn (input, a frame), so the 2,000 seasons take little longer than in one go. The partition
+ * never changes the odds: `sampleSeasons` over any split of the seasons draws the same stream (odds.test.ts).
+ */
+const ODDS_BATCH = 5
+const SLICE_MS = 20
+
+/** Run `fn` after `delay` ms, or on the next turn, with the time it may take, so sampling never blocks a frame for long. */
+function nextSlice(fn: (budgetMs: number) => void, delay = 0): Cancel {
+  const t = window.setTimeout(() => fn(SLICE_MS), delay)
+  return () => window.clearTimeout(t)
 }
 
 /**
- * The pre-season odds of the squad on show, sampled a slice at a time in idle moments and cached by `oddsKey`. Null
+ * The pre-season odds of the squad on show, sampled a slice at a time between the page's own work and cached by `oddsKey`. Null
  * while they are being worked out; a change of tactics starts again after a short pause, so a run of taps samples once.
  * Display only: the odds never feed the season.
  */
@@ -46,23 +47,32 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
     let rng: Rng | null = null
     let tally: OddsTally | null = null
     let cancel: Cancel = () => {}
-    const step = () => {
+    let shown = 0
+    const step = (budgetMs: number) => {
       if (!league || !rng || !tally) {
         league = oddsLeague(game, u)
         rng = oddsRng(game)
         tally = emptyTally(league.ids.length)
-      } else sampleSeasons(league, rng, ODDS_STEP, tally)
+      } else {
+        const until = performance.now() + budgetMs
+        while (tally.seasons < ODDS_SEASONS && performance.now() < until) sampleSeasons(league, rng, Math.min(ODDS_BATCH, ODDS_SEASONS - tally.seasons), tally)
+      }
       if (tally.seasons >= ODDS_SEASONS) {
         const odds = oddsFrom(tally)
         if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!)
         cache.set(key, odds)
         setState({ key, odds, progress: 1 })
       } else {
-        setState({ key, odds: null, progress: tally.seasons / ODDS_SEASONS })
-        cancel = whenIdle(step)
+        // The percentage moves in whole steps of ODDS_STEP seasons, so the panel re-renders a handful of times, not every slice
+        const progress = Math.floor(tally.seasons / ODDS_STEP) * ODDS_STEP
+        if (progress !== shown) {
+          shown = progress
+          setState({ key, odds: null, progress: progress / ODDS_SEASONS })
+        }
+        cancel = nextSlice(step)
       }
     }
-    cancel = whenIdle(step, 180)
+    cancel = nextSlice(step, 180)
     return () => cancel()
     // The key holds everything the odds depend on; the game object itself changes identity on every store write
   }, [key, u])
