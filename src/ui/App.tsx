@@ -345,7 +345,7 @@ export function App() {
                 <b>Declined:</b> {offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}
               </p>
             )}
-            <p className="muted small">You have bonus spins to rebuild, and the summer market opens in the Dugout after the draft, before the first match. Finish the draft to carry on.</p>
+            <p className="muted small">{game && game.bonusSpins > 0 ? `You have ${game.bonusSpins} bonus spin${game.bonusSpins === 1 ? '' : 's'} to rebuild` : 'Your squad is full, so there are no summer spins'}, and the summer market opens in the Dugout after the draft, before the first match. Finish the draft to carry on.</p>
             <button className="btn primary" onClick={dismissOffseason}>
               To the draft
             </button>
@@ -385,6 +385,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
             <b>
               {r.gf}-{r.ga}
             </b>
+            {r.penalties && <span className="small muted">{r.penalties.gf}-{r.penalties.ga} pens</span>}
             <span className="res-letter">{r.outcome}</span>
             <span className="small muted">{r.home ? 'H' : 'A'}</span>
             {r.comp !== 'league' && <span className="small muted">{r.comp === 'cup' ? 'Cup' : 'Eur'}</span>}
