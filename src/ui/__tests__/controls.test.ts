@@ -14,9 +14,12 @@ import {
   conditionBand,
   draftChanges,
   emptyDraft,
+  highlightedMan,
+  highlightSide,
   instructionDiff,
   landing,
   moraleBand,
+  nextSelection,
   openDrawer,
   PHONE_TABS,
   phoneTabs,
@@ -329,3 +332,25 @@ describe('phone tabs', () => {
     expect(tabAfter(PHONE_TABS, 'commentary').id).toBe('events')
   })
 })
+
+describe('the man picked out on the strip', () => {
+  it('a tap picks him and a second tap lets him go; another man takes his place', () => {
+    expect(nextSelection(null, 'a')).toBe('a')
+    expect(nextSelection('a', 'a')).toBeNull()
+    expect(nextSelection('a', 'b')).toBe('b')
+  })
+  it('keyboard focus previews a man over the selection, and the selection comes back on blur', () => {
+    expect(highlightedMan('a', null)).toBe('a')
+    expect(highlightedMan('a', 'b')).toBe('b')
+    expect(highlightedMan(null, null)).toBeNull()
+  })
+  it("rings the user's side when the man is in its XI, else the side he plays for", () => {
+    const app = (psId: string) => ({ psId, slotId: 's', position: 'ST' as const, onAt: 0, offAt: 90, red: false, injured: false })
+    const feed = { home: { appearances: [app('h1')] }, away: { appearances: [app('a1')] } } as unknown as Parameters<typeof highlightSide>[0]
+    expect(highlightSide(feed, 'h1', 'home')).toBe('home')
+    expect(highlightSide(feed, 'a1', 'home')).toBe('away')
+    expect(highlightSide(feed, 'a1', 'away')).toBe('away')
+    expect(highlightSide(feed, 'nobody', 'away')).toBe('away')
+  })
+})
+

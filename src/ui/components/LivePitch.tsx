@@ -28,6 +28,7 @@ import { phaseCaption, sceneAt } from '../match/shape'
 import { epochAt, type MatchPath } from '../match/epochs'
 import { celebrationEnvelope, confetti, flightProgress, netBulge, netPoint, scorerRun } from '../match/celebration'
 import { minuteLabel, textColourFor } from '../format'
+import { surname } from '../match/shirts'
 
 export interface PitchSide {
   name: string
@@ -53,6 +54,8 @@ export interface LivePitchProps {
   track?: MatchPath
   /** Goalkeepers' shirts, by side. */
   keepers?: { home: string; away: string }
+  /** The man picked out from the squad strip: his dot gets a ring and his surname above it. Display only. */
+  highlight?: { psId: string; side: Side; name?: string } | null
 }
 
 export function useMediaQuery(query: string): boolean {
@@ -218,7 +221,7 @@ export function frameFor(seed: string, from: number): LastFrame {
   return f
 }
 
-export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers }: LivePitchProps) {
+export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers, highlight }: LivePitchProps) {
   const portrait = useMediaQuery('(max-width: 720px)')
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   const clock = useLiveClock((s) => s.clock)
@@ -519,9 +522,20 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     // Drawn first where he stood when this match's pitch was last drawn, or walking on, or at his slot; the loop moves him from there
     const startAt = reduced && stillScene ? dotPosition(p, path, stillBall, stillT, phases.get(key) ?? 0, stillScene) : initial.get(key) ?? (initial.size || p.onAt > Math.max(0, from) ? ENTRY_POINT : p)
     const [sx, sy] = map(startAt.x, startAt.y)
+    const lit = !!highlight && highlight.psId === p.psId && highlight.side === p.side
     return (
-      <g key={key} ref={dotRef(key)} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className="live-dot" data-testid="live-dot">
+      <g key={key} ref={dotRef(key)} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className={`live-dot${lit ? ' lit' : ''}`} data-testid="live-dot" data-lit={lit ? 'yes' : undefined}>
         <title>{name ?? p.psId}</title>
+        {/* Picked out from the squad strip: a glow, a ring and his surname over the dot, moving with him */}
+        {lit && (
+          <g className="dot-pick" aria-hidden="true">
+            <circle className="dot-pick-glow" r="4.6" />
+            <circle className="dot-pick-ring" r="3.7" />
+            <text className="dot-pick-name" y="-5.3" textAnchor="middle" fontSize="3.4" fontWeight="700">
+              {surname(highlight?.name ?? name)}
+            </text>
+          </g>
+        )}
         <g className="dot-body">
           <circle r="2.7" fill={colour} stroke="rgba(0,0,0,0.55)" strokeWidth="0.4" />
           <text y="0.85" textAnchor="middle" fontSize={label !== undefined ? 2.5 : 2.3} fontWeight="700" fill={textColourFor(colour)}>

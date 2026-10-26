@@ -350,3 +350,26 @@ export function tabKey(tabs: PhoneTab[], id: string, key: string): string | null
   if (key === 'End') return tabs[tabs.length - 1].id
   return null
 }
+
+// ------------------------------------------------------------------ the man picked out
+
+/** A tap on a man (a squad strip card, a formation panel's shirt): picks him, or lets him go when he is already picked. */
+export function nextSelection(current: string | null, psId: string): string | null {
+  return current === psId ? null : psId
+}
+
+/**
+ * The man picked out on the live pitch and the formation panels: the one a keyboard has focused on the strip (a
+ * preview, gone on blur), else the one selected, else nobody. Display only.
+ */
+export function highlightedMan(selected: string | null, focused: string | null): string | null {
+  return focused ?? selected
+}
+
+/** Which side's dot to ring for a man: the user's side when he is in its XI (a player-season can only be on one), else the other. */
+export function highlightSide(feed: Pick<MatchFeed, 'home' | 'away'>, psId: string, userSide: 'home' | 'away'): 'home' | 'away' {
+  const other = userSide === 'home' ? 'away' : 'home'
+  const inSide = (s: 'home' | 'away') => feed[s].appearances.some((a) => a.psId === psId)
+  return inSide(userSide) || !inSide(other) ? userSide : other
+}
+

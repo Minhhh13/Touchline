@@ -502,6 +502,7 @@ A player has one rating people know and one number per slot; every screen names 
 - **Hover**: neutral (`--raised` or `--bg-3`, `--line-2`), except buttons and mode cards, which show a `--primary` border.
 - **Focus**: the global 2 px `--focus` ring on `:focus-visible`. Never remove it.
 - **Disabled**: 45 % opacity, `not-allowed` cursor, the same label.
+- **Picked out on a pitch** (the match day, 2026-10-26): a squad strip card (or a formation panel's shirt) selected, or a strip card with the keyboard's focus, picks its man out until a second tap lets him go or the focus moves on: on the live pitch a `--gold` ring and a soft glow round his dot with his surname over it in white with a dark outline (`.dot-pick`, moving with him; it fades in on `--dur-2`), on the formation panels a `--gold` ring round his shirt (`.md-man.lit`). The ring is `--gold` like the Draft pitch's selected slot, so it reads over either kit. Display only (`nextSelection`, `highlightedMan` and `highlightSide` in `src/ui/matchday/controls.ts`); the heat map follows the same selection.
 
 ## 7. Imagery
 
