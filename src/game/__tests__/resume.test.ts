@@ -6,6 +6,8 @@ import { createGame } from '../logic/setup'
 import { arenaStatus, beginArena, finalGameSettings } from '../logic/arena'
 import { resumeStatus } from '../logic/resume'
 import { countPhrase } from '../../ui/screenText'
+import { influenceOf } from '../logic/dynamics'
+import { playerLookup } from '../logic/players'
 import { seasonGame, seasonSettings } from './seasonGame'
 
 const u = loadTestUniverse(['england'])
@@ -43,5 +45,13 @@ describe("Home's resume strips", () => {
     expect(countPhrase(1, 'seasons')).toBe('1 season')
     expect(countPhrase(0, 'achievements')).toBe('0 achievements')
     expect(countPhrase(1, 'achievements')).toBe('1 achievement')
+  })
+  it("counts one appearance as \"1 app\" on squad rows and in the dressing room", () => {
+    expect(countPhrase(1, 'apps')).toBe('1 app')
+    expect(countPhrase(0, 'apps')).toBe('0 apps')
+    const g = seasonGame(u, 'resume-apps', 1)
+    const get = playerLookup(g, u)
+    const reasons = Object.entries(g.squad).map(([id, s]) => influenceOf(g, get(id)!, s).reasons).flat()
+    expect(reasons.some((r) => /^1 apps$/.test(r))).toBe(false)
   })
 })

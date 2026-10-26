@@ -56,6 +56,7 @@ import { DUGOUT_ALL, DUGOUT_HEAD, DUGOUT_TABS } from '../boxSets'
 import type { BoxSet } from '../boxes'
 import type { Game } from '@game/types'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
+import { countPhrase } from '../screenText'
 
 type Tab = DugoutTab
 
@@ -432,7 +433,7 @@ export function Dugout() {
                         )}
                         {view === 'overview' && s.seasonStats.apps > 0 && (
                           <span className="season-line">
-                            {s.seasonStats.apps} apps · {s.seasonStats.goals}g {s.seasonStats.assists}a · {avg}
+                            {countPhrase(s.seasonStats.apps, 'apps')} · {s.seasonStats.goals}g {s.seasonStats.assists}a · {avg}
                           </span>
                         )}
                         {view === 'form' && (

@@ -9,6 +9,7 @@ import { AttributePanel } from './AttributePanel'
 import { FormGraph, FormPills, PositionMap, SeasonChart } from './PlayerCharts'
 import { Bar, ClubBadge, EstimatedChip, Flag, Modal, Pos, Rating } from './bits'
 import { clubName, conditionColour, meterValue, money, moraleWord, seasonLabel } from '../format'
+import { countPhrase } from '../screenText'
 
 export interface PlayerCardProps {
   /** The season the card describes: its attributes, positions and map (the squad's copy in the Dugout, the peak season in Explore). */
@@ -99,7 +100,7 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
                 <FormPills ratings={state.recentRatings} />
               </div>
               <div className="small muted pc-season-line" data-testid="card-season-line">
-                {state.seasonStats.apps} apps · {state.seasonStats.goals} g · {state.seasonStats.assists} a · avg {avg === null ? '–' : avg.toFixed(2)}
+                {countPhrase(state.seasonStats.apps, 'apps')} · {state.seasonStats.goals} g · {state.seasonStats.assists} a · avg {avg === null ? '–' : avg.toFixed(2)}
                 {state.seasonStats.motm > 0 ? ` · ${state.seasonStats.motm} MOTM` : ''}
               </div>
             </>
