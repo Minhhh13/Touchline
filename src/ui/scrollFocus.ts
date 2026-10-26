@@ -7,7 +7,7 @@
  */
 
 /** The boxes that may scroll inside themselves. A new self-scrolling box either holds a control or joins this list. */
-export const SCROLL_BOXES = '.tbl-wrap, .screen-body, .draft-log, .case-odds, .md-table, .md-slot-body, .rp-goals, .fit-cell, .fit-scroll, .tab-body, .summary-body, table.tbl'
+export const SCROLL_BOXES = '.tbl-wrap, .screen-body, .draft-log, .case-odds, .md-table, .md-slot-body, .rp-goals, .fit-cell, .fit-scroll, .tab-body, .summary-body, table.tbl, .gbg-list, .md-flank > dl'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
 
@@ -57,9 +57,18 @@ export function syncScrollFocus(root: ParentNode = document): void {
 export function watchScrollFocus(root: HTMLElement = document.body, wait = 500): () => void {
   if (typeof MutationObserver === 'undefined') return () => undefined
   let timer: ReturnType<typeof setTimeout> | null = null
+  let settle: ReturnType<typeof setTimeout> | null = null
+  // One more pass a little after each burst: a box can start to scroll with no DOM change of its own (a web font or
+  // a count-up's last width landing), which the observer never sees
+  const recheck = () => {
+    settle = null
+    syncScrollFocus(root)
+  }
   const run = () => {
     timer = null
     syncScrollFocus(root)
+    if (settle !== null) clearTimeout(settle)
+    settle = setTimeout(recheck, wait * 3)
   }
   const schedule = () => {
     if (timer === null) timer = setTimeout(run, wait)
@@ -72,5 +81,6 @@ export function watchScrollFocus(root: HTMLElement = document.body, wait = 500):
     mo.disconnect()
     window.removeEventListener('resize', schedule)
     if (timer !== null) clearTimeout(timer)
+    if (settle !== null) clearTimeout(settle)
   }
 }

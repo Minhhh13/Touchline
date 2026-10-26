@@ -9793,13 +9793,11 @@ table.tbl.match-stats th {
     transform: scale(1.08);
     opacity: 1;
   }
+  /* It settles and stays at full strength: fading an old chip took its text under 4.5:1 (docs/ACCESSIBILITY.md) */
   20%,
-  80% {
+  100% {
     transform: scale(1);
     opacity: 1;
-  }
-  100% {
-    opacity: 0.35;
   }
 }
 .pb-tabs {
@@ -14681,5 +14679,205 @@ details.opposition {
   .mode-art .mode-scene.scene-subject {
     inset: 0 auto 0 -50%;
     width: 200%;
+  }
+}
+/* ------------------------------------------------------------------------- accessibility round 2 (2026-10-26) */
+/* The skip link: the first Tab stop, off the screen until it has the focus. Fixed, so it is never a row of the shell's
+   grid; the screen's `.page` it points at is the main landmark (src/ui/landmarks.ts) and takes no ring of its own */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+.skip-link:focus {
+  transform: none;
+}
+.app > .page#main:focus {
+  outline: none;
+}
+/* Phones: Apple's 44 pt target for what is tapped most. Buttons, small buttons, the chip buttons, the segmented
+   choices, tabs and form fields grow to 44 px tall (an icon-only small button to 44 wide); round icon buttons keep their
+   look and take the room from an invisible ::after, clear of their neighbours. Phone-only: the desktop fit is untouched */
+@media (max-width: 720px) {
+  .btn,
+  .btn.sm,
+  .cta-bar .btns .btn,
+  .chip-btn,
+  .segmented button,
+  .tabs button,
+  .input,
+  select.input,
+  input[type='range'] {
+    min-height: 44px;
+  }
+  .btn.sm:has(> svg:only-child),
+  .name-btn,
+  .segmented button {
+    min-width: 44px;
+  }
+  .step-head-row .season-pick {
+    min-height: 44px;
+  }
+  .brand {
+    min-height: 44px;
+  }
+  .theme-switch::after {
+    inset: -6px;
+  }
+  .info-btn::after {
+    inset: -14px;
+  }
+  .star[role='button']::after {
+    inset: -13px;
+  }
+  .reel-sound::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+  .boxes-btn::after {
+    inset: -10px -4px;
+  }
+  .linklike {
+    position: relative;
+  }
+  .linklike::after {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
+  }
+  .tbl tr.clickable > td {
+    height: 44px;
+  }
+  details > summary {
+    min-height: 44px;
+    align-content: center;
+  }
+}
+/* The Gauntlet's rungs still ahead: a dashed outline, not a fade (60% opacity took the numbers under 4.5:1) */
+.chip.rung-ahead {
+  border-style: dashed;
+  background: transparent;
+}
+/* Phones at 175 % and 200 % text (iOS Dynamic Type through the root font size, docs/ACCESSIBILITY.md section 5): the
+   rows that ran past the window wrap instead. Each only wraps when its content no longer fits, so 100 % is unchanged */
+@media (max-width: 720px) {
+  .draft-progress > .row,
+  .draft-progress > .row > .row,
+  .panel-head > .row {
+    flex-wrap: wrap;
+  }
+  .prow .meta .chip,
+  .mspin-style-edge {
+    white-space: normal;
+    max-width: 100%;
+  }
+  .mspin-style-edge {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  /* A stat's capitalised label ("ACHIEVEMENTS") is wider than its half of the strip at 200 % */
+  .stat .label {
+    overflow-wrap: anywhere;
+  }
+}
+/* Home's lockup on a narrow phone: it scales with its column (a size container), so it is never clipped by the hero
+   (it ran 27 px past a 320 px screen); at 390 px and up it stays 60 px tall. The lockup is a logotype drawn to its own
+   geometry: it opts out of a text-size adjustment (iOS text zoom), which grew its name but not its flag and ball */
+.tl-lockup {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+@media (max-width: 520px) {
+  .hero-content {
+    width: 100%;
+  }
+  .hero h1 {
+    container-type: inline-size;
+  }
+  .hero h1 .tl-lockup {
+    --h: min(60px, 19.5cqi);
+  }
+}
+/* iOS Dynamic Type arrives as the root font size (src/ui/textScale.ts), never as a text-size adjustment: the page
+   opts out of Safari's own landscape inflation so the two never stack */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+/* The Dugout on a phone: its own small controls reach 44 px too (the tables' selects, the roles' selects, the squad
+   views, a small button's width), a player's name link grows an invisible target, and at 200 % text the squad's
+   toolbar, the role pickers and the planner's need chips give way rather than run past the window */
+@media (max-width: 720px) {
+  .input.sm,
+  table.tbl select.input.sm,
+  .role-pick select.input,
+  .segmented.squad-views-seg button {
+    min-height: 44px;
+  }
+  .btn.sm {
+    min-width: 44px;
+  }
+  .link-btn {
+    position: relative;
+  }
+  .link-btn::after {
+    content: '';
+    position: absolute;
+    inset: -12px -2px;
+  }
+  .skip-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  /* The dressing room's groups list their names inline, and a group's names wrap to lines 19 px apart on a phone:
+     each name is 24 px tall, so the lines clear WCAG 2.5.8 (axe target-size) */
+  .room-group .link-btn {
+    min-height: 24px;
+  }
+  .panel-head > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .role-pick,
+  .role-pick select.input {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .row.between:has(> .chip.warn) {
+    flex-wrap: wrap;
+  }
+  .row.between > .chip.warn {
+    white-space: normal;
+    max-width: 100%;
+  }
+  /* The checklist's lines sit close: its Info buttons are drawn at 24 px so their own box clears WCAG 2.5.8 */
+  .briefing .brief .info-btn {
+    width: 24px;
+    height: 24px;
+  }
+}
+/* A tablet at 200 % text (820 px): the manager spin's edges run past the window too */
+@media (max-width: 1099.98px) {
+  .mspin-style-edge {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+/* The match charts' head rows (the xG race: home, title, away) wrap at 200 % text on a phone */
+@media (max-width: 720px) {
+  .mchart > .row.between {
+    flex-wrap: wrap;
   }
 }

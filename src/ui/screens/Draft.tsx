@@ -378,7 +378,7 @@ export function Draft() {
                     {d.bench.length ? `On to kick-off with ${d.bench.length} on the bench` : 'On to kick-off without a bench'}
                   </button>
                 )}
-                <div className="row between">
+                <div className="row between wrap">
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
                     Re-spin ({d.respinsLeft})
                   </button>
