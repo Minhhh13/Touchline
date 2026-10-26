@@ -284,7 +284,7 @@
   color: #fff;
   cursor: pointer;
   max-width: 76px;
-  transition: left 0.6s ease, top 0.6s ease;
+  transition: left calc(var(--dur-1) * 4) var(--ease-out), top calc(var(--dur-1) * 4) var(--ease-out);
 }
 .matchday .md-man:focus-visible {
   outline: 2px solid var(--focus);
@@ -524,7 +524,7 @@
  * the way to full strength, so a line caught mid-slide (or a run of quick lines at 4x) never reads as pale grey.
  */
 .matchday .md-banner.key .txt {
-  animation: md-in 0.3s ease;
+  animation: md-in var(--dur-3) var(--ease-out);
   font-weight: 600;
 }
 @keyframes md-in {
@@ -663,7 +663,7 @@
   padding: 2px 4px;
   border-radius: 4px;
   font-size: var(--fs-meta);
-  animation: md-in 0.25s ease;
+  animation: md-in var(--dur-2) var(--ease-out);
 }
 .matchday .md-line {
   grid-template-columns: 38px minmax(0, 1fr);
@@ -760,7 +760,7 @@
 .matchday .md-share > span {
   display: block;
   height: 100%;
-  transition: width 0.4s ease;
+  transition: width var(--dur-4) var(--ease-out);
 }
 .matchday .md-momentum svg {
   display: block;
@@ -958,7 +958,7 @@
 .matchday .md-score.fresh .res {
   background: var(--primary);
   color: var(--on-primary);
-  animation: md-pulse 1s ease;
+  animation: md-pulse calc(var(--dur-4) * 2.5) var(--ease-out);
 }
 @keyframes md-pulse {
   0% {
