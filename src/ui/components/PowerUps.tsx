@@ -4,7 +4,9 @@ import { isComplete, positionFirst, targetSlot, type DraftState } from '@engine/
 import { ICONS_SEASON } from '@engine/icons'
 import type { PlayerSeason } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { ARMBAND_BOOST, POWER_UP_INFO, POWER_UPS_ICON, armbandId, canArmband, canLock, canPeek, canReroll, canSwap, lockedId, peekedSeason, powerUpUsed, rerollOptions, swapTargets, trayKinds } from '@engine/powerups'
+import { ARMBAND_BOOST, POWER_UP_INFO, armbandId, canArmband, canLock, canPeek, canReroll, canSwap, lockedId, peekedSeason, powerUpUsed, rerollOptions, swapTargets, trayKinds } from '@engine/powerups'
+import { Package } from 'lucide-react'
+import { LOCKER_ICON, PowerUpIcon } from './icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
 import { formatOdds } from '@game/logic/tierOdds'
 import { Modal, Pos } from './bits'
@@ -60,12 +62,15 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
   return (
     <div className="panel tight pu-tray" data-testid="power-ups">
       <div className="row between wrap pu-head" style={{ marginBottom: 8 }}>
-        <b>{fromLocker ? '🎒 From your locker' : `${POWER_UPS_ICON} Power-ups`}</b>
+        <b className="row" style={{ gap: 6 }}>
+          {fromLocker ? <LOCKER_ICON size={16} aria-hidden="true" /> : <Package size={16} aria-hidden="true" />}
+          {fromLocker ? 'From your locker' : 'Power-ups'}
+        </b>
         <span className="small muted">One use each · in-game only</span>
       </div>
       {peeked !== null && (
         <div className="notice small" data-testid="peek-notice" style={{ marginBottom: 8 }}>
-          {POWER_UP_INFO.peek.icon} Peek: the next spin lands in <b>{peeked === ICONS_SEASON ? 'the Icons collection' : seasonLabel(peeked)}</b>.
+          <PowerUpIcon kind="peek" size={14} /> Peek: the next spin lands in <b>{peeked === ICONS_SEASON ? 'the Icons collection' : seasonLabel(peeked)}</b>.
         </div>
       )}
       <div className="pu-grid">
@@ -73,23 +78,23 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
           <Upgrader tray players={players} ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0} available={canUpgrade(d) && drafting} result={d.upgrade} hideRatings={hideRatings} lockedId={lock} onConfirm={(id, boost) => upgradePlayer(id, boost)} />
         )}
         {kinds.includes('reroll') && (
-          <PowerUpButton icon={POWER_UP_INFO.reroll.icon} title={POWER_UP_INFO.reroll.title} line={POWER_UP_INFO.reroll.line} status={status.reroll} used={powerUpUsed(d, 'reroll')} disabled={!drafting || busy || !canReroll(u, d)} onClick={() => setSheet('reroll')} testId="pu-reroll" />
+          <PowerUpButton icon={<PowerUpIcon kind="reroll" />} title={POWER_UP_INFO.reroll.title} line={POWER_UP_INFO.reroll.line} status={status.reroll} used={powerUpUsed(d, 'reroll')} disabled={!drafting || busy || !canReroll(u, d)} onClick={() => setSheet('reroll')} testId="pu-reroll" />
         )}
         {kinds.includes('peek') && (
-          <PowerUpButton icon={POWER_UP_INFO.peek.icon} title={POWER_UP_INFO.peek.title} line={POWER_UP_INFO.peek.line} status={status.peek} used={powerUpUsed(d, 'peek')} disabled={!drafting || busy || !canPeek(u, d)} onClick={() => peekSpin()} testId="pu-peek" />
+          <PowerUpButton icon={<PowerUpIcon kind="peek" />} title={POWER_UP_INFO.peek.title} line={POWER_UP_INFO.peek.line} status={status.peek} used={powerUpUsed(d, 'peek')} disabled={!drafting || busy || !canPeek(u, d)} onClick={() => peekSpin()} testId="pu-peek" />
         )}
         {kinds.includes('swap') && (
-          <PowerUpButton icon={POWER_UP_INFO.swap.icon} title={POWER_UP_INFO.swap.title} line={POWER_UP_INFO.swap.line} status={status.swap} used={powerUpUsed(d, 'swap')} disabled={!drafting || busy || !canSwap(u, d)} onClick={() => setSheet('swap')} testId="pu-swap" />
+          <PowerUpButton icon={<PowerUpIcon kind="swap" />} title={POWER_UP_INFO.swap.title} line={POWER_UP_INFO.swap.line} status={status.swap} used={powerUpUsed(d, 'swap')} disabled={!drafting || busy || !canSwap(u, d)} onClick={() => setSheet('swap')} testId="pu-swap" />
         )}
         {kinds.includes('armband') && (
-          <PowerUpButton icon={POWER_UP_INFO.armband.icon} title={POWER_UP_INFO.armband.title} line={POWER_UP_INFO.armband.line} status={status.armband} used={powerUpUsed(d, 'armband')} disabled={!drafting || !canArmband(d)} onClick={() => setSheet('armband')} testId="pu-armband" />
+          <PowerUpButton icon={<PowerUpIcon kind="armband" />} title={POWER_UP_INFO.armband.title} line={POWER_UP_INFO.armband.line} status={status.armband} used={powerUpUsed(d, 'armband')} disabled={!drafting || !canArmband(d)} onClick={() => setSheet('armband')} testId="pu-armband" />
         )}
         {kinds.includes('lock') && (
-          <PowerUpButton icon={POWER_UP_INFO.lock.icon} title={POWER_UP_INFO.lock.title} line={POWER_UP_INFO.lock.line} status={status.lock} used={powerUpUsed(d, 'lock')} disabled={!drafting || !canLock(d)} onClick={() => setSheet('lock')} testId="pu-lock" />
+          <PowerUpButton icon={<PowerUpIcon kind="lock" />} title={POWER_UP_INFO.lock.title} line={POWER_UP_INFO.lock.line} status={status.lock} used={powerUpUsed(d, 'lock')} disabled={!drafting || !canLock(d)} onClick={() => setSheet('lock')} testId="pu-lock" />
         )}
       </div>
 
-      <Modal open={sheet === 'reroll'} onClose={close} title={`${POWER_UP_INFO.reroll.icon} Re-roll season`} sheet testId="reroll-sheet">
+      <Modal open={sheet === 'reroll'} onClose={close} title="Re-roll season" sheet testId="reroll-sheet">
         <div className="col" style={{ gap: 10 }}>
           <div className="small muted">Same club, a new year: the reel spins again over the club's other seasons on this wheel. Each is equally likely.</div>
           <div className="pu-odds" data-testid="reroll-odds">
@@ -115,7 +120,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
         </div>
       </Modal>
 
-      <Modal open={sheet === 'swap'} onClose={close} title={`${POWER_UP_INFO.swap.icon} Swap`} sheet testId="swap-sheet">
+      <Modal open={sheet === 'swap'} onClose={close} title="Swap" sheet testId="swap-sheet">
         <div className="col" style={{ gap: 10 }}>
           <div className="small muted">{from ? `Move ${nameOf(d.lineup[from])} to:` : 'Choose a starter to move. He can go to any slot he can cover; a player already there moves the other way if he can cover too.'}</div>
           <div className="upg-players" role="listbox" aria-label={from ? 'Slots' : 'Starters'}>
@@ -160,7 +165,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
         </div>
       </Modal>
 
-      <Modal open={sheet === 'armband' || sheet === 'lock'} onClose={close} title={sheet === 'lock' ? `${POWER_UP_INFO.lock.icon} Lock` : `${POWER_UP_INFO.armband.icon} Captain's armband`} sheet testId="pick-sheet">
+      <Modal open={sheet === 'armband' || sheet === 'lock'} onClose={close} title={sheet === 'lock' ? 'Lock' : "Captain's armband"} sheet testId="pick-sheet">
         <div className="col" style={{ gap: 10 }}>
           <div className="small muted">{sheet === 'lock' ? 'Choose a player to lock: if the Upgrader loses on him, his rating stays where it is. Use it before the Upgrader.' : `Choose a player to wear the armband: +${ARMBAND_BOOST} to his rating for the season.`}</div>
           <div className="upg-players" role="listbox" aria-label="Drafted players">

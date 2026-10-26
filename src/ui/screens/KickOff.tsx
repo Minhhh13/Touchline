@@ -66,18 +66,20 @@ export function KickOff() {
       <div className="fit-grid c3">
         <div className="fit-cell">
           <SquadComplete game={game} u={u} hideRatings={hide}>
-            <button className="btn primary big sc-go" onClick={() => kickOff()} data-testid="kickoff-go">
-              Simulate season
-            </button>
-            <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
-              {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
-              {isSuperLeague(s) ? ` ${SUPER_LEAGUE_LINE}. A top-${QUICK_CONTINENTAL_PLACES} finish earns the Continental Cup against the next best.` : s.mode === 'quick' ? ` After the league you can play the Cup, and the Continental Cup with a top-${QUICK_CONTINENTAL_PLACES} finish.` : ''}
-            </p>
+            <div className="col sc-foot" style={{ gap: 8 }}>
+              <button className="btn primary big sc-go" onClick={() => kickOff()} data-testid="kickoff-go">
+                Simulate season
+              </button>
+              <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
+                {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
+                {isSuperLeague(s) ? ` ${SUPER_LEAGUE_LINE}. A top-${QUICK_CONTINENTAL_PLACES} finish earns the Continental Cup against the next best.` : s.mode === 'quick' ? ` After the league you can play the Cup, and the Continental Cup with a top-${QUICK_CONTINENTAL_PLACES} finish.` : ''}
+              </p>
+            </div>
           </SquadComplete>
         </div>
         <div className="panel col fit-cell">
           <h3>Your XI · {formation.name}</h3>
-          <div inert>
+          <div inert className="pitch-fit" data-testid="kickoff-pitch">
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={hide} />
           </div>
           {quickBenchRule(game) && game.bench.length > 0 && (

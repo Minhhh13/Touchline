@@ -3,7 +3,7 @@ import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, C
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailySettings } from '@game/logic/setup'
 import { modeLabel } from '@game/logic/modes'
-import { arenaStatus } from '@game/logic/arena'
+import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
@@ -18,6 +18,7 @@ import { Lockup } from '../components/Logo'
 import { LeagueFlag } from '../components/Flag'
 import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
 import { withViewTransition } from '../motion'
+import { countPhrase } from '../screenText'
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
 function compact(n: number): string {
@@ -171,51 +172,52 @@ export function Home() {
 
       <ConflictCards />
 
-      {game && (
-        <div className="panel resume-card row between wrap">
-          <div className="row">
-            <TeamBadge code={game.settings.shortName} size={36} />
-            <div>
-              <div style={{ fontWeight: 700 }}>
-                {game.settings.teamName} · {modeLabel(game, 'short')}
+      {(game || Object.keys(parked).length > 0) && (
+        <div className="resume-list" data-testid="resume-list" data-count={(game ? 1 : 0) + Object.keys(parked).length}>
+          {game && (
+            <div className="panel resume-card row between" data-testid="resume-current">
+              <div className="row resume-who">
+                <TeamBadge code={game.settings.shortName} size={36} />
+                <div className="resume-text">
+                  <div className="resume-name" title={`${modeLabel(game, 'short')} · ${game.settings.teamName}`}>
+                    {modeLabel(game, 'short')} · {game.settings.teamName}
+                  </div>
+                  <div className="small muted resume-status">{resumeStatus(game)}</div>
+                </div>
               </div>
-              <div className="small muted">
-                {game.arena ? arenaStatus(game) : game.phase === 'draft' ? 'Drafting' : game.phase === 'kickoff' ? 'Kick-off' : game.phase === 'january' ? 'January window' : game.phase === 'summary' ? 'Season complete' : game.season ? `Matchweek ${game.season.matchweek} of ${game.season.matchweeks} · ${seasonLabel(game.settings.leagueSeason)}` : 'In progress'}
+              <div className="row resume-actions">
+                <button className="btn primary" onClick={() => go('game')}>
+                  Continue
+                </button>
+                <button className="btn danger ghost" onClick={() => confirm('Abandon the current game? This cannot be undone.') && abandonGame()}>
+                  Abandon
+                </button>
               </div>
             </div>
-          </div>
-          <div className="row">
-            <button className="btn primary" onClick={() => go('game')}>
-              Continue
-            </button>
-            <button className="btn danger ghost" onClick={() => confirm('Abandon the current game? This cannot be undone.') && abandonGame()}>
-              Abandon
-            </button>
-          </div>
+          )}
+          {Object.entries(parked).map(([slot, g]) => (
+            <div key={slot} className="panel resume-card parked row between" data-testid={`resume-parked-${slot}`}>
+              <div className="row resume-who">
+                <TeamBadge code={g.settings.shortName} size={36} />
+                <div className="resume-text">
+                  <div className="resume-name" title={`${modeLabel(g, 'short')} (parked) · ${g.settings.teamName}`}>
+                    {modeLabel(g, 'short')} (parked) · {g.settings.teamName}
+                  </div>
+                  <div className="small muted resume-status">{resumeStatus(g)}</div>
+                </div>
+              </div>
+              <div className="row resume-actions">
+                <button className="btn" onClick={() => resumeGame(slot)}>
+                  Resume
+                </button>
+                <button className="btn danger ghost" onClick={() => confirm('Discard this parked game?') && discardParked(slot)}>
+                  Discard
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
-
-      {Object.entries(parked).map(([slot, g]) => (
-        <div key={slot} className="panel resume-card parked row between wrap">
-          <div className="row">
-            <TeamBadge code={g.settings.shortName} size={36} />
-            <div>
-              <div style={{ fontWeight: 700 }}>
-                {g.settings.teamName} · {modeLabel(g, 'short')} (parked)
-              </div>
-              <div className="small muted">{g.arena ? arenaStatus(g) : g.phase === 'draft' ? 'Drafting' : g.phase === 'kickoff' ? 'Kick-off' : g.phase === 'january' ? 'January window' : g.season ? `Matchweek ${g.season.matchweek} of ${g.season.matchweeks} · ${seasonLabel(g.settings.leagueSeason)}` : 'In progress'}</div>
-            </div>
-          </div>
-          <div className="row">
-            <button className="btn" onClick={() => resumeGame(slot)}>
-              Resume
-            </button>
-            <button className="btn danger ghost" onClick={() => confirm('Discard this parked game?') && discardParked(slot)}>
-              Discard
-            </button>
-          </div>
-        </div>
-      ))}
 
       <div className="modes">
         <button className="mode-card" onClick={() => go('setup', 'quick')}>
@@ -298,7 +300,7 @@ export function Home() {
         <Tile icon={Swords} title="Head-to-head" meta="Two managers, one device" onClick={() => go('h2h')} />
         {onlineAvailable() && <Tile icon={Globe} title="World leaderboard" meta="Daily, weekly and all-time, by country" onClick={() => go('world')} testId="world-card" />}
         <Tile icon={Search} title="Explore database" meta={u ? `${u.available.length} leagues of real squads` : 'Real squads since 2008-09'} onClick={() => go('explore')} />
-        <Tile icon={Trophy} title="Profile" meta={`${profile.seasonsSimulated} seasons · ${achievements} achievements`} onClick={() => go('profile')} />
+        <Tile icon={Trophy} title="Profile" meta={`${countPhrase(profile.seasonsSimulated, 'seasons')} · ${countPhrase(achievements, 'achievements')}`} onClick={() => go('profile')} />
         <Tile icon={BookOpen} title="How it works" meta="The wheel, matches, the board" onClick={() => go('howto')} />
       </div>
       <p className="muted small" style={{ marginTop: 16, textAlign: 'center' }}>

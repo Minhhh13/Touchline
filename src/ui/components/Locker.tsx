@@ -2,6 +2,7 @@ import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
 import { canUnpackFromLocker, lockerCount, lockerOn } from '@game/logic/endCase'
+import { LOCKER_ICON, PowerUpIcon } from './icons'
 
 /**
  * The locker on a Quick Draft without the power-up tray: the power-ups end-of-draft cases have dropped, by count, each
@@ -15,10 +16,13 @@ export function LockerBar({ game, busy }: { game: Game; busy: boolean }) {
   if (!held.length) return null
   return (
     <div className="panel tight locker" data-testid="locker">
-      <b className="small">🎒 Locker</b>
+      <b className="small row" style={{ gap: 6 }}>
+        <LOCKER_ICON size={14} aria-hidden="true" />
+        Locker
+      </b>
       {held.map((k) => (
         <button key={k} type="button" className="btn sm locker-btn" disabled={busy || !canUnpackFromLocker(game, profile, k)} onClick={() => unpackPowerUp(k)} title={`Unpack into this draft: ${POWER_UP_INFO[k].line}`} data-testid={`locker-${k}`}>
-          <span aria-hidden="true">{POWER_UP_INFO[k].icon}</span> {POWER_UP_INFO[k].title} <span className="n">×{lockerCount(profile, k)}</span>
+          <PowerUpIcon kind={k} size={14} /> {POWER_UP_INFO[k].title} <span className="n">×{lockerCount(profile, k)}</span>
         </button>
       ))}
       <span className="help">Unpack one into this draft; it is gone from the locker once unpacked.</span>
