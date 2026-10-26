@@ -267,13 +267,13 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
 }
 
 /** Tab strip; `alert` draws a dot, `badge` a count (which takes the dot's place when both are set). */
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void }) {
+export function Tabs<T extends string>({ tabs, value, onChange, className = '', testId }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void; /** Extra classes on the strip. */ className?: string; /** Each tab gets `data-testid="<testId>-<id>"`. */ testId?: string }) {
   const ink = useTabInk(value, tabs.length)
   return (
-    <div className={`tabs ${ink.style ? 'has-ink' : ''}`} role="tablist" ref={ink.ref}>
+    <div className={`tabs ${ink.style ? 'has-ink' : ''} ${className}`} role="tablist" ref={ink.ref}>
       {ink.style && <span className={`tabs-ink ${ink.ready ? 'ready' : ''}`} style={ink.style} aria-hidden="true" />}
       {tabs.map((t) => (
-        <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)}>
+        <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
             <span className="tab-badge" data-testid={`badge-${t.id}`} aria-label={`${t.badge} new`}>
