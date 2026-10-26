@@ -1,6 +1,7 @@
-import { Armchair, Bandage, Banknote, BrickWall, CalendarCheck, CircleCheck, Circle, CircleDot, Crown, Dumbbell, EyeOff, Footprints, Gem, Globe, Hand, Handshake, Heart, History, Info as InfoGlyph, Landmark, Mail, Medal, MessageSquare, RectangleVertical, ScrollText, Shield, Sparkles, Sprout, Star, Target, ArrowDownToLine, TriangleAlert, Trophy, Zap, type LucideIcon } from 'lucide-react'
+import { BadgeCheck, CircleArrowUp, Coins, Dog, Skull, Timer, Tornado, Armchair, Bandage, Banknote, BrickWall, CalendarCheck, CircleCheck, Circle, CircleDot, Crown, Dumbbell, EyeOff, Footprints, Gem, Globe, Hand, Handshake, Heart, History, Info as InfoGlyph, Landmark, Mail, Medal, MessageSquare, RectangleVertical, ScrollText, Shield, Sparkles, Sprout, Star, Target, ArrowDownToLine, TriangleAlert, Trophy, Zap, type LucideIcon } from 'lucide-react'
 import type { NewsItem } from '@engine/season'
 import type { Twist } from '@engine/draft'
+import type { ModeCard } from '@engine/modes'
 import type { BriefingItem } from '@game/logic/briefing'
 
 /** The Inbox's picture for each kind of news; the same meanings as the digest's groups (DESIGN_SYSTEM.md section 7). */
@@ -23,6 +24,17 @@ export const TWIST_ICON: Record<Twist, LucideIcon> = {
   basement: ArrowDownToLine,
   blind: EyeOff,
   decade: History,
+}
+
+/** One picture per Quick Draft mode card (Setup's Modes row, the Draft's mode chips); `MODE_INFO.icon` keeps the emoji for share text. */
+export const MODE_ICON: Record<ModeCard, LucideIcon> = {
+  crazy: Tornado,
+  hard: Skull,
+  underdog: Dog,
+  legends: BadgeCheck,
+  speedrun: Timer,
+  gamble: Coins,
+  upgrader: CircleArrowUp,
 }
 
 /** A red card: the suspension icon filled in the bad colour. */

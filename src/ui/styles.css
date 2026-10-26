@@ -42,6 +42,8 @@
   --focus: #5ee3fb;
   --navy: #081544;
   --navy-2: #13266b;
+  /* Quiet ink on the always-navy reel windows, the same in both themes (the idle case and manager reels) */
+  --reel-ink: #93a3d6;
   --glow: color-mix(in srgb, var(--primary) 11%, transparent);
   --glow-2: color-mix(in srgb, var(--magenta) 9%, transparent);
   /* The neon pair, for the art (components/Art.tsx) and thin decorative lines only, never for meaning */
@@ -1424,7 +1426,7 @@ label.field,
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .prow.dim {
-  opacity: 0.42;
+  opacity: 0.55;
   cursor: default;
 }
 .prow.dim:hover {
@@ -1948,6 +1950,20 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The keeper (Pitch.tsx's foot slot): the name and role beside the disc, so the goal line never cuts them off */
+.pitch-wrap .slot.foot .label,
+.pitch-wrap .slot.foot .sub {
+  position: absolute;
+  left: calc(50% + 27px);
+  max-width: 120px;
+  text-align: left;
+}
+.pitch-wrap .slot.foot .label {
+  top: calc(50% - 8px);
+}
+.pitch-wrap .slot.foot .sub {
+  top: calc(50% + 5px);
+}
 @keyframes pulse {
   0%,
   100% {
@@ -2468,7 +2484,8 @@ kbd {
   background: var(--tier);
 }
 .spin-odds-item b {
-  color: var(--tier);
+  /* The tier's hue lifted toward the text colour, so purple and blue read at AA on the dark panel; the dot keeps the exact tier colour */
+  color: color-mix(in srgb, var(--tier) 65%, var(--text));
   font-variant-numeric: tabular-nums;
 }
 .spin-odds-item.zero {
@@ -4321,8 +4338,15 @@ table.tbl.contracts .btn.sm {
   align-items: flex-start;
 }
 .ach.locked {
-  opacity: 0.45;
-  filter: grayscale(1);
+  /* Locked reads as quiet, not faded: the text keeps AA contrast, the picture is what greys out (.ach.locked .icon) */
+  background: transparent;
+  border-style: dashed;
+}
+.ach.locked .title {
+  color: var(--text-2);
+}
+.ach.locked .desc {
+  color: var(--text-3);
 }
 .ach .icon {
   font-size: 22px;
@@ -5449,7 +5473,7 @@ table.tbl.contracts .btn.sm {
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
-  color: #0b1410;
+  color: var(--on-status);
 }
 .gbg-badge.W {
   background: var(--good);
@@ -5460,8 +5484,8 @@ table.tbl.contracts .btn.sm {
   color: var(--on-status);
 }
 .gbg-badge.L {
-  background: var(--danger);
-  color: #fff;
+  background: var(--bad);
+  color: var(--on-status);
 }
 .gbg-ha {
   display: inline-block;
@@ -5897,8 +5921,19 @@ table.tbl.contracts .btn.sm {
   align-items: center;
 }
 .badge-tile.locked {
-  opacity: 0.45;
+  background: transparent;
+  border-style: dashed;
+}
+.badge-tile.locked .badge-ring {
+  opacity: 0.5;
   filter: grayscale(1);
+}
+.badge-tile.locked .title {
+  color: var(--text-2);
+}
+.badge-tile.locked .desc,
+.badge-tile.locked .muted {
+  color: var(--text-3);
 }
 .badge-tile .title {
   font-weight: 700;
@@ -12180,4 +12215,114 @@ table.tbl.hub td.name {
     width: auto;
     min-width: 240px;
   }
+}
+
+/* ------------------------------------------------------------ polish pass (2026-10-26) */
+/* Setup's option and mode cards draw Lucide icons, not emoji: quiet when off, the accent when chosen */
+.qmode .micon,
+.choice-card .cicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+}
+.qmode.active .micon,
+.choice-card.active .cicon {
+  color: var(--accent);
+}
+/* Privacy and fair play is a shell screen: its boxes flow into columns (one on a phone) and scroll together in the body */
+.privacy-grid {
+  columns: 420px 3;
+  column-gap: var(--space-3);
+}
+.privacy-grid > .panel {
+  break-inside: avoid;
+  margin: 0 0 var(--space-3);
+}
+/* Phones: the small inline controls keep their look but get a 32 px+ target */
+@media (max-width: 720px) {
+  .linklike,
+  .boxes-btn,
+  button.chip {
+    position: relative;
+  }
+  .linklike::after,
+  .boxes-btn::after {
+    content: '';
+    position: absolute;
+    inset: -8px -4px;
+  }
+  button.chip::after {
+    content: '';
+    position: absolute;
+    inset: -6px -2px;
+  }
+}
+/* A narrow pitch (the Draft, the Dugout and the arena hub in a 1280 x 720 window) shrinks its discs and labels, so a
+   back four and the keeper do not run into each other; the formation pictures (.pitch-mini) keep their own sizes */
+.pitch-wrap {
+  container-type: inline-size;
+}
+.pitch-mini .pitch-wrap {
+  container-type: normal;
+  /* A formation picture has no names under its discs: its keeper keeps his exact spot */
+  --foot-room: 0px;
+}
+@container (max-width: 300px) {
+  .pitch-wrap .slot .disc {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+  .pitch-wrap .slot .label,
+  .pitch-wrap .slot .sub {
+    font-size: 10px;
+  }
+  .pitch-wrap .slot.foot .label,
+  .pitch-wrap .slot.foot .sub {
+    left: calc(50% + 23px);
+  }
+}
+@container (max-width: 240px) {
+  .pitch-wrap .slot .disc {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  .pitch-wrap .slot.foot .label,
+  .pitch-wrap .slot.foot .sub {
+    left: calc(50% + 21px);
+  }
+}
+/* The post-season cups' headings and trophy line carry a Lucide picture (Medal, Globe) in place of an emoji */
+.cup-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cup-trophy svg,
+.manager-chip svg {
+  flex: none;
+  vertical-align: -2px;
+}
+/* The idle reels' placeholder (the case's gift, the manager reels' question mark) sits on the navy reel window in both
+   themes, so it takes the reel's own ink rather than the theme's --text-3 (too dark on navy in Daylight) */
+.reel-window .mspin-idle {
+  color: var(--reel-ink);
+}
+/* A compact league table (the quick and run-in summaries' Final table) fits its box: the club column takes what the
+   numbers leave and long names end in an ellipsis (the full name is the cell's tooltip), so Pts is never off the edge */
+table.tbl.tv-compact td.tv-club {
+  width: 100%;
+  max-width: 0;
+}
+table.tbl.tv-compact td.tv-club > .row {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+table.tbl.tv-compact .tv-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

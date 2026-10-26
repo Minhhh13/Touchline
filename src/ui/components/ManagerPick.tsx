@@ -1,3 +1,4 @@
+import { UserRound } from 'lucide-react'
 import type { Manager } from '@engine/managers'
 import { MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL } from '@engine/managers'
 import { ClubBadge } from './bits'
@@ -45,7 +46,7 @@ export function ManagerChip({ manager }: { manager: Manager | undefined }) {
   if (!manager) return null
   return (
     <span className="chip manager-chip" data-testid="manager-chip" title={MANAGER_STYLE_HELP[manager.style]}>
-      👔 {manager.name} · {MANAGER_STYLE_LABEL[manager.style]}
+      <UserRound size={12} aria-hidden="true" /> {manager.name} · {MANAGER_STYLE_LABEL[manager.style]}
     </span>
   )
 }

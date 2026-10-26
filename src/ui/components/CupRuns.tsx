@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Globe, Medal, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game, QuickCupRun } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -8,11 +9,17 @@ import { ClubBadge } from './bits'
 import { ordinal } from '../format'
 import { isSuperLeague, sideNamer } from '@game/logic/superLeague'
 
+function CupIcon({ comp, size }: { comp: QuickCupComp; size: number }) {
+  const Icon = ICON[comp]
+  return <Icon size={size} aria-hidden="true" />
+}
+
 /** Milliseconds between two ties of a cup run as it is revealed. */
 export const TIE_STEP_MS = 1100
 
 const TITLE: Record<QuickCupComp, string> = { cup: 'The Cup', continental: 'Continental Cup' }
-const ICON: Record<QuickCupComp, string> = { cup: '🏆', continental: '🌍' }
+/** The cups' pictures, Lucide's meanings (DESIGN_SYSTEM.md section 7): Medal the cup, Globe the Continental Cup. */
+const ICON: Record<QuickCupComp, LucideIcon> = { cup: Medal, continental: Globe }
 
 function useReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -82,8 +89,8 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
   return (
     <div className={`cup-card ${comp}`} data-testid={`cup-${comp}`}>
       <div className="row between wrap" style={{ gap: 8 }}>
-        <h3 style={{ margin: 0 }}>
-          {ICON[comp]} {TITLE[comp]}
+        <h3 className="cup-title" style={{ margin: 0 }}>
+          <CupIcon comp={comp} size={18} /> {TITLE[comp]}
         </h3>
         {run && !revealing && <span className={`chip ${run.reached === 'W' ? 'gold' : ''}`} data-testid={`cup-${comp}-reached`}>{run.reached === 'W' ? 'Winners' : `Out in the ${cupReachLabel(run.reached, comp)}`}</span>}
         {revealing && (
@@ -116,7 +123,7 @@ function CupCard({ comp, game, u, onReveal }: { comp: QuickCupComp; game: Game; 
       {run && <TieList comp={comp} run={run} shown={n} nameOf={sideNamer(game, u)} />}
       {run && !revealing && run.reached === 'W' && (
         <div className="cup-trophy" data-testid={`cup-${comp}-trophy`}>
-          {ICON[comp]} {comp === 'cup' ? 'Cup winners' : 'Champions of the continent'}
+          <CupIcon comp={comp} size={16} /> {comp === 'cup' ? 'Cup winners' : 'Champions of the continent'}
         </div>
       )}
     </div>

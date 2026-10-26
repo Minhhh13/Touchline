@@ -83,7 +83,10 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const ring = p ? fitRingColour(fit, { warn, highlighted: !!eligible || selectedSlot === slot.id }) : undefined
         // y is from own goal (bottom) to opposition goal (top)
         const left = `${slot.x}%`
-        const top = `${100 - slot.y}%`
+        // The keeper sits on the goal line: his name and role go beside the disc, and the disc keeps clear of the bottom edge,
+        // so neither is cut off by a short pitch
+        const foot = slot.y <= 10
+        const top = foot ? `min(${100 - slot.y}%, calc(100% - var(--foot-room, 20px)))` : `${100 - slot.y}%`
         // The label's form: the full name and role when they fit the slot's room, else the surname and the role code
         const room = rooms[slot.id]
         const fitNote = fit !== 'natural' ? (fit === 'accomplished' ? ' · acc.' : ' · awk.') : ''
@@ -91,7 +94,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const name = p ? (p.name.length * NAME_CH <= room ? p.name : surname(p.name)) : ''
         const sub = (role + fitNote).length * SUB_CH <= room ? role : roleCodes?.[slot.id] ?? role
         return (
-          <div key={slot.id} className="slot" style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}` : undefined} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
+          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}` : undefined} onClick={() => onSlotClick?.(slot.id)} role="button" tabIndex={0} aria-label={`${slot.position} ${p ? p.name : 'empty'}`} onKeyDown={(e) => e.key === 'Enter' && onSlotClick?.(slot.id)}>
             <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
             </div>
