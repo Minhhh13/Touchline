@@ -9,6 +9,9 @@ import { Component, createElement, lazy, Suspense, type ComponentType, type Reac
  * fetched, or a deploy replaced it) shows `ScreenBoundary`'s reload card instead of a blank page.
  */
 
+/** Whether this page loaded before a service worker controlled it (a first visit): its assets then bypassed the worker's cache. */
+const startedUncontrolled = typeof navigator !== 'undefined' && !!navigator.serviceWorker && !navigator.serviceWorker.controller
+
 export interface LazyScreen {
   Screen: ComponentType
   preload: () => Promise<unknown>
@@ -89,8 +92,9 @@ export class ScreenBoundary extends Component<{ children: ReactNode; screenKey: 
 }
 
 /**
- * Fetch every screen's chunk one at a time in idle moments, after the page is controlled by the service worker when it
- * has one (so each chunk lands in its cache). Returns a cancel.
+ * Fetch every screen's chunk one at a time in idle moments, in the order given. Returns a cancel. On a first visit the
+ * page loads before the service worker takes it, so whatever came in until then is fetched once more through the
+ * worker when it does (`cacheLoadedAssets`), from the HTTP cache: the next visit works offline.
  */
 export function prefetchScreens(screens: LazyScreen[]): () => void {
   let stopped = false
@@ -106,19 +110,27 @@ export function prefetchScreens(screens: LazyScreen[]): () => void {
       s.preload().then(next, next)
     })
   }
+  next()
   const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : undefined
-  if (sw && !sw.controller && import.meta.env.PROD) {
-    // First visit: wait (a while at most) for the worker to take the page, then fetch through it
-    let started = false
-    const start = () => {
-      if (started) return
-      started = true
-      next()
-    }
-    sw.addEventListener('controllerchange', start, { once: true })
-    window.setTimeout(start, 8000)
-  } else next()
+  const onControl = () => cacheLoadedAssets()
+  if (sw && startedUncontrolled && import.meta.env.PROD) {
+    if (sw.controller) cacheLoadedAssets()
+    else sw.addEventListener('controllerchange', onControl, { once: true })
+  }
   return () => {
     stopped = true
+    sw?.removeEventListener('controllerchange', onControl)
+  }
+}
+
+/** Fetch again, through the service worker that now controls the page, every hashed asset this page loaded before it did. */
+export function cacheLoadedAssets(): void {
+  if (typeof performance === 'undefined' || typeof fetch === 'undefined') return
+  const seen = new Set<string>()
+  for (const e of performance.getEntriesByType('resource')) {
+    const url = new URL(e.name, location.href)
+    if (url.origin !== location.origin || !url.pathname.includes('/assets/') || seen.has(url.href)) continue
+    seen.add(url.href)
+    fetch(url.href).catch(() => undefined)
   }
 }
