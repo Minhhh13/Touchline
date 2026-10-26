@@ -38,10 +38,12 @@ describe('O-12: small controls get a 24 px target at every width', () => {
     const before = bare(css.slice(0, i))
     expect(before.split('{').length - before.split('}').length).toBe(0)
     expect(css.slice(i, css.indexOf('}', i))).toContain('inset: -4px -2px')
-    // An 18 px "i" with 3 px each side is 24 px
-    expect(body(css, '.qinfo-btn::after')).toContain('inset: -3px')
-    // A 23 px chip button with 1 px above and below is 25 px
-    expect(body(css, 'button.chip::after')).toContain('inset: -1px 0')
+    // The inset counts from inside the border: an 18 px "i" (16 inside its border) with 4 px each side is 24 px
+    expect(body(css, '.qinfo-btn::after')).toContain('inset: -4px')
+    // A 23 px chip button (21 inside its border) with 2 px above and below is 25 px
+    expect(body(css, 'button.chip::after')).toContain('inset: -2px 0')
+    // The dashboard's crumb clips its line, so its Boxes control is 24 px itself
+    expect(css).toMatch(/\.matchday \.md-crumb \.boxes-btn \{\n {2}min-height: 24px;/)
     expect(matchday).toMatch(/\.matchday \.md-select \{\n {2}min-height: 24px;/)
   })
 })
