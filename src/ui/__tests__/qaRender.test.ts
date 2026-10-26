@@ -27,15 +27,9 @@ import { DressingRoomTab } from '../screens/DressingRoomTab'
 import { PlannerTab } from '../screens/PlannerTab'
 import { RecruitmentPanel, ScoutReportsPanel } from '../screens/Recruitment'
 import { Chooser } from '../../game/__tests__/qaHarness'
-import { markupProblems, show } from './qaSsr'
+import { openFiltered, show } from './qaSsr'
 
 const u = loadTestUniverse(['england'])
-/**
- * Markup found and reported but not fixed here, because its file belongs to another agent's work in flight
- * (docs/QA.md, open issues): the opposition report's Units list is a div of dt and dd (O-4). Cut out before the check.
- */
-const withoutOpen = (html: string) => html.replace(/<div class="eyebrow">Units<\/div><div class="kv">[\s\S]*?<\/dd><\/div>/g, '')
-
 /** Render the app and the Dugout's tabs for what the store holds now. */
 function renderAll(label: string, fails: string[]): void {
   const g = useStore.getState().game
@@ -49,7 +43,7 @@ function renderAll(label: string, fails: string[]): void {
       fails.push(`${label} ${name} threw: ${e instanceof Error ? e.stack?.split('\n').slice(0, 4).join(' | ') : String(e)}`)
       continue
     }
-    for (const p of markupProblems(withoutOpen(html))) fails.push(`${label} ${name}: ${p}`)
+    for (const p of openFiltered(html)) fails.push(`${label} ${name}: ${p}`)
   }
 }
 

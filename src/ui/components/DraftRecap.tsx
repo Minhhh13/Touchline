@@ -23,7 +23,7 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
     <div className="draft-recap" data-testid="draft-recap">
       <div className="recap-head">
         {r.grade && (
-          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" aria-label={`Draft grade ${r.grade}`}>
+          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" role="img" aria-label={`Draft grade ${r.grade}`}>
             {r.grade}
           </span>
         )}

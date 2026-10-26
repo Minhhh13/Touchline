@@ -136,7 +136,7 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
   return (
     <div className="md-topbar" role="group" aria-label={label}>
       <Tools hand={hand} />
-      <div className={`scoreboard ${flash ? 'flash' : ''}`} aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
+      <div className={`scoreboard ${flash ? 'flash' : ''}`} role="group" aria-label={`${home.name} ${score.home}, ${away.name} ${score.away}, ${clockText(t, state)}`}>
         <span className="md-sb-code" style={{ background: home.colour, color: textColourFor(home.colour) }} title={home.name}>
           {home.code}
         </span>

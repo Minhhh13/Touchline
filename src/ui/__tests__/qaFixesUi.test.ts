@@ -19,7 +19,7 @@ import { ProfileScreen } from '../screens/ProfileScreen'
 import { StatsTab } from '../screens/StatsTab'
 import { App } from '../App'
 import { useStore } from '@game/store'
-import { markupProblems, renderProblems, show } from './qaSsr'
+import { markupProblems, openFiltered, renderProblems, show } from './qaSsr'
 import { ScreenBoundary } from '../components/ScreenBoundary'
 import { renderToString } from 'react-dom/server'
 import { createElement } from 'react'
@@ -99,7 +99,7 @@ describe('QA-8: ARIA states and keyboard-reachable scroll panels', () => {
     show({ universe: u, loadedLeagues: ['england'], game: g, screen: 'game', matchView: 'ticker' })
     const dugout = renderToString(createElement(App))
     expect(dugout).toContain('data-testid="squad-view-overview"')
-    expect(markupProblems(dugout)).toEqual([])
+    expect(openFiltered(dugout)).toEqual([])
     // A live match on the dashboard: every panel body and the table can be focused to scroll
     useStore.getState().startSeason()
     useStore.getState().setMatchPlay('watch')

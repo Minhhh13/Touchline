@@ -463,7 +463,7 @@ export function Dugout() {
             <div className="panel">
               <div className="panel-head">
                 <h3>{formation.name}</h3>
-                <span className="unit-strip" aria-label="Unit ratings">
+                <span className="unit-strip" role="group" aria-label="Unit ratings">
                   {(
                     [
                       ['GK', strength.goalkeeping],
