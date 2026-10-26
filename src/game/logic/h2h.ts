@@ -5,7 +5,7 @@ import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweek
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
-import type { DraftState } from '@engine/draft'
+import { QUICK_RULES, type DraftRules, type DraftState } from '@engine/draft'
 import type { Fixture, SeasonTier, TableRow } from '@engine/types'
 import type { QuickGameResult } from '../types'
 import { recordUserGames } from './gameByGame'
@@ -32,6 +32,11 @@ export interface H2HResult {
 }
 
 export const H2H_IDS = ['h2h-1', 'h2h-2'] as const
+
+/** The draft rules of a head-to-head, hot-seat or online room: the Quick Draft's, no re-spins, no twists, one wheel for both. */
+export function h2hRules(wheelLeagues: string[], hardMode: boolean): DraftRules {
+  return { ...QUICK_RULES, respins: 0, hardMode, difficulty: hardMode ? 'hard' : 'normal', showRatings: !hardMode, leagues: wheelLeagues, twists: false }
+}
 
 /** Both drafted XIs enter the same league season, replacing two real clubs. */
 export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager, H2HManager], drafts: [DraftState, DraftState], leagueId: string, leagueSeason: number, difficulty: 'calibrated' | 'realistic'): H2HResult {

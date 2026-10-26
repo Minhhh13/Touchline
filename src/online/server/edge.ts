@@ -7,7 +7,8 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ENGINE_VERSION } from '@engine/version'
-import { createServer, type DataPackRow, type ServerDeps, type StoredPin } from './service'
+import type { RoomView } from '@game/logic/h2hRoom'
+import { createServer, guestSubject, type DataPackRow, type RoomWrite, type ServerDeps, type StoredPin, type StoredRoom } from './service'
 
 const SLOTS = ['quick', 'season', 'dynasty', 'h2h']
 /** The most a request body may hold before it is refused (413). */
@@ -15,10 +16,12 @@ export const EDGE_MAX_BODY = 32768
 
 type Json = Record<string, unknown>
 
-/** What `withSupabase({ auth: 'user' })` hands the handler: the verified claims and the admin client. */
+/** What `withSupabase({ auth: ['user', 'publishable'] })` hands the handler: the verified claims (a user's JWT) or
+ * `authMode: 'publishable'` (the project's publishable key and no JWT: a guest), and the admin client. */
 export interface EdgeContext {
   userClaims?: { id?: string } | null
   jwtClaims?: { is_anonymous?: boolean } | null
+  authMode?: string
   supabaseAdmin: SupabaseClient
 }
 
@@ -45,6 +48,23 @@ function pinFromRow(kind: 'daily' | 'weekly', row: Json | null): StoredPin | nul
   } as StoredPin
 }
 
+const ROOM_STATUSES = ['ok', 'busy', 'missing', 'full', 'closed', 'conflict', 'not_seated', 'not_your_turn', 'bad']
+
+// The room writers answer { status, room?, seat? } (the h2h_rooms migration); the room is the public view the SQL built
+function roomWriteFrom(j: unknown): RoomWrite {
+  const r = (j ?? {}) as Json
+  const status = ROOM_STATUSES.includes(String(r.status)) ? (r.status as RoomWrite['status']) : 'bad'
+  return { status, ...(r.room ? { room: r.room as RoomView } : {}), ...(r.seat === 0 || r.seat === 1 ? { seat: r.seat } : {}) }
+}
+
+/** A seat token: 32 random bytes, base64url without padding. */
+export function randomToken(): string {
+  const b = crypto.getRandomValues(new Uint8Array(32))
+  let s = ''
+  for (const x of b) s += String.fromCharCode(x)
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
 function packFromJson(j: unknown): DataPackRow | null {
   if (!j || typeof j !== 'object') return null
   const r = j as Json
@@ -62,6 +82,7 @@ function makeDeps(admin: SupabaseClient, site: string): ServerDeps {
     now: () => new Date(),
     log: (line: Json) => console.log(JSON.stringify({ fn: `touchline-e${ENGINE_VERSION}`, ...line })),
     sha256Hex,
+    randomToken,
     fetchSite: async (path: string): Promise<Uint8Array | null> => {
       const r = await fetch(`${site}/${path}`, { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(15000) })
       if (!r.ok) {
@@ -136,6 +157,19 @@ function makeDeps(admin: SupabaseClient, site: string): ServerDeps {
         if (!pack) throw new DbError('the data pack registry answered nothing')
         return { status: r.status === 'ok' ? 'ok' : 'mismatch', pack }
       },
+      roomCreate: async (settings, manager, seatHash, userId, engine, data) =>
+        roomWriteFrom(await rpc(admin, 'svc_h2h_room_create', { p_settings: settings as unknown as Json, p_manager: manager as unknown as Json, p_seat_hash: seatHash, p_user: userId, p_engine: engine, p_data: data })),
+      roomGet: async (code) => {
+        const r = (await rpc(admin, 'svc_h2h_room_get', { p_code: code })) as Json | null
+        if (!r || !r.room || typeof r.seed !== 'string') return null
+        return { room: r.room, seed: r.seed, seat0Hash: r.seat0Hash, seat1Hash: r.seat1Hash ?? null, seat0User: r.seat0User ?? null, seat1User: r.seat1User ?? null } as StoredRoom
+      },
+      roomJoin: async (code, manager, seatHash, userId, events, turn, expectVersion) =>
+        roomWriteFrom(await rpc(admin, 'svc_h2h_room_join', { p_code: code, p_manager: manager as unknown as Json, p_seat_hash: seatHash, p_user: userId, p_events: events as unknown as Json, p_turn: turn, p_expect_version: expectVersion })),
+      roomMove: async (code, seat, seatHash, expectVersion, events, turn, result) =>
+        roomWriteFrom(await rpc(admin, 'svc_h2h_room_move', { p_code: code, p_seat: seat, p_seat_hash: seatHash, p_expect_version: expectVersion, p_events: events as unknown as Json, p_turn: turn, p_result: result as unknown as Json })),
+      roomLeave: async (code, seatHash) => roomWriteFrom(await rpc(admin, 'svc_h2h_room_leave', { p_code: code, p_seat_hash: seatHash })),
+      roomReseat: async (code, userId, seatHash) => roomWriteFrom(await rpc(admin, 'svc_h2h_room_reseat', { p_code: code, p_user: userId, p_seat_hash: seatHash })),
     },
   }
 }
@@ -180,12 +214,22 @@ export function createEdgeHandler(opts: { site: string }): (req: Request, ctx: E
     const length = Number(req.headers.get('content-length') ?? '0')
     if (length > EDGE_MAX_BODY) return json({ status: 413, code: 'bad_request', reason: 'The request is too large' }, 413)
     const userId = ctx.userClaims?.id
-    if (!userId) return json({ status: 401, code: 'unauthorised', reason: 'Sign in first' }, 401)
+    // No user: only a request carrying the project's publishable key (verified by withSupabase) is a guest, who may
+    // only play rooms (service.ts refuses everything else with 401); anything else is refused here
+    const guest = !userId && ctx.authMode === 'publishable'
+    if (!userId && !guest) return json({ status: 401, code: 'unauthorised', reason: 'Sign in first' }, 401)
     const live = (server ??= createServer(makeDeps(ctx.supabaseAdmin, site)))
-    const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
     const text = await readBody(req, EDGE_MAX_BODY)
     if (text === null) return json({ status: 413, code: 'bad_request', reason: 'The request is too large' }, 413)
-    const reply = await live.handle({ userId, isAnonymous: ctx.jwtClaims?.is_anonymous === true, jwt }, text)
+    let reply
+    if (userId) {
+      const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+      reply = await live.handle({ userId, isAnonymous: ctx.jwtClaims?.is_anonymous === true, jwt }, text)
+    } else {
+      // The guest's rate-limit key: a hash of the first address the platform's proxy reports (never logged or stored)
+      const address = (req.headers.get('x-forwarded-for') ?? '').split(',')[0] || null
+      reply = await live.handle({ guest: true, subject: await guestSubject(address, sha256Hex) }, text)
+    }
     if (!reply) return json({ status: 503, code: 'unavailable', reason: 'No answer' }, 503)
     return Response.json(reply.body, { status: reply.status })
   }

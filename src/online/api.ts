@@ -17,6 +17,7 @@ import { normaliseCountry } from './core/country'
 import { googleEnabledIn, googleForced } from './core/providers'
 import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchSummary, myEntries, rankOf, type AlltimeOrder, type RankedKind } from './boards'
 import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
+import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
 
 /** Whether this build carries the online layer at all. */
 export const onlineAvailable = (): boolean => onlineConfig() !== null
@@ -211,4 +212,53 @@ export async function myChallenges(): Promise<ChallengeRow[]> {
 export async function deleteChallenge(code: string): Promise<void> {
   const r = await rt()
   if (r) await r.transport.deleteChallenge(code)
+}
+
+// ------------------------------------------------------------------ online head-to-head rooms
+
+const noRooms = 'Online rooms are not available in this build.'
+
+/** Open a room by its code (a `#h=` link, a typed code, a seat on this device) and keep it up to date. */
+export async function openRoom(code: string): Promise<boolean> {
+  const r = await rt()
+  if (!r) return false
+  await r.rooms.open(code)
+  return true
+}
+
+/** Stop watching the room (the room screen closed); the seat stays on this device. */
+export function closeRoom(): void {
+  if (!onlineStore.getState().started) return
+  void rt().then((r) => r?.rooms.close())
+}
+
+export async function createRoom(settings: RoomSettings, manager: RoomManagerInput, engine: string, data: string): Promise<{ ok: true; code: string } | { ok: false; message: string }> {
+  const r = await rt()
+  return r ? r.rooms.create(settings, manager, engine, data) : { ok: false, message: noRooms }
+}
+
+export async function joinRoom(manager: RoomManagerInput, engine: string, data: string): Promise<boolean> {
+  return (await (await rt())?.rooms.join(manager, engine, data)) ?? false
+}
+
+export async function pickInRoom(playerSeasonId: string, slotId: string): Promise<boolean> {
+  return (await (await rt())?.rooms.pick(playerSeasonId, slotId)) ?? false
+}
+
+export async function leaveRoom(): Promise<boolean> {
+  return (await (await rt())?.rooms.leave()) ?? false
+}
+
+export async function resumeRoom(): Promise<boolean> {
+  return (await (await rt())?.rooms.resume()) ?? false
+}
+
+export async function refreshRoom(): Promise<void> {
+  await (await rt())?.rooms.poll()
+}
+
+/** The rooms this device holds a seat in (younger than two days). */
+export async function roomSeats(): Promise<string[]> {
+  const r = await rt()
+  return r ? r.rooms.openSeats() : []
 }

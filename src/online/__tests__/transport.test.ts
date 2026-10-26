@@ -27,4 +27,20 @@ describe('the browser transport to the Edge Function', () => {
     expect(new URL(seen[0].url).searchParams.get('forceFunctionRegion')).toBe('ap-southeast-2')
     expect(new URL(seen[0].url).pathname).toBe(`/functions/v1/${cfg.functionName}`)
   })
+
+  it('calls the rooms as a guest with the publishable key alone, and keeps a signed-out call local otherwise', async () => {
+    const seen: RequestInit[] = []
+    const fakeFetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      seen.push(init ?? {})
+      return new Response('{"status":"ok"}', { status: 200 })
+    }) as typeof fetch
+    const sb = { auth: { getSession: async () => ({ data: { session: null } }) } } as unknown as SupabaseClient
+    const t = new SupabaseTransport(sb, cfg, fakeFetch)
+    expect((await t.invoke({ op: 'daily.pin' })).status).toBe(401)
+    expect(seen).toHaveLength(0)
+    expect((await t.invoke({ op: 'room.leave' }, { guest: true })).status).toBe(200)
+    const headers = seen[0].headers as Record<string, string>
+    expect(headers.apikey).toBe(cfg.key)
+    expect(Object.keys(headers).map((h) => h.toLowerCase())).not.toContain('authorization')
+  })
 })

@@ -123,7 +123,9 @@ export interface OnlineTransport {
   // boards, pins, the Edge Function
   pin(kind: 'daily' | 'weekly', key: string): Promise<PuzzlePin | null>
   rpc<T>(fn: string, args: Record<string, unknown>): Promise<T>
-  invoke(body: Record<string, unknown>): Promise<FunctionReply>
+  /** POST to the Edge Function with the session's JWT. `guest`: with no session, send the publishable key alone (the
+   * function lets a guest play the online rooms and nothing else); without it a signed-out call answers 401 locally. */
+  invoke(body: Record<string, unknown>, opts?: { guest?: boolean }): Promise<FunctionReply>
   // challenge short codes
   myChallenges(): Promise<ChallengeRow[]>
   deleteChallenge(code: string): Promise<void>
@@ -280,17 +282,19 @@ export class SupabaseTransport implements OnlineTransport {
     return this.q<T>(this.sb.rpc(fn, args))
   }
 
-  async invoke(body: Record<string, unknown>): Promise<FunctionReply> {
+  async invoke(body: Record<string, unknown>, opts: { guest?: boolean } = {}): Promise<FunctionReply> {
     const { data } = await this.sb.auth.getSession()
     const token = data.session?.access_token
-    if (!token) return { status: 401, body: { code: 'signed_out', reason: 'Sign in first' } }
+    if (!token && !opts.guest) return { status: 401, body: { code: 'signed_out', reason: 'Sign in first' } }
+    // A guest sends the publishable key in `apikey` only: an sb_ key in Authorization is not a JWT
+    const headers: Record<string, string> = token ? { 'content-type': 'application/json', authorization: `Bearer ${token}`, apikey: this.cfg.key } : { 'content-type': 'application/json', apikey: this.cfg.key }
     let res: Response
     try {
       // The region goes in the query, never as an `x-region` header: the function's CORS allow-list (supabase-js's
       // corsHeaders, which withSupabase answers the preflight with) does not name it, so a browser would refuse the call
       res = await this.fetchImpl(functionUrl(this.cfg), {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, apikey: this.cfg.key },
+        headers,
         body: JSON.stringify(body),
       })
     } catch (e) {

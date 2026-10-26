@@ -4,7 +4,9 @@
 // live site (public/data from disk): pin today's Daily, post an honest Auto-complete run, a retry and a tampered
 // copy, then pin and post the weekly challenge. The bundle must rank the honest runs with the figures the game
 // itself produced (and that replayChallenge reproduces), refuse the tampered one with a spin number, and never
-// name a DOM or Node global. `npm run check:verifier`; CI runs it after `build:verifier`.
+// name a DOM or Node global. Then an online head-to-head room (Phase 2) between two guests: made, joined and drafted
+// pick by pick to the season, which must equal the same game played hot-seat on the seed the finished room reveals.
+// `npm run check:verifier`; CI runs it after `build:verifier`.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -33,9 +35,42 @@ const pins = new Map()
 const packs = new Map()
 const entries = new Map()
 const archive = new Map()
+// The rooms' stand-in: the SQL's contract in short (src/online/__tests__/serverHarness.ts has the full one)
+const rooms = new Map()
+let roomN = 0
+let tokenN = 0
+const view = (r) => structuredClone({ code: r.code, status: r.status, settings: r.settings, managers: r.managers, events: r.events, version: r.version, turn: r.status === 'drafting' ? r.turn : null, result: r.result, seed: r.status === 'finished' ? r.seed : null, engineVersion: r.engine, dataVersion: r.data, createdAt: NOW.toISOString(), expiresAt: NOW.toISOString(), idleAt: null, endedAt: null })
+const roomDb = {
+  roomCreate: async (settings, manager, seatHash, userId, engine, data) => {
+    const n = ++roomN
+    const r = { code: `CHECK${'ABCDEFGH'[n % 8]}${'JKLMNPQR'[n % 8]}2`, seed: `room-CHECKROOM${'ABCDEFGH'[n % 8]}${'JKLMNPQR'[n % 8]}2`, settings, managers: [manager, null], seat0Hash: seatHash, seat1Hash: null, events: [], turn: null, result: null, status: 'waiting', version: 0, engine, data }
+    rooms.set(r.code, r)
+    return { status: 'ok', room: view(r) }
+  },
+  roomGet: async (code) => {
+    const r = rooms.get(code)
+    return r ? { room: view(r), seed: r.seed, seat0Hash: r.seat0Hash, seat1Hash: r.seat1Hash, seat0User: null, seat1User: null } : null
+  },
+  roomJoin: async (code, manager, seatHash, userId, events, turn, expect) => {
+    const r = rooms.get(code)
+    if (!r || r.status !== 'waiting' || r.version !== expect) return { status: 'conflict' }
+    Object.assign(r, { managers: [r.managers[0], manager], seat1Hash: seatHash, events, turn, status: 'drafting', version: r.version + 1 })
+    return { status: 'ok', room: view(r) }
+  },
+  roomMove: async (code, seat, seatHash, expect, events, turn, result) => {
+    const r = rooms.get(code)
+    if (!r || seatHash !== (seat === 0 ? r.seat0Hash : r.seat1Hash)) return { status: 'not_seated' }
+    if (r.status !== 'drafting' || r.turn !== seat || r.version !== expect) return { status: 'conflict' }
+    Object.assign(r, { events: [...r.events, ...events], turn: result ? null : turn, result, status: result ? 'finished' : 'drafting', version: r.version + 1 })
+    return { status: 'ok', room: view(r) }
+  },
+  roomLeave: async () => ({ status: 'bad' }),
+  roomReseat: async () => ({ status: 'bad' }),
+}
 const deps = {
   now: () => NOW,
   log: () => {},
+  randomToken: () => `check${String(++tokenN).padStart(38, '0')}`,
   sha256Hex: async (b) => createHash('sha256').update(b).digest('hex'),
   fetchSite: async (p) => {
     if (p === 'build.json') return enc.encode(JSON.stringify(live))
@@ -72,6 +107,7 @@ const deps = {
       if (!packs.has(version)) packs.set(version, { version, leagues, files, firstSeenAt: NOW.toISOString() })
       return { status: 'ok', pack: packs.get(version) }
     },
+    ...roomDb,
   },
 }
 const server = V.createServer(deps)
@@ -124,4 +160,45 @@ expect(pin.status === 200, `daily.pin answered ${pin.status} ${JSON.stringify(pi
 expect(pin.body.pin.settingsHash === V.settingsHash(V.dailyGameSettings(u, `daily-${day}`)), 'the pinned Daily is not the Daily mapping')
 const dailyPts = await rankedRun('daily', V.dailyGameSettings(u, `daily-${day}`, 'Check FC'), day)
 const weeklyPts = await rankedRun('weekly', V.weeklyGameSettings(u, week, 'Check FC'), week)
-console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, tampered drafts refused`)
+
+// An online room between two guests (the publishable key, no account), played to the season through the bundle
+const guests = [{ guest: true, subject: await V.guestSubject('192.0.2.1', deps.sha256Hex) }, { guest: true, subject: await V.guestSubject('192.0.2.2', deps.sha256Hex) }]
+const asGuest = (i, body) => server.handle(guests[i], JSON.stringify(body))
+const refused = await asGuest(0, { op: 'daily.pin' })
+expect(refused.status === 401, `a guest reached daily.pin (${refused.status})`)
+const roomSettings = { leagueId: 'england', wheelLeagues: ['england'], leagueSeason: Math.max(...V.roomSeasons(u, 'england')), difficulty: 'calibrated', hardMode: false }
+const roomClubs = V.roomClubs(u, roomSettings)
+const made = await asGuest(0, { op: 'room.create', settings: roomSettings, manager: { name: 'Check A', formationId: '4-3-3', hostClubId: roomClubs[0] }, engine: V.ENGINE_VERSION, data: index.generatedAt })
+expect(made.status === 200 && made.body.seat === 0, `room.create answered ${made.status} ${JSON.stringify(made.body)}`)
+const joined = await asGuest(1, { op: 'room.join', code: made.body.room.code, manager: { name: 'Check B', formationId: '4-4-2', hostClubId: roomClubs[4] }, engine: V.ENGINE_VERSION, data: index.generatedAt })
+expect(joined.status === 200 && joined.body.seat === 1, `room.join answered ${joined.status} ${JSON.stringify(joined.body)}`)
+const tokens = [made.body.token, joined.body.token]
+let room = joined.body.room
+let picks = 0
+while (room.status === 'drafting' && picks < 60) {
+  const h = V.draftFromEvents(u, room.settings, room.managers, room.events)
+  const seat = h.picking
+  const copy = structuredClone(h)
+  V.h2hAutoPick(u, copy)
+  const slot = Object.keys(copy.drafts[seat].lineup).find((k) => !h.drafts[seat].lineup[k])
+  const pick = slot ? { p: copy.drafts[seat].lineup[slot], k: slot } : { p: copy.drafts[seat].bench.at(-1), k: 'bench' }
+  if (picks === 0) {
+    const wrong = await asGuest(seat === 0 ? 1 : 0, { op: 'room.pick', code: room.code, token: tokens[seat === 0 ? 1 : 0], version: room.version, playerSeasonId: pick.p, slotId: pick.k })
+    expect(wrong.status === 409 && wrong.body.code === 'not_your_turn', `a pick out of turn was not refused (${JSON.stringify(wrong.body)})`)
+  }
+  const r = await asGuest(seat, { op: 'room.pick', code: room.code, token: tokens[seat], version: room.version, playerSeasonId: pick.p, slotId: pick.k })
+  expect(r.status === 200, `room.pick answered ${r.status} ${JSON.stringify(r.body)}`)
+  room = r.body.room
+  picks++
+}
+expect(room.status === 'finished' && /^room-/.test(room.seed ?? ''), `the room did not finish (${room.status})`)
+// The same game hot-seat, on the revealed seed
+const hot = V.newH2HDraft([V.getFormation(room.managers[0].formationId), V.getFormation(room.managers[1].formationId)], V.h2hRules(room.settings.wheelLeagues, room.settings.hardMode))
+const rng = new V.Rng(room.seed)
+while (!V.h2hComplete(hot)) {
+  if (hot.picking === null) V.h2hSpin(u, hot, rng)
+  else V.h2hAutoPick(u, hot)
+}
+const season = V.runH2HSeason(u, rng, room.managers, hot.drafts, room.settings.leagueId, room.settings.leagueSeason, room.settings.difficulty)
+expect(JSON.stringify(season) === JSON.stringify(room.result), 'the room\'s season differs from the same game played hot-seat')
+console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game`)

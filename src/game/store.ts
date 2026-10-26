@@ -42,9 +42,8 @@ import { ACHIEVEMENTS } from '@engine/awards'
 import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
 import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
-import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
+import { h2hRules, runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
 import { getFormation } from '@engine/formations'
-import { QUICK_RULES } from '@engine/draft'
 import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
@@ -66,7 +65,7 @@ const SAVE_DELAY_MS = 250
 /** Shown when the browser refuses to store the save. */
 export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
 
-export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h' | 'world' | 'privacy' | 'account'
+export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h' | 'world' | 'privacy' | 'account' | 'room'
 
 export interface H2HGame {
   managers: [H2HManager, H2HManager]
@@ -268,6 +267,8 @@ interface Store {
   h2hAuto: () => void
   h2hFinish: () => void
   abandonH2H: () => void
+  /** A finished online head-to-head room this device held a seat in: one mark in the Trophy Room, as a hot-seat season. */
+  creditH2HRoom: () => void
   recordResult: () => void
   setManagerName: (name: string) => void
   /** The favourite club on the profile (a club id), or null to clear it. Display only; synced with the profile. */
@@ -1190,7 +1191,7 @@ export const useStore = create<Store>()(
         },
         startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
           const rng = new Rng(seed)
-          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], { ...QUICK_RULES, respins: 0, hardMode, difficulty: hardMode ? 'hard' : 'normal', showRatings: !hardMode, leagues: wheelLeagues, twists: false })
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], h2hRules(wheelLeagues, hardMode))
           set({ h2h: { managers, leagueId, wheelLeagues, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
         },
         h2hSpin: () => {
@@ -1233,6 +1234,10 @@ export const useStore = create<Store>()(
           if (first) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
+        creditH2HRoom: () => {
+          const { profile } = get()
+          set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
+        },
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
         setFavouriteClub: (clubId) => {
           const { favouriteClub: _old, ...rest } = get().profile

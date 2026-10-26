@@ -7,6 +7,12 @@
  * figures; `account.delete` removes a player's saves and then the account; `status` reports the engine and the live
  * build. Challenge codes need no op: `create_challenge` / `get_challenge` are database functions.
  *
+ * Phase 2 adds the online head-to-head rooms (`room.create`, `room.join`, `room.pick`, `room.leave`, `room.resume`;
+ * docs/ONLINE.md section 5e), the only ops a guest may call: anonymous sign-ins are off, so a guest is a request with
+ * the project's publishable key and no JWT (`Guest`), metered by a hash of its address. A seat is held by a random
+ * token the server issues once and stores only hashed; every pick is checked by replaying the room from its seed
+ * (`roomPick` in src/game/logic/h2hRoom.ts), and the server files the spins, the picks and the season itself.
+ *
  * The user id comes only from the verified JWT (`Caller`), never from the body. Logs carry the op, the outcome, the
  * duration and an 8-character user-id prefix; never a body or a token.
  */
@@ -15,11 +21,13 @@ import { dailyDateOf } from '@engine/rng'
 import type { LoadedUniverse, MetaFile, PlayersFile } from '@engine/universe'
 import { ENGINE_VERSION } from '@engine/version'
 import { dailyGameSettings } from '@game/logic/setup'
+import type { H2HManager, H2HResult } from '@game/logic/h2h'
+import { cleanSettings, isRoomLog, roomManager, roomPick, roomStart, RoomMoveError, settingsProblem, type RoomEvent, type RoomSettings, type RoomView } from '@game/logic/h2hRoom'
 import type { BuildInfo } from '../buildInfo'
 import { weekKeyOf, weekKeyOfSeed, weekStartOf, weeklyGameSettings, weeklyIsOpen } from '../weekly'
 import { puzzleOf, settingsHash, verifyRanked, type PuzzlePin, type PuzzleSettings, type RankedEntry } from './dailyVerify'
 import { archivePath, classicFile, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from './packs'
-import { logId, parseBuildInfo, parseLeaguesIndex, parseRequest, type ServerRequest } from './validate'
+import { logId, parseBuildInfo, parseLeaguesIndex, parseRequest, ROOM_OPS, type ServerRequest } from './validate'
 
 export type BoardKind = PuzzlePin['kind']
 
@@ -36,6 +44,23 @@ export interface DataPackRow {
   firstSeenAt: string
 }
 
+/** A room as the server reads it (`svc_h2h_room_get`): the public view plus what only the server may hold. */
+export interface StoredRoom {
+  room: RoomView
+  seed: string
+  seat0Hash: string
+  seat1Hash: string | null
+  seat0User: string | null
+  seat1User: string | null
+}
+
+/** What a room writer answers: `ok` with the room, or why not (the SQL's own statuses). */
+export interface RoomWrite {
+  status: 'ok' | 'busy' | 'missing' | 'full' | 'closed' | 'conflict' | 'not_seated' | 'not_your_turn' | 'bad'
+  room?: RoomView
+  seat?: 0 | 1
+}
+
 /** The database, through the `svc_*` functions (service role) and the public puzzle tables. */
 export interface ServerDb {
   rateLimit(bucket: string, userId: string, limit: number, windowSeconds: number): Promise<boolean>
@@ -45,6 +70,13 @@ export interface ServerDb {
   submit(kind: BoardKind, userId: string, date: string, entry: RankedEntry): Promise<{ status: string } & Record<string, unknown>>
   dataPack(version: string): Promise<DataPackRow | null>
   registerDataPack(version: string, leagues: string[], files: Record<string, string>): Promise<{ status: 'ok' | 'mismatch'; pack: DataPackRow }>
+  // online head-to-head rooms (svc_h2h_room_*)
+  roomCreate(settings: RoomSettings, manager: H2HManager, seatHash: string, userId: string | null, engine: string, data: string): Promise<RoomWrite>
+  roomGet(code: string): Promise<StoredRoom | null>
+  roomJoin(code: string, manager: H2HManager, seatHash: string, userId: string | null, events: RoomEvent[], turn: 0 | 1, expectVersion: number): Promise<RoomWrite>
+  roomMove(code: string, seat: 0 | 1, seatHash: string, expectVersion: number, events: RoomEvent[], turn: 0 | 1 | null, result: H2HResult | null): Promise<RoomWrite>
+  roomLeave(code: string, seatHash: string): Promise<RoomWrite>
+  roomReseat(code: string, userId: string, seatHash: string): Promise<RoomWrite>
 }
 
 export interface ServerStorage {
@@ -70,6 +102,8 @@ export interface ServerDeps {
   /** GET a path of the live site (`build.json`, `data/leagues.json`, ...); null for anything but a 2xx answer. */
   fetchSite(path: string): Promise<Uint8Array | null>
   sha256Hex(bytes: Uint8Array): Promise<string>
+  /** A fresh seat token: 32 random bytes, base64url (43 characters). */
+  randomToken(): string
   now(): Date
   log(line: Record<string, unknown>): void
 }
@@ -79,6 +113,23 @@ export interface Caller {
   userId: string
   isAnonymous: boolean
   jwt: string
+}
+
+/** A request with the publishable key and no JWT: a guest, who may only play rooms. `subject` is a UUID made from a
+ * hash of the client's address (`guestSubject`), the guest's rate-limit key; the address itself goes nowhere. */
+export interface Guest {
+  guest: true
+  subject: string
+}
+
+export type Requester = Caller | Guest
+
+const isGuest = (r: Requester): r is Guest => 'guest' in r && r.guest === true
+
+/** The rate-limit subject of a guest: a UUID-shaped SHA-256 of the address (all guests without one share a key). */
+export async function guestSubject(address: string | null, sha256Hex: (bytes: Uint8Array) => Promise<string>): Promise<string> {
+  const h = await sha256Hex(new TextEncoder().encode(`touchline-guest:${(address ?? '').trim().toLowerCase()}`))
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`
 }
 
 export interface Reply {
@@ -101,6 +152,17 @@ export type ErrorCode =
   | 'live_build_unavailable'
   | 'packs_unavailable'
   | 'unavailable'
+  | 'unauthorised'
+  | 'no_room'
+  | 'room_closed'
+  | 'room_full'
+  | 'not_seated'
+  | 'not_your_turn'
+  | 'stale'
+  | 'invalid_room'
+  | 'invalid_manager'
+  | 'invalid_pick'
+  | 'rooms_busy'
 
 /** A failure with its HTTP status, as section 4.8 of the plan lists them. */
 export class Refusal extends Error {
@@ -123,6 +185,11 @@ export const LIMITS = {
   'daily.pin': 30,
   'weekly.pin': 30,
   'account.delete': 5,
+  'room.create': 30,
+  'room.join': 60,
+  'room.pick': 900,
+  'room.leave': 60,
+  'room.resume': 30,
 } as const
 
 /** How long the live site's `build.json` is trusted per isolate. */
@@ -163,7 +230,7 @@ const decoder = new TextDecoder()
 const parseJson = (bytes: Uint8Array): unknown => JSON.parse(decoder.decode(bytes))
 
 export interface Server {
-  handle(caller: Caller, text: string): Promise<Reply>
+  handle(caller: Requester, text: string): Promise<Reply>
 }
 
 export function createServer(deps: ServerDeps): Server {
@@ -363,10 +430,141 @@ export function createServer(deps: ServerDeps): Server {
     return { status: 200, body: { status: 'deleted', objects: paths.length } }
   }
 
-  async function route(caller: Caller, req: ServerRequest, now: Date): Promise<Reply> {
+
+  // ------------------------------------------------------------------ rooms
+
+  const subjectOf = (who: Requester) => (isGuest(who) ? who.subject : who.userId)
+  const userOf = (who: Requester) => (isGuest(who) ? null : who.userId)
+  const hashToken = (token: string) => deps.sha256Hex(new TextEncoder().encode(token))
+
+  /** The universe a room plays on: its registered data version, the leagues its settings name. */
+  async function roomUniverse(dataVersion: string, s: RoomSettings): Promise<LoadedUniverse> {
+    const reg = (await deps.db.dataPack(dataVersion)) ?? (await ensurePacks(dataVersion))
+    if (!reg) throw refuse(409, 'data_mismatch', `Data ${dataVersion} is no longer served: reload the game`, { roomData: dataVersion })
+    const leagues = [...new Set([s.leagueId, ...s.wheelLeagues])]
+    if (leagues.some((id) => !reg.leagues.includes(id))) throw refuse(422, 'invalid_room', `Data ${dataVersion} does not have every league the room names`)
+    return universe(reg, leagues)
+  }
+
+  async function storedRoom(code: string): Promise<StoredRoom> {
+    const stored = await deps.db.roomGet(code)
+    if (!stored) throw refuse(404, 'no_room', 'No room has that code (rooms are deleted a day after they end)')
+    return stored
+  }
+
+  function closedRefusal(room: RoomView): Refusal {
+    return refuse(409, 'room_closed', room.status === 'finished' ? 'That room has finished' : 'That room has closed', { roomStatus: room.status })
+  }
+
+  /** A writer's answer as a reply, or the refusal it stands for. */
+  function written(w: RoomWrite, extra: Record<string, unknown> = {}): Reply {
+    if (w.status === 'ok' && w.room) return { status: 200, body: { status: 'ok', ...extra, room: w.room } }
+    if (w.status === 'busy') throw refuse(503, 'rooms_busy', 'Too many rooms are open just now: try again in a few minutes')
+    if (w.status === 'missing') throw refuse(404, 'no_room', 'No room has that code')
+    if (w.status === 'full') throw refuse(409, 'room_full', 'Two managers are already in that room')
+    if (w.status === 'closed') throw w.room ? closedRefusal(w.room) : refuse(409, 'room_closed', 'That room has closed')
+    if (w.status === 'conflict') throw refuse(409, 'stale', 'The room moved on: it reloads with the latest picks')
+    if (w.status === 'not_seated') throw refuse(403, 'not_seated', 'This device does not hold a seat in that room')
+    if (w.status === 'not_your_turn') throw refuse(409, 'not_your_turn', 'It is the other manager\'s pick')
+    throw refuse(503, 'unavailable', 'The room could not be saved; it is safe to retry')
+  }
+
+  async function roomCreate(who: Requester, req: Extract<ServerRequest, { op: 'room.create' }>): Promise<Reply> {
+    if (req.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `This server runs engine ${ENGINE_VERSION}: reload the game to play online`, { liveEngine: ENGINE_VERSION })
+    let live = await liveBuild()
+    if (live && live.data !== req.data) live = await liveBuild(true)
+    if (!live) throw refuse(503, 'live_build_unavailable', 'The live site does not say which engine and data it serves')
+    if (live.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `The live site runs engine ${live.engine}; this function runs ${ENGINE_VERSION}`, { liveEngine: live.engine })
+    // Both managers play on the data the live site serves, so the joiner's device holds the same packs
+    if (live.data !== req.data) throw refuse(409, 'data_mismatch', 'A newer version of the player data is live: reload the game to play online', { liveData: live.data })
+    const reg = await ensurePacks(live.data)
+    if (!reg) throw refuse(503, 'packs_unavailable', `Data ${live.data} could not be archived`)
+    const u = await roomUniverse(live.data, req.settings)
+    const problem = settingsProblem(u, req.settings)
+    if (problem) throw refuse(422, 'invalid_room', problem)
+    const settings = cleanSettings(req.settings)
+    const m = roomManager(u, settings, req.manager, null)
+    if (!m.ok) throw refuse(422, 'invalid_manager', m.reason)
+    const token = deps.randomToken()
+    const w = await deps.db.roomCreate(settings, m.manager, await hashToken(token), userOf(who), ENGINE_VERSION, live.data)
+    return written(w, { seat: 0, token })
+  }
+
+  async function roomJoin(who: Requester, req: Extract<ServerRequest, { op: 'room.join' }>): Promise<Reply> {
+    const stored = await storedRoom(req.code)
+    const room = stored.room
+    if (room.status === 'drafting' || room.status === 'finished') throw refuse(409, 'room_full', 'Two managers are already in that room')
+    if (room.status !== 'waiting') throw closedRefusal(room)
+    if (room.engineVersion !== ENGINE_VERSION || req.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `That room plays on engine ${room.engineVersion}: reload the game`, { roomEngine: room.engineVersion })
+    if (req.data !== room.dataVersion) throw refuse(409, 'data_mismatch', 'That room plays on another version of the player data: reload the game', { roomData: room.dataVersion })
+    const host = room.managers[0]
+    const u = await roomUniverse(room.dataVersion, room.settings)
+    const m = roomManager(u, room.settings, req.manager, host)
+    if (!m.ok) throw refuse(422, 'invalid_manager', m.reason)
+    const managers: [H2HManager, H2HManager] = [host, m.manager]
+    const step = roomStart(u, stored.seed, room.settings, managers)
+    if (step.turn === null) throw refuse(503, 'unavailable', 'The draft could not start')
+    const token = deps.randomToken()
+    const w = await deps.db.roomJoin(req.code, m.manager, await hashToken(token), userOf(who), step.events, step.turn, room.version)
+    return written(w, { seat: 1, token })
+  }
+
+  async function roomMove(req: Extract<ServerRequest, { op: 'room.pick' }>): Promise<Reply> {
+    const stored = await storedRoom(req.code)
+    const room = stored.room
+    const hash = await hashToken(req.token)
+    const seat: 0 | 1 | null = hash === stored.seat0Hash ? 0 : hash === stored.seat1Hash ? 1 : null
+    if (seat === null) throw refuse(403, 'not_seated', 'This device does not hold a seat in that room')
+    if (room.status !== 'drafting') throw closedRefusal(room)
+    if (req.version !== room.version) throw refuse(409, 'stale', 'The room moved on: it reloads with the latest picks')
+    if (room.turn !== seat) throw refuse(409, 'not_your_turn', 'It is the other manager\'s pick')
+    const managers = room.managers
+    if (!managers[1] || !isRoomLog(room.events)) throw refuse(503, 'unavailable', 'The room record is incomplete')
+    const u = await roomUniverse(room.dataVersion, room.settings)
+    let step
+    try {
+      step = roomPick(u, stored.seed, room.settings, [managers[0], managers[1]], room.events, seat, req.playerSeasonId, req.slotId)
+    } catch (e) {
+      if (e instanceof RoomMoveError) throw refuse(422, 'invalid_pick', e.message)
+      // The stored log does not replay: the room's own record is wrong, never the player's pick
+      deps.log({ level: 'error', event: 'room_replay_failed', room: req.code.slice(0, 4), reason: e instanceof Error ? e.message : String(e) })
+      throw refuse(503, 'unavailable', 'The room could not be replayed')
+    }
+    return written(await deps.db.roomMove(req.code, seat, hash, room.version, step.events, step.turn, step.result))
+  }
+
+  async function roomLeave(req: Extract<ServerRequest, { op: 'room.leave' }>): Promise<Reply> {
+    return written(await deps.db.roomLeave(req.code, await hashToken(req.token)))
+  }
+
+  async function roomResume(who: Requester, req: Extract<ServerRequest, { op: 'room.resume' }>): Promise<Reply> {
+    if (isGuest(who)) throw refuse(401, 'unauthorised', 'Sign in to take your seat back on this device')
+    const token = deps.randomToken()
+    const w = await deps.db.roomReseat(req.code, who.userId, await hashToken(token))
+    return written(w, { seat: w.seat, token })
+  }
+
+  async function route(caller: Requester, req: ServerRequest, now: Date): Promise<Reply> {
     if (req.op === 'status') {
       return { status: 200, body: { status: 'ok', engine: ENGINE_VERSION, live: await liveBuild(), today: dayKey(now), week: weekKeyOf(now) } }
     }
+    if ((ROOM_OPS as readonly string[]).includes(req.op)) {
+      const limit = LIMITS[req.op]
+      if (!(await deps.db.rateLimit(req.op, subjectOf(caller), limit, 3600))) throw refuse(429, 'rate_limited', `At most ${limit} ${req.op} calls an hour`)
+      switch (req.op) {
+        case 'room.create':
+          return roomCreate(caller, req)
+        case 'room.join':
+          return roomJoin(caller, req)
+        case 'room.pick':
+          return roomMove(req)
+        case 'room.leave':
+          return roomLeave(req)
+        case 'room.resume':
+          return roomResume(caller, req)
+      }
+    }
+    if (isGuest(caller)) throw refuse(401, 'unauthorised', 'Sign in first')
     if (caller.isAnonymous && req.op !== 'account.delete') throw refuse(403, 'guest', 'Guest sessions cannot post to the boards; sign in with an account')
     const limit = LIMITS[req.op]
     if (!(await deps.db.rateLimit(req.op, caller.userId, limit, 3600))) throw refuse(429, 'rate_limited', `At most ${limit} ${req.op} calls an hour`)
@@ -384,8 +582,13 @@ export function createServer(deps: ServerDeps): Server {
         return submit('weekly', caller, req, now)
       case 'account.delete':
         return deleteAccount(caller)
+      default:
+        throw refuse(400, 'bad_request', 'Unknown operation')
     }
   }
+
+  // A guest's log line names no subject at all (it is a hash of an address)
+  const who = (r: Requester) => (isGuest(r) ? 'guest' : logId(r.userId))
 
   return {
     async handle(caller, text) {
@@ -401,11 +604,11 @@ export function createServer(deps: ServerDeps): Server {
       } catch (e) {
         if (e instanceof Refusal) reply = { status: e.status, body: { status: e.status, code: e.code, reason: e.message, ...e.context } }
         else {
-          deps.log({ level: 'error', event: 'unexpected', op, user: logId(caller.userId), reason: e instanceof Error ? e.message : String(e) })
+          deps.log({ level: 'error', event: 'unexpected', op, user: who(caller), reason: e instanceof Error ? e.message : String(e) })
           reply = { status: 503, body: { status: 503, code: 'unavailable', reason: 'The server could not finish this request; it is safe to retry' } }
         }
       }
-      deps.log({ op, status: reply.status, outcome: String(reply.body.code ?? reply.body.status), ms: deps.now().getTime() - started, user: logId(caller.userId) })
+      deps.log({ op, status: reply.status, outcome: String(reply.body.code ?? reply.body.status), ms: deps.now().getTime() - started, user: who(caller) })
       return reply
     },
   }

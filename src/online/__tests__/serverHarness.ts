@@ -17,7 +17,9 @@ import { runQuickSeason } from '@game/logic/quick'
 import { challengeFromGame } from '@game/logic/challenge'
 import type { BuildInfo } from '../buildInfo'
 import type { PuzzleSettings, RankedEntry } from '../server/dailyVerify'
-import { createServer, type BoardKind, type Caller, type DataPackRow, type ServerDeps, type StoredPin } from '../server/service'
+import type { H2HManager, H2HResult } from '@game/logic/h2h'
+import type { RoomEvent, RoomSettings, RoomStatus, RoomView } from '@game/logic/h2hRoom'
+import { createServer, type BoardKind, type Caller, type DataPackRow, type Guest, type RoomWrite, type ServerDeps, type StoredPin } from '../server/service'
 
 export const DATA = path.resolve(__dirname, '..', '..', '..', 'public', 'data')
 const enc = new TextEncoder()
@@ -35,6 +37,7 @@ export interface Harness {
   signedOut: string[]
   limits: Map<string, number>
   logs: Array<Record<string, unknown>>
+  rooms: Map<string, FakeRoom>
   server: ReturnType<typeof createServer>
 }
 
@@ -50,6 +53,52 @@ export function siteFile(file: string, stamp: string | null): Uint8Array | null 
   return enc.encode(text)
 }
 
+/** A row of `private.h2h_rooms` as the fake keeps it (the SQL's columns). */
+export interface FakeRoom {
+  code: string
+  seed: string
+  settings: RoomSettings
+  managers: [H2HManager, H2HManager | null]
+  seat0Hash: string
+  seat1Hash: string | null
+  seat0User: string | null
+  seat1User: string | null
+  events: RoomEvent[]
+  turn: 0 | 1 | null
+  result: H2HResult | null
+  status: RoomStatus
+  version: number
+  engine: string
+  data: string
+  createdAt: number
+  expiresAt: number
+  lastMoveAt: number | null
+  endedAt: number | null
+}
+
+const MIN = 60000
+const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const codeOfN = (n: number, len: number) => Array.from({ length: len }, (_, i) => ALPHA[Math.floor(n / 32 ** i) % 32]).join('')
+
+/** The SQL's `private.h2h_room_status`: deadlines applied on read. */
+function roomStatusAt(r: FakeRoom, now: number): RoomStatus {
+  if (r.status === 'waiting' && now >= r.expiresAt) return 'expired'
+  if (r.status === 'drafting' && r.lastMoveAt !== null && now >= r.lastMoveAt + 15 * MIN) return 'timed_out'
+  return r.status
+}
+
+/** The SQL's `private.h2h_room_json`. */
+export function fakeRoomView(r: FakeRoom, now: number): RoomView {
+  const status = roomStatusAt(r, now)
+  const ended = status === 'expired' ? (r.endedAt ?? r.expiresAt) : status === 'timed_out' ? (r.endedAt ?? (r.lastMoveAt ?? 0) + 15 * MIN) : r.endedAt
+  const iso = (t: number | null) => (t === null ? null : new Date(t).toISOString())
+  return structuredClone({
+    code: r.code, status, settings: r.settings, managers: r.managers, events: r.events, version: r.version, turn: status === 'drafting' ? r.turn : null, result: r.result,
+    seed: r.status === 'finished' ? r.seed : null, engineVersion: r.engine, dataVersion: r.data, createdAt: iso(r.createdAt)!, expiresAt: iso(r.expiresAt)!,
+    idleAt: r.status === 'drafting' && r.lastMoveAt !== null ? iso(r.lastMoveAt + 15 * MIN) : null, endedAt: iso(ended),
+  })
+}
+
 export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: BuildInfo | null = null): Harness {
   const h = {
     clock: { now: start },
@@ -63,9 +112,25 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
     signedOut: [] as string[],
     limits: new Map<string, number>(),
     logs: [] as Array<Record<string, unknown>>,
+    rooms: new Map<string, FakeRoom>(),
   } as Harness
   let nextId = 1
+  let nextRoom = 1
+  let nextToken = 1
+  const now = () => h.clock.now.getTime()
+  /** File a passed deadline (the SQL's `private.h2h_room_settle`). */
+  const settle = (r: FakeRoom) => {
+    const s = roomStatusAt(r, now())
+    if (s !== r.status) {
+      r.endedAt = s === 'expired' ? r.expiresAt : (r.lastMoveAt ?? 0) + 15 * MIN
+      r.status = s
+      r.turn = null
+      r.version++
+    }
+  }
+  const out = (r: FakeRoom, status: RoomWrite['status'] = 'ok', extra: Partial<RoomWrite> = {}): RoomWrite => ({ status, room: fakeRoomView(r, now()), ...extra })
   const deps: ServerDeps = {
+    randomToken: () => `tok${String(nextToken++).padStart(40, '0')}`,
     now: () => h.clock.now,
     log: (line) => h.logs.push(line),
     sha256Hex: async (bytes) => createHash('sha256').update(bytes).digest('hex'),
@@ -126,6 +191,67 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
         const pack = h.packs.get(version)!
         return { status: JSON.stringify(pack.files) === JSON.stringify(files) ? 'ok' : 'mismatch', pack }
       },
+      roomCreate: async (settings, manager, seatHash, userId, engine, data) => {
+        const open = [...h.rooms.values()].filter((r) => ['waiting', 'drafting'].includes(roomStatusAt(r, now()))).length
+        if (open >= 300) return { status: 'busy' }
+        const n = nextRoom++
+        const r: FakeRoom = { code: `K7${codeOfN(n, 6)}`, seed: `room-${codeOfN(n * 7919, 12)}`, settings: structuredClone(settings), managers: [structuredClone(manager), null], seat0Hash: seatHash, seat1Hash: null, seat0User: userId, seat1User: null, events: [], turn: null, result: null, status: 'waiting', version: 0, engine, data, createdAt: now(), expiresAt: now() + 30 * MIN, lastMoveAt: null, endedAt: null }
+        h.rooms.set(r.code, r)
+        return out(r)
+      },
+      roomGet: async (code) => {
+        const r = h.rooms.get(code)
+        return r ? { room: fakeRoomView(r, now()), seed: r.seed, seat0Hash: r.seat0Hash, seat1Hash: r.seat1Hash, seat0User: r.seat0User, seat1User: r.seat1User } : null
+      },
+      roomJoin: async (code, manager, seatHash, userId, events, turn, expectVersion) => {
+        const r = h.rooms.get(code)
+        if (!r) return { status: 'missing' }
+        settle(r)
+        if (r.status !== 'waiting') return out(r, r.status === 'drafting' || r.status === 'finished' ? 'full' : 'closed')
+        if (r.version !== expectVersion) return out(r, 'conflict')
+        if (seatHash === r.seat0Hash || !events.length) return { status: 'bad' }
+        Object.assign(r, { managers: [r.managers[0], structuredClone(manager)], seat1Hash: seatHash, seat1User: userId, events: structuredClone(events), turn, status: 'drafting', lastMoveAt: now(), version: r.version + 1 })
+        return out(r)
+      },
+      roomMove: async (code, seat, seatHash, expectVersion, events, turn, result) => {
+        const r = h.rooms.get(code)
+        if (!r) return { status: 'missing' }
+        if (seatHash !== (seat === 0 ? r.seat0Hash : r.seat1Hash)) return { status: 'not_seated' }
+        settle(r)
+        if (r.status !== 'drafting') return out(r, 'closed')
+        if (r.turn !== seat) return out(r, 'not_your_turn')
+        if (r.version !== expectVersion) return out(r, 'conflict')
+        const first = events[0]
+        if (!first || first.t !== 'p' || first.seat !== seat || (result === null && turn === null)) return { status: 'bad' }
+        r.events = [...r.events, ...structuredClone(events)]
+        r.turn = result ? null : turn
+        r.result = result ? structuredClone(result) : null
+        r.status = result ? 'finished' : 'drafting'
+        r.endedAt = result ? now() : null
+        r.lastMoveAt = now()
+        r.version++
+        return out(r)
+      },
+      roomLeave: async (code, seatHash) => {
+        const r = h.rooms.get(code)
+        if (!r) return { status: 'missing' }
+        if (seatHash !== r.seat0Hash && seatHash !== r.seat1Hash) return { status: 'not_seated' }
+        settle(r)
+        if (r.status !== 'waiting' && r.status !== 'drafting') return out(r, 'closed')
+        Object.assign(r, { status: 'left', turn: null, endedAt: now(), version: r.version + 1 })
+        return out(r)
+      },
+      roomReseat: async (code, userId, seatHash) => {
+        const r = h.rooms.get(code)
+        if (!r) return { status: 'missing' }
+        const seat = r.seat0User === userId ? 0 : r.seat1User === userId ? 1 : null
+        if (seat === null) return { status: 'not_seated' }
+        settle(r)
+        if (r.status !== 'waiting' && r.status !== 'drafting') return out(r, 'closed')
+        if (seat === 0) r.seat0Hash = seatHash
+        else r.seat1Hash = seatHash
+        return out(r, 'ok', { seat })
+      },
     },
   }
   h.deps = deps
@@ -136,6 +262,9 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
 export const ALICE: Caller = { userId: '11111111-1111-4111-8111-111111111111', isAnonymous: false, jwt: 'jwt-alice' }
 export const BOB: Caller = { userId: '22222222-2222-4222-8222-222222222222', isAnonymous: false, jwt: 'jwt-bob' }
 export const GUEST: Caller = { userId: '44444444-4444-4444-8444-444444444444', isAnonymous: true, jwt: 'jwt-guest' }
+/** A guest with no account at all (the publishable key, no JWT), as the Edge Function hands it over. */
+export const VISITOR: Guest = { guest: true, subject: '55555555-5555-4555-8555-555555555555' }
+export const VISITOR2: Guest = { guest: true, subject: '66666666-6666-4666-8666-666666666666' }
 
 /** A game played the way the store's Auto-complete plays it, after `before` (spins, re-spins, picks) if given. */
 export function autoPlayed(u: LoadedUniverse, settings: GameSettings, before?: (g: Game, rng: Rng) => void): Game {

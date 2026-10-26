@@ -31,3 +31,8 @@ export function parseGameHash(hash: string): GameHash | null {
   if (!code) return null
   return m[1] === 's' ? { kind: 's', code } : { kind: 'h', code }
 }
+
+/** The link that opens an online head-to-head room: `https://touchline.quest/#h=K7Q2MX9A`. */
+export function roomLink(code: string, origin: string, pathname: string): string {
+  return `${origin}${pathname}#h=${code}`
+}

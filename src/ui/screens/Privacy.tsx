@@ -18,13 +18,13 @@ export function Privacy() {
       <div className="col">
         <div className="panel">
           <h3>The short version</h3>
-          <p>{APP_NAME} is a free, non-commercial fan game with no ads and no tracking. You never need an account: every mode works signed out and offline, and your games are saved in this browser. Signing in is optional and only adds cloud saves, the world leaderboard and short challenge links.</p>
+          <p>{APP_NAME} is a free, non-commercial fan game with no ads and no tracking. You never need an account: every mode works signed out and offline, and your games are saved in this browser. Signing in is optional and only adds cloud saves, the world leaderboard and short challenge links; playing a friend online in a head-to-head room needs no account either.</p>
           {!online && <p className="help">This build has no online features at all: nothing you do here leaves this device.</p>}
         </div>
         <div className="panel">
           <h3>On this device</h3>
           <p>Your games, record, settings and shortlist are kept in this browser's local storage. They never leave the device unless you sign in and they sync, or you export them from the Profile page. Clearing the site's data, or Delete all data on the Profile page, removes them.</p>
-          <p className="muted small">An online build also keeps three small entries here: your sign-in session, a random id for this device and which account its games last synced with, and which sign-in prompts you dismissed ({RETENTION.deviceKeys.join(', ')}).</p>
+          <p className="muted small">An online build also keeps a few small entries here: your sign-in session, a random id for this device and which account its games last synced with, which sign-in prompts you dismissed, and your seat in any online head-to-head room you made or joined, for {RETENTION.seatKeepDays} days ({RETENTION.deviceKeys.join(', ')}).</p>
         </div>
         <div className="panel">
           <h3>If you sign in</h3>
@@ -38,6 +38,15 @@ export function Privacy() {
             <li><b>Housekeeping.</b> Counters that limit how often an account can post or save, deleted after {RETENTION.rateLimitDays} days. Server logs record the request, its outcome, how long it took and the first {RETENTION.logUserIdChars} characters of your account id, never what you sent.</li>
           </ul>
           <p className="muted small">No IP address, browser details or location are written to {APP_NAME}'s tables, nothing is sold or shared, and no analytics or advertising scripts run.</p>
+        </div>
+        <div className="panel" data-testid="privacy-rooms">
+          <h3>Online head-to-head rooms</h3>
+          <p>A room needs no account. While it lasts, the server keeps the two managers' names, formations and clubs, every spin and pick, the season it played, and for each seat a fingerprint of the secret key your device holds (never the key itself), plus the account of a manager who was signed in so they can take their seat back on another device. Anyone with the room's code can watch it.</p>
+          <ul>
+            <li>A room nobody joins closes after {RETENTION.roomWaitMinutes} minutes; a draft with no pick for {RETENTION.roomIdleMinutes} minutes times out.</li>
+            <li>Every room is deleted {RETENTION.roomKeepHours} hours after it ends.</li>
+            <li>Without an account, the counters that limit how many rooms and picks one player can make are kept under a one-way fingerprint of your network address, deleted after {RETENTION.rateLimitDays} days; the address itself is never stored or logged.</li>
+          </ul>
         </div>
         <div className="panel">
           <h3>Deleting your data</h3>

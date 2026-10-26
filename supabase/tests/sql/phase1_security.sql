@@ -12,10 +12,12 @@ do $t$ declare got text[]; want text[] := array[
   'private.is_anonymous', 'private.is_clean_name', 'private.normalise_code', 'private.week_start_of',
   'private.weekly_board_impl', 'private.weekly_is_open', 'private.weekly_rank_impl', 'private.weekly_revealed',
   'private.weekly_summary_impl',
+  -- Phase 2 rooms: the room reader for anyone holding a code (h2h_rooms migration)
+  'private.h2h_peek_impl', 'public.h2h_peek',
   'public.daily_alltime_board', 'public.daily_board', 'public.daily_rank', 'public.daily_summary', 'public.get_challenge',
   'public.weekly_board', 'public.weekly_rank', 'public.weekly_summary'];
 begin
-  select array_agg(distinct n.nspname || '.' || p.proname order by n.nspname || '.' || p.proname) into got
+  select array_agg(distinct (n.nspname || '.' || p.proname) collate "C" order by (n.nspname || '.' || p.proname) collate "C") into got
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute');
   assert got = (select array_agg(x order by x collate "C") from unnest(want) x), 'anon can execute: ' || got::text;
@@ -32,12 +34,13 @@ do $t$ declare got text[]; want text[] := array[
   'private.save_orphans_impl', 'private.valid_challenge_payload', 'private.week_start_of', 'private.weekly_board_impl',
   'private.weekly_is_open', 'private.weekly_my_entries_impl', 'private.weekly_rank_impl', 'private.weekly_revealed',
   'private.weekly_summary_impl',
+  'private.h2h_peek_impl', 'public.h2h_peek',
   'public.cloud_delete_all', 'public.create_challenge', 'public.daily_alltime_board', 'public.daily_alltime_mine',
   'public.daily_board', 'public.daily_my_entries', 'public.daily_rank', 'public.daily_summary', 'public.get_challenge',
   'public.profile_put', 'public.save_claim', 'public.save_delete', 'public.save_orphans', 'public.weekly_board',
   'public.weekly_my_entries', 'public.weekly_rank', 'public.weekly_summary'];
 begin
-  select array_agg(distinct n.nspname || '.' || p.proname order by n.nspname || '.' || p.proname) into got
+  select array_agg(distinct (n.nspname || '.' || p.proname) collate "C" order by (n.nspname || '.' || p.proname) collate "C") into got
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('authenticated', p.oid, 'execute');
   assert got = (select array_agg(x order by x collate "C") from unnest(want) x), 'authenticated can execute: ' || got::text;
