@@ -179,6 +179,9 @@ What changed:
    the first load, `main.tsx` registers the worker once the screen prefetch is done (`whenScreensFetched`), 30 s at
    most. Checked offline at 1280 and 390 with a real worker: 68 of 68 assets cached, Quick Draft to the playback and
    a Season live match offline, no page error. (Flags not yet seen stay uncached, as before.)
+   A cached asset is matched by its name alone (`ignoreVary`): the precache's requests carry no `Origin` header and a
+   module import does, so on a host that answers `Vary: Origin` (vite preview; the live site sends only
+   `Vary: Accept-Encoding`) every chunk missed offline until this was added on the engine 5 merge.
 5. **The data starts with the JavaScript on a first visit**: `index.html` preloads `data/leagues.json`, England's
    `meta.json` and (low priority) `players.json`, with `crossorigin`, which matches `fetch`'s default mode and
    credentials in `packs.ts` and `universe.ts` (one request per pack, checked). Only on a page no service worker

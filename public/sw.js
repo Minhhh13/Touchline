@@ -40,11 +40,13 @@ self.addEventListener('fetch', (event) => {
     return
   }
   if (url.origin !== location.origin) return
-  // Hashed assets, icons, flags (public/flags/<code>.svg) and anything under public/img/ never change under the same name: cache first
+  // Hashed assets, icons, flags (public/flags/<code>.svg) and anything under public/img/ never change under the same name: cache first.
+  // The precache stored them from requests without an Origin header, and a module import sends one, so a host that
+  // answers `Vary: Origin` (vite preview does) would miss every one offline: the name alone decides
   if (url.pathname.includes('/assets/') || url.pathname.includes('/icons/') || url.pathname.includes('/flags/') || url.pathname.includes('/img/')) {
     event.respondWith(
       caches.open(VERSION).then(async (cache) => {
-        const hit = await cache.match(req)
+        const hit = await cache.match(req, { ignoreVary: true })
         if (hit) return hit
         const res = await fetch(req)
         if (res.ok) {
