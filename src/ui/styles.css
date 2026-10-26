@@ -11942,13 +11942,13 @@ table.tbl.contracts-overview .link-btn.name {
 /* A rating the club can only see as a range ("62–70"): the badge widens and the figures shrink to fit */
 .rating.range {
   min-width: 44px;
-  font-size: 11.5px;
+  font-size: 11.5px; /* px: the rating badge box */
   letter-spacing: -0.02em;
   padding: 0 4px;
 }
 .rating.range.lg {
   min-width: 64px;
-  font-size: 16px;
+  font-size: 16px; /* px: the rating badge box */
 }
 .prow.ranged {
   grid-template-columns: 46px 1fr auto;
