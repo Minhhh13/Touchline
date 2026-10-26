@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { devicePosts, postLabel, postLine, sentence } from '../postText'
+import { devicePosts, onlineErrorText, postLabel, postLine, sentence } from '../postText'
+import { normaliseError, OnlineError } from '../transport'
 
 describe('the words for a device\'s ranked posts', () => {
   it('ends a reason with one full stop', () => {
@@ -32,3 +33,15 @@ describe('the words for a device\'s ranked posts', () => {
     expect(postLine({ state: 'posted', position: 22, total: 30, points: 1, claimMatched: true, already: false }, true).line).toContain('22nd')
   })
 })
+
+describe('a failed online read in the player\'s words', () => {
+  it('names a dropped connection, a busy server, the hourly limit and an expired session', () => {
+    expect(onlineErrorText(new OnlineError('network', 'Failed to fetch'))).toMatch(/No connection/)
+    expect(onlineErrorText(new TypeError('Load failed'))).toMatch(/No connection/)
+    expect(onlineErrorText(normaliseError({ code: 'PGRST202', message: 'Could not find the function' }))).toMatch(/not switched on yet/)
+    expect(onlineErrorText(normaliseError({ message: 'x' }, 429))).toMatch(/Too many/)
+    expect(onlineErrorText(normaliseError({ code: 'PGRST303', message: 'JWT expired' }))).toBe('Sign in again to see this.')
+    expect(onlineErrorText(new OnlineError('bad', 'Bad name'))).toBe('Bad name')
+  })
+})
+

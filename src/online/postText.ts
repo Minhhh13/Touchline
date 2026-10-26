@@ -67,3 +67,14 @@ export function devicePosts(posts: Record<string, PostState>, signedIn: boolean,
   out.sort((a, b) => when(b.key) - when(a.key) || (a.key < b.key ? -1 : 1))
   return out.slice(0, limit)
 }
+
+/** A failed online read (a board, the record, the cloud history) in the player's words. */
+export function onlineErrorText(e: unknown): string {
+  const kind = e && typeof e === 'object' && 'kind' in e ? (e as { kind: unknown }).kind : null
+  const message = e instanceof Error ? e.message : String(e ?? '')
+  if (kind === 'network' || (!kind && /fetch|network|load failed|offline/i.test(message))) return 'No connection: it loads when you are back online.'
+  if (kind === 'rate') return 'Too many requests for now: try again in a few minutes.'
+  if (kind === 'unavailable') return message || 'The server did not answer: try again in a minute.'
+  if (kind === 'auth') return 'Sign in again to see this.'
+  return message || 'Something went wrong: try again.'
+}

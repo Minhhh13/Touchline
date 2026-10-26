@@ -16,6 +16,7 @@ import { Info, Segmented } from '../components/bits'
 import { ordinal, seasonLabel } from '../format'
 import { CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
+import { onlineErrorText } from '../../online/postText'
 
 type Tab = 'daily' | 'weekly' | 'alltime' | 'chase'
 const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase']
@@ -68,7 +69,7 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
         setSummary(s)
         setMore(r.length === PAGE)
       },
-      (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
+      (e: unknown) => live && setError(onlineErrorText(e)),
     )
     return () => {
       live = false
@@ -76,7 +77,14 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
   }, [kind, boardKey, country, session])
   const loadMore = async () => {
     if (!rows) return
-    const next = await api.board(kind, boardKey, country, rows.length)
+    let next: typeof rows
+    try {
+      next = await api.board(kind, boardKey, country, rows.length)
+    } catch (e) {
+      // A dropped connection keeps the rows shown and says why the next page did not come
+      setError(onlineErrorText(e))
+      return
+    }
     setRows([...rows, ...next])
     setMore(next.length === PAGE)
   }
@@ -91,7 +99,7 @@ function RankedTable({ kind, boardKey, country, title }: { kind: RankedKind; boa
         </span>
       </div>
       <div className="fit-scroll">
-        {error && <div className="notice warn">Could not load the board: {error}</div>}
+        {error && <div className="notice warn" data-testid="board-error">Could not load the board. {error}</div>}
         {!rows && !error && <div className="muted small">Loading…</div>}
         {rows && rows.length === 0 && <div className="muted small">Nobody has posted here yet{country ? ` from ${countryName(country)}` : ''}.</div>}
         {rows && rows.length > 0 && (
@@ -175,7 +183,7 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
         setMine(m)
         setMore(r.length === PAGE)
       },
-      (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
+      (e: unknown) => live && setError(onlineErrorText(e)),
     )
     return () => {
       live = false
@@ -183,7 +191,14 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
   }, [order, country, session])
   const loadMore = async () => {
     if (!rows) return
-    const next = await api.alltime(order, country, rows.length)
+    let next: typeof rows
+    try {
+      next = await api.alltime(order, country, rows.length)
+    } catch (e) {
+      // A dropped connection keeps the rows shown and says why the next page did not come
+      setError(onlineErrorText(e))
+      return
+    }
     setRows([...rows, ...next])
     setMore(next.length === PAGE)
   }
@@ -194,7 +209,7 @@ function AlltimeTable({ country, order }: { country: string | null; order: Allti
         <span className="small muted">{order === 'points' ? 'By total points' : 'By best streak'}</span>
       </div>
       <div className="fit-scroll">
-        {error && <div className="notice warn">Could not load the board: {error}</div>}
+        {error && <div className="notice warn" data-testid="board-error">Could not load the board. {error}</div>}
         {!rows && !error && <div className="muted small">Loading…</div>}
         {rows && rows.length === 0 && <div className="muted small">Nobody has posted a Daily yet{country ? ` from ${countryName(country)}` : ''}.</div>}
         {rows && rows.length > 0 && (
@@ -310,7 +325,7 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
         setSummary(s)
         setMore(r.length === PAGE)
       },
-      (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
+      (e: unknown) => live && setError(onlineErrorText(e)),
     )
     return () => {
       live = false
@@ -318,7 +333,14 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
   }, [scope, week, country, session])
   const loadMore = async () => {
     if (!rows) return
-    const next = await api.chaseBoard(scope, week, country, rows.length)
+    let next: typeof rows
+    try {
+      next = await api.chaseBoard(scope, week, country, rows.length)
+    } catch (e) {
+      // A dropped connection keeps the rows shown and says why the next page did not come
+      setError(onlineErrorText(e))
+      return
+    }
     setRows([...rows, ...next])
     setMore(next.length === PAGE)
   }
@@ -341,7 +363,7 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
         </div>
       )}
       <div className="fit-scroll">
-        {error && <div className="notice warn">Could not load the board: {error}</div>}
+        {error && <div className="notice warn" data-testid="board-error">Could not load the board. {error}</div>}
         {!rows && !error && <div className="muted small">Loading…</div>}
         {rows && rows.length === 0 && <div className="muted small">Nobody has posted a chase run here yet{country ? ` from ${countryName(country)}` : ''}.</div>}
         {rows && rows.length > 0 && (
@@ -441,7 +463,12 @@ function ChasePlay() {
     if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start a 38-0 chase run? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
     setBusy(true)
     setMessage(null)
-    const r = await api.startChaseRun(league, formation, { ratings, benchPicks: bench }, profile.managerName.trim() || 'Touchline XI')
+    let r: Awaited<ReturnType<typeof api.startChaseRun>>
+    try {
+      r = await api.startChaseRun(league, formation, { ratings, benchPicks: bench }, profile.managerName.trim() || 'Touchline XI')
+    } catch (e) {
+      r = { ok: false, message: onlineErrorText(e) }
+    }
     setBusy(false)
     if (!r.ok) {
       setMessage(r.message)
