@@ -1,4 +1,4 @@
-import type { Game, JanuaryListing, QuickChange, QuickCover, QuickGameResult, QuickJanuary, QuickResult } from '../types'
+import type { Game, JanuaryListing, JanuaryUpgradeResult, QuickChange, QuickCover, QuickGameResult, QuickJanuary, QuickResult } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput } from '@engine/match'
@@ -15,6 +15,8 @@ import { earnsMoneyball } from './cap'
 import { earnsChainChampions } from './chain'
 import { packRounds } from './liveTable'
 import { januaryBudget, januaryListings, sameListing } from './january'
+import { drawJanuarySpin, drawJanuaryUpgrade, januaryGambleMade, januaryGambleOn, januarySpinChoices, januarySpinPool, januaryUpgradeBase, JANUARY_SPIN_FORK, withJanuaryUpgrade, type JanuarySpinChoice } from './januaryGamble'
+import { isUpgradeBoost } from '@engine/upgrader'
 import { difficultyOf } from '@engine/draft'
 import { quickManagerBoost, rollManagerSpin, settleManager } from './managers'
 import { caseIconIn, rollEndCase } from './endCase'
@@ -248,8 +250,11 @@ export function openJanuary(game: Game, u: LoadedUniverse): void {
 export function closeJanuary(game: Game, u: LoadedUniverse, index: number | null): void {
   const j = game.quickJanuary
   if (!j || game.phase !== 'january') return
+  if (index !== null && januaryGambleMade(j)) throw new Error("The window's deal is made")
   const move = index === null ? null : j.listings[index]
   if (move === undefined) throw new Error('No such January listing')
+  // A spin left unplaced keeps the XI
+  if (j.spin && j.spin.slotId === undefined) j.spin.slotId = null
   j.move = move ? { ...move } : null
   if (move) {
     if (game.captainId === move.outId) delete game.captainId
@@ -271,6 +276,122 @@ export function reopenJanuary(game: Game, u: LoadedUniverse): void {
   if (j.firstHalfCaptainId) game.captainId = j.firstHalfCaptainId
   else delete game.captainId
   openJanuary(game, u)
+}
+
+/** The season played again from where it kicked off to the January window, as the window saw it: the run at the halfway mark. */
+function halfwayRun(game: Game, u: LoadedUniverse, j: QuickJanuary): QuickRun {
+  const run = startRun(game, u)
+  playMatchweeks(run, u, game, { tactics: j.firstHalfTactics, captainId: j.firstHalfCaptainId }, 1, run.half)
+  return run
+}
+
+/** Why the January spin or Upgrader cannot be used now, or null: an open window in a game that offers them, its deal not made. */
+export function januaryGambleProblem(game: Game): string | null {
+  const j = game.quickJanuary
+  if (!j || game.phase !== 'january') return 'The January window is closed'
+  if (!januaryGambleOn(game)) return 'This January window has no spin or Upgrader'
+  if (januaryGambleMade(j)) return "The window's deal is made"
+  return null
+}
+
+/**
+ * Open the January case: the spin lands on a player of the wheel (`januaryGambleMade` from then on, so the window's
+ * one deal is this one). Drawn from `JANUARY_SPIN_FORK` of a copy of the season's stream at the halfway mark, so it
+ * is the same however often it is replayed, and the season's own stream never moves. Throws when the spin is not on
+ * offer or nobody on the wheel can come in.
+ */
+export function rollJanuarySpin(game: Game, u: LoadedUniverse): void {
+  const problem = januaryGambleProblem(game)
+  if (problem) throw new Error(problem)
+  const j = game.quickJanuary!
+  const run = halfwayRun(game, u, j)
+  const drawn = drawJanuarySpin(januarySpinPool(game, u, run.lineup, run.bench, run.get), Rng.fromState(run.rng.getState()).fork(JANUARY_SPIN_FORK))
+  if (!drawn) throw new Error('Nobody on this wheel can come in this January')
+  j.spin = { playerSeasonId: drawn.p.id, tier: drawn.tier }
+}
+
+/**
+ * The January Upgrader: one gamble on one of the XI, +2, +5 or +10 for the second half, at `upgradeChance`'s odds.
+ * Rolled from a fork of a copy of the season's stream at the halfway mark (`drawJanuaryUpgrade`); the window then
+ * waits for the second half to be played (`closeJanuary` with null).
+ */
+export function rollJanuaryUpgrade(game: Game, u: LoadedUniverse, id: string, boost: number): JanuaryUpgradeResult {
+  const problem = januaryGambleProblem(game)
+  if (problem) throw new Error(problem)
+  if (!isUpgradeBoost(boost)) throw new Error('Choose a boost of +2, +5 or +10')
+  const j = game.quickJanuary!
+  const run = halfwayRun(game, u, j)
+  if (!Object.values(run.lineup).includes(id)) throw new Error('Choose one of your XI')
+  const rating = januaryUpgradeBase(run.get, id)
+  if (rating === null) throw new Error('Unknown player')
+  j.upgrade = drawJanuaryUpgrade(Rng.fromState(run.rng.getState()), id, rating, boost)
+  return j.upgrade
+}
+
+/** The slots the open window's spun player may take, the biggest gain first; empty without a spin. Pure. */
+export function openSpinChoices(game: Game, u: LoadedUniverse): JanuarySpinChoice[] {
+  const spin = game.phase === 'january' ? game.quickJanuary?.spin : undefined
+  const get = playerLookup(game, u)
+  const p = spin ? get(spin.playerSeasonId) : undefined
+  return p ? januarySpinChoices(game, game.lineup, p, get) : []
+}
+
+/**
+ * Close the window after the spin: its player into slot `slotId` (one he can cover, a starter there) or the XI kept
+ * (null), then the season is played out. The man making way drops any captaincy or set-piece duty.
+ */
+export function closeJanuarySpin(game: Game, u: LoadedUniverse, slotId: string | null): void {
+  const j = game.quickJanuary
+  if (!j || game.phase !== 'january' || !j.spin) throw new Error('No January spin to close')
+  if (slotId !== null) {
+    if (!openSpinChoices(game, u).some((c) => c.slotId === slotId)) throw new Error(`${playerLookup(game, u)(j.spin.playerSeasonId)?.name ?? 'He'} cannot play there`)
+    const outId = game.lineup[slotId]
+    j.spin.slotId = slotId
+    j.spin.outId = outId
+    if (game.captainId === outId) delete game.captainId
+    const sp = game.tactics.setPieces
+    if (sp) for (const k of ['penalties', 'freeKicks', 'corners'] as const) if (sp[k] === outId) delete sp[k]
+  } else {
+    j.spin.slotId = null
+    delete j.spin.outId
+  }
+  closeJanuary(game, u, null)
+}
+
+/**
+ * The January gamble at the halfway mark of a season being played: checked against the stream (the spin lands on
+ * the same player, the upgrade rolls the same) when `check`, then applied to the run: the spun player into his slot,
+ * the upgrade onto the lookup the second half plays with. Returns the summary's record of it, or undefined.
+ */
+function applyJanuaryGamble(game: Game, u: LoadedUniverse, run: QuickRun, j: QuickJanuary, check: boolean): QuickResult['januaryGamble'] {
+  const get = run.get
+  if (j.spin) {
+    const spin = j.spin
+    if (check) {
+      const drawn = drawJanuarySpin(januarySpinPool(game, u, run.lineup, run.bench, get), Rng.fromState(run.rng.getState()).fork(JANUARY_SPIN_FORK))
+      if (!drawn || drawn.p.id !== spin.playerSeasonId) throw new Error('That January spin did not land there')
+    }
+    const inName = get(spin.playerSeasonId)?.name ?? spin.playerSeasonId
+    if (!spin.slotId) return { kind: 'spin', inId: spin.playerSeasonId, inName, tier: spin.tier }
+    const slot = run.formation.slots.find((s) => s.id === spin.slotId)
+    const p = get(spin.playerSeasonId)
+    const outId = run.lineup[spin.slotId]
+    if (!slot || !p || !outId || !run.canPlay(p, slot.position)) throw new Error(`${p?.name ?? 'The January spin'} cannot play ${slot?.position ?? spin.slotId}`)
+    run.lineup = { ...run.lineup, [spin.slotId]: spin.playerSeasonId }
+    return { kind: 'spin', inId: spin.playerSeasonId, inName, tier: spin.tier, outId, outName: get(outId)?.name ?? outId, slotId: spin.slotId }
+  }
+  if (j.upgrade) {
+    const up = j.upgrade
+    if (check) {
+      const rating = Object.values(run.lineup).includes(up.id) ? januaryUpgradeBase(get, up.id) : null
+      if (rating === null || !isUpgradeBoost(up.boost)) throw new Error('That January upgrade was not on offer')
+      const again = drawJanuaryUpgrade(Rng.fromState(run.rng.getState()), up.id, rating, up.boost)
+      if (again.roll !== up.roll || again.chance !== up.chance || again.delta !== up.delta) throw new Error('That January upgrade does not roll the same')
+    }
+    run.get = withJanuaryUpgrade(get, up)
+    return { kind: 'upgrade', id: up.id, name: get(up.id)?.name ?? up.id, boost: up.boost, chance: up.chance, won: up.won, delta: up.delta }
+  }
+  return undefined
 }
 
 /**
@@ -328,6 +449,8 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     deal = j.move
     run.lineup = { ...run.lineup, [deal.slotId]: deal.playerSeasonId }
   }
+  // The spin or the Upgrader, checked against the stream and applied for the second half
+  const gamble = j ? applyJanuaryGamble(game, u, run, j, true) : undefined
   const second: QuickSide = { tactics: game.tactics, captainId: game.captainId }
   playMatchweeks(run, u, game, second, run.half + 1, matchweeks)
   const { fixtures, ids, goals, ratings } = run
@@ -356,6 +479,7 @@ export function runQuickSeason(game: Game, u: LoadedUniverse): void {
     // Game by game, from the fixtures already played: no random numbers are drawn here
     results: userResults(run),
     ...(deal ? { january: { kind: deal.kind, inId: deal.playerSeasonId, inName: get(deal.playerSeasonId)?.name ?? deal.playerSeasonId, outId: deal.outId, outName: get(deal.outId)?.name ?? deal.outId, fee: deal.fee, slotId: deal.slotId } } : {}),
+    ...(gamble ? { januaryGamble: gamble } : {}),
     ...(run.applied.length ? { changes: run.applied } : {}),
     startRng: { ...startRng },
     // Every club's results by matchweek, from the fixtures already played: the playback's live table
@@ -416,7 +540,8 @@ export function quickSquadAt(game: Game, u: LoadedUniverse, results: QuickGameRe
   const next = revealed < results.length ? results[revealed].matchweek : null
   const upTo = next ?? Infinity
   const j = game.quickJanuary
-  let deal = j?.move ?? null
+  // The listing taken, or the January spin's player in his slot: both come in after the window
+  let deal: Pick<JanuaryListing, 'slotId' | 'playerSeasonId'> | null = j?.move ?? (j?.spin?.slotId ? { slotId: j.spin.slotId, playerSeasonId: j.spin.playerSeasonId } : null)
   const half = j?.afterMatchweek ?? Infinity
   const takeDeal = () => {
     if (deal) lineup = { ...lineup, [deal.slotId]: deal.playerSeasonId }
@@ -525,6 +650,7 @@ export function replayUserMatch(game: Game, u: LoadedUniverse, matchweek: number
   playMatchweeks(run, u, game, first, 1, Math.min(run.half, matchweek))
   if (found || matchweek <= run.half || game.phase === 'january') return found
   if (j?.move) run.lineup = { ...run.lineup, [j.move.slotId]: j.move.playerSeasonId }
+  if (j && j.move !== undefined) applyJanuaryGamble(game, u, run, j, false)
   playMatchweeks(run, u, game, { tactics: game.tactics, captainId: game.captainId }, run.half + 1, Math.min(run.matchweeks, matchweek))
   return found
 }

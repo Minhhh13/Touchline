@@ -1,4 +1,4 @@
-import type { Game, GameSettings, Profile, QuickBests } from '../types'
+import type { Game, GameSettings, Profile, QuickBests, QuickJanuary } from '../types'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
@@ -6,6 +6,8 @@ import { DIFFICULTY_RESPINS, type DraftRules } from '@engine/draft'
 import { MORALE_LOG_CAP } from './happiness'
 import { cleanLocker } from './endCase'
 import { REPORTS_CAP, SCOUTED_CAP } from './scouting'
+import { TIERS } from './rarity'
+import { isUpgradeBoost } from '@engine/upgrader'
 
 /**
  * Draft rules written before the 38-0 options: the difficulty is read from hard mode (hard) or the
@@ -53,7 +55,28 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     // A season paused for a January window that is not there cannot go on: back to the tactics step, which replays it
     phase: g.phase === 'january' && !g.quickJanuary ? 'kickoff' : g.phase,
     ...recruitmentFields(g),
+    ...januaryGambleFields(g),
   }
+}
+
+/**
+ * The January spin and Upgrader (`QuickJanuary.spin`, `.upgrade`) are optional: a save from before them has neither and
+ * every reader checks for them. One of the wrong shape is dropped (the season then replays as the window left it
+ * without it); a window that needs nothing comes back untouched.
+ */
+function januaryGambleFields(g: Game): Partial<Game> {
+  const j = g.quickJanuary
+  if (!j) return {}
+  const spinOk = j.spin === undefined || (typeof j.spin === 'object' && j.spin !== null && typeof j.spin.playerSeasonId === 'string' && TIERS.includes(j.spin.tier))
+  const up = j.upgrade
+  const upOk = up === undefined || (typeof up === 'object' && up !== null && typeof up.id === 'string' && isUpgradeBoost(up.boost) && [up.chance, up.roll, up.delta].every(Number.isInteger) && typeof up.won === 'boolean')
+  // One deal per window: a gamble beside a listing taken is not a window this build made
+  const both = (j.spin !== undefined || up !== undefined) && !!j.move
+  if (spinOk && upOk && !both && !(j.spin && up)) return {}
+  const fixed: QuickJanuary = { ...j }
+  if (!spinOk || both || (j.spin && up)) delete fixed.spin
+  if (!upOk || both || (j.spin && up)) delete fixed.upgrade
+  return { quickJanuary: fixed }
 }
 
 /**
