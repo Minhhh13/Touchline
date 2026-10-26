@@ -75,3 +75,14 @@ export function distinctLabels(labels: readonly string[]): string[] {
   return out
 }
 
+
+/**
+ * The quick summary's runs line under the record: this season's runs (`runsLine`) and the Profile's longest perfect
+ * start, named as such ("best perfect start 5-0": a bare "best run 1-0" read as a score). A best of one game says
+ * nothing a player wants to hear, so it shows from two; null when there is nothing to say.
+ */
+export function runsSummary(runs: string | null, longestPerfectRun: number | undefined): string | null {
+  const best = (longestPerfectRun ?? 0) >= 2 ? `${runs ? 'best' : 'Best'} perfect start ${longestPerfectRun}-0` : null
+  const parts = [runs, best].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}
