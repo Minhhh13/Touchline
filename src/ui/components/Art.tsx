@@ -71,10 +71,15 @@ export function NeonFlow({ className = '' }: { className?: string }) {
 }
 
 /** A scene: the sky, the neon behind, then the subject, all with the sketchy ink outline. */
-function Scene({ prefix, viewBox, align, className, blur, wobble, children, flows }: { prefix: string; viewBox: string; align: string; className: string; blur: number; wobble: number; children: (id: Defs) => ReactNode; flows: (id: Defs) => ReactNode }) {
+/**
+ * `split` draws the sky and the neon in one layer that fills its box (slice) and the subject in a second layer on top
+ * that is always shown whole (meet): a mode card's picture squeezed into a short strip then keeps its calendar, board
+ * or trophy entire instead of losing the top and bottom (the CSS sizes the two layers, `.mode-art`).
+ */
+function Scene({ prefix, viewBox, align, className, blur, wobble, children, flows, split }: { prefix: string; viewBox: string; align: string; className: string; blur: number; wobble: number; children: (id: Defs) => ReactNode; flows: (id: Defs) => ReactNode; split?: boolean }) {
   const id = useDefs(prefix)
   const sky = `${id.neon}-sky`
-  return (
+  const back = (
     <svg className={`art ${className}`} viewBox={viewBox} preserveAspectRatio={`${align} slice`} aria-hidden="true" focusable="false">
       <defs>
         <SharedDefs id={id} blur={blur} wobble={wobble} />
@@ -97,8 +102,17 @@ function Scene({ prefix, viewBox, align, className, blur, wobble, children, flow
       </defs>
       <rect width="100%" height="100%" style={{ fill: `url(#${sky})` }} />
       {flows(id)}
-      {children(id)}
+      {!split && children(id)}
     </svg>
+  )
+  if (!split) return back
+  return (
+    <>
+      {back}
+      <svg className={`art ${className} scene-subject`} viewBox={viewBox} preserveAspectRatio={`${align} meet`} aria-hidden="true" focusable="false">
+        {children(id)}
+      </svg>
+    </>
   )
 }
 
@@ -256,7 +270,7 @@ function ClubCard({ x, y, w, h, rot, a, b, pattern, glow, id }: { x: number; y: 
 /** Each mode card's picture: the reel of club cards, the daily calendar ball, the tactics board, the crowned trophy. */
 export function ModeArt({ kind }: { kind: ModeArtKind }) {
   return (
-    <Scene prefix={`mode-${kind}`} viewBox="0 0 400 200" align="xMidYMid" className={`mode-scene ${kind}`} blur={3.5} wobble={1.8} flows={(id) => <CardFlows id={id} />}>
+    <Scene prefix={`mode-${kind}`} viewBox="0 0 400 200" align="xMidYMid" className={`mode-scene ${kind}`} blur={3.5} wobble={1.8} split flows={(id) => <CardFlows id={id} />}>
       {(id) => (
         // the subject sits inside x 117-283, so a phone's square crop of the card still shows all of it
         <g transform="translate(200 100) scale(0.86) translate(-200 -100)">
