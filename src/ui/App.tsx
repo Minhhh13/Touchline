@@ -13,6 +13,7 @@ import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
 import { useArenaWarmup } from './useArenaWarmup'
+import './sound/boot'
 import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */

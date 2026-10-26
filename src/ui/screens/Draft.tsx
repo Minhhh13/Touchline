@@ -41,6 +41,7 @@ import { canPickManager, quickManagerOptions } from '@game/logic/managers'
 import { ManagerPick } from '../components/ManagerPick'
 import { DraftRecap } from '../components/DraftRecap'
 import { draftRecap } from '@game/logic/draftRecap'
+import { playSound } from '../sound/synth'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -100,6 +101,7 @@ export function Draft() {
     const before = picksSeen.current
     picksSeen.current = pickNo
     if (!d || pickNo <= before) return
+    playSound({ id: 'pick' })
     const last = [...d.history].reverse().find((h) => h.pickedId)
     setRevealId(last?.pickedId && revealsOnPick(d.rules, last.twist) ? last.pickedId : null)
     const t = window.setTimeout(() => setRevealId(null), 1200)

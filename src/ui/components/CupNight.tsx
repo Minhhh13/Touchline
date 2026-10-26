@@ -12,6 +12,7 @@ import { ClubBadge, Modal, TeamBadge } from './bits'
 import { TrebleArt, TrophyArt } from './TrophyArt'
 import { confettiPieces, prefersReducedMotion } from '../motion'
 import { revealDelay, userInPlay } from '../cupReveal'
+import { playSound } from '../sound/synth'
 
 const TITLE: Record<QuickCupComp, string> = { cup: 'The Cup', continental: 'Continental Cup' }
 const ROUNDS: QuickCupRound[] = ['R16', 'QF', 'SF', 'F']
@@ -99,6 +100,10 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
  */
 export function CupLift({ comp, treble, teamName, detail, played, onBack, onDone }: { comp: QuickCupComp; treble: boolean; teamName: string; detail: string | null; played: boolean; onBack: () => void; onDone: () => void }) {
   const pieces = treble ? TREBLE_PIECES : CUP_PIECES
+  // The fanfare as the trophy rises (the Treble's is bigger); no shimmer under reduced motion
+  useEffect(() => {
+    playSound({ id: 'fanfare', treble, reduced: !played })
+  }, [])
   const burst = (later: number) => (
     <span className="celebrate cup-burst" aria-hidden="true" style={{ '--burst': `${later}ms` } as CSSProperties}>
       <span className="flare" />

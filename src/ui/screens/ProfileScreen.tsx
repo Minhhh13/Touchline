@@ -23,7 +23,7 @@ import { countPhrase } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
-import { useSoundOn } from '../sound/prefs'
+import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
@@ -78,6 +78,7 @@ function exportSave(): void {
 export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
   const [soundOn, setSoundOn] = useSoundOn()
+  const [matchSound, setMatchSound] = useMatchSoundOn()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
   const boxes = useBoxes(PROFILE)
@@ -225,10 +226,18 @@ export function ProfileScreen() {
             </div>
             <div className="field">
               <span>
-                Sound <Info label="About the sound">The case reel's ticks and reveal sounds, made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
+                Sound <Info label="About the sound">Every sound in the game: the case reel, the draft, the match and the trophies, all made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
               </span>
               <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
             </div>
+            {soundOn && (
+              <div className="field">
+                <span>
+                  Match sounds <Info label="About the match sounds">The referee's whistle, the crowd, the net, cards and substitutions on match day. Off keeps the rest of the sound. Kept on this device only.</Info>
+                </span>
+                <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'match-sound-on' }, { value: 'off', label: 'Off', testId: 'match-sound-off' }]} />
+              </div>
+            )}
             <div className="field">
               <span>
                 Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, about seven seconds; Quick takes under three. Re-spins always run quick, and a tap on the reel skips to the landing. Kept on this device only.</Info>
