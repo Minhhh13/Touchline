@@ -5,6 +5,7 @@ import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
 import { EstimatedChip, Rating } from '../components/bits'
 import { seasonLabel } from '../format'
+import { classicFromIndex } from '@game/logic/era'
 import type { Twist } from '@engine/draft'
 
 /** One section of How it works: a picture, a title, a line or two, then what illustrates it. */
@@ -69,6 +70,8 @@ const DYNASTY_FACTS: Array<[LucideIcon, string, string]> = [
 
 export function HowTo() {
   const { go, universe: u } = useStore()
+  // From the data index: the classic pack itself loads only when a game asks for it
+  const classicFrom = u ? classicFromIndex(u.available, u.available.map((l) => l.id)) : undefined
   const leagues = u?.available.length ?? 7
   return (
     <div className="page howto">
@@ -132,9 +135,9 @@ export function HowTo() {
             ))}
           </div>
           <p className="help">Out of position costs rating: a little for a related role, a lot for a stretch. Values and wages are our own estimates.</p>
-          {u?.classicFirstSeason !== undefined && (
+          {classicFrom !== undefined && u && (
             <p className="help" data-testid="howto-estimated">
-              <EstimatedChip compact /> Classic seasons ({seasonLabel(u.classicFirstSeason)} to {seasonLabel(u.firstSeason - 1)}) have no official ratings: TouchLine estimates them from real starts, goals, age, caps and club results. Squads and tables are real. Opt-in in Setup, never in the Daily.
+              <EstimatedChip compact /> Classic seasons ({seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)}) have no official ratings: TouchLine estimates them from real starts, goals, age, caps and club results. Squads and tables are real. Opt-in in Setup, never in the Daily.
             </p>
           )}
         </Section>
