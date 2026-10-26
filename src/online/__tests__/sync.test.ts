@@ -471,3 +471,113 @@ describe('cloud sync engine', () => {
     expect(a.rec().paused).toBe(false)
   })
 })
+
+describe('cloud sync when the connection or the session fails mid-pass', () => {
+  const season = managed('season', 'SYNC-EDGE')
+
+  it('a drop between the upload and the claim leaves only an orphan, which the sweep removes; the next pass uploads', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    const t = a.transport
+    const claim = t.claim.bind(t)
+    let dropped = false
+    t.claim = async (args) => {
+      if (!dropped) {
+        dropped = true
+        throw new OnlineError('network', 'Load failed')
+      }
+      return claim(args)
+    }
+    const out = await a.engine.sync()
+    expect(out).toMatchObject({ ok: false, error: { kind: 'network' } })
+    expect(a.last().syncStatus).toBe('offline')
+    expect(row(b, 'season')).toBeUndefined()
+    expect(b.objects.size).toBe(1)
+    tick()
+    expect((await a.engine.sync()).ok).toBe(true)
+    expect(row(b, 'season')).toMatchObject({ revision: 1, gameId: season.id })
+    await a.engine.sweepOrphans()
+    expect([...b.objects.keys()]).toEqual([row(b, 'season')!.objectPath])
+  })
+
+  it('a claim the server applied but whose answer was lost is in sync on the next pass: no second claim, no question', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    await a.engine.sync()
+    tick()
+    a.store.set({ game: advance(season, 2) })
+    const t = a.transport
+    const claim = t.claim.bind(t)
+    let lost = false
+    t.claim = async (args) => {
+      const res = await claim(args)
+      if (!lost) {
+        lost = true
+        throw new OnlineError('network', 'Failed to fetch')
+      }
+      return res
+    }
+    expect((await a.engine.sync({ force: true })).ok).toBe(false)
+    expect(row(b, 'season')!.revision).toBe(2)
+    const before = claims(b)
+    tick()
+    expect((await a.engine.sync({ force: true })).ok).toBe(true)
+    expect(claims(b)).toBe(before)
+    expect(a.last().conflicts).toEqual([])
+    expect(a.rec().slots.season).toMatchObject({ revision: 2 })
+  })
+
+  it('an expired session mid-pass pauses sync with "Sign in again" and loses nothing; the next session carries on', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: season })
+    await a.engine.sync()
+    tick()
+    const next = advance(season, 4)
+    a.store.set({ game: next })
+    // the pull works, then the JWT runs out before the upload
+    const t = a.transport
+    const upload = t.upload.bind(t)
+    let expired = true
+    t.upload = async (path, bytes) => {
+      if (expired) throw new OnlineError('auth', 'JWT expired', 'PGRST303', 401)
+      return upload(path, bytes)
+    }
+    const out = await a.engine.sync({ force: true })
+    expect(out.error?.kind).toBe('auth')
+    expect(a.last()).toMatchObject({ syncStatus: 'paused', syncMessage: 'Sign in again to keep syncing.' })
+    expect(row(b, 'season')!.revision).toBe(1)
+    expect(a.store.s.game).toBe(next)
+    expired = false
+    expect((await a.engine.sync({ force: true })).ok).toBe(true)
+    expect(row(b, 'season')!.revision).toBe(2)
+    expect(a.last().syncStatus).toBe('idle')
+  })
+
+  it('two devices playing the same Season offline: the one further on wins, the other copy stays in the cloud history', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    const c = device(b, 'c')
+    a.store.set({ game: season })
+    await a.engine.sync()
+    tick()
+    await c.engine.sync()
+    // c parked the cloud copy; it takes it up and both play on with no connection
+    c.store.set({ game: c.store.s.parked.season!, parked: {} })
+    a.store.set({ game: advance(season, 2) })
+    c.store.set({ game: advance(season, 5) })
+    tick()
+    await a.engine.sync({ force: true })
+    tick()
+    await c.engine.sync({ force: true })
+    expect(row(b, 'season')!.meta.matchweek).toBe(advance(season, 5).season!.matchweek)
+    tick()
+    // a is told, not overwritten while it is off the game screen: it loads the further copy and files its own
+    await a.engine.sync({ force: true })
+    expect(a.store.s.game!.season!.matchweek).toBe(advance(season, 5).season!.matchweek)
+    expect(row(b, 'season')!.prevObjectPath).toBeTruthy()
+    expect(a.last().conflicts).toEqual([])
+  })
+})
