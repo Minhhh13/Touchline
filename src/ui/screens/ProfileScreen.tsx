@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
 import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { persistLine, usePersistState } from '../persistStorage'
+import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
 import { fetchClubLeagues } from '@engine/universe'
@@ -67,13 +68,8 @@ const BADGE_ICON: Record<string, LucideIcon> = {
 
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
-  const blob = new Blob([exportSaveJson()], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `touchline-save-${new Date().toISOString().slice(0, 10)}.json`
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  // Downloaded; shared where a download goes nowhere (an iOS home-screen app or web view: saveFile.ts)
+  void saveBlob(new Blob([exportSaveJson()], { type: 'application/json' }), `touchline-save-${new Date().toISOString().slice(0, 10)}.json`)
 }
 
 export function ProfileScreen() {
@@ -451,6 +447,8 @@ export function ProfileScreen() {
                     <ShieldCheck size={14} aria-hidden="true" /> Protect my save
                   </button>
                 )}
+              </div>
+            )}
           </div>
           )}
           {on('seasons') && (
