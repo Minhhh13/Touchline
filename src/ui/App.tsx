@@ -350,6 +350,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
             <b>
               {r.gf}-{r.ga}
             </b>
+            <span className="res-letter">{r.outcome}</span>
             <span className="small muted">{r.home ? 'H' : 'A'}</span>
             {r.comp !== 'league' && <span className="small muted">{r.comp === 'cup' ? 'Cup' : 'Eur'}</span>}
           </span>

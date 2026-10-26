@@ -1294,6 +1294,13 @@ label.field,
 .outcome-word {
   font-weight: 700;
 }
+/* The W, D or L beside a coloured score, so the result never rests on colour alone (WCAG 1.4.1) */
+.res-letter {
+  margin-left: 0.35em;
+  font-size: 0.78em;
+  font-weight: 800;
+  letter-spacing: 0;
+}
 /* A long club name in a fixture or cup row gives way with an ellipsis rather than pushing the row wider */
 .fixture > span {
   min-width: 0;
@@ -5179,6 +5186,10 @@ dl.kv {
 .qmode .cline {
   font-size: 11px;
   color: var(--text-3);
+}
+/* On the selected card's tint --text-3 falls to 4.2:1 (axe, 390 px); --text-2 keeps the line AA */
+.qmode.active .cline {
+  color: var(--text-2);
 }
 .speedrun-clock.low {
   border-color: var(--danger);
@@ -9647,6 +9658,10 @@ table.tbl.match-stats th {
   border-color: var(--danger);
   color: var(--danger);
 }
+/* On its own red tint --danger reads 4.4:1; mixed toward --text it clears AA in both themes */
+.moment.broke {
+  color: color-mix(in srgb, var(--danger) 72%, var(--text));
+}
 @keyframes moment-pop {
   0% {
     transform: scale(0.7);
@@ -11443,8 +11458,9 @@ html {
   padding: var(--space-2) 0;
   border-bottom: var(--border);
 }
+/* A spare position reads as secondary by its dashed rule, not by fading (0.72 opacity put its numbers at 3.5:1) */
 .plan-row.spare {
-  opacity: 0.72;
+  border-bottom-style: dashed;
 }
 .plan-names {
   display: flex;

@@ -567,6 +567,7 @@ export function Dugout() {
                     </span>
                     <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
                       {r ? `${r.homeGoals} - ${r.awayGoals}` : 'v'}
+                      {gf !== null && ga !== null && <span className="res-letter">{outcomeOf(gf, ga)}</span>}
                     </span>
                     <span className="row" style={{ gap: 6 }}>
                       {home ? <ClubBadge clubId={opp} size={18} /> : null} {home ? <FxName full={clubName(u, opp)} short={clubShort(u, opp)} /> : <span className="fx-name">{game.settings.teamName}</span>} {home ? oppPos : null}
@@ -864,6 +865,7 @@ function SeasonStrip({ table }: { table: TableRow[] }) {
               {c.ties.map((t) => (
                 <span key={t.comp + t.round} className={`chip ss-tie ${t.outcome ? outcomeClass(t.outcome) : ''}`}>
                   {t.comp === 'cup' ? 'Cup' : 'CC'}
+                  {t.outcome && <span className="res-letter">{t.outcome}</span>}
                 </span>
               ))}
             </span>
