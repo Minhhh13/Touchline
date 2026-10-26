@@ -581,3 +581,28 @@ describe('cloud sync when the connection or the session fails mid-pass', () => {
     expect(a.last().conflicts).toEqual([])
   })
 })
+
+describe('cloud sync status while the connection is down', () => {
+  it('a background retry after a drop keeps saying offline; Sync now shows it working; a success clears it', async () => {
+    const b = new FakeBackend()
+    const a = device(b, 'a')
+    a.store.set({ game: managed('season', 'SYNC-OFF') })
+    b.failNext.push(new OnlineError('network', 'Load failed'))
+    await a.engine.sync()
+    expect(a.last().syncStatus).toBe('offline')
+    const from = a.reports.length
+    b.failNext.push(new OnlineError('network', 'Load failed'))
+    await a.engine.sync()
+    expect(a.reports.slice(from).map((r) => r.syncStatus).filter(Boolean)).toEqual(['offline'])
+    const press = a.reports.length
+    b.failNext.push(new OnlineError('network', 'Load failed'))
+    await a.engine.sync({ force: true, resume: true })
+    expect(a.reports.slice(press).map((r) => r.syncStatus).filter(Boolean)).toEqual(['syncing', 'offline'])
+    expect((await a.engine.sync()).ok).toBe(true)
+    expect(a.last().syncStatus).toBe('idle')
+    const after = a.reports.length
+    await a.engine.sync()
+    expect(a.reports.slice(after).map((r) => r.syncStatus).filter(Boolean)).toEqual(['syncing', 'idle'])
+  })
+})
+

@@ -277,7 +277,17 @@ export class Runtime {
     if (Object.values(rec.posts).some((p) => p.state === 'posted')) void this.refreshPins()
   }
 
-  async refreshPins(): Promise<void> {
+  private pinning: Promise<void> | null = null
+
+  /** Read today's pins (one read at a time: the boot and the session both ask at start). */
+  refreshPins(): Promise<void> {
+    this.pinning ??= this.readPins().finally(() => {
+      this.pinning = null
+    })
+    return this.pinning
+  }
+
+  private async readPins(): Promise<void> {
     const now = new Date()
     const day = now.toISOString().slice(0, 10)
     const week = weekKeyOf(now)
