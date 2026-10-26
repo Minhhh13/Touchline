@@ -17,8 +17,8 @@ export const AUTH_KEY = 'touchline-auth-v1'
 
 export interface OutboxEntry {
   id: string
-  kind: 'daily' | 'weekly'
-  /** `YYYY-MM-DD` or `YYYY-Www`. */
+  kind: 'daily' | 'weekly' | 'chase'
+  /** `YYYY-MM-DD`, `YYYY-Www` or a 38-0 chase attempt's code. */
   key: string
   encoded: string
   teamName: string
@@ -32,6 +32,8 @@ export interface OutboxEntry {
   /** The account signed in when the run finished: it posts only under that account. Null or missing: filed signed
    * out, so it posts under the next account that signs in on this device. */
   owner?: string | null
+  /** A 38-0 chase entry: when its attempt closes (epoch ms), from the attempt's own window. Absent on the boards' entries. */
+  closes?: number
 }
 
 export interface OnlineRecord {

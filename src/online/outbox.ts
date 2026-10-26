@@ -7,6 +7,7 @@
 import type { LoadedUniverse } from '@engine/universe'
 import type { Game } from '@game/types'
 import { buildRankedSubmission, rankedBoardOf } from './daily'
+import { buildChaseSubmission, chaseCodeOfSeed, CHASE_ATTEMPT_HOURS } from './chase'
 import type { OnlineRecord, OutboxEntry } from './localState'
 import type { OnlineTransport } from './transport'
 import { isTransient } from './transport'
@@ -24,8 +25,10 @@ export function backoffMs(attempts: number, random: number): number {
   return Math.round(base * (1 + 0.3 * Math.min(1, Math.max(0, random))))
 }
 
-/** When nothing can be posted for an entry any more: 00:00 UTC two days after a Daily; the Tuesday after a week. */
-export function closesAt(e: Pick<OutboxEntry, 'kind' | 'key'>): number {
+/** When nothing can be posted for an entry any more: 00:00 UTC two days after a Daily; the Tuesday after a week; a
+ * chase run's attempt window (48 hours from when the game started, unless the entry says otherwise). */
+export function closesAt(e: Pick<OutboxEntry, 'kind' | 'key'> & Partial<Pick<OutboxEntry, 'closes' | 'at'>>): number {
+  if (e.kind === 'chase') return e.closes ?? (Date.parse(e.at ?? '') || 0) + CHASE_ATTEMPT_HOURS * 3600000
   if (e.kind === 'daily') {
     const d = Date.parse(`${e.key}T00:00:00Z`)
     return Number.isFinite(d) ? d + 2 * DAY : 0
@@ -63,6 +66,9 @@ export function classify(status: number, body: Record<string, unknown>, points: 
           points: num(entry.points) ?? num(official.points) ?? points,
           claimMatched: entry.claimMatched !== false && official.claimMatched !== false,
           already: s === 'already_submitted',
+          // A 38-0 chase answer: the week's place and whether the season was flawless
+          ...(num(body.weekPosition) !== null ? { weekPosition: num(body.weekPosition), weekTotal: num(body.weekTotal) } : {}),
+          ...(typeof body.perfect === 'boolean' ? { perfect: body.perfect } : {}),
         },
       }
     }
@@ -85,6 +91,18 @@ export function captureEntry(game: Game, u: LoadedUniverse, name: string, now: D
   if (!board) return null
   const { kind, key } = board
   return { id: `${kind}:${key}:${game.id}`, kind, key, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner }
+}
+
+/**
+ * File a finished 38-0 chase run (the Summary's "Submit to the 38-0 chase"). Null when the game is not an eligible
+ * chase run. Its window is the attempt's: 48 hours from when the game was created (just after the attempt was issued).
+ */
+export function captureChaseEntry(game: Game, u: LoadedUniverse, name: string, now: Date, owner: string | null = null): OutboxEntry | null {
+  const sub = buildChaseSubmission(game, u, name)
+  const code = chaseCodeOfSeed(game.settings.seed)
+  if (!sub || !code) return null
+  const created = Date.parse(game.createdAt)
+  return { id: `chase:${code}:${game.id}`, kind: 'chase', key: code, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner, closes: (Number.isFinite(created) ? created : now.getTime()) + CHASE_ATTEMPT_HOURS * 3600000 }
 }
 
 /** Add a captured entry: one per board key and device (the server keeps the first post anyway). */
@@ -128,7 +146,7 @@ export async function flushOutbox(r: OnlineRecord, deps: FlushDeps): Promise<Onl
     }
     let outcome: Outcome
     try {
-      const reply = await deps.transport.invoke({ op: e.kind === 'daily' ? 'daily.submit' : 'weekly.submit', encoded: e.encoded, teamName: e.teamName, shortName: e.shortName })
+      const reply = await deps.transport.invoke({ op: e.kind === 'daily' ? 'daily.submit' : e.kind === 'weekly' ? 'weekly.submit' : 'chase.submit', encoded: e.encoded, teamName: e.teamName, shortName: e.shortName })
       outcome = classify(reply.status, reply.body, e.points)
     } catch (err) {
       outcome = isTransient(err) ? { kind: 'retry' } : { kind: 'done', post: { state: 'rejected', code: 'error', reason: err instanceof Error ? err.message : String(err) } }

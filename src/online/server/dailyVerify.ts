@@ -5,7 +5,7 @@
  * compared (`claimMatched`). Pure and DOM-free: the Edge Function runs it from the verifier bundle, the tests run it
  * on real packs. The engine is untouched: this only drives its primitives the way the store does.
  */
-import { autoDraft, canSpin, isComplete, picksMade, pick, spin, type DraftState } from '@engine/draft'
+import { autoDraft, benchPlaces, canCloseBench, canSpin, isComplete, picksMade, pick, spin, type DraftState } from '@engine/draft'
 import { decodeChallenge, encodeChallenge, historyKey, isArenaPayload, rulesDiff, sameClaim, type ChallengePayload, type ChallengeSeason, type QuickChallengePayload } from '@engine/challenge'
 import { dailyDateOf, Rng } from '@engine/rng'
 import type { SeasonTier } from '@engine/types'
@@ -98,17 +98,24 @@ export type Verdict = { ok: true; key: string; entry: RankedEntry } | { ok: fals
 
 const fail = (status: 409 | 422, code: VerifyCode, reason: string, context?: Record<string, string>): Verdict => ({ ok: false, status, code, reason, ...(context ? { context } : {}) })
 
-/** The most rows an honest draft can have: one per pick, one per re-spin, and one discarded spin before Auto-complete. */
+/**
+ * The most rows an honest draft can have: one per pick (the XI and any Quick Draft bench places), one per re-spin,
+ * and one discarded spin before Auto-complete or closing the bench. Without a bench (the Daily, the weekly) this is
+ * squad size + re-spins + 1, as it always was.
+ */
 export function maxDraftRows(d: DraftState): number {
-  return d.rules.squadSize + d.rules.respins + 1
+  return d.rules.squadSize + benchPlaces(d.rules) + d.rules.respins + 1
 }
 
 /**
  * Replay a posted draft on `game` (fresh from the pin's settings) without the leniency of `replayDraft`, which
  * treats any null row as a free re-spin. Every row costs one `spin`. A null row is a re-spin while re-spins are
  * left; with none left it can only be the spin the assistant discarded on Auto-complete (the store logs it as
- * `skipped`), after which every remaining row must be exactly what the assistant drafts. A pick row must name a
- * player of the club-season the wheel landed on, in a slot `pick` accepts. Throws with the spin number.
+ * `skipped`), after which every remaining row must be exactly what the assistant drafts, or, as the last row of a
+ * Quick Draft with a bench whose XI is full, the spin showing when the manager closed the bench. A draft with bench
+ * places to spare at the end was closed (`closeBench`). A pick row must name a player of the club-season the wheel
+ * landed on, in a slot `pick` accepts. Throws with the spin number. The bench rules only apply when the rules give
+ * bench places, which the Daily and weekly never do.
  */
 export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePayload): void {
   let d = game.draft
@@ -132,6 +139,13 @@ export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePay
         d.history.push(row)
         continue
       }
+      // No re-spin left, last row, the XI full and bench places to spare: the manager closed the bench with this
+      // spin showing (`closeBench` logs it as skipped; no RNG)
+      if (i === c.p.length - 1 && canCloseBench(d)) {
+        d.history.push({ ...row, skipped: true })
+        d.benchClosed = true
+        break
+      }
       // No re-spin left: the assistant's Auto-complete discarding this spin, then drafting the rest itself
       d.history.push({ ...row, skipped: true })
       const assisted: DraftState = structuredClone(d)
@@ -153,6 +167,8 @@ export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePay
       throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
+  // A Quick Draft bench may be closed once the XI is full, with bench places to spare (never on the Daily or weekly)
+  if (canCloseBench(d)) d.benchClosed = true
   if (!isComplete(d) && !(picksMade(d) >= 11 && !canSpin(u, d))) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
   if (d.spins !== c.p.length || d.history.length !== c.p.length) throw new Error('The spins do not add up')
   if (historyKey(d.history) !== c.k) throw new Error('The wheel did not land on the same club-seasons')
@@ -200,35 +216,32 @@ function seedWindow(kind: PuzzlePin['kind'], seed: string, now: Date): { key: st
   return key ? { key, open: weeklyIsOpen(key, now) } : null
 }
 
-/**
- * Verify one posted run against its pin. `dataAllowed(version)` says whether a data version other than the pin's
- * may rank (one the live site served after the pin was made); `u` must be the universe of `payload.data`.
- */
-export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody, now: Date, dataAllowed: (version: string) => boolean): Verdict {
-  // The body arrives as raw JSON from the Edge Function: never trust its types
+/** A ranked body's text fields, decoded: the payload and the names exactly as posted. */
+export type ParsedBody = { ok: true; decoded: ChallengePayload; team: string; short: string } | Extract<Verdict, { ok: false }>
+
+/** Decode a posted body (raw JSON from the Edge Function: its types are never trusted). */
+export function parseRankedBody(body: RankedBody): ParsedBody {
   const raw: unknown = body
-  if (!raw || typeof raw !== 'object') return fail(422, 'invalid_payload', 'The submission is not an object')
+  if (!raw || typeof raw !== 'object') return fail(422, 'invalid_payload', 'The submission is not an object') as ParsedBody
   const { encoded: rawEncoded, teamName: rawTeam, shortName: rawShort } = raw as Record<string, unknown>
-  if (typeof rawEncoded !== 'string') return fail(422, 'invalid_payload', 'The submission has no payload')
-  if (typeof rawTeam !== 'string' || typeof rawShort !== 'string') return fail(422, 'invalid_team', 'A team name and a short name are text')
-  let decoded: ChallengePayload
+  if (typeof rawEncoded !== 'string') return fail(422, 'invalid_payload', 'The submission has no payload') as ParsedBody
+  if (typeof rawTeam !== 'string' || typeof rawShort !== 'string') return fail(422, 'invalid_team', 'A team name and a short name are text') as ParsedBody
   const encoded = rawEncoded.trim().replace(/^#?c=/, '')
-  if (encoded.length > 8000) return fail(422, 'invalid_payload', 'The submission is too long')
+  if (encoded.length > 8000) return fail(422, 'invalid_payload', 'The submission is too long') as ParsedBody
   try {
-    decoded = decodeChallenge(encoded)
+    return { ok: true, decoded: decodeChallenge(encoded), team: rawTeam, short: rawShort }
   } catch (e) {
-    return fail(422, 'invalid_payload', e instanceof Error ? e.message : String(e))
+    return fail(422, 'invalid_payload', e instanceof Error ? e.message : String(e)) as ParsedBody
   }
-  if (isArenaPayload(decoded)) return fail(422, 'invalid_payload', nonStandardRun(decoded, pin.settings.rules)!)
-  const c: QuickChallengePayload = decoded
-  const window = seedWindow(pin.kind, c.s.seed, now)
-  if (!window) return fail(422, 'invalid_payload', pin.kind === 'daily' ? 'Not a Daily' : 'Not a weekly challenge')
-  if (!window.open) return fail(409, 'closed', pin.kind === 'daily' ? 'That Daily has closed' : 'That week has closed')
-  if (window.key !== pin.key || c.s.seed !== pin.seed) return fail(409, 'puzzle_mismatch', 'Posted against another day or week', { pinned: pin.key })
-  if (c.engine !== ENGINE_VERSION || pin.engineVersion !== ENGINE_VERSION) return fail(409, 'engine_mismatch', `Played on engine ${c.engine}; the ranked puzzle runs on engine ${pin.engineVersion}`, { pinnedEngine: pin.engineVersion })
-  if (c.data !== pin.dataVersion && !dataAllowed(c.data)) return fail(409, 'data_mismatch', `Played on data from ${c.data}; the ranked puzzle uses ${pin.dataVersion}`, { pinnedData: pin.dataVersion })
-  if (u.generatedAt !== c.data) return fail(409, 'data_mismatch', `The verifier holds data from ${u.generatedAt}, not ${c.data}`, { pinnedData: pin.dataVersion })
-  const s = pin.settings
+}
+
+/**
+ * The checks every ranked board shares once its window, engine and data are settled, then the replay: the run is
+ * the puzzle `s` (shape, leagues, host, season, difficulty, rules), uses nothing outside it, the host exists in this
+ * data, the names are clean, the draft replays strictly and the season exactly. `key` is the board key the entry is
+ * filed under.
+ */
+export function replayVerdict(u: LoadedUniverse, s: PuzzleSettings, c: QuickChallengePayload, rawTeam: string, rawShort: string, key: string): Verdict {
   const samePuzzle = c.s.f === s.formationId && c.s.l === s.leagueId && canonicalJson(c.s.wl) === canonicalJson(s.wheelLeagues) && c.s.h === s.hostClubId && c.s.ls === s.leagueSeason && c.s.d === (s.difficulty ?? 'calibrated') && canonicalJson(c.s.r) === canonicalJson(rulesDiff(s.rules))
   if (!samePuzzle) return fail(409, 'puzzle_mismatch', 'This run was played on a different puzzle from the ranked one')
   const extra = nonStandardRun(c, s.rules)
@@ -256,7 +269,7 @@ export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody
   if (!q || !claim) return fail(422, 'invalid_picks', 'The season produced no result')
   return {
     ok: true,
-    key: window.key,
+    key,
     entry: {
       team_name: rawTeam,
       points: q.points,
@@ -279,6 +292,26 @@ export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody
       data_version: c.data,
     },
   }
+}
+
+/**
+ * Verify one posted run against its pin. `dataAllowed(version)` says whether a data version other than the pin's
+ * may rank (one the live site served after the pin was made); `u` must be the universe of `payload.data`.
+ */
+export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody, now: Date, dataAllowed: (version: string) => boolean): Verdict {
+  const parsed = parseRankedBody(body)
+  if (!parsed.ok) return parsed
+  const { decoded, team: rawTeam, short: rawShort } = parsed
+  if (isArenaPayload(decoded)) return fail(422, 'invalid_payload', nonStandardRun(decoded, pin.settings.rules)!)
+  const c: QuickChallengePayload = decoded
+  const window = seedWindow(pin.kind, c.s.seed, now)
+  if (!window) return fail(422, 'invalid_payload', pin.kind === 'daily' ? 'Not a Daily' : 'Not a weekly challenge')
+  if (!window.open) return fail(409, 'closed', pin.kind === 'daily' ? 'That Daily has closed' : 'That week has closed')
+  if (window.key !== pin.key || c.s.seed !== pin.seed) return fail(409, 'puzzle_mismatch', 'Posted against another day or week', { pinned: pin.key })
+  if (c.engine !== ENGINE_VERSION || pin.engineVersion !== ENGINE_VERSION) return fail(409, 'engine_mismatch', `Played on engine ${c.engine}; the ranked puzzle runs on engine ${pin.engineVersion}`, { pinnedEngine: pin.engineVersion })
+  if (c.data !== pin.dataVersion && !dataAllowed(c.data)) return fail(409, 'data_mismatch', `Played on data from ${c.data}; the ranked puzzle uses ${pin.dataVersion}`, { pinnedData: pin.dataVersion })
+  if (u.generatedAt !== c.data) return fail(409, 'data_mismatch', `The verifier holds data from ${u.generatedAt}, not ${c.data}`, { pinnedData: pin.dataVersion })
+  return replayVerdict(u, pin.settings, c, rawTeam, rawShort, window.key)
 }
 
 /** The Daily: `pin.kind` is `'daily'` and `pin.key` its `YYYY-MM-DD`. */

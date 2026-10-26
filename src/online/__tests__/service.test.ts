@@ -12,6 +12,7 @@ import { universeFromPacks } from '../server/packs'
 import { DELETE_CONFIRMATION } from '../server/validate'
 import { boardIsOpen, pinDateOf, type Reply } from '../server/service'
 import { weeklyGameSettings } from '../weekly'
+import { chaseGameSettings } from '../chase'
 import { ALICE, BOB, GUEST, autoPlayed, makeHarness, siteFile, submitBody } from './serverHarness'
 
 const u = loadTestUniverse()
@@ -255,6 +256,84 @@ describe('weekly.submit', () => {
     expect(h.pins.get('weekly|2026-10-19')?.seed).toBe(`weekly-${WEEK}`)
     // A Daily posted as a weekly entry is not one
     expect((await call(h, submitBody('weekly.submit', honestDaily(), u))).body.code).toBe('invalid_payload')
+  }, T)
+})
+
+describe('the 38-0 chase: server-issued wheels, one post each', () => {
+  const start = (h: ReturnType<typeof makeHarness>, caller = ALICE, over: Record<string, unknown> = {}) => call(h, { op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: ENGINE_VERSION, data: STAMP, ...over }, caller)
+  const played = (code: string, team = 'Chase FC') => autoPlayed(u, chaseGameSettings(u, code, 'england', '4-3-3', team)!)
+
+  it('issues an attempt only on the live engine and data, archives that data, and at most five a day', async () => {
+    expect((await start(makeHarness(undefined, null))).body.code).toBe('live_build_unavailable')
+    const h = makeHarness(undefined, LIVE)
+    // A stale tab is told to reload before an attempt is spent
+    const stale = await start(h, ALICE, { data: '2026-01-01' })
+    expect(stale).toMatchObject({ status: 409, body: { code: 'data_mismatch', liveData: STAMP } })
+    expect((await start(h, ALICE, { engine: '3' })).body.code).toBe('engine_mismatch')
+    expect((await start(h, ALICE, { formationId: '9-9-9' })).body.code).toBe('invalid_payload')
+    expect((await start(h, ALICE, { leagueId: 'atlantis' })).body.code).toBe('invalid_payload')
+    expect((await start(h, ALICE, { leagueId: 'England!' })).status).toBe(400)
+    expect((await call(h, { op: 'chase.start', leagueId: 'england' })).status).toBe(400)
+    expect(h.attempts.size).toBe(0)
+    for (let i = 0; i < 5; i++) {
+      const r = await start(h)
+      expect(r.status).toBe(200)
+      expect(r.body).toMatchObject({ status: 'ok', left: 4 - i, attempt: { leagueId: 'england', formationId: '4-3-3', engineVersion: ENGINE_VERSION, dataVersion: STAMP } })
+    }
+    expect(h.packs.has(STAMP)).toBe(true)
+    const sixth = await start(h)
+    expect(sixth).toMatchObject({ status: 429, body: { code: 'rate_limited' } })
+    // The next UTC day frees them again; guests never get one
+    h.clock.now = new Date('2026-10-26T00:00:01Z')
+    expect((await start(h)).status).toBe(200)
+    expect((await start(h, GUEST)).body.code).toBe('guest')
+  }, T)
+
+  it('ranks an honest run on its attempt, once, and only for the account it was issued to', async () => {
+    const h = makeHarness(undefined, LIVE)
+    const code = String(((await start(h)).body.attempt as { code: string }).code)
+    const g = played(code)
+    const r = await call(h, submitBody('chase.submit', g, u))
+    const q = g.quickResult!
+    expect(r.status).toBe(200)
+    expect(r.body).toMatchObject({ status: 'ranked', key: code, position: 1, total: 1, official: { points: q.points, won: q.won, drawn: q.drawn, lost: q.lost, goalsFor: q.goalsFor, goalsAgainst: q.goalsAgainst, claimMatched: true } })
+    expect(h.chaseEntries.get(code)?.entry.points).toBe(q.points)
+    expect((await call(h, submitBody('chase.submit', g, u))).body.status).toBe('duplicate')
+    // Bob cannot post Alice's wheel, and a seed the server never issued is nobody's
+    expect((await call(h, submitBody('chase.submit', g, u), BOB)).body).toMatchObject({ code: 'no_attempt' })
+    expect((await call(h, submitBody('chase.submit', played('ZZZZZZZZZZ'), u))).body.code).toBe('no_attempt')
+    // A Quick Draft on its own seed, a Daily posted as a chase run
+    expect((await call(h, submitBody('chase.submit', autoPlayed(u, { ...g.settings, seed: 'K7Q2-MX9A' }), u))).body.code).toBe('invalid_payload')
+    expect((await call(h, submitBody('chase.submit', honestDaily(), u))).body.code).toBe('invalid_payload')
+  }, T)
+
+  it('replays rather than trusts: an inflated claim ranks on the replay, a tampered draft is refused, a closed attempt too', async () => {
+    const h = makeHarness(undefined, LIVE)
+    const a = String(((await start(h)).body.attempt as { code: string }).code)
+    const b = String(((await start(h)).body.attempt as { code: string }).code)
+    const g = played(a)
+    const inflated = reencode(encodedOf(g), (c) => {
+      c.c = { pts: 114, w: 38, d: 0, l: 0, t: 'PERFECT' }
+    })
+    expect((await call(h, submitBody('chase.submit', g, u, inflated))).body).toMatchObject({ status: 'ranked', official: { points: g.quickResult!.points, claimMatched: false } })
+    const other = played(b)
+    const tampered = reencode(encodedOf(other), (c) => {
+      c.p = [[null, null], [null, null], ...c.p]
+    })
+    const t = await call(h, submitBody('chase.submit', other, u, tampered))
+    expect(t.status).toBe(422)
+    expect(String(t.body.reason)).toMatch(/^Spin \d+/)
+    h.clock.now = new Date(h.clock.now.getTime() + 49 * 3600000)
+    expect((await call(h, submitBody('chase.submit', other, u))).body.code).toBe('closed')
+  }, T)
+
+  it('meters both routes per account and leaves the Daily untouched', async () => {
+    const h = makeHarness(undefined, LIVE)
+    h.limits.set(`chase.submit|${BOB.userId}`, 20)
+    expect((await call(h, submitBody('chase.submit', honestDaily(), u), BOB)).status).toBe(429)
+    h.limits.set(`chase.start|${BOB.userId}`, 12)
+    expect((await start(h, BOB)).status).toBe(429)
+    expect((await call(h, submitBody('daily.submit', honestDaily(), u), BOB)).body.status).toBe('ranked')
   }, T)
 })
 

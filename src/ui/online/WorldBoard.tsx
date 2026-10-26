@@ -4,17 +4,38 @@ import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
-import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, RankedKind } from '../../online/boards'
+import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
 import { PAGE } from '../../online/boards'
 import { countryFlag } from '../../online/core/country'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
 import { weeklyStartSettings } from '../../online/daily'
+import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
+import { perfectTarget, recordLabel } from '@game/logic/perfect'
 import { Segmented } from '../components/bits'
 import { ordinal, seasonLabel } from '../format'
 import { CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
 
-type Tab = 'daily' | 'weekly' | 'alltime'
+type Tab = 'daily' | 'weekly' | 'alltime' | 'chase'
+const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase']
+
+/** The World screen's last board, per viewer (a convenience only: a blocked storage opens Today's Daily). */
+const TAB_KEY = 'touchline-world-tab'
+export function rememberWorldTab(tab: Tab): void {
+  try {
+    localStorage.setItem(TAB_KEY, tab)
+  } catch {
+    // remembered for this visit only
+  }
+}
+function rememberedTab(): Tab {
+  try {
+    const v = localStorage.getItem(TAB_KEY)
+    return (TABS as readonly string[]).includes(v ?? '') ? (v as Tab) : 'daily'
+  } catch {
+    return 'daily'
+  }
+}
 
 const DAY = 86400000
 const tierText = (t: string) => TIER_LABEL[t as SeasonTier] ?? t
@@ -260,10 +281,238 @@ function WeeklyPlay({ weekKey }: { weekKey: string }) {
   )
 }
 
+/** W-D-L in the result colours: wins green, draws amber, defeats red. */
+function Wdl({ won, drawn, lost }: { won: number; drawn: number; lost: number }) {
+  return (
+    <span className="wdl" aria-label={`${won} won, ${drawn} drawn, ${lost} lost`}>
+      <span className="res-w">{won}</span>-<span className="res-d">{drawn}</span>-<span className="res-l">{lost}</span>
+    </span>
+  )
+}
+
+function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: string | null; week: string }) {
+  const openChallenge = useStore((s) => s.openChallenge)
+  const u = useStore((s) => s.universe)
+  const session = useOnline((s) => s.session)
+  const [rows, setRows] = useState<ChaseRow[] | null>(null)
+  const [summary, setSummary] = useState<ChaseSummary | null>(null)
+  const [more, setMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    setRows(null)
+    setError(null)
+    Promise.all([api.chaseBoard(scope, week, country), api.chaseSummary(scope, week, country)]).then(
+      ([r, s]) => {
+        if (!live) return
+        setRows(r)
+        setSummary(s)
+        setMore(r.length === PAGE)
+      },
+      (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
+    )
+    return () => {
+      live = false
+    }
+  }, [scope, week, country, session])
+  const loadMore = async () => {
+    if (!rows) return
+    const next = await api.chaseBoard(scope, week, country, rows.length)
+    setRows([...rows, ...next])
+    setMore(next.length === PAGE)
+  }
+  const league = (id: string) => u?.available.find((l) => l.id === id)?.shortName ?? id
+  const meShown = !!rows?.some((r) => r.isMe)
+  const rec = summary?.record
+  return (
+    <section className="panel fit-panel" data-testid="board-chase">
+      <div className="panel-head">
+        <h3>{scope === 'week' ? 'The 38-0 chase this week' : 'The 38-0 chase, all time'}</h3>
+        <span className="small muted" data-testid="chase-summary">
+          {summary ? `${summary.players.toLocaleString()} manager${summary.players === 1 ? '' : 's'} · ${summary.runs.toLocaleString()} run${summary.runs === 1 ? '' : 's'}${summary.flawless ? ` · ${summary.flawless} flawless` : ''}` : ''}
+        </span>
+      </div>
+      {rec && (
+        <div className="notice chase-record" data-testid="chase-record">
+          <b>Closest ever to perfect:</b> <Wdl won={rec.won} drawn={rec.drawn} lost={rec.lost} /> ({rec.points} pts{rec.won === rec.games ? `, ${perfectTarget(rec.games)}` : ''}) by <Flag code={rec.country} />
+          {rec.name}, {rec.team}, {league(rec.leagueId)}
+          {summary && summary.recordFlawless > 1 ? ` · ${summary.recordFlawless} flawless seasons in all` : ''}
+        </div>
+      )}
+      <div className="fit-scroll">
+        {error && <div className="notice warn">Could not load the board: {error}</div>}
+        {!rows && !error && <div className="muted small">Loading…</div>}
+        {rows && rows.length === 0 && <div className="muted small">Nobody has posted a chase run here yet{country ? ` from ${countryName(country)}` : ''}.</div>}
+        {rows && rows.length > 0 && (
+          <table className="tbl sticky-head">
+            <thead>
+              <tr>
+                <th className="num">#</th>
+                <th>Manager</th>
+                <th>Team</th>
+                <th>League</th>
+                <th className="num">Pts</th>
+                <th className="num">W-D-L</th>
+                <th className="num">GD</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={`${r.position}-${r.name}`} className={`${r.isMe ? 'me' : ''}${r.perfect ? ' chase-perfect' : ''}`}>
+                  <td className="num">{r.position}</td>
+                  <td>
+                    <Flag code={r.country} />
+                    {r.name}
+                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>You</span>}
+                  </td>
+                  <td>{r.team}</td>
+                  <td className="small" title={`${r.ratings === 'prime' ? 'Prime' : 'Season'} ratings · ${r.benchPicks ? `bench of ${r.benchPicks}` : 'no bench'}`}>
+                    {league(r.leagueId)}
+                    {r.ratings === 'prime' ? ' · Prime' : ''}
+                  </td>
+                  <td className="num" style={{ fontWeight: 700 }} title={r.dropped ? `${r.dropped} short of ${r.games * 3}` : 'Every point'}>
+                    {r.points}
+                  </td>
+                  <td className="num">
+                    <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />
+                  </td>
+                  <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
+                  <td className="end">
+                    {r.perfect && (
+                      <span className="chip good" data-testid="chase-flawless">
+                        Flawless {perfectTarget(r.games)}
+                      </span>
+                    )}
+                    {r.payload && (
+                      <button className="btn sm ghost" onClick={() => void openChallenge(r.payload!)} title="Race this draft: a challenge, never ranked">
+                        Race
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {more && (
+          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
+            Show more
+          </button>
+        )}
+      </div>
+      {!meShown && summary?.myPosition && summary.my && (
+        <div className="fit-foot notice row between" data-testid="board-mine">
+          <b>You: {ordinal(summary.myPosition)}</b>
+          <span>
+            {recordLabel(summary.my.won, summary.my.drawn, summary.my.lost)} · {summary.my.points} pts
+          </span>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** The side panel's "Start a chase run": the league and shape, today's attempts left, and the button. */
+function ChasePlay() {
+  const { universe: u, game, go, profile } = useStore()
+  const session = useOnline((s) => s.session)
+  const [league, setLeague] = useState('england')
+  const [formation, setFormation] = useState('4-3-3')
+  const [ratings, setRatings] = useState<'season' | 'prime'>(CHASE_DEFAULT_OPTIONS.ratings)
+  const [bench, setBench] = useState(CHASE_DEFAULT_OPTIONS.benchPicks)
+  const [status, setStatus] = useState<ChaseStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    if (session) void api.chaseStatus().then((s) => live && setStatus(s), () => undefined)
+    else setStatus(null)
+    return () => {
+      live = false
+    }
+  }, [session])
+  if (!u) return null
+  const underWay = !!game && isChaseGame(game.settings) && game.phase !== 'summary'
+  const left = status ? status.left : null
+  const start = async () => {
+    if (underWay) return go('game')
+    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start a 38-0 chase run? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    setBusy(true)
+    setMessage(null)
+    const r = await api.startChaseRun(league, formation, { ratings, benchPicks: bench }, profile.managerName.trim() || 'Touchline XI')
+    setBusy(false)
+    if (!r.ok) {
+      setMessage(r.message)
+      if (r.signIn) go('account')
+    }
+  }
+  return (
+    <div className="col world-weekly" data-testid="chase-card">
+      <div>
+        <b>Chase 38-0</b>
+        <div className="small muted">A standard Quick Draft (Season or Prime ratings, a bench of up to 5) on a wheel the server deals you: win every league game. {CHASE_ATTEMPTS_PER_DAY} runs a day, each open for {CHASE_ATTEMPT_HOURS} hours, one post each.</div>
+      </div>
+      {!underWay && (
+        <div className="row wrap chase-pick">
+          <label className="field">
+            League
+            <select className="input" value={league} onChange={(e) => setLeague(e.target.value)} data-testid="chase-league">
+              {u.available.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Shape
+            <select className="input" value={formation} onChange={(e) => setFormation(e.target.value)} data-testid="chase-formation">
+              {CHASE_FORMATIONS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Ratings
+            <select className="input" value={ratings} onChange={(e) => setRatings(e.target.value === 'season' ? 'season' : 'prime')} data-testid="chase-ratings">
+              <option value="prime">Prime</option>
+              <option value="season">Season</option>
+            </select>
+          </label>
+          <label className="field">
+            Bench
+            <select className="input" value={bench} onChange={(e) => setBench(Number(e.target.value))} data-testid="chase-bench">
+              {[0, 1, 2, 3, 4, 5].map((b) => (
+                <option key={b} value={b}>
+                  {b ? `${b} place${b === 1 ? '' : 's'}` : 'None'}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      {session && left !== null && !underWay && (
+        <div className="small muted" data-testid="chase-left">
+          {left ? `${left} of ${status?.cap ?? CHASE_ATTEMPTS_PER_DAY} runs left today` : 'No runs left today: back at 00:00 UTC'}
+          {status?.best ? ` · your best ${recordLabel(status.best.won, status.best.drawn, status.best.lost)}` : ''}
+        </div>
+      )}
+      {message && <div className="notice warn small">{message}</div>}
+      <button className="btn primary block" onClick={() => void start()} disabled={busy || (!underWay && left === 0)} data-testid="chase-start">
+        {underWay ? 'Continue your chase run' : busy ? 'Dealing your wheel…' : session ? 'Start a chase run' : 'Sign in to chase 38-0'}
+      </button>
+    </div>
+  )
+}
+
 const BOARDS: Array<{ id: Tab; label: string; meta: string }> = [
   { id: 'daily', label: "Today's Daily", meta: 'Any of the last 60 days' },
   { id: 'weekly', label: "This week's challenge", meta: 'One fixed wheel all week' },
   { id: 'alltime', label: 'All-time Daily totals', meta: 'Points or best streak' },
+  { id: 'chase', label: '38-0 chase', meta: 'Quick Draft: the flawless season' },
 ]
 
 /**
@@ -276,7 +525,12 @@ export function WorldBoard() {
   const configured = useOnline((s) => s.configured)
   const account = useOnline((s) => s.account)
   const session = useOnline((s) => s.session)
-  const [tab, setTab] = useState<Tab>('daily')
+  const [tab, setTabState] = useState<Tab>(rememberedTab)
+  const setTab = (t: Tab) => {
+    setTabState(t)
+    rememberWorldTab(t)
+  }
+  const [chaseScope, setChaseScope] = useState<ChaseScope>('week')
   const [country, setCountry] = useState<string | null>(null)
   const [order, setOrder] = useState<AlltimeOrder>('points')
   const today = new Date().toISOString().slice(0, 10)
@@ -338,7 +592,13 @@ export function WorldBoard() {
               {tab === 'weekly' && <Segmented value={week} onChange={setWeek} options={[{ value: thisWeek, label: 'This week' }, { value: lastWeek, label: 'Last week' }]} />}
               {tab === 'weekly' && weeklyIsOpen(thisWeek, new Date()) && week === thisWeek && <WeeklyPlay weekKey={thisWeek} />}
               {tab === 'alltime' && <Segmented value={order} onChange={setOrder} options={[{ value: 'points', label: 'Total points' }, { value: 'streak', label: 'Best streak' }]} />}
+              {tab === 'chase' && <Segmented value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: 'This week', testId: 'chase-scope-week' }, { value: 'alltime', label: 'All time', testId: 'chase-scope-alltime' }]} />}
+              {tab === 'chase' && <ChasePlay />}
+              {tab === 'chase' ? (
+                <p className="help">Ranked by points (as points short of the league's maximum, so a 34-game season stands beside a 38-game one), then goal difference; your best run counts. Quick Draft seeds are your own, so only a wheel the server deals counts here: no grinding seeds offline. The replay is the official result.</p>
+              ) : (
               <p className="help">Every score here was replayed by the server from the picks, with the game's own engine: the replay is the official result. The seed is public, so a run can be rehearsed; each account posts once per day and per week, and the picks stay hidden until posting closes.</p>
+              )}
             </div>
             {!session && (
               <div className="fit-foot">
@@ -351,6 +611,7 @@ export function WorldBoard() {
           {tab === 'daily' && <RankedTable kind="daily" boardKey={day} country={country} title={day === today ? "Today's Daily" : `Daily of ${day}`} />}
           {tab === 'weekly' && <RankedTable kind="weekly" boardKey={week} country={country} title={week === thisWeek ? "This week's challenge" : `Week ${week}`} />}
           {tab === 'alltime' && <AlltimeTable country={country} order={order} />}
+          {tab === 'chase' && <ChaseTable scope={chaseScope} country={country} week={thisWeek} />}
         </div>
         </div>
       )}

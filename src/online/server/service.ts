@@ -4,20 +4,23 @@
  *
  * Ops (section 4 of the online plan): `daily.pin` / `weekly.pin` pin the day's or week's puzzle from the data the
  * live site serves; `daily.submit` / `weekly.submit` replay a posted run with the verifier and file the replay's
- * figures; `account.delete` removes a player's saves and then the account; `status` reports the engine and the live
+ * figures; `chase.start` issues a 38-0 chase attempt (a server-drawn wheel, at most five a day) and `chase.submit`
+ * replays and files a run played on one (docs/ONLINE.md section 5d); `account.delete` removes a player's saves and then the account; `status` reports the engine and the live
  * build. Challenge codes need no op: `create_challenge` / `get_challenge` are database functions.
  *
  * The user id comes only from the verified JWT (`Caller`), never from the body. Logs carry the op, the outcome, the
  * duration and an 8-character user-id prefix; never a body or a token.
  */
-import { decodeChallenge, type ChallengePayload } from '@engine/challenge'
+import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { dailyDateOf } from '@engine/rng'
 import type { LoadedUniverse, MetaFile, PlayersFile } from '@engine/universe'
 import { ENGINE_VERSION } from '@engine/version'
 import { dailyGameSettings } from '@game/logic/setup'
 import type { BuildInfo } from '../buildInfo'
 import { weekKeyOf, weekKeyOfSeed, weekStartOf, weeklyGameSettings, weeklyIsOpen } from '../weekly'
+import { CHASE_FORMATIONS, chaseCodeOfSeed } from '../chase'
 import { puzzleOf, settingsHash, verifyRanked, type PuzzlePin, type PuzzleSettings, type RankedEntry } from './dailyVerify'
+import { attemptOpen, verifyChase, type ChaseAttempt } from './chaseVerify'
 import { archivePath, classicFile, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from './packs'
 import { logId, parseBuildInfo, parseLeaguesIndex, parseRequest, type ServerRequest } from './validate'
 
@@ -43,6 +46,12 @@ export interface ServerDb {
   getPin(kind: BoardKind, date: string): Promise<StoredPin | null>
   pin(kind: BoardKind, date: string, settings: PuzzleSettings, hash: string, engine: string, data: string): Promise<StoredPin>
   submit(kind: BoardKind, userId: string, date: string, entry: RankedEntry): Promise<{ status: string } & Record<string, unknown>>
+  /** `svc_chase_start`: `{ status: 'ok', attempt, left, cap, resetsAt }` or `{ status: 'limit', ... }`. */
+  chaseStart(userId: string, leagueId: string, formationId: string, options: { ratings: 'season' | 'prime'; benchPicks: number }, engine: string, data: string): Promise<{ status: string; attempt?: ChaseAttempt } & Record<string, unknown>>
+  /** `svc_chase_attempt`: the caller's own attempt by code, or null. */
+  chaseAttempt(userId: string, code: string): Promise<ChaseAttempt | null>
+  /** `svc_chase_submit`: `ranked` / `duplicate` / `already_submitted` with positions, or `closed` / `no_attempt`. */
+  chaseSubmit(userId: string, code: string, entry: RankedEntry): Promise<{ status: string } & Record<string, unknown>>
   dataPack(version: string): Promise<DataPackRow | null>
   registerDataPack(version: string, leagues: string[], files: Record<string, string>): Promise<{ status: 'ok' | 'mismatch'; pack: DataPackRow }>
 }
@@ -95,6 +104,7 @@ export type ErrorCode =
   | 'engine_mismatch'
   | 'data_mismatch'
   | 'puzzle_mismatch'
+  | 'no_attempt'
   | 'invalid_payload'
   | 'invalid_team'
   | 'invalid_picks'
@@ -122,6 +132,8 @@ export const LIMITS = {
   'weekly.submit': 20,
   'daily.pin': 30,
   'weekly.pin': 30,
+  'chase.start': 12,
+  'chase.submit': 20,
   'account.delete': 5,
 } as const
 
@@ -318,6 +330,64 @@ export function createServer(deps: ServerDeps): Server {
     return key
   }
 
+  /**
+   * The registered data a run is verified on: the pin's (or attempt's) own, or the run's when the live site served it
+   * after the pin was made (a mid-day rebuild), which is then `allowed` to rank.
+   */
+  async function dataFor(pinData: string, pinCreatedAt: string, runData: string): Promise<{ reg: DataPackRow; allowed: boolean }> {
+    const pinned = await deps.db.dataPack(pinData)
+    if (!pinned) throw refuse(503, 'packs_unavailable', `The pinned data ${pinData} is not registered`)
+    if (runData !== pinData && /^[0-9A-Za-z._:-]{1,40}$/.test(runData)) {
+      const other = await ensurePacks(runData)
+      if (other && Date.parse(other.firstSeenAt) > Date.parse(pinCreatedAt)) return { reg: other, allowed: true }
+    }
+    return { reg: pinned, allowed: false }
+  }
+
+  /**
+   * Issue a 38-0 chase attempt: only on the live engine and the data the live site serves (a stale tab is told to
+   * reload before an attempt is spent), with the data archived first so the run can be verified on it later.
+   */
+  async function startChase(caller: Caller, req: { leagueId: string; formationId: string; ratings: 'season' | 'prime'; benchPicks: number; engine: string; data: string }): Promise<Reply> {
+    if (req.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `This device runs engine ${req.engine}; the chase runs on engine ${ENGINE_VERSION}: reload`, { liveEngine: ENGINE_VERSION })
+    if (!CHASE_FORMATIONS.includes(req.formationId)) throw refuse(422, 'invalid_payload', `${req.formationId} is not a shape the game knows`)
+    let live = await liveBuild()
+    if (live && live.data !== req.data) live = await liveBuild(true)
+    if (!live) throw refuse(503, 'live_build_unavailable', 'The live site does not say which engine and data it serves')
+    if (live.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `The live site runs engine ${live.engine}; this function runs ${ENGINE_VERSION}`, { liveEngine: live.engine })
+    if (live.data !== req.data) throw refuse(409, 'data_mismatch', `This device has data from ${req.data}; the live site serves ${live.data}: reload to play the chase`, { liveData: live.data })
+    const reg = await ensurePacks(live.data)
+    if (!reg) throw refuse(503, 'packs_unavailable', `Data ${live.data} could not be archived`)
+    if (!reg.leagues.includes(req.leagueId)) throw refuse(422, 'invalid_payload', `Data ${live.data} has no ${req.leagueId} league`)
+    const result = await deps.db.chaseStart(caller.userId, req.leagueId, req.formationId, { ratings: req.ratings, benchPicks: req.benchPicks }, ENGINE_VERSION, live.data)
+    if (result.status === 'limit') throw refuse(429, 'rate_limited', 'No chase runs left today: they come back at 00:00 UTC', { resetsAt: String(result.resetsAt ?? '') })
+    if (result.status !== 'ok' || !result.attempt) throw refuse(503, 'unavailable', 'The attempt could not be issued')
+    return { status: 200, body: result }
+  }
+
+  async function submitChase(caller: Caller, req: { encoded: string; teamName: string; shortName: string }, now: Date): Promise<Reply> {
+    let c: ChallengePayload
+    try {
+      c = decodeChallenge(req.encoded.trim().replace(/^#?c=/, ''))
+    } catch (e) {
+      throw refuse(422, 'invalid_payload', e instanceof Error ? e.message : String(e))
+    }
+    const code = isArenaPayload(c) ? null : chaseCodeOfSeed(c.s.seed)
+    if (!code) throw refuse(422, 'invalid_payload', 'Not a 38-0 chase run')
+    // The user id comes from the JWT: another account's wheel, or a seed the server never issued, is not this account's run
+    const attempt = await deps.db.chaseAttempt(caller.userId, code)
+    if (!attempt) throw refuse(409, 'no_attempt', 'This wheel was not issued to this account: start a chase run from the World leaderboard')
+    if (!attemptOpen(attempt, now)) throw refuse(409, 'closed', 'That chase run has closed')
+    const { reg, allowed } = await dataFor(attempt.dataVersion, attempt.createdAt, c.data)
+    const u = await universe(reg, [attempt.leagueId])
+    const verdict = verifyChase(u, attempt, { encoded: req.encoded, teamName: req.teamName, shortName: req.shortName }, now, () => allowed)
+    if (!verdict.ok) throw refuse(verdict.status, verdict.code, verdict.reason, verdict.context)
+    const result = await deps.db.chaseSubmit(caller.userId, code, verdict.entry)
+    if (result.status === 'closed') throw refuse(409, 'closed', 'That chase run has closed')
+    if (result.status === 'no_attempt') throw refuse(409, 'no_attempt', 'This wheel was not issued to this account')
+    return { status: 200, body: { ...result, key: code, official: { points: verdict.entry.points, won: verdict.entry.won, drawn: verdict.entry.drawn, lost: verdict.entry.lost, goalsFor: verdict.entry.goals_for, goalsAgainst: verdict.entry.goals_against, leaguePosition: verdict.entry.league_position, tier: verdict.entry.tier, claimMatched: verdict.entry.claim_matched } } }
+  }
+
   async function submit(kind: BoardKind, caller: Caller, req: { encoded: string; teamName: string; shortName: string }, now: Date): Promise<Reply> {
     let c: ChallengePayload
     try {
@@ -328,18 +398,7 @@ export function createServer(deps: ServerDeps): Server {
     const key = keyOfPayload(kind, c)
     if (!boardIsOpen(kind, key, now)) throw refuse(409, 'closed', kind === 'daily' ? 'That Daily has closed' : 'That week has closed')
     const pin = await pinFor(kind, key, now)
-    const pinned = await deps.db.dataPack(pin.dataVersion)
-    if (!pinned) throw refuse(503, 'packs_unavailable', `The pinned data ${pin.dataVersion} is not registered`)
-    // Data other than the pin's ranks only when the live site served it after the pin was made (a mid-day rebuild)
-    let allowed = false
-    let reg = pinned
-    if (c.data !== pin.dataVersion && /^[0-9A-Za-z._:-]{1,40}$/.test(c.data)) {
-      const other = await ensurePacks(c.data)
-      if (other && Date.parse(other.firstSeenAt) > Date.parse(pin.createdAt)) {
-        allowed = true
-        reg = other
-      }
-    }
+    const { reg, allowed } = await dataFor(pin.dataVersion, pin.createdAt, c.data)
     const u = await universe(reg, puzzleLeagues(pin.settings))
     const verdict = verifyRanked(u, pin, { encoded: req.encoded, teamName: req.teamName, shortName: req.shortName }, now, () => allowed)
     if (!verdict.ok) throw refuse(verdict.status, verdict.code, verdict.reason, verdict.context)
@@ -382,6 +441,10 @@ export function createServer(deps: ServerDeps): Server {
         return submit('daily', caller, req, now)
       case 'weekly.submit':
         return submit('weekly', caller, req, now)
+      case 'chase.start':
+        return startChase(caller, req)
+      case 'chase.submit':
+        return submitChase(caller, req, now)
       case 'account.delete':
         return deleteAccount(caller)
     }

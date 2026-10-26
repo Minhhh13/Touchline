@@ -54,6 +54,7 @@ export function Privacy() {
             <li>Every ranked score is replayed by the server with the game's own engine; a posted score is never stored as it was sent. Edited picks, extra re-spins or forged figures are refused.</li>
             <li>The first post per account per Daily or weekly challenge stands. Ties go to whoever posted first.</li>
             <li>The Daily and weekly seeds are public and the season is deterministic, so practising a puzzle offline before posting is possible for everyone alike; it is how fixed-seed boards work.</li>
+            <li>The 38-0 chase ranks only Quick Draft seasons played on a wheel the server deals: five a day per account, each open for 48 hours and posted once, so nobody can try seeds offline until one is lucky. Each account shows its best run.</li>
             <li>One account per person. Names that impersonate someone, or are abusive, are renamed, and entries that break these rules are hidden, at the owner's discretion.</li>
             <li>Free to play for fun. The game, the boards and the cloud copies come with no guarantee and may be reset or end.</li>
           </ul>
