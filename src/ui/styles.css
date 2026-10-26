@@ -14415,3 +14415,9 @@ details.opposition {
     --h: min(60px, 19.5cqi);
   }
 }
+/* iOS Dynamic Type arrives as the root font size (src/ui/textScale.ts), never as a text-size adjustment: the page
+   opts out of Safari's own landscape inflation so the two never stack */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
