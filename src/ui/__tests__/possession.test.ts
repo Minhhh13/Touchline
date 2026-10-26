@@ -5,6 +5,7 @@ import type { MatchEvent, Tactics } from '@engine/types'
 import type { Appearance } from '@engine/match'
 import { arcHeight, ballAt, bentPoint, buildBallPath, easeInOut, easePass, goalHolds, MAX_HOP, strikeTimes, type BallKeyframe } from '../match/possession'
 import { HOLD_MS } from '../match/clockStore'
+import { PITCH_MS } from '../match/timing'
 import { initials, kitColour, onPitchAt, placeSide, slotPoint, toShared, type Side } from '../match/pitchGeometry'
 
 function xi(formationId: string, prefix: string): Appearance[] {
@@ -139,11 +140,11 @@ describe('ball path generator', () => {
     expect(from58).not.toEqual(buildBallPath({ from: 58, to: 70, momentum, events, home, away, seed: 'test' }))
   })
 
-  it('moves at a footballing pace: at 1x the ball rarely covers more than 4 SVG units in a 60 fps frame, and someone is on the ball much of the time', () => {
+  it('moves at a footballing pace: at 1x the ball rarely covers more than half a metre in a 60 fps frame, and someone is on the ball much of the time', () => {
     const steps: number[] = []
     let held = 0
     let frames = 0
-    const dt = 16.67 / 330
+    const dt = 16.67 / PITCH_MS
     let prev = ballAt(path, 0)!
     for (let t = dt; t < 90; t += dt) {
       const b = ballAt(path, t)!
@@ -154,8 +155,9 @@ describe('ball path generator', () => {
       prev = b
     }
     steps.sort((x, y) => x - y)
-    expect(steps[Math.floor(steps.length * 0.95)]).toBeLessThan(4)
-    expect(steps[Math.floor(steps.length * 0.5)]).toBeLessThan(2)
+    // An SVG unit is a metre: a firm pass is about 0.18 a frame, a shot about 0.37
+    expect(steps[Math.floor(steps.length * 0.95)]).toBeLessThan(0.5)
+    expect(steps[Math.floor(steps.length * 0.5)]).toBeLessThan(0.2)
     expect(held / frames).toBeGreaterThan(0.3)
   })
 
