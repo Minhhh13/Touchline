@@ -12,6 +12,7 @@ import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
+import { useArenaWarmup } from './useArenaWarmup'
 import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
@@ -51,6 +52,8 @@ const AccountChip = lazy(() => import('./online/AccountChip').then((m) => ({ def
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
+  // An arena run's field strengths, worked out in idle moments while it drafts
+  useArenaWarmup()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)

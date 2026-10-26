@@ -471,7 +471,7 @@ export function Draft() {
             />
           )}
           {!current && managerChoice.length > 0 && <ManagerPick options={managerChoice} picked={game.manager?.id ?? null} onPick={pickManager} />}
-          {!current && !managerChoice.length && complete && <DraftRecap recap={draftRecap(u, d, get, ratingShown(d.rules, 'grades', { complete }))} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} cta={finishDraftLabel(game)} onCta={() => finishDraft()} />}
+          {!current && !managerChoice.length && complete && <DraftRecap recap={draftRecap(u, d, get, ratingShown(d.rules, 'grades', { complete }))} get={get} slotName={(id) => d.formation.slots.find((x) => x.id === id)?.position ?? id} />}
           {!current && !managerChoice.length && !complete && (
             <div className="empty-state">
               <span className="empty-icon" aria-hidden="true">

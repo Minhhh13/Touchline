@@ -943,6 +943,68 @@ p {
     box-shadow: none;
   }
 }
+/* The one-line intake: the candidates as chips in the panel's head, shown only on a short desktop window (below) */
+.youth-line {
+  display: none;
+}
+.youth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 3px 4px 3px var(--space-2);
+  border: var(--border);
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.youth-chip:hover,
+.youth-chip:focus-visible {
+  border-color: var(--primary);
+}
+.youth-chip.home {
+  border-color: var(--gold);
+}
+.youth-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+/* A short desktop window (the coach mark showing at 1280 x 720 left the stacked intake only its head): one line, the
+   chips between the title and Pass this year, the cards hidden */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .youth-intake.panel {
+    padding-block: var(--space-2);
+  }
+  .youth-intake > .panel-head {
+    margin-bottom: 0;
+    flex-wrap: nowrap;
+    gap: var(--space-3);
+  }
+  .youth-intake > .panel-head > h3 {
+    flex: none;
+  }
+  .youth-intake .youth-line {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--space-2);
+  }
+  .youth-intake .youth-line > .youth-chip {
+    flex: 0 1 auto;
+  }
+  .youth-intake .youth-side {
+    flex: none;
+  }
+  .youth-intake .youth-terms,
+  .youth-intake .youth-list {
+    display: none;
+  }
+}
 /* On a short window the intake gives way first: the squad grid under it keeps at least 120 px, and the intake scrolls
    inside itself, down to its head */
 @media (min-width: 1100px) and (min-height: 600px) {
@@ -8486,18 +8548,13 @@ table.tbl.match-stats th {
   .app.shell .grid.draft .draft-log {
     max-height: none;
   }
-  /* The draft recap scrolls inside the box on a short window (the Hindsight XI under the cards), its button kept in view */
+  /* The draft recap scrolls inside the box on a short window (the Hindsight XI under the cards); the button on is the left box's */
   .app.shell .grid.draft > .draft-squad > .draft-recap {
     flex: 0 1 auto;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
     padding-inline: 2px;
-  }
-  .app.shell .grid.draft > .draft-squad > .draft-recap > .recap-go {
-    position: sticky;
-    bottom: 0;
-    flex: none;
   }
   /* A pitch never taller than the box it sits in */
   .app.shell .grid.draft .pitch-wrap,
@@ -13001,7 +13058,7 @@ table.tbl.tv-compact .tv-name {
 }
 
 /* ------------------------------------------------------------ draft recap */
-/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards, the next step */
+/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards and the Hindsight XI (the button on is the left box's) */
 .draft-recap {
   display: flex;
   flex-direction: column;
@@ -13113,6 +13170,35 @@ table.tbl.tv-compact .tv-name {
   background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
 
+/* A short desktop window (1280 x 720): the recap tightens (a smaller grade disc, closer cards that sit three to a row,
+   slimmer padding), so the Hindsight XI starts above the fold of its box; the box still scrolls for the rest */
+@media (min-width: 1100px) and (max-height: 820px) {
+  .draft-recap {
+    gap: var(--space-3);
+    padding-block: 0;
+  }
+  .recap-head {
+    gap: var(--space-3);
+  }
+  .recap-grade {
+    width: 56px;
+    height: 56px;
+    font-size: 30px;
+  }
+  .recap-cards {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-2);
+  }
+  .recap-card,
+  .recap-hindsight {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+  .recap-card .recap-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
 /* The Hindsight XI under the recap's cards: the best XI the same spins held, two or three men a row, your own picks ticked */
 .recap-hindsight {
   display: flex;
