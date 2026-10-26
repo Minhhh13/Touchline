@@ -12,13 +12,22 @@ const CACHE_MAX = 24
 
 type Cancel = () => void
 
-/** Run `fn` when the browser is idle (or on the next turn where it cannot say), so sampling never blocks a frame for long. */
-function whenIdle(fn: () => void, delay = 0): Cancel {
-  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void }
+/**
+ * Seasons sampled between two checks of the clock, and the main-thread time one idle slice may take. A 4x-throttled
+ * phone samples about one season a millisecond, so a slice stays well under a frame and never shows as a long task;
+ * a slice runs to the end of the browser's idle period when it says how long that is. The partition never changes the
+ * odds: `sampleSeasons` over any split of the 2,000 seasons draws the same stream (odds.test.ts).
+ */
+const ODDS_BATCH = 5
+const SLICE_MS = 12
+
+/** Run `fn` when the browser is idle (or on the next turn where it cannot say), with the time it may take, so sampling never blocks a frame for long. */
+function whenIdle(fn: (budgetMs: number) => void, delay = 0): Cancel {
+  const w = window as Window & { requestIdleCallback?: (cb: (d: { timeRemaining: () => number }) => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void }
   let idle: number | null = null
   const t = window.setTimeout(() => {
-    if (w.requestIdleCallback) idle = w.requestIdleCallback(fn, { timeout: 250 })
-    else fn()
+    if (w.requestIdleCallback) idle = w.requestIdleCallback((d) => fn(Math.max(SLICE_MS, Math.min(d.timeRemaining(), 30))), { timeout: 250 })
+    else fn(SLICE_MS)
   }, delay)
   return () => {
     window.clearTimeout(t)
@@ -46,19 +55,28 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
     let rng: Rng | null = null
     let tally: OddsTally | null = null
     let cancel: Cancel = () => {}
-    const step = () => {
+    let shown = 0
+    const step = (budgetMs: number) => {
       if (!league || !rng || !tally) {
         league = oddsLeague(game, u)
         rng = oddsRng(game)
         tally = emptyTally(league.ids.length)
-      } else sampleSeasons(league, rng, ODDS_STEP, tally)
+      } else {
+        const until = performance.now() + budgetMs
+        while (tally.seasons < ODDS_SEASONS && performance.now() < until) sampleSeasons(league, rng, Math.min(ODDS_BATCH, ODDS_SEASONS - tally.seasons), tally)
+      }
       if (tally.seasons >= ODDS_SEASONS) {
         const odds = oddsFrom(tally)
         if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!)
         cache.set(key, odds)
         setState({ key, odds, progress: 1 })
       } else {
-        setState({ key, odds: null, progress: tally.seasons / ODDS_SEASONS })
+        // The percentage moves in whole steps of ODDS_STEP seasons, so the panel re-renders a handful of times, not every slice
+        const progress = Math.floor(tally.seasons / ODDS_STEP) * ODDS_STEP
+        if (progress !== shown) {
+          shown = progress
+          setState({ key, odds: null, progress: progress / ODDS_SEASONS })
+        }
         cancel = whenIdle(step)
       }
     }
