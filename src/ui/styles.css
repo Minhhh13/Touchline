@@ -3196,6 +3196,46 @@ table.tbl.contracts .btn.sm {
 .resume-card.parked {
   opacity: 0.9;
 }
+/* Home's waiting games, one strip each; on a desktop two or more sit side by side, so the mode cards keep their height */
+.resume-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.resume-list .resume-card {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+.resume-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.resume-text {
+  min-width: 0;
+}
+.resume-name {
+  font-weight: 700;
+}
+@media (min-width: 1100px) {
+  .resume-list:not([data-count='1']) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  }
+  .resume-list .resume-card {
+    flex-wrap: nowrap;
+  }
+  .resume-name,
+  .resume-status {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .resume-actions {
+    flex: none;
+  }
+}
 .modes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -3800,7 +3840,9 @@ table.tbl.contracts .btn.sm {
   .celebrate,
   .pitch-wrap .slot .disc.eligible,
   .rating.reveal,
-  .pitch-wrap .slot .disc.reveal {
+  .pitch-wrap .slot .disc.reveal,
+  .draft-recap > *,
+  .recap-grade {
     animation: none;
   }
   .celebrate {
@@ -7728,6 +7770,16 @@ table.tbl.contracts .btn.sm {
   grid-column: 3;
   grid-row: 1;
 }
+/* A name never breaks inside itself ("E. / Konsa"): the line breaks only between the scorer and the assist */
+.goal-list .goal-who > b,
+.goal-list .goal-who > .muted {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
 .notes-list {
   list-style: none;
   margin: 0;
@@ -8226,6 +8278,17 @@ table.tbl.match-stats th {
   .app.shell .grid.dugout .pitch-wrap {
     --shell-chrome: 470px;
   }
+  /*
+   * The Dugout's pitch column is a size container, so the pitch also fits the height the column really has once the
+   * pre-season checklist or a coach mark takes some (it ran 70 px past its box at 2000x860); 80 px is the panel's head
+   * and padding. Without a container the cqh term reads the viewport and the dvh term above decides as before.
+   */
+  .app.shell .tab-body > .grid.dugout > .col:has(.pitch-wrap) {
+    container-type: size;
+  }
+  .app.shell .tab-body > .grid.dugout .pitch-wrap {
+    max-width: max(200px, min(calc((100dvh - var(--shell-chrome, 340px)) * 0.75), calc((100cqh - 80px) * 0.75)));
+  }
   .app.shell.bar-hidden .grid.dugout .pitch-wrap {
     --shell-chrome: 410px;
   }
@@ -8290,6 +8353,10 @@ table.tbl.match-stats th {
   }
   .app.shell .page.home .mode-text {
     flex: none;
+  }
+  .app.shell .page.home .resume-list {
+    margin: 0;
+    gap: var(--space-2);
   }
   .app.shell .page.home .resume-card {
     margin: 0;
@@ -9013,9 +9080,27 @@ table.tbl.match-stats th {
     max-height: none;
     overflow: auto;
   }
-  .page.fit .pitch {
-    max-width: 330px;
-    margin: 0 auto;
+  /*
+   * A pitch in a box (Squad complete): its wrapper takes the box's spare height as a size container, and the pitch is
+   * never taller than that (3:4, so 75% of the height wide), so the keeper and the bench below stay in view.
+   */
+  .page.fit .pitch-fit {
+    flex: 1 1 0;
+    min-height: 220px;
+    container-type: size;
+  }
+  .page.fit .pitch-fit > .pitch-wrap {
+    max-width: min(100%, 75cqh);
+    margin-inline: auto;
+  }
+  /* Squad complete on a short window: Simulate season and its line stay at the foot of the prediction's box */
+  .page.fit .squad-complete > .sc-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-bottom: calc(-1 * var(--panel-pad));
+    padding: var(--space-2) 0 var(--panel-pad);
+    background: var(--panel);
   }
   .page.fit .sc-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -10101,6 +10186,18 @@ table.tbl tr.chase-perfect td:first-child {
   font-size: 22px;
   line-height: 1;
 }
+/* The power-ups' pictures are Lucide icons sized by the text around them */
+.pu-icon svg,
+.case-face svg {
+  width: 1em;
+  height: 1em;
+}
+.case-odds-item svg,
+.pu-log svg,
+.locker-btn svg,
+.notice svg {
+  vertical-align: -2px;
+}
 .pu-title {
   font-size: 12px;
   font-weight: 700;
@@ -11114,6 +11211,15 @@ table.tbl.contracts-overview .link-btn.name {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* On a phone the tiles stack their icon over the text, so the casual row's line wraps rather than being cut mid-word */
+@media (max-width: 520px) {
+  .home-tiles.casual .tile-text {
+    align-self: stretch;
+  }
+  .home-tiles.casual .tile-text span {
+    white-space: normal;
+  }
+}
 /* Setup's Modes row carries the two casual cards too (Moneyball, Teammate chain): eleven across, two rows of six below 1200px */
 @media (min-width: 1000px) {
   .setup-modes-row {
@@ -11142,6 +11248,16 @@ table.tbl.contracts-overview .link-btn.name {
   .arena-hub .pitch-wrap {
     max-width: max(220px, calc((100dvh - 470px) * 0.75));
     margin-inline: auto;
+  }
+  /*
+   * The calls (Manage this one, Sim this tie, Sim to the end) stay at the foot of their box, in view at every size:
+   * below the pitch, the team talk, training and captain they sat 170 px under the fold at 1280x720.
+   */
+  .arena-hub .fit-cell > .arena-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    box-shadow: var(--shadow);
   }
 }
 /* On a phone the Modes row's switch cards (Power-ups, Moneyball, Teammate chain) wrap instead of running off the side */
@@ -13154,4 +13270,117 @@ table.tbl.tv-compact .tv-name {
   .chip.honour-chip.treble {
     animation: none;
   }
+}
+
+/* ------------------------------------------------------------ draft recap */
+/* The Draft's middle box once every pick is made: the draft's grade and verdict, three cards, the next step */
+.draft-recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+.draft-recap > * {
+  animation: rise var(--dur-4) var(--ease-out) backwards;
+}
+.draft-recap > :nth-child(2) {
+  animation-delay: calc(var(--stagger) * 1);
+}
+.draft-recap > :nth-child(3) {
+  animation-delay: calc(var(--stagger) * 2);
+}
+.recap-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.recap-grade {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--primary-soft);
+  border: 3px solid var(--accent);
+  animation: recap-pop var(--dur-4) var(--ease-spring) backwards;
+  animation-delay: calc(var(--stagger) * 1);
+}
+.recap-grade.good {
+  border-color: var(--good);
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.recap-grade.warn {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+.recap-grade.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+}
+@keyframes recap-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.recap-verdict {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: 1.25;
+}
+.recap-tally .chip.pick-grade {
+  margin-left: 0;
+  padding: 1px 8px;
+  font-size: var(--fs-meta);
+}
+.recap-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+.recap-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--bg-3);
+  border: var(--border);
+}
+.recap-card b {
+  overflow-wrap: anywhere;
+}
+.recap-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-m);
+  background: var(--primary-soft);
+  color: var(--accent);
+}
+.recap-icon.good {
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.recap-icon.warn {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
