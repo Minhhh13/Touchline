@@ -28,7 +28,9 @@ export function useMatchSounds(o: MatchSoundOptions): void {
   })
   useEffect(() => {
     if (typeof requestAnimationFrame !== 'function' || typeof performance === 'undefined') return
-    let prev: TimelinePoint | null = null
+    // From the clock's anchor (the match clock has just taken it, before paint), so a kick-off in the first frame still sounds
+    const s0 = useLiveClock.getState()
+    let prev: TimelinePoint | null = s0.running ? { t: s0.at, hold: null } : null
     const last: Partial<Record<string, number>> = {}
     let raf = 0
     const step = () => {

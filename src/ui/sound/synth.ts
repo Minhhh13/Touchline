@@ -48,9 +48,15 @@ function noise(c: AudioContext, seconds: number): AudioBuffer {
   return buf
 }
 
-/** Creates the context (or resumes a suspended one). Call only from a user gesture; does nothing while sound is off. */
+/** The page has had a real gesture (sticky user activation); true where the browser cannot say. */
+function hadGesture(): boolean {
+  const ua = typeof navigator !== 'undefined' ? (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation : undefined
+  return ua ? ua.hasBeenActive : true
+}
+
+/** Creates the context (or resumes a suspended one). Call only from a user gesture; does nothing while sound is off, or before the page has had a real one. */
 export function unlockAudio(): void {
-  if (!soundOn()) return
+  if (!soundOn() || !hadGesture()) return
   try {
     if (!ctx) {
       const C = audioCtor()
@@ -78,7 +84,10 @@ export function unlockAudio(): void {
 export function armAudio(): void {
   if (armed || typeof window === 'undefined') return
   armed = true
-  for (const type of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(type, unlockAudio, { capture: true, passive: true })
+  const onGesture = (e: Event) => {
+    if (e.isTrusted) unlockAudio()
+  }
+  for (const type of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(type, onGesture, { capture: true, passive: true })
   window.addEventListener('click', clickSound, { capture: true, passive: true })
   subscribeSound(() => {
     if (!ctx || !master) return
@@ -90,6 +99,7 @@ export function armAudio(): void {
 
 /** A primary button pressed: the palette's quiet click (none on a disabled button or inside `data-sound="off"`). */
 function clickSound(e: Event): void {
+  if (!e.isTrusted) return
   const t = e.target as Element | null
   const b = typeof t?.closest === 'function' ? t.closest('.btn.primary') : null
   if (!b || (b as HTMLButtonElement).disabled || b.closest('[data-sound="off"]')) return
