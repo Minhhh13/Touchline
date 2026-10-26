@@ -14713,14 +14713,7 @@ details.opposition {
   border-radius: 2px;
   background: var(--primary);
 }
-.tier-blurb.pundit-verdict {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
 .tier-blurb.pundit-verdict svg {
-  align-self: center;
+  vertical-align: -2px;
   color: var(--accent);
 }
