@@ -227,6 +227,11 @@
   .matchday.compact .md-stop-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* Stacked, the substitutions come straight after the talk (or the shout): under the four instructions they were the
+     last thing in a pop-up taller than the phone */
+  .matchday .md-stop-grid > .col:nth-child(2) {
+    order: 1;
+  }
 
   /* Drawers become bottom sheets */
   .matchday .md-drawer-back {
