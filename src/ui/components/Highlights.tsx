@@ -16,6 +16,7 @@ import { Modal } from './bits'
 import { publishClock } from '../match/clockStore'
 import { kitColours } from '../match/shirts'
 import { minuteLabel } from '../format'
+import { keyMomentsPref, usePref } from '../viewerPrefs'
 
 /** Milliseconds per match minute of a moment's build-up. */
 export const HIGHLIGHT_MINUTE_MS = 300
@@ -68,6 +69,8 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
   // Full time is after the last event: a goal in stoppage time (90+) must still be on the pitch at the end
   const end = useMemo(() => Math.max(90, ...(hl?.events ?? []).map((e) => e.minute)), [hl])
   const [index, setIndex] = useState(0)
+  // The camera leans in on each moment (Key moments, the viewer's setting); the reel's clock never holds, so it has no replays
+  const [keyMoments] = usePref(keyMomentsPref)
   const [tick, setTick] = useState(() => buildUpFrom(moments, 0))
   const [paused, setPaused] = useState(false)
   const m = moments[index]
@@ -134,6 +137,7 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
           to={done ? end : m.minute}
           seed={`hl-${matchweek}-${hl.homeTeamId}-${hl.awayTeamId}`}
           getPlayer={get}
+          keyMoments={keyMoments}
         />
         {m ? (
           <div className="hl-line" data-testid="highlights-line" data-kind={happened ? m.kind : 'build-up'} aria-live="polite">
