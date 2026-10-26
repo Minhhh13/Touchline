@@ -7040,7 +7040,7 @@ dl.kv {
 }
 .draft-count b {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
   color: var(--text);
 }
 .pick-track {
@@ -7184,7 +7184,7 @@ dl.kv {
 .cta-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
   line-height: 1.15;
 }
 .cta-title .info {
@@ -7201,7 +7201,7 @@ dl.kv {
   gap: var(--space-1) var(--space-3);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 16px;
+  font-size: calc(var(--fs-base) + 2px);
 }
 .unit-strip i {
   font-style: normal;
@@ -7419,7 +7419,7 @@ dl.kv {
     gap: var(--space-3) var(--space-4);
   }
   .stat-strip .stat .value {
-    font-size: 24px;
+    font-size: var(--fs-h2);
   }
   .stat-strip .stat .bar {
     width: 100%;
@@ -7430,7 +7430,7 @@ dl.kv {
     overflow: visible;
   }
   .cta-title {
-    font-size: 20px;
+    font-size: calc(var(--fs-h3) + 1px);
   }
   .instruction {
     flex-direction: column;
@@ -7472,7 +7472,7 @@ dl.kv {
 }
 @media (max-width: 720px) {
   .draft-count b {
-    font-size: 20px;
+    font-size: calc(var(--fs-h3) + 1px);
   }
 }
 /* The Inbox as a lined list: hairlines between items, the unread ones marked by an accent bar */
