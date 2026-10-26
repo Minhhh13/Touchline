@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Gift } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
@@ -10,6 +10,7 @@ import { CASE_RARITY_LABEL, CASE_TIER, caseIconChoices, lockerCount } from '@gam
 import { caseGuide } from '@game/logic/caseGuide'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
+import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { armAudio, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
@@ -17,6 +18,7 @@ import { clubName, seasonLabel } from '../format'
 import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
 import { Pos, Rating } from './bits'
+import { useFocusOnLanding } from '../a11y'
 import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
 
 /**
@@ -42,11 +44,19 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   const odds = caseRarityOdds()
   const get = playerLookup(game, u)
   const icon = c.drop.kind === 'icon' ? get(c.drop.id) : undefined
-  const choices = c.drop.kind === 'icon' ? caseIconChoices(game, u) : []
+  // Each choice with the Icon's and the outgoing man's numbers in the slot, as their pitch discs would show them
+  const choices = (c.drop.kind === 'icon' ? caseIconChoices(game, u) : []).map((x) => {
+    const pos = game.draft?.formation.slots.find((s) => s.id === x.slotId)?.position
+    const out = get(x.outId)
+    return { ...x, slot: icon && pos ? slotRating(icon, pos) : null, outSlot: out && pos ? slotRating(out, pos) : null }
+  })
   // The Icon is still on offer; the starter making way is in the squad
   const hide = ratingHidden(game.settings.rules, 'offer')
   const card = caseDropCard(c.drop)
   const guide = caseGuide(profile)
+  // Landed: the focus goes to the result's first action (the Skip that held it is gone)
+  const action = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(landed, action)
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
@@ -87,6 +97,10 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               Open the case
             </button>
           )}
+          {/* The reel is hidden from screen readers: the landing is said once, here */}
+          <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="case-live">
+            {landed ? (c.drop.kind === 'powerup' ? `${POWER_UP_INFO[c.drop.powerUp].title}, ${CASE_RARITY_LABEL[c.drop.rarity]}: into your locker` : icon ? `An Icon: ${icon.name}. Choose the slot he takes` : '') : ''}
+          </span>
           {spinning && (
             <button type="button" className="reel-skip" onClick={(e) => { e.stopPropagation(); setSkip((n) => n + 1) }} data-testid="case-skip">
               Tap to skip
@@ -106,7 +120,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               <span className="small" data-testid="case-locker">
                 Into your locker: you hold {lockerCount(profile, c.drop.powerUp)}. Unpack it in a later Quick Draft played without the power-up tray.
               </span>
-              <button type="button" className="btn primary" onClick={() => finishCase()} data-testid="case-done">
+              <button ref={action} type="button" className="btn primary" onClick={() => finishCase()} data-testid="case-done">
                 On to kick-off
               </button>
             </div>
@@ -128,9 +142,9 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                 {clubName(u, icon.clubId)} {seasonLabel(icon.season)}, at his peak. Bring him in for one of your drafted starters in a slot he can cover: the man making way sits this season out, and the season counts as non-standard.
               </span>
               <div className="case-slots row wrap" style={{ gap: 6 }}>
-                {choices.map((x) => (
-                  <button key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot">
-                    <b>{x.label}</b> {hide ? '?' : x.rating} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outRating})`}
+                {choices.map((x, i) => (
+                  <button ref={i === 0 ? action : undefined} key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingLine(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingLine(x.outSlot, x.label)}` : ''}`}>
+                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
                   </button>
                 ))}
               </div>

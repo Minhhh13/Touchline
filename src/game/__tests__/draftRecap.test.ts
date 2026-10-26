@@ -5,7 +5,7 @@ import { Rng } from '@engine/rng'
 import { createGame } from '../logic/setup'
 import { playerLookup } from '../logic/players'
 import { pickGrades, type GradedPick, type PickGrade } from '../logic/pickGrades'
-import { draftGrade, draftRecap, recapVerdict } from '../logic/draftRecap'
+import { draftGrade, draftGradeLine, draftRecap, recapVerdict } from '../logic/draftRecap'
 import type { GameSettings } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -14,13 +14,15 @@ function quick(seed: string): GameSettings {
   return { mode: 'quick', seed, formationId: '4-3-3', teamName: 'Recap XI', shortName: 'RCP', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'wolves', leagueSeason: 2020, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' }
 }
 
-const pick = (grade: PickGrade, gap = 0): GradedPick => ({ spin: 0, pickedId: 'x', slotId: 'gk', rating: 80, best: 80 + gap, bestName: 'Y', grade })
+const pick = (grade: PickGrade, gap = 0): GradedPick => ({ spin: 0, pickedId: 'x', slotId: 'gk', rating: 80, best: 80 + gap, bestName: 'Y', bestSlotId: 'gk', left: gap, grade })
 
 describe('the draft recap', () => {
   it("grades the whole draft from the mean of its pick grades", () => {
     expect(draftGrade([])).toBeNull()
     expect(draftGrade([pick('A'), pick('B'), pick('B')])).toBe('B')
-    expect(draftGrade([pick('A'), pick('A'), pick('A'), pick('B')])).toBe('A')
+    // An A needs a mean of 3.7: eight A's and three B's, not seven and four
+    expect(draftGrade([...Array(8).fill(pick('A')), pick('B'), pick('B'), pick('B')])).toBe('A')
+    expect(draftGrade([...Array(7).fill(pick('A')), pick('B'), pick('B'), pick('B'), pick('B')])).toBe('B')
     expect(draftGrade([pick('C'), pick('B')])).toBe('C')
     expect(draftGrade([pick('D'), pick('C')])).toBe('D')
   })
@@ -51,10 +53,9 @@ describe('the draft recap', () => {
       expect(r.seasons![0]).toBeLessThanOrEqual(r.seasons![1])
       expect(r.xiRating).toBeGreaterThan(50)
       if (r.miss) {
-        const gap = r.miss.best - r.miss.rating
-        expect(gap).toBeGreaterThanOrEqual(3)
-        for (const gr of grades) expect(gr.best - gr.rating).toBeLessThanOrEqual(gap)
-      } else for (const gr of grades) expect(gr.best - gr.rating).toBeLessThan(3)
+        expect(r.miss.left).toBeGreaterThanOrEqual(2)
+        for (const gr of grades) expect(gr.left).toBeLessThanOrEqual(r.miss.left)
+      } else for (const gr of grades) expect(gr.left).toBeLessThan(2)
     }
   }, 60_000)
 
@@ -68,5 +69,39 @@ describe('the draft recap', () => {
     expect(r.miss).toBeNull()
     expect(r.xiRating).toBeNull()
     expect(r.picks).toBeGreaterThanOrEqual(11)
+    // With no grade the recap lists the picks instead, with no rating
+    expect(r.ungraded.length).toBe(r.picks)
+    expect(r.ungraded.every((x) => x.rating === null)).toBe(true)
+  })
+
+  it('lists as ungraded only the picks no grade covers, rated as the draft rated them', () => {
+    for (const seed of ['recap-ungraded-1', 'recap-ungraded-2']) {
+      const g = createGame(quick(seed))
+      autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+      const get = playerLookup(g, u)
+      const r = draftRecap(u, g.draft!, get, true)
+      const graded = new Set(pickGrades(u, g.draft!, get).map((x) => x.spin))
+      expect(r.ungraded.map((x) => x.spin)).toEqual(g.draft!.history.flatMap((h, i) => (h.pickedId && !graded.has(i) ? [i] : [])))
+      for (const x of r.ungraded) expect(x.rating).toBe(get(x.id)!.overall)
+    }
+  })
+
+  it("prints the recap's own grade in the share line, for the quick modes only, without touching the game", () => {
+    for (const seed of ['recap-share-1', 'recap-share-2', 'recap-share-3']) {
+      const g = createGame(quick(seed))
+      autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+      const get = playerLookup(g, u)
+      const before = JSON.stringify(g)
+      const line = draftGradeLine(g, u, get)
+      expect(JSON.stringify(g)).toBe(before)
+      expect(line).toBe(`Draft grade ${draftRecap(u, g.draft!, get, true).grade}`)
+      expect(line).toMatch(/^Draft grade [ABCD]$/)
+      for (const mode of ['daily', 'weekly'] as const) expect(draftGradeLine({ ...g, settings: { ...g.settings, mode } }, u, get)).toBe(line)
+      for (const mode of ['season', 'dynasty', 'arena', 'runin'] as const) expect(draftGradeLine({ ...g, settings: { ...g.settings, mode } }, u, get)).toBeNull()
+      expect(draftGradeLine({ ...g, draft: null }, u, get)).toBeNull()
+    }
+    // An empty draft has nothing graded
+    const fresh = createGame(quick('recap-share-empty'))
+    expect(draftGradeLine(fresh, u, playerLookup(fresh, u))).toBeNull()
   })
 })

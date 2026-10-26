@@ -26,9 +26,10 @@ const oldProfile: Profile = {
 }
 
 describe('coach marks', () => {
-  it('has seven distinct tips, the ceiling the design sets', () => {
-    expect(TIP_IDS).toHaveLength(7)
-    expect(new Set(TIP_IDS).size).toBe(7)
+  it('has eight distinct tips, the ceiling the design sets, the recap\'s after the bench\'s', () => {
+    expect(TIP_IDS).toHaveLength(8)
+    expect(new Set(TIP_IDS).size).toBe(8)
+    expect(TIP_IDS.indexOf('draft-recap')).toBe(TIP_IDS.indexOf('draft-bench') + 1)
   })
 
   it('an older profile without seenTips has every tip unseen', () => {

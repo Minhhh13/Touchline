@@ -57,3 +57,32 @@ export function countPhrase(n: number, plural: string): string {
   words[at] = words[at].replace(/s([,.]?)$/, '$1')
   return `${n} ${words.join(' ')}`
 }
+
+/**
+ * Chip labels with the repeats taken out, ignoring case: the arena hub's head says "Cup final" once, not "Cup Final"
+ * (the format's name) beside "Cup final" (the match). Of two that differ only in case the sentence-case one stays, in
+ * the first one's place; empty labels go.
+ */
+export function distinctLabels(labels: readonly string[]): string[] {
+  const sentence = (x: string) => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase() === x
+  const out: string[] = []
+  for (const l of labels) {
+    if (!l.trim()) continue
+    const i = out.findIndex((o) => o.toLowerCase() === l.toLowerCase())
+    if (i < 0) out.push(l)
+    else if (!sentence(out[i]) && sentence(l)) out[i] = l
+  }
+  return out
+}
+
+
+/**
+ * The quick summary's runs line under the record: this season's runs (`runsLine`) and the Profile's longest perfect
+ * start, named as such ("best perfect start 5-0": a bare "best run 1-0" read as a score). A best of one game says
+ * nothing a player wants to hear, so it shows from two; null when there is nothing to say.
+ */
+export function runsSummary(runs: string | null, longestPerfectRun: number | undefined): string | null {
+  const best = (longestPerfectRun ?? 0) >= 2 ? `${runs ? 'best' : 'Best'} perfect start ${longestPerfectRun}-0` : null
+  const parts = [runs, best].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}

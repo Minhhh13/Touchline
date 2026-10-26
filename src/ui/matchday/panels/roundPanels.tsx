@@ -63,7 +63,7 @@ export function LiveTable({ d }: PanelProps) {
   if (!d.table) return <Empty>{d.ref && !d.ref.friendly ? 'No league table in this competition.' : 'No table: this is a friendly.'}</Empty>
   const league = d.ref?.competition === 'league'
   return (
-    <div className="md-table" ref={ref} tabIndex={0}>
+    <div className="md-table" ref={ref}>
       {!league && <div className="small muted md-note">League table as it stands: this is a knockout tie.</div>}
       <table className="md-tbl">
         <thead>

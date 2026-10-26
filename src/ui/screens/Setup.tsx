@@ -3,6 +3,7 @@ import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, 
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import type { GameSettings, Mode } from '@game/types'
 import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
@@ -13,7 +14,7 @@ import { rulesFromPayload } from '@engine/challenge'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
 import { poolClubSeasons } from '@engine/universe'
-import { classicFromFor, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
+import { classicFromFor, classicFromIndex, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
 import { formationName, ordinal, seasonLabel, tierName } from '../format'
 import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
 import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
@@ -29,7 +30,9 @@ import { useOnline } from '../../online/state'
 import { SignInPrompt } from '../online/SignInPrompt'
 import { MODE_TITLE } from '@game/logic/modes'
 import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
-import { weeklySeed } from '@engine/rng'
+import { previousWeeklySeed, weeklySeed } from '@engine/rng'
+import { weeklyRecord } from '@game/logic/weeklyRecord'
+import { WeeklyRecordBox } from '../components/WeeklyRecordBox'
 import { CapControl } from '../components/CapControl'
 import { ChainToggle } from '../components/ChainControl'
 import { CAP_NARROW_NOTE, CAP_PRESETS, DEFAULT_CAP_CHOICE, capBudget, capTotal, withCap, type CapChoice } from '@game/logic/cap'
@@ -90,7 +93,7 @@ function writeAdvanced(open: boolean): void {
 }
 
 export function Setup() {
-  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, pendingChallenge } = useStore()
+  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, loadingLeagues, loadedLeagues, pendingChallenge, profile } = useStore()
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
@@ -165,7 +168,8 @@ export function Setup() {
 
   const superLeague = superOn && mode === 'quick'
   const wheelLeagues = useMemo(() => ((europe || superLeague) && u ? u.available.map((l) => l.id) : [leagueId]), [europe, superLeague, leagueId, u])
-  const classicFrom = u ? classicFromFor(u, wheelLeagues) : undefined
+  // The toggle shows from the data index; the classic pack itself loads when it is switched on (packs.ts)
+  const classicFrom = u ? classicFromFor(u, wheelLeagues) ?? classicFromIndex(u.available, wheelLeagues) : undefined
   const classic = !isDaily && classicOn && classicFrom !== undefined
   // The seasons to play in: every season the league has, the classic ones (tagged, their ratings estimated) when Classic is on
   const allSeasonChoices = useMemo(() => (u ? leagueSeasonChoices(u, leagueId) : []), [u, leagueId])
@@ -297,10 +301,10 @@ export function Setup() {
   }
   const preview = buildSettings(true)
   // Until the week's league is in, the week has no season or host to state
-  const summary = fixed?.kind === 'weekly' && !week ? `Loading the ${leagueNameOf(fixed.leagueId)}…` : summariseSetup(u, preview)
+  const summary = fixed?.kind === 'weekly' && !week ? `Loading ${leagueArticle(leagueNameOf(fixed.leagueId))}${leagueNameOf(fixed.leagueId)}…` : tidyLeagueArticles(summariseSetup(u, preview))
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
-  const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady
+  const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
   const capOn = cap.preset !== 'off'
   const capCard = capBudget(cap, isManage ? squadSize : QUICK_RULES.squadSize)
   const setCapChoice = (c: CapChoice) => {
@@ -419,17 +423,18 @@ export function Setup() {
                 <StepHead n={3} title={fixed.kind === 'daily' ? "Today's rules" : fixed.kind === 'weekly' ? "This week's rules" : 'The rules'} />
                 {fixed?.kind === 'weekly' && weekPlan && (
                   <div className="notice" data-testid="weekly-notice">
-                    {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{formationName(weekPlan.formationId)}</b> from the same wheel{week ? <>, in the <b>{leagueNameOf(week.leagueId)} {seasonLabel(week.season)}</b>, {week.difficulty} difficulty</> : ' (loading the league…)'}. Ends Sunday (UTC).
+                    {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{formationName(weekPlan.formationId)}</b> from the same wheel{week ? <>, in {leagueArticle(leagueNameOf(week.leagueId))}<b>{leagueNameOf(week.leagueId)} {seasonLabel(week.season)}</b>, {week.difficulty} difficulty</> : ' (loading the league…)'}. Ends Sunday (UTC).
                   </div>
                 )}
+                {fixed?.kind === 'weekly' && weekPlan && <WeeklyRecordBox theme={weekPlan.theme} record={weeklyRecord(profile, weekPlan.seed, previousWeeklySeed)} />}
                 {fixed?.kind === 'daily' && (
                   <div className="notice" data-testid="daily-notice">
-                    Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in the <b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
+                    Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in {leagueArticle(leagueNameOf(fixed.leagueId))}<b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
                   </div>
                 )}
                 {fixed?.kind === 'challenge' && challenge && (
                   <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
-                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts in the {leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}, {formationName(fixed.formationId)} ({tierName(challenge.claim.t)}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
+                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts {inLeague(leagueNameOf(fixed.leagueId))} {seasonLabel(fixed.season)}, {formationName(fixed.formationId)} ({tierName(challenge.claim.t)}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
                     Same seed, same wheel, {fixed.difficulty} difficulty
                     {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
                     {fixed.rules?.twists ? ', twists on' : ', no twists'}
@@ -555,9 +560,18 @@ export function Setup() {
                             checked={classic}
                             data-testid="era-classic"
                             onChange={(e) => {
-                              setClassicOn(e.target.checked)
-                              setEraPreset(e.target.checked ? 'custom' : 'all')
-                              setCustomEra(e.target.checked ? [classicFrom, u.firstSeason - 1] : null)
+                              const on = e.target.checked
+                              setClassicOn(on)
+                              setEraPreset(on ? 'custom' : 'all')
+                              setCustomEra(on ? [classicFrom, u.firstSeason - 1] : null)
+                              // Its pack loads now (Start waits for it); one that cannot load switches the toggle back off
+                              if (on)
+                                void ensureClassic().then((ok) => {
+                                  if (ok) return
+                                  setClassicOn(false)
+                                  setEraPreset('all')
+                                  setCustomEra(null)
+                                })
                             }}
                           />
                           Classic {seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)} <EstimatedChip compact />

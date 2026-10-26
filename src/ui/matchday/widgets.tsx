@@ -63,8 +63,7 @@ export function Slot({ slot, id, onChange, d, compact }: PanelProps & { slot: Sl
           </select>
         </label>
       </header>
-      {/* A panel that scrolls is reachable by keyboard: focus it, then the arrow keys scroll it */}
-      <div className="md-slot-body" tabIndex={0}>
+      <div className="md-slot-body">
         <Widget d={d} compact={compact} />
       </div>
     </section>

@@ -36,7 +36,7 @@ The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with 
 
 ### `public/data/england/players-classic.json` (1.16 MB)
 
-The classic seasons, 1992-93 to 2007-08 (section 8): the same `{ version, generatedAt, columns, rows }` and the same 29 columns as `players.json`, kept in its own file so `players.json` keeps its rows and order. The browser loads it only for a league whose `leagues.json` entry has `classicFrom` (England, 1992), and a failed fetch loads the standard seasons alone.
+The classic seasons, 1992-93 to 2007-08 (section 8): the same `{ version, generatedAt, columns, rows }` and the same 29 columns as `players.json`, kept in its own file so `players.json` keeps its rows and order. The browser loads it only for a league whose `leagues.json` entry has `classicFrom` (England, 1992), and only when something asks for classic seasons (`src/game/packs.ts`: a game with `rules.classic`, the Setup's Classic toggle, Explore); a plain start loads the standard seasons alone, and fetches this file without parsing it some seconds later so the service worker has it for an offline visit. A classic load whose fetch fails fails (the toggle switches back off with a toast; a saved classic game is parked). The engine's own loader (`fetchLeague`, used by the tests and the server) still loads it with every league that has one, and a failed fetch there loads the standard seasons alone.
 
 ### `public/data/<league>/meta.json` (about 80 KB)
 
@@ -168,6 +168,7 @@ The Vitest suite (`npm test`) loads the generated files and checks: every season
 - The FC 27 dataset is an unofficial, non-commercial snapshot of a public API.
 - Values and wages are a model, not reported figures. Blending with normalised EA values applies only where the FC 24 dataset supplies one (2014-15 to 2023-24).
 - Clubs are limited to those that appear in a parsed table or a squad; the master list has 58 entries and 51 are emitted.
+- **Stray ",NN" in 54 names (53 distinct: J. Inamoto is in two packs), every pack, 16 in Portugal's**: "D. Cousin,20" (Hull 2008-10), "B. McCarthy,27", "P. Kenny,30", "P. da Silva Moutinho,28". Root cause: the European Soccer Database's `Player.player_name` itself carries the suffix for those players ("Bennedict McCarthy,27"), and `build.mjs`'s ESD loader passes it to `shortName` as it is; `enrich-nations.mjs` then searches Wikidata for "Bennedict McCarthy,27", finds nobody, and most of them stay nation `UNK`. Today the game cleans them when the store loads the universe (`tidyUniverseNames`, `src/game/logic/playerNames.ts`), display text only, packs, stamps and the edge verifier unchanged. **Fix at the next real rebuild**: strip `/\s*,\s*\d+\s*$/` from `player_name` where the ESD rows are read (`build.mjs`, the `select ... from Player` loop, before `shortName`, and the same in `enrich-nations.mjs` before the Wikidata search), rerun the enrichment so the nations re-match, rebuild (new `generatedAt`, `packHashes.json`, pins re-baselined, deploy after 00:00 UTC), then `tidyUniverseNames` can go (its test's count of 53 fails and says so).
 
 ## 7. Legal
 

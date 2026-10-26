@@ -1,27 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { Home } from './screens/Home'
-import { Setup } from './screens/Setup'
-import { Draft } from './screens/Draft'
-import { Summary } from './screens/Summary'
-import { KickOff } from './screens/KickOff'
-import { SeasonPlayback } from './screens/SeasonPlayback'
-import { Dugout } from './screens/Dugout'
-import { MatchScreen } from './screens/MatchScreen'
-import { Explore } from './screens/Explore'
-import { ProfileScreen } from './screens/ProfileScreen'
-import { HowTo } from './screens/HowTo'
-import { H2HScreen } from './screens/H2H'
-import { Privacy } from './screens/Privacy'
-import { Arena } from './screens/Arena'
-import { ArenaSetup } from './screens/ArenaSetup'
-import { ArenaChallengeSetup } from './screens/ArenaChallengeSetup'
 import { isArenaPayload } from '@engine/challenge'
-import { ArenaSummary } from './screens/ArenaSummary'
-import { RunInSetup } from './screens/RunInSetup'
-import { RunInSummary } from './screens/RunInSummary'
+import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
-import { ScreenBoundary } from './components/ScreenBoundary'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
@@ -30,19 +12,51 @@ import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
+import { useArenaWarmup } from './useArenaWarmup'
+import './sound/boot'
+import { watchScrollFocus } from './scrollFocus'
+import { skipToMain, watchMainLandmark } from './landmarks'
 import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
-import { WorldBoard } from './online/WorldBoard'
-import { AccountChip } from './online/AccountChip'
-import { AccountScreen } from './online/AccountPanel'
-import { RoomScreen } from './online/Rooms'
 import { DAMAGED_LINK_TOAST, readGameHash } from './gameHash'
 import { onlineAvailable, openRoom, resolveShort } from '../online/api'
 
+// Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
+// after Home fetches them in this order, the Quick Draft path first
+const SCREENS = {
+  setup: lazyScreen(() => import('./screens/Setup'), 'Setup'),
+  draft: lazyScreen(() => import('./screens/Draft'), 'Draft'),
+  kickOff: lazyScreen(() => import('./screens/KickOff'), 'KickOff'),
+  playback: lazyScreen(() => import('./screens/SeasonPlayback'), 'SeasonPlayback'),
+  summary: lazyScreen(() => import('./screens/Summary'), 'Summary'),
+  dugout: lazyScreen(() => import('./screens/Dugout'), 'Dugout'),
+  match: lazyScreen(() => import('./screens/MatchScreen'), 'MatchScreen'),
+  explore: lazyScreen(() => import('./screens/Explore'), 'Explore'),
+  profile: lazyScreen(() => import('./screens/ProfileScreen'), 'ProfileScreen'),
+  h2h: lazyScreen(() => import('./screens/H2H'), 'H2HScreen'),
+  howTo: lazyScreen(() => import('./screens/HowTo'), 'HowTo'),
+  arenaSetup: lazyScreen(() => import('./screens/ArenaSetup'), 'ArenaSetup'),
+  arena: lazyScreen(() => import('./screens/Arena'), 'Arena'),
+  arenaSummary: lazyScreen(() => import('./screens/ArenaSummary'), 'ArenaSummary'),
+  arenaChallengeSetup: lazyScreen(() => import('./screens/ArenaChallengeSetup'), 'ArenaChallengeSetup'),
+  runInSetup: lazyScreen(() => import('./screens/RunInSetup'), 'RunInSetup'),
+  runInSummary: lazyScreen(() => import('./screens/RunInSummary'), 'RunInSummary'),
+  privacy: lazyScreen(() => import('./screens/Privacy'), 'Privacy'),
+  world: lazyScreen(() => import('./online/WorldBoard'), 'WorldBoard'),
+  account: lazyScreen(() => import('./online/AccountPanel'), 'AccountScreen'),
+  room: lazyScreen(() => import('./online/Rooms'), 'RoomScreen'),
+}
+const { setup: { Screen: Setup }, draft: { Screen: Draft }, kickOff: { Screen: KickOff }, playback: { Screen: SeasonPlayback }, summary: { Screen: Summary }, dugout: { Screen: Dugout }, match: { Screen: MatchScreen }, explore: { Screen: Explore }, profile: { Screen: ProfileScreen }, h2h: { Screen: H2HScreen }, howTo: { Screen: HowTo }, arenaSetup: { Screen: ArenaSetup }, arena: { Screen: Arena }, arenaSummary: { Screen: ArenaSummary }, arenaChallengeSetup: { Screen: ArenaChallengeSetup }, runInSetup: { Screen: RunInSetup }, runInSummary: { Screen: RunInSummary }, privacy: { Screen: Privacy }, world: { Screen: WorldBoard }, account: { Screen: AccountScreen }, room: { Screen: RoomScreen } } = SCREENS
+
+// The account chip (and the account panel it opens from) only exists in an online build: never in the first download
+const AccountChip = lazy(() => import('./online/AccountChip').then((m) => ({ default: m.AccountChip })))
+
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
+  // An arena run's field strengths, worked out in idle moments while it drafts
+  useArenaWarmup()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
@@ -94,6 +108,16 @@ export function App() {
   useEffect(() => {
     void loadData()
   }, [loadData])
+
+  // Once the database is in and Home is up, fetch the other screens in idle moments (online ones only when online)
+  const dataReady = !!universe
+  useEffect(() => {
+    if (!dataReady) return
+    const online = onlineAvailable()
+    return prefetchScreens(Object.entries(SCREENS).filter(([k]) => online || (k !== 'world' && k !== 'account' && k !== 'room')).map(([, s]) => s))
+  }, [dataReady])
+  // A box that scrolls with nothing focusable inside joins the Tab order while it scrolls (keyboard and Safari reach)
+  useEffect(() => watchScrollFocus(), [])
 
   // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
   // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
@@ -222,7 +246,10 @@ export function App() {
   else body = <Home />
 
   return (
-    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`}>
+    <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`} ref={watchMainLandmark}>
+      <a className="skip-link" href="#main" onClick={skipToMain} data-testid="skip-link">
+        Skip to content
+      </a>
       <header className="topbar" ref={setTopbar} inert={barHidden} aria-hidden={barHidden || undefined}>
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
@@ -261,7 +288,11 @@ export function App() {
             <span className="nav-label">How it works</span>
           </button>
         </nav>
-        {onlineAvailable() && <AccountChip active={screen === 'account'} onOpen={() => nav('account')} />}
+        {onlineAvailable() && (
+          <Suspense fallback={null}>
+            <AccountChip active={screen === 'account'} onOpen={() => nav('account')} />
+          </Suspense>
+        )}
         <button
           type="button"
           className="theme-switch"
@@ -354,6 +385,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
             <b>
               {r.gf}-{r.ga}
             </b>
+            <span className="res-letter">{r.outcome}</span>
             <span className="small muted">{r.home ? 'H' : 'A'}</span>
             {r.comp !== 'league' && <span className="small muted">{r.comp === 'cup' ? 'Cup' : 'Eur'}</span>}
           </span>

@@ -147,6 +147,10 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           {away.code}
         </span>
         <ClockFace minute={clock.clock} state={state} />
+        {/* Said once each time the score changes (the GOAL! banner mounts with its text, which a screen reader may miss) */}
+        <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="score-live">
+          {score.home + score.away > 0 ? `${home.name} ${score.home}, ${away.name} ${score.away}` : ''}
+        </span>
       </div>
       <div className="md-playback">
         {!clock.finished && (

@@ -174,7 +174,7 @@ export function ScoutReportsPanel({ onOpen }: { onOpen: (id: string) => void }) 
                   <span className={`chip ${GRADE_CHIP[r.grade]}`} data-testid="report-grade">
                     {r.grade}
                   </span>
-                  {store.shortlist.includes(p.id) && <Star size={14} aria-label="On your shortlist" />}
+                  {store.shortlist.includes(p.id) && <Star size={14} role="img" aria-label="On your shortlist" />}
                 </span>
               }
             />

@@ -1,24 +1,37 @@
-import { Check, Compass, History, Sparkles, Trophy } from 'lucide-react'
+import { Check, Compass, History, Sparkles, Trophy, UserPlus } from 'lucide-react'
 import type { DraftRecap as Recap } from '@game/logic/draftRecap'
 import type { Hindsight } from '@game/logic/hindsight'
 import type { PickGrade } from '@game/logic/pickGrades'
 import type { PlayerSeason } from '@engine/types'
 import { countPhrase } from '../screenText'
 import { seasonLabel } from '../format'
+import { Tip } from './bits'
+import { useEffect } from 'react'
+import { prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
 
 const GRADE_CLASS: Record<PickGrade, string> = { A: 'good', B: 'info', C: 'warn', D: 'bad' }
 const GRADES: PickGrade[] = ['A', 'B', 'C', 'D']
+/** Seconds from the recap's mount to the grade's pop at its fullest (`recap-pop`: 60 ms stagger, then a 400 ms spring). */
+const GRADE_SOUND_DELAY = 0.24
 
 /**
  * The Draft's middle box once every pick is made: the draft's grade and verdict, the grade tally, the best pick, the one
- * that got away and how far the wheel travelled, the Hindsight XI (the best XI the same spins held), then the button on
- * to the next step. Display only (`draftRecap`).
+ * that got away and how far the wheel travelled, and the Hindsight XI (the best XI the same spins held). The button on
+ * to the next step is the left box's, so the screen's main action is in one place. Display only (`draftRecap`).
  */
-export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap; get: (id: string) => PlayerSeason | undefined; slotName: (slotId: string) => string; cta: string; onCta: () => void }) {
+export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: string) => PlayerSeason | undefined; slotName: (slotId: string) => string }) {
   const r = recap
   const best = r.best ? get(r.best.pickedId) : undefined
   const missed = r.miss ? get(r.miss.pickedId) : undefined
   const span = r.seasons ? (r.seasons[0] === r.seasons[1] ? seasonLabel(r.seasons[0]) : `${seasonLabel(r.seasons[0])} to ${seasonLabel(r.seasons[1])}`) : null
+  // The grade lands with a stamp and its chord, on the pop's peak (the stagger and half the spring), once per visit
+  const first = useFirstReveal(`draft-grade:${r.grade}:${r.picks}:${r.clubs}:${r.nations}:${r.xiRating}`, false)
+  useEffect(() => {
+    if (!first || !r.grade) return
+    const reduced = prefersReducedMotion()
+    playSound({ id: 'grade', grade: r.grade, reduced }, reduced ? 0 : GRADE_SOUND_DELAY)
+  }, [])
   return (
     <div className="draft-recap" data-testid="draft-recap">
       <div className="recap-head">
@@ -43,6 +56,7 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
           )}
         </div>
       </div>
+      {r.grade && <Tip id="draft-recap">Each pick is graded by the number on his pitch disc, against the best play his spin held for your open slots, counting the spins that came after: A is the best play, B to D left up to 2, 4 or more XI points. The Hindsight XI is the best XI your spins held; a tick is your pick where you put him, S5 the spin a man came from.</Tip>}
       <div className="recap-cards">
         {r.best && best && (
           <div className="recap-card" data-testid="recap-best">
@@ -67,7 +81,7 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
               <span className="eyebrow">The one that got away</span>
               <b>{r.miss.bestName}</b>
               <span className="small muted">
-                {r.miss.best} at {slotName(r.miss.slotId)} on spin {r.miss.spin + 1}; you took {missed.name} ({r.miss.rating})
+                {r.miss.best} at {slotName(r.miss.bestSlotId)} on spin {r.miss.spin + 1}; you took {missed.name} ({r.miss.rating} at {slotName(r.miss.slotId)}), {countPhrase(r.miss.left, 'XI points')} left
               </span>
             </div>
           </div>
@@ -89,10 +103,8 @@ export function DraftRecap({ recap, get, slotName, cta, onCta }: { recap: Recap;
           </div>
         </div>
       </div>
+      {!r.grade && r.ungraded.length > 0 && <Signings picks={r.ungraded} get={get} />}
       {r.hindsight && <HindsightXI h={r.hindsight} slotName={slotName} />}
-      <button className="btn primary big block recap-go" onClick={onCta} data-testid="recap-go">
-        {cta}
-      </button>
     </div>
   )
 }
@@ -121,11 +133,42 @@ function HindsightXI({ h, slotName }: { h: Hindsight; slotName: (slotId: string)
               <span className="hs-pos">{slotName(p.slotId)}</span>
               <span className="hs-name">{p.name}</span>
               <span className="hs-rating">{p.rating}</span>
-              {p.yours ? <Check size={13} className="hs-tick" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
+              {p.yours ? <Check size={13} className="hs-tick" role="img" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
             </li>
           ))}
         </ol>
       )}
+    </div>
+  )
+}
+
+/** A draft with no grade (a run-in's reinforcements, grades hidden): the men it brought, so the box is not empty. */
+function Signings({ picks, get }: { picks: Recap['ungraded']; get: (id: string) => PlayerSeason | undefined }) {
+  return (
+    <div className="recap-hindsight" data-testid="recap-signings">
+      <div className="hs-head">
+        <span className="recap-icon good" aria-hidden>
+          <UserPlus size={18} />
+        </span>
+        <div className="col" style={{ gap: 2, minWidth: 0 }}>
+          <span className="eyebrow">Your picks</span>
+          <b>{countPhrase(picks.length, 'players')} from the wheel</b>
+        </div>
+      </div>
+      <ol className="hs-grid" aria-label="Your picks">
+        {picks.map((x) => {
+          const p = get(x.id)
+          if (!p) return null
+          return (
+            <li key={x.spin} className="hs-man">
+              <span className="hs-pos">{p.positions[0]}</span>
+              <span className="hs-name">{p.name}</span>
+              {x.rating !== null ? <span className="hs-rating">{x.rating}</span> : <span />}
+              <span className="hs-spin">{seasonLabel(p.season)}</span>
+            </li>
+          )
+        })}
+      </ol>
     </div>
   )
 }

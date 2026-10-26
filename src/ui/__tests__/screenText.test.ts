@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countPhrase, developmentLists, modeLabel, shownGames, versusReal } from '../screenText'
+import { countPhrase, developmentLists, distinctLabels, modeLabel, runsSummary, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -53,5 +53,25 @@ describe('development report lists', () => {
     expect(countPhrase(1, 'run-in briefs met')).toBe('1 run-in brief met')
     expect(countPhrase(1, '100-point seasons')).toBe('1 100-point season')
     expect(countPhrase(2, 'rungs in your best Gauntlet')).toBe('2 rungs in your best Gauntlet')
+  })
+})
+
+describe('distinctLabels', () => {
+  it("says the arena hub's step once, in sentence case", () => {
+    expect(distinctLabels(['Cup Final', 'Cup final'])).toEqual(['Cup final'])
+    expect(distinctLabels(['Cup final', 'Cup Final'])).toEqual(['Cup final'])
+    expect(distinctLabels(['The Cup · 16 clubs', 'Round of 16'])).toEqual(['The Cup · 16 clubs', 'Round of 16'])
+    expect(distinctLabels(['The Gauntlet', 'Rung 3', ''])).toEqual(['The Gauntlet', 'Rung 3'])
+  })
+})
+
+
+describe('runsSummary', () => {
+  it('names the best as a perfect start, from two games, beside the season runs', () => {
+    expect(runsSummary('Unbeaten for the first 2 games', 1)).toBe('Unbeaten for the first 2 games')
+    expect(runsSummary('Unbeaten for the first 2 games', 6)).toBe('Unbeaten for the first 2 games · best perfect start 6-0')
+    expect(runsSummary(null, 6)).toBe('Best perfect start 6-0')
+    expect(runsSummary(null, 1)).toBeNull()
+    expect(runsSummary(null, undefined)).toBeNull()
   })
 })

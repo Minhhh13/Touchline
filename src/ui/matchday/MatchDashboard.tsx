@@ -33,7 +33,7 @@ import { cueTimes, goalHolds } from '../match/possession'
 import { samplePlayers } from '../match/heat'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
-import { emptyDraft, type StopDraft } from './controls'
+import { emptyDraft, highlightedMan, nextSelection, type StopDraft } from './controls'
 import { ActiveDrawer } from './drawers/Drawers'
 import { useManagerHand } from './useManagerHand'
 import { elsewhereLines, resumeMinute, segmentStart, stopTarget } from './model'
@@ -45,9 +45,11 @@ import { StopPanel, type StopActions } from './StopPanel'
 import { TopBar } from './TopBar'
 import type { LiveControl, MatchdayData, SideView } from './types'
 import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
+import { readMark, resumeFrom, resumeLine, segmentKey, writeMark } from './resume'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { MATCHDAY_COMPACT, matchdayBoxes, readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
+import { useMatchSounds } from '../sound/useMatchSounds'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
@@ -101,7 +103,24 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const holds = useMemo(() => mpath.epochs.flatMap((e) => goalHolds(feed.events, e.from, e.to, { userSide: userSide ?? undefined, reduced, replay: keyMoments })).sort((a, b) => a.t - b.t), [mpath, feed.events, userSide, reduced, keyMoments])
   // Every chance, save and foul behind a card is a cue: its minute's commentary and panels wait until the pitch has shown it
   const cues = useMemo(() => mpath.epochs.flatMap((e) => cueTimes(feed.events, e.from, e.to)).sort((a, b) => a - b), [mpath, feed.events])
-  const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  // A reload picks the clock up where this tab left the segment (resume.ts), not from its first minute again
+  const resumeKey = live ? segmentKey(game.id, feed.key, feed.decidedTo, start, feed.events.length) : null
+  const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(), resumeKey, start, stopAt) : start))
+  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  useEffect(() => {
+    if (!resumeKey) return
+    return useLiveClock.subscribe((s, prev) => {
+      if (s.clock !== prev.clock || s.done !== prev.done) writeMark({ key: resumeKey, at: s.done ? s.stopAt + 1 : s.clock })
+    })
+  }, [resumeKey])
+  const showToast = store.showToast
+  useEffect(() => {
+    const line = resumeLine(resumeAt, start, stopAt)
+    if (line) showToast(line)
+    // Mount only: the line is about the reload
+  }, [])
+  // The whistle, the crowd and the net, on the same clock the pitch draws from (presentation only)
+  useMatchSounds({ events: feed.events, ranges: mpath.epochs, holds, userSide, start: resumeAt, stopAt, final, reduced })
   // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
   const revealed = useLiveClock((s) => s.revealed)
   const cued = useLiveClock((s) => s.cued ?? 0)
@@ -140,6 +159,11 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const highlights = { level, setLevel, wound: score ? `${Math.max(score.home, score.away)}-${Math.min(score.home, score.away)}` : null, fast: boost > 1, keyMoments, setKeyMoments }
 
   const [selected, setSelected] = useState<string | null>(null)
+  // A tap on a man picks him out on the pitch and the formation panels; a second tap lets him go. Keyboard focus on a
+  // strip card previews him the same way until the focus moves on (display only)
+  const select = useCallback((psId: string) => setSelected((s) => nextSelection(s, psId)), [])
+  const [focused, setFocused] = useState<string | null>(null)
+  const highlight = highlightedMan(selected, focused)
   const friendly = !!ref.friendly
   const [slots, setSlots] = useState<SlotChoices>(() => resolveSlots(readChoices(), friendly))
   const show = useCallback((slot: SlotId, id: WidgetId) => {
@@ -154,7 +178,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const scores = useMemo(() => latestScores(game, u, ref, minute, whistle), [game, u, ref, minute, whistle])
   const table = useMemo(() => liveTable(game, u, ref, minute, scoreAt(feed.events, minute), userSide !== 'away', whistle), [game, u, ref, minute, feed.events, userSide, whistle])
 
-  const d: MatchdayData = { mode: live ? 'live' : 'replay', feed, mpath, series, samples, story, commentary, minute, final: whistle, home, away, ratings, userSide, selected, select: setSelected, show, scores, table, ref, ctx, live, game, u, getPlayer: get, getName }
+  const d: MatchdayData = { mode: live ? 'live' : 'replay', feed, mpath, series, samples, story, commentary, minute, final: whistle, home, away, ratings, userSide, selected, highlight, select, show, scores, table, ref, ctx, live, game, u, getPlayer: get, getName }
 
   // The manager's hand on the match in play (the top bar's and the strip's controls use it)
   const control: LiveControl | null = live
@@ -262,6 +286,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
       track={mpath}
       keepers={{ home: keeper, away: keeper }}
       keyMoments={keyMoments && !reduced}
+      highlightId={highlight}
     />
   )
   const momentum = <MomentumBar strip momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />
@@ -286,7 +311,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
         <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingHidden(game.settings.rules, 'squad') }} />
       )
     ) : null
-  const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} hand={hand} name={getName} condition={condition} />
+  const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={select} onFocusMan={setFocused} control={control} hand={hand} name={getName} condition={condition} />
   const banner = <CommentaryBanner d={d} />
   const slot = (id: SlotId) => <Slot key={id} slot={id} id={slots[id]} onChange={(w) => show(id, w)} d={d} compact={compact} />
 

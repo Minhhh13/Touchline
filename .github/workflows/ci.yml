@@ -18,6 +18,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # The phone's first download: the entry chunk and the stylesheet under their gzip budgets (docs/PERFORMANCE.md)
+      - run: npx vitest run src/ui/__tests__/budget.test.ts
+        env:
+          BUDGET_DIST: '1'
       - run: npm run check:dist-keys
       - run: npm run build:verifier
       - run: npm run check:verifier

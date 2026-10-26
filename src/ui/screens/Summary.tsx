@@ -3,6 +3,8 @@ import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, La
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
+import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
+import { FirstNext } from '../components/FirstNext'
 import { continentalRun } from '@game/logic/week'
 import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
 import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
@@ -23,7 +25,7 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
-import { versusReal } from '../screenText'
+import { runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
@@ -48,12 +50,14 @@ import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
 import { ChaseStatus } from '../online/ChaseStatus'
-import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
+import { summaryMainCall } from '@game/logic/summaryCall'
 import { ManagerChip } from '../components/ManagerPick'
 import { caseIconIn, caseLine } from '@game/logic/endCase'
 import { managerLine } from '@game/logic/managers'
+import { draftGradeLine } from '@game/logic/draftRecap'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
@@ -112,6 +116,8 @@ export function Summary() {
   const story = useMemo(() => (u && game ? storyForGame(game, u) : null), [game, u])
   const allBoxes = useBoxes(SUMMARY)
   if (!u || !game || !record) return null
+  // The first result ever (a quick-like season): where to go next; null on every later summary
+  const firstNext = firstResultNext(profile, game.settings.mode, !!profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`], resultsFinished(profile) === 1 && !!game.quickResult && (['cup', 'continental'] as const).some((c) => quickCupStatus(game, u, c).state === 'open'))
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
   const formation = getFormation(game.tactics.formationId)
@@ -128,6 +134,9 @@ export function Summary() {
   const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES).filter((t) => !(modeLine && t === 'Hard'))
   if (modeLine) extraLines.push(modeLine)
   if (tags.length) extraLines.push(tags.join(' · '))
+  // The draft's grade, as the recap gave it when the last pick was made
+  const gradeLine = draftGradeLine(game, u, get)
+  if (gradeLine) extraLines.push(gradeLine)
   const powerLine = powerUpsShareLine(game.draft)
   if (powerLine) extraLines.push(powerLine)
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${nationName(u, game.settings.rules.onlyNation)}`)
@@ -265,6 +274,7 @@ export function Summary() {
         footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
         // The Treble or a Double in gold under the record
         ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : {}),
+        ...(gradeLine ? { grade: gradeLine } : {}),
         strip: story?.strip,
         moment: story?.moment,
         // A chained draft prints its chain of club codes under the record
@@ -350,9 +360,9 @@ export function Summary() {
               <span className="vp-sep" aria-hidden="true">·</span>
               <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
             </span>
-            {(runs || bests.longestPerfectRun) ? (
+            {runsSummary(runs, bests.longestPerfectRun) ? (
               <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-                {[runs, bests.longestPerfectRun ? `${runs ? 'your' : 'Your'} best run ${bests.longestPerfectRun}-0` : null].filter(Boolean).join(' · ')}
+                {runsSummary(runs, bests.longestPerfectRun)}
               </span>
             ) : null}
           </div>
@@ -455,7 +465,7 @@ export function Summary() {
           )}
         </div>
         <div className="banner-actions">
-          <button className={`btn ${continuing ? '' : 'primary'}`} onClick={copy}>
+          <button className={`btn ${continuing || (q && !replay.playing && summaryMainCall(game, u) !== 'copy') ? '' : 'primary'}`} onClick={copy} data-testid="summary-copy">
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
           </button>
           <button className="btn" onClick={makeCard}>
@@ -492,6 +502,7 @@ export function Summary() {
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
+      {firstNext && !replay.playing && <FirstNext steps={firstNext} onDaily={() => go('setup', 'daily')} onSetup={() => go('setup', 'quick')} />}
       {q && results.length > 0 && on('games') && (
         <GameByGame
           results={results}

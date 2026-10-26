@@ -11,7 +11,7 @@ export function FormArrow({ s }: { s: Pick<SquadPlayer, 'recentRatings' | 'seaso
   if (!t) return null
   const title = formTitle(t)
   return (
-    <span className={`form-arrow ${t.dir}`} role="img" title={title} aria-label={title} data-testid="form-arrow" data-dir={t.dir}>
+    <span className={`form-arrow ${t.dir}`} title={title} role="img" aria-label={title} data-testid="form-arrow" data-dir={t.dir}>
       {ARROW[t.dir]}
     </span>
   )
@@ -38,7 +38,7 @@ export function MotmStar({ count }: { count: number }) {
   if (count <= 0) return null
   const title = `Player of the match ${count} time${count === 1 ? '' : 's'} this season`
   return (
-    <span className="chip gold icon-chip motm-chip" role="img" title={title} aria-label={title} data-testid="motm-star">
+    <span className="chip gold icon-chip motm-chip" title={title} role="img" aria-label={title} data-testid="motm-star">
       <Star size={11} aria-hidden="true" /> {count}
     </span>
   )

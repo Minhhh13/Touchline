@@ -13,14 +13,15 @@ import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { beginSeason, createGame } from '@game/logic/setup'
 import { H2HSetup } from '../screens/H2H'
-import { TacticsTab } from '../screens/Dugout'
+import { Dugout, TacticsTab } from '../screens/Dugout'
+import { MatchScreen } from '../screens/MatchScreen'
 import { Explore } from '../screens/Explore'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { StatsTab } from '../screens/StatsTab'
-import { App } from '../App'
 import { useStore } from '@game/store'
 import { markupProblems, openFiltered, renderProblems, show } from './qaSsr'
-import { ScreenBoundary } from '../components/ScreenBoundary'
+import { isChunkLoadError, ScreenBoundary } from '../lazyScreens'
+import { SCROLL_BOXES } from '../scrollFocus'
 import { renderToString } from 'react-dom/server'
 import { createElement } from 'react'
 import { readFileSync } from 'node:fs'
@@ -64,6 +65,20 @@ describe('QA-4: a screen that throws while rendering', () => {
     expect(markupProblems(html)).toEqual([])
   })
 
+  it('tells a chunk that did not load from a render error, and offers the reload and the way home for both', () => {
+    for (const m of ['Failed to fetch dynamically imported module: https://touchline.quest/assets/Draft-abc.js', 'Importing a module script failed.', 'error loading dynamically imported module', 'Unable to preload CSS for /assets/Draft-abc.css']) expect(isChunkLoadError(new TypeError(m))).toBe(true)
+    expect(isChunkLoadError(new TypeError("Cannot read properties of undefined (reading 'badge')"))).toBe(false)
+    expect(isChunkLoadError('boom')).toBe(false)
+    const b = new ScreenBoundary({ resetKey: 'game|draft|setup', onHome: () => {}, children: null })
+    b.state = { error: new TypeError('Failed to fetch dynamically imported module: /assets/Draft-abc.js'), key: 'game|draft|setup' }
+    const html = renderToString(createElement(() => b.render()))
+    expect(html).toContain('data-testid="screen-load-error"')
+    expect(html).toContain('did not load')
+    expect(html).toContain('Back to home')
+    expect(html).toContain('Reload')
+    expect(markupProblems(html)).toEqual([])
+  })
+
   it('wraps the screens in App, so a render error never blanks the top bar', () => {
     const src = readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')
     expect(src).toMatch(/<ScreenBoundary resetKey=[\s\S]{0,200}?\{body\}\s*<\/ScreenBoundary>/)
@@ -97,18 +112,21 @@ describe('QA-8: ARIA states and keyboard-reachable scroll panels', () => {
     g.rngState = rng.getState()
     beginSeason(g, u)
     show({ universe: u, loadedLeagues: ['england'], game: g, screen: 'game', matchView: 'ticker' })
-    const dugout = renderToString(createElement(App))
+    // The screens themselves: App renders them as lazy chunks, which renderToString leaves on the loading fallback
+    const dugout = renderToString(createElement(Dugout))
     expect(dugout).toContain('data-testid="squad-view-overview"')
     expect(openFiltered(dugout)).toEqual([])
-    // A live match on the dashboard: every panel body and the table can be focused to scroll
+    // A live match on the dashboard: the panel bodies and the table join the Tab order while they scroll, through
+    // scrollFocus.ts (the accessibility pass), so they carry no fixed tabindex of their own
     useStore.getState().startSeason()
     useStore.getState().setMatchPlay('watch')
     useStore.getState().playWeek()
     show({})
-    const match = renderToString(createElement(App))
+    const match = renderToString(createElement(MatchScreen))
     const bodies = [...match.matchAll(/<div class="(md-slot-body|md-table)"([^>]*)>/g)]
     expect(bodies.length).toBeGreaterThan(0)
-    for (const b of bodies) expect(b[2]).toContain('tabindex="0"')
+    const boxes = SCROLL_BOXES.split(',').map((b) => b.trim())
+    for (const b of bodies) expect(boxes).toContain(`.${b[1]}`)
   })
 })
 

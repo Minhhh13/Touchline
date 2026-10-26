@@ -427,9 +427,9 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
                           <td>
                             <span className="row" style={{ gap: 6 }}>
                               {p && <Rating value={p.overall} />} {p?.name ?? s.playerSeasonId}
-                              {s.yellow && <span role="img" title="Booked" aria-label="Booked"><YellowCard size={13} /></span>}
-                              {s.red && <span role="img" title="Sent off" aria-label="Sent off"><RedCard size={13} /></span>}
-                              {s.injured && <Bandage size={13} className="ic-injury" aria-label="Injured" />}
+                              {s.yellow && <span title="Booked" role="img" aria-label="Booked"><YellowCard size={13} /></span>}
+                              {s.red && <span title="Sent off" role="img" aria-label="Sent off"><RedCard size={13} /></span>}
+                              {s.injured && <Bandage size={13} className="ic-injury" role="img" aria-label="Injured" />}
                               {res.motmId === s.playerSeasonId && <span className="chip gold">MOTM</span>}
                             </span>
                           </td>
