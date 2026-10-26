@@ -61,6 +61,7 @@ import type { BoxSet } from '../boxes'
 import type { Game } from '@game/types'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { countPhrase } from '../screenText'
+import { newsBody } from '@game/logic/newsFlavour'
 
 type Tab = DugoutTab
 
@@ -664,7 +665,7 @@ export function Dugout() {
                   </span>
                   <span>
                     <div className="t">{n.title}</div>
-                    <div className="b">{n.body}</div>
+                    <div className="b">{newsBody(n)}</div>
                     <InboxActions item={n} game={game} onAction={act} />
                   </span>
                   <span className="news-mw">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
