@@ -157,5 +157,17 @@ function luminance(hex: string): number | null {
 export function inkOn(bg: string): string {
   const l = luminance(bg)
   if (l === null) return '#fff'
-  return (l + 0.05) / 0.0556 > 1.05 / (l + 0.05) ? '#111' : '#fff'
+  const dark = (l + 0.05) / 0.0556
+  const light = 1.05 / (l + 0.05)
+  // A mid red (Arsenal's #ef0107) passes with neither white nor #111, so it takes pure black, which always clears 4.5:1
+  if (Math.max(dark, light) < 4.5) return (l + 0.05) / 0.05 > light ? '#000' : '#fff'
+  return dark > light ? '#111' : '#fff'
+}
+/** The WCAG contrast ratio of two #rrggbb colours (1 for anything else). */
+export function contrastRatio(a: string, b: string): number {
+  const long = (c: string) => (/^#[0-9a-f]{3}$/i.test(c) ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}` : c)
+  const la = luminance(long(a))
+  const lb = luminance(long(b))
+  if (la === null || lb === null) return 1
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
 }

@@ -29,6 +29,7 @@ import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
+import { watchScrollFocus } from './scrollFocus'
 import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
@@ -93,6 +94,9 @@ export function App() {
   useEffect(() => {
     void loadData()
   }, [loadData])
+
+  // A box that scrolls with nothing focusable inside joins the Tab order while it scrolls (keyboard and Safari reach)
+  useEffect(() => watchScrollFocus(), [])
 
   // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
   // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
