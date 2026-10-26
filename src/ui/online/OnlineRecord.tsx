@@ -9,6 +9,7 @@ import type { ChallengeRow } from '../../online/transport'
 import { formatCode } from '../../online/core/codes'
 import { shortLinkUrl } from '../../online/challengeLinks'
 import { ordinal } from '../format'
+import { shareLocation } from '../../platform'
 
 /** "Your dailies", "Your weekly challenges" and "Your challenges": the Account screen's third panel (a placeholder signed out). */
 export function OnlineRecord() {
@@ -86,7 +87,8 @@ export function OnlineRecord() {
               <button
                 className="btn sm ghost"
                 onClick={() => {
-                  const url = shortLinkUrl(c.code, location.origin, location.pathname)
+                  const { origin, pathname } = shareLocation()
+                  const url = shortLinkUrl(c.code, origin, pathname)
                   void navigator.clipboard?.writeText(url).then(
                     () => showToast('Link copied.'),
                     () => showToast(url),

@@ -446,9 +446,9 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
         footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${seed}`,
         hideRatings: ratingHidden(drafts[i].rules, 'squad'),
       })
-      downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
+      await downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not render the card.')
+      showToast('Could not create or export the card.')
     }
   }
   return (

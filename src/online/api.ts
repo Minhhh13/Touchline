@@ -24,6 +24,7 @@ import { updateRecord } from './localState'
 import { captureChaseEntry, enqueue } from './outbox'
 import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
 import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
+import { shareLocation } from '../platform'
 
 /** Whether this build carries the online layer at all. */
 export const onlineAvailable = (): boolean => onlineConfig() !== null
@@ -198,11 +199,12 @@ export async function mine(kind: RankedKind) {
 
 export async function shareLink(payload: ChallengePayload): Promise<ShareLink> {
   const r = await rt()
+  const { origin, pathname } = shareLocation()
   if (!r) {
-    const longUrl = challengeLink(payload, location.origin, location.pathname)
+    const longUrl = challengeLink(payload, origin, pathname)
     return { url: longUrl, code: null, fallback: 'not_configured', longUrl }
   }
-  return createShortLink(r.transport, r.signedIn, payload, location.origin, location.pathname, navigator.onLine !== false)
+  return createShortLink(r.transport, r.signedIn, payload, origin, pathname, navigator.onLine !== false)
 }
 
 export async function resolveShort(code: string): Promise<Resolved> {

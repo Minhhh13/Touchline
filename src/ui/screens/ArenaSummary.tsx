@@ -23,6 +23,7 @@ import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
+import { shareLocation } from '../../platform'
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
@@ -71,7 +72,8 @@ export function ArenaSummary() {
       showToast('This run cannot be packed into a challenge.')
       return
     }
-    const url = challengeLink(c, location.origin, location.pathname)
+    const { origin, pathname } = shareLocation()
+    const url = challengeLink(c, origin, pathname)
     setLink(url)
     try {
       await navigator.clipboard.writeText(url)
@@ -108,9 +110,9 @@ export function ArenaSummary() {
         banner: { text: banner },
         lines: [...(gauntlet ? [a.log.map(rungMark).join(''), ...gauntletLines(game, u)] : [...a.log.map((_, i) => stepLine(i)), ...(winner && !inFinal ? [`🏆 Won by ${winner}`] : []), ...(motm ? [`⭐ ${cup ? 'Final MOTM: ' : ''}${motm}`] : [])]), ...(verdict ? [verdict] : [])],
       })
-      downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
+      await downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not render the share card.')
+      showToast('Could not create or export the share card.')
     }
   }
 

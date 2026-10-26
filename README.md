@@ -161,6 +161,8 @@ node scripts/import/build.mjs
 
 See `docs/DATA.md` for sources, method, cache location (`.cache/datasets` or `DATA_CACHE`) and the nationality enrichment step.
 
+For the iOS development app, run `npm run ios:sync` and `npm run ios:open` on a Mac with Xcode. The app bundles the game and league packs with Capacitor; iPhone layouts account for the notch, home indicator and touch controls. See [the iOS guide](docs/IOS.md) for Simulator, signing and release steps.
+
 ## Project structure
 
 ```

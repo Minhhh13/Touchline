@@ -1,7 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Capacitor } from '@capacitor/core'
 import { App } from './ui/App'
 import './ui/styles.css'
+import './ui/mobile.css'
 import { onlineConfig } from './online/config'
 
 createRoot(document.getElementById('root')!).render(
@@ -10,8 +12,8 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Offline support: register the service worker on production builds only, relative to the deploy path.
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+// Native builds already bundle the game and packs; the service worker is for the web deploy only.
+if (import.meta.env.PROD && !Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL }).catch(() => undefined)
   })

@@ -239,9 +239,9 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
         xgAway: cardSeries(story.perMinute.away),
         footer: `HT ${res.halfTimeScore.home}-${res.halfTimeScore.away} · ${fig.home.shots}-${fig.away.shots} shots`,
       })
-      downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
+      await downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
     } catch {
-      showToast('Could not render the match card.')
+      showToast('Could not create or export the match card.')
     }
   }
   const ratingBar = (s: PlayerMatchStats) => <Bar value={s.rating - 4.5} max={5.5} colour={s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : 'var(--text-3)'} />
