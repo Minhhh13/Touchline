@@ -4345,6 +4345,10 @@ table.tbl.contracts .btn.sm {
   color: var(--text-3);
   font-size: 13px;
 }
+/* The report's half-time score follows the outcome word after a dot (on a phone it goes under the word instead) */
+.clock-ht::before {
+  content: '· ';
+}
 .news {
   display: flex;
   flex-direction: column;
@@ -8242,6 +8246,13 @@ table.tbl.match-stats th {
   }
   .report-board .clock {
     white-space: nowrap;
+  }
+  /* A long word ("Lost on pens") takes its own line over the half-time score, so the names keep their width */
+  .report-board .clock .outcome-word {
+    display: block;
+  }
+  .report-board .clock-ht::before {
+    content: none;
   }
   .tbl .hide-phone {
     display: none;
@@ -12927,6 +12938,27 @@ table.tbl.hub td.name {
   }
   .page.report-page > [data-testid='shootout-reveal'] h2 {
     font-size: var(--fs-h3);
+  }
+  /* A long shoot-out (sudden death) keeps one line of kicks that scrolls sideways, so the report below keeps its height */
+  .page.report-page > [data-testid='shootout-reveal'] .shootout-kicks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .page.report-page > [data-testid='shootout-reveal'] .shootout-kicks > .chip {
+    flex: none;
+  }
+}
+/* A taker's shooting and composure follow his name, and go under it on a phone (a wrapped line led with its dot) */
+.taker-meta::before {
+  content: ' · ';
+}
+@media (max-width: 699px) {
+  [data-testid='taker'] .taker-meta {
+    display: block;
+  }
+  [data-testid='taker'] .taker-meta::before {
+    content: none;
   }
 }
 
