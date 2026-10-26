@@ -112,7 +112,7 @@ export function Setup() {
   const [onlyClub, setOnlyClub] = useState('')
   const [onlyNation, setOnlyNation] = useState('')
   // Quick Draft: up to five bench places, optional (the draft may still stop at eleven)
-  const [benchPicks, setBenchPicks] = useState(5)
+  const [benchPicks, setBenchPicks] = useState(1)
   // Quick Draft modes (Crazy, Underdog, Legends, Speedrun); the Hard card is the difficulty above
   const [modes, setModes] = useState<Array<QuickMode | 'upgrader'>>([])
   // Quick Draft power-ups: the tray of six one-use power-ups on the draft screen
