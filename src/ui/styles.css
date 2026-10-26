@@ -849,6 +849,12 @@ p {
     box-shadow: var(--shadow);
   }
 }
+/* The smallest phones (320 px, or a mini with Display Zoom): seven nav icons fit the row without widening the page */
+@media (max-width: 359px) {
+  .topbar nav button {
+    padding: 7px 9px;
+  }
+}
 
 /* ------------------------------------------------------------------ panels */
 .panel {
@@ -7197,9 +7203,13 @@ dl.kv {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
 .role-pick select.input {
   width: auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--control-h-sm);
   padding: 4px 8px;
 }
@@ -11205,6 +11215,7 @@ table.tbl tr.chase-perfect td:first-child {
 /* Step 3's season picker: a compact select ("2025-26 ▾") on the step's title line, so it costs no height */
 .step-head-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
