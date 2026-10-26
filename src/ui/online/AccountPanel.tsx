@@ -26,7 +26,7 @@ const RESEND_SECONDS = 60
 /** A country picker: "No flag" plus every country, flags first (the boards' country filter). */
 export function CountrySelect({ value, onChange, emptyLabel = 'No flag', testId }: { value: string | null; onChange: (c: string | null) => void; emptyLabel?: string; testId?: string }) {
   return (
-    <select className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} data-testid={testId}>
+    <select className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} aria-label="Country" data-testid={testId}>
       <option value="">{emptyLabel}</option>
       {COUNTRY_OPTIONS.map((c) => (
         <option key={c.code} value={c.code}>

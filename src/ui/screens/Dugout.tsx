@@ -44,6 +44,7 @@ import { isClassic } from '@engine/universe'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 import { RunInBanner } from '../components/RunInBanner'
+import { usePaintFirst } from '../paintFirst'
 import { DressingRoomTab } from './DressingRoomTab'
 import { PlannerTab } from './PlannerTab'
 import { InboxActions } from '../components/InboxActions'
@@ -140,6 +141,8 @@ export function Dugout() {
   const headBoxes = useBoxes(DUGOUT_HEAD, seasonOver ? ['club-header'] : undefined)
   const tabKey = tab === 'market' && game?.window ? 'window' : tab
   const tabBoxes = useBoxes(DUGOUT_TABS[tabKey] ?? NO_BOXES, game ? tabPresent(tabKey, game) : undefined)
+  // Playing the week is a long task (the matchweek, the match day, the save): the button shows it is busy first
+  const [playing, paintFirst] = usePaintFirst()
   // Simulating weeks runs long on a phone: the button says so in the frame it is tapped, then the weeks play
   const [simming, afterPaint] = useAfterPaint()
   if (!u || !game || !game.season) return null
@@ -185,7 +188,7 @@ export function Dugout() {
     { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: 'Club' },
   ]
-  keys.current = { play: done || game.pendingEvent ? null : () => store.playWeek(), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent ? null : () => paintFirst(() => store.playWeek()), tabs: tabList.map((t) => t.id) }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)
@@ -324,9 +327,9 @@ export function Dugout() {
                   <span className="lbl-short">Friendly</span>
                 </button>
               )}
-              <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
-                <span className="lbl-long">{preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
-                <span className="lbl-short">{preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
+              <button className="btn primary big" onClick={() => paintFirst(() => store.playWeek())} disabled={!!game.pendingEvent || playing} aria-busy={playing || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
+                <span className="lbl-long">{playing ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
+                <span className="lbl-short">{playing ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatch())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
@@ -1042,7 +1045,7 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
               const current = t.setPieces?.[sp.key] ?? ''
               return (
                 <Instruction key={sp.key} label={sp.label} help={sp.hint}>
-                  <select className="input" aria-label={sp.label} value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
+                  <select className="input" aria-label={`${sp.label} taker`} value={current} onChange={(e) => store.setTactics({ setPieces: { ...t.setPieces, [sp.key]: e.target.value || undefined } })}>
                     <option value="">Auto: best on the pitch</option>
                     {xi.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1391,7 +1394,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                     {l.response && <span className="chip">{l.response}</span>}
                   </div>
                   <div className="bidrow">
-                    <input className="input" type="number" min={0.1} step={0.5} value={bid} onChange={(e) => setBids({ ...bids, [l.playerSeasonId]: Number(e.target.value) })} />
+                    <input className="input" type="number" min={0.1} step={0.5} value={bid} onChange={(e) => setBids({ ...bids, [l.playerSeasonId]: Number(e.target.value) })} aria-label={`Your bid for ${p.name}, in £ millions`} />
                     <span className="small muted">£M</span>
                     <button
                       className="btn sm primary"

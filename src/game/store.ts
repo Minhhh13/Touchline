@@ -56,7 +56,8 @@ import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, cha
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
-import { creditCupRun, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { passQuickCup } from './logic/summaryCall'
 import { leaguesBeforeSkip } from './logic/cupSkip'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
@@ -828,6 +829,11 @@ export const useStore = create<Store>()(
           if (load.length && !(await get().ensureLeagues(load))) return
           const { game, universe } = get()
           if (!game || !universe) return
+          // A cup on offer can be passed even when its field is not loaded yet (passQuickCup); otherwise say why not
+          if (quickCupStatus(game, universe, comp).state === 'open') {
+            mutate((g, u) => void passQuickCup(g, u, comp))
+            return
+          }
           const problem = quickCupProblem(game, universe, comp)
           if (problem) {
             set({ toast: problem })
@@ -1277,8 +1283,8 @@ export const useStore = create<Store>()(
         },
         h2hFinish: () => {
           const { h2h, universe, profile } = get()
-          if (!h2h || !universe || !h2hComplete(h2h.draft)) return
-          const first = !h2h.result
+          // Played once: a second tap (a double-click before the summary shows) must not replay the season on the moved stream
+          if (!h2h || !universe || !h2hComplete(h2h.draft) || h2h.result) return
           set({
             h2h: produce(h2h, (h) => {
               const rng = Rng.fromState(h.rngState)
@@ -1286,8 +1292,8 @@ export const useStore = create<Store>()(
               h.rngState = rng.getState()
             }),
           })
-          // A hot-seat season leaves one mark in the cabinet, the first time it is played
-          if (first) set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
+          // A hot-seat season leaves one mark in the cabinet
+          set({ profile: { ...profile, cabinet: creditH2H(profile.cabinet ?? rebuildCabinet(profile)) } })
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         creditH2HRoom: (won) => {

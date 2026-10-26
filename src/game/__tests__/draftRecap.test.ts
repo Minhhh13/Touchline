@@ -14,13 +14,15 @@ function quick(seed: string): GameSettings {
   return { mode: 'quick', seed, formationId: '4-3-3', teamName: 'Recap XI', shortName: 'RCP', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'wolves', leagueSeason: 2020, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' }
 }
 
-const pick = (grade: PickGrade, gap = 0): GradedPick => ({ spin: 0, pickedId: 'x', slotId: 'gk', rating: 80, best: 80 + gap, bestName: 'Y', grade })
+const pick = (grade: PickGrade, gap = 0): GradedPick => ({ spin: 0, pickedId: 'x', slotId: 'gk', rating: 80, best: 80 + gap, bestName: 'Y', bestSlotId: 'gk', left: gap, grade })
 
 describe('the draft recap', () => {
   it("grades the whole draft from the mean of its pick grades", () => {
     expect(draftGrade([])).toBeNull()
     expect(draftGrade([pick('A'), pick('B'), pick('B')])).toBe('B')
-    expect(draftGrade([pick('A'), pick('A'), pick('A'), pick('B')])).toBe('A')
+    // An A needs a mean of 3.7: eight A's and three B's, not seven and four
+    expect(draftGrade([...Array(8).fill(pick('A')), pick('B'), pick('B'), pick('B')])).toBe('A')
+    expect(draftGrade([...Array(7).fill(pick('A')), pick('B'), pick('B'), pick('B'), pick('B')])).toBe('B')
     expect(draftGrade([pick('C'), pick('B')])).toBe('C')
     expect(draftGrade([pick('D'), pick('C')])).toBe('D')
   })
@@ -51,10 +53,9 @@ describe('the draft recap', () => {
       expect(r.seasons![0]).toBeLessThanOrEqual(r.seasons![1])
       expect(r.xiRating).toBeGreaterThan(50)
       if (r.miss) {
-        const gap = r.miss.best - r.miss.rating
-        expect(gap).toBeGreaterThanOrEqual(3)
-        for (const gr of grades) expect(gr.best - gr.rating).toBeLessThanOrEqual(gap)
-      } else for (const gr of grades) expect(gr.best - gr.rating).toBeLessThan(3)
+        expect(r.miss.left).toBeGreaterThanOrEqual(2)
+        for (const gr of grades) expect(gr.left).toBeLessThanOrEqual(r.miss.left)
+      } else for (const gr of grades) expect(gr.left).toBeLessThan(2)
     }
   }, 60_000)
 

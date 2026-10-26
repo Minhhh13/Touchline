@@ -39,6 +39,7 @@ import { challengeFromGame, claimCupsLine, claimOf, verdictLine } from '@game/lo
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { randomSeed } from '@engine/rng'
+import { draftAgainSettings } from '@game/logic/draftAgain'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
@@ -52,6 +53,7 @@ import { ChaseStatus } from '../online/ChaseStatus'
 import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
+import { summaryMainCall } from '@game/logic/summaryCall'
 import { ManagerChip } from '../components/ManagerPick'
 import { caseIconIn, caseLine } from '@game/logic/endCase'
 import { managerLine } from '@game/logic/managers'
@@ -473,14 +475,14 @@ export function Summary() {
           )}
         </div>
         <div className="banner-actions">
-          <button className={`btn ${continuing ? '' : 'primary'}`} onClick={copy}>
+          <button className={`btn ${continuing || (q && !replay.playing && summaryMainCall(game, u) !== 'copy') ? '' : 'primary'}`} onClick={copy} data-testid="summary-copy">
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
           </button>
           <button className="btn" onClick={makeCard}>
             <ImageDown size={16} aria-hidden="true" /> Download share card
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: randomSeed() })}>
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))}>
               <Dices size={16} aria-hidden="true" /> Draft again
             </button>
           )}

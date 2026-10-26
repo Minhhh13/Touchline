@@ -30,6 +30,18 @@ export function growthRate(age: number): number {
   return -0.3
 }
 
+/**
+ * The overall after a change of attributes: the displayed overall moved by exactly what the change moved the overall
+ * derived from the attributes (`overallOf`), between 1 and 99. Development is a delta from the rating the player shows,
+ * never a recomputation: the imported overall (EA's, or the classic estimate) is not `overallOf` of the imported
+ * attributes (2.6 points above it on average over the packs, up to 46), so ENGINE_VERSION 4 and before, which stored
+ * `overallOf(next)`, reset a man to that derived figure at his first update (INV-01: R. Bennett 72 to 63). Pure.
+ */
+export function developedOverall(p: Pick<PlayerSeason, 'overall' | 'positions' | 'attributes'>, attributes: PlayerSeason['attributes']): number {
+  const moved = overallOf({ positions: p.positions, attributes }) - overallOf(p)
+  return Math.max(1, Math.min(99, p.overall + moved))
+}
+
 export function developSquad(game: Game, u: LoadedUniverse, rng: Rng): DevelopmentChange[] {
   const get = playerLookup(game, u)
   const dev = (game.development ??= {})
@@ -72,8 +84,7 @@ function applyDelta(p: PlayerSeason, delta: number, rng: Rng): PlayerSeason {
     const extra = delta < 0 && (k === 'pace' || k === 'physical' || k === 'stamina') ? -Math.floor(0.3 + rng.next()) : 0
     attrs[k] = Math.max(1, Math.min(99, attrs[k] + step + extra))
   }
-  const next: PlayerSeason = { ...p, attributes: attrs, overall: 0 }
-  next.overall = overallOf(next)
+  const next: PlayerSeason = { ...p, attributes: attrs, overall: developedOverall(p, attrs) }
   if (next.overall !== p.overall) {
     next.value = Math.round(p.value * Math.pow(1.21, next.overall - p.overall) * 10) / 10
   }

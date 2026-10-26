@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
 import { playMatchweek, startSeasonProper } from '../logic/week'
-import { developSquad, growthRate, DEVELOPMENT_INTERVAL } from '../logic/development'
+import { developedOverall, developSquad, growthRate, DEVELOPMENT_INTERVAL } from '../logic/development'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'
 import { playerLookup } from '../logic/players'
 import type { GameSettings } from '../types'
+import { overallOf } from '@engine/positions'
+import { runInJob } from '@engine/scenario'
+import { beginRunIn, runInGameSettings, seedRunInDraft } from '../logic/runin'
+import { ageOneYear } from '../logic/dynasty'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
   return {
@@ -82,5 +86,100 @@ describe('development and legends', () => {
       expect(r.seasons).toBe(1)
       expect(r.lastYear).toBe(1)
     }
+  })
+
+  /**
+   * INV-01: development moves the overall a player shows, never the one his attributes derive. The imported overall
+   * sits above `overallOf` of the imported attributes for most men (2.6 points on average over the packs), so
+   * ENGINE_VERSION 4, which stored `overallOf` after the first change, reset them at their first update: the playtest's
+   * run-in (seed TX3U-SU25, Norwich 2015-16, Survival) reported R. Bennett 72→63, A. Doucouré 81→77 and H. Kane, 23,
+   * 89→84 after five appearances, exactly each man's derived figure.
+   */
+  it('developedOverall moves the shown overall by what the attributes moved, never to the derived figure', () => {
+    const bennett = u.clubSeasonByKey['norwich-city@2015'].squad.find((p) => p.name === 'R. Bennett')!
+    expect(bennett.overall).toBe(72)
+    expect(overallOf(bennett)).toBe(63)
+    expect(developedOverall(bennett, bennett.attributes)).toBe(72)
+    const up = Object.fromEntries(Object.entries(bennett.attributes).map(([k, v]) => [k, v + 2])) as typeof bennett.attributes
+    expect(developedOverall(bennett, up)).toBe(72 + overallOf({ ...bennett, attributes: up }) - 63)
+    expect(developedOverall({ ...bennett, overall: 99 }, up)).toBe(99)
+  })
+
+  it('the playtest run-in: nobody resets at the first update, and the young regulars hold or grow', () => {
+    const job = runInJob(u, 'survival', 'england', 2015, 'norwich-city')!
+    const g = createGame(runInGameSettings(u, job, { seed: 'TX3U-SU25' }))
+    seedRunInDraft(g, u)
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginRunIn(g, u)
+    for (let i = 0; i < 5; i++) {
+      playMatchweek(g, u, true)
+      if (g.phase === 'match') g.phase = 'week'
+    }
+    expect(g.season!.matchweek).toBe(33)
+    const get = playerLookup(g, u)
+    for (const id of Object.keys(g.squad)) {
+      const now = get(id)!
+      const was = u.index[id]
+      if (!was) continue
+      // One block: growth or a veteran's point or two, never the reset
+      if (was.age < 30) expect(now.overall, was.name).toBeGreaterThanOrEqual(was.overall)
+      else expect(now.overall, was.name).toBeGreaterThanOrEqual(was.overall - 2)
+    }
+    const report = g.season!.news.find((n) => n.title === 'Development report')
+    expect(report?.body ?? '').not.toMatch(/Bennett 72→63|Doucouré 81→77|Kane 89→84/)
+  })
+
+  it('over twelve seasons: no first-update reset by age band, growth for young regulars, decline still for the old', () => {
+    const firstDrop: number[] = []
+    const season: Record<'young' | 'old', number[]> = { young: [], old: [] }
+    for (let i = 0; i < 12; i++) {
+      const g = createGame(settings({ seed: `dev-bands-${i}`, mode: 'season' }))
+      const r = Rng.fromState(g.rngState)
+      autoDraft(u, g.draft!, r)
+      g.rngState = r.getState()
+      beginSeason(g, u)
+      startSeasonProper(g)
+      const get = playerLookup(g, u)
+      const start = Object.fromEntries(Object.keys(g.squad).map((id) => [id, get(id)!.overall]))
+      for (let w = 0; w < 38 && g.phase !== 'summary'; w++) {
+        playMatchweek(g, u, true)
+        if (g.phase === 'match') g.phase = 'week'
+        if (w === 4) for (const id of Object.keys(start)) if (get(id)!.age < 30) firstDrop.push(start[id] - get(id)!.overall)
+      }
+      for (const id of Object.keys(start)) {
+        const p = get(id)!
+        const mins = g.squad[id]?.seasonStats.minutes ?? 0
+        if (p.age <= 23 && mins >= 1500) season.young.push(p.overall - start[id])
+        if (p.age >= 31) season.old.push(p.overall - start[id])
+      }
+    }
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+    expect(firstDrop.length).toBeGreaterThan(100)
+    expect(Math.max(...firstDrop)).toBeLessThanOrEqual(0)
+    expect(season.young.length).toBeGreaterThan(20)
+    expect(mean(season.young)).toBeGreaterThan(1.5)
+    expect(Math.min(...season.young)).toBeGreaterThanOrEqual(0)
+    expect(season.old.length).toBeGreaterThan(20)
+    expect(mean(season.old)).toBeLessThan(-0.75)
+  }, 120_000)
+
+  it('the dynasty summer ages from the shown overall: growth young, a fall old, no derived reset', () => {
+    const rng = new Rng('summer-bands')
+    const bands: Record<string, number[]> = { young: [], prime: [], old: [] }
+    for (const cs of u.clubSeasons.filter((_, i) => i % 9 === 0)) {
+      for (const p of cs.squad) {
+        const d = ageOneYear(p, rng, 1).overall - p.overall
+        bands[p.age + 1 <= 23 ? 'young' : p.age + 1 <= 29 ? 'prime' : p.age + 1 >= 33 ? 'old' : 'skip']?.push(d)
+      }
+    }
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+    const share = (xs: number[], f: (x: number) => boolean) => xs.filter(f).length / xs.length
+    expect(mean(bands.young)).toBeGreaterThan(1.5)
+    expect(share(bands.young, (x) => x <= -3)).toBeLessThan(0.01)
+    expect(Math.abs(mean(bands.prime))).toBeLessThan(1)
+    expect(share(bands.prime, (x) => x <= -4)).toBeLessThan(0.01)
+    expect(mean(bands.old)).toBeLessThan(-2)
   })
 })

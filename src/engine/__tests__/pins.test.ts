@@ -9,7 +9,8 @@
  * docs/GAME_DESIGN.md section 15) or a data rebuild (a new `generatedAt`),
  * such as a later fm-depth retune, the 1992-93 packs or a change to
  * `QUICK_RULES`. Recompute the literals on that branch; never copy them.
- * Baselined on ENGINE_VERSION '4' with the 2026-10-25 packs.
+ * Baselined on ENGINE_VERSION '4' with the 2026-10-25 packs; re-baselined on '5' (the head-to-head assistant now places
+ * by positional fit: spin 3 takes the natural keeper Given, not Robinho into a cover slot; both quick wheels held).
  */
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from './helpers'
@@ -25,7 +26,7 @@ const row = (h: DraftState['history'][number]) => `${h.clubId}@${h.season}${h.tw
 describe('pins', () => {
   it('pins the stamps the literals below were computed on', () => {
     const u = loadTestUniverse()
-    expect(ENGINE_VERSION).toBe('4')
+    expect(ENGINE_VERSION).toBe('5')
     expect(u.generatedAt).toBe('2026-10-25')
   })
 
@@ -86,7 +87,7 @@ describe('pins', () => {
       'Manager 2 drafts M. Olise.',
       'Manager 1 drafts E. Eze.',
       'Spin 3: Manchester City 2008-09. Manager 1 picks first.',
-      'Manager 1 drafts Robinho.',
+      'Manager 1 drafts S. Given.',
     ])
     expect(h.log.length).toBe(33)
   })

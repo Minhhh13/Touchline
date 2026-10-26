@@ -1,6 +1,7 @@
 import type { Formation, Lineup, PlayerSeason, Position } from '@engine/types'
 import { canCover, ratingAt } from '@engine/positions'
 import { benchPlaces } from '@engine/draft'
+import { eligibleReplacement } from '@engine/match'
 import type { Game, QuickChange, QuickCover, QuickGameResult } from '../types'
 
 /**
@@ -19,8 +20,9 @@ export function quickBenchRule(game: Pick<Game, 'settings'>): boolean {
 /**
  * The XI that takes the field: every chosen starter who is out injured is covered by the best fit on the bench (his
  * rating at the slot's position; bench order breaks ties) who can play there (`canPlay`, the draft's position rule),
- * is fit and is not already covering, slots in formation order. A starter nobody can cover plays on, as a quick
- * season without a bench always has him do.
+ * is fit and is not already covering, slots in formation order. A keeper-only man never covers an outfield slot
+ * (`eligibleReplacement`), whatever the position rule allows. A starter nobody can cover plays on, as a quick season
+ * without a bench always has him do.
  */
 export function fieldXI(formation: Formation, chosen: Lineup, bench: string[], isOut: (id: string) => boolean, get: (id: string) => PlayerSeason | undefined, canPlay: (p: PlayerSeason, position: Position) => boolean = () => true): { lineup: Lineup; covers: QuickCover[] } {
   const lineup: Lineup = { ...chosen }
@@ -33,7 +35,7 @@ export function fieldXI(formation: Formation, chosen: Lineup, bench: string[], i
     for (const id of bench) {
       if (used.has(id) || isOut(id)) continue
       const p = get(id)
-      if (!p || !canPlay(p, slot.position)) continue
+      if (!p || !eligibleReplacement(p, slot.position) || !canPlay(p, slot.position)) continue
       const r = ratingAt(p, slot.position)
       if (!best || r > best.r) best = { id, r }
     }

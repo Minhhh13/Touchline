@@ -64,7 +64,9 @@ function drafts(u: LoadedUniverse, n: number): unknown[] {
 const DAILY_BASELINE = '864bd1f65ca018e5dc3a7b668d391936d7207c3d395c2b34f40ad4501ff4bede'
 // The same 60 Daily settings, whole, on claude/touchline-preview at 7acd1ee (no classic code or data): captured there
 const DAILY_RELEASE_BASELINE = '29fb9e9075af40c6dc77cfb0b4be6d080e06c47386360e6f3de3dd913c503e96'
-const DRAFTS_BASELINE = 'c1e73264fda4f0fb39b3063747f964a47dcc80ec3f6bca5727a6447e37fc994d'
+// Re-baselined on ENGINE_VERSION '5' (the assistant's positional placement changes which slots fill, so later spins move);
+// the gate itself still holds: the same 200 drafts with and without classic data
+const DRAFTS_BASELINE = 'cd0e6496be77724aca23738d9dfa55d4999e1a88f239934a24573c94420b9bb1'
 
 describe('classic gate', () => {
   const base = universe(['england'], false)
