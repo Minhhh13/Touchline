@@ -89,7 +89,7 @@ describe('the verifier bundle', () => {
     for (const code of ['K7Q2MX9A3B', 'AAAAAAAAAB', 'ZZZZ2222YY']) {
       for (const f of ['4-3-3', '5-3-2']) expect(bundle.settingsHash(bundle.chaseGameSettings(u, code, 'england', f)!)).toBe(settingsHash(chaseGameSettings(u, code, 'england', f)!))
     }
-    const attempt: ChaseAttempt = { code: 'K7Q2MX9A3B', seed: 'chase-K7Q2MX9A3B', leagueId: 'england', formationId: '4-3-3', engineVersion: ENGINE_VERSION, dataVersion: u.generatedAt, createdAt: '2026-10-26T10:00:00Z', expiresAt: '2026-10-28T10:00:00Z', submittedAt: null }
+    const attempt: ChaseAttempt = { code: 'K7Q2MX9A3B', seed: 'chase-K7Q2MX9A3B', leagueId: 'england', formationId: '4-3-3', ratings: 'season', benchPicks: 0, engineVersion: ENGINE_VERSION, dataVersion: u.generatedAt, createdAt: '2026-10-26T10:00:00Z', expiresAt: '2026-10-28T10:00:00Z', submittedAt: null }
     const g = autoPlayed(u, chaseGameSettings(u, attempt.code, 'england', '4-3-3', 'Parity FC')!)
     const c = challengeFromGame(g, u, 'Parity')!
     const now = new Date('2026-10-26T12:00:00Z')

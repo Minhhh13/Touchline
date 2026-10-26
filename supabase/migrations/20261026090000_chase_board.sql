@@ -4,7 +4,7 @@
 -- A Quick Draft seed is the player's own choice, so a board of player-seeded seasons could be won by grinding
 -- seeds offline until the wheel deals a lucky one. The chase therefore ranks only seasons played on a wheel the
 -- server issued: the Edge Function's `chase.start` asks svc_chase_start for an attempt (a random 10-character code,
--- seed 'chase-<code>', the league and shape the player chose, the live engine and data), at most five attempts per
+-- seed 'chase-<code>', the league, shape, player ratings (season or prime) and bench (0 to 5) the player chose, the live engine and data), at most five attempts per
 -- account per UTC day, each open for 48 hours and posted at most once (`chase.submit`, replayed by the verifier,
 -- filed by svc_chase_submit). Abandoned attempts still count against the day, so a bad first spin costs a run.
 --
@@ -28,6 +28,9 @@ create table if not exists private.chase_attempts (
   code text not null unique check (code ~ '^[A-HJ-NP-Z2-9]{10}$'),
   league_id text not null check (league_id ~ '^[a-z][a-z0-9-]{1,30}$'),
   formation_id text not null check (formation_id ~ '^[0-9a-z-]{3,16}$'),
+  -- The two standard Quick Draft choices the player makes at issue: season or prime player ratings, and 0 to 5 bench places
+  ratings text not null default 'season' check (ratings in ('season', 'prime')),
+  bench_picks smallint not null default 0 check (bench_picks between 0 and 5),
   engine_version text not null check (char_length(engine_version) between 1 and 16),
   data_version text not null check (char_length(data_version) between 1 and 40),
   created_at timestamptz not null default now(),
@@ -126,6 +129,7 @@ stable
 set search_path = ''
 as $$
   select jsonb_build_object('code', a.code, 'seed', 'chase-' || a.code, 'leagueId', a.league_id, 'formationId', a.formation_id,
+    'ratings', a.ratings, 'benchPicks', a.bench_picks,
     'engineVersion', a.engine_version, 'dataVersion', a.data_version, 'createdAt', a.created_at, 'expiresAt', a.expires_at,
     'submittedAt', a.submitted_at)
 $$;
@@ -209,7 +213,7 @@ grant execute on function private.chase_scope_week(text, date) to service_role;
 
 -- ------------------------------------------------- service-only writers
 
-create or replace function public.svc_chase_start(p_user uuid, p_league text, p_formation text, p_engine text, p_data text)
+create or replace function public.svc_chase_start(p_user uuid, p_league text, p_formation text, p_engine text, p_data text, p_ratings text default 'season', p_bench integer default 0)
 returns jsonb
 language plpgsql
 security invoker
@@ -230,8 +234,8 @@ begin
     return jsonb_build_object('status', 'limit', 'cap', v_cap, 'left', 0, 'resetsAt', private.chase_day_start() + interval '1 day');
   end if;
   for i in 1 .. 8 loop
-    insert into private.chase_attempts (user_id, code, league_id, formation_id, engine_version, data_version, expires_at)
-    values (p_user, private.random_code(10), p_league, p_formation, p_engine, p_data, now() + interval '48 hours')
+    insert into private.chase_attempts (user_id, code, league_id, formation_id, ratings, bench_picks, engine_version, data_version, expires_at)
+    values (p_user, private.random_code(10), p_league, p_formation, coalesce(p_ratings, 'season'), coalesce(p_bench, 0), p_engine, p_data, now() + interval '48 hours')
     on conflict (code) do nothing
     returning * into v_row;
     if found then
@@ -242,8 +246,8 @@ begin
   raise exception 'could not allocate a chase code' using errcode = 'PT503';
 end;
 $$;
-revoke execute on function public.svc_chase_start(uuid, text, text, text, text) from public, anon, authenticated;
-grant execute on function public.svc_chase_start(uuid, text, text, text, text) to service_role;
+revoke execute on function public.svc_chase_start(uuid, text, text, text, text, text, integer) from public, anon, authenticated;
+grant execute on function public.svc_chase_start(uuid, text, text, text, text, text, integer) to service_role;
 
 -- The caller's own attempt by code (the verifier needs its league, shape, engine and data), or null.
 create or replace function public.svc_chase_attempt(p_user uuid, p_code text)
@@ -332,7 +336,7 @@ returns table (
   board_position bigint, entry_id bigint, display_name text, country text, team_name text, league_id text, games smallint,
   points smallint, won smallint, drawn smallint, lost smallint, goals_for smallint, goals_against smallint, goal_diff smallint,
   dropped smallint, perfect boolean, league_position smallint, tier text, data_version text, created_at timestamptz,
-  is_me boolean, payload text)
+  is_me boolean, payload text, ratings text, bench_picks smallint)
 language plpgsql
 stable
 security definer
@@ -346,8 +350,8 @@ declare
 begin
   return query
   with best as (
-    select distinct on (e.user_id) e.*
-    from private.chase_entries e
+    select distinct on (e.user_id) e.*, a.ratings, a.bench_picks
+    from private.chase_entries e join private.chase_attempts a on a.id = e.attempt_id
     where not e.hidden and (v_week is null or e.week_start = v_week) and (v_country is null or e.country = v_country)
     order by e.user_id, e.dropped, e.lost, e.goal_diff desc, e.goals_for desc, e.created_at, e.id
   ), ranked as (
@@ -356,7 +360,7 @@ begin
   )
   select k.pos, k.id, k.display_name, k.country, k.team_name, k.league_id, k.games, k.points, k.won, k.drawn, k.lost,
          k.goals_for, k.goals_against, k.goal_diff, k.dropped, k.perfect, k.league_position, k.tier, k.data_version,
-         k.created_at, k.user_id is not distinct from (select auth.uid()), k.payload
+         k.created_at, k.user_id is not distinct from (select auth.uid()), k.payload, k.ratings, k.bench_picks
   from ranked k
   order by k.pos
   limit least(greatest(coalesce(p_limit, 50), 1), 100)
@@ -371,7 +375,7 @@ returns table (
   board_position bigint, entry_id bigint, display_name text, country text, team_name text, league_id text, games smallint,
   points smallint, won smallint, drawn smallint, lost smallint, goals_for smallint, goals_against smallint, goal_diff smallint,
   dropped smallint, perfect boolean, league_position smallint, tier text, data_version text, created_at timestamptz,
-  is_me boolean, payload text)
+  is_me boolean, payload text, ratings text, bench_picks smallint)
 language sql
 stable
 security invoker

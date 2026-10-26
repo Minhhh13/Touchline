@@ -47,7 +47,7 @@ export interface ServerDb {
   pin(kind: BoardKind, date: string, settings: PuzzleSettings, hash: string, engine: string, data: string): Promise<StoredPin>
   submit(kind: BoardKind, userId: string, date: string, entry: RankedEntry): Promise<{ status: string } & Record<string, unknown>>
   /** `svc_chase_start`: `{ status: 'ok', attempt, left, cap, resetsAt }` or `{ status: 'limit', ... }`. */
-  chaseStart(userId: string, leagueId: string, formationId: string, engine: string, data: string): Promise<{ status: string; attempt?: ChaseAttempt } & Record<string, unknown>>
+  chaseStart(userId: string, leagueId: string, formationId: string, options: { ratings: 'season' | 'prime'; benchPicks: number }, engine: string, data: string): Promise<{ status: string; attempt?: ChaseAttempt } & Record<string, unknown>>
   /** `svc_chase_attempt`: the caller's own attempt by code, or null. */
   chaseAttempt(userId: string, code: string): Promise<ChaseAttempt | null>
   /** `svc_chase_submit`: `ranked` / `duplicate` / `already_submitted` with positions, or `closed` / `no_attempt`. */
@@ -348,7 +348,7 @@ export function createServer(deps: ServerDeps): Server {
    * Issue a 38-0 chase attempt: only on the live engine and the data the live site serves (a stale tab is told to
    * reload before an attempt is spent), with the data archived first so the run can be verified on it later.
    */
-  async function startChase(caller: Caller, req: { leagueId: string; formationId: string; engine: string; data: string }): Promise<Reply> {
+  async function startChase(caller: Caller, req: { leagueId: string; formationId: string; ratings: 'season' | 'prime'; benchPicks: number; engine: string; data: string }): Promise<Reply> {
     if (req.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `This device runs engine ${req.engine}; the chase runs on engine ${ENGINE_VERSION}: reload`, { liveEngine: ENGINE_VERSION })
     if (!CHASE_FORMATIONS.includes(req.formationId)) throw refuse(422, 'invalid_payload', `${req.formationId} is not a shape the game knows`)
     let live = await liveBuild()
@@ -359,7 +359,7 @@ export function createServer(deps: ServerDeps): Server {
     const reg = await ensurePacks(live.data)
     if (!reg) throw refuse(503, 'packs_unavailable', `Data ${live.data} could not be archived`)
     if (!reg.leagues.includes(req.leagueId)) throw refuse(422, 'invalid_payload', `Data ${live.data} has no ${req.leagueId} league`)
-    const result = await deps.db.chaseStart(caller.userId, req.leagueId, req.formationId, ENGINE_VERSION, live.data)
+    const result = await deps.db.chaseStart(caller.userId, req.leagueId, req.formationId, { ratings: req.ratings, benchPicks: req.benchPicks }, ENGINE_VERSION, live.data)
     if (result.status === 'limit') throw refuse(429, 'rate_limited', 'No chase runs left today: they come back at 00:00 UTC', { resetsAt: String(result.resetsAt ?? '') })
     if (result.status !== 'ok' || !result.attempt) throw refuse(503, 'unavailable', 'The attempt could not be issued')
     return { status: 200, body: result }

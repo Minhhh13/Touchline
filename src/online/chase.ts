@@ -3,23 +3,25 @@
  *
  * A Quick Draft seed is the player's own, so a board of player-seeded seasons would reward grinding seeds offline
  * until the wheel deals a lucky run. The chase therefore ranks only seasons played on a wheel the server issued: the
- * Edge Function's `chase.start` hands out an attempt (a random code, seed `chase-<code>`, the league and shape the
- * player picked), at most `CHASE_ATTEMPTS_PER_DAY` per account per UTC day, each open for `CHASE_ATTEMPT_HOURS` and
+ * Edge Function's `chase.start` hands out an attempt (a random code, seed `chase-<code>`, the league, shape, player
+ * ratings and bench the player picked), at most `CHASE_ATTEMPTS_PER_DAY` per account per UTC day, each open for `CHASE_ATTEMPT_HOURS` and
  * posted at most once. Everything else is fixed by `chaseGameSettings` below: the standard Quick Draft (normal
- * difficulty, one re-spin, ratings on, Squad First, season ratings, all-time wheel of the league played in, twists,
- * the plain manager pick, calibrated opposition, the January window), the real season and the side replaced chosen
+ * difficulty, one re-spin, ratings on, Squad First, the all-time wheel of the league played in, twists, the plain
+ * manager pick, calibrated opposition, the January window), with season or prime player ratings and a bench of 0 to
+ * 5 as the player chose at issue (both are standard Quick Draft choices the verifier replays exactly), the real season and the side replaced chosen
  * by the code's hash. Changing the mapping changes every open attempt under its player, so treat it like the Daily
  * mapping (CLAUDE.md invariant 4).
  *
  * The plain manager pick counts: it is part of every standard Quick Draft (`QUICK_RULES.managers`), it chooses among
  * the real managers of the clubs drafted, draws nothing and replays exactly (`x.m`). The manager spin does not (three
  * reels of chance on top of the wheel), nor do the modes, the Upgrader, power-ups, the Super League, the end case and
- * its Icon, classic seasons, the cap or the teammate chain.
+ * its Icon, classic seasons, the cap or the teammate chain. A January-window gamble (a spin or an Upgrader in the
+ * window) is non-standard until the verifier replays it: whoever adds it adds its refusal to `nonStandardRun`.
  */
 import { hashString } from '@engine/rng'
 import { encodeChallenge } from '@engine/challenge'
 import { FORMATIONS } from '@engine/formations'
-import type { DraftRules } from '@engine/draft'
+import { benchPlaces, QUICK_BENCH_MAX, type DraftRules, type RatingsMode } from '@engine/draft'
 import type { LoadedUniverse } from '@engine/universe'
 import type { Game, GameSettings } from '@game/types'
 import { defaultHostClub, shortNameFor } from '@game/logic/setup'
@@ -74,6 +76,30 @@ export const CHASE_RULES: DraftRules = {
   chain: undefined,
 }
 
+/** The player ratings a chase run may use: a season's own, or every player at his career best (Prime). */
+export const CHASE_RATINGS: readonly RatingsMode[] = ['season', 'prime']
+
+/** The two standard Quick Draft choices a chase attempt fixes at issue besides the league and shape. */
+export interface ChaseOptions {
+  ratings?: RatingsMode
+  /** Bench places, 0 to 5 (`QUICK_BENCH_MAX`). */
+  benchPicks?: number
+}
+
+/** What the start card offers first: Setup's Quick Draft defaults (Prime ratings, a bench of 1). The board ranks either. */
+export const CHASE_DEFAULT_OPTIONS: Required<ChaseOptions> = { ratings: 'prime', benchPicks: 1 }
+
+/** Whether options are ones a chase attempt may carry. */
+export function validChaseOptions(o: ChaseOptions): boolean {
+  const b = o.benchPicks ?? 0
+  return CHASE_RATINGS.includes(o.ratings ?? 'season') && Number.isInteger(b) && b >= 0 && b <= QUICK_BENCH_MAX
+}
+
+/** The options a game's own settings played with (for checking a finished run against its attempt). */
+export function chaseOptionsOf(settings: Pick<GameSettings, 'rules'>): Required<ChaseOptions> {
+  return { ratings: settings.rules.ratings === 'prime' ? 'prime' : 'season', benchPicks: benchPlaces(settings.rules) }
+}
+
 /** The season options of a chase run: the January window on (Quick Draft's default), no Continental Cup run. */
 export const CHASE_SEASON = { january: true, continental: false } as const
 
@@ -101,8 +127,9 @@ export function chaseLeagues(u: Pick<LoadedUniverse, 'clubSeasons'>): string[] {
  * (mid-table, `defaultHostClub`). Null when the code or shape is not one, or this universe has no complete season of
  * that league loaded. Pure: the same attempt and data give the same settings on every device and on the server.
  */
-export function chaseGameSettings(u: LoadedUniverse, code: string, leagueId: string, formationId: string, teamName = 'Touchline XI'): GameSettings | null {
-  if (!CHASE_CODE_RE.test(code) || !CHASE_FORMATIONS.includes(formationId)) return null
+export function chaseGameSettings(u: LoadedUniverse, code: string, leagueId: string, formationId: string, teamName = 'Touchline XI', options: ChaseOptions = {}): GameSettings | null {
+  if (!CHASE_CODE_RE.test(code) || !CHASE_FORMATIONS.includes(formationId) || !validChaseOptions(options)) return null
+  const bench = options.benchPicks ?? 0
   const seed = chaseSeed(code)
   const n = hashString(seed)
   const complete = u.clubSeasons.filter((cs) => cs.complete && cs.leagueId === leagueId && !cs.classic)
@@ -123,7 +150,7 @@ export function chaseGameSettings(u: LoadedUniverse, code: string, leagueId: str
     wheelLeagues: [leagueId],
     hostClubId: host,
     leagueSeason: season,
-    rules: { ...CHASE_RULES, leagues: [leagueId] },
+    rules: { ...CHASE_RULES, ratings: options.ratings ?? 'season', ...(bench ? { benchPicks: bench } : {}), leagues: [leagueId] },
     jobSecurity: false,
     difficulty: 'calibrated',
     continental: CHASE_SEASON.continental,
@@ -149,7 +176,7 @@ export function chaseUnrankedReason(game: Game, u: LoadedUniverse): string | nul
   const code = chaseCodeOfSeed(s.seed)
   if (s.mode !== 'quick' || s.challenge || !code) return NOT_A_CHASE_RUN
   if (chaseNonStandardRule(s)) return 'This run used rules outside the standard Quick Draft'
-  const expected = chaseGameSettings(u, code, s.leagueId, s.formationId, s.teamName)
+  const expected = chaseGameSettings(u, code, s.leagueId, s.formationId, s.teamName, chaseOptionsOf(s))
   if (!expected || settingsHash(expected) !== settingsHash(s)) return "This run's settings are not its chase attempt's"
   if (game.draft?.locker?.length) return 'Power-ups from the locker are not part of the chase'
   if (game.endCase?.sub) return "The case's Icon is not part of the chase"

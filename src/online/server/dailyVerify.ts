@@ -5,7 +5,7 @@
  * compared (`claimMatched`). Pure and DOM-free: the Edge Function runs it from the verifier bundle, the tests run it
  * on real packs. The engine is untouched: this only drives its primitives the way the store does.
  */
-import { autoDraft, canSpin, isComplete, picksMade, pick, spin, type DraftState } from '@engine/draft'
+import { autoDraft, benchPlaces, canCloseBench, canSpin, isComplete, picksMade, pick, spin, type DraftState } from '@engine/draft'
 import { decodeChallenge, encodeChallenge, historyKey, isArenaPayload, rulesDiff, sameClaim, type ChallengePayload, type ChallengeSeason, type QuickChallengePayload } from '@engine/challenge'
 import { dailyDateOf, Rng } from '@engine/rng'
 import type { SeasonTier } from '@engine/types'
@@ -97,17 +97,24 @@ export type Verdict = { ok: true; key: string; entry: RankedEntry } | { ok: fals
 
 const fail = (status: 409 | 422, code: VerifyCode, reason: string, context?: Record<string, string>): Verdict => ({ ok: false, status, code, reason, ...(context ? { context } : {}) })
 
-/** The most rows an honest draft can have: one per pick, one per re-spin, and one discarded spin before Auto-complete. */
+/**
+ * The most rows an honest draft can have: one per pick (the XI and any Quick Draft bench places), one per re-spin,
+ * and one discarded spin before Auto-complete or closing the bench. Without a bench (the Daily, the weekly) this is
+ * squad size + re-spins + 1, as it always was.
+ */
 export function maxDraftRows(d: DraftState): number {
-  return d.rules.squadSize + d.rules.respins + 1
+  return d.rules.squadSize + benchPlaces(d.rules) + d.rules.respins + 1
 }
 
 /**
  * Replay a posted draft on `game` (fresh from the pin's settings) without the leniency of `replayDraft`, which
  * treats any null row as a free re-spin. Every row costs one `spin`. A null row is a re-spin while re-spins are
  * left; with none left it can only be the spin the assistant discarded on Auto-complete (the store logs it as
- * `skipped`), after which every remaining row must be exactly what the assistant drafts. A pick row must name a
- * player of the club-season the wheel landed on, in a slot `pick` accepts. Throws with the spin number.
+ * `skipped`), after which every remaining row must be exactly what the assistant drafts, or, as the last row of a
+ * Quick Draft with a bench whose XI is full, the spin showing when the manager closed the bench. A draft with bench
+ * places to spare at the end was closed (`closeBench`). A pick row must name a player of the club-season the wheel
+ * landed on, in a slot `pick` accepts. Throws with the spin number. The bench rules only apply when the rules give
+ * bench places, which the Daily and weekly never do.
  */
 export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePayload): void {
   let d = game.draft
@@ -131,6 +138,13 @@ export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePay
         d.history.push(row)
         continue
       }
+      // No re-spin left, last row, the XI full and bench places to spare: the manager closed the bench with this
+      // spin showing (`closeBench` logs it as skipped; no RNG)
+      if (i === c.p.length - 1 && canCloseBench(d)) {
+        d.history.push({ ...row, skipped: true })
+        d.benchClosed = true
+        break
+      }
       // No re-spin left: the assistant's Auto-complete discarding this spin, then drafting the rest itself
       d.history.push({ ...row, skipped: true })
       const assisted: DraftState = structuredClone(d)
@@ -152,6 +166,8 @@ export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePay
       throw new Error(`Spin ${n}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
+  // A Quick Draft bench may be closed once the XI is full, with bench places to spare (never on the Daily or weekly)
+  if (canCloseBench(d)) d.benchClosed = true
   if (!isComplete(d) && !(picksMade(d) >= 11 && !canSpin(u, d))) throw new Error(`The draft stopped after ${picksMade(d)} picks`)
   if (d.spins !== c.p.length || d.history.length !== c.p.length) throw new Error('The spins do not add up')
   if (historyKey(d.history) !== c.k) throw new Error('The wheel did not land on the same club-seasons')

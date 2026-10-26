@@ -69,9 +69,9 @@ const deps = {
       entries.set(k, entry)
       return { status: 'ranked', position: 1, total: 1 }
     },
-    chaseStart: async (uid, leagueId, formationId, engine, data) => {
+    chaseStart: async (uid, leagueId, formationId, options, engine, data) => {
       const code = 'CHECKRUN' + String(attempts.size + 2).padStart(2, '2')
-      const attempt = { code, seed: `chase-${code}`, leagueId, formationId, engineVersion: engine, dataVersion: data, createdAt: NOW.toISOString(), expiresAt: new Date(NOW.getTime() + 48 * 3600000).toISOString(), submittedAt: null }
+      const attempt = { code, seed: `chase-${code}`, leagueId, formationId, ratings: options.ratings, benchPicks: options.benchPicks, engineVersion: engine, dataVersion: data, createdAt: NOW.toISOString(), expiresAt: new Date(NOW.getTime() + 48 * 3600000).toISOString(), submittedAt: null }
       attempts.set(code, { ...attempt, uid })
       return { status: 'ok', left: 4, cap: 5, attempt }
     },
@@ -145,9 +145,9 @@ expect(pin.body.pin.settingsHash === V.settingsHash(V.dailyGameSettings(u, `dail
 const dailyPts = await rankedRun('daily', V.dailyGameSettings(u, `daily-${day}`, 'Check FC'), day)
 const weeklyPts = await rankedRun('weekly', V.weeklyGameSettings(u, week, 'Check FC'), week)
 // The 38-0 chase: an attempt issued on the live data, a run on its wheel ranked on the replay, another account refused
-const start = await call({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: V.ENGINE_VERSION, data: index.generatedAt })
+const start = await call({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', ratings: 'prime', benchPicks: 1, engine: V.ENGINE_VERSION, data: index.generatedAt })
 expect(start.status === 200 && start.body.attempt, `chase.start answered ${start.status} ${JSON.stringify(start.body)}`)
-const chaseSettings = V.chaseGameSettings(u, start.body.attempt.code, 'england', '4-3-3', 'Check FC')
+const chaseSettings = V.chaseGameSettings(u, start.body.attempt.code, 'england', '4-3-3', 'Check FC', { ratings: 'prime', benchPicks: 1 })
 expect(chaseSettings && chaseSettings.seed === start.body.attempt.seed, 'the chase mapping gave no settings for the issued attempt')
 const chaseGame = autoPlayed(chaseSettings)
 const chaseBody = { op: 'chase.submit', encoded: V.encodeChallenge(V.challengeFromGame(chaseGame, u, 'Check')), teamName: chaseGame.settings.teamName, shortName: chaseGame.settings.shortName }

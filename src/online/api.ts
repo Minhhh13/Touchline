@@ -19,7 +19,7 @@ import { checkDisplayName, nameVerdictFrom, sendEmailCode, signInWithGoogle, ver
 import { normaliseCountry } from './core/country'
 import { googleEnabledIn, googleForced } from './core/providers'
 import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchChaseBoard, fetchChaseStatus, fetchChaseSummary, fetchSummary, myEntries, rankOf, type AlltimeOrder, type ChaseScope, type RankedKind } from './boards'
-import { chaseGameSettings, chaseLeagues, chaseUnrankedReason } from './chase'
+import { chaseGameSettings, chaseLeagues, chaseUnrankedReason, type ChaseOptions } from './chase'
 import { updateRecord } from './localState'
 import { captureChaseEntry, enqueue } from './outbox'
 import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
@@ -247,7 +247,7 @@ const replyReason = (body: Record<string, unknown>, status: number) => (typeof b
  * Start a 38-0 chase run: the league's data first (so a failed load never spends an attempt), then `chase.start` for
  * a server-issued wheel, then the Quick Draft on exactly the attempt's settings (`chaseGameSettings`).
  */
-export async function startChaseRun(leagueId: string, formationId: string, teamName: string): Promise<ChaseStart> {
+export async function startChaseRun(leagueId: string, formationId: string, options: Required<ChaseOptions>, teamName: string): Promise<ChaseStart> {
   const r = await rt()
   if (!r) return { ok: false, message: 'Online features are not available in this build.' }
   await r.ready
@@ -257,7 +257,7 @@ export async function startChaseRun(leagueId: string, formationId: string, teamN
   if (!u || !chaseLeagues(u).includes(leagueId)) return { ok: false, message: 'That league has no complete season to play.' }
   let reply: { status: number; body: Record<string, unknown> }
   try {
-    reply = await r.transport.invoke({ op: 'chase.start', leagueId, formationId, engine: ENGINE_VERSION, data: u.generatedAt })
+    reply = await r.transport.invoke({ op: 'chase.start', leagueId, formationId, ratings: options.ratings, benchPicks: options.benchPicks, engine: ENGINE_VERSION, data: u.generatedAt })
   } catch {
     return { ok: false, message: 'No connection: a chase run needs the server to issue its wheel.' }
   }
@@ -265,7 +265,7 @@ export async function startChaseRun(leagueId: string, formationId: string, teamN
   if (reply.status !== 200) return { ok: false, message: replyReason(reply.body, reply.status) }
   const attempt = (reply.body.attempt ?? {}) as Record<string, unknown>
   const code = typeof attempt.code === 'string' ? attempt.code : null
-  const settings = code ? chaseGameSettings(u, code, leagueId, formationId, teamName) : null
+  const settings = code ? chaseGameSettings(u, code, leagueId, formationId, teamName, options) : null
   if (!settings) return { ok: false, message: 'The server issued a wheel this build cannot play: reload the page.' }
   useStore.getState().startGame(settings)
   return { ok: true, left: typeof reply.body.left === 'number' ? reply.body.left : 0 }

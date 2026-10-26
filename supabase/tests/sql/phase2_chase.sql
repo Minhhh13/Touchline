@@ -15,6 +15,7 @@ grant select, insert on chase_codes to anon, authenticated, service_role;
 do $t$ begin
   perform test.act('authenticated', '22222222-2222-4222-8222-222222222222');
   assert test.try($$select public.svc_chase_start('22222222-2222-4222-8222-222222222222', 'england', '4-3-3', '4', '2026-10-25')$$) like '42501%', 'client starts an attempt';
+  assert test.try($$select public.svc_chase_start('22222222-2222-4222-8222-222222222222', 'england', '4-3-3', '4', '2026-10-25', 'prime', 1)$$) like '42501%', 'client starts an attempt with options';
   assert test.try($$select public.svc_chase_attempt('22222222-2222-4222-8222-222222222222', 'AAAAAAAAAA')$$) like '42501%', 'client reads an attempt';
   assert test.try($$select public.svc_chase_submit('22222222-2222-4222-8222-222222222222', 'AAAAAAAAAA', '{}')$$) like '42501%', 'client posts a run';
   assert test.try($$select * from private.chase_attempts$$) like '42501%', 'client reads attempts';
@@ -48,11 +49,15 @@ do $t$ declare r jsonb; begin
   assert (select count(*) from private.chase_attempts where user_id = '22222222-2222-4222-8222-222222222222') = 5, 'the refused start wrote nothing';
   -- yesterday's attempts do not count against today
   update private.chase_attempts set created_at = created_at - interval '1 day', expires_at = expires_at - interval '1 day' where code = (select code from chase_codes where who = 'bob5');
-  r := public.svc_chase_start('22222222-2222-4222-8222-222222222222', 'germany', '4-4-2', '4', '2026-10-25');
+  r := public.svc_chase_start('22222222-2222-4222-8222-222222222222', 'germany', '4-4-2', '4', '2026-10-25', 'prime', 1);
   assert r->>'status' = 'ok' and (r->>'left')::int = 0 and r->'attempt'->>'leagueId' = 'germany', 'an attempt from yesterday frees a place ' || r;
+  assert r->'attempt'->>'ratings' = 'prime' and (r->'attempt'->>'benchPicks')::int = 1, 'the ratings and bench chosen at issue are kept ' || r;
+  assert (select ratings = 'season' and bench_picks = 0 from private.chase_attempts where code = (select code from chase_codes where who = 'bob1')), 'season ratings and no bench by default';
   insert into chase_codes values ('bob6', r->'attempt'->>'code');
   assert test.try($$select public.svc_chase_start('33333333-3333-4333-8333-333333333333', 'England!', '4-3-3', '4', 'd')$$) like '23514%', 'league id shape';
   assert test.try($$select public.svc_chase_start('33333333-3333-4333-8333-333333333333', 'england', '4 3 3', '4', 'd')$$) like '23514%', 'formation id shape';
+  assert test.try($$select public.svc_chase_start('33333333-3333-4333-8333-333333333333', 'england', '4-3-3', '4', 'd', 'blind', 0)$$) like '23514%', 'ratings are season or prime';
+  assert test.try($$select public.svc_chase_start('33333333-3333-4333-8333-333333333333', 'england', '4-3-3', '4', 'd', 'prime', 6)$$) like '23514%', 'a bench is 0 to 5';
   r := public.svc_chase_start('33333333-3333-4333-8333-333333333333', 'england', '4-3-3', '4', '2026-10-25');
   insert into chase_codes values ('carol1', r->'attempt'->>'code');
   r := public.svc_chase_start('55555555-5555-4555-8555-555555555555', 'england', '4-2-3-1', '4', '2026-10-25');
@@ -114,7 +119,7 @@ do $t$ begin
   assert (select string_agg(left(display_name, 7) || ':' || points || ':' || dropped, ',' order by board_position) from public.chase_board('alltime'))
        = 'Manager:114:0,Dana:100:2,Bob the:100:14', 'all-time order ' || (select string_agg(display_name || ':' || points, ',' order by board_position) from public.chase_board('alltime'));
   assert (select count(*) from public.chase_board('alltime') where display_name = 'Bob the Builder') = 1, 'one row per account';
-  assert (select perfect and games = 38 and won = 38 from public.chase_board('alltime') where board_position = 1), 'the flawless season is flagged';
+  assert (select perfect and games = 38 and won = 38 and ratings = 'season' and bench_picks = 0 from public.chase_board('alltime') where board_position = 1), 'the flawless season is flagged, with its ratings and bench';
   assert (select bool_and(payload is not null and not is_me) from public.chase_board('alltime')), 'payloads are public (personal, single-use seeds); nobody is "me" signed out';
   assert (select display_name from public.chase_board('alltime', null, 50, 0, 'GB')) = 'Bob the Builder', 'GB board';
   assert (select count(*) from public.chase_board('alltime', null, 50, 0, 'FR')) = 0, 'an empty country';

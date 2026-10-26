@@ -9,7 +9,7 @@ import { PAGE } from '../../online/boards'
 import { countryFlag } from '../../online/core/country'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
 import { weeklyStartSettings } from '../../online/daily'
-import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
+import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
 import { Segmented } from '../components/bits'
 import { ordinal, seasonLabel } from '../format'
@@ -367,7 +367,10 @@ function ChaseTable({ scope, country, week }: { scope: ChaseScope; country: stri
                     {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>You</span>}
                   </td>
                   <td>{r.team}</td>
-                  <td className="small">{league(r.leagueId)}</td>
+                  <td className="small" title={`${r.ratings === 'prime' ? 'Prime' : 'Season'} ratings · ${r.benchPicks ? `bench of ${r.benchPicks}` : 'no bench'}`}>
+                    {league(r.leagueId)}
+                    {r.ratings === 'prime' ? ' · Prime' : ''}
+                  </td>
                   <td className="num" style={{ fontWeight: 700 }} title={r.dropped ? `${r.dropped} short of ${r.games * 3}` : 'Every point'}>
                     {r.points}
                   </td>
@@ -416,6 +419,8 @@ function ChasePlay() {
   const session = useOnline((s) => s.session)
   const [league, setLeague] = useState('england')
   const [formation, setFormation] = useState('4-3-3')
+  const [ratings, setRatings] = useState<'season' | 'prime'>(CHASE_DEFAULT_OPTIONS.ratings)
+  const [bench, setBench] = useState(CHASE_DEFAULT_OPTIONS.benchPicks)
   const [status, setStatus] = useState<ChaseStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -435,7 +440,7 @@ function ChasePlay() {
     if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start a 38-0 chase run? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
     setBusy(true)
     setMessage(null)
-    const r = await api.startChaseRun(league, formation, profile.managerName.trim() || 'Touchline XI')
+    const r = await api.startChaseRun(league, formation, { ratings, benchPicks: bench }, profile.managerName.trim() || 'Touchline XI')
     setBusy(false)
     if (!r.ok) {
       setMessage(r.message)
@@ -446,7 +451,7 @@ function ChasePlay() {
     <div className="col world-weekly" data-testid="chase-card">
       <div>
         <b>Chase 38-0</b>
-        <div className="small muted">A standard Quick Draft on a wheel the server deals you: win every league game. {CHASE_ATTEMPTS_PER_DAY} runs a day, each open for {CHASE_ATTEMPT_HOURS} hours, one post each.</div>
+        <div className="small muted">A standard Quick Draft (Season or Prime ratings, a bench of up to 5) on a wheel the server deals you: win every league game. {CHASE_ATTEMPTS_PER_DAY} runs a day, each open for {CHASE_ATTEMPT_HOURS} hours, one post each.</div>
       </div>
       {!underWay && (
         <div className="row wrap chase-pick">
@@ -466,6 +471,23 @@ function ChasePlay() {
               {CHASE_FORMATIONS.map((f) => (
                 <option key={f} value={f}>
                   {f}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Ratings
+            <select className="input" value={ratings} onChange={(e) => setRatings(e.target.value === 'season' ? 'season' : 'prime')} data-testid="chase-ratings">
+              <option value="prime">Prime</option>
+              <option value="season">Season</option>
+            </select>
+          </label>
+          <label className="field">
+            Bench
+            <select className="input" value={bench} onChange={(e) => setBench(Number(e.target.value))} data-testid="chase-bench">
+              {[0, 1, 2, 3, 4, 5].map((b) => (
+                <option key={b} value={b}>
+                  {b ? `${b} place${b === 1 ? '' : 's'}` : 'None'}
                 </option>
               ))}
             </select>

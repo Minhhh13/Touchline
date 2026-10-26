@@ -62,6 +62,8 @@ export function attemptFromJson(j: unknown): ChaseAttempt | null {
     seed: String(r.seed),
     leagueId: r.leagueId,
     formationId: r.formationId,
+    ratings: r.ratings === 'prime' ? 'prime' : 'season',
+    benchPicks: typeof r.benchPicks === 'number' ? r.benchPicks : 0,
     engineVersion: String(r.engineVersion),
     dataVersion: String(r.dataVersion),
     createdAt: String(r.createdAt),
@@ -148,8 +150,8 @@ function makeDeps(admin: SupabaseClient, site: string): ServerDeps {
       },
       submit: async (kind, userId, date, entry) =>
         (await rpc(admin, kind === 'daily' ? 'svc_daily_submit' : 'svc_weekly_submit', { p_user: userId, [kind === 'daily' ? 'p_date' : 'p_week']: date, p_entry: entry as unknown as Json })) as { status: string } & Json,
-      chaseStart: async (userId, leagueId, formationId, engine, data) => {
-        const r = ((await rpc(admin, 'svc_chase_start', { p_user: userId, p_league: leagueId, p_formation: formationId, p_engine: engine, p_data: data })) ?? {}) as Json
+      chaseStart: async (userId, leagueId, formationId, options, engine, data) => {
+        const r = ((await rpc(admin, 'svc_chase_start', { p_user: userId, p_league: leagueId, p_formation: formationId, p_engine: engine, p_data: data, p_ratings: options.ratings, p_bench: options.benchPicks })) ?? {}) as Json
         const attempt = attemptFromJson(r.attempt)
         return { ...r, status: String(r.status ?? ''), ...(attempt ? { attempt } : {}) }
       },

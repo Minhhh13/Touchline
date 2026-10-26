@@ -16,6 +16,9 @@ export interface ChaseAttempt {
   seed: string
   leagueId: string
   formationId: string
+  /** Season or prime player ratings, and bench places (0 to 5), as chosen at issue. */
+  ratings: 'season' | 'prime'
+  benchPicks: number
   engineVersion: string
   dataVersion: string
   createdAt: string
@@ -47,7 +50,7 @@ export function verifyChase(u: LoadedUniverse, attempt: ChaseAttempt, body: Rank
   if (c.engine !== ENGINE_VERSION || attempt.engineVersion !== ENGINE_VERSION) return { ok: false, status: 409, code: 'engine_mismatch', reason: `Played on engine ${c.engine}; the chase attempt runs on engine ${attempt.engineVersion}`, context: { pinnedEngine: attempt.engineVersion } }
   if (c.data !== attempt.dataVersion && !dataAllowed(c.data)) return { ok: false, status: 409, code: 'data_mismatch', reason: `Played on data from ${c.data}; the chase attempt uses ${attempt.dataVersion}`, context: { pinnedData: attempt.dataVersion } }
   if (u.generatedAt !== c.data) return { ok: false, status: 409, code: 'data_mismatch', reason: `The verifier holds data from ${u.generatedAt}, not ${c.data}`, context: { pinnedData: attempt.dataVersion } }
-  const settings = chaseGameSettings(u, code, attempt.leagueId, attempt.formationId)
+  const settings = chaseGameSettings(u, code, attempt.leagueId, attempt.formationId, 'Touchline XI', { ratings: attempt.ratings, benchPicks: attempt.benchPicks })
   if (!settings) return { ok: false, status: 409, code: 'puzzle_mismatch', reason: `This data has no complete ${attempt.leagueId} season` }
   return replayVerdict(u, puzzleOf(settings), c, team, short, code)
 }

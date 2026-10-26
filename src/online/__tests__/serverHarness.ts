@@ -132,12 +132,12 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
         const position = 1 + board.filter(([, e]) => e.entry.points > mine.entry.points).length
         return { status, entryId: mine.id, position, total: board.length, entry: { points: mine.entry.points } }
       },
-      chaseStart: async (uid, leagueId, formationId, engine, data) => {
+      chaseStart: async (uid, leagueId, formationId, options, engine, data) => {
         const today = h.clock.now.toISOString().slice(0, 10)
         const used = [...h.attempts.values()].filter((a) => a.userId === uid && dayOf(a.createdAt) === today).length
         if (used >= CHASE_ATTEMPTS_PER_DAY) return { status: 'limit', cap: CHASE_ATTEMPTS_PER_DAY, left: 0, resetsAt: `${today}T24:00:00Z` }
         const code = codeOf(++nextCode)
-        const attempt: ChaseAttempt = { code, seed: `chase-${code}`, leagueId, formationId, engineVersion: engine, dataVersion: data, createdAt: h.clock.now.toISOString(), expiresAt: new Date(h.clock.now.getTime() + CHASE_ATTEMPT_HOURS * 3600000).toISOString(), submittedAt: null }
+        const attempt: ChaseAttempt = { code, seed: `chase-${code}`, leagueId, formationId, ratings: options.ratings, benchPicks: options.benchPicks, engineVersion: engine, dataVersion: data, createdAt: h.clock.now.toISOString(), expiresAt: new Date(h.clock.now.getTime() + CHASE_ATTEMPT_HOURS * 3600000).toISOString(), submittedAt: null }
         h.attempts.set(code, { ...attempt, userId: uid })
         return { status: 'ok', cap: CHASE_ATTEMPTS_PER_DAY, left: CHASE_ATTEMPTS_PER_DAY - used - 1, attempt }
       },

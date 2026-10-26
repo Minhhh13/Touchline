@@ -24,7 +24,7 @@ export type ServerRequest =
   | { op: 'daily.pin'; date?: string }
   | { op: 'weekly.pin'; week?: string }
   | { op: 'daily.submit' | 'weekly.submit' | 'chase.submit'; encoded: string; teamName: string; shortName: string }
-  | { op: 'chase.start'; leagueId: string; formationId: string; engine: string; data: string }
+  | { op: 'chase.start'; leagueId: string; formationId: string; ratings: 'season' | 'prime'; benchPicks: number; engine: string; data: string }
   | { op: 'account.delete'; confirm: typeof DELETE_CONFIRMATION }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string }
@@ -38,7 +38,7 @@ const ALLOWED: Record<Op, readonly string[]> = {
   'weekly.pin': ['week'],
   'daily.submit': ['encoded', 'teamName', 'shortName'],
   'weekly.submit': ['encoded', 'teamName', 'shortName'],
-  'chase.start': ['leagueId', 'formationId', 'engine', 'data'],
+  'chase.start': ['leagueId', 'formationId', 'ratings', 'benchPicks', 'engine', 'data'],
   'chase.submit': ['encoded', 'teamName', 'shortName'],
   'account.delete': ['confirm'],
 }
@@ -84,12 +84,14 @@ export function parseRequest(text: string): Parsed<ServerRequest> {
       return { ok: true, value: { op: 'weekly.pin', week: raw.week } }
     }
     case 'chase.start': {
-      const { leagueId, formationId, engine, data } = raw
+      const { leagueId, formationId, ratings = 'season', benchPicks = 0, engine, data } = raw
       if (typeof leagueId !== 'string' || !LEAGUE_RE.test(leagueId)) return bad('leagueId is a league id such as england')
       if (typeof formationId !== 'string' || !FORMATION_RE.test(formationId)) return bad('formationId is a shape such as 4-3-3')
       if (typeof engine !== 'string' || !ENGINE_RE.test(engine)) return bad('engine is the engine version the client runs')
       if (typeof data !== 'string' || !STAMP_RE.test(data)) return bad('data is the data stamp the client runs')
-      return { ok: true, value: { op: 'chase.start', leagueId, formationId, engine, data } }
+      if (ratings !== 'season' && ratings !== 'prime') return bad('ratings is season or prime')
+      if (typeof benchPicks !== 'number' || !Number.isInteger(benchPicks) || benchPicks < 0 || benchPicks > 5) return bad('benchPicks is 0 to 5')
+      return { ok: true, value: { op: 'chase.start', leagueId, formationId, ratings, benchPicks, engine, data } }
     }
     case 'daily.submit':
     case 'weekly.submit':

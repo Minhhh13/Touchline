@@ -199,6 +199,9 @@ export interface ChaseRow {
   isMe: boolean
   /** The ghost-draft payload ("Race this run": a challenge, never ranked). */
   payload: string | null
+  /** The attempt's player ratings and bench places. */
+  ratings: 'season' | 'prime'
+  benchPicks: number
 }
 
 /** The season closest to perfect ever posted (with the board's country filter). */
@@ -258,6 +261,8 @@ export function chaseRowFrom(r: Row): ChaseRow {
     createdAt: s(r.created_at),
     isMe: r.is_me === true,
     payload: typeof r.payload === 'string' && r.payload ? r.payload : null,
+    ratings: r.ratings === 'prime' ? 'prime' : 'season',
+    benchPicks: n(r.bench_picks),
   }
 }
 

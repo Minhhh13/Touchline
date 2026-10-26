@@ -11,8 +11,8 @@ import { quickManagerOptions, setManager } from '@game/logic/managers'
 import { createGame } from '@game/logic/setup'
 import { runQuickSeason } from '@game/logic/quick'
 import { Rng } from '@engine/rng'
-import { autoDraft } from '@engine/draft'
-import { CHASE_FORMATIONS, CHASE_NON_STANDARD_RULES, CHASE_RULES, NOT_A_CHASE_RUN, buildChaseSubmission, chaseCodeOfSeed, chaseGameSettings, chaseLeagues, chaseNonStandardRule, chaseUnrankedReason, isChaseGame } from '../chase'
+import { assistantTurn, autoDraft, canCloseBench, closeBench, spin } from '@engine/draft'
+import { CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, type ChaseOptions, CHASE_NON_STANDARD_RULES, CHASE_RULES, NOT_A_CHASE_RUN, buildChaseSubmission, chaseCodeOfSeed, chaseGameSettings, chaseLeagues, chaseNonStandardRule, chaseUnrankedReason, isChaseGame } from '../chase'
 import { NON_STANDARD_RULES } from '../daily'
 import { settingsHash } from '../server/dailyVerify'
 import { verifyChase, type ChaseAttempt } from '../server/chaseVerify'
@@ -22,7 +22,7 @@ import { parseRequest } from '../server/validate'
 
 const u = loadTestUniverse()
 const CODES = ['K7Q2MX9A3B', 'AAAAAAAAAB', 'ZZZZ2222YY', 'HJKLMNPQRS', '23456789AB', 'QWERTYUPAS']
-const attemptFor = (code: string, leagueId = 'england', formationId = '4-3-3'): ChaseAttempt => ({ code, seed: `chase-${code}`, leagueId, formationId, engineVersion: ENGINE_VERSION, dataVersion: u.generatedAt, createdAt: '2026-10-26T10:00:00Z', expiresAt: '2026-10-28T10:00:00Z', submittedAt: null })
+const attemptFor = (code: string, leagueId = 'england', formationId = '4-3-3', options: ChaseOptions = {}): ChaseAttempt => ({ code, seed: `chase-${code}`, leagueId, formationId, ratings: options.ratings ?? 'season', benchPicks: options.benchPicks ?? 0, engineVersion: ENGINE_VERSION, dataVersion: u.generatedAt, createdAt: '2026-10-26T10:00:00Z', expiresAt: '2026-10-28T10:00:00Z', submittedAt: null })
 const NOW = new Date('2026-10-26T12:00:00Z')
 
 describe('the chase seed and its mapping', () => {
@@ -129,6 +129,51 @@ describe('verifyChase', () => {
     expect(v.entry).toMatchObject({ points: q.points, won: q.won, drawn: q.drawn, lost: q.lost, goals_for: q.goalsFor, goals_against: q.goalsAgainst, claim_matched: true })
   }, 60_000)
 
+  const playWith = (code: string, options: ChaseOptions, draft?: (g: ReturnType<typeof createGame>, rng: Rng) => void) => {
+    const g = createGame(chaseGameSettings(u, code, 'england', '4-3-3', 'Chase FC', options)!)
+    const rng = Rng.fromState(g.rngState)
+    if (draft) draft(g, rng)
+    else autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    runQuickSeason(g, u)
+    return g
+  }
+
+  it('ranks Prime ratings and a bench (Setup\'s defaults), and refuses a run whose ratings or bench differ from its attempt', () => {
+    expect(CHASE_DEFAULT_OPTIONS).toEqual({ ratings: 'prime', benchPicks: 1 })
+    for (const options of [CHASE_DEFAULT_OPTIONS, { ratings: 'season' as const, benchPicks: 5 }, { ratings: 'prime' as const, benchPicks: 0 }]) {
+      const g = playWith(CODES[5], options)
+      expect(g.settings.rules.ratings).toBe(options.ratings)
+      expect(g.draft!.bench.length).toBe(options.benchPicks)
+      expect(chaseUnrankedReason(g, u)).toBeNull()
+      const v = verifyChase(u, attemptFor(CODES[5], 'england', '4-3-3', options), body(g), NOW, () => false)
+      expect(v.ok, JSON.stringify(v)).toBe(true)
+      if (v.ok) expect(v.entry).toMatchObject({ points: g.quickResult!.points, won: g.quickResult!.won, claim_matched: true })
+      // The same run against an attempt issued with other options is another puzzle
+      expect(verifyChase(u, attemptFor(CODES[5], 'england', '4-3-3', { ratings: options.ratings === 'prime' ? 'season' : 'prime', benchPicks: options.benchPicks }), body(g), NOW, () => false)).toMatchObject({ ok: false, code: 'puzzle_mismatch' })
+      expect(verifyChase(u, attemptFor(CODES[5], 'england', '4-3-3', { ratings: options.ratings, benchPicks: (options.benchPicks + 1) % 6 }), body(g), NOW, () => false)).toMatchObject({ ok: false, code: 'puzzle_mismatch' })
+    }
+    expect(chaseGameSettings(u, CODES[5], 'england', '4-3-3', 'X', { benchPicks: 6 })).toBeNull()
+  }, 120_000)
+
+  it('replays a bench closed early, with or without a spin showing', () => {
+    for (const pending of [false, true]) {
+      const g = playWith(CODES[1], { ratings: 'season', benchPicks: 5 }, (x, rng) => {
+        const d = x.draft!
+        let guard = 0
+        while (!canCloseBench(d) && guard++ < 60) assistantTurn(u, d, rng)
+        expect(canCloseBench(d)).toBe(true)
+        if (pending) spin(u, d, rng)
+        closeBench(d)
+      })
+      expect(g.draft!.bench.length).toBeLessThan(5)
+      expect(g.draft!.benchClosed).toBe(true)
+      const v = verifyChase(u, attemptFor(CODES[1], 'england', '4-3-3', { ratings: 'season', benchPicks: 5 }), body(g), NOW, () => false)
+      expect(v.ok, JSON.stringify(v)).toBe(true)
+      if (v.ok) expect(v.entry.points).toBe(g.quickResult!.points)
+    }
+  }, 120_000)
+
   it('refuses another attempt, another league or shape, a closed attempt and other engines or data', () => {
     const g = play(CODES[3])
     const b = body(g)
@@ -146,8 +191,9 @@ describe('verifyChase', () => {
 
 describe('the chase requests and board rows', () => {
   it('parses chase.start strictly and chase.submit like the other posts', () => {
-    expect(parseRequest(JSON.stringify({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: '4', data: '2026-10-25' }))).toEqual({ ok: true, value: { op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: '4', data: '2026-10-25' } })
-    for (const bad of [{ leagueId: 'England' }, { formationId: '4 3 3' }, { engine: '' }, { data: 'x'.repeat(41) }, { seed: 'chase-K7Q2MX9A3B' }]) {
+    expect(parseRequest(JSON.stringify({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: '4', data: '2026-10-25' }))).toEqual({ ok: true, value: { op: 'chase.start', leagueId: 'england', formationId: '4-3-3', ratings: 'season', benchPicks: 0, engine: '4', data: '2026-10-25' } })
+    expect(parseRequest(JSON.stringify({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', ratings: 'prime', benchPicks: 1, engine: '4', data: '2026-10-25' }))).toMatchObject({ ok: true, value: { ratings: 'prime', benchPicks: 1 } })
+    for (const bad of [{ leagueId: 'England' }, { formationId: '4 3 3' }, { ratings: 'blind' }, { benchPicks: 6 }, { benchPicks: 1.5 }, { engine: '' }, { data: 'x'.repeat(41) }, { seed: 'chase-K7Q2MX9A3B' }]) {
       expect(parseRequest(JSON.stringify({ op: 'chase.start', leagueId: 'england', formationId: '4-3-3', engine: '4', data: '2026-10-25', ...bad })).ok).toBe(false)
     }
     expect(parseRequest(JSON.stringify({ op: 'chase.submit', encoded: 'abc', teamName: 'A', shortName: 'AB' }))).toMatchObject({ ok: true, value: { op: 'chase.submit' } })
