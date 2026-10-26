@@ -219,6 +219,8 @@ export function App() {
   }
 
   let body: React.ReactNode
+  // The quick season's playback after kick-off runs in the summary phase: the nav still calls it the season until it closes
+  const seasonPlaying = !!game && game.phase === 'summary' && !!(playback || game.quickOpen) && !!game.quickResult?.results?.length
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
   // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
   // Setup and the match day keep their own layouts
@@ -230,7 +232,7 @@ export function App() {
     else if (game.phase === 'kickoff') body = <KickOff />
     // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
     // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
-    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
+    else if (game.phase === 'january' || seasonPlaying) body = <SeasonPlayback key={game.phase} />
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
     else body = game.arena ? <Arena /> : <Dugout />
@@ -261,8 +263,8 @@ export function App() {
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
-              {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
-              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
+              {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <Trophy size={16} /> : <ClipboardList size={16} />}
+              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
             </button>
           )}
           <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
