@@ -7,6 +7,7 @@ import { CASE_ITEMS, CASE_RARITIES, caseRarityOdds } from '@engine/endCase'
 import { POWER_UP_INFO } from '@engine/powerups'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { CASE_RARITY_LABEL, CASE_TIER, caseIconChoices, lockerCount } from '@game/logic/endCase'
+import { caseGuide } from '@game/logic/caseGuide'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
 import { armAudio, unlockAudio } from '../sound/synth'
@@ -16,13 +17,14 @@ import { clubName, seasonLabel } from '../format'
 import { ItemReel } from './ItemReel'
 import { SoundToggle, TierChip } from './CaseReel'
 import { Pos, Rating } from './bits'
-import { CaseItemIcon, isCaseItemKey, PowerUpIcon } from './icons'
+import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
 
 /**
  * The end-of-draft case (`DraftRules.endCase`): the odds of each rarity first, then one case reel landing on what the
  * game already rolled (`game.endCase`, from a fork of its stream). A power-up goes into the locker for a later Quick
  * Draft; an Icon may come into the XI in place of a drafted starter, in a slot he can cover, or be passed up. Every
- * decision is the store's (`openCase`, `subCaseIcon`, `finishCase`).
+ * decision is the store's (`openCase`, `subCaseIcon`, `finishCase`). Beside the reel, the locker's counts; under the
+ * odds, what each item does (`caseGuide`).
  */
 export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   const { openCase, subCaseIcon, finishCase, profile } = useStore()
@@ -44,6 +46,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   // The Icon is still on offer; the starter making way is in the squad
   const hide = ratingHidden(game.settings.rules, 'offer')
   const card = caseDropCard(c.drop)
+  const guide = caseGuide(profile)
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
@@ -67,6 +70,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
         </span>
       </div>
       <div className="case-grid">
+        <div className="col case-left">
         <div className="panel col case-main" onClick={() => spinning && setSkip((n) => n + 1)}>
           {run > 0 && deal ? (
             <ItemReel deal={deal} timing={quick ? QUICK_TIMING : FULL_TIMING} skip={skip} onSettled={() => setLanded(true)} testId="case-reel" />
@@ -136,6 +140,24 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
             </div>
           )}
         </div>
+        <div className="panel col case-locker" data-testid="case-locker-panel">
+          <h3 className="icon-title">
+            <LOCKER_ICON size={18} aria-hidden="true" /> Your locker
+          </h3>
+          <div className="case-locker-grid">
+            {guide
+              .filter((r) => r.held !== null)
+              .map((r) => (
+                <span key={r.item} className={`case-locker-item${r.held ? '' : ' empty'}`} data-tier={CASE_TIER[r.rarity]} title={r.line} data-testid={`case-held-${r.item}`}>
+                  <CaseItemIcon item={r.item} size={16} />
+                  <span className="name">{r.title}</span>
+                  <b className="n">×{r.held}</b>
+                </span>
+              ))}
+          </div>
+          <span className="help">Power-ups wait here between drafts: unpack one in a later Quick Draft played without the power-up tray, and it is gone once used. An Icon never goes in the locker: he plays this season or not at all.</span>
+        </div>
+        </div>
         <div className="panel col case-odds" data-testid="case-odds">
           <h3>What's inside</h3>
           <div className="case-odds-bar" aria-hidden="true">
@@ -166,7 +188,21 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               ))}
             </tbody>
           </table>
-          <span className="help">The Icon is one of the best players of all time on this wheel, each at his peak. Exact odds: one roll of 100.</span>
+          <span className="help">Exact odds: one roll of 100.</span>
+          <h3>What each one does</h3>
+          <ul className="case-guide" data-testid="case-guide">
+            {guide.map((r) => (
+              <li key={r.item} data-tier={CASE_TIER[r.rarity]}>
+                <span className="case-guide-face" aria-hidden="true">
+                  <CaseItemIcon item={r.item} size={16} />
+                </span>
+                <span className="col" style={{ gap: 1, minWidth: 0 }}>
+                  <b>{r.title}</b>
+                  <span className="small muted">{r.line}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

@@ -8748,16 +8748,35 @@ table.tbl.match-stats th {
   color: var(--tier-gold);
   text-shadow: 0 0 10px var(--tier-gold);
 }
+/* An idle reel (the manager spin, the case, January's spin): a face-down card under the needle, the strip's next cards
+   ghosted either side. The card sits over the marker's line, so the "?" or the gift is never cut by it; the marker's
+   two points still show above and below the card */
 .mspin-idle {
+  --idle-step: calc(var(--card, 80px) + var(--gap, 8px));
+  --ghost: color-mix(in srgb, var(--reel-ink, #93a3d6) 16%, transparent);
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 50%;
+  width: var(--card, 80px);
+  height: calc(100% - 28px);
+  transform: translate(-50%, -50%);
+  border-radius: 10px;
   display: grid;
   place-items: center;
   font-family: var(--font-display, system-ui, sans-serif);
   font-size: 40px;
   font-weight: 700;
   color: var(--text-3);
-  z-index: 1;
+  background: linear-gradient(165deg, var(--navy-2), var(--navy));
+  border: 2px solid color-mix(in srgb, var(--reel-ink, #93a3d6) 45%, transparent);
+  box-shadow:
+    calc(-1 * var(--idle-step)) 0 0 0 var(--ghost),
+    var(--idle-step) 0 0 0 var(--ghost),
+    calc(-2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 9%, transparent),
+    calc(2 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 9%, transparent),
+    calc(-3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 5%, transparent),
+    calc(3 * var(--idle-step)) 0 0 0 color-mix(in srgb, var(--reel-ink, #93a3d6) 5%, transparent);
+  z-index: 4;
 }
 .mspin-sound {
   position: relative;
@@ -8805,9 +8824,84 @@ table.tbl.match-stats th {
     animation: none;
   }
 }
+/* Before its reel lands, a card waits in place: dashed, its reel named, short until a card lands (the guide below gets
+   the room), so the row is not an empty band */
 .mspin-card.hidden {
-  visibility: hidden;
+  min-height: 76px;
   animation: none;
+  border: 1px dashed var(--line);
+  box-shadow: none;
+  background: transparent;
+  place-content: center;
+}
+.mspin-wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  color: var(--text-3);
+}
+.mspin-card .manager-edge b {
+  color: var(--text);
+  font-weight: 600;
+}
+/* Under the reels: every style's edge on this XI, the landed styles lit; on a desktop it takes the rest of the window */
+.mspin-guide {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.mspin-guide .panel-head {
+  margin: 0;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.mspin-guide h3 {
+  margin: 0;
+}
+.mspin-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+.mspin-style {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-s);
+  border: var(--border);
+  background: var(--bg-3);
+}
+.mspin-style.landed {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.mspin-style-edge {
+  flex: none;
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.mspin-style-hint {
+  color: var(--text-2);
+}
+@media (min-width: 1100px) {
+  .mspin-styles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) and (min-height: 600px) {
+  .page.fit > .mspin-guide {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
 }
 .mspin-card .manager-name {
   font-size: 17px;
@@ -8905,6 +8999,79 @@ table.tbl.match-stats th {
   white-space: nowrap;
   font-weight: 700;
 }
+/* Beside the reel, the locker's counts; under the odds, what each item does. Each takes its tier's colour */
+.case-left {
+  gap: 12px;
+  min-width: 0;
+}
+.case-locker {
+  gap: 10px;
+}
+.case-locker h3 {
+  margin: 0;
+}
+.case-locker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 6px;
+}
+.case-locker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid color-mix(in srgb, var(--tier) 45%, var(--line));
+  background: color-mix(in srgb, var(--tier) 8%, var(--bg-2));
+  font-size: var(--fs-meta);
+}
+.case-locker-item svg {
+  flex: none;
+}
+.case-locker-item .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.case-locker-item .n {
+  margin-left: auto;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.case-locker-item.empty {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-3);
+}
+.case-locker-item.empty .n {
+  color: var(--text-3);
+}
+.case-guide {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.case-guide li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.case-guide-face {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--tier) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tier) 55%, transparent);
+  color: var(--text);
+}
 .case-icon-chip {
   background: var(--tier);
   color: var(--tier-ink);
@@ -8924,15 +9091,29 @@ table.tbl.match-stats th {
   color: var(--accent);
 }
 @media (min-width: 1100px) and (min-height: 600px) {
-  .case-grid {
+  /* Beats the shell's "every child of the page keeps its height" (flex-shrink: 0), so the boxes scroll, not the page */
+  .page.fit > .case-grid {
     flex: 1 1 auto;
     min-height: 0;
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: minmax(0, 1fr);
     align-items: start;
   }
-  .case-grid > .panel {
+  .case-grid > .panel,
+  .case-grid > .case-left > .case-locker {
     max-height: 100%;
     overflow: auto;
+  }
+  .case-grid > .case-left {
+    max-height: 100%;
+    min-height: 0;
+  }
+  .case-grid > .case-left > .case-main {
+    flex: none;
+  }
+  .case-grid > .case-left > .case-locker {
+    flex: 0 1 auto;
+    min-height: 0;
   }
 }
 @media (max-width: 720px) {

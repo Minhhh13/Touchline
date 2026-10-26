@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL, type Manager } from '@engine/managers'
+import { MANAGER_EDGE, MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL, MANAGER_STYLES, type Manager } from '@engine/managers'
 import { gameManagerWheel, managerSpinOdds, managerTier } from '@game/logic/managers'
+import { edgeHint, edgeLine, managerEdge } from '@game/logic/managerEdge'
+import { playerLookup } from '@game/logic/players'
 import { dealItems, managerCard, type ItemDeal } from '@game/logic/itemReel'
 import { reelLeagues } from '@game/logic/reel'
 import { armAudio, unlockAudio } from '../sound/synth'
@@ -29,13 +31,19 @@ function origin(u: LoadedUniverse, m: Manager): string {
  * The manager spin (`DraftRules.managerSpin`): three case reels side by side, spun at once like a multi-case opening,
  * each landing on one of the three managers the game already rolled (`game.managerSpin`, from a fork of its stream);
  * then the three cards, one of which the user picks (`pickManager`). The reels are presentation only: a reload shows
- * the same three again. Tap or Space skips to the landing; Quick spin (Profile) runs the short timing.
+ * the same three again. Tap or Space skips to the landing; Quick spin (Profile) runs the short timing. Under the reels,
+ * what each style would do for this XI (`managerEdge`), the landed styles lit.
  */
 export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
   const pickManager = useStore((s) => s.pickManager)
   const options = useMemo(() => game.managerSpin?.options ?? [], [game.managerSpin])
   const leagues = useMemo(() => reelLeagues(u, game.settings.rules), [u, game.settings.rules])
   const odds = useMemo(() => managerSpinOdds(u, game), [u, game])
+  // Each style's edge on this XI with the current instructions, as the season would apply it
+  const edges = useMemo(() => {
+    const get = playerLookup(game, u)
+    return Object.fromEntries(MANAGER_STYLES.map((st) => [st, managerEdge(game, st, get)])) as Record<Manager['style'], ReturnType<typeof managerEdge>>
+  }, [u, game])
   const [quick] = usePref(quickSpinPref)
   const [run, setRun] = useState(0)
   const [landedAt, setLandedAt] = useState<boolean[]>([])
@@ -95,7 +103,13 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
                   </div>
                 </div>
               )}
-              <div className={`mspin-card choice-card${show ? '' : ' hidden'}`} data-tier={tier} aria-hidden={!show}>
+              <div className={`mspin-card choice-card${show ? '' : ' hidden'}`} data-tier={show ? tier : undefined} aria-hidden={!show}>
+                {!show && (
+                  <span className="mspin-wait">
+                    <b>Reel {i + 1}</b>
+                    <span className="cline">{run > 0 ? 'Spinning…' : 'A real manager from this wheel lands here'}</span>
+                  </span>
+                )}
                 {show && (
                   <>
                     <span className="row" style={{ gap: 8 }}>
@@ -108,6 +122,9 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
                       <span className="chip manager-style">{MANAGER_STYLE_LABEL[m.style]}</span>
                     </span>
                     <span className="cline manager-help">{MANAGER_STYLE_HELP[m.style]}</span>
+                    <span className="cline manager-edge" data-testid={`mspin-edge-${i}`}>
+                      On your XI: <b>{edgeLine(edges[m.style])}</b>
+                    </span>
                     <button type="button" className="btn primary sm" disabled={!done} onClick={(e) => { e.stopPropagation(); pickManager(m.id) }} data-testid={`mspin-pick-${i}`}>
                       Pick {m.name.split(/\s+/).slice(-1)[0]}
                     </button>
@@ -130,6 +147,28 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
         ) : (
           <span className="small muted" data-testid="mspin-landed">All three landed: pick your manager.</span>
         )}
+      </div>
+      <div className="panel mspin-guide" data-testid="mspin-guide">
+        <div className="panel-head">
+          <h3>What a manager brings</h3>
+          <span className="small muted">Each style's edge on your XI with your current instructions: at most {Math.round(MANAGER_EDGE * 100)}% either way, for every game of the season</span>
+        </div>
+        <div className="mspin-styles">
+          {MANAGER_STYLES.map((st) => {
+            const e = edges[st]
+            const landedHere = done && options.some((m) => m.style === st)
+            return (
+              <div key={st} className={`mspin-style${landedHere ? ' landed' : ''}`} data-testid={`mspin-style-${st}`}>
+                <span className="row between" style={{ gap: 8 }}>
+                  <b>{MANAGER_STYLE_LABEL[st]}</b>
+                  <span className="mspin-style-edge">{edgeLine(e)}</span>
+                </span>
+                <span className="small muted">{MANAGER_STYLE_HELP[st]}</span>
+                {edgeHint(st, e) && <span className="small mspin-style-hint">{edgeHint(st, e)}</span>}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
