@@ -14409,3 +14409,53 @@ details.opposition {
 .weekly-record .recap-card {
   padding: var(--space-2) var(--space-3);
 }
+
+/* ------------------------------------------------------------ pre-season with the coach mark and the youth intake (2026-10-26, round 5) */
+/* The intake's inline bottom margin doubled the tab body's gap (16 px lost); on a short desktop window the coach mark
+   and the intake share one row, so the squad grid under them keeps the pitch whole (it scrolled 90 px at 1280 x 720) */
+@media (min-width: 1100px) {
+  .app.shell .tab-body:has(> .grid.dugout) > .youth-intake {
+    margin-bottom: 0 !important;
+  }
+}
+@media (min-width: 1100px) and (max-height: 940px) {
+  .app.shell .tab-body:has(> .tip):has(> .youth-intake):has(> .grid.dugout) {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+  }
+  .app.shell .tab-body:has(> .youth-intake):has(> .grid.dugout) > .tip {
+    grid-column: 1;
+    margin: 0;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake {
+    grid-column: 2;
+    align-self: stretch;
+  }
+  /* Half a row: the title and Pass this year on the first line, the candidates' chips under them */
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake > .panel-head {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-side {
+    margin-left: auto;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-line {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake .youth-line > .youth-chip {
+    flex: 1 1 0;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .youth-intake) > .grid.dugout {
+    grid-column: 1 / -1;
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout > .col > .panel:has(.pitch-wrap) {
+    padding-block: var(--space-2);
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout > .col > .panel:has(.pitch-wrap) > .panel-head {
+    margin-bottom: var(--space-1);
+  }
+}
