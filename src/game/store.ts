@@ -24,6 +24,7 @@ import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { workerSaveEncoder } from './saveEncoder'
+import { afterNextPaint, nextTask } from './yieldToPage'
 import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
@@ -199,6 +200,14 @@ interface Store {
   playFriendly: () => void
   startSeason: () => void
   playWeek: () => void
+  /**
+   * Play matchweek as the Dugout plays it: `playWeek` in three parts with a break for the page between them (the busy
+   * state painted, the matchweek played, then the screen that shows it), so a slow phone stays responsive. The same
+   * game as `playWeek` from the same state; a tap while one runs is ignored.
+   */
+  playWeekSoon: () => Promise<void>
+  /** Transient: a `playWeekSoon` is under way (the Dugout's button shows it). Never saved. */
+  playingWeek: boolean
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
   advanceLive: (opts: LiveChanges, hold?: boolean) => void
   /** A change with the ball in play at a minute (instructions, set pieces, substitutions, a shout from 70); null without a live match. */
@@ -463,6 +472,7 @@ export const useStore = create<Store>()(
         liveAuto: false,
         pendingChallenge: null,
         playback: null,
+        playingWeek: false,
 
         loadData: async () => {
           if (get().universe || get().loading) return
@@ -909,6 +919,39 @@ export const useStore = create<Store>()(
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
+          }
+        },
+        playWeekSoon: async () => {
+          const { game: g0, universe: u0, playingWeek } = get()
+          if (!g0 || !u0 || playingWeek) return
+          const mode = matchPlayOf(g0)
+          set({ playingWeek: true })
+          try {
+            await afterNextPaint()
+            // Anything that moved the game meanwhile makes this an ordinary tap on the game as it is now
+            const moved = () => get().game !== g0 || get().universe !== u0
+            if (moved()) return get().playWeek()
+            let next: Game
+            try {
+              next = produce(g0, (g) => {
+                if (g.phase === 'preseason') startSeasonProper(g)
+                playMatchweekAs(g, u0, mode)
+              })
+            } catch (e) {
+              console.error(e)
+              set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
+              return
+            }
+            await nextTask()
+            if (moved()) return get().playWeek()
+            // One update for the game and the view: the screen that shows the week renders once
+            set({ game: next, matchView: mode === 'sim' ? 'report' : 'ticker', liveAuto: mode === 'auto', playingWeek: false })
+            if (get().game?.phase === 'summary') {
+              unlockFromGame()
+              get().recordResult()
+            }
+          } finally {
+            if (get().playingWeek) set({ playingWeek: false })
           }
         },
         simWeeks: (n) => {

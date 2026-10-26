@@ -184,7 +184,7 @@ export function Dugout() {
     { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: 'Club' },
   ]
-  keys.current = { play: done || game.pendingEvent ? null : () => store.playWeek(), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent ? null : () => void store.playWeekSoon(), tabs: tabList.map((t) => t.id) }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)
@@ -323,9 +323,9 @@ export function Dugout() {
                   <span className="lbl-short">Friendly</span>
                 </button>
               )}
-              <button className="btn primary big" onClick={() => store.playWeek()} disabled={!!game.pendingEvent} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
-                <span className="lbl-long">{preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
-                <span className="lbl-short">{preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
+              <button className="btn primary big" onClick={() => void store.playWeekSoon()} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
+                <span className="lbl-long">{store.playingWeek ? 'Playing…' : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
+                <span className="lbl-short">{store.playingWeek ? 'Playing…' : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatch())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
