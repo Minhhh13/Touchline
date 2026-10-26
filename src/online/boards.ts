@@ -169,3 +169,138 @@ export async function myEntries(t: OnlineTransport, kind: RankedKind): Promise<M
     claimMatched: r.claim_matched !== false,
   }))
 }
+
+// ------------------------------------------------------------------ the 38-0 chase
+
+/** Which chase board: this ISO week (the week an attempt was issued in) or all time. */
+export type ChaseScope = 'week' | 'alltime'
+
+export interface ChaseRow {
+  position: number
+  name: string
+  country: string | null
+  team: string
+  leagueId: string
+  games: number
+  points: number
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
+  goalDiff: number
+  /** Points short of the league's maximum (3 a game): what the board orders by first. */
+  dropped: number
+  /** Every league game won: 38-0, or 34-0 in an 18-club league. */
+  perfect: boolean
+  leaguePosition: number
+  tier: SeasonTier | string
+  createdAt: string
+  isMe: boolean
+  /** The ghost-draft payload ("Race this run": a challenge, never ranked). */
+  payload: string | null
+}
+
+/** The season closest to perfect ever posted (with the board's country filter). */
+export interface ChaseRecord {
+  name: string
+  country: string | null
+  team: string
+  leagueId: string
+  games: number
+  points: number
+  won: number
+  drawn: number
+  lost: number
+  goalDiff: number
+  createdAt: string
+}
+
+export interface ChaseSummary {
+  players: number
+  runs: number
+  flawless: number
+  myPosition: number | null
+  my: { points: number; won: number; drawn: number; lost: number; games: number } | null
+  record: ChaseRecord | null
+  /** Flawless seasons ever posted (same country filter). */
+  recordFlawless: number
+}
+
+export interface ChaseStatus {
+  attemptsToday: number
+  cap: number
+  left: number
+  resetsAt: string | null
+  runs: number
+  best: { points: number; won: number; drawn: number; lost: number; games: number } | null
+}
+
+export function chaseRowFrom(r: Row): ChaseRow {
+  return {
+    position: n(r.board_position),
+    name: s(r.display_name),
+    country: normaliseCountry(s(r.country)),
+    team: s(r.team_name),
+    leagueId: s(r.league_id),
+    games: n(r.games),
+    points: n(r.points),
+    won: n(r.won),
+    drawn: n(r.drawn),
+    lost: n(r.lost),
+    goalsFor: n(r.goals_for),
+    goalsAgainst: n(r.goals_against),
+    goalDiff: n(r.goal_diff),
+    dropped: n(r.dropped),
+    perfect: r.perfect === true,
+    leaguePosition: n(r.league_position),
+    tier: s(r.tier),
+    createdAt: s(r.created_at),
+    isMe: r.is_me === true,
+    payload: typeof r.payload === 'string' && r.payload ? r.payload : null,
+  }
+}
+
+export function chaseSummaryFrom(v: unknown): ChaseSummary {
+  const r = rows(v)[0] ?? {}
+  return {
+    players: n(r.players),
+    runs: n(r.runs),
+    flawless: n(r.flawless),
+    myPosition: r.my_position == null ? null : n(r.my_position),
+    my: r.my_points == null ? null : { points: n(r.my_points), won: n(r.my_won), drawn: n(r.my_drawn), lost: n(r.my_lost), games: n(r.my_games) },
+    record:
+      r.record_points == null
+        ? null
+        : { name: s(r.record_display_name), country: normaliseCountry(s(r.record_country)), team: s(r.record_team_name), leagueId: s(r.record_league_id), games: n(r.record_games), points: n(r.record_points), won: n(r.record_won), drawn: n(r.record_drawn), lost: n(r.record_lost), goalDiff: n(r.record_goal_diff), createdAt: s(r.record_created_at) },
+    recordFlawless: n(r.record_flawless),
+  }
+}
+
+export function chaseStatusFrom(v: unknown): ChaseStatus | null {
+  const r = rows(v)[0]
+  if (!r) return null
+  return {
+    attemptsToday: n(r.attempts_today),
+    cap: n(r.cap),
+    left: n(r.attempts_left),
+    resetsAt: s(r.resets_at) || null,
+    runs: n(r.runs),
+    best: r.best_points == null ? null : { points: n(r.best_points), won: n(r.best_won), drawn: n(r.best_drawn), lost: n(r.best_lost), games: n(r.best_games) },
+  }
+}
+
+/** A week key's Monday for the chase readers (null: the current week). */
+const chaseWeek = (scope: ChaseScope, week: string | null) => (scope === 'week' && week ? boardDate('weekly', week) : null)
+
+export async function fetchChaseBoard(t: OnlineTransport, scope: ChaseScope, week: string | null, country: string | null, offset = 0): Promise<ChaseRow[]> {
+  return rows(await t.rpc('chase_board', { p_scope: scope, p_week: chaseWeek(scope, week), p_limit: PAGE, p_offset: offset, p_country: normaliseCountry(country) })).map(chaseRowFrom)
+}
+
+export async function fetchChaseSummary(t: OnlineTransport, scope: ChaseScope, week: string | null, country: string | null): Promise<ChaseSummary> {
+  return chaseSummaryFrom(await t.rpc('chase_summary', { p_scope: scope, p_week: chaseWeek(scope, week), p_country: normaliseCountry(country) }))
+}
+
+export async function fetchChaseStatus(t: OnlineTransport): Promise<ChaseStatus | null> {
+  return chaseStatusFrom(await t.rpc('chase_my_status', {}))
+}
