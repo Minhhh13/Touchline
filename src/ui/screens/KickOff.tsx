@@ -10,6 +10,7 @@ import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
 import { QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { CaptainAndPenalties, TeamInstructions } from '../components/TacticsControls'
+import { useAfterPaint } from '../afterPaint'
 import { SquadComplete } from '../components/PreSeasonOdds'
 import { QuickTeamLine } from '../components/QuickTeamLine'
 import { perfectTarget } from '@game/logic/perfect'
@@ -35,6 +36,8 @@ export function KickOff() {
   const { universe: u, game, setTactics, setCaptain, kickOff, pickManager } = useStore()
   const [showTactics, setShowTactics] = useState(false)
   const [showManagers, setShowManagers] = useState(false)
+  // The season plays out in one go: paint "Simulating" before it starts, so the tap answers at once on a slow phone
+  const [kicking, afterPaint] = useAfterPaint()
   if (!u || !game) return null
   // A Quick Draft with the manager spin or the end-of-draft case shows those first, in that order
   const step = kickoffStep(game)
@@ -74,8 +77,8 @@ export function KickOff() {
         <div className="fit-cell">
           <SquadComplete game={game} u={u} hideRatings={hide}>
             <div className="col sc-foot" style={{ gap: 8 }}>
-              <button className="btn primary big sc-go" onClick={() => kickOff()} data-testid="kickoff-go">
-                Simulate season
+              <button className="btn primary big sc-go" onClick={() => afterPaint(() => kickOff())} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go">
+                {kicking ? 'Simulating…' : 'Simulate season'}
               </button>
               <p className="help setup-line" data-testid="kickoff-line" style={{ margin: 0 }}>
                 {s.january ? 'It pauses at the halfway mark for the January window.' : 'No January window: the XI plays all the way through.'}
@@ -134,10 +137,10 @@ export function KickOff() {
               <h3>Team instructions</h3>
               <TeamInstructions t={t} onChange={setTactics} />
               <div className="row wrap" style={{ gap: 10 }}>
-                <button className="btn primary" onClick={() => kickOff()} data-testid="kickoff-go-tactics">
-                  Simulate season
+                <button className="btn primary" onClick={() => afterPaint(() => kickOff())} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-tactics">
+                  {kicking ? 'Simulating…' : 'Simulate season'}
                 </button>
-                <button className="btn ghost" onClick={() => kickOff(true)} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
+                <button className="btn ghost" onClick={() => afterPaint(() => kickOff(true))} disabled={kicking} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
                   Simulate with the default tactics
                 </button>
               </div>

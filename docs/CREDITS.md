@@ -41,5 +41,5 @@ The TouchLine mark and the wordmark are our own (`src/ui/brand.ts`), and so are 
 
 ## Sound
 
-None to credit: every sound in TouchLine (the case reel's ticks, the season whoosh and pop, the rarity reveals) is synthesised in code with the Web Audio API in `src/ui/sound/`. No audio files ship, and no recording, sample or sound from any game or website (Counter-Strike, case-opening sites or others) is used or copied.
+None to credit: every sound in TouchLine (the case reel's ticks, the season whoosh and pop, the rarity reveals, the referee's whistle, the crowd, the net, the fanfares and the rest of the palette) is synthesised in code with the Web Audio API in `src/ui/sound/`, from oscillators and seeded noise. No audio files ship, and no recording, sample or sound from any game or website (Counter-Strike, case-opening sites or others) is used or copied.
 

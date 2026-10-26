@@ -1,17 +1,27 @@
 /**
  * Pick grades for a finished draft (draft-preserving: it only reads the draft log). Each XI pick is graded A to D by
- * his rating in the slot he was drafted into against the best rating in that slot the spun club-season held, leaving
+ * his rating in the slot he was drafted into (`inSlotRating`: the number on his pitch disc and the headline of the
+ * Draft's slot chips, so the recap and the pitch agree) against the best such rating the spun club-season held, leaving
  * out players already drafted by then. Every man is rated as the draft rated him (`get`: under Prime ratings at his
  * career best), so the pick and the rest of his squad compare like with like. Display only: nothing about spins,
  * picks or power-ups changes.
  */
 import type { DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
-import { ratingAt } from '@engine/positions'
 import type { LoadedUniverse } from '@engine/universe'
-import type { PlayerSeason } from '@engine/types'
+import type { PlayerSeason, Position } from '@engine/types'
+import { discRating } from './slotSheet'
 
 export type PickGrade = 'A' | 'B' | 'C' | 'D'
+
+/**
+ * A man's rating in a slot as the recap, the pick grades and the Hindsight XI count it: the pitch disc's number
+ * (`discRating`, his overall less the out-of-position cost; `slotRating.ts`), so a recap's "84 at CB" is the 84 on
+ * his disc there.
+ */
+export function inSlotRating(p: Pick<PlayerSeason, 'overall' | 'positions'>, position: Position): number {
+  return discRating(p, position)
+}
 
 /** Rating points short of the best on the spin for each grade: within 1 an A, 3 a B, 6 a C, more a D. */
 export function gradeFor(gap: number): PickGrade {
@@ -39,17 +49,17 @@ export function pickGrades(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'f
     if (picked && slot && !isIcons(h)) {
       // Every man as the draft rated him (`get`: Prime ratings, an upgrade), as the man you took is, so like meets like
       const pool = (u.clubSeasonByKey[`${h.clubId}@${h.season}`]?.squad ?? []).filter((p) => p.id === picked.id || !taken.has(p.playerId)).map((p) => (p.id === picked.id ? picked : get(p.id) ?? p))
-      let best = ratingAt(picked, slot.position)
+      let best = inSlotRating(picked, slot.position)
       let bestName = picked.name
       for (const p of pool) {
-        const r = ratingAt(p, slot.position)
+        const r = inSlotRating(p, slot.position)
         if (r > best) {
           best = r
           bestName = p.name
         }
       }
-      const rating = ratingAt(picked, slot.position)
-      out.push({ spin, pickedId: picked.id, slotId: slot.id, rating: Math.round(rating), best: Math.round(best), bestName, grade: gradeFor(best - rating) })
+      const rating = inSlotRating(picked, slot.position)
+      out.push({ spin, pickedId: picked.id, slotId: slot.id, rating, best, bestName, grade: gradeFor(best - rating) })
     }
     if (picked) taken.add(picked.playerId)
   })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
-import { ratingAt } from '@engine/positions'
+import { discRating } from '../logic/slotSheet'
 import { Rng } from '@engine/rng'
 import { createGame } from '../logic/setup'
 import { playerLookup } from '../logic/players'
@@ -44,18 +44,23 @@ describe('the Hindsight XI', () => {
         const man = get(p.id)!
         expect(squad.some((q) => q.id === p.id)).toBe(true)
         const pos = d.formation.slots.find((s) => s.id === p.slotId)!.position
-        expect(p.rating).toBe(Math.round(ratingAt(man, pos)))
+        expect(p.rating).toBe(discRating(man, pos))
         // The best man that spin held for that slot
-        for (const q of squad) if (!h.xi.some((o) => o !== p && get(o.id)!.playerId === q.playerId)) expect(Math.round(ratingAt(get(q.id)!, pos))).toBeLessThanOrEqual(p.rating)
+        for (const q of squad) if (!h.xi.some((o) => o !== p && get(o.id)!.playerId === q.playerId)) expect(discRating(get(q.id)!, pos)).toBeLessThanOrEqual(p.rating)
         expect(p.yours).toBe(row.pickedId === p.id && row.slotId === p.slotId)
       }
-      // No swap of two spins' slots does better (the search is exact)
-      const rate = (spin: number, slotId: string) => {
+      // No swap of two spins' slots does better (the search is exact), with the rest of the XI's men already used
+      const rate = (spin: number, slotId: string, used: Set<string>) => {
         const row = d.history[spin]
         const pos = d.formation.slots.find((s) => s.id === slotId)!.position
-        return Math.max(...u.clubSeasonByKey[`${row.clubId}@${row.season}`].squad.map((q) => Math.round(ratingAt(get(q.id)!, pos))))
+        return Math.max(...u.clubSeasonByKey[`${row.clubId}@${row.season}`].squad.filter((q) => !used.has(q.playerId)).map((q) => discRating(get(q.id)!, pos)))
       }
-      for (const a of h.xi) for (const b of h.xi) if (a !== b) expect(rate(a.spin, b.slotId) + rate(b.spin, a.slotId)).toBeLessThanOrEqual(a.rating + b.rating)
+      for (const a of h.xi)
+        for (const b of h.xi) {
+          if (a === b) continue
+          const used = new Set(h.xi.filter((o) => o !== a && o !== b).map((o) => get(o.id)!.playerId))
+          expect(rate(a.spin, b.slotId, used) + rate(b.spin, a.slotId, used)).toBeLessThanOrEqual(a.rating + b.rating)
+        }
       // Totals: one decimal, never below yours, the recap's XI rating is yours
       expect(h.rating).toBeGreaterThanOrEqual(h.yours)
       expect(h.gap).toBeCloseTo(h.rating - h.yours, 5)

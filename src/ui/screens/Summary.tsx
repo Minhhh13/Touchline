@@ -3,6 +3,8 @@ import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, La
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
+import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
+import { FirstNext } from '../components/FirstNext'
 import { continentalRun } from '@game/logic/week'
 import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
 import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
@@ -23,7 +25,7 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
-import { versusReal } from '../screenText'
+import { runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
@@ -47,7 +49,7 @@ import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
 import { ChaseStatus } from '../online/ChaseStatus'
-import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
+import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
 import { ManagerChip } from '../components/ManagerPick'
@@ -112,6 +114,8 @@ export function Summary() {
   const story = useMemo(() => (u && game ? storyForGame(game, u) : null), [game, u])
   const allBoxes = useBoxes(SUMMARY)
   if (!u || !game || !record) return null
+  // The first result ever (a quick-like season): where to go next; null on every later summary
+  const firstNext = firstResultNext(profile, game.settings.mode, !!profile.dailyResults[`daily-${new Date().toISOString().slice(0, 10)}`], resultsFinished(profile) === 1 && !!game.quickResult && (['cup', 'continental'] as const).some((c) => quickCupStatus(game, u, c).state === 'open'))
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
   const formation = getFormation(game.tactics.formationId)
@@ -354,9 +358,9 @@ export function Summary() {
               <span className="vp-sep" aria-hidden="true">·</span>
               <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
             </span>
-            {(runs || bests.longestPerfectRun) ? (
+            {runsSummary(runs, bests.longestPerfectRun) ? (
               <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-                {[runs, bests.longestPerfectRun ? `${runs ? 'your' : 'Your'} best run ${bests.longestPerfectRun}-0` : null].filter(Boolean).join(' · ')}
+                {runsSummary(runs, bests.longestPerfectRun)}
               </span>
             ) : null}
           </div>
@@ -496,6 +500,7 @@ export function Summary() {
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
+      {firstNext && !replay.playing && <FirstNext steps={firstNext} onDaily={() => go('setup', 'daily')} onSetup={() => go('setup', 'quick')} />}
       {q && results.length > 0 && on('games') && (
         <GameByGame
           results={results}

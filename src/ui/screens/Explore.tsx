@@ -43,7 +43,11 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
 }
 
 export function Explore() {
-  const { universe: u, go, ensureLeagues, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStore()
+  const { universe: u, go, ensureLeagues, ensureClassic, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStore()
+  // The database shows the classic seasons too: their pack loads on the first visit here, not at the game's start
+  useEffect(() => {
+    void ensureClassic(true)
+  }, [ensureClassic, loadedLeagues])
   const [leagueId, setLeagueId] = useState('england')
   const [pickedSeason, setSeason] = useState<number>(u?.lastSeason ?? 2026)
   const [clubId, setClubId] = useState<string>('')

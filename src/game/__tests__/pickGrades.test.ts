@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { autoDraft, QUICK_RULES } from '@engine/draft'
-import { ratingAt } from '@engine/positions'
+import { discRating } from '../logic/slotSheet'
 import { Rng } from '@engine/rng'
 import { createGame } from '../logic/setup'
 import { playerLookup } from '../logic/players'
-import { bestPick, gradeFor, pickGrades } from '../logic/pickGrades'
+import { bestPick, gradeFor, inSlotRating, pickGrades } from '../logic/pickGrades'
+import { hindsightXI } from '../logic/hindsight'
+import { slotRating } from '../logic/slotRating'
 import type { GameSettings } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -39,7 +41,7 @@ describe('pick grades', () => {
         expect(gr.best).toBeGreaterThanOrEqual(gr.rating)
         const h = g.draft!.history[gr.spin]
         const pos = g.draft!.formation.slots.find((s) => s.id === gr.slotId)!.position
-        expect(gr.rating).toBe(Math.round(ratingAt(get(h.pickedId!)!, pos)))
+        expect(gr.rating).toBe(discRating(get(h.pickedId!)!, pos))
         expect(u.clubSeasonByKey[`${h.clubId}@${h.season}`].squad.some((p) => p.name === gr.bestName)).toBe(true)
       }
       const top = bestPick(grades)!
@@ -58,10 +60,25 @@ describe('pick grades', () => {
         const h = g.draft!.history[gr.spin]
         const pos = g.draft!.formation.slots.find((s) => s.id === gr.slotId)!.position
         const drafted = new Set(g.draft!.history.slice(0, gr.spin).map((x) => (x.pickedId ? get(x.pickedId)?.playerId : undefined)))
-        const best = Math.max(...u.clubSeasonByKey[`${h.clubId}@${h.season}`].squad.filter((p) => p.id === h.pickedId || !drafted.has(p.playerId)).map((p) => Math.round(ratingAt(get(p.id)!, pos))))
+        const best = Math.max(...u.clubSeasonByKey[`${h.clubId}@${h.season}`].squad.filter((p) => p.id === h.pickedId || !drafted.has(p.playerId)).map((p) => discRating(get(p.id)!, pos)))
         expect(gr.best).toBe(best)
-        expect(gr.rating).toBe(Math.round(ratingAt(get(h.pickedId!)!, pos)))
+        expect(gr.rating).toBe(discRating(get(h.pickedId!)!, pos))
       }
+    }
+  }, 60_000)
+
+  it('shows the number on the pitch disc: a graded pick and a Hindsight XI man read as their slot rating there', () => {
+    for (const seed of ['grade-disc-1', 'grade-disc-2', 'grade-disc-3', 'grade-disc-4']) {
+      const g = createGame(quick(seed, seed.endsWith('2') ? 'prime' : 'season'))
+      autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+      const get = playerLookup(g, u)
+      const posOf = (slotId: string) => g.draft!.formation.slots.find((s) => s.id === slotId)!.position
+      for (const gr of pickGrades(u, g.draft!, get)) {
+        const r = slotRating(get(gr.pickedId)!, posOf(gr.slotId))
+        expect(gr.rating).toBe(r.inSlot)
+        expect(inSlotRating(get(gr.pickedId)!, posOf(gr.slotId))).toBe(r.inSlot)
+      }
+      for (const p of hindsightXI(u, g.draft!, get)?.xi ?? []) expect(p.rating).toBe(slotRating(get(p.id)!, posOf(p.slotId)).inSlot)
     }
   }, 60_000)
 })

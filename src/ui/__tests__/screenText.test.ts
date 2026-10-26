@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countPhrase, developmentLists, distinctLabels, modeLabel, shownGames, versusReal } from '../screenText'
+import { countPhrase, developmentLists, distinctLabels, modeLabel, runsSummary, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -65,3 +65,13 @@ describe('distinctLabels', () => {
   })
 })
 
+
+describe('runsSummary', () => {
+  it('names the best as a perfect start, from two games, beside the season runs', () => {
+    expect(runsSummary('Unbeaten for the first 2 games', 1)).toBe('Unbeaten for the first 2 games')
+    expect(runsSummary('Unbeaten for the first 2 games', 6)).toBe('Unbeaten for the first 2 games · best perfect start 6-0')
+    expect(runsSummary(null, 6)).toBe('Best perfect start 6-0')
+    expect(runsSummary(null, 1)).toBeNull()
+    expect(runsSummary(null, undefined)).toBeNull()
+  })
+})

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useAfterPaint } from '../afterPaint'
 import { Check, ChevronDown, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
@@ -138,6 +139,8 @@ export function Dugout() {
   const headBoxes = useBoxes(DUGOUT_HEAD, seasonOver ? ['club-header'] : undefined)
   const tabKey = tab === 'market' && game?.window ? 'window' : tab
   const tabBoxes = useBoxes(DUGOUT_TABS[tabKey] ?? NO_BOXES, game ? tabPresent(tabKey, game) : undefined)
+  // Simulating weeks runs long on a phone: the button says so in the frame it is tapped, then the weeks play
+  const [simming, afterPaint] = useAfterPaint()
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
@@ -325,14 +328,14 @@ export function Dugout() {
                 <span className="lbl-short">{preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
-              <button className="btn" data-testid="sim-big" onClick={() => store.simToNextBigMatch()} disabled={!!game.pendingEvent || !!bigNext} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
+              <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatch())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
                 <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
                 <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
-              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
-                Sim 5
+              <button className="btn" onClick={() => afterPaint(() => store.simWeeks(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
+                {simming ? 'Simulating…' : 'Sim 5'}
               </button>
-              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent} data-testid="sim-end">
+              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && afterPaint(() => store.simToEnd())} disabled={!!game.pendingEvent || simming} data-testid="sim-end">
                 Sim to end
               </button>
             </div>
@@ -348,7 +351,7 @@ export function Dugout() {
 
       {/* The tab's content: on a desktop it scrolls inside itself under the fixed header, briefing and tab bar */}
       <div className="tab-body fill" data-testid="tab-body">
-      {tab === 'squad' && <Tip id="dugout-first">The bars are condition and sharpness, the face his morale; the arrow is his form. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
+      {tab === 'squad' && <Tip id="dugout-first">Kick off plays the next match your way: Watch it live, Auto-play lets the assistant make the calls, Sim result goes straight to the score. Below, the bars are condition and sharpness, the face his morale, the arrow his form; the disc is his rating in that slot (acc. a small out-of-position cost, awk. a big one).</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
         <div className="panel emphasis youth-intake" style={{ marginBottom: 'var(--space-4)' }} data-testid="youth-intake">
           <div className="panel-head">
