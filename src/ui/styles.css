@@ -5809,6 +5809,40 @@ table.tbl.contracts .btn.sm {
 .live-pitch {
   position: relative;
 }
+.live-pitch .pitch-svg-box {
+  position: relative;
+}
+/* What the side on the ball is doing, over the top of the grass: a navy tab in the pitch's own colours, edged in its kit */
+.pitch-caption {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 9px 1px 7px;
+  border-radius: 999px;
+  border-left: 3px solid var(--caption-kit, transparent);
+  background: var(--pitch-disc);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 17px;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.pitch-caption.on {
+  opacity: 0.94;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pitch-caption {
+    transition: none;
+  }
+}
 .live-dot .dot-body {
   transform-box: fill-box;
   transform-origin: center;
