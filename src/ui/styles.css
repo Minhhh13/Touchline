@@ -14166,7 +14166,7 @@ table.tbl.tv-compact .tv-name {
   background: var(--pitch-disc);
   color: #fff;
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: 10px; /* px: drawn to the pitch disc */
   font-weight: 700;
   line-height: 13px;
   text-align: center;
@@ -14198,7 +14198,7 @@ table.tbl.tv-compact .tv-name {
 }
 .slot-disc .slot-disc-cost {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 11px; /* px: the slot disc */
   font-weight: 600;
   color: var(--text-2);
 }
