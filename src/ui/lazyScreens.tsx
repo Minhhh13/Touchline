@@ -98,6 +98,16 @@ export class ScreenBoundary extends Component<{ children: ReactNode; screenKey: 
  * page loads before the service worker takes it, so whatever came in until then is fetched once more through the
  * worker when it does (`cacheLoadedAssets`), from the HTTP cache: the next visit works offline.
  */
+let screensFetched: () => void = () => undefined
+const allFetched = new Promise<void>((resolve) => {
+  screensFetched = resolve
+})
+
+/** Resolves once `prefetchScreens` has fetched every chunk it was given (main.tsx then registers the service worker). */
+export function whenScreensFetched(): Promise<void> {
+  return allFetched
+}
+
 export function prefetchScreens(screens: LazyScreen[]): () => void {
   let stopped = false
   const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
@@ -106,7 +116,7 @@ export function prefetchScreens(screens: LazyScreen[]): () => void {
   const next = () => {
     if (stopped) return
     const s = queue.shift()
-    if (!s) return
+    if (!s) return screensFetched()
     idle(() => {
       if (stopped) return
       s.preload().then(next, next)

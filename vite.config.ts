@@ -1,7 +1,7 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { buildInfoFrom } from './src/online/buildInfo'
 import { buildEdgeBundle } from './scripts/online/edgeBundle.mjs'
@@ -9,7 +9,10 @@ import { buildEdgeBundle } from './scripts/online/edgeBundle.mjs'
 // On GitHub Pages the site lives under /<repo>/; set BASE_PATH in CI.
 const base = process.env.BASE_PATH || '/'
 
-/** Stamp the service worker's cache version per build so a new deploy replaces the old cache. */
+/**
+ * Stamp the service worker's cache version per build so a new deploy replaces the old cache, and hand it the list of
+ * built assets (`'__ASSETS__'` becomes `'./assets/<file>', ...`) so it caches every one when it installs.
+ */
 function stampServiceWorker(): Plugin {
   let outDir = 'dist'
   return {
@@ -22,7 +25,9 @@ function stampServiceWorker(): Plugin {
       const file = path.resolve(outDir, 'sw.js')
       if (!existsSync(file)) return
       const stamp = `${Date.now().toString(36)}`
-      writeFileSync(file, readFileSync(file, 'utf8').replace('__BUILD__', stamp))
+      const dir = path.resolve(outDir, 'assets')
+      const assets = existsSync(dir) ? readdirSync(dir).sort().map((f) => `'./assets/${f}'`) : []
+      writeFileSync(file, readFileSync(file, 'utf8').replace('__BUILD__', stamp).replace("'__ASSETS__'", assets.join(', ')))
     },
   }
 }

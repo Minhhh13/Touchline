@@ -1,4 +1,6 @@
-/* TouchLine service worker. The shell is cached on install and refreshed in
+/* TouchLine service worker. The shell and every built asset (the list the build
+   writes in place of __ASSETS__) are cached on install, so a second visit works
+   offline whatever the first one loaded; the shell is refreshed in
    the background on every visit; hashed assets, icons, flags and any images under img/ are cache-first;
    league packs are served from the cache and refreshed behind the scenes, so
    a rebuilt pack shows up on the next visit; the Google Fonts stylesheet and
@@ -6,9 +8,11 @@
    a new deploy installs a fresh worker and drops the old cache. */
 const VERSION = 'touchline-__BUILD__'
 const SHELL = ['./', './index.html', './manifest.webmanifest']
+// Unbuilt (the placeholder left as it is) this is empty
+const ASSETS = ['__ASSETS__'].filter((a) => !a.startsWith('__'))
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()))
+  event.waitUntil(caches.open(VERSION).then((c) => c.addAll([...SHELL, ...ASSETS])).then(() => self.skipWaiting()))
 })
 
 self.addEventListener('activate', (event) => {
