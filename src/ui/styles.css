@@ -1955,14 +1955,16 @@ kbd {
 .pitch-wrap .slot.foot .sub {
   position: absolute;
   left: calc(50% + 27px);
-  max-width: 120px;
+  /* At most the room beside the disc to the pitch's edge, so a narrow pitch ends the name in an ellipsis, not a cut */
+  max-width: min(120px, calc(50cqw - 31px));
   text-align: left;
 }
+/* Name and role level with the top two-thirds of the disc, so the role ends above the goal line rather than on it */
 .pitch-wrap .slot.foot .label {
-  top: calc(50% - 8px);
+  top: calc(50% - 14px);
 }
 .pitch-wrap .slot.foot .sub {
-  top: calc(50% + 5px);
+  top: calc(50% - 1px);
 }
 @keyframes pulse {
   0%,
