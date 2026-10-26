@@ -266,6 +266,24 @@ export function frameFor(seed: string, from: number): LastFrame {
   return f
 }
 
+/** Frame-time thresholds for the pitch's lite mode: on once frames average over `on` ms (under 25 fps) after `warm` frames, off again under `off` ms. */
+export const LITE = { on: 40, off: 26, warm: 90, keep: 0.97 } as const
+
+/** Track the running mean of the frame time (`dt` ms; 0 is a frame that took no time step and is skipped) and switch lite mode with hysteresis. */
+export function liteMode(perf: { mean: number; frames: number; lite: boolean }, dt: number): void {
+  if (dt <= 0) return
+  perf.frames++
+  perf.mean = perf.mean * LITE.keep + dt * (1 - LITE.keep)
+  if (perf.frames < LITE.warm) return
+  if (!perf.lite && perf.mean > LITE.on) perf.lite = true
+  else if (perf.lite && perf.mean < LITE.off) perf.lite = false
+}
+
+/** Set an attribute only when it changes: the overlays mostly sit hidden, and an unchanged write still costs the browser a style pass. */
+function put(el: Element, name: string, value: string): void {
+  if (el.getAttribute(name) !== value) el.setAttribute(name, value)
+}
+
 /** Where the ball flies on a goal: from the strike into the net, `fp` of the way (eased), with its height. */
 function goalFlight(path: BallKeyframe[], b: BallState, side: Side, ev: MatchEvent | undefined, fp: number): { at: P; h: number; shot: BallKeyframe } {
   // The strike: the keyframe the ball reached at the hold's moment (or the last shot just before it)
@@ -418,9 +436,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     let markTag = ''
     let inReplay = false
     let leftReplay = -1
-    // A device that cannot keep up (frames well over 30 ms, many of them) drops the camera and the pass lines
-    let slow = 0
-    let lite = false
+    // A device that cannot keep up drops the camera and the pass lines while it struggles (liteMode: a running mean of the frame time, with hysteresis)
+    const perf = { mean: 16.7, frames: 0, lite: false }
     const at = (x: number, y: number) => {
       const [sx, sy] = map(x, y)
       return `translate(${sx.toFixed(2)} ${sy.toFixed(2)})`
@@ -432,9 +449,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       // Time moves things only while the clock runs; stood at a stop or paused, a wake-up redraws without moving anyone
       const dt = s.running && ball.last ? Math.min(80, Math.max(0, now - ball.last)) : 0
       ball.last = now
-      if (dt > 34) slow++
-      else if (dt > 0 && slow > 0) slow -= 0.2
-      if (!lite && slow > 45) lite = true
+      liteMode(perf, dt)
+      const lite = perf.lite
       const tl = timeline(s, now)
       const holdAny = tl.hold ? s.holds[tl.hold.index] : undefined
       const elapsed = tl.hold?.elapsed ?? 0
@@ -500,7 +516,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
         const clampStep = (d: number) => Math.max(-L * 0.28, Math.min(L * 0.28, d * 0.55))
         ball.u = (((ball.u + clampStep(bx - px)) % L) + L) % L
         ball.v = (((ball.v + clampStep(by - py)) % L) + L) % L
-        patchRef.current.setAttribute('transform', `translate(${ball.u.toFixed(3)} ${ball.v.toFixed(3)})`)
+        put(patchRef.current, 'transform', `translate(${ball.u.toFixed(3)} ${ball.v.toFixed(3)})`)
       }
 
       // Everyone by the one movement formula the heat maps sample (movement.ts): the blocks shift with
@@ -540,7 +556,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
         const since = entered.get(key)
         const tau = since !== undefined && now - since < 1500 ? tauDot * 3 : tauDot
         const now2 = prev && !snapAll ? { x: approach(prev.x, x, dt, tau), y: approach(prev.y, y, dt, tau) } : { x, y }
-        el.setAttribute('transform', at(now2.x, now2.y))
+        put(el, 'transform', at(now2.x, now2.y))
         shown.set(key, now2)
       }
       first = false
@@ -551,10 +567,10 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       if (ringRef.current) {
         if (holder) {
           const [sx, sy] = map(holder.x, holder.y)
-          ringRef.current.setAttribute('cx', sx.toFixed(2))
-          ringRef.current.setAttribute('cy', sy.toFixed(2))
-          ringRef.current.setAttribute('opacity', '0.8')
-        } else ringRef.current.setAttribute('opacity', '0')
+          put(ringRef.current, 'cx', sx.toFixed(2))
+          put(ringRef.current, 'cy', sy.toFixed(2))
+          put(ringRef.current, 'opacity', '0.8')
+        } else put(ringRef.current, 'opacity', '0')
       }
       // The man on the ball's name under his dot, and the picked-out man's ring and name
       tag = paintTag(tagRef.current, tagTextRef.current, tagBgRef.current, holder && holderKey !== markKey ? map(holder.x, holder.y) : null, holderKey ? names.get(holderKey) ?? '' : '', tag)
@@ -562,10 +578,10 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       const mxy = marked ? map(marked.x, marked.y) : null
       if (markRef.current) {
         if (mxy) {
-          markRef.current.setAttribute('cx', mxy[0].toFixed(2))
-          markRef.current.setAttribute('cy', mxy[1].toFixed(2))
-          markRef.current.setAttribute('opacity', '1')
-        } else markRef.current.setAttribute('opacity', '0')
+          put(markRef.current, 'cx', mxy[0].toFixed(2))
+          put(markRef.current, 'cy', mxy[1].toFixed(2))
+          put(markRef.current, 'opacity', '1')
+        } else put(markRef.current, 'opacity', '0')
       }
       markTag = paintTag(markTagRef.current, markTextRef.current, markBgRef.current, mxy, markKey ? names.get(markKey) ?? '' : '', markTag)
       if (celebRef.current) {
@@ -573,29 +589,30 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
         if (sc && env > 0 && hold) {
           const [sx, sy] = map(sc.x, sc.y)
           const beat = ((elapsed - GOAL_FLIGHT_MS) / 420) % 1
-          celebRef.current.setAttribute('cx', sx.toFixed(2))
-          celebRef.current.setAttribute('cy', sy.toFixed(2))
-          celebRef.current.setAttribute('r', (3.2 + beat * 3.2).toFixed(2))
-          celebRef.current.setAttribute('stroke', colourOf[hold.side])
-          celebRef.current.setAttribute('opacity', (env * (1 - beat) * (hold.tone === 'theirs' ? 0.55 : 0.95)).toFixed(2))
-        } else celebRef.current.setAttribute('opacity', '0')
+          put(celebRef.current, 'cx', sx.toFixed(2))
+          put(celebRef.current, 'cy', sy.toFixed(2))
+          put(celebRef.current, 'r', (3.2 + beat * 3.2).toFixed(2))
+          put(celebRef.current, 'stroke', colourOf[hold.side])
+          put(celebRef.current, 'opacity', (env * (1 - beat) * (hold.tone === 'theirs' ? 0.55 : 0.95)).toFixed(2))
+        } else put(celebRef.current, 'opacity', '0')
       }
       // The shot's line, coloured by its expected goals: a chance or a save as it flies and a moment after, a goal while it goes in
       paintShot(shotRef.current, path, b, T, marks, flying, cur, map)
-      // The pass line: a short flash of where the ball is being played (not on a slow device)
-      paintPass(passRef.current, lite || !!hold ? null : passFlash(path, b), map)
+      // The pass line: a short flash of where the ball is being played (up to 2x, where a pass lasts long enough to read; not on a slow device)
+      const pace = s.speed * (s.boost ?? 1)
+      paintPass(passRef.current, lite || !!hold || pace > 2 ? null : passFlash(path, b), map)
       // A faint trail behind a long ball, a ball in behind or a cross while it flies
       if (trailRef.current) {
         const kf = b && !hold ? path[b.index] : undefined
         const nx = b?.next
         if (kf && nx && nx.play && TRAILED.has(nx.play) && b!.progress < 1) {
           const [x1, y1] = map(kf.x, kf.y)
-          trailRef.current.setAttribute('x1', x1.toFixed(2))
-          trailRef.current.setAttribute('y1', y1.toFixed(2))
-          trailRef.current.setAttribute('x2', bx.toFixed(2))
-          trailRef.current.setAttribute('y2', by.toFixed(2))
-          trailRef.current.setAttribute('opacity', (0.5 * (1 - b!.progress * 0.5)).toFixed(2))
-        } else trailRef.current.setAttribute('opacity', '0')
+          put(trailRef.current, 'x1', x1.toFixed(2))
+          put(trailRef.current, 'y1', y1.toFixed(2))
+          put(trailRef.current, 'x2', bx.toFixed(2))
+          put(trailRef.current, 'y2', by.toFixed(2))
+          put(trailRef.current, 'opacity', (0.5 * (1 - b!.progress * 0.5)).toFixed(2))
+        } else put(trailRef.current, 'opacity', '0')
       }
       // The caption: what the side on the ball is doing, written only when it changes (a replay names itself instead)
       if (captionRef.current) {
@@ -621,24 +638,24 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       const bulge = hold && since >= 0 ? netBulge(since, hold.tone === 'theirs' ? 0.45 : 0.75) : rf && replayLanded >= 0 ? netBulge(replayLanded, 0.6) : 0
       const netSide = holdAny?.side
       const rightEnd = netSide === 'home'
-      if (nets.current.right) nets.current.right.setAttribute('transform', netSide && rightEnd && bulge ? `translate(105 34) scale(${(1 + bulge).toFixed(3)} ${(1 + bulge * 0.15).toFixed(3)}) translate(-105 -34)` : '')
-      if (nets.current.left) nets.current.left.setAttribute('transform', netSide && !rightEnd && bulge ? `translate(0 34) scale(${(1 + bulge).toFixed(3)} ${(1 + bulge * 0.15).toFixed(3)}) translate(0 -34)` : '')
-      if (flashRef.current) flashRef.current.setAttribute('opacity', hold && since >= 0 ? (Math.exp(-since / 170) * (hold.tone === 'theirs' ? 0.16 : 0.42)).toFixed(3) : '0')
+      if (nets.current.right) put(nets.current.right, 'transform', netSide && rightEnd && bulge ? `translate(105 34) scale(${(1 + bulge).toFixed(3)} ${(1 + bulge * 0.15).toFixed(3)}) translate(-105 -34)` : '')
+      if (nets.current.left) put(nets.current.left, 'transform', netSide && !rightEnd && bulge ? `translate(0 34) scale(${(1 + bulge).toFixed(3)} ${(1 + bulge * 0.15).toFixed(3)}) translate(0 -34)` : '')
+      if (flashRef.current) put(flashRef.current, 'opacity', hold && since >= 0 ? (Math.exp(-since / 170) * (hold.tone === 'theirs' ? 0.16 : 0.42)).toFixed(3) : '0')
       if (stageRef.current) {
         const shake = hold && hold.tone !== 'theirs' && since >= 0 && since < 380 ? 0.7 * (1 - since / 380) : 0
-        stageRef.current.setAttribute('transform', shake ? `translate(${(Math.sin(since / 17) * shake).toFixed(2)} ${(Math.cos(since / 23) * shake).toFixed(2)})` : '')
+        put(stageRef.current, 'transform', shake ? `translate(${(Math.sin(since / 17) * shake).toFixed(2)} ${(Math.cos(since / 23) * shake).toFixed(2)})` : '')
       }
       // The cut to and from a replay: a quick dip to dark
       if (cutRef.current) {
         const out = leftReplay > 0 && now - leftReplay < REPLAY.cut ? 1 - (now - leftReplay) / REPLAY.cut : 0
-        cutRef.current.setAttribute('opacity', (rf ? rf.cut : out).toFixed(3))
+        put(cutRef.current, 'opacity', (rf ? rf.cut : out).toFixed(3))
       }
       // The camera: leaning in on a big chance or a goal, closer still in the replay, otherwise the whole pitch
       if (cameraRef.current) {
         const want = cameraWant(keyMoments && !lite, rf, moments, T, s, cur, holdAny, box, map)
         aimCamera(cam, want, dt, snapAll || (!!rf && rf.cut > 0.85))
         const ct = cameraTransform(cam, cam.s, box)
-        cameraRef.current.setAttribute('transform', ct.s === 1 ? '' : `translate(${ct.tx.toFixed(2)} ${ct.ty.toFixed(2)}) scale(${ct.s.toFixed(4)})`)
+        put(cameraRef.current, 'transform', ct.s === 1 ? '' : `translate(${ct.tx.toFixed(2)} ${ct.ty.toFixed(2)}) scale(${ct.s.toFixed(4)})`)
       }
     }
     const wake = () => {
@@ -824,13 +841,13 @@ function ReplayBadge({ innerRef, onSkip }: { innerRef: Ref<HTMLDivElement>; onSk
 function paintBall(ballEl: SVGGElement | null, body: SVGGElement | null, shadow: SVGGElement | null, bx: number, by: number, h: number, opacity: number, R: number): void {
   const sp = ballSprite(h, R)
   if (ballEl) {
-    ballEl.setAttribute('transform', `translate(${bx.toFixed(2)} ${by.toFixed(2)})`)
-    ballEl.setAttribute('opacity', opacity.toFixed(2))
+    put(ballEl, 'transform', `translate(${bx.toFixed(2)} ${by.toFixed(2)})`)
+    put(ballEl, 'opacity', opacity.toFixed(2))
   }
-  if (body) body.setAttribute('transform', h > 0.005 ? `translate(0 ${sp.lift.toFixed(2)}) scale(${sp.scale.toFixed(3)})` : '')
+  if (body) put(body, 'transform', h > 0.005 ? `translate(0 ${sp.lift.toFixed(2)}) scale(${sp.scale.toFixed(3)})` : '')
   if (shadow) {
-    shadow.setAttribute('transform', `translate(${(bx + sp.shadowDx).toFixed(2)} ${(by + sp.shadowDy).toFixed(2)}) scale(${sp.shadowScale.toFixed(3)})`)
-    shadow.setAttribute('opacity', (opacity * sp.shadowOpacity).toFixed(2))
+    put(shadow, 'transform', `translate(${(bx + sp.shadowDx).toFixed(2)} ${(by + sp.shadowDy).toFixed(2)}) scale(${sp.shadowScale.toFixed(3)})`)
+    put(shadow, 'opacity', (opacity * sp.shadowOpacity).toFixed(2))
   }
 }
 
@@ -838,12 +855,12 @@ function paintBall(ballEl: SVGGElement | null, body: SVGGElement | null, shadow:
 function paintTag(g: SVGGElement | null, text: SVGTextElement | null, bg: SVGRectElement | null, xy: [number, number] | null, name: string, prev: string): string {
   if (!g) return prev
   if (!xy || !name) {
-    g.setAttribute('opacity', '0')
+    put(g, 'opacity', '0')
     return prev
   }
   const out = writeTag(text, bg, name, prev)
-  g.setAttribute('transform', `translate(${xy[0].toFixed(2)} ${(xy[1] + 4.6).toFixed(2)})`)
-  g.setAttribute('opacity', '0.92')
+  put(g, 'transform', `translate(${xy[0].toFixed(2)} ${(xy[1] + 4.6).toFixed(2)})`)
+  put(g, 'opacity', '0.92')
   return out
 }
 
@@ -851,17 +868,17 @@ function paintTag(g: SVGGElement | null, text: SVGTextElement | null, bg: SVGRec
 function paintPass(line: SVGLineElement | null, pf: ReturnType<typeof passFlash>, map: (x: number, y: number) => [number, number]): void {
   if (!line) return
   if (!pf) {
-    line.setAttribute('opacity', '0')
+    put(line, 'opacity', '0')
     return
   }
   const [x1, y1] = map(pf.from.x, pf.from.y)
   const [x2, y2] = map(pf.to.x, pf.to.y)
-  line.setAttribute('x1', x1.toFixed(2))
-  line.setAttribute('y1', y1.toFixed(2))
-  line.setAttribute('x2', x2.toFixed(2))
-  line.setAttribute('y2', y2.toFixed(2))
-  line.setAttribute('stroke-dasharray', pf.air ? '1.3 0.9' : 'none')
-  line.setAttribute('opacity', pf.alpha.toFixed(2))
+  put(line, 'x1', x1.toFixed(2))
+  put(line, 'y1', y1.toFixed(2))
+  put(line, 'x2', x2.toFixed(2))
+  put(line, 'y2', y2.toFixed(2))
+  put(line, 'stroke-dasharray', pf.air ? '1.3 0.9' : 'none')
+  put(line, 'opacity', pf.alpha.toFixed(2))
 }
 
 /** The shot's line, coloured by its xG band: from the strike to the ball while it flies, then to where it ended, fading; a goal's while it goes in. */
@@ -888,17 +905,17 @@ function paintShot(line: SVGLineElement | null, path: BallKeyframe[], b: BallSta
     }
   }
   if (!from || !to || alpha <= 0.01) {
-    line.setAttribute('opacity', '0')
+    put(line, 'opacity', '0')
     return
   }
   const [x1, y1] = map(from.x, from.y)
   const [x2, y2] = map(to.x, to.y)
-  line.setAttribute('x1', x1.toFixed(2))
-  line.setAttribute('y1', y1.toFixed(2))
-  line.setAttribute('x2', x2.toFixed(2))
-  line.setAttribute('y2', y2.toFixed(2))
+  put(line, 'x1', x1.toFixed(2))
+  put(line, 'y1', y1.toFixed(2))
+  put(line, 'x2', x2.toFixed(2))
+  put(line, 'y2', y2.toFixed(2))
   if (line.dataset.band !== band) line.dataset.band = band
-  line.setAttribute('opacity', alpha.toFixed(2))
+  put(line, 'opacity', alpha.toFixed(2))
 }
 
 /** Where the camera wants to be (SVG units and scale): in on the replay, leaning in on a big chance or a goal, otherwise the whole pitch. */
@@ -911,11 +928,14 @@ function cameraWant(on: boolean, rf: ReplayFrame | null, moments: FocusMoment[],
     const [x, y] = map(ball.x * 0.75 + gx * 0.25, ball.y * 0.8 + 50 * 0.2)
     return { x, y, s: CAMERA.replay }
   }
-  const perMinute = s.period / Math.max(0.01, s.speed * (s.boost ?? 1))
+  // In play the camera leans in up to 2x; quicker, a moment is over before a move would read (and the whole pitch would repaint every frame)
+  const pace = s.speed * (s.boost ?? 1)
+  if (pace > 2) return whole
+  const perMinute = s.period / Math.max(0.01, pace)
   const f = focusAt(moments, T, CAMERA.leadMs / perMinute, CAMERA.tailMs / perMinute)
   if (!f.at || f.w <= 0) return whole
-  // Quicker speeds lean in less, so the picture does not lurch
-  const k = s.speed >= 3 ? 0.55 : 1
+  // 2x leans in a little less than 1x, so the picture does not lurch
+  const k = pace > 1 ? 0.75 : 1
   const [x, y] = map(f.at.x * 0.55 + ball.x * 0.45, f.at.y * 0.55 + ball.y * 0.45)
   return { x, y, s: 1 + (CAMERA.chance - 1) * f.w * k }
 }

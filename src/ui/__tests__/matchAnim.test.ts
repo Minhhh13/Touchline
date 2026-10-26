@@ -10,6 +10,7 @@ import { dotPosition, RUN, runShare, runTo, swayPhase } from '../match/movement'
 import { metres, onPitchAt } from '../match/pitchGeometry'
 import { shapePoint, sceneAt } from '../match/shape'
 import { resultFeed } from './feeds'
+import { LITE, liteMode } from '../components/LivePitch'
 
 const feeds = Array.from({ length: 6 }, (_, i) => resultFeed(i))
 const paths = feeds.map((f) => matchPath(f))
@@ -353,5 +354,25 @@ describe('the same events give the same frames', () => {
       return JSON.stringify(out)
     }
     for (const i of [0, 3]) expect(digest(i)).toBe(digest(i))
+  })
+})
+
+describe('graceful on a slow device', () => {
+  it('turns the extras off only once frames stay slow, and back on once they recover', () => {
+    const perf = { mean: 16.7, frames: 0, lite: false }
+    // A few long frames (a hiccup, a screenshot) never switch it
+    for (let i = 0; i < 200; i++) liteMode(perf, i % 20 === 0 ? 80 : 16.7)
+    expect(perf.lite).toBe(false)
+    // Frames that took no time step are skipped
+    liteMode(perf, 0)
+    // Sustained slow frames do
+    for (let i = 0; i < 200 && !perf.lite; i++) liteMode(perf, 55)
+    expect(perf.lite).toBe(true)
+    expect(perf.mean).toBeGreaterThan(LITE.on)
+    // Between the two thresholds it stays as it is
+    for (let i = 0; i < 300; i++) liteMode(perf, 33)
+    expect(perf.lite).toBe(true)
+    for (let i = 0; i < 300 && perf.lite; i++) liteMode(perf, 16.7)
+    expect(perf.lite).toBe(false)
   })
 })
