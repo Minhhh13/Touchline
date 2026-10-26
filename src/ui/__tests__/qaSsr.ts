@@ -44,7 +44,7 @@ export function markupProblems(html: string): string[] {
     }
     const role = attr(attrs, 'role')
     if (attr(attrs, 'aria-pressed') !== undefined && (role === 'radio' || role === 'tab' || role === 'option')) out.push(`aria-pressed on role=${role}: <${tag}${attrs.slice(0, 100)}>`)
-    if ((tag === 'dt' || tag === 'dd') && stack.at(-1)?.tag !== 'dl' && !(stack.at(-1)?.tag === 'div' && stack.at(-2)?.tag === 'dl')) out.push(`${tag} outside a dl: <${tag}${attrs.slice(0, 80)}>`)
+    if ((tag === 'dt' || tag === 'dd') && stack.at(-1)?.tag !== 'dl' && !(stack.at(-1)?.tag === 'div' && stack.at(-2)?.tag === 'dl')) out.push(`${tag} outside a dl: <${tag}${attrs.slice(0, 80)}>${html.slice(tagRe.lastIndex, tagRe.lastIndex + 24).replace(/<[^>]*>/g, '')}`)
     if (tag === 'img' && attr(attrs, 'alt') === undefined && attr(attrs, 'aria-hidden') !== 'true') out.push(`img without alt: <img${attrs.slice(0, 100)}>`)
     if (tag === 'input' || tag === 'select' || tag === 'textarea') {
       const type = attr(attrs, 'type')

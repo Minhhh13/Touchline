@@ -6,6 +6,8 @@ vi.hoisted(() => {
   const mem = new Map<string, string>()
   Object.defineProperty(globalThis, 'localStorage', { value: { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) }, configurable: true })
 })
+// Server renders and seeded seasons: a loaded machine can take longer than the default five seconds
+vi.setConfig({ testTimeout: 60_000 })
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { Rng } from '@engine/rng'

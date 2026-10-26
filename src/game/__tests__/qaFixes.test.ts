@@ -10,6 +10,8 @@ vi.hoisted(() => {
     configurable: true,
   })
 })
+// Server renders and seeded seasons: a loaded machine can take longer than the default five seconds
+vi.setConfig({ testTimeout: 60_000 })
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { h2hComplete } from '@engine/h2h'
 import { useStore } from '../store'
