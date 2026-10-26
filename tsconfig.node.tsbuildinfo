@@ -1,1 +1,1 @@
-{"root":["./vite.config.ts","./vitest.config.ts"],"version":"5.8.3"}
+{"root":["./vite.config.ts","./vitest.config.ts","./src/online/buildInfo.ts","./scripts/online/edgeBundle.d.mts"],"version":"5.8.3"}

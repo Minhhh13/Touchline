@@ -1,0 +1,29 @@
+name: DB tests
+
+# The online layer's SQL (supabase/migrations, the stand-in and the assertion suites) on a plain Postgres 17.
+# Only commits that touch SQL run it, so it never sits on a commit it has nothing to say about.
+on:
+  push:
+    branches: ['**']
+    paths: ['supabase/**', 'scripts/online/sql/**', '.github/workflows/db-tests.yml']
+  pull_request:
+    paths: ['supabase/**', 'scripts/online/sql/**', '.github/workflows/db-tests.yml']
+
+jobs:
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: touchline
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y postgresql-client >/dev/null
+      - run: bash scripts/online/sql/run-local.sh
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/touchline

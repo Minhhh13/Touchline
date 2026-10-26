@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Search, Swords, Timer, Trophy, Zap, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, Zap, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { dailySettings } from '@game/logic/setup'
 import { modeLabel } from '@game/logic/modes'
@@ -8,6 +8,10 @@ import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@gam
 import { weeklyPlan } from '@game/logic/weekly'
 import { weeklyThemeName } from '@game/logic/weeklyThemes'
 import { arenaDailySeed, weeklySeed } from '@engine/rng'
+import { dailyStartSettings } from '../../online/daily'
+import { useOnline } from '../../online/state'
+import { onlineAvailable } from '../../online/api'
+import { ConflictCards } from '../online/ConflictCard'
 import { seasonLabel, formationName } from '../format'
 import { TeamBadge } from '../components/bits'
 import { Lockup } from '../components/Logo'
@@ -69,13 +73,16 @@ export function Home() {
   const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
+  const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))
   const openArenaSetup = (format: 'cup' | 'gauntlet') => withViewTransition(() => openArenaNow(format))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
   const dailyDone = !!profile.dailyResults[`daily-${today}`]
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
-  const daily = dailyReady ? dailySettings(u, todaysDailySeed()) : null
+  // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
+  const dailyStart = dailyReady ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
+  const daily = dailyReady ? (dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, host: dailyStart.settings.hostClubId, season: dailyStart.settings.leagueSeason } : dailySettings(u, todaysDailySeed())) : null
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
   const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
   const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)
@@ -162,6 +169,8 @@ export function Home() {
         </div>
       </section>
 
+      <ConflictCards />
+
       {game && (
         <div className="panel resume-card row between wrap">
           <div className="row">
@@ -234,6 +243,11 @@ export function Home() {
                     {formationName(daily.formationId)} · {seasonLabel(daily.season)}
                   </span>
                 )}
+                {pin && dailyStart && (
+                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? 'Every score on the world leaderboard is checked by replay' : undefined}>
+                    {dailyStart.ranked ? 'Ranked today' : dailyStart.source === 'missing_data' ? 'Reload for the ranked puzzle' : 'Unranked: reload to update'}
+                  </span>
+                )}
                 {profile.dailyStreak > 0 && (
                   <span className="streak" title={dailyDone ? 'Played today' : 'Daily streak'}>
                     <Flame size={13} />
@@ -282,10 +296,17 @@ export function Home() {
 
       <div className="home-tiles">
         <Tile icon={Swords} title="Head-to-head" meta="Two managers, one device" onClick={() => go('h2h')} />
+        {onlineAvailable() && <Tile icon={Globe} title="World leaderboard" meta="Daily, weekly and all-time, by country" onClick={() => go('world')} testId="world-card" />}
         <Tile icon={Search} title="Explore database" meta={u ? `${u.available.length} leagues of real squads` : 'Real squads since 2008-09'} onClick={() => go('explore')} />
         <Tile icon={Trophy} title="Profile" meta={`${profile.seasonsSimulated} seasons · ${achievements} achievements`} onClick={() => go('profile')} />
         <Tile icon={BookOpen} title="How it works" meta="The wheel, matches, the board" onClick={() => go('howto')} />
       </div>
+      <p className="muted small" style={{ marginTop: 16, textAlign: 'center' }}>
+        Free, no ads, no account needed.{' '}
+        <button className="btn ghost sm" onClick={() => go('privacy')} data-testid="privacy-link">
+          Privacy and fair play
+        </button>
+      </p>
     </div>
   )
 }

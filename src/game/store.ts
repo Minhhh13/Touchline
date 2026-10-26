@@ -65,7 +65,7 @@ const SAVE_DELAY_MS = 250
 /** Shown when the browser refuses to store the save. */
 export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
 
-export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h'
+export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h' | 'world' | 'privacy' | 'account'
 
 export interface H2HGame {
   managers: [H2HManager, H2HManager]
@@ -263,11 +263,25 @@ interface Store {
   abandonH2H: () => void
   recordResult: () => void
   setManagerName: (name: string) => void
+  /** The favourite club on the profile (a club id), or null to clear it. Display only; synced with the profile. */
+  setFavouriteClub: (clubId: string | null) => void
   setTheme: (t: Profile['theme']) => void
   /** A coach mark's 'Got it': it never shows again on this profile. */
   dismissTip: (id: TipId) => void
   /** 'Show tips again' on the Profile screen: every coach mark shows once more. */
   resetTips: () => void
+
+  /**
+   * Cloud sync (src/online/sync.ts): a game downloaded from the account's cloud saves, put in its slot through
+   * `normaliseGame`. 'park' files it in the parked slot and never touches the active game; 'replace' swaps the
+   * slot's game (the active one only after its leagues load, and never during a live match). Resolves false when
+   * nothing was applied.
+   */
+  importCloudGame: (slot: string, game: Game, mode: 'park' | 'replace') => Promise<boolean>
+  /** Cloud sync: the hot-seat head-to-head from the cloud ('park' only fills an empty slot). */
+  importCloudH2H: (h2h: H2HGame, mode: 'park' | 'replace') => boolean
+  /** Cloud sync: the merged profile and shortlist. */
+  applyCloudProfile: (profile: Profile, shortlist: string[]) => void
 }
 
 const defaultProfile: Profile = {
@@ -1179,6 +1193,11 @@ export const useStore = create<Store>()(
         },
         abandonH2H: () => set({ h2h: null, screen: 'home' }),
         setManagerName: (name) => set({ profile: { ...get().profile, managerName: name } }),
+        setFavouriteClub: (clubId) => {
+          const { favouriteClub: _old, ...rest } = get().profile
+          void _old
+          set({ profile: clubId ? { ...rest, favouriteClub: clubId } : rest })
+        },
         setTheme: (theme) => set({ profile: { ...get().profile, theme } }),
         dismissTip: (id) => {
           const { profile } = get()
@@ -1186,6 +1205,36 @@ export const useStore = create<Store>()(
           if (next !== profile) set({ profile: next })
         },
         resetTips: () => set({ profile: { ...get().profile, seenTips: {} } }),
+
+        importCloudGame: async (slot, raw, mode) => {
+          const game = normaliseGame(raw)
+          if (!game || slotOf(game) !== slot) return false
+          const current = get().game
+          const activeHere = !!current && slotOf(current) === slot
+          if (!activeHere) {
+            set({ parked: { ...get().parked, [slot]: game } })
+            return true
+          }
+          if (mode === 'park' || (current.phase === 'match' && current.live)) return false
+          // Load what the game needs before it becomes active, as resumeGame does
+          if (!(await get().ensureLeagues(leaguesFor(game, (get().universe?.available ?? []).map((l) => l.id))))) return false
+          const now = get().game
+          if (now && slotOf(now) === slot) {
+            if (now.phase === 'match' && now.live) return false
+            set({ game, digest: null, offseason: null })
+          } else set({ parked: { ...get().parked, [slot]: game } })
+          return true
+        },
+        importCloudH2H: (h2h, mode) => {
+          if (!h2h || typeof h2h !== 'object' || !Array.isArray(h2h.managers) || !h2h.draft) return false
+          if (mode === 'park' && get().h2h) return false
+          set({ h2h })
+          return true
+        },
+        applyCloudProfile: (profile, shortlist) => {
+          if (!profile || typeof profile !== 'object') return
+          set({ profile: { ...defaultProfile, ...profile }, shortlist: Array.isArray(shortlist) ? shortlist.slice(-60) : get().shortlist })
+        },
       }
     },
     {

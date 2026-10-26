@@ -1,0 +1,32 @@
+name: Supabase keep-alive
+
+# The Free Supabase project pauses after about a week without activity. Once a day this reads one row of the public
+# daily_puzzles table through the Data API with the publishable key. It needs two repository VARIABLES (not secrets;
+# both values are public): SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY. It never fails, so it can never block a deploy.
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the Data API
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is not set as a repository variable: nothing to ping"
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            "$SUPABASE_URL/rest/v1/daily_puzzles?select=puzzle_date&limit=1" || echo 000)
+          echo "Data API answered $code"
+          exit 0
