@@ -13442,7 +13442,7 @@ table.tbl.tv-compact .tv-name {
     gap: 8px 16px;
   }
   .pb-page .fit-head h1 {
-    font-size: 28px;
+    font-size: calc(var(--fs-h1) * 0.875);
     line-height: 1.1;
   }
   /* The side's two rows sit on one line when the window is wide enough; it keeps the head's first line either way */
@@ -13457,7 +13457,7 @@ table.tbl.tv-compact .tv-name {
     padding: 5px 14px;
   }
   .pb-page .chase b {
-    font-size: 18px;
+    font-size: calc(var(--fs-h3) - 1px);
   }
   .pb-page .pb-tally-row {
     margin-top: 8px;
@@ -13480,7 +13480,7 @@ table.tbl.tv-compact .tv-name {
     padding: 5px 8px;
   }
   .pb-tally-row .tally-num {
-    font-size: 22px;
+    font-size: calc(var(--fs-h2) - 2px);
   }
   .pb-tally-row .tally-label {
     margin-top: 0;
@@ -13555,7 +13555,7 @@ table.tbl.tv-compact .tv-name {
 }
 @container pb-table (max-height: 600px) {
   .live-table {
-    font-size: 12px;
+    font-size: var(--fs-meta);
   }
 }
 @container bench (min-width: 400px) {
@@ -13575,7 +13575,7 @@ table.tbl.tv-compact .tv-name {
     justify-self: start;
   }
   .page.fit .bench-panel .help {
-    font-size: 12px;
+    font-size: var(--fs-meta);
   }
 }
 
