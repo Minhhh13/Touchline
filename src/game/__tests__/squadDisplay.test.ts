@@ -5,7 +5,7 @@ import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE, rolesFor } from '@engine/roles'
 import { playerLookup, squadPlayers } from '../logic/players'
 import { teamStrength } from '../logic/squad'
-import { doneDeals, EVEN_BAND, filterNews, matchUp, seasonStrip, tableBand, tickerLines, formTitle, formTrend, FORM_BAND, inboxGroup, INBOX_FILTERS, minutesLast3, positionHistory, positionStory, ratingBand, roleFit, roleOptions, sparkPoints, teamFamiliarity, windowCountdown } from '../logic/squadDisplay'
+import { topAttributes, doneDeals, EVEN_BAND, filterNews, matchUp, seasonStrip, tableBand, tickerLines, formTitle, formTrend, FORM_BAND, inboxGroup, INBOX_FILTERS, minutesLast3, positionHistory, positionStory, ratingBand, roleFit, roleOptions, sparkPoints, teamFamiliarity, windowCountdown } from '../logic/squadDisplay'
 import { seasonGame } from './seasonGame'
 import { nextOpponent } from '../logic/week'
 
@@ -258,4 +258,24 @@ describe('the season calendar strip', () => {
     expect(tableBand(17, 20)).toBe('bottom')
     expect(tableBand(16, 20)).toBe('mid')
   }, 60_000)
+})
+
+describe('the hover card', () => {
+  it("lists a player's three best attributes, a keeper's goalkeeping first and an outfielder's never", () => {
+    let keepers = 0
+    for (const p of Object.values(u.index).slice(0, 3000)) {
+      const top = topAttributes(p)
+      expect(top).toHaveLength(3)
+      if (p.positions[0] === 'GK') {
+        keepers++
+        expect(top[0].key).toBe('goalkeeping')
+      } else {
+        expect(top.some((a) => a.key === 'goalkeeping')).toBe(false)
+        expect(top[0].value).toBeGreaterThanOrEqual(top[1].value)
+        expect(top[1].value).toBeGreaterThanOrEqual(top[2].value)
+        for (const k of ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical', 'mentality'] as const) if (!top.some((a) => a.key === k)) expect(p.attributes[k]).toBeLessThanOrEqual(top[2].value)
+      }
+    }
+    expect(keepers).toBeGreaterThan(50)
+  })
 })

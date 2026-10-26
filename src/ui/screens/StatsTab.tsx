@@ -7,6 +7,7 @@ import { analystPicks, ANALYST_INTERVAL, ANALYST_MIN_SHOTS, dataHubRows, dataHub
 import { ClubBadge, Info, Rating } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import type { SquadPlayer } from '@engine/types'
+import { PlayerPeek } from '../components/PlayerPeek'
 
 /** A signed figure to one decimal: "+1.4", "−0.8", "0.0". */
 function signedOne(v: number): string {
@@ -157,7 +158,10 @@ export function StatsTab() {
               <td>{i + 1}</td>
               <td>
                 <span className="row" style={{ gap: 6 }}>
-                  <Rating value={r.p!.overall} /> {r.p!.name}
+                  <Rating value={r.p!.overall} />{' '}
+                  <PlayerPeek p={r.p} s={r.s}>
+                    <span className="one-line">{r.p!.name}</span>
+                  </PlayerPeek>
                 </span>
               </td>
               <td>

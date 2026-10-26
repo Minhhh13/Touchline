@@ -1704,6 +1704,50 @@ label.field,
     text-overflow: ellipsis;
   }
 }
+/* The hover card: fixed under (or over) the name, clamped to the window, gone when the mouse leaves */
+.peek-anchor {
+  display: inline-flex;
+  min-width: 0;
+}
+.peek-card {
+  position: fixed;
+  z-index: 60;
+  width: 240px;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line-2);
+  background: var(--float-bg);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--fs-sm);
+}
+.peek-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.peek-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: var(--fs-meta);
+  color: var(--text-3);
+}
+.peek-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.peek-attrs {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: var(--fs-meta);
+}
 /* A key name in running text (How it works) */
 kbd {
   font-family: var(--mono);

@@ -48,6 +48,7 @@ import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_B
 import { ContractCard, ContractTalks } from '../components/ContractTalks'
 import { dugoutKey, isControlTarget } from '../dugoutKeys'
 import { PositionChart } from '../components/LiveLeague'
+import { PlayerPeek } from '../components/PlayerPeek'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 
 type Tab = DugoutTab
@@ -455,9 +456,11 @@ export function Dugout() {
                       <span className="depth-names">
                         {cover.length === 0 && <span className="chip bad">Nobody</span>}
                         {cover.map((x) => (
-                          <button key={x.p.id} type="button" className={`chip ${inXI.has(x.p.id) ? 'info' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
-                            {x.p.name.split(' ').slice(-1)[0]} {x.r}
-                          </button>
+                          <PlayerPeek key={x.p.id} p={x.p} s={x.s}>
+                            <button type="button" className={`chip ${inXI.has(x.p.id) ? 'info' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
+                              {x.p.name.split(' ').slice(-1)[0]} {x.r}
+                            </button>
+                          </PlayerPeek>
                         ))}
                       </span>
                     </div>
@@ -1624,9 +1627,11 @@ function ClubTab({ table, onPlayer }: { table: TableRow[]; onPlayer: (id: string
                 <td>
                   <span className="row" style={{ gap: 6 }}>
                     <Rating value={x.p.overall} />{' '}
-                    <button type="button" className="link-btn name" title={`${x.p.name}: details and contract talks`} onClick={() => onPlayer(x.p.id)} data-testid="contract-name">
-                      {x.p.name}
-                    </button>
+                    <PlayerPeek p={x.p} s={x.s}>
+                      <button type="button" className="link-btn name" title={`${x.p.name}: details and contract talks`} onClick={() => onPlayer(x.p.id)} data-testid="contract-name">
+                        {x.p.name}
+                      </button>
+                    </PlayerPeek>
                     {game.contracts[x.p.id]?.shopped && <span className="chip warn" title="His agent is finding a buyer">Shopped</span>}
                   </span>
                 </td>

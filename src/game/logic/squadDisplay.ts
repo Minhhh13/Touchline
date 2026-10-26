@@ -8,7 +8,7 @@ import { computeTeamStrength, roleRating } from '@engine/ratings'
 import type { LoadedUniverse } from '@engine/universe'
 import { teamStrength } from './squad'
 import { rolesFor } from '@engine/roles'
-import type { Fixture, PlayerSeason, Position, SquadPlayer, TableRow } from '@engine/types'
+import type { Attributes, Fixture, PlayerSeason, Position, SquadPlayer, TableRow } from '@engine/types'
 import type { Window } from '@engine/market'
 import type { Game } from '../types'
 
@@ -65,6 +65,28 @@ export function sparkPoints(ratings: number[], w = 40, h = 14): Array<{ x: numbe
     const y = 2 + (h - 4) * (1 - (v - SPARK_MIN) / (SPARK_MAX - SPARK_MIN))
     return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, r, band: ratingBand(r) }
   })
+}
+
+// ---------------------------------------------------------------- the hover card
+
+export const PEEK_ATTRIBUTES: Array<{ key: keyof Attributes; label: string }> = [
+  { key: 'pace', label: 'Pace' },
+  { key: 'shooting', label: 'Shooting' },
+  { key: 'passing', label: 'Passing' },
+  { key: 'dribbling', label: 'Dribbling' },
+  { key: 'defending', label: 'Defending' },
+  { key: 'physical', label: 'Physical' },
+  { key: 'mentality', label: 'Mentality' },
+  { key: 'goalkeeping', label: 'Goalkeeping' },
+]
+
+/** His three best attributes for the hover card (goalkeeping only counts for a keeper, and always leads for one). */
+export function topAttributes(p: Pick<PlayerSeason, 'attributes' | 'positions'>, n = 3): Array<{ key: keyof Attributes; label: string; value: number }> {
+  const keeper = p.positions[0] === 'GK'
+  return PEEK_ATTRIBUTES.filter((a) => keeper || a.key !== 'goalkeeping')
+    .map((a) => ({ ...a, value: p.attributes[a.key] }))
+    .sort((a, b) => (keeper ? Number(b.key === 'goalkeeping') - Number(a.key === 'goalkeeping') : 0) || b.value - a.value)
+    .slice(0, n)
 }
 
 // ---------------------------------------------------------------- squad list views
