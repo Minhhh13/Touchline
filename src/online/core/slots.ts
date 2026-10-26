@@ -6,6 +6,7 @@
 import type { Game, Phase } from '@game/types'
 import type { H2HGame } from '@game/store'
 import { picksMade } from '@engine/draft'
+import { isQuickLike } from '@game/logic/modes'
 import { fingerprint } from './canonical'
 
 export type GameSlotId = 'quick' | 'season' | 'dynasty'
@@ -20,9 +21,15 @@ export interface SyncSource {
 
 export type SlotValue = { slot: GameSlotId; kind: 'game'; game: Game; active: boolean } | { slot: 'h2h'; kind: 'h2h'; h2h: H2HGame }
 
-/** The slot a game lives in: Quick Drafts and Dailies share one (the same rule as `slotOf` in `store.ts`). */
-export function gameSlot(game: Game): GameSlotId {
-  return game.settings.mode === 'quick' || game.settings.mode === 'daily' ? 'quick' : game.settings.mode
+/**
+ * The cloud slot a game lives in: Quick Drafts, Dailies and Weeklies share one (the same rule as `slotOf` in
+ * `store.ts`, `isQuickLike`). Null for a game whose store slot has no cloud slot (an arena run, a Run-in): the
+ * database takes only `quick`, `season`, `dynasty` and `h2h`, so those stay on the device until a migration adds them.
+ */
+export function gameSlot(game: Game): GameSlotId | null {
+  const mode = game.settings.mode
+  if (isQuickLike(mode)) return 'quick'
+  return mode === 'season' || mode === 'dynasty' ? mode : null
 }
 
 /** Every slot that holds something: the active game in its slot, parked games in theirs, the hot-seat game. */
@@ -30,11 +37,12 @@ export function slotContents(s: SyncSource): Partial<Record<SlotId, SlotValue>> 
   const out: Partial<Record<SlotId, SlotValue>> = {}
   for (const g of Object.values(s.parked)) {
     const slot = gameSlot(g)
+    if (!slot) continue
     out[slot] = { slot, kind: 'game', game: g, active: false }
   }
   // The active game wins its slot (the store never parks a game in the active game's slot, but a hand-edited save might)
-  if (s.game) {
-    const slot = gameSlot(s.game)
+  const slot = s.game ? gameSlot(s.game) : null
+  if (s.game && slot) {
     out[slot] = { slot, kind: 'game', game: s.game, active: true }
   }
   if (s.h2h) out.h2h = { slot: 'h2h', kind: 'h2h', h2h: s.h2h }

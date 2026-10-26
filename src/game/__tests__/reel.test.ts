@@ -32,7 +32,7 @@ function checkDeal(u: LoadedUniverse, leagues: string[], pool: ClubSeason[], tar
   for (const c of deal.cards) expect(c.lit, c.key).toBe(lit.has(c.key))
   // Never the same card twice in a row
   for (let i = 1; i < deal.cards.length; i++) expect(deal.cards[i].key).not.toBe(deal.cards[i - 1].key)
-  // A near miss of at most a third of a card
+  // A near miss anywhere inside the card
   expect(Math.abs(deal.jitter)).toBeLessThanOrEqual(REEL_JITTER)
   // The drum rolls through seasons the wheel could land on and stops on the drawn one
   expect(deal.drum).toHaveLength(DRUM_LABELS)
@@ -118,7 +118,7 @@ describe('the case reel deal', () => {
     const others = ['x', 'y', 'z'].map((s) => dealReel(u, { leagues: ['england'], pool, target: cs }, seeded(s)))
     expect(others.some((o) => o.cards.map((c) => c.key).join() !== a.cards.map((c) => c.key).join())).toBe(true)
     expect(new Set([a, ...others].map((o) => o.jitter)).size).toBeGreaterThan(1)
-    // A jitter source at its extremes stays within a third of a card
+    // A jitter source at its extremes stays inside the card
     expect(dealReel(u, { leagues: ['england'], pool, target: cs }, () => 0).jitter).toBeCloseTo(-REEL_JITTER, 9)
     expect(dealReel(u, { leagues: ['england'], pool, target: cs }, () => 0.999999).jitter).toBeLessThanOrEqual(REEL_JITTER)
   })

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, canUse, eligibleSlots, isComplete, pick, QUICK_RULES, respin, spin } from '@engine/draft'
-import { CHALLENGE_NAME_MAX, cleanName, decodeChallenge, encodeChallenge, historyKey, isRulesDiff, rulesDiff, rulesFromPayload, type ChallengePayload } from '@engine/challenge'
+import { CHALLENGE_NAME_MAX, cleanName, decodeChallenge, encodeChallenge, historyKey, isArenaLink, isRulesDiff, NEWER_LINK, payloadVersionFor, rulesDiff, rulesFromPayload, V1_RULE_KEYS, type ChallengePayload, type ChallengePayloadV2 } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { challengeFromGame, challengeLink, challengeSettings, replayChallenge, settingsFromChallenge, verdictLine } from '../logic/challenge'
 import { createGame } from '../logic/setup'
@@ -78,7 +78,9 @@ describe('challenge links', () => {
     const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
     expect(() => decodeChallenge(b64({ v: 1 }))).toThrow('Not a Touchline challenge link')
     expect(() => decodeChallenge(b64([1, 2, 3]))).toThrow('Not a Touchline challenge link')
-    expect(() => decodeChallenge(b64({ v: 2 }))).toThrow('newer version')
+    // Version 2 is this build's own; an empty one is not a link, and anything later is from a newer build
+    expect(() => decodeChallenge(b64({ v: 2 }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ v: 3 }))).toThrow('newer version')
     expect(cleanName('a\u0000b\u001fc  d\u007f')).toBe('abc d')
   })
 
@@ -238,5 +240,115 @@ describe('challenge links', () => {
     expect(verdictLine(ch, { pts: 89, w: 28, d: 5, l: 5, t: 'CHAMPIONS' })).toBe('⚔️ Minh wins by 1 point: 90 to 89')
     expect(verdictLine(ch, { pts: 90, w: 29, d: 3, l: 6, t: 'CHAMPIONS' })).toBe('⚔️ Level with Minh on 90, more defeats')
     expect(verdictLine(ch, { pts: 90, w: 28, d: 6, l: 4, t: 'CHAMPIONS' })).toBe('⚔️ Dead level with Minh: 90 points each')
+  })
+})
+
+describe('challenge payload v2 gate', () => {
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
+
+  it('writes today\'s quick links as v1, and still decodes, replays and verifies them', () => {
+    const g = autoGame({ seed: 'GHOST-V1' })
+    const c = challengeFromGame(g, u, 'Minh')!
+    expect(c.v).toBe(1)
+    expect('kind' in c).toBe(false)
+    const back = decodeChallenge(encodeChallenge(c))
+    expect(back).toEqual(c)
+    expect(replayChallenge(u, back).verified).toBe('yes')
+  })
+
+  it("still decodes main's v1 links with the manager spin, the end case and a locker, and the same as v2", () => {
+    const g = autoGame({ seed: 'GHOST-V1-LOCKER' })
+    const c = challengeFromGame(g, u, 'Minh')!
+    expect(c.v).toBe(1)
+    const main = { ...c, s: { ...c.s, r: { ...c.s.r, managerSpin: true, endCase: true } }, i: ['peek'] }
+    const back = decodeChallenge(b64(main))
+    expect(back.v).toBe(1)
+    expect(back.s.r).toEqual(main.s.r)
+    expect(back.v === 1 && back.i).toEqual(['peek'])
+    const v2 = decodeChallenge(b64({ ...main, v: 2, kind: 'quick' }))
+    expect(v2.v === 2 && v2.kind === 'quick' && v2.i).toEqual(['peek'])
+    // A locker is a quick link's: an arena link carrying one reads as from a newer build
+    expect(() => decodeChallenge(b64({ ...main, v: 2, kind: 'arena' }))).toThrow()
+  }, 30000)
+
+  it('decodes a v2 quick link with v1 rules, with or without its kind, and it replays and verifies', () => {
+    const g = autoGame({ seed: 'GHOST-V2', rules: { ...QUICK_RULES, leagues: ['england'], fromSeason: 2012 } })
+    const c = challengeFromGame(g, u, 'Minh')!
+    const v2: ChallengePayloadV2 = { ...c, v: 2, kind: 'quick' }
+    const back = decodeChallenge(encodeChallenge(v2))
+    expect(back).toEqual(v2)
+    // Main's rulesDiff always writes the difficulty and the manager rule
+    expect(back.s.r).toEqual({ difficulty: 'normal', managers: true, fromSeason: 2012 })
+    expect(replayChallenge(u, back).verified).toBe('yes')
+    // A v2 link that leaves the kind out is a quick link
+    const { kind, ...noKind } = v2
+    expect(kind).toBe('quick')
+    expect(decodeChallenge(b64(noKind))).toEqual(v2)
+  })
+
+  it('refuses v3, an unknown top-level key, an arena payload and a v1 link with a non-v1 rule, each with its reason', () => {
+    const c = challengeFromGame(autoGame({ seed: 'GHOST-GATE' }), u, 'Minh')!
+    const v2 = { ...c, v: 2, kind: 'quick' }
+    expect(() => decodeChallenge(b64({ ...c, v: 3 }))).toThrow(NEWER_LINK)
+    expect(NEWER_LINK).toBe('This challenge link comes from a newer version of TouchLine')
+    // An unknown top-level key: a v2 link from a later build
+    expect(() => decodeChallenge(b64({ ...v2, ghosts: [] }))).toThrow(NEWER_LINK)
+    // v1 keeps its old behaviour: extra top-level keys are ignored
+    expect(decodeChallenge(b64({ ...c, ghosts: [] }))).toEqual(c)
+    // An arena link needs its claim, its steps and its flags (arenaChallenge.test.ts covers the real ones); a quick claim on one reads as a newer build's key
+    const { c: quickClaim, ...noClaim } = v2
+    expect(quickClaim).toEqual(c.c)
+    expect(() => decodeChallenge(b64({ ...noClaim, kind: 'arena', arena: { f: 'gauntlet' } }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ ...v2, kind: 'arena', arena: { f: 'gauntlet' } }))).toThrow(NEWER_LINK)
+    expect(isArenaLink({ f: 'cup', n: 16 })).toBe(false)
+    // A kind this build does not know is a later build's mode; a kind that is not a string, or arena settings on a quick link, is not a link
+    expect(() => decodeChallenge(b64({ ...v2, kind: 'draft-room' }))).toThrow(NEWER_LINK)
+    expect(() => decodeChallenge(b64({ ...v2, kind: null }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ ...v2, kind: 7 }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ ...v2, arena: { f: 'cup' } }))).toThrow('Not a Touchline challenge link')
+    // A v1 link carrying a rule v1 builds never wrote
+    expect(() => decodeChallenge(b64({ ...c, s: { ...c.s, r: { budget: 500 } } }))).toThrow('Not a Touchline challenge link')
+    // The salary cap is a v2 rule now: a v2 link may carry one in range, never one outside it or of the wrong type
+    expect(decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 500 } } })).s.r).toEqual({ budget: 500 })
+    for (const budget of [5000, 49, '180', null]) expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget } } })), String(budget)).toThrow('Not a Touchline challenge link')
+    // Nor beside one club or one nation, which this build never drafts under a cap (`capFits`)
+    expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 180, onlyNation: 'BRA' } } }))).toThrow('Not a Touchline challenge link')
+    expect(() => decodeChallenge(b64({ ...v2, s: { ...c.s, r: { budget: 180, onlyClub: 'burnley' } } }))).toThrow('Not a Touchline challenge link')
+    expect(isRulesDiff({ onlyNation: 'BRA' })).toBe(true)
+  })
+
+  it('picks the payload version from the rule keys and the kind', () => {
+    expect(V1_RULE_KEYS).toEqual(['squadSize', 'respins', 'fromSeason', 'toSeason', 'onlyClub', 'onlyNation', 'minFit', 'hardMode', 'uniqueClubSeasons', 'twists', 'difficulty', 'showRatings', 'draftMode', 'ratings', 'benchPicks', 'modes', 'upgrader', 'powerUps', 'managers', 'managerSpin', 'endCase', 'classic', 'superLeague'])
+    expect(payloadVersionFor({}, 'quick')).toBe(1)
+    // Main's manager spin and end-of-draft case are rules main's v1 links carry, so they stay v1 here too
+    expect(payloadVersionFor({ managers: true, managerSpin: true, endCase: true }, 'quick')).toBe(1)
+    expect(payloadVersionFor(rulesDiff({ ...QUICK_RULES, squadSize: 18, respins: 3, fromSeason: 2000, toSeason: 2010, onlyClub: 'burnley', onlyNation: 'ENG', minFit: 'awkward', hardMode: true, uniqueClubSeasons: false, twists: false }), 'quick')).toBe(1)
+    // Every rule a link can carry today is a v1 rule, so no quick link changes version
+    const everyRule = Object.fromEntries(V1_RULE_KEYS.map((k) => [k, 1]))
+    expect(payloadVersionFor(everyRule, 'quick')).toBe(1)
+    expect(payloadVersionFor({ budget: 500 } as unknown as Partial<typeof QUICK_RULES>, 'quick')).toBe(2)
+    expect(payloadVersionFor({}, 'arena')).toBe(2)
+  })
+
+  it('a capped quick draft travels as v2, round-trips, replays and verifies; a tampered cap does not', () => {
+    const g = autoGame({ seed: 'GHOST-CAP', rules: { ...QUICK_RULES, leagues: ['england'], budget: 150 } })
+    expect(g.draft!.spent!).toBeLessThanOrEqual(150)
+    const c = challengeFromGame(g, u, 'Minh')!
+    expect(c.v).toBe(2)
+    expect(c.v === 2 && c.kind).toBe('quick')
+    expect(c.s.r).toEqual({ difficulty: 'normal', managers: true, budget: 150 })
+    expect(payloadVersionFor(c.s.r, 'quick')).toBe(2)
+    const back = decodeChallenge(encodeChallenge(c))
+    expect(back).toEqual(c)
+    expect(rulesFromPayload(back).budget).toBe(150)
+    const out = replayChallenge(u, back)
+    expect(out.verified).toBe('yes')
+    expect(out.result).toEqual(c.c)
+    // The friend's game plays under the same cap
+    const s = settingsFromChallenge(back, 'Friend XI', 'FXI', challengeSettings(back, out))
+    expect(s.rules.budget).toBe(150)
+    // A cap too small for the picks cannot replay them
+    const tight = replayChallenge(u, { ...back, s: { ...back.s, r: { budget: 50 } } })
+    expect(tight.verified).toBe('no')
   })
 })

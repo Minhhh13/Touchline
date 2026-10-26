@@ -25,7 +25,8 @@ export interface RoundRef {
 }
 
 export function roundRefOf(ctx: MatchContext, cupTieIndex?: number): RoundRef {
-  return { competition: ctx.competition, matchweek: ctx.matchweek, cupTieIndex, ...(ctx.matchweek === 0 ? { friendly: true } : {}) }
+  // An arena match is a knockout with no league around it: no table, no other scores
+  return { competition: ctx.competition === 'arena' ? 'cup' : ctx.competition, matchweek: ctx.matchweek, cupTieIndex, ...(ctx.matchweek === 0 ? { friendly: true } : {}) }
 }
 
 export interface LatestScore {
@@ -120,7 +121,7 @@ export function roundTable(game: Game, ref: RoundRef): TableRow[] {
   const season = game.season
   if (!season) return []
   const fixtures = ref.competition === 'league' ? season.fixtures.filter((f) => f.matchweek < ref.matchweek) : season.fixtures
-  return computeTable(fixtures, teamIds(game))
+  return computeTable(fixtures, teamIds(game), season.carryIn)
 }
 
 function scoreOnly(homeTeamId: string, awayTeamId: string, home: number, away: number): MatchResult {
@@ -159,6 +160,6 @@ export function liveTable(game: Game, u: LoadedUniverse, ref: RoundRef, minute: 
       inRound.add(f.awayTeamId)
     }
   }
-  const table = computeTable(counted, teamIds(game))
+  const table = computeTable(counted, teamIds(game), season.carryIn)
   return table.map((r, i) => label(r, i, prevPos.get(r.teamId) ?? i + 1, !final && inRound.has(r.teamId)))
 }

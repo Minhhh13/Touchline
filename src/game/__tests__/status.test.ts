@@ -373,5 +373,5 @@ describe('squad status and playing time', () => {
     const mean = means.reduce((a, b) => a + b, 0) / means.length
     console.log(`mean morale after 20 weeks: ${means.map((m) => m.toFixed(1)).join(', ')} (average ${mean.toFixed(2)}, before statuses ${MORALE_BEFORE_STATUSES})`)
     expect(Math.abs(mean - MORALE_BEFORE_STATUSES)).toBeLessThanOrEqual(5)
-  })
+  }, 30000) // twenty played weeks: a sweep that ran over the 5 s default on a loaded machine
 })

@@ -228,6 +228,37 @@
 .matchday .md-formation .md-vpitch-wrap {
   margin: 6px;
   width: calc(100% - 12px);
+  container: vpitch / inline-size;
+}
+/*
+ * A small formation pitch (the desktop side columns at 1280 to 1440): no room for names, role codes and ratings side
+ * by side, so each man is his shirt number with the rating under it; the name, the full role and the rating are in
+ * the button's tooltip.
+ */
+@container vpitch (max-width: 230px) {
+  .matchday .md-formation .md-man-name {
+    display: none;
+  }
+  .matchday .md-formation .md-man {
+    transform: translate(-50%, -50%);
+  }
+  .matchday .md-formation .md-man-shirt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .matchday .md-formation .md-man-shirt .md-shirt {
+    width: 20px;
+    height: 20px;
+  }
+  .matchday .md-formation .md-man-shirt .md-rating {
+    position: static;
+    min-width: 0;
+    padding: 0 2px;
+    font-size: 10px;
+    line-height: 12px;
+  }
 }
 .matchday .md-vpitch {
   position: absolute;
@@ -297,16 +328,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.2;
   letter-spacing: -0.02em;
   font-weight: 600;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
+/* On the grass in both themes: a pale cyan that keeps 4.5:1 on the pitch green (the theme's accent fell to 1.3:1 in Daylight) */
 .matchday .md-role {
   font-family: var(--mono);
-  font-size: 9px;
-  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  color: #dff7ff;
 }
 .matchday .md-shirt.dim {
   filter: grayscale(1);
@@ -386,9 +419,42 @@
   line-height: 1.15;
 }
 .matchday .md-view-stats {
+  flex: none;
   width: 100%;
   font-size: 11px;
   padding: 3px 4px;
+}
+/* Possession reads next to the shots, not last under the cards */
+.matchday .md-flank-row:is([data-stat='shots'], [data-stat='onTarget'], [data-stat='xg']) {
+  order: -2;
+}
+.matchday .md-flank-row[data-stat='possession'] {
+  order: -1;
+}
+/*
+ * On a desktop the flank is as tall as the pitch row: the rows that matter least drop out as it gets short, and what
+ * is left scrolls inside the list, so View stats always stays inside the box.
+ */
+@media (min-width: 1200px) {
+  .matchday.fit .md-flank {
+    container: flank / size;
+  }
+  .matchday.fit .md-flank dl {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+}
+@container flank (max-height: 470px) {
+  .matchday .md-flank-row:is([data-stat='distanceKm'], [data-stat='fouls'], [data-stat='corners']) {
+    display: none;
+  }
+}
+@container flank (max-height: 360px) {
+  .matchday .md-flank-row:is([data-stat='tackles'], [data-stat='yellows'], [data-stat='passPct']) {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------------ momentum strip, banner */
@@ -429,15 +495,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 14px;
+  color: var(--text);
 }
-/* Only the moments slide in: a line of play changes every minute and must stay readable */
+/*
+ * Only the moments slide in: a line of play changes every minute and must stay readable. The slide starts most of
+ * the way to full strength, so a line caught mid-slide (or a run of quick lines at 4x) never reads as pale grey.
+ */
 .matchday .md-banner.key .txt {
   animation: md-in 0.3s ease;
   font-weight: 600;
 }
 @keyframes md-in {
   from {
-    opacity: 0;
+    opacity: 0.7;
     transform: translateY(3px);
   }
   to {
@@ -797,6 +867,7 @@
 }
 .matchday .md-heat-side .md-select {
   font-size: 11px;
+  width: 100%;
 }
 .matchday .md-heat-side {
   display: flex;
@@ -1050,8 +1121,8 @@
   margin: 0 auto;
 }
 .matchday.compact .md-topbar {
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: 'board board' 'tools play';
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'board' 'tools' 'play';
 }
 .matchday.compact .scoreboard {
   grid-area: board;

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '@engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, canUse, eligibleSlots, isComplete, pick, respin, spin } from '@engine/draft'
-import { decodeChallenge, encodeChallenge, historyKey, picksFromHistory, replayDraft, rulesDiff, type ChallengePayload } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge, historyKey, picksFromHistory, replayDraft, rulesDiff, type ChallengePayload, type QuickChallengePayload } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import type { Game, GameSettings } from '@game/types'
 import { createGame, dailyGameSettings } from '@game/logic/setup'
@@ -511,7 +511,7 @@ describe('verifyDaily replays the season the player chose, as a challenge link d
     const c = challengeFromGame(g, u, 'Tester')!
     const outsider = u.clubSeasons.find((cs) => cs.leagueId === 'england')!.squad.find((p) => !Object.values(g.draft!.lineup).includes(p.id) && !g.draft!.bench.includes(p.id))!.id
     const slot = Object.keys(g.lineup)[0]
-    const cases: Array<[ChallengePayload['x'], RegExp]> = [
+    const cases: Array<[QuickChallengePayload['x'], RegExp]> = [
       [{ ...c.x, j: [outsider, slot] }, /January deal was not on offer/],
       [{ ...c.x, t: { ...c.x?.t, captain: outsider } }, /captain is not in the drafted squad/],
       [{ ...c.x, t: { ...c.x?.t, penalties: outsider } }, /penalty taker is not in the drafted squad/],

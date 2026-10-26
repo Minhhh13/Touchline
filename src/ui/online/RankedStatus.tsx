@@ -1,7 +1,7 @@
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { postKey, useOnline } from '../../online/state'
-import { rankedBoardOf } from '../../online/daily'
+import { rankedBoardOf, unrankedReason } from '../../online/daily'
 import { countryFlag } from '../../online/core/country'
 import { ordinal } from '../format'
 import { APP_NAME } from '../brand'
@@ -14,12 +14,15 @@ export function RankedStatus({ game }: { game: Game }) {
   const post = useOnline((s) => (board ? s.posts[postKey(board.kind, board.key)] : undefined))
   const go = useStore((s) => s.go)
   const showToast = useStore((s) => s.showToast)
+  const u = useStore((s) => s.universe)
   if (!configured || !board) return null
+  const extra = !post && u ? unrankedReason(game, u) : null
   const where = board.kind === 'daily' ? "today's Daily" : "this week's challenge"
   const points = game.quickResult?.points ?? 0
   let line: React.ReactNode
   let share: string | null = null
-  if (!post) line = <>Finished before this device kept ranked posts: it is not on the board.</>
+  if (extra) line = <>Unranked: {extra}.</>
+  else if (!post) line = <>Finished before this device kept ranked posts: it is not on the board.</>
   else if (post.state === 'waiting' && post.reason === 'sign_in' && !session)
     line = (
       <>

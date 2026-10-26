@@ -32,8 +32,16 @@ describe('the 38-0 chase', () => {
     expect(versusPerfectLine(37, 3, 38)).toBe('1 win short')
     expect(versusPerfectLine(30, 0, 38)).toBe('Unbeaten, 8 draws short')
     expect(versusPerfectLine(38, 0, 38)).toBe('The perfect season')
-    expect(runsLine({ perfectRun: 12, unbeatenRun: 15 })).toBe('Perfect run 12-0 · unbeaten from the start 15')
-    expect(runsLine({ perfectRun: 0, unbeatenRun: 0 })).toBe('Game 1 not won')
+    expect(runsLine({ perfectRun: 12, unbeatenRun: 15 }, 38)).toBe('Perfect run 12-0 · unbeaten for the first 15')
+    expect(runsLine({ perfectRun: 12, unbeatenRun: 12 }, 38)).toBe('Perfect run 12-0')
+    expect(runsLine({ perfectRun: 1, unbeatenRun: 1 }, 38)).toBe('Perfect run ended in game 2')
+    expect(runsLine({ perfectRun: 0, unbeatenRun: 9 }, 38)).toBe('Unbeaten for the first 9 games')
+    expect(runsLine({ perfectRun: 1, unbeatenRun: 9 }, 38)).toBe('Unbeaten for the first 9 games')
+    // Lines that would say nothing: the first game not won with no run after it, a perfect or an unbeaten season
+    expect(runsLine({ perfectRun: 0, unbeatenRun: 0 }, 38)).toBeNull()
+    expect(runsLine({ perfectRun: 0, unbeatenRun: 1 }, 38)).toBeNull()
+    expect(runsLine({ perfectRun: 38, unbeatenRun: 38 }, 38)).toBeNull()
+    expect(runsLine({ perfectRun: 5, unbeatenRun: 38 }, 38)).toBe('Perfect run 5-0')
     expect(chaseLine(chaseAt([g(0, 1)]), 38).headline).toBe('Perfect run over in game 1')
   })
 

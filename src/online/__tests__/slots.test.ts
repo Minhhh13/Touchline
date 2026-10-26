@@ -72,7 +72,7 @@ describe('cloud-save slots', () => {
   })
 
   it('orders progress across phases, matchweeks, seasons and spins', () => {
-    const v = (g: Game): SlotValue => ({ slot: gameSlot(g), kind: 'game', game: g, active: true })
+    const v = (g: Game): SlotValue => ({ slot: gameSlot(g)!, kind: 'game', game: g, active: true })
     const fresh = createGame(season.settings)
     const midDraft = drafted(season.settings)
     const pre = season

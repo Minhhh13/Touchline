@@ -5,6 +5,7 @@ import { getFormation } from '@engine/formations'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { retargetRoles } from '@engine/tactics'
 import { isAvailable, playerLookup, squadPlayers } from './players'
+import { logMorale } from './happiness'
 import type { Lineup } from '@engine/types'
 import { STATUS_RANK, WAGE_MULT, type SquadStatus } from '@engine/status'
 
@@ -67,7 +68,7 @@ export function setFormation(game: Game, u: LoadedUniverse, formationId: string)
   if (formationId === game.tactics.formationId) return
   game.tactics = retargetRoles(game.tactics, formationId)
   // Tactical familiarity dips when the shape changes mid-season.
-  if (game.phase === 'week' && game.season && game.season.matchweek > 0) {
+  if ((game.phase === 'week' && game.season && game.season.matchweek > 0) || (game.arena && game.arena.step > 0)) {
     for (const s of Object.values(game.squad)) s.familiarity = Math.max(0, s.familiarity - 12)
   }
   autoPick(game, u, true)
@@ -118,6 +119,8 @@ export function setSquadStatus(game: Game, u: LoadedUniverse, playerSeasonId: st
   if (from === status) return
   c.status = status
   const up = STATUS_RANK[status] > STATUS_RANK[from]
+  const before = s.morale
   s.morale = Math.max(10, Math.min(100, s.morale + (up ? 6 : -6)))
+  logMorale(s, game.season?.matchweek ?? 0, before, 'status', status)
   if (up && !c.loan) game.customPlayers[p.id] = { ...p, wage: Math.round(p.wage * (WAGE_MULT[status] / WAGE_MULT[from])) }
 }

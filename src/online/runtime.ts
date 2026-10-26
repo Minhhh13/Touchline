@@ -6,7 +6,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ENGINE_VERSION } from '@engine/version'
-import { useStore } from '@game/store'
+import { useStore, slotOf } from '@game/store'
 import { onlineConfig, type OnlineConfig } from './config'
 import { createOnlineClient } from './client'
 import { consumeAuthRedirect, sessionOf, signOut as authSignOut, type AuthLike } from './auth'
@@ -38,7 +38,7 @@ export const gameStoreForSync: SyncStoreLike = {
   discardSlot: (slot) => {
     const s = useStore.getState()
     if (slot === 'h2h') s.abandonH2H()
-    else if (s.game && (s.game.settings.mode === slot || (slot === 'quick' && s.game.settings.mode === 'daily'))) s.abandonGame()
+    else if (s.game && slotOf(s.game) === slot) s.abandonGame()
     else s.discardParked(slot)
   },
   showToast: (text) => useStore.getState().showToast(text),

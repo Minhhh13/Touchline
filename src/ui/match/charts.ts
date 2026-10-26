@@ -35,3 +35,16 @@ export function territory(momentum: number[]): number | null {
   if (!bins.length) return null
   return Math.round((bins.reduce((a, b) => a + b, 0) / bins.length) * 100)
 }
+
+/**
+ * The momentum chart's scale: the largest swing from an even share among the bins played up to the clock, rounded
+ * up to the next 5 per cent (at least 10), so a quiet match still draws bars you can read and the axis can say what
+ * a full bar means (0.5 + scale is the share at the top of the chart).
+ */
+export function momentumScale(momentum: number[], clock: number): number {
+  let dev = 0
+  momentum.slice(0, MOMENTUM_BINS).forEach((m, i) => {
+    if (clock > i * 5) dev = Math.max(dev, Math.abs(m - 0.5))
+  })
+  return Math.min(0.5, Math.max(0.1, Math.ceil(dev * 20 - 1e-9) / 20))
+}

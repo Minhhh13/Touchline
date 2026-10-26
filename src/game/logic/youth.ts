@@ -41,9 +41,11 @@ export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): strin
   const pool = poolClubSeasons(u, game.settings.rules.classic)
   const homegrown = pool.filter((cs) => cs.clubId === host).flatMap((cs) => cs.squad).filter(young)
   const picks = pickFrom(homegrown, 2)
-  if (picks.length < INTAKE_SIZE) {
+  // Youth facilities granted by the board (`src/game/logic/board.ts`) bring one more prospect each
+  const size = INTAKE_SIZE + Math.max(0, Math.min(2, game.youthFacilities ?? 0))
+  if (picks.length < size) {
     const leagueWide = pool.filter((cs) => game.settings.wheelLeagues.includes(cs.leagueId)).flatMap((cs) => cs.squad).filter(young)
-    picks.push(...pickFrom(leagueWide, INTAKE_SIZE - picks.length))
+    picks.push(...pickFrom(leagueWide, size - picks.length))
   }
   return picks.map((p) => p.id)
 }

@@ -11,7 +11,7 @@ import { ENGINE_VERSION } from '@engine/version'
 import type { Game, GameSettings } from '@game/types'
 import { dailyGameSettings, shortNameFor } from '@game/logic/setup'
 import { challengeFromGame } from '@game/logic/challenge'
-import { settingsHash, type PuzzlePin, type RankedBody } from './server/dailyVerify'
+import { nonStandardRun, settingsHash, type PuzzlePin, type RankedBody } from './server/dailyVerify'
 import { weekKeyOfSeed, weeklyGameSettings } from './weekly'
 
 export type StartSource = 'local' | 'pinned' | 'missing_data'
@@ -46,6 +46,38 @@ export function weeklyStartSettings(u: LoadedUniverse, key: string, teamName: st
   return decide(u, weeklyGameSettings(u, key, teamName), pin && pin.kind === 'weekly' && pin.key === key ? pin : null)
 }
 
+/**
+ * The draft rules that make a run non-standard for the ranked boards: Quick Draft modes (Crazy, Hard, Gamble...), the
+ * Player Upgrader, the power-up tray, the Super League, managers and the manager spin, the end-of-draft case, classic
+ * seasons, and the casual modes' salary cap and teammate chain. The ranked rules (`DAILY_RULES`, also the weekly's)
+ * have none of them, and the server refuses any rules that differ from the pin's anyway; this keeps the device from
+ * filing such a run at all. A new optional rule that changes what a season can be belongs here.
+ */
+export const NON_STANDARD_RULES = ['modes', 'upgrader', 'powerUps', 'superLeague', 'managers', 'managerSpin', 'endCase', 'classic', 'budget', 'chain'] as const
+
+/** The first non-standard rule a game's settings switch on, or null. */
+export function nonStandardRule(settings: Pick<GameSettings, 'rules'>): (typeof NON_STANDARD_RULES)[number] | null {
+  const r = settings.rules
+  for (const k of NON_STANDARD_RULES) {
+    const v = r[k]
+    if (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== false) return k
+  }
+  return null
+}
+
+/**
+ * Why a finished game on a ranked board's seed cannot rank, or null when it can: a non-standard rule, or a draft
+ * or season that used something outside the puzzle (the Upgrader, tray or locker power-ups, the case's Icon, a
+ * manager), the same checks the verifier makes (`nonStandardRun`).
+ */
+export function unrankedReason(game: Game, u: LoadedUniverse): string | null {
+  if (nonStandardRule(game.settings)) return 'This run used rules outside the ranked puzzle'
+  if (game.draft?.locker?.length) return 'Power-ups from the locker are not part of the ranked puzzle'
+  if (game.endCase?.sub) return "The case's Icon is not part of the ranked puzzle"
+  const payload = challengeFromGame(game, u, 'check')
+  return payload ? nonStandardRun(payload, game.settings.rules) : null
+}
+
 export interface RankedSubmission extends RankedBody {
   op: 'daily.submit' | 'weekly.submit'
 }
@@ -58,6 +90,7 @@ export function buildRankedSubmission(game: Game, u: LoadedUniverse, name: strin
   const isDaily = game.settings.mode === 'daily'
   const isWeekly = game.settings.mode === 'quick' && weekKeyOfSeed(game.settings.seed) !== null && !game.settings.challenge
   if (!isDaily && !isWeekly) return null
+  if (unrankedReason(game, u)) return null
   const payload = challengeFromGame(game, u, name)
   if (!payload) return null
   return { op: isDaily ? 'daily.submit' : 'weekly.submit', encoded: encodeChallenge(payload), teamName: game.settings.teamName, shortName: game.settings.shortName }
@@ -65,7 +98,7 @@ export function buildRankedSubmission(game: Game, u: LoadedUniverse, name: strin
 
 /** The ranked board a game's settings belong to (the Daily's date, or the week key), or null for any other game. */
 export function rankedBoardOf(settings: GameSettings): { kind: 'daily' | 'weekly'; key: string } | null {
-  if (settings.challenge) return null
+  if (settings.challenge || nonStandardRule(settings)) return null
   if (settings.mode === 'daily') {
     const d = dailyDateOf(settings.seed)
     return d ? { kind: 'daily', key: d.toISOString().slice(0, 10) } : null

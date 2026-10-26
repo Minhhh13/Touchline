@@ -2,28 +2,32 @@ import { useMemo, useState } from 'react'
 import { Bandage, ChevronDown } from 'lucide-react'
 import { useStore } from '@game/store'
 import { staffTier } from '@engine/staff'
-import { aiTeamInput, computeTable, USER_TEAM } from '@engine/season'
+import { aiTeamInput, seasonTable, type AiClub } from '@engine/season'
 import { computeTeamStrength } from '@engine/ratings'
 import { STYLE_LABEL } from '@engine/tactics'
 import { FormDots, Rating, Pos } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { ordinal } from '../format'
 
-/** Scouting summary of the next league opponent with a suggested approach. */
-export function OppositionReport({ clubId, home }: { clubId: string; home: boolean }) {
+/**
+ * Scouting summary of the next opponent with a suggested approach. A league
+ * or Continental opponent is found in the season; an arena opponent is passed
+ * in as `club` with its `aiOffset`, and has no table position or form.
+ */
+export function OppositionReport({ clubId, home, club: given, aiOffset, neutral }: { clubId: string; home: boolean; club?: AiClub; aiOffset?: number; neutral?: boolean }) {
   const { universe: u, game, setMarkTarget } = useStore()
   // Open on a tall desktop; folded on a phone or a short window, where it would push the squad out of sight
   const [startOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px) and (min-height: 900px)').matches)
   const data = useMemo(() => {
-    if (!u || !game?.season) return null
-    const club = game.season.ai[clubId] ?? game.season.continental?.clubs[clubId]
+    if (!u || !game || (!game.season && !given)) return null
+    const club = given ?? game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]
     if (!club) return null
-    const input = aiTeamInput(u, club, game.season.aiOffset)
+    const input = aiTeamInput(u, club, aiOffset ?? game.season?.aiOffset ?? 0)
     const strength = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
     const xi = Object.values(input.lineup).map((id) => u.index[id]).filter(Boolean)
     const stars = [...xi].sort((a, b) => b.overall - a.overall).slice(0, 3)
     const weak = staffTier(game.staff, 'scout') >= 2 ? [...xi].filter((p) => p.positions[0] !== 'GK').sort((a, b) => a.overall - b.overall)[0] : undefined
-    const table = computeTable(game.season.fixtures, [USER_TEAM, ...Object.keys(game.season.ai)])
+    const table = game.season && !given ? seasonTable(game.season) : []
     const row = table.find((r) => r.teamId === clubId) ?? { teamId: clubId, points: 0, form: [] as Array<'W' | 'D' | 'L'> }
     const pos = table.indexOf(row as (typeof table)[number]) + 1
     const injured = club.squad.filter((id) => club.state[id]?.injury).length
@@ -41,7 +45,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
     if (strength.defence > strength.attack + 4) tips.push('Well-drilled defence, blunt attack: you can afford to commit numbers.')
     if (weak) tips.push(`Scouts' weak link: ${weak.name} (${weak.overall}) at ${weak.positions[0]}. Attack his side.`)
     return { club, strength, stars, row, pos, injured, tips }
-  }, [u, game, clubId])
+  }, [u, game, clubId, given, aiOffset])
   if (!u || !data) return null
   const { club, strength, stars, row, pos, injured, tips } = data
   return (
@@ -49,7 +53,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
       <summary className="panel-head">
         <h3>Opposition report: {club.name}</h3>
         <span className="small muted">
-          {home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
+          {neutral ? 'Neutral' : home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
           <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
         </span>
       </summary>
@@ -67,10 +71,14 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
             <dd>
               {strength.midfield.toFixed(0)} / {strength.attack.toFixed(0)}
             </dd>
-            <dt>Form</dt>
-            <dd>
-              <FormDots form={row.form} />
-            </dd>
+            {!given && (
+              <>
+                <dt>Form</dt>
+                <dd>
+                  <FormDots form={row.form} />
+                </dd>
+              </>
+            )}
             <dt>Injured</dt>
             <dd className="icon-title" style={{ gap: 'var(--space-1)' }}>
               {injured > 0 && <Bandage size={13} className="ic-injury" aria-hidden="true" />}
@@ -83,7 +91,7 @@ export function OppositionReport({ clubId, home }: { clubId: string; home: boole
           {stars.map((p) => (
             <div key={p.id} className="row" style={{ gap: 8 }}>
               <Rating value={p.overall} />
-              <span>{p.name}</span>
+              <span className="danger-name" title={p.name}>{p.name}</span>
               <Pos p={p.positions[0]} />
               {p.positions[0] !== 'GK' && (
                 <button type="button" className={`btn sm ${game?.markTarget === p.id ? 'primary' : 'ghost'}`} title="Man-mark him: his influence drops, your attack loses a little" onClick={() => setMarkTarget(game?.markTarget === p.id ? undefined : p.id)}>

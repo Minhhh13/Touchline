@@ -3,16 +3,30 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { createGame, beginSeason } from '../logic/setup'
 import { closeLiveMatch, eventContext, finishLiveMatch, playFriendly, playMatchweek, startSeasonProper } from '../logic/week'
 import { buildYouthIntake } from '../logic/youth'
-import { autoDraft, SEASON_RULES } from '@engine/draft'
+import { autoDraft, peekActive, QUICK_RULES, SEASON_RULES, spinOdds } from '@engine/draft'
+import { canUpgrade } from '@engine/upgrader'
+import { powerUpUsed, powerUpsOn } from '@engine/powerups'
 import { Rng } from '@engine/rng'
 import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame, normaliseProfile } from '../logic/save'
 import { matchPlayOf } from '../logic/assistant'
+import { capOfGame } from '../logic/cap'
+import { chainOfGame } from '../logic/chain'
 import { rollEvent } from '@engine/events'
-import { newSquadPlayer, USER_TEAM } from '@engine/season'
+import { computeTable, newSquadPlayer, seasonTable, USER_TEAM } from '@engine/season'
+import { briefStanding, runInVerdict, takeoverTable } from '../logic/runin'
 import { playerLookup } from '../logic/players'
+import { runQuickSeason } from '../logic/quick'
+import { storyForGame } from '../logic/story'
+import { modeLabel } from '../logic/modes'
+import { arenaVerdictOf, challengeHeadline } from '../logic/arenaClaim'
 import type { Game, GameSettings, Profile } from '../types'
+import { maskedView, setAssignment, setRecruitFocus } from '../logic/scouting'
+import { contractDemand } from '../logic/contracts'
+import { requestOptions } from '../logic/board'
+import { readSaveFile } from '../store'
+import { decodeSave } from '../saveStorage'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
   return {
@@ -122,17 +136,48 @@ describe('audit fixes: season and squad', () => {
     delete old.jobOffers
     delete old.pendingMove
     delete old.customPlayers
+    delete old.arena
+    delete old.capSpent
+    delete old.teammateChain
     const oldSettings: Record<string, unknown> = { ...g.settings }
     delete oldSettings.wheelLeagues
+    delete oldSettings.weekly
+    delete oldSettings.runIn
     delete oldSettings.matchPlay
     old.settings = oldSettings
+    const oldSeason: Record<string, unknown> = { ...g.season! }
+    delete oldSeason.carryIn
+    delete oldSeason.takeoverAt
+    old.season = oldSeason
     const n = normaliseGame(old as unknown as Game)!
     expect(n.weekPlayed).toEqual([])
     expect(n.live).toBeNull()
     expect(n.jobOffers).toEqual([])
     expect(n.pendingMove).toBeNull()
     expect(n.customPlayers).toEqual({})
+    expect(n.arena).toBeNull()
+    // No salary cap before the Moneyball wheel: nothing to say about money
+    expect(n.settings.rules.budget).toBeUndefined()
+    expect(capOfGame(n)).toBeNull()
+    // Nor a teammate chain before the chain
+    expect(n.settings.rules.chain).toBeUndefined()
+    expect(chainOfGame(n)).toBeNull()
     expect(n.settings.wheelLeagues).toEqual(['england'])
+    // No weekly theme before the Weekly Challenge: the mode's label stands alone
+    expect(n.settings.weekly).toBeUndefined()
+    expect(modeLabel(n, 'short')).toBe('Season')
+    // A season from before the Run-in carries no table in: it reads from its fixtures alone, with no brief
+    expect(n.settings.runIn).toBeUndefined()
+    expect(n.season!.carryIn).toBeUndefined()
+    expect(seasonTable(n.season!)).toEqual(computeTable(n.season!.fixtures, [USER_TEAM, ...Object.keys(n.season!.ai)]))
+    expect(takeoverTable(n.season!)).toBeNull()
+    expect(briefStanding(n)).toBeNull()
+    expect(runInVerdict(n, u)).toBeNull()
+    // A ghost from before arena links carries no arena claim: it still reads as a quick challenge
+    const ghost = normaliseGame({ ...old, settings: { ...oldSettings, challenge: { name: 'Minh', picks: [], claim: { pts: 70, w: 21, d: 7, l: 10, t: 'TITLE_RACE' }, verified: 'yes', data: '2026-01-01', engine: '4' } } } as unknown as Game)!
+    expect(ghost.settings.challenge?.arena).toBeUndefined()
+    expect(challengeHeadline(ghost.settings.challenge!)).toBe('70 pts')
+    expect(arenaVerdictOf(ghost)).toBeNull()
     // The match-play preference stays unset and reads as Watch (today's stops at 45 and 70)
     expect(n.settings.matchPlay).toBeUndefined()
     expect(matchPlayOf(n)).toBe('watch')
@@ -140,6 +185,12 @@ describe('audit fixes: season and squad', () => {
     // No Quick Draft manager on a save from before managers: optional, left absent, and no rule switches them on
     expect(n.manager).toBeUndefined()
     expect(n.settings.rules.managers).toBeUndefined()
+    // Nor a manager spin, an end-of-draft case or a locker draft: all optional, left absent, and no rule switches them on
+    expect(n.managerSpin).toBeUndefined()
+    expect(n.endCase).toBeUndefined()
+    expect(n.settings.rules.managerSpin).toBeUndefined()
+    expect(n.settings.rules.endCase).toBeUndefined()
+    expect(n.draft?.locker).toBeUndefined()
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
     // A quick result saved before the live table has no rounds; a January window before it, no first-half rounds
@@ -150,6 +201,114 @@ describe('audit fixes: season and squad', () => {
     expect(p.quickBests).toEqual({ perfectSeasons: 0, longestPerfectRun: 0 })
     expect(p.theme).toBe('dark')
     expect(p.dailyStreak).toBe(2)
+    // A profile from before the end-of-draft case has an empty locker
+    expect(p.inventory).toEqual({})
+  })
+
+  it('a quick save from before Season Story opens and still tells its story', () => {
+    const g = createGame(settings({ mode: 'quick', seed: 'audit-story', rules: { ...QUICK_RULES, leagues: ['england'] } }))
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    runQuickSeason(g, u)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    const q = old.quickResult as unknown as Record<string, unknown>
+    delete q.clinchedAt
+    delete q.doomedAt
+    delete q.moment
+    const n = normaliseGame(old)!
+    expect(n.quickResult!.moment).toBeUndefined()
+    expect(n.quickResult!.clinchedAt).toBeUndefined()
+    const story = storyForGame(n, u)!
+    expect(story.strip).toHaveLength(38)
+    expect(story.moment.length).toBeGreaterThan(0)
+  })
+  it('a save from before the happiness log and the Inbox player links loads and plays', () => {
+    const g = started(u, { seed: 'pre-happiness-save' })
+    playMatchweek(g, u, true)
+    playMatchweek(g, u, true)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    for (const s of Object.values(old.squad)) delete s.moraleLog
+    for (const item of old.season!.news) delete item.playerId
+    const n = normaliseGame(old)!
+    expect(n.squad).toBe(old.squad)
+    expect(Object.values(n.squad).every((s) => s.moraleLog === undefined)).toBe(true)
+    while (n.season!.matchweek < 6) playMatchweek(n, u, true)
+    expect(Object.values(n.squad).some((s) => (s.moraleLog?.length ?? 0) > 0)).toBe(true)
+  }, 60_000)
+
+  it('a save from before recruitment (no knowledge, focus, reports, clauses, requests, slider or data hub) loads and plays', () => {
+    const g = started(u, { seed: 'pre-recruitment-save' })
+    playMatchweek(g, u, true)
+    const old = JSON.parse(JSON.stringify(g)) as Game
+    for (const k of ['knowledge', 'assignments', 'scouted', 'scoutSlot', 'recruitFocus', 'scoutReports', 'negotiations', 'bonusDue', 'youthFacilities', 'dataHub'] as const) delete old[k]
+    for (const c of Object.values(old.contracts)) {
+      delete c.clauses
+      delete c.sellOn
+      delete c.shopped
+    }
+    delete old.season!.requests
+    delete old.finances.wageShift
+    delete old.finances.bonusesPaid
+    const n = normaliseGame(old)!
+    expect(n.recruitFocus).toBeUndefined()
+    expect(n.scouted).toBeUndefined()
+    expect(n.contracts).toBe(old.contracts)
+    expect(maskedView(n, u, u.index[Object.keys(n.squad)[0]]).exact).toBe(true)
+    expect(contractDemand(n, u, Object.keys(n.squad)[0], 'rotation')).not.toBeNull()
+    expect(requestOptions(n, u).length).toBeGreaterThan(0)
+    while (n.season!.matchweek < 6) playMatchweek(n, u, true)
+    expect(Object.keys(n.dataHub ?? {}).length).toBeGreaterThan(0)
+    // A save written with every recruitment field round-trips an export and an import
+    setRecruitFocus(n, u, { position: 'CM', age: 'u24' })
+    setAssignment(n, 'england', true)
+    const id = Object.keys(n.squad)[0]
+    n.contracts[id].clauses = { release: 40, appearance: 5, goal: 10 }
+    n.contracts[id].shopped = true
+    n.scouted = [n.scoutReports![0].playerSeasonId]
+    n.season!.requests = [{ kind: 'budget', mw: 6, accepted: true }]
+    n.finances.wageShift = 2
+    const back = normaliseGame(JSON.parse(decodeSave(readSaveFile(JSON.stringify({ state: { game: n }, version: 1 })))!).state.game as Game)!
+    expect(back.recruitFocus).toEqual(n.recruitFocus)
+    expect(back.assignments).toEqual(['england'])
+    expect(back.contracts[id].clauses).toEqual({ release: 40, appearance: 5, goal: 10 })
+    expect(back.scoutReports).toEqual(n.scoutReports)
+    expect(back.season!.requests).toEqual(n.season!.requests)
+    expect(back.finances.wageShift).toBe(2)
+    // Lists past their cap are trimmed, and a malformed list is dropped
+    const long = normaliseGame({ ...back, scouted: Array.from({ length: 200 }, (_, i) => `x${i}`), assignments: 'england' as unknown as string[] })!
+    expect(long.scouted!.length).toBe(80)
+    expect(long.scouted!.at(-1)).toBe('x199')
+    expect(long.assignments).toEqual([])
+    playMatchweek(back, u, true)
+  }, 60_000)
+
+  it('a quick draft saved before Gamble mode reads with no Icons, no upgrader and the same lookup', () => {
+    const g = createGame({ mode: 'quick', seed: 'OLD-GAMBLE', formationId: '4-3-3', teamName: 'Old XI', shortName: 'OLD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const old = JSON.parse(JSON.stringify(g)) as Record<string, unknown>
+    const d = old.draft as Record<string, unknown>
+    delete d.gambleRng
+    delete d.upgradeRng
+    delete d.upgrade
+    const n = normaliseGame(old as unknown as Game)!
+    expect(canUpgrade(n.draft!)).toBe(false)
+    expect(spinOdds(u, n.draft!).icons).toBe(0)
+    const id = u.clubSeasons[0].squad[0].id
+    expect(playerLookup(n, u)(id)).toBe(u.index[id])
+  })
+
+  it('a quick draft saved before power-ups reads with no tray, nothing used and the same lookup', () => {
+    const g = createGame({ mode: 'quick', seed: 'OLD-POWER', formationId: '4-3-3', teamName: 'Old XI', shortName: 'OLD', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const old = JSON.parse(JSON.stringify(g)) as Record<string, unknown>
+    const d = old.draft as Record<string, unknown>
+    delete d.powerRng
+    delete d.powerUps
+    const n = normaliseGame(old as unknown as Game)!
+    expect(powerUpsOn(n.draft!)).toBe(false)
+    expect(powerUpUsed(n.draft!, 'reroll')).toBe(false)
+    expect(peekActive(n.draft!)).toBe(false)
+    const id = u.clubSeasons[0].squad[0].id
+    expect(playerLookup(n, u)(id)).toBe(u.index[id])
   })
 
   it('a save from before classic seasons (no `classic` rule) loads and plays without ever meeting one', () => {

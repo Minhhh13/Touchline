@@ -6,7 +6,7 @@
  * on real packs. The engine is untouched: this only drives its primitives the way the store does.
  */
 import { autoDraft, canSpin, isComplete, picksMade, pick, spin, type DraftState } from '@engine/draft'
-import { decodeChallenge, encodeChallenge, historyKey, rulesDiff, sameClaim, type ChallengePayload, type ChallengeSeason } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge, historyKey, isArenaPayload, rulesDiff, sameClaim, type ChallengePayload, type ChallengeSeason, type QuickChallengePayload } from '@engine/challenge'
 import { dailyDateOf, Rng } from '@engine/rng'
 import type { SeasonTier } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
@@ -32,6 +32,25 @@ export function puzzleOf(settings: GameSettings | PuzzleSettings): PuzzleSetting
 /** `daily_puzzles.settings_hash` / `weekly_puzzles.settings_hash`. */
 export function settingsHash(settings: GameSettings | PuzzleSettings): string {
   return fingerprint(puzzleOf(settings))
+}
+
+/**
+ * Why a decoded run is not a standard ranked run, or null when it is: an arena link (the boards rank Quick Draft
+ * seasons only), or a draft or season that used something outside the puzzle's rules: the Player Upgrader's gamble
+ * (`g`), tray power-ups (`w`), power-ups unpacked from the locker (`i`), the end-of-draft case's Icon (`x.ic`), or a
+ * manager (`x.m`) on a puzzle whose rules have none. The ranked rules (`DAILY_RULES`, which the weekly takes too) have
+ * no modes, tray, Upgrader, managers, case, classic seasons or Super League, and `samePuzzle` refuses any rules that
+ * differ from the pin's; these extras are not rules, so they are refused here (the strict replay would drop them and
+ * rank a different season from the one played).
+ */
+export function nonStandardRun(c: ChallengePayload, rules: GameSettings['rules']): string | null {
+  if (isArenaPayload(c)) return 'An arena run cannot rank on the Daily or weekly boards'
+  if (c.g) return 'The Player Upgrader is not part of the ranked puzzle'
+  if (c.w?.length) return 'Power-ups are not part of the ranked puzzle'
+  if (c.i?.length) return 'Power-ups from the locker are not part of the ranked puzzle'
+  if (c.x?.ic) return "The case's Icon is not part of the ranked puzzle"
+  if (c.x?.m && !rules.managers) return 'A manager is not part of the ranked puzzle'
+  return null
 }
 
 /** A pinned puzzle as the board's tables hold it. */
@@ -191,14 +210,16 @@ export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody
   const { encoded: rawEncoded, teamName: rawTeam, shortName: rawShort } = raw as Record<string, unknown>
   if (typeof rawEncoded !== 'string') return fail(422, 'invalid_payload', 'The submission has no payload')
   if (typeof rawTeam !== 'string' || typeof rawShort !== 'string') return fail(422, 'invalid_team', 'A team name and a short name are text')
-  let c: ChallengePayload
+  let decoded: ChallengePayload
   const encoded = rawEncoded.trim().replace(/^#?c=/, '')
   if (encoded.length > 8000) return fail(422, 'invalid_payload', 'The submission is too long')
   try {
-    c = decodeChallenge(encoded)
+    decoded = decodeChallenge(encoded)
   } catch (e) {
     return fail(422, 'invalid_payload', e instanceof Error ? e.message : String(e))
   }
+  if (isArenaPayload(decoded)) return fail(422, 'invalid_payload', nonStandardRun(decoded, pin.settings.rules)!)
+  const c: QuickChallengePayload = decoded
   const window = seedWindow(pin.kind, c.s.seed, now)
   if (!window) return fail(422, 'invalid_payload', pin.kind === 'daily' ? 'Not a Daily' : 'Not a weekly challenge')
   if (!window.open) return fail(409, 'closed', pin.kind === 'daily' ? 'That Daily has closed' : 'That week has closed')
@@ -209,6 +230,8 @@ export function verifyRanked(u: LoadedUniverse, pin: PuzzlePin, body: RankedBody
   const s = pin.settings
   const samePuzzle = c.s.f === s.formationId && c.s.l === s.leagueId && canonicalJson(c.s.wl) === canonicalJson(s.wheelLeagues) && c.s.h === s.hostClubId && c.s.ls === s.leagueSeason && c.s.d === (s.difficulty ?? 'calibrated') && canonicalJson(c.s.r) === canonicalJson(rulesDiff(s.rules))
   if (!samePuzzle) return fail(409, 'puzzle_mismatch', 'This run was played on a different puzzle from the ranked one')
+  const extra = nonStandardRun(c, s.rules)
+  if (extra) return fail(409, 'puzzle_mismatch', extra)
   const host = u.clubSeasonByKey[`${s.hostClubId}@${s.leagueSeason}`]
   if (!host || host.leagueId !== s.leagueId) return fail(409, 'puzzle_mismatch', `This data has no ${s.hostClubId} ${s.leagueSeason}`)
   if (rawTeam.trim() !== rawTeam || [...rawTeam].length < 1 || [...rawTeam].length > 28 || HIDDEN_CHARS.test(rawTeam)) return fail(422, 'invalid_team', 'A team name is 1 to 28 visible characters')

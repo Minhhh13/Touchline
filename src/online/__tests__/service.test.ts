@@ -1,7 +1,7 @@
 import { DAILY_RULES } from '@game/logic/daily'
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '@engine/__tests__/helpers'
-import { decodeChallenge, encodeChallenge } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge, isArenaPayload, type QuickChallengePayload } from '@engine/challenge'
 import { spin } from '@engine/draft'
 import type { LeaguesFile, MetaFile, PlayersFile } from '@engine/universe'
 import { ENGINE_VERSION } from '@engine/version'
@@ -24,8 +24,9 @@ const T = 180000
 
 const call = (h: ReturnType<typeof makeHarness>, body: unknown, caller = ALICE): Promise<Reply> => h.server.handle(caller, typeof body === 'string' ? body : JSON.stringify(body))
 const honestDaily = () => autoPlayed(u, dailyGameSettings(u, SEED, 'Verified FC'))
-const reencode = (encoded: string, f: (c: ReturnType<typeof decodeChallenge>) => void) => {
+const reencode = (encoded: string, f: (c: QuickChallengePayload) => void) => {
   const c = decodeChallenge(encoded)
+  if (isArenaPayload(c)) throw new Error('Not a quick link')
   f(c)
   return encodeChallenge(c)
 }
