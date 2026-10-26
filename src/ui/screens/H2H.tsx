@@ -108,11 +108,12 @@ export function H2HSetup() {
       </ol>
       <div className="grid two">
         {[0, 1].map((i) => {
-          const host = i === 0 ? host0 : host1
+          // No club until the league's pack has loaded (a league just picked, or offline): no badge until then
+          const host: string | undefined = i === 0 ? host0 : host1
           return (
             <div key={i} className="panel col">
               <div className="club-head">
-                <ClubBadge clubId={host} size={36} />
+                {host ? <ClubBadge clubId={host} size={36} /> : null}
                 <h3 style={{ margin: 0 }}>Manager {i + 1}</h3>
               </div>
               <TeamNameField label="Name" value={names[i]} onChange={(v) => setNames(names.map((n, j) => (j === i ? v : n)))} fallback={`Manager ${i + 1}`} maxLength={24} testId={`h2h-name-${i}`} taken={[names[1 - i]]} />
@@ -123,7 +124,7 @@ export function H2HSetup() {
               </div>
               <label className="field">
                 Club whose place you take
-                <select className="input" value={host} onChange={(e) => setHosts(hosts.map((h, j) => (j === i ? e.target.value : h)))}>
+                <select className="input" value={host ?? ''} onChange={(e) => setHosts(hosts.map((h, j) => (j === i ? e.target.value : h)))}>
                   {clubs.filter((c) => (i === 0 ? c !== host1 : c !== host0)).map((c) => (
                     <option key={c} value={c}>
                       {clubName(u, c)}
@@ -183,7 +184,7 @@ export function H2HSetup() {
           </div>
         </div>
         <div className="h2h-start">
-          <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
+          <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues || !host0 || !host1} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
             {ready ? 'Start the head-to-head' : 'Loading league data…'}
           </button>
         </div>
