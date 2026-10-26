@@ -1191,6 +1191,10 @@ The **Privacy and fair play** screen (`privacy`, `src/ui/screens/Privacy.tsx`, l
 
 The site is hosted as a Render static site (build `npm ci && npm run build`, publish `dist`, auto-deployed from the repository); the GitHub Pages workflow was retired when the repository went private. `public/sw.js` is registered on production builds relative to the deploy path. The shell (`index.html`, the manifest) is served network-first and cached as a fallback; hashed assets, icons and league packs are cached on first use and served cache-first, and so are the Google Fonts stylesheet and font files (the one typeface, Sora), so the type still loads offline after one visit. A new build changes the asset names, so it is picked up on the next online visit; stale assets stay in the single cache until its version string is bumped.
 
+### iOS development app
+
+The Capacitor target in `ios/` bundles the same React UI, engine and league packs from `dist`. Native startup uses those files directly rather than a web service worker. Saves keep the existing format and key in the app's own local storage; installing the app does not automatically copy a browser save. Native challenge and room links point to the public website so another manager can open them. `src/ui/mobile.css` adds safe areas on every edge, including full-screen player/substitution sheets and hidden top-bar controls, 16 px form text to avoid iPhone focus zoom, and 44 px primary touch controls. The desktop layout remains the shared layout. Local build/signing commands and the remaining distribution checks are in [IOS.md](IOS.md).
+
 ## 16. Roadmap
 
 Not in the code today:

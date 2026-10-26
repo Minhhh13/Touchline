@@ -8,6 +8,12 @@ coverage
 *.log
 .cache
 
+# Local Xcode state and build products
+ios/**/xcuserdata/
+ios/**/DerivedData/
+ios/**/.build/
+ios/**/IDEWorkspaceChecks.plist
+
 # TypeScript incremental build cache
 *.tsbuildinfo
 

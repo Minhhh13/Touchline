@@ -22,6 +22,7 @@ import { LeagueFlag } from '../components/Flag'
 import { TeamNameField } from '../components/SetupBits'
 import { clubName, formationName, ordinal, seasonLabel } from '../format'
 import { H2HResultView } from '../screens/H2H'
+import { shareLocation } from '../../platform'
 
 /** The four rules of an online room, as pictures with a line each (the hot-seat's, for two devices). */
 const ROOM_STEPS: Array<{ Icon: LucideIcon; title: string; line: string }> = [
@@ -304,7 +305,8 @@ function RoomWaiting({ view }: { view: RoomView }) {
   const now = useNow()
   const [copied, setCopied] = useState(false)
   if (!u) return null
-  const link = roomLink(view.code, location.origin, location.pathname)
+  const { origin, pathname } = shareLocation()
+  const link = roomLink(view.code, origin, pathname)
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(link)

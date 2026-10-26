@@ -27,6 +27,7 @@ import { useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
+import { exportTextFile } from '../exportFile'
 
 const FILTER_KEY = 'touchline-record-filter'
 const RUNS_VIEW_KEY = 'touchline-runs-view'
@@ -64,15 +65,9 @@ const BADGE_ICON: Record<string, LucideIcon> = {
   'survival-artist': LifeBuoy,
 }
 
-function exportSave(): void {
+async function exportSave(): Promise<void> {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
-  const blob = new Blob([exportSaveJson()], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `touchline-save-${new Date().toISOString().slice(0, 10)}.json`
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  await exportTextFile(exportSaveJson(), `touchline-save-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
 }
 
 export function ProfileScreen() {
@@ -152,13 +147,17 @@ export function ProfileScreen() {
       </td>
     </tr>
   )
-  const downloadCard = () => {
+  const downloadCard = async () => {
     const best = profile.leaderboard.slice(0, 3).map((e) => ({
       title: `${e.teamName} · ${e.points} pts · ${ordinal(e.position)}`,
       detail: `${tierName(e.tier, e.position, e.superLeague)} · ${u?.clubById[e.hostClubId] ? clubName(u, e.hostClubId) : (clubLeagues?.[e.hostClubId]?.name ?? e.hostClubId)} ${seasonLabel(e.leagueSeason)} · ${MODE_TITLE[e.mode] ?? e.mode}`,
     }))
-    const url = renderManagerCard({ name: profile.managerName.trim() || 'The Gaffer', seasons: profile.seasonsSimulated, cabinet, badges: topBadges(badges), best, dataStamp: u ? `Data ${u.generatedAt}` : 'Trophy Room' })
-    downloadDataUrl(url, 'touchline-manager-card.png')
+    try {
+      const url = renderManagerCard({ name: profile.managerName.trim() || 'The Gaffer', seasons: profile.seasonsSimulated, cabinet, badges: topBadges(badges), best, dataStamp: u ? `Data ${u.generatedAt}` : 'Trophy Room' })
+      await downloadDataUrl(url, 'touchline-manager-card.png')
+    } catch {
+      showToast('Could not create or export the manager card.')
+    }
   }
   const importSave = async (file: File) => {
     try {
@@ -419,7 +418,7 @@ export function ProfileScreen() {
               </span>
             </div>
             <div className="toolbar">
-              <button className="btn" onClick={exportSave}>
+              <button className="btn" onClick={() => void exportSave().catch(() => showToast('Could not export the save file.'))} data-testid="export-save">
                 <Download size={16} aria-hidden="true" /> Export save file
               </button>
               <button className="btn" onClick={() => fileRef.current?.click()}>

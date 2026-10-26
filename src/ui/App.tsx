@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { useStore } from '@game/store'
 import { Home } from './screens/Home'
 import { Setup } from './screens/Setup'
@@ -138,6 +139,9 @@ export function App() {
     root.setAttribute('data-theme', theme)
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
     if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
+    if (Capacitor.isNativePlatform()) {
+      void import('@capacitor/status-bar').then(({ StatusBar, Style }) => StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light })).catch(() => undefined)
+    }
   }, [theme])
   useEffect(() => {
     rememberThemePreference(profile.theme)

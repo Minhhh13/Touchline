@@ -1,0 +1,135 @@
+/* Phone and native WebView adjustments. Keep this after the shared screen styles. */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+}
+
+/* Padding also protects the page when the top bar is folded away. */
+.app {
+  padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
+}
+/* The page can scroll behind the sticky bar, but its text must not show behind the status bar. */
+.app::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--safe-area-top);
+  background: var(--bg);
+  z-index: 21;
+  pointer-events: none;
+}
+.app > .topbar {
+  top: var(--safe-area-top);
+}
+.topbar-restore {
+  top: calc(10px + var(--safe-area-top));
+  right: calc(var(--gutter) + var(--safe-area-right));
+}
+html {
+  scroll-padding-top: calc(var(--topbar-h, 64px) + var(--safe-area-top) + var(--space-2));
+}
+
+/* Landscape iPhones have a wider viewport, but still need touch-sized controls. */
+@media (max-width: 720px), (max-width: 1100px) and (pointer: coarse) {
+  /* This follows .input.sm and the match selectors, which otherwise undo the 16px phone rule. */
+  :is(.app, .modal, .decision-sheet) :is(input, select, textarea):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']) {
+    font-size: 16px;
+  }
+
+  .topbar nav {
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .topbar nav button {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 10px;
+  }
+  .topbar .theme-switch {
+    width: 44px;
+    height: 44px;
+  }
+  .topbar-restore {
+    top: calc(8px + var(--safe-area-top));
+    min-height: 44px;
+  }
+  .bottom-bar button,
+  .cta-bar button,
+  .modal .btn,
+  .decision-sheet .btn,
+  .matchday .md-tool,
+  .matchday .md-tabs button,
+  .matchday .md-ment .md-select,
+  .matchday select.md-highlights {
+    min-height: 44px;
+  }
+  .matchday .md-moments,
+  .matchday .md-x {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .bottom-bar,
+  .cta-bar {
+    padding-left: calc(var(--gutter) + var(--safe-area-left));
+    padding-right: calc(var(--gutter) + var(--safe-area-right));
+    padding-bottom: calc(10px + var(--safe-area-bottom));
+  }
+  .modal-back {
+    padding-top: var(--safe-area-top);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+  }
+  .modal {
+    max-height: min(88dvh, calc(100dvh - var(--safe-area-top)));
+    padding-bottom: calc(var(--space-5) + var(--safe-area-bottom));
+  }
+  .modal-back:has(> .card-modal) {
+    padding: 0;
+  }
+  .modal.card-modal {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-top: calc(var(--space-3) + var(--safe-area-top));
+    padding-left: calc(var(--gutter) + var(--safe-area-left));
+    padding-right: calc(var(--gutter) + var(--safe-area-right));
+  }
+  .decision-back {
+    padding-top: calc(12px + var(--safe-area-top));
+    padding-left: calc(12px + var(--safe-area-left));
+    padding-right: calc(12px + var(--safe-area-right));
+  }
+  .decision-sheet {
+    max-height: calc(100dvh - 24px - var(--safe-area-top));
+  }
+  .decision-actions {
+    padding-bottom: calc(10px + var(--safe-area-bottom));
+  }
+  .matchday .md-drawer-back {
+    padding-top: var(--safe-area-top);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+  }
+  .matchday .md-drawer {
+    max-height: min(80dvh, calc(100dvh - var(--safe-area-top)));
+  }
+  .matchday .md-drawer-foot {
+    padding-bottom: max(8px, var(--safe-area-bottom));
+  }
+  /* Full-screen substitution sheets own their insets rather than the backdrop. */
+  .matchday .md-drawer-back:has(> .md-drawer.board),
+  .matchday .decision-back:has(.md-stop-board) {
+    padding: 0;
+  }
+  .matchday .md-drawer.board,
+  .matchday .decision-sheet:has(.md-stop-board) {
+    padding-top: var(--safe-area-top);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+    max-height: 100dvh;
+  }
+}
