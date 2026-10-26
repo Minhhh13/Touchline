@@ -1,6 +1,7 @@
-import type { CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import type { SeasonTier } from '@engine/types'
-import { celebrationFor, confettiPieces, useFirstReveal } from '../motion'
+import { celebrationFor, confettiPieces, prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
 
 const PIECES = confettiPieces(28)
 
@@ -14,6 +15,10 @@ const PIECES = confettiPieces(28)
 export function Celebrate({ tier, resultKey, replayed }: { tier: SeasonTier; resultKey: string; replayed: boolean }) {
   const kind = celebrationFor(tier)
   const play = useFirstReveal(resultKey, replayed)
+  // A title gets the Cup's fanfare, the perfect season the Treble's, when the flourish plays (sound follows its own switch)
+  useEffect(() => {
+    if (kind && play) playSound({ id: 'fanfare', treble: kind === 'confetti', reduced: prefersReducedMotion() })
+  }, [])
   if (!kind || !play) return null
   return (
     <span className="celebrate" aria-hidden="true" data-testid="celebrate" data-kind={kind}>
