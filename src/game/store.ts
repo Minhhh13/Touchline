@@ -74,6 +74,8 @@ export const SAVE_VERSION = 1
 /** Delay from a change to the write: a burst of changes inside it is written once, with the latest state. */
 const SAVE_DELAY_MS = 250
 /** Shown when the browser refuses to store the save. */
+/** The banner that stays up while the browser refuses every save write. */
+export const SAVE_FAILING_LINE = 'Not saving: storage full'
 export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
 
 export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h' | 'world' | 'privacy' | 'account' | 'room'
@@ -106,6 +108,8 @@ interface Store {
   failedLeagues: string[]
   /** The classic seasons' last load failed. Transient. */
   classicFailed: boolean
+  /** The browser refused the last save write (its storage is full): a banner stays up until a write goes through (O-14). Transient. */
+  saveFailing: boolean
   /** Whether `universe` holds the classic seasons: they load on demand (a classic game, the Classic toggle, Explore), never at start. */
   classicLoaded: boolean
   screen: Screen
@@ -333,6 +337,7 @@ export const saveStorage = createSaveStorage<Store>({
   delayMs: SAVE_DELAY_MS,
   onWrite: () => {
     failedWrites = 0
+    if (useStore.getState().saveFailing) useStore.setState({ saveFailing: false })
   },
   onError: (e, quota) => {
     if (!quota) {
@@ -340,6 +345,7 @@ export const saveStorage = createSaveStorage<Store>({
       return
     }
     failedWrites++
+    if (!useStore.getState().saveFailing) useStore.setState({ saveFailing: true })
     if (failedWrites === 1 || failedWrites % 20 === 0) useStore.setState({ toast: SAVE_FULL_TOAST })
   },
 })
@@ -436,6 +442,7 @@ export const useStore = create<Store>()(
         loadingLeagues: false,
         failedLeagues: [],
         classicFailed: false,
+        saveFailing: false,
         classicLoaded: false,
         screen: 'home',
         setupMode: 'quick',

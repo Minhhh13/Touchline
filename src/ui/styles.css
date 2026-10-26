@@ -4184,6 +4184,31 @@ table.tbl.contracts .btn.sm {
 .toast.leaving {
   animation: toast-out var(--dur-2) var(--ease-in-out) forwards;
 }
+/* While no save write goes through (storage full, O-14 in docs/QA.md): a banner that stays, the toast rising above it */
+.save-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 49;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: calc(100vw - 2 * var(--gutter));
+  padding: 6px 6px 6px var(--space-4);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--bad);
+  background: var(--float-bg);
+  color: var(--float-text);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+}
+.save-banner > span {
+  min-width: 0;
+}
+body:has(.save-banner) .toast {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
 /* The toast keeps its centring translate in every frame */
 @keyframes toast-in {
   from {
