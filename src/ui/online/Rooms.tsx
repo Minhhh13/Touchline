@@ -22,6 +22,7 @@ import { LeagueFlag } from '../components/Flag'
 import { TeamNameField } from '../components/SetupBits'
 import { clubName, formationName, ordinal, seasonLabel } from '../format'
 import { H2HResultView } from '../screens/H2H'
+import { roomVersionNote } from '../../online/engineRoute'
 
 /** The four rules of an online room, as pictures with a line each (the hot-seat's, for two devices). */
 const ROOM_STEPS: Array<{ Icon: LucideIcon; title: string; line: string }> = [
@@ -227,6 +228,7 @@ export function RoomScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingLeagues.join(',')])
   if (!u) return null
+  const versionNote = view ? roomVersionNote(view, { engine: ENGINE_VERSION, data: u.generatedAt ?? '' }) : null
   const head = (
     <div className="screen-head">
       <div className="screen-title">
@@ -256,7 +258,7 @@ export function RoomScreen() {
   if (!ui) body = <RoomMessage icon={<Wifi size={26} />} title="No room open" line="Make a room or open one with its code from Head-to-head." />
   else if (ui.missing) body = <RoomMessage icon={<DoorOpen size={26} />} title="No room has that code" line={`Check the code, or ask for a new link: rooms are deleted ${ROOM_KEEP_HOURS} hours after they end.`} testId="room-missing" />
   else if (!view) body = <RoomMessage icon={<Hourglass size={26} />} title="Opening the room…" line={ui.error ?? 'Reading the room from the server.'} testId="room-loading" />
-  else if (view.dataVersion !== u.generatedAt || view.engineVersion !== ENGINE_VERSION) body = <RoomMessage icon={<Lock size={26} />} title="This room plays on another version of the game" line="Reload the page to get the latest version, then open the room again." testId="room-version" />
+  else if (versionNote) body = <RoomMessage icon={<Lock size={26} />} title={versionNote.title} line={versionNote.line} testId="room-version" action={versionNote.older ? <button className="btn primary" onClick={() => go('h2h')}>Make a new room</button> : <button className="btn primary" onClick={() => location.reload()}>Reload</button>} />
   else if (missingLeagues.length) body = <RoomMessage icon={<Hourglass size={26} />} title="Loading league data…" line="The room's wheel needs these leagues on this device." />
   else if (view.status === 'waiting') body = ui.seat === null ? <RoomJoin view={view} /> : <RoomWaiting view={view} />
   else if (view.status === 'drafting') body = <RoomDraft view={view} seat={ui.seat} />

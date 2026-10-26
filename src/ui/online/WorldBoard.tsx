@@ -9,6 +9,7 @@ import { PAGE } from '../../online/boards'
 import { countryFlag } from '../../online/core/country'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
 import { weeklyStartSettings } from '../../online/daily'
+import { PIN_NOTE, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
 import { Info, Segmented } from '../components/bits'
@@ -271,7 +272,7 @@ function WeeklyPlay({ weekKey }: { weekKey: string }) {
         <b>Play this week</b>
         <div className="small muted">
           Everyone gets the same wheel all week: a <b>{s.formationId}</b> as <b>{u.clubById[s.hostClubId]?.name ?? s.hostClubId}</b>, {seasonLabel(s.leagueSeason)}. Your first finished run counts.
-          {decision.source === 'missing_data' && ' This week’s ranked puzzle needs data this build does not have: reload.'}
+          {pin && !decision.ranked && ` ${PIN_NOTE[pinStanding(pin, decision.source) as Exclude<PinStanding, 'ranked'>] ?? ''}`}
         </div>
       </div>
       <button className="btn primary block" onClick={play} data-testid="weekly-play">

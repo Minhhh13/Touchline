@@ -10,6 +10,7 @@ import { weeklyThemeName } from '@game/logic/weeklyThemes'
 import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
+import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { useOnline } from '../../online/state'
 import { onlineAvailable } from '../../online/api'
 import { ConflictCards } from '../online/ConflictCard'
@@ -299,8 +300,8 @@ export function Home() {
                   </span>
                 )}
                 {pin && dailyStart && (
-                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? 'Every score on the world leaderboard is checked by replay' : undefined}>
-                    {dailyStart.ranked ? 'Ranked today' : dailyStart.source === 'missing_data' ? 'Reload for the ranked puzzle' : 'Unranked: reload to update'}
+                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? 'Every score on the world leaderboard is checked by replay' : PIN_NOTE[pinStanding(pin, dailyStart.source) as Exclude<PinStanding, 'ranked'>]}>
+                    {PIN_TAG[dailyStart.ranked ? 'ranked' : pinStanding(pin, dailyStart.source)]}
                   </span>
                 )}
                 {profile.dailyStreak > 0 && (
