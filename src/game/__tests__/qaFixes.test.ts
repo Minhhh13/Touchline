@@ -56,3 +56,17 @@ describe('QA-5: Draft again on the summary', () => {
     expect({ ...plain, seed: s.seed }).toEqual({ ...s, rules: { ...QUICK_RULES, leagues: ['england'] }, challenge: undefined, seed: s.seed })
   })
 })
+
+describe('QA-7: a player who leaves gives up his set-piece duties', () => {
+  it('a sold or released penalty, free-kick or corner taker is no longer named in the tactics', async () => {
+    const { seasonGame } = await import('./seasonGame')
+    const { releasePlayer } = await import('../logic/marketOps')
+    const g = seasonGame(u, 'qa-fix-setpieces')
+    const [a, b] = Object.values(g.lineup).filter((id) => id !== g.lineup['gk'])
+    g.tactics.setPieces = { penalties: a, freeKicks: a, corners: b }
+    releasePlayer(g, u, a)
+    expect(g.tactics.setPieces).toEqual({ corners: b })
+    releasePlayer(g, u, b)
+    expect(g.tactics.setPieces).toEqual({})
+  })
+})
