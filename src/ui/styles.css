@@ -1748,6 +1748,12 @@ label.field,
   gap: 6px;
   font-size: var(--fs-meta);
 }
+/* A pick's grade in the finished draft log */
+.chip.pick-grade {
+  padding: 0 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 /* A key name in running text (How it works) */
 kbd {
   font-family: var(--mono);
