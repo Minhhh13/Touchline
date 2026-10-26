@@ -1,0 +1,20 @@
+{
+  "2026-10-25": {
+    "england/meta.json": "ee9040048c8d18f40cd1702da8ea947206828bdbad3ca9cb3db6c852650d8ba2",
+    "england/players-classic.json": "ca89dcc65595a6fda4478e00de69e38bdaca63687fc1160d39f8456600e40274",
+    "england/players.json": "e6d63a6fef1f75c156eb420bda2ba826edf9e5497305f4846aec6f191c8ee0b4",
+    "france/meta.json": "8dea1ab36052b33fff9bdb760ed4d09144476a88c82e92577d61ca647af14fd6",
+    "france/players.json": "436abf3920c245eee31260bccf0538792dce9b86f187b8587b62916187137055",
+    "germany/meta.json": "7075807db7c88d5e05a27946328afe5eeac5b65a87e0a1d0433a2eacc19ca171",
+    "germany/players.json": "94fdae055c070f262234af71711b3118189de6b72c710f4c6d34de7858998d5b",
+    "italy/meta.json": "d75096d08e966075731015ee7543df7d327326887763c7846c14c6ab35d77422",
+    "italy/players.json": "ac2f7952e8d07de44c0f1191200186271dbddf3fcc438fba097c305f35d06a4a",
+    "leagues.json": "925293d55b752ffdb53b8075d00427c242882f68946332009155d74cd9cd06b1",
+    "netherlands/meta.json": "6d0ab182cd02499bae8ecb9657f3a6049e96689f032a6a074f7757fefea67b3e",
+    "netherlands/players.json": "951c2a8483b6229bc6d92395665eb578a036cf6d0d2e243f80852b912287b916",
+    "portugal/meta.json": "e222843e42391de1998659fa7f503a599de6d28134b102ba8d8e4026678a3f93",
+    "portugal/players.json": "da11f9ed19c8f271699efa473c479f7f506f5664287f6648f500582e99f31b66",
+    "spain/meta.json": "aae4cde6ce6f4503736de5d263cb93127294789451693e1b7e31bb6cd7934f31",
+    "spain/players.json": "fffa4d094ace44cc18bc81d0e58712cb3c2025b59b2951b35b8e3b1fbe63f3b1"
+  }
+}

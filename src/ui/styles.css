@@ -8691,6 +8691,312 @@ table.tbl.match-stats th {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* ------------------------------------------------------------------------------------------------------------------
+   Online screens (World leaderboard, Account) inside the app shell: the shell fits the page and makes the last grid's
+   boxes take the height; a `.fit-panel` keeps its `.panel-head` and an optional `.fit-foot` in view and scrolls only
+   its `.fit-scroll` body (a board under a sticky header, your own row pinned at the foot). Stacked below 1100 px.
+   ------------------------------------------------------------------------------------------------------------------ */
+.fit-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fit-panel > .panel-head {
+  flex: none;
+}
+.fit-foot {
+  flex: none;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border);
+}
+.fit-foot.notice {
+  border-top: none;
+}
+.grid.world-grid {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+@media (min-width: 1100px) {
+  .app.shell .screen-body > .grid > .fit-panel {
+    overflow: hidden;
+  }
+  .app.shell .fit-panel > .fit-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+@media (max-width: 1099px) {
+  .grid.world-grid,
+  .grid.account-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fit-panel > .fit-scroll {
+    overflow-x: auto;
+  }
+}
+/* A table whose header stays in view while its panel scrolls */
+table.tbl.sticky-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+}
+
+/* World leaderboard: the board picker in the side panel */
+.world-boards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.world-board-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.world-board-pick span {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.world-board-pick:hover {
+  background: var(--bg-3);
+}
+.world-board-pick.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.world-weekly {
+  gap: var(--space-2);
+}
+.plain-list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The top bar's sign-in entry (online builds only): a `.theme-switch` round button; signed in and open in the
+   selection pattern; it does not spin on press like the sun and moon */
+.account-chip:active {
+  transform: scale(0.92);
+}
+/* Signed in: a pill of the same height with the flag and the name on the boards, opening the account menu */
+.account-menu-wrap {
+  position: relative;
+  flex: none;
+}
+.account-chip.signed-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  max-width: 170px;
+  padding: 0 12px 0 9px;
+  border-radius: var(--radius-pill);
+  border: var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-chip.signed-in:hover {
+  background: var(--bg-3);
+}
+.account-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 60;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border-radius: var(--radius-m);
+  border: var(--border-strong);
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.account-menu-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-bottom: var(--border);
+  margin-bottom: var(--space-1);
+}
+.account-menu-item {
+  text-align: left;
+  padding: 8px var(--space-2);
+  border-radius: var(--radius-s);
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
+  background: var(--bg-3);
+}
+/* Below 1360 px the nav needs the room: the signed-in entry is round like its neighbours, the name its label */
+@media (max-width: 1360px) {
+  .account-chip.signed-in {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .account-chip-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+@media (max-width: 720px) {
+  .account-chip.signed-in {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  .account-chip-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+/* The account flow on the Account screen */
+.account-promise {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+.code-input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3em;
+  font-size: 20px;
+}
+.name-check {
+  min-height: 1.3em;
+  color: var(--text-3);
+}
+.name-check.free {
+  color: var(--good);
+}
+.name-check.taken,
+.name-check.invalid {
+  color: var(--warn);
+}
+.flag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: var(--border);
+  border-radius: var(--radius-m);
+  padding: 4px;
+}
+.flag-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.flag-pick:hover {
+  background: var(--bg-3);
+}
+.flag-pick.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.saved-line {
+  font-size: var(--fs-sm);
+}
+.saved-line.good {
+  color: var(--good);
+}
+.saved-line.warn {
+  color: var(--warn);
+}
+.saved-line.busy,
+.saved-line.muted {
+  color: var(--text-3);
+}
+.account-chip.active {
+  color: var(--text);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.account-chip.syncing svg {
+  animation: account-sync 1.2s linear infinite;
+}
+@keyframes account-sync {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-chip.syncing svg {
+    animation: none;
+  }
+  .account-chip:active {
+    transform: none;
+  }
+}
+
+/* The Daily card's ranked line on Home (online builds with today's pin) */
+.ranked-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.ranked-tag.on {
+  color: var(--good);
+  font-weight: 600;
+}
+/* Home in an online build: five tiles (World leaderboard joins) stay on one row on a desktop */
+@media (min-width: 1100px) {
+  .home-tiles:has(> :nth-child(5)) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .home-tiles > :nth-child(5) {
+    animation-delay: calc(var(--stagger) * 7);
+  }
+}
+
 
 /* Power-ups: the tray of six one-use power-ups on a Quick Draft, their Info tips and the re-roll odds */
 .pu-grid {

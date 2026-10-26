@@ -214,9 +214,9 @@ export function replayChallenge(u: LoadedUniverse, c: ChallengePayload): ReplayO
 /**
  * The challenger's season from a link's `x`: the first-half tactics and the bench changes, then, when the link names a second half or a
  * January deal, the window opened, the second-half tactics set and the deal found among the listings (a deal that was
- * not on offer throws), else the season in one go.
+ * not on offer throws), else the season in one go. Shared with the ranked boards' verifier (`src/online/server/dailyVerify.ts`).
  */
-function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | undefined): void {
+export function playSeason(game: Game, u: LoadedUniverse, x: ChallengeSeason | undefined): void {
   // The manager spin and the case, rolled as the step to the season rolls them: forks of the stream the draft left
   rollManagerSpin(game, u)
   rollEndCase(game, u, true)
