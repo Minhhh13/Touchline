@@ -48,6 +48,7 @@ import { PITCH_PERIOD, useMatchClock } from './useMatchClock'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { MATCHDAY_COMPACT, matchdayBoxes, readChoices, resolveSlots, Slot, writeChoice, type SlotChoices, type SlotId, type WidgetId } from './widgets'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
+import { useMatchSounds } from '../sound/useMatchSounds'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
@@ -102,6 +103,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   // Every chance, save and foul behind a card is a cue: its minute's commentary and panels wait until the pitch has shown it
   const cues = useMemo(() => mpath.epochs.flatMap((e) => cueTimes(feed.events, e.from, e.to)).sort((a, b) => a - b), [mpath, feed.events])
   const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  // The whistle, the crowd and the net, on the same clock the pitch draws from (presentation only)
+  useMatchSounds({ events: feed.events, ranges: mpath.epochs, holds, userSide, start, stopAt, final, reduced })
   // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
   const revealed = useLiveClock((s) => s.revealed)
   const cued = useLiveClock((s) => s.cued ?? 0)
