@@ -26,7 +26,21 @@ import { toShared } from './pitchGeometry'
  * time before the shot (about 0.65x of 1x), and `flight` ms show the ball going in slowly, then `rest`
  * ms on the net.
  */
-export const REPLAY = { ms: 3900, cut: 240, window: 0.42, flight: 760, rest: 320 } as const
+export const REPLAY = { ms: 3900, cut: 240, window: 0.42, flight: 760, rest: 320, penalty: 2000 } as const
+
+/**
+ * The replay's length for a goal: a penalty's is shorter, since the taker stands over the ball until
+ * he strikes it (the ball path stages it so) and a long look at him standing there says nothing.
+ */
+export function replayLength(e: Pick<MatchEvent, 'type'>): number {
+  return e.type === 'penalty' ? REPLAY.penalty : REPLAY.ms
+}
+
+/** How many match minutes before the strike a replay of `total` ms plays: the full window for a full replay, in proportion for a shorter one, so the slow motion is the same. */
+export function replayWindow(total: number): number {
+  const full = REPLAY.ms - REPLAY.flight - REPLAY.rest
+  return (REPLAY.window * Math.max(0, total - REPLAY.flight - REPLAY.rest)) / full
+}
 
 /** The replay's share of a hold, or 0 when it has none. */
 export function replayMs(hold: Pick<GoalHold, 'replay'> | undefined): number {
@@ -60,7 +74,7 @@ export function replayFrame(hold: Pick<GoalHold, 'ms' | 'replay'>, elapsed: numb
   if (r < 0 || r > total) return null
   const pre = Math.max(1, total - REPLAY.flight - REPLAY.rest)
   // On the strike exactly once the build-up has played (the ball path's shot keyframe is there)
-  const T = r >= pre ? strike : strike - REPLAY.window * (1 - r / pre)
+  const T = r >= pre ? strike : strike - replayWindow(total) * (1 - r / pre)
   const flight = r <= pre ? 0 : Math.min(1, (r - pre) / REPLAY.flight)
   const cut = r < REPLAY.cut ? 1 - r / REPLAY.cut : r > total - REPLAY.cut ? (r - (total - REPLAY.cut)) / REPLAY.cut : 0
   return { T, flight, landed: r - pre - REPLAY.flight, cut: Math.min(1, Math.max(0, cut)), f: r / total }

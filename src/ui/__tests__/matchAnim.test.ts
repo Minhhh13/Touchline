@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { shotXg } from '@engine/matchStats'
 import { ballSprite, ballView, DRAG, flightHeight, flightKind, flightWarp, type FlightKind } from '../match/flight'
 import { cornerDelivery, dotName, FLASH, passFlash, shotMarks, shotTrailAt, xgBand } from '../match/overlays'
-import { CAMERA, cameraTransform, celebrationMs, FOCUS_XG, focusAt, focusMoments, REPLAY, replayFrame } from '../match/keyMoments'
+import { CAMERA, cameraTransform, celebrationMs, FOCUS_XG, focusAt, focusMoments, REPLAY, replayFrame, replayLength, replayWindow } from '../match/keyMoments'
 import { HOLD_MS, skipHold, timeline, type GoalHold, type LiveClockState } from '../match/clockStore'
 import { ballAt, goalHolds, strikeTimes } from '../match/possession'
 import { matchPath } from '../match/epochs'
@@ -202,9 +202,11 @@ describe('key moments', () => {
       const reduced = goalHolds(events, 0, 90, { userSide: 'home', replay: true, reduced: true })
       expect(withReplay.map((x) => x.t)).toEqual(plain.map((x) => x.t))
       plain.forEach((p, i) => {
+        const len = replayLength(events[+p.key])
+        expect(len).toBe(events[+p.key].type === 'penalty' ? REPLAY.penalty : REPLAY.ms)
         expect('replay' in p).toBe(false)
-        expect(withReplay[i].ms).toBe(p.ms + REPLAY.ms)
-        expect(withReplay[i].replay).toBe(REPLAY.ms)
+        expect(withReplay[i].ms).toBe(p.ms + len)
+        expect(withReplay[i].replay).toBe(len)
         expect(celebrationMs(withReplay[i])).toBe(p.ms)
         expect(reduced[i].ms).toBe(HOLD_MS.reduced)
       })
@@ -234,6 +236,12 @@ describe('key moments', () => {
     expect(REPLAY.ms - REPLAY.flight - REPLAY.rest).toBeGreaterThan(REPLAY.window * 4500)
     const mid = replayFrame(h, celebrationMs(h) + REPLAY.ms / 2, h.t)!
     expect(mid.cut).toBe(0)
+    // A penalty's shorter replay plays a shorter window at the same slow motion
+    const pen: GoalHold = { ...h, ms: HOLD_MS.ours + REPLAY.penalty, replay: REPLAY.penalty }
+    expect(replayWindow(REPLAY.ms)).toBeCloseTo(REPLAY.window, 9)
+    expect(replayFrame(pen, celebrationMs(pen), pen.t)!.T).toBeCloseTo(pen.t - replayWindow(REPLAY.penalty), 9)
+    expect(replayWindow(REPLAY.penalty) / (REPLAY.penalty - REPLAY.flight - REPLAY.rest)).toBeCloseTo(REPLAY.window / (REPLAY.ms - REPLAY.flight - REPLAY.rest), 9)
+    expect(replayFrame(pen, pen.ms, pen.t)!.flight).toBe(1)
   })
 
   it('skips the rest of a hold and carries on from the kick-off', () => {
