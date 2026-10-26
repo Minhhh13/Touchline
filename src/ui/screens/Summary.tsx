@@ -25,7 +25,7 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
-import { runsSummary, versusReal } from '../screenText'
+import { countPhrase, runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
@@ -278,12 +278,12 @@ export function Summary() {
         strip: story?.strip,
         moment: story?.moment,
         // A chained draft prints its chain of club codes under the record
-        ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${record.points} points · finished ${ordinal(record.position)}`, ...codes] } : {}),
+        ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${countPhrase(record.points, 'points')} · finished ${ordinal(record.position)}`, ...codes] } : {}),
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not render the share card.')
+      showToast('Could not make the share card. Try again.')
     }
   }
 
@@ -780,8 +780,8 @@ export function Summary() {
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, s.position]))} />
             {q && (
               <div className="toolbar" style={{ marginTop: 'var(--space-3)' }}>
-                <span className="chip">Balance {Math.round(q.strength.balance * 100)}%</span>
-                <span className={`chip ${q.strength.chemistry > 0 ? 'good' : q.strength.chemistry < 0 ? 'bad' : ''}`}>
+                <span className="chip" title="How even your four units are: a lopsided XI loses up to 4% of its strength">Balance {Math.round(q.strength.balance * 100)}%</span>
+                <span className={`chip ${q.strength.chemistry > 0 ? 'good' : q.strength.chemistry < 0 ? 'bad' : ''}`} title="Team-mates from the same club and season, nearby seasons and one nation, plus how well they know the system; added to every unit's rating">
                   Chemistry {q.strength.chemistry >= 0 ? '+' : ''}
                   {q.strength.chemistry}
                 </span>
@@ -795,7 +795,7 @@ export function Summary() {
             {q && (
               <div className="plist lined award-list">
                 {awardRow(q.pots?.playerSeasonId, AWARD_ICON.pots, `Player of the season · ${q.pots?.rating}`, 'gold')}
-                {awardRow(q.topScorer?.playerSeasonId, AWARD_ICON.boot, `Top scorer · ${q.topScorer?.goals} goals`, 'good')}
+                {awardRow(q.topScorer?.playerSeasonId, AWARD_ICON.boot, `Top scorer · ${countPhrase(q.topScorer?.goals ?? 0, 'goals')}`, 'good')}
               </div>
             )}
             {game.awards && (

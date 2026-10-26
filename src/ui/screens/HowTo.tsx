@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Activity, ArrowLeftRight, Armchair, Banknote, BookOpen, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Gauge, Globe, GraduationCap, Landmark, Lock, MessageSquare, RectangleVertical, Repeat, Shuffle, Sprout, Target, TrendingUp, Users, type LucideIcon } from 'lucide-react'
+import { Activity, ArrowLeftRight, Armchair, Banknote, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Landmark, Layers, Lock, MessageSquare, Mountain, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
@@ -55,16 +55,26 @@ const SEASON_FACTS: Array<[LucideIcon, string, string]> = [
   [Banknote, 'January window', 'Bids, loans and part-exchange; prices rise under competition and fall on deadline day.'],
   [ArrowLeftRight, 'Live changes', 'Instructions, takers and subs at any minute from the top bar or the squad strip: five changes in three stoppages, half time free; a shout from the 70th.'],
   [Users, 'Captain and set pieces', 'A strong leader lifts the side; a good taker adds chances.'],
-  [Armchair, 'Backroom staff', 'Assistant, coach, physio and scout, two tiers each, paid from the wage cap.'],
+  [Armchair, 'Backroom staff', 'Hire an assistant, coach, physio and scout at one of two levels, paid from the wage cap.'],
   [Target, 'Man-marking', 'Mark their danger man from the opposition report.'],
   [TrendingUp, 'Development', 'Every five matchweeks the young who play grow and veterans fade.'],
   [Landmark, 'The board', 'A target from your squad’s strength; with job security on, it can sack you.'],
 ]
 
+const MODE_FACTS: Array<[LucideIcon, string, string]> = [
+  [CalendarCheck, 'Daily Challenge', 'The same wheel for everyone each day (UTC), with two re-spins and a streak.'],
+  [CalendarDays, 'Weekly Challenge', 'One themed wheel a week across every league, with its own streak.'],
+  [Layers, 'Super League', 'A Quick Draft option: 38 games against the 19 greatest club-seasons in the data.'],
+  [Trophy, 'Arena: The Cup', 'Draft 16, then a knockout of real club-seasons in one sitting.'],
+  [Mountain, 'Arena: The Gauntlet', 'Draft 14, then climb 15 ever stronger club-seasons until your first defeat.'],
+  [Flag, 'Run-in', 'Take over a real club at matchweek 28 with a brief, four spins and ten games to play.'],
+  [Swords, 'Head-to-head', 'Two managers draft from the same spins and play the same season.'],
+]
+
 const DYNASTY_FACTS: Array<[LucideIcon, string, string]> = [
   [Sprout, 'Ageing', 'The young grow, the old decline, some retire and contracts run out.'],
   [Dices, 'Summer draft', 'Bonus spins and a summer window as the league moves to the next real season.'],
-  [GraduationCap, 'Academy', 'Three real prospects every summer.'],
+  [GraduationCap, 'Academy', 'At least three real prospects every summer; sign one or pass.'],
   [Crown, 'Job offers and legends', 'Bigger clubs may call; the Club tab keeps your all-time legends.'],
 ]
 
@@ -104,7 +114,7 @@ export function HowTo() {
             items={[
               [Repeat, 'No dead spins', 'The wheel only stops on squads with someone for a slot you still need.'],
               [Lock, 'Once each', 'A player can be drafted once, whichever season you catch him in.'],
-              [Users, 'Squad size', 'Quick drafts build an XI; seasons build 16 to 22.'],
+              [Users, 'Squad size', 'A Quick Draft builds an XI and, if you like, a bench of up to five; a Season builds 16 to 22.'],
             ]}
           />
         </Section>
@@ -162,6 +172,10 @@ export function HowTo() {
 
         <Section wide Icon={CalendarDays} title="Season mode" lead="Your squad takes one real club’s place in a real league season; the others field their real squads of that year.">
           <Facts tiles items={SEASON_FACTS} />
+        </Section>
+
+        <Section wide Icon={Dices} title="More ways to play" lead="Every mode starts with the same wheel and draft.">
+          <Facts tiles items={MODE_FACTS} />
         </Section>
 
         <Section wide Icon={Crown} title="Dynasty" lead="Season mode that never ends. A top-four finish earns a Continental Cup place.">

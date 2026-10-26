@@ -311,7 +311,7 @@ function RoomWaiting({ view }: { view: RoomView }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      showToast('Could not copy: select the link and copy it.')
+      showToast('Could not copy. Select the link and copy it.')
     }
   }
   return (
@@ -479,7 +479,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
   const onSlot = (idx: 0 | 1, slotId: string) => {
     if (!selected || !mine || idx !== seat) return
     if (!eligible.includes(slotId)) {
-      showToast(`${selected.name} cannot play there`)
+      showToast(`${selected.name} cannot play there. Pick a highlighted slot.`)
       return
     }
     send(selected.id, slotId)

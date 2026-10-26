@@ -44,9 +44,9 @@ export function modeLabel(game: LabelledGame, style: ModeLabelStyle): string {
   const mode = game.settings.mode
   switch (mode) {
     case 'quick':
-      return style === 'share' ? 'Quick Draft' : 'Quick draft'
+      return style === 'share' ? 'Quick Draft' : 'Quick Draft'
     case 'daily':
-      return style === 'share' ? `Daily ${dailyDay(game.settings.seed)}` : 'Daily challenge'
+      return style === 'share' ? `Daily ${dailyDay(game.settings.seed)}` : 'Daily Challenge'
     case 'season':
       return 'Season'
     case 'dynasty':
@@ -70,9 +70,9 @@ export function modeLabel(game: LabelledGame, style: ModeLabelStyle): string {
 
 /** The footer of the share card: the daily's day, or the seed a friend can replay (`Seed K7Q2-MX9A · £180M cap` under a salary cap). */
 export function shareCardFooter(game: LabelledGame): string {
-  if (game.settings.mode === 'weekly') return `Weekly challenge ${weekDay(game.settings.seed)}${capFooter(game)}`
+  if (game.settings.mode === 'weekly') return `Weekly Challenge ${weekDay(game.settings.seed)}${capFooter(game)}`
   if (game.settings.mode === 'arena' && game.settings.arena?.daily) return `Daily Arena ${game.settings.seed.replace('arena-', '')}${capFooter(game)}`
-  return game.settings.mode === 'daily' ? `Daily challenge ${dailyDay(game.settings.seed)}` : `Seed ${game.settings.seed}${capFooter(game)}`
+  return game.settings.mode === 'daily' ? `Daily Challenge ${dailyDay(game.settings.seed)}` : `Seed ${game.settings.seed}${capFooter(game)}`
 }
 
 /** `Year 2` in a dynasty, nothing in a mode that plays one season. */

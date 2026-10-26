@@ -79,6 +79,11 @@ export function nationName(u: LoadedUniverse | null, nation: string): string {
 export function clubName(u: LoadedUniverse | null, clubId: string): string {
   return u?.clubById[clubId]?.name ?? clubId
 }
+/** A chemistry link line from the engine ("2 links from arsenal@2015") with the club and season in words ("2 links from Arsenal 2015-16"); any other line as it is. */
+export function chemistryLinkLabel(u: LoadedUniverse | null, line: string): string {
+  const m = line.match(/^(.* from )([^@\s]+)@(\d{4})$/)
+  return m ? `${m[1]}${clubName(u, m[2])} ${seasonLabel(Number(m[3]))}` : line
+}
 export function clubShort(u: LoadedUniverse | null, clubId: string): string {
   return u?.clubById[clubId]?.shortName ?? clubId
 }

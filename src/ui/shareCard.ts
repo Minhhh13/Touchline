@@ -146,7 +146,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     ctx.textAlign = 'center'
     ctx.fillStyle = C.text
     ctx.font = font(28, 600, BODY)
-    ctx.fillText(`${input.row.points} points · finished ${ord(input.position)}`, W / 2, 392)
+    ctx.fillText(`${input.row.points} ${input.row.points === 1 ? 'point' : 'points'} · finished ${ord(input.position)}`, W / 2, 392)
   }
   // The Treble or a Double, in gold
   if (input.honour) {

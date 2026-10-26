@@ -240,7 +240,7 @@ export function H2HScreen() {
   const onSlot = (idx: 0 | 1, slotId: string) => {
     if (!selected || picking !== idx) return
     if (!eligible.includes(slotId)) {
-      showToast(`${selected.name} cannot play there`)
+      showToast(`${selected.name} cannot play there. Pick a highlighted slot.`)
       return
     }
     h2hPick(selected.id, slotId)
@@ -432,7 +432,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      showToast('Could not copy.')
+      showToast('Could not copy the result. Try again.')
     }
   }
   const card = async (i: 0 | 1) => {
@@ -451,7 +451,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not render the card.')
+      showToast('Could not make the share card. Try again.')
     }
   }
   return (

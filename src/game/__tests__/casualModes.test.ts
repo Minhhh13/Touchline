@@ -27,13 +27,13 @@ describe('mode labels', () => {
     const daily = game('daily', 1, 'daily-2026-10-25')
     const dynasty = game('dynasty', 2)
     // Home's active and parked rows
-    expect([game('quick'), daily, game('season'), dynasty].map((g) => modeLabel(g, 'short'))).toEqual(['Quick draft', 'Daily challenge', 'Season', 'Dynasty · Year 2'])
+    expect([game('quick'), daily, game('season'), dynasty].map((g) => modeLabel(g, 'short'))).toEqual(['Quick Draft', 'Daily Challenge', 'Season', 'Dynasty · Year 2'])
     // The Summary's line above the verdict
-    expect([game('quick'), daily, game('season'), dynasty].map((g) => modeLabel(g, 'heading'))).toEqual(['Quick draft', 'Daily challenge', 'Season', 'Dynasty year 2'])
+    expect([game('quick'), daily, game('season'), dynasty].map((g) => modeLabel(g, 'heading'))).toEqual(['Quick Draft', 'Daily Challenge', 'Season', 'Dynasty year 2'])
     // The share text
     expect([game('quick'), daily, game('season'), dynasty].map((g) => modeLabel(g, 'share'))).toEqual(['Quick Draft', 'Daily 2026-10-25', 'Season', 'Dynasty Y2'])
     // The share card's footer
-    expect([game('quick'), daily, game('season'), dynasty].map(shareCardFooter)).toEqual(['Seed K7Q2-MX9A', 'Daily challenge 2026-10-25', 'Seed K7Q2-MX9A', 'Seed K7Q2-MX9A'])
+    expect([game('quick'), daily, game('season'), dynasty].map(shareCardFooter)).toEqual(['Seed K7Q2-MX9A', 'Daily Challenge 2026-10-25', 'Seed K7Q2-MX9A', 'Seed K7Q2-MX9A'])
     // The Dugout header's year
     expect([game('quick'), daily, game('season'), dynasty].map(yearLabel)).toEqual([null, null, null, 'Year 2'])
   })
@@ -66,7 +66,7 @@ describe('mode labels', () => {
   it('names the Weekly by its week and theme, and the Daily Arena by its day', () => {
     const weekly: LabelledGame = { year: 1, settings: { mode: 'weekly', seed: 'weekly-2026-W44', weekly: { theme: 'teammate-chain' } } }
     expect(STYLES.map((st) => modeLabel(weekly, st))).toEqual(['Weekly · Teammate chain', 'Weekly 2026-W44 · Teammate chain', 'Weekly 2026-W44 · Teammate chain'])
-    expect(shareCardFooter(weekly)).toBe('Weekly challenge 2026-W44')
+    expect(shareCardFooter(weekly)).toBe('Weekly Challenge 2026-W44')
     expect(finishDraftLabel(weekly)).toBe('On to kick-off')
     const arena: LabelledGame = { year: 1, settings: { mode: 'arena', seed: 'arena-2026-10-25', arena: { format: 'cup', size: 16, field: 'wheel', daily: true } } }
     expect(STYLES.map((st) => modeLabel(arena, st))).toEqual(['Daily Arena · The Cup · 16 clubs', 'Daily Arena · The Cup · 16 clubs', 'Daily Arena 2026-10-25 · The Cup · 16 clubs'])

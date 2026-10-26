@@ -37,7 +37,7 @@ import { PlayerCardModal } from '../components/PlayerCard'
 import { careerSeasons } from '@game/logic/playerCard'
 import { LeagueFlag } from '../components/Flag'
 import { roleCode } from '../match/shirts'
-import { clubName, clubShort, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
+import { chemistryLinkLabel, clubName, clubShort, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
 import type { PlayerSeason, Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
@@ -504,7 +504,7 @@ export function Dugout() {
               </div>
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} roleCodes={Object.fromEntries(formation.slots.map((s) => [s.id, roleCode(game.tactics, s.id, s.position)]))} />
               {showKey && <PitchLegend />}
-              {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.join(', ')}</div>}
+              {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.map((l) => chemistryLinkLabel(u, l)).join(', ')}</div>}
             </div>
             )}
             {tabBoxes.on('depth') && (

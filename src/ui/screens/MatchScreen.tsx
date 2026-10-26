@@ -241,7 +241,7 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
       })
       downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
     } catch {
-      showToast('Could not render the match card.')
+      showToast('Could not make the match card. Try again.')
     }
   }
   const ratingBar = (s: PlayerMatchStats) => <Bar value={s.rating - 4.5} max={5.5} colour={s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : 'var(--text-3)'} />
@@ -363,7 +363,7 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
               <h3 className="rp-pane-title">Shot map</h3>
               <ShotMap events={res.events} home={sides.home} away={sides.away} />
               <div className="small muted rp-foot">
-                {sides.home.shortName} {fig.home.shots} shots ({fig.home.onTarget} on target, {fig.home.xg.toFixed(2)} xG) · {sides.away.shortName} {fig.away.shots} ({fig.away.onTarget}, {fig.away.xg.toFixed(2)} xG)
+                {sides.home.shortName} {fig.home.shots} {fig.home.shots === 1 ? 'shot' : 'shots'} ({fig.home.onTarget} on target, {fig.home.xg.toFixed(2)} xG) · {sides.away.shortName} {fig.away.shots} ({fig.away.onTarget}, {fig.away.xg.toFixed(2)} xG)
               </div>
             </div>
           )}

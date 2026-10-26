@@ -208,13 +208,13 @@ export function Draft() {
   const onSlot = (slotId: string) => {
     if (choosing) {
       if (choosable.includes(slotId)) chooseSlot(slotId)
-      else if (d.lineup[slotId]) showToast('That slot is filled')
-      else showToast('No club left on the wheel can fill that slot')
+      else if (d.lineup[slotId]) showToast('That slot is filled.')
+      else showToast('No club left on the wheel can fill that slot. Pick another.')
       return
     }
     if (!selected) return
     if (!selectedEligible.includes(slotId)) {
-      showToast(`${selected.name} cannot play there`)
+      showToast(`${selected.name} cannot play there. Pick a highlighted slot.`)
       return
     }
     pickPlayer(selected.id, slotId)
@@ -320,7 +320,7 @@ export function Draft() {
             {complete && !d.current ? (
               <div className="draft-ready" data-testid="draft-ready">
                 <span className="eyebrow">Squad ready</span>
-                <b>{picksMade(d)} picks made</b>
+                <b>{picksMade(d)} {picksMade(d) === 1 ? 'pick' : 'picks'} made</b>
               </div>
             ) : (
               <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} twist={twist ? TWIST_INFO[twist].title : null} estimated={!!current?.estimated} onSettled={() => setSettled(d.current)} />
@@ -590,7 +590,7 @@ export function Draft() {
                 </div>
               )}
               {revealed && fillingStarters && (
-                <Tip id="draft-first-reveal">Tap a player to draft him. The number is his overall rating: green fits is his own position, amber can cover plays him out of position for a few points less. Your re-spins last the whole draft.</Tip>
+                <Tip id="draft-first-reveal">Tap a player to draft him. The number is his overall rating; a green slot chip is his own position, an amber one a position he can cover for a few points less. Your re-spins last the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist lined draft-list">
