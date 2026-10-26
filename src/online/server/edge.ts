@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ENGINE_VERSION } from '@engine/version'
 import { createServer, type DataPackRow, type ServerDeps, type StoredPin } from './service'
+import type { ChaseAttempt } from './chaseVerify'
 
 const SLOTS = ['quick', 'season', 'dynasty', 'h2h']
 /** The most a request body may hold before it is refused (413). */
@@ -49,6 +50,26 @@ function packFromJson(j: unknown): DataPackRow | null {
   if (!j || typeof j !== 'object') return null
   const r = j as Json
   return { version: r.version, leagues: r.leagues, files: r.files, firstSeenAt: r.firstSeenAt } as DataPackRow
+}
+
+/** An attempt as `private.chase_attempt_json` writes it (our own SQL), or null. */
+export function attemptFromJson(j: unknown): ChaseAttempt | null {
+  if (!j || typeof j !== 'object') return null
+  const r = j as Json
+  if (typeof r.code !== 'string' || typeof r.leagueId !== 'string' || typeof r.formationId !== 'string') return null
+  return {
+    code: r.code,
+    seed: String(r.seed),
+    leagueId: r.leagueId,
+    formationId: r.formationId,
+    ratings: r.ratings === 'prime' ? 'prime' : 'season',
+    benchPicks: typeof r.benchPicks === 'number' ? r.benchPicks : 0,
+    engineVersion: String(r.engineVersion),
+    dataVersion: String(r.dataVersion),
+    createdAt: String(r.createdAt),
+    expiresAt: String(r.expiresAt),
+    submittedAt: typeof r.submittedAt === 'string' ? r.submittedAt : null,
+  }
 }
 
 /** Lower-case hex SHA-256 of some bytes (Web Crypto, as in Deno). */
@@ -129,6 +150,13 @@ function makeDeps(admin: SupabaseClient, site: string): ServerDeps {
       },
       submit: async (kind, userId, date, entry) =>
         (await rpc(admin, kind === 'daily' ? 'svc_daily_submit' : 'svc_weekly_submit', { p_user: userId, [kind === 'daily' ? 'p_date' : 'p_week']: date, p_entry: entry as unknown as Json })) as { status: string } & Json,
+      chaseStart: async (userId, leagueId, formationId, options, engine, data) => {
+        const r = ((await rpc(admin, 'svc_chase_start', { p_user: userId, p_league: leagueId, p_formation: formationId, p_engine: engine, p_data: data, p_ratings: options.ratings, p_bench: options.benchPicks })) ?? {}) as Json
+        const attempt = attemptFromJson(r.attempt)
+        return { ...r, status: String(r.status ?? ''), ...(attempt ? { attempt } : {}) }
+      },
+      chaseAttempt: async (userId, code) => attemptFromJson(await rpc(admin, 'svc_chase_attempt', { p_user: userId, p_code: code })),
+      chaseSubmit: async (userId, code, entry) => (await rpc(admin, 'svc_chase_submit', { p_user: userId, p_code: code, p_entry: entry as unknown as Json })) as { status: string } & Json,
       dataPack: async (version: string) => packFromJson(await rpc(admin, 'svc_data_pack', { p_version: version })),
       registerDataPack: async (version, leagues, files) => {
         const r = (await rpc(admin, 'svc_register_data_pack', { p_version: version, p_leagues: leagues, p_files: files })) as Json

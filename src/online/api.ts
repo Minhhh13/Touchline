@@ -3,8 +3,11 @@
  * Supabase code): each call starts the runtime with a dynamic `import()` when the build is configured, and does
  * nothing (or falls back to the offline behaviour) when it is not, so an offline build never loads supabase-js.
  */
-import type { ChallengePayload } from '@engine/challenge'
+import { cleanName, type ChallengePayload } from '@engine/challenge'
+import { ENGINE_VERSION } from '@engine/version'
 import { challengeLink } from '@game/logic/challenge'
+import { useStore } from '@game/store'
+import type { Game } from '@game/types'
 import { onlineConfig } from './config'
 import { onlineStore } from './state'
 import type { AccountProfile } from './state'
@@ -15,7 +18,10 @@ import { OnlineError } from './transport'
 import { checkDisplayName, nameVerdictFrom, sendEmailCode, signInWithGoogle, verifyEmailCode, type AuthResult, type NameVerdict } from './auth'
 import { normaliseCountry } from './core/country'
 import { googleEnabledIn, googleForced } from './core/providers'
-import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchSummary, myEntries, rankOf, type AlltimeOrder, type RankedKind } from './boards'
+import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchChaseBoard, fetchChaseStatus, fetchChaseSummary, fetchSummary, myEntries, rankOf, type AlltimeOrder, type ChaseScope, type RankedKind } from './boards'
+import { chaseGameSettings, chaseLeagues, chaseUnrankedReason, type ChaseOptions } from './chase'
+import { updateRecord } from './localState'
+import { captureChaseEntry, enqueue } from './outbox'
 import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
 
 /** Whether this build carries the online layer at all. */
@@ -211,4 +217,74 @@ export async function myChallenges(): Promise<ChallengeRow[]> {
 export async function deleteChallenge(code: string): Promise<void> {
   const r = await rt()
   if (r) await r.transport.deleteChallenge(code)
+}
+
+// ------------------------------------------------------------------ the 38-0 chase
+
+export async function chaseBoard(scope: ChaseScope, week: string | null, country: string | null, offset = 0) {
+  const r = await rt()
+  return r ? fetchChaseBoard(r.transport, scope, week, country, offset) : []
+}
+
+export async function chaseSummary(scope: ChaseScope, week: string | null, country: string | null) {
+  const r = await rt()
+  return r ? fetchChaseSummary(r.transport, scope, week, country) : null
+}
+
+/** Today's attempts and the caller's best run; null signed out. */
+export async function chaseStatus() {
+  const r = await rt()
+  if (!r) return null
+  await r.ready
+  return r.signedIn ? fetchChaseStatus(r.transport) : null
+}
+
+export type ChaseStart = { ok: true; left: number } | { ok: false; message: string; signIn?: boolean }
+
+const replyReason = (body: Record<string, unknown>, status: number) => (typeof body.reason === 'string' && body.reason ? body.reason : `The server answered ${status}`)
+
+/**
+ * Start a 38-0 chase run: the league's data first (so a failed load never spends an attempt), then `chase.start` for
+ * a server-issued wheel, then the Quick Draft on exactly the attempt's settings (`chaseGameSettings`).
+ */
+export async function startChaseRun(leagueId: string, formationId: string, options: Required<ChaseOptions>, teamName: string): Promise<ChaseStart> {
+  const r = await rt()
+  if (!r) return { ok: false, message: 'Online features are not available in this build.' }
+  await r.ready
+  if (!r.signedIn) return { ok: false, message: 'Sign in to play the 38-0 chase.', signIn: true }
+  if (!(await useStore.getState().ensureLeagues([leagueId]))) return { ok: false, message: 'Could not load that league: check the connection and try again.' }
+  const u = useStore.getState().universe
+  if (!u || !chaseLeagues(u).includes(leagueId)) return { ok: false, message: 'That league has no complete season to play.' }
+  let reply: { status: number; body: Record<string, unknown> }
+  try {
+    reply = await r.transport.invoke({ op: 'chase.start', leagueId, formationId, ratings: options.ratings, benchPicks: options.benchPicks, engine: ENGINE_VERSION, data: u.generatedAt })
+  } catch {
+    return { ok: false, message: 'No connection: a chase run needs the server to issue its wheel.' }
+  }
+  if (reply.status === 401) return { ok: false, message: 'Sign in to play the 38-0 chase.', signIn: true }
+  if (reply.status !== 200) return { ok: false, message: replyReason(reply.body, reply.status) }
+  const attempt = (reply.body.attempt ?? {}) as Record<string, unknown>
+  const code = typeof attempt.code === 'string' ? attempt.code : null
+  const settings = code ? chaseGameSettings(u, code, leagueId, formationId, teamName, options) : null
+  if (!settings) return { ok: false, message: 'The server issued a wheel this build cannot play: reload the page.' }
+  useStore.getState().startGame(settings)
+  return { ok: true, left: typeof reply.body.left === 'number' ? reply.body.left : 0 }
+}
+
+/** The Summary's "Submit to the 38-0 chase": file the run in the outbox (it posts once signed in and online). */
+export async function submitChase(game: Game): Promise<{ ok: boolean; message?: string }> {
+  const st = useStore.getState()
+  const u = st.universe
+  if (!u) return { ok: false, message: 'The game data is still loading.' }
+  const name = cleanName(st.profile.managerName) || cleanName(game.settings.teamName) || 'A friend'
+  const entry = captureChaseEntry(game, u, name, new Date(), onlineStore.getState().session?.userId ?? null)
+  if (!entry) return { ok: false, message: chaseUnrankedReason(game, u) ?? 'This run cannot go to the 38-0 chase.' }
+  const next = updateRecord((rec) => enqueue(rec, entry))
+  onlineStore.setState({ posts: next.posts, outboxCount: next.outbox.length })
+  const r = await rt()
+  if (r) {
+    await r.ready
+    await r.flushOutbox()
+  }
+  return { ok: true }
 }

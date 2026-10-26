@@ -7,7 +7,8 @@ import type { Game, GameSettings } from '@game/types'
 import { createGame, dailyGameSettings } from '@game/logic/setup'
 import { runQuickSeason } from '@game/logic/quick'
 import { freshRecord } from '../localState'
-import { backoffMs, captureEntry, classify, closesAt, enqueue, flushOutbox, nextDue, rankedFinish } from '../outbox'
+import { backoffMs, captureChaseEntry, captureEntry, classify, closesAt, enqueue, flushOutbox, nextDue, rankedFinish } from '../outbox'
+import { chaseGameSettings } from '../chase'
 import { rankedBoardOf } from '../daily'
 import { weeklyGameSettings } from '../weekly'
 import { OnlineError } from '../transport'
@@ -137,5 +138,35 @@ describe('outbox answers (build plan 4.8)', () => {
     let r2 = enqueue(freshRecord('device-test-0004'), anon)
     r2 = await flushOutbox(r2, { transport: new FakeTransport(b, 'user-b'), signedIn: true, userId: 'user-b', now: () => NOW, random: () => 0 })
     expect(r2.outbox).toEqual([])
+  })
+})
+
+describe('38-0 chase posts', () => {
+  const chase = finished(chaseGameSettings(u, 'K7Q2MX9A3B', 'england', '4-3-3', 'Chase FC')!)
+
+  it('are never filed on their own: the Summary submits them, once per attempt, and they close with the attempt', () => {
+    expect(rankedFinish({ game: chase.before }, { game: chase.after })).toBeNull()
+    const e = captureChaseEntry(chase.after, u, 'Minh', new Date(NOW), 'user-a')!
+    expect(e).toMatchObject({ kind: 'chase', key: 'K7Q2MX9A3B', teamName: 'Chase FC', owner: 'user-a', points: chase.after.quickResult!.points })
+    expect(e.closes).toBe(Date.parse(chase.after.createdAt) + 48 * 3600000)
+    expect(closesAt(e)).toBe(e.closes)
+    expect(closesAt({ kind: 'chase', key: 'K7Q2MX9A3B', at: new Date(NOW).toISOString() })).toBe(NOW + 48 * 3600000)
+    let r = enqueue(freshRecord('device-test-0005'), e)
+    r = enqueue(r, { ...e, id: 'again' })
+    expect(r.outbox).toHaveLength(1)
+    expect(r.posts['chase:K7Q2MX9A3B']).toMatchObject({ state: 'waiting', reason: 'sign_in' })
+    // A Quick Draft on its own seed, or a Daily, is no chase run
+    expect(captureChaseEntry(daily.after, u, 'Minh', new Date(NOW))).toBeNull()
+  })
+
+  it('post with chase.submit and keep the week place and the flawless flag', async () => {
+    const b = new FakeBackend()
+    b.fn = (body) => (body.op === 'chase.submit' ? { status: 200, body: { status: 'ranked', position: 3, total: 40, weekPosition: 1, weekTotal: 9, perfect: false, entry: { points: 90, claimMatched: true } } } : { status: 400, body: {} })
+    const e = captureChaseEntry(chase.after, u, 'Minh', new Date(NOW), 'user-a')!
+    let r = enqueue(freshRecord('device-test-0006'), e)
+    r = await flushOutbox(r, { transport: new FakeTransport(b, 'user-a'), signedIn: true, userId: 'user-a', now: () => NOW, random: () => 0 })
+    expect(b.calls).toContain('invoke:chase.submit')
+    expect(r.posts['chase:K7Q2MX9A3B']).toMatchObject({ state: 'posted', position: 3, total: 40, weekPosition: 1, weekTotal: 9, perfect: false, points: 90 })
+    expect(classify(409, { code: 'no_attempt', reason: 'This wheel was not issued to this account' }, 0)).toMatchObject({ kind: 'done', post: { state: 'unranked', code: 'no_attempt' } })
   })
 })

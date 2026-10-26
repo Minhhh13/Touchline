@@ -46,6 +46,7 @@ import { tierName as rarityName } from '@game/logic/rarity'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
+import { ChaseStatus } from '../online/ChaseStatus'
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { CupRuns } from '../components/CupRuns'
 import { ManagerChip } from '../components/ManagerPick'
@@ -470,6 +471,7 @@ export function Summary() {
       {/* Everything under the result: on a desktop one panel that scrolls inside itself */}
       <div className="summary-body fill" data-testid="summary-body">
       {!replay.playing && <RankedStatus game={game} />}
+      {!replay.playing && <ChaseStatus game={game} />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
       {q && results.length > 0 && on('games') && (
         <GameByGame
