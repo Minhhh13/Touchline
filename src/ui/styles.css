@@ -3368,7 +3368,7 @@ table.tbl.contracts .btn.sm {
   margin-top: var(--space-4);
 }
 .hero .tag {
-  font-size: 18px;
+  font-size: calc(var(--fs-h3) - 1px);
   color: var(--on-photo-2);
   margin: var(--space-2) 0 0;
 }
@@ -3386,7 +3386,7 @@ table.tbl.contracts .btn.sm {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 28px;
+  font-size: calc(var(--fs-h1) * 0.875);
   line-height: 1;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -3475,7 +3475,7 @@ table.tbl.contracts .btn.sm {
     grid-template-columns: 1fr;
   }
   .hero h1 {
-    font-size: 46px;
+    font-size: calc(var(--fs-h1) * 1.4375);
   }
   .hero h1 .tl-lockup {
     --h: 60px;
@@ -3567,7 +3567,7 @@ table.tbl.contracts .btn.sm {
 }
 .mode-card h3 {
   color: var(--text);
-  font-size: 24px;
+  font-size: var(--fs-h2);
 }
 .mode-card p {
   color: var(--text-2);
@@ -3769,7 +3769,7 @@ table.tbl.contracts .btn.sm {
     padding: var(--space-3) var(--space-3) var(--space-3) 28px;
   }
   .mode-card h3 {
-    font-size: 21px;
+    font-size: calc(var(--fs-h3) + 2px);
   }
   .mode-card.daily > .btn {
     margin: 0 var(--space-3) var(--space-3);
@@ -3796,17 +3796,17 @@ table.tbl.contracts .btn.sm {
     padding: var(--space-5) var(--space-4);
   }
   .hero h1 {
-    font-size: 46px;
+    font-size: calc(var(--fs-h1) * 1.4375);
   }
   .hero .tag {
-    font-size: 16px;
+    font-size: calc(var(--fs-base) + 2px);
   }
   .hero-stats {
     gap: var(--space-4);
     margin-top: var(--space-4);
   }
   .hero-stats dd {
-    font-size: 22px;
+    font-size: calc(var(--fs-h2) - 2px);
   }
   .hero-stats dt {
     letter-spacing: 0.04em;
