@@ -5714,12 +5714,12 @@ dl.kv {
   background: var(--panel-2);
 }
 .twist-card .twist-icon {
-  font-size: 26px;
+  font-size: calc(var(--fs-h2) + 2px);
   line-height: 1;
 }
 .twist-card .twist-title {
   font-weight: 700;
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
 }
 
 /* ------------------------------------------------- season, game by game */
