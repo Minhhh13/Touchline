@@ -34,6 +34,24 @@
         var light = pref === 'light' || (pref !== 'dark' && !!window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches)
         document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark')
       } catch (e) {}
+      // Preload the data Home waits for, so it comes in with the JavaScript instead of after it; the big pack at low
+      // priority, after the script where the server orders them. packs.ts and universe.ts fetch with the same default
+      // CORS mode and credentials, so the preloads are used. Only on a page no service worker controls (a first visit,
+      // the iOS app): a controlled page reads the packs from the worker's cache, and Chromium never matches a
+      // preload there (a second request, and a second background refresh, for each)
+      try {
+        if (!(navigator.serviceWorker && navigator.serviceWorker.controller)) {
+          ;['data/leagues.json', 'data/england/meta.json', 'data/england/players.json'].forEach(function (href, i) {
+            var link = document.createElement('link')
+            link.rel = 'preload'
+            link.as = 'fetch'
+            link.crossOrigin = 'anonymous'
+            link.href = href
+            if (i === 2) link.setAttribute('fetchpriority', 'low')
+            document.head.appendChild(link)
+          })
+        }
+      } catch (e) {}
     </script>
   </head>
   <body>
