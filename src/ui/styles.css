@@ -14377,6 +14377,241 @@ details.opposition {
 }
 
 
+/* ------------------------------------------------------------ first run (onboarding, 2026-10-26) */
+/* Home's hero for a manager with nothing finished: the game in three steps and one button, in place of the figures and flags */
+.first-run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.first-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.first-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.first-steps li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  color: var(--on-photo-2);
+}
+.first-steps b {
+  color: var(--on-photo);
+  font-size: var(--fs-base);
+}
+.first-step-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.first-go {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+.first-go .btn {
+  gap: var(--space-2);
+}
+.first-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--on-photo-2);
+}
+.first-note .linklike {
+  color: var(--photo-accent);
+}
+@media (max-width: 720px) {
+  .first-steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .first-go .btn {
+    width: 100%;
+  }
+}
+/* A desktop shell: the steps sit beside the lockup on a short window, as the figures do, so Home still fits one screen */
+@media (min-width: 1100px) {
+  .app.shell .page.home .hero-content:has(.first-run) {
+    max-width: none;
+  }
+  .app.shell .page.home .first-run {
+    margin-top: clamp(6px, 2dvh, 24px);
+    max-width: 760px;
+  }
+}
+/* Over the drawing's goal on a wide hero the steps keep a backing, so the lines read */
+@media (min-width: 721px) {
+  .first-run {
+    padding: var(--space-3);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--hero-shade) 82%, transparent);
+    border: 1px solid color-mix(in srgb, var(--on-photo) 12%, transparent);
+  }
+}
+/* Up to 900 px tall the steps sit beside the lockup and the line (the short window's figures layout), so the mode pictures keep their height */
+@media (min-width: 1100px) and (max-height: 900px) {
+  .app.shell .page.home .hero-content:has(.first-run) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-content: start;
+    align-items: end;
+    column-gap: 48px;
+  }
+  .app.shell .page.home .hero-content:has(.first-run) h1 {
+    grid-area: 1 / 1;
+  }
+  .app.shell .page.home .hero-content:has(.first-run) .tag {
+    grid-area: 2 / 1;
+  }
+  .app.shell .page.home .first-run {
+    grid-area: 1 / 2 / span 2 / 3;
+    align-self: center;
+    margin-top: 0;
+    gap: var(--space-2);
+  }
+  .app.shell .page.home .first-steps li > span:last-child {
+    font-size: var(--fs-meta);
+  }
+}
+/* A short window: the button stands beside the three steps, so the hero is no taller than the figures made it */
+@media (min-width: 1100px) and (max-height: 760px) {
+  .app.shell .page.home .first-run {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .app.shell .page.home .first-steps {
+    flex: 1 1 auto;
+  }
+  .app.shell .page.home .first-go {
+    flex: 0 0 200px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+  }
+  .app.shell .page.home .first-go .btn.big {
+    min-height: var(--control-h);
+    font-size: var(--fs-base);
+  }
+  .app.shell .page.home .first-note {
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: var(--fs-meta);
+  }
+}
+/* 1100 to 1279 px wide the top bar takes two rows: the steps take the whole hero (the lockup is in the top bar and stays for screen readers) with the button beside them */
+@media (min-width: 1100px) and (max-width: 1279px) and (max-height: 900px) {
+  .app.shell .page.home .hero-content:has(.first-run) {
+    display: block;
+    width: 100%;
+  }
+  .app.shell .page.home .hero-content:has(.first-run) h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .app.shell .page.home .hero-content:has(.first-run) .tag {
+    display: none;
+  }
+  .app.shell .page.home .first-run {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+    max-width: none;
+    margin-top: 0;
+  }
+  .app.shell .page.home .first-steps {
+    flex: 1 1 auto;
+  }
+  .app.shell .page.home .first-go {
+    flex: 0 0 210px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+  }
+  .app.shell .page.home .first-note {
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: var(--fs-meta);
+  }
+}
+/* The Draft's first spin for a new manager: one plain line under Spin the wheel; a desktop's middle box already says it */
+.first-spin-help {
+  margin: 0;
+  text-align: center;
+}
+@media (min-width: 1100px) {
+  .app.shell .first-spin-help {
+    display: none;
+  }
+}
+/* Squad complete on a phone or tablet: Simulate season stays at the foot of the screen while the prediction scrolls under it (it was about 1,000 px down at 390x844) */
+@media (max-width: 1099px) {
+  .page.fit .squad-complete > .sc-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-inline: calc(-1 * var(--panel-pad));
+    margin-bottom: calc(-1 * var(--panel-pad));
+    padding: var(--space-2) var(--panel-pad) max(var(--panel-pad), env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: var(--border);
+  }
+}
+/* The summary after the first result ever: today's Daily and a Quick Draft set up your way, side by side when there is room */
+.first-next h3 {
+  margin: 0 0 var(--space-2);
+}
+.first-next-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+.first-next-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.first-next-option p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.first-next-option b {
+  display: block;
+  color: var(--text);
+  font-size: var(--fs-base);
+}
+.first-next-option .btn {
+  gap: var(--space-2);
+}
+
 /* ------------------------------------------------------------------------------- accessibility pass (2026-10-26) */
 /* docs/ACCESSIBILITY.md. Phones only, so the desktop's one-screen fit is untouched. */
 @media (max-width: 720px) {

@@ -39,6 +39,7 @@ import { useFocusOnLanding } from '../a11y'
 import { tierTable, type TierTable } from '@game/logic/rarity'
 import { draftReelPool, reelLeagues } from '@game/logic/reel'
 import { canPickManager, quickManagerOptions } from '@game/logic/managers'
+import { resultsFinished } from '@game/logic/onboarding'
 import { ManagerPick } from '../components/ManagerPick'
 import { DraftRecap } from '../components/DraftRecap'
 import { draftRecap } from '@game/logic/draftRecap'
@@ -53,6 +54,8 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
 
 export function Draft() {
   const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
+  // A manager's first draft ever (nothing finished yet): one plain line under the first spin
+  const firstDraft = useStore((s) => resultsFinished(s.profile) === 0)
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -365,6 +368,11 @@ export function Draft() {
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
                   {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 ? 'Spin the wheel' : places && !fillingStarters ? 'Spin for the bench' : 'Spin again'}
                 </button>
+                {firstDraft && made === 0 && !d.current && !spinning && !choosing && (
+                  <p className="help first-spin-help" data-testid="first-spin-help">
+                    The wheel lands on a real club in a real season. Then you pick one of its players for your XI.
+                  </p>
+                )}
                 {canClose && (
                   <button className="btn" disabled={spinning} onClick={() => finishDraft()} data-testid="finish-draft">
                     {d.bench.length ? `On to kick-off with ${d.bench.length} on the bench` : 'On to kick-off without a bench'}
@@ -568,7 +576,7 @@ export function Draft() {
                       )
                     })}
                     {canBench(d, selected) && (
-                      <button type="button" className="btn sm primary" onClick={() => { pickPlayer(selected.id, 'bench'); setSelectedPlayer(null) }} data-testid="to-bench">
+                      <button type="button" className="btn sm" onClick={() => { pickPlayer(selected.id, 'bench'); setSelectedPlayer(null) }} data-testid="to-bench">
                         Send him to the bench
                       </button>
                     )}
@@ -579,7 +587,7 @@ export function Draft() {
                 </div>
               )}
               {revealed && fillingStarters && (
-                <Tip id="draft-first-reveal">The number by each player is his overall. Green fits means his natural position; amber can cover means he plays there at a penalty, shown as his number in that slot (the one on the pitch) and the cost against his overall. Re-spins are a budget for the whole draft.</Tip>
+                <Tip id="draft-first-reveal">Tap a player to draft him. The number is his overall rating: green fits is his own position, amber can cover plays him out of position for a few points less. Your re-spins last the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist lined draft-list">
