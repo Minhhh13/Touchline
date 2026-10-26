@@ -291,6 +291,74 @@ describe('save storage', () => {
     expect(writes.length).toBe(1)
   })
 
+  it('with an encoder (the worker) writes the very bytes the page would, one at a time, newest last', async () => {
+    const writes: string[] = []
+    const backing = { getItem: () => null, setItem: (_k: string, v: string) => void writes.push(v), removeItem: () => undefined } as unknown as Storage
+    const asked: Array<{ json: string; resolve: (s: string) => void; reject: (e: Error) => void }> = []
+    const encoder = { encode: (json: string) => new Promise<string>((resolve, reject) => void asked.push({ json, resolve, reject })) }
+    const store = createSaveStorage<{ n: number }>({ storage: () => backing, delayMs: 5, encoder })
+    const tick = () => new Promise((r) => setTimeout(r, 20))
+    store.setItem('k', { state: { n: 1 }, version: 1 })
+    await tick()
+    expect(asked.length).toBe(1)
+    expect(writes.length).toBe(0)
+    expect(store.pending()).toBe(true)
+    // While the worker compresses, a read sees that state, and newer writes wait for it
+    expect(store.getItem('k')).toEqual({ state: { n: 1 }, version: 1 })
+    for (let n = 2; n <= 4; n++) store.setItem('k', { state: { n }, version: 1 })
+    await tick()
+    expect(asked.length).toBe(1)
+    expect(store.getItem('k')).toEqual({ state: { n: 4 }, version: 1 })
+    asked[0].resolve(encodeSave(asked[0].json))
+    await tick()
+    expect(writes).toEqual([encodeSave(JSON.stringify({ state: { n: 1 }, version: 1 }))])
+    // Then the latest state, coalesced into one write
+    expect(asked.length).toBe(2)
+    expect(JSON.parse(asked[1].json)).toEqual({ state: { n: 4 }, version: 1 })
+    asked[1].resolve(encodeSave(asked[1].json))
+    await tick()
+    expect(writes.length).toBe(2)
+    expect(parseSave(writes[1])).toEqual({ state: { n: 4 }, version: 1 })
+    expect(store.pending()).toBe(false)
+
+    // The page hidden mid-compression: the state in flight is written at once, and the worker's late bytes are dropped
+    store.setItem('k', { state: { n: 5 }, version: 1 })
+    await tick()
+    expect(asked.length).toBe(3)
+    store.flush()
+    expect(writes.length).toBe(3)
+    expect(parseSave(writes[2])).toEqual({ state: { n: 5 }, version: 1 })
+    asked[2].resolve('stale bytes')
+    await tick()
+    expect(writes.length).toBe(3)
+    // A newer state queued behind one in flight: flush writes the newer, and the older never lands after it
+    store.setItem('k', { state: { n: 6 }, version: 1 })
+    await tick()
+    store.setItem('k', { state: { n: 7 }, version: 1 })
+    store.flush()
+    expect(parseSave(writes.at(-1)!)).toEqual({ state: { n: 7 }, version: 1 })
+    asked[3].resolve(encodeSave(asked[3].json))
+    await tick()
+    expect(parseSave(writes.at(-1)!)).toEqual({ state: { n: 7 }, version: 1 })
+    expect(writes.length).toBe(4)
+
+    // A worker that fails: the page compresses that write itself
+    store.setItem('k', { state: { n: 8 }, version: 1 })
+    await tick()
+    asked[4].reject(new Error('gone'))
+    await tick()
+    expect(writes.length).toBe(5)
+    expect(writes[4]).toBe(encodeSave(JSON.stringify({ state: { n: 8 }, version: 1 })))
+    // Frozen (an import is about to reload): nothing in flight lands
+    store.setItem('k', { state: { n: 9 }, version: 1 })
+    await tick()
+    store.freeze()
+    asked[5].resolve(encodeSave(asked[5].json))
+    await tick()
+    expect(writes.length).toBe(5)
+    expect(store.pending()).toBe(false)
+  })
+
   it('loads an old plain save with full detail on every fixture, plays on, and writes it back compressed and compacted', async () => {
     const active = withFullDetailEverywhere(playTo(started({ seed: 'old-active', mode: 'dynasty' }), 24))
     const parked = withFullDetailEverywhere(playTo(started({ seed: 'old-parked' }), 31))

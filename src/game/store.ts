@@ -23,6 +23,7 @@ import { alreadyCredited, creditArena, creditGame, creditH2H, creditH2HOnline, c
 import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
+import { workerSaveEncoder } from './saveEncoder'
 import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
@@ -325,6 +326,8 @@ let failedWrites = 0
 export const saveStorage = createSaveStorage<Store>({
   storage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
   delayMs: SAVE_DELAY_MS,
+  // The coalesced writes compress in a worker, off the tap that changed the game (none in the tests: on the page)
+  encoder: workerSaveEncoder(),
   onWrite: () => {
     failedWrites = 0
   },
@@ -338,8 +341,23 @@ export const saveStorage = createSaveStorage<Store>({
   },
 })
 
-/** What is saved: the games (compacted), the head-to-head, the shortlist, the profile and the screen. */
-export function persistedState(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>) {
+type Persisted = ReturnType<typeof persistedOf>
+let lastPersisted: { from: unknown[]; out: Persisted } | null = null
+
+/**
+ * What is saved: the games (compacted), the head-to-head, the shortlist, the profile and the screen. The same object
+ * while none of those has changed, so an update to the transient state (a toast, the match view) is not written
+ * again (the storage skips a state it was just given).
+ */
+export function persistedState(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>): Persisted {
+  const from = [s.game, s.parked, s.shortlist, s.h2h, s.profile, s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home']
+  if (lastPersisted && lastPersisted.from.every((x, i) => x === from[i])) return lastPersisted.out
+  const out = persistedOf(s)
+  lastPersisted = { from, out }
+  return out
+}
+
+function persistedOf(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>) {
   const parked: Record<string, Game> = {}
   for (const [slot, g] of Object.entries(s.parked)) parked[slot] = compactGame(g)
   return { game: s.game ? compactGame(s.game) : null, parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }
