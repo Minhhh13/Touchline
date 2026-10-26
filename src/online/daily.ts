@@ -68,12 +68,14 @@ export function nonStandardRule(settings: Pick<GameSettings, 'rules'>): (typeof 
 /**
  * Why a finished game on a ranked board's seed cannot rank, or null when it can: a non-standard rule, or a draft
  * or season that used something outside the puzzle (the Upgrader, tray or locker power-ups, the case's Icon, a
- * manager), the same checks the verifier makes (`nonStandardRun`).
+ * manager, the January spin or Upgrader), the same checks the verifier makes (`nonStandardRun`).
  */
 export function unrankedReason(game: Game, u: LoadedUniverse): string | null {
   if (nonStandardRule(game.settings)) return 'This run used rules outside the ranked puzzle'
   if (game.draft?.locker?.length) return 'Power-ups from the locker are not part of the ranked puzzle'
   if (game.endCase?.sub) return "The case's Icon is not part of the ranked puzzle"
+  // The January spin and Upgrader (a Quick Draft's January gamble): a replay without them would rank another season
+  if (game.quickJanuary?.spin || game.quickJanuary?.upgrade) return 'The January spin and Upgrader are not part of the ranked puzzle'
   const payload = challengeFromGame(game, u, 'check')
   return payload ? nonStandardRun(payload, game.settings.rules) : null
 }

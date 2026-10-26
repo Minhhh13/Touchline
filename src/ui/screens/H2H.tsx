@@ -22,6 +22,7 @@ import { h2hTierOdds } from '@game/logic/tierOdds'
 import { SpinOdds } from '../components/SpinOdds'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
 import { GameByGame } from '../components/GameByGame'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 
 export function H2HSetup() {
   const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
@@ -189,7 +190,8 @@ export function H2HScreen() {
   const usableIds = new Set(usable.map((p) => p.id))
   const selected = selectedPlayer ? u.index[selectedPlayer] : undefined
   const eligible = selected ? h2hEligibleSlots(d, selected).map((s) => s.id) : []
-  const hide = h2h.hardMode
+  // Hard mode hides the players on offer; each manager's own picks show
+  const hide = ratingHidden(d.drafts[0].rules, 'offer')
   const onPick = (pid: string) => {
     if (picking === null) return
     const p = u.index[pid]
@@ -210,7 +212,7 @@ export function H2HScreen() {
     setSelectedPlayer(null)
   }
   return (
-    <div className={`page ${hide ? 'hidden-ratings' : ''}`}>
+    <div className="page">
       <div className="screen-head">
         <div className="screen-title">
           <h1>Head-to-head draft</h1>
@@ -340,7 +342,7 @@ export function H2HScreen() {
                   {picksMade(d.drafts[i])}/{d.drafts[i].rules.squadSize}
                 </span>
               </div>
-              <Pitch formation={d.drafts[i].formation} lineup={d.drafts[i].lineup} getPlayer={(id) => u.index[id]} onSlotClick={(s) => onSlot(i, s)} eligibleSlots={picking === i ? eligible : []} hideRatings={hide} />
+              <Pitch formation={d.drafts[i].formation} lineup={d.drafts[i].lineup} getPlayer={(id) => u.index[id]} onSlotClick={(s) => onSlot(i, s)} eligibleSlots={picking === i ? eligible : []} hideRatings={ratingHidden(d.drafts[i].rules, 'squad')} />
               {selected && picking === i && suggestSlot(d.drafts[i], selected) && suggestSlot(d.drafts[i], selected) !== 'bench' && (
                 <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(i, suggestSlot(d.drafts[i], selected) as string)}>
                   Put {selected.name} at {d.drafts[i].formation.slots.find((s) => s.id === suggestSlot(d.drafts[i], selected))?.position}
@@ -388,7 +390,7 @@ function H2HSummary() {
         lineup: h2h.draft.drafts[i].lineup,
         getPlayer: (id) => u.index[id],
         footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${h2h.seed}`,
-        hideRatings: h2h.hardMode,
+        hideRatings: ratingHidden(h2h.draft.drafts[i].rules, 'squad'),
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {

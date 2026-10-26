@@ -49,6 +49,7 @@ export function nonStandardRun(c: ChallengePayload, rules: GameSettings['rules']
   if (c.w?.length) return 'Power-ups are not part of the ranked puzzle'
   if (c.i?.length) return 'Power-ups from the locker are not part of the ranked puzzle'
   if (c.x?.ic) return "The case's Icon is not part of the ranked puzzle"
+  if (c.x?.jg) return 'The January spin and Upgrader are not part of the ranked puzzle'
   if (c.x?.m && !rules.managers) return 'A manager is not part of the ranked puzzle'
   return null
 }

@@ -221,3 +221,32 @@ export function stopAll(nodes: Iterable<AudioScheduledSourceNode>): void {
     }
   }
 }
+
+/** The Upgrader's needle passing a tick mark: the reel's tick, now. `rate` (about 0.9 to 1.2) shifts its pitch. */
+export function playDialTick(rate: number): void {
+  const a = liveAudio()
+  if (a) playTick(a.c.currentTime + 0.005, rate)
+}
+
+/**
+ * The Upgrader's verdict. A win: a bright rising arpeggio into a held major chord over a soft low thump, with a
+ * shimmer of high pings (dropped when `reduced`). A loss: a falling "wah-wah", two sliding minor notes into a low
+ * groan. Synthesised like every other sound here.
+ */
+export function playUpgradeResult(won: boolean, reduced = false): void {
+  const a = liveAudio()
+  if (!a) return
+  const { c, out } = a
+  const t = c.currentTime + 0.01
+  if (won) {
+    tone(c, out, t, 110, { type: 'sine', peak: 0.38, attack: 0.004, dur: 0.45, glideTo: 70 })
+    ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => chime(c, out, t + i * 0.07, f, { type: 'triangle', peak: 0.24, dur: i === 3 ? 1.2 : 0.35 }))
+    for (const f of [1046.5, 1318.51, 1567.98]) tone(c, out, t + 0.3, f, { type: 'triangle', peak: 0.1, attack: 0.02, dur: 1.4 })
+    if (!reduced) [2637, 3136, 3520, 4186, 3136, 3951].forEach((f, i) => tone(c, out, t + 0.36 + i * 0.06 + Math.random() * 0.02, f, { peak: 0.06, dur: 0.22 }))
+    return
+  }
+  tone(c, out, t, 392, { type: 'triangle', peak: 0.26, attack: 0.01, dur: 0.32, glideTo: 370 })
+  tone(c, out, t + 0.3, 349.23, { type: 'triangle', peak: 0.26, attack: 0.01, dur: 0.34, glideTo: 330 })
+  tone(c, out, t + 0.62, 311.13, { type: 'triangle', peak: 0.28, attack: 0.01, dur: 0.9, glideTo: 185 })
+  tone(c, out, t + 0.62, 77.78, { type: 'sine', peak: 0.3, attack: 0.02, dur: 0.8, glideTo: 55 })
+}

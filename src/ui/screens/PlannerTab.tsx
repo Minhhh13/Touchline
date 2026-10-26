@@ -1,5 +1,6 @@
 import { ClipboardList, FileSignature, Stethoscope } from 'lucide-react'
 import { useStore } from '@game/store'
+import type { Boxes } from '../components/Boxes'
 import { surnameOf } from '@game/logic/talks'
 import { contractsOverview, squadPlanner } from '@game/logic/planner'
 import { medicalReport } from '@game/logic/medical'
@@ -16,7 +17,8 @@ const BAND_LABEL = { low: 'Low', medium: 'Medium', high: 'High' } as const
  * contracts overview, and the medical view. A view only; the numbers come from
  * `src/game/logic/planner.ts` and `medical.ts`.
  */
-export function PlannerTab({ onPlayer }: { onPlayer: (id: string) => void }) {
+/** `boxes` is the Dugout's Boxes control for this tab: an unticked box is left out and the others widen. */
+export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
   const { universe: u, game } = useStore()
   if (!u || !game) return null
   const rows = squadPlanner(game, u)
@@ -25,8 +27,11 @@ export function PlannerTab({ onPlayer }: { onPlayer: (id: string) => void }) {
   const used = rows.filter((r) => r.used)
   const spare = rows.filter((r) => !r.used)
   const needs = used.filter((r) => r.need).length
+  const on = (id: string) => boxes?.on(id) ?? true
+  const grid = boxes?.grid([{ track: 'minmax(0, 1fr)', ids: ['squad-planner'] }, { track: 'minmax(0, 1fr)', ids: ['contracts'] }, { track: 'minmax(0, 1fr)', ids: ['medical'] }]) ?? { className: '', style: undefined }
   return (
-    <div className="grid three fill squad-views" data-testid="planner">
+    <div className={`grid three fill squad-views ${grid.className}`} style={grid.style} data-testid="planner">
+      {on('squad-planner') && (
       <div className="panel" data-testid="squad-planner">
         <div className="panel-head">
           <span className="head-title">
@@ -65,6 +70,8 @@ export function PlannerTab({ onPlayer }: { onPlayer: (id: string) => void }) {
           ))}
         </div>
       </div>
+      )}
+      {on('contracts') && (
       <div className="panel" data-testid="contracts-overview">
         <div className="panel-head">
           <span className="head-title">
@@ -106,6 +113,8 @@ export function PlannerTab({ onPlayer }: { onPlayer: (id: string) => void }) {
           </table>
         </div>
       </div>
+      )}
+      {on('medical') && (
       <div className="panel" data-testid="medical">
         <div className="panel-head">
           <span className="head-title">
@@ -145,6 +154,7 @@ export function PlannerTab({ onPlayer }: { onPlayer: (id: string) => void }) {
           ))}
         </div>
       </div>
+      )}
     </div>
   )
 }

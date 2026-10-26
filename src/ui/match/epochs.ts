@@ -12,6 +12,7 @@
 import { tacticsAt, type MatchFeed } from '@engine/matchFeed'
 import { placeSide, separateSides, type PlacedPlayer } from './pitchGeometry'
 import { buildBallPath, type BallKeyframe } from './possession'
+import { styleOf } from './playbook'
 
 export interface Epoch {
   from: number
@@ -40,12 +41,14 @@ export function matchPath(feed: MatchFeed): MatchPath {
   const path: BallKeyframe[] = []
   starts.forEach((from, i) => {
     const to = i + 1 < starts.length ? starts[i + 1] - 1 : feed.decidedTo
-    const placed = separateSides(placeSide(feed.home.appearances, tacticsAt(feed, 'home', from), 'home'), placeSide(feed.away.appearances, tacticsAt(feed, 'away', from), 'away'))
+    const ht = tacticsAt(feed, 'home', from)
+    const at = tacticsAt(feed, 'away', from)
+    const placed = separateSides(placeSide(feed.home.appearances, ht, 'home'), placeSide(feed.away.appearances, at, 'away'))
     epochs.push({ from, to, ...placed })
     const last = path[path.length - 1]
     // The second half is a kick-off; any other epoch picks the ball up where it stood
     const start = from === 46 || !last ? undefined : { x: last.x, y: last.y, side: last.side, holder: last.holder }
-    const part = buildBallPath({ from, to, momentum: feed.momentum, events: feed.events, home: placed.home, away: placed.away, seed: feed.key, start })
+    const part = buildBallPath({ from, to, momentum: feed.momentum, events: feed.events, home: placed.home, away: placed.away, seed: feed.key, start, styles: { home: styleOf(ht), away: styleOf(at) } })
     for (const k of part) {
       const prevT = path.length ? path[path.length - 1].t : -1
       path.push(k.t > prevT ? k : { ...k, t: prevT + 0.01 })

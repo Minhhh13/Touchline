@@ -191,6 +191,10 @@ describe('audit fixes: season and squad', () => {
     expect(n.settings.rules.managerSpin).toBeUndefined()
     expect(n.settings.rules.endCase).toBeUndefined()
     expect(n.draft?.locker).toBeUndefined()
+    // Nor a January spin or Upgrader (Quick Draft's January gamble): optional, left absent
+    expect(n.quickJanuary?.spin).toBeUndefined()
+    expect(n.quickJanuary?.upgrade).toBeUndefined()
+    expect(n.quickResult?.januaryGamble).toBeUndefined()
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
     // A quick result saved before the live table has no rounds; a January window before it, no first-half rounds

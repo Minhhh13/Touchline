@@ -80,3 +80,8 @@ export function caseDropCard(drop: CaseDrop): ItemCard {
 export function caseFillers(): ItemCard[] {
   return CASE_ITEMS.flatMap((x) => Array.from({ length: x.weight }, () => caseItemCard(x.item)))
 }
+
+/** A player's card on a reel (the January spin): his initials in his tier, his surname under them. */
+export function playerCard(p: { id: string; name: string }, tier: DisplayTier): ItemCard {
+  return { key: p.id, tier, face: initials(p.name), label: p.name.split(/\s+/).slice(-1)[0] ?? p.name }
+}

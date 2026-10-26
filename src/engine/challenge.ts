@@ -87,6 +87,22 @@ export interface ChallengeSeason {
    * The case itself is not carried: a replay opens the same case (the same fork of the same stream after the same draft).
    */
   ic?: string
+  /**
+   * The January gamble of a Quick Draft (`src/game/logic/januaryGamble.ts`), when one was made: `['s', slot id]` the
+   * January spin with the slot its player took, `['s']` a spin whose player was not taken, `['u', player-season id,
+   * boost]` the January Upgrader. The landing and the roll are not carried: a replay opens the same case and rolls the
+   * same roll (named forks of the same stream at the same halfway mark). Absent otherwise (and on older links).
+   */
+  jg?: ChallengeJanuaryGamble
+}
+
+/** The January gamble as a link carries it. */
+export type ChallengeJanuaryGamble = ['s'] | ['s', slotId: string] | ['u', playerSeasonId: string, boost: number]
+
+function isChallengeJanuaryGamble(x: unknown): x is ChallengeJanuaryGamble {
+  if (!Array.isArray(x) || !x.length) return false
+  if (x[0] === 's') return x.length === 1 || (x.length === 2 && isString(x[1]) && /^[A-Za-z0-9_-]{1,12}$/.test(x[1]))
+  return x[0] === 'u' && x.length === 3 && isString(x[1]) && isUpgradeBoost(x[2])
 }
 
 /** Most bench changes a link may carry: the three a quick season allows. */
@@ -465,7 +481,9 @@ export function isChallengeTactics(t: unknown): t is ChallengeTactics {
 export function isChallengeSeason(x: unknown): x is ChallengeSeason {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return false
   const o = x as Record<string, unknown>
-  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm' || k === 'ic')) return false
+  if (!Object.keys(o).every((k) => k === 't' || k === 't2' || k === 'j' || k === 's' || k === 'm' || k === 'ic' || k === 'jg')) return false
+  // One January deal: a listing or a gamble, never both
+  if (o.jg !== undefined && (!isChallengeJanuaryGamble(o.jg) || o.j !== undefined)) return false
   if (o.ic !== undefined && !(isString(o.ic) && /^[A-Za-z0-9_-]{1,12}$/.test(o.ic))) return false
   if (o.m !== undefined && !(isString(o.m) && /^(Q\d{1,12}|arch-[a-z-]{1,20})$/.test(o.m))) return false
   if (o.t !== undefined && !isChallengeTactics(o.t)) return false

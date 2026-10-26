@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Briefcase, Check, ChevronDown, Copy, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
+import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
 import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
@@ -39,6 +41,8 @@ import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByG
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
 import { europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
+import { januaryGambleLine } from '@game/logic/januaryGamble'
+import { tierName as rarityName } from '@game/logic/rarity'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
@@ -104,6 +108,7 @@ export function Summary() {
   }, [u, hostClubId, leagueSeason, leagueId, superOn])
   // Season Story: when the season was decided, its runs and the one line that tells it
   const story = useMemo(() => (u && game ? storyForGame(game, u) : null), [game, u])
+  const allBoxes = useBoxes(SUMMARY)
   if (!u || !game || !record) return null
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
@@ -153,6 +158,8 @@ export function Summary() {
   // January business and the European run of a quick season, when there were any
   const janLine = januaryLine(q?.january)
   if (janLine) extraLines.push(janLine)
+  const gambleLine = januaryGambleLine(q?.januaryGamble)
+  if (gambleLine) extraLines.push(gambleLine)
   const benchLine = changesLine(q?.changes, (id) => shortName(get(id)?.name ?? id))
   if (benchLine) extraLines.push(benchLine)
   const euroLine = europeLine(q?.europe)
@@ -266,6 +273,27 @@ export function Summary() {
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
   // An award: its name and value as a small label over the player's row, so a long value never squeezes the row
+  // The Boxes control: the boxes this summary has (the result, job offers and the challenge boxes always stay)
+  const hasGames = (!!q && results.length > 0) || (!q && !!story)
+  const boxes = allBoxes.only([
+    ...(hasGames ? ['games'] : []),
+    ...(story && !replay.playing ? ['story'] : []),
+    ...(q?.january || q?.januaryGamble ? ['january'] : []),
+    ...(q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 ? ['bench'] : []),
+    ...(q?.europe ? ['europe'] : []),
+    ...(bench && inBooks ? ['records'] : []),
+    'xi',
+    'awards',
+    ...(isManage ? ['squad-stats'] : []),
+    'table',
+    ...(isManage ? ['finances'] : []),
+    ...(game.history.length > 1 ? ['history'] : []),
+    'share',
+  ])
+  const on = boxes.on
+  const lowerLeft = on('xi') || on('awards') || (isManage && on('squad-stats'))
+  const lowerRight = on('table') || (isManage && on('finances')) || (game.history.length > 1 && on('history')) || on('share')
+  const lower = boxes.grid([{ track: '1fr', ids: ['xi', 'awards', 'squad-stats'] }, { track: '1fr', ids: ['table', 'finances', 'history', 'share'] }])
   const awardRow = (psId: string | undefined, Icon: LucideIcon, label: string, tone: '' | 'gold' | 'good' = '') => {
     const p = psId ? get(psId) : undefined
     return p ? (
@@ -296,6 +324,7 @@ export function Summary() {
             {game.settings.mode === 'quick' ? <><QuickLeagueFlag settings={game.settings} label={leagueName} />{superOn && ` ${leagueName}`}</> : <><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {modeName}</>}
             {modeLine && <span data-testid="summary-modes">{` · ${modeLine}`}</span>}
           </span>
+          <BoxesMenu groups={[boxes]} className="bm-boxes" iconOnly />
         </div>
         {q && !replay.playing && (
           <div className={`versus-perfect ${record.won >= games && games > 0 ? 'perfect' : record.lost === 0 ? 'unbeaten' : ''}`} data-testid="versus-perfect">
@@ -444,7 +473,7 @@ export function Summary() {
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
-      {q && results.length > 0 && (
+      {q && results.length > 0 && on('games') && (
         <GameByGame
           results={results}
           opponent={(id) => ({ clubId: id, name: sideName(id) })}
@@ -464,10 +493,10 @@ export function Summary() {
         />
       )}
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
-      {story && !replay.playing && <SeasonStoryPanel story={story} opponentName={(id) => sideName(id)} />}
-      {!q && story && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} compact fold={8} />}
+      {story && !replay.playing && on('story') && <SeasonStoryPanel story={story} opponentName={(id) => sideName(id)} />}
+      {!q && story && on('games') && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} compact fold={8} />}
 
-      {q?.january && (
+      {q?.january && on('january') && (
         <div className="panel" data-testid="january-summary">
           <div className="panel-head">
             <h3>January business</h3>
@@ -479,7 +508,23 @@ export function Summary() {
         </div>
       )}
 
-      {q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 && (
+      {q?.januaryGamble && on('january') && (
+        <div className="panel" data-testid="january-gamble-summary">
+          <div className="panel-head">
+            <h3>{q.januaryGamble.kind === 'spin' ? 'January spin' : 'January Upgrader'}</h3>
+            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+          </div>
+          <div className="small">
+            {q.januaryGamble.kind === 'spin'
+              ? q.januaryGamble.outName
+                ? `The case landed on ${q.januaryGamble.inName} (${rarityName(q.januaryGamble.tier)}); he came in for ${q.januaryGamble.outName}.`
+                : `The case landed on ${q.januaryGamble.inName} (${rarityName(q.januaryGamble.tier)}); you kept your XI.`
+              : `${q.januaryGamble.name} at ${q.januaryGamble.chance}% for +${q.januaryGamble.boost}: ${q.januaryGamble.won ? `won, +${q.januaryGamble.delta}` : `lost, ${q.januaryGamble.delta}`} for the second half.`}
+          </div>
+        </div>
+      )}
+
+      {q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 && on('bench') && (
         <div className="panel" data-testid="bench-summary">
           <div className="panel-head">
             <h3>The bench</h3>
@@ -498,7 +543,7 @@ export function Summary() {
         </div>
       )}
 
-      {q?.europe && (
+      {q?.europe && on('europe') && (
         <div className="panel" data-testid="europe-run">
           <div className="panel-head">
             <h3>Continental Cup run</h3>
@@ -586,7 +631,7 @@ export function Summary() {
         </div>
       )}
 
-      {bench && inBooks && (
+      {bench && inBooks && on('records') && (
         <div className="panel" data-testid="record-books">
           <div className="panel-head">
             <span className="head-title">
@@ -677,8 +722,11 @@ export function Summary() {
           </div>
         </div>
       )}
-      <div className="grid two">
+      {(lowerLeft || lowerRight) && (
+      <div className={`grid two ${lower.className}`} style={lower.style}>
+        {lowerLeft && (
         <div className="col">
+          {on('xi') && (
           <div className="panel">
             <div className="panel-head">
               <h3>Your XI</h3>
@@ -710,6 +758,8 @@ export function Summary() {
               </div>
             )}
           </div>
+          )}
+          {on('awards') && (
           <div className="panel">
             <h3>Awards</h3>
             {q && (
@@ -728,8 +778,9 @@ export function Summary() {
               </div>
             )}
           </div>
-          <LeagueAwards />
-          {isManage && (
+          )}
+          {on('awards') && <LeagueAwards />}
+          {isManage && on('squad-stats') && (
             <div className="panel">
               <h3>Squad statistics</h3>
               <div className="tbl-wrap">
@@ -766,7 +817,10 @@ export function Summary() {
             </div>
           )}
         </div>
+        )}
+        {lowerRight && (
         <div className="col">
+          {on('table') && (
           <div className="panel">
             <h3>
               <QuickLeagueFlag settings={game.settings} label={leagueName} /> Final table{game.settings.mode === 'quick' ? '' : ` · ${seasonLabel(game.settings.leagueSeason)}`}
@@ -775,7 +829,8 @@ export function Summary() {
               <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} />
             </div>
           </div>
-          {isManage && (
+          )}
+          {isManage && on('finances') && (
             <div className="panel">
               <h3>Finances</h3>
               <div className="stat-strip">
@@ -786,7 +841,7 @@ export function Summary() {
               </div>
             </div>
           )}
-          {game.history.length > 1 && (
+          {game.history.length > 1 && on('history') && (
             <div className="panel">
               <h3>Dynasty history</h3>
               <div className="tbl-wrap">
@@ -852,12 +907,13 @@ export function Summary() {
               </div>
             </div>
           )}
-          {cardUrl && (
+          {cardUrl && on('share') && (
             <div className="panel">
               <h3>Share card</h3>
               <img src={cardUrl} alt="Share card" className="share-card-img" />
             </div>
           )}
+          {on('share') && (
           <details className="panel fold">
             <summary className="panel-head">
               <h3>Share text</h3>
@@ -865,8 +921,11 @@ export function Summary() {
             </summary>
             <pre className="mono small share-text">{text}</pre>
           </details>
+          )}
         </div>
+        )}
       </div>
+      )}
       </div>
     </div>
   )

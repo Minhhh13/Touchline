@@ -2,7 +2,10 @@
  * The commentary feed: every event's own text at its minute (goals with the new
  * score), the managers' changes from the timeline, goals elsewhere, the added
  * time board, the whistles, and a line of play for every quiet minute read off
- * the ball path (who found whom, and where). The quiet-minute template is picked
+ * the ball path around the minute's start, so it describes what the pitch has
+ * just shown: a corner or a free kick being taken, a switch, a ball in behind,
+ * a cross headed clear, a tackle or the press winning it, or who found whom
+ * and where. The quiet-minute template is picked
  * by a hash of the match key and the minute, so a replay reads the same.
  * Pure: no React, no DOM.
  */
@@ -12,7 +15,7 @@ import { SHOUTS, type TimelineEntry } from '@engine/match'
 import { hashString } from '@engine/rng'
 import type { MatchEvent } from '@engine/types'
 import type { MatchPath } from './epochs'
-import type { BallKeyframe } from './possession'
+import type { BallKeyframe, PlayTag, SetPieceKind } from './possession'
 import type { Side } from './pitchGeometry'
 
 export type CommentaryKind = 'goal' | 'card' | 'sub' | 'injury' | 'chance' | 'change' | 'elsewhere' | 'whistle' | 'board' | 'play'
@@ -86,6 +89,27 @@ const KEEPER_LINES = ['{a} plays it short to {b}.', '{a} rolls it out to {b}.', 
 const TURNOVER_LINES = ['{b} wins it back {zone}.', '{b} nips in and takes it {zone}.', 'Loose ball, and {b} gets there first {zone}.']
 const QUIET_LINES = ['{team} keep the ball {zone}.', '{team} probe {zone}.', 'Patient stuff from {team}.']
 
+/** Lines for the plays the ball path tags (playbook.ts), `{a}` the man who played it, `{b}` the man it reached, `{team}` his side. */
+export const PLAY_LINES: Partial<Record<PlayTag | SetPieceKind, string[]>> = {
+  corner: ['Corner to {team}. {a} goes over to take it.', 'Corner to {team}: {a} stands over it as the box fills.'],
+  freekick: ['Free kick to {team} {zone}, after a foul on {a}.', '{a} is brought down {zone}: free kick to {team}.'],
+  goalkick: ['Goal kick. {a} goes to {b}.', '{a} takes the goal kick, and {team} start again.'],
+  throw: ['Throw-in to {team}: {a} finds {b}.', 'A quick throw from {a}.'],
+  switch: ['{a} switches the play out to {b}.', '{a} spreads it wide to {b}.', 'Big diagonal from {a} to {b}.'],
+  through: ['{a} tries to slip {b} in behind.', '{a} looks for {b} over the top.'],
+  cross: ['{a} whips in a cross, and {b} heads it clear.', 'In comes the cross from {a}, cleared by {b}.'],
+  claim: ['{b} comes off his line to claim it.', '{b} gathers comfortably.'],
+  press: ['{team} press high and force the turnover: {b} has it.', '{b} hunts it down {zone}.'],
+  tackle: ['{b} wins it back with a tackle {zone}.', 'Strong challenge from {b} {zone}.'],
+  interception: ['{b} reads it and cuts it out {zone}.', '{b} steps in to intercept {zone}.'],
+  long: ['{a} goes long for {b}.', 'Long ball from {a}, and {b} brings it down.'],
+  dribble: ['{a} drives forward {zone}.', '{a} runs at them {zone}.'],
+  distribution: ['{a} plays it short to {b}.', '{a} rolls it out to {b}.'],
+  back: ['{team} recycle it {zone}.', '{a} goes back to {b}.'],
+}
+/** Which play makes the line when several happen in the moment it describes (a set piece first). */
+const PLAY_RANK: Array<PlayTag | SetPieceKind> = ['corner', 'freekick', 'throw', 'goalkick', 'switch', 'through', 'cross', 'claim', 'press', 'tackle', 'interception', 'long', 'dribble', 'distribution', 'back']
+
 function zoneOf(k: BallKeyframe): string {
   const along = k.side === 'home' ? k.x : 100 - k.x
   if (along < 30) return 'at the back'
@@ -95,27 +119,69 @@ function zoneOf(k: BallKeyframe): string {
   return 'on the edge of the box'
 }
 
-/** One line of play for a minute with nothing on the log, from that minute's keyframes. */
+/** The stretch of the ball path a quiet minute's line describes: what the pitch has just shown as the minute ticks over (from `PLAY_LOOKBACK` before it to `PLAY_LOOKAHEAD` into it). */
+export const PLAY_LOOKBACK = 0.5
+export const PLAY_LOOKAHEAD = 0.2
+
+/** One line of play for a minute with nothing on the log, from the keyframes around its start. */
 export function playLine(feed: MatchFeed, mpath: MatchPath, minute: number, names: { home: string; away: string }, getName: (psId: string) => string | undefined): CommentaryLine {
   const h = hashString(`${feed.key}-${minute}`)
   const keepers = new Set<string>()
   for (const e of mpath.epochs) for (const p of [...e.home, ...e.away]) if (p.position === 'GK') keepers.add(p.psId)
   const name = (id: string | undefined) => (id ? getName(id) : undefined) ?? 'a team-mate'
+  const tagged: Array<{ rank: number; text: string; side: Side }> = []
   const options: Array<{ text: string; side: Side }> = []
-  for (let i = 0; i < mpath.path.length; i++) {
+  const lo = minute - PLAY_LOOKBACK
+  const hi = minute + PLAY_LOOKAHEAD
+  // Binary search to the first keyframe of the window
+  let a = 0
+  let b = mpath.path.length
+  while (a < b) {
+    const mid = (a + b) >> 1
+    if (mpath.path[mid].t < lo) a = mid + 1
+    else b = mid
+  }
+  for (let i = Math.max(1, a); i < mpath.path.length; i++) {
     const k = mpath.path[i]
-    if (k.t < minute) continue
-    if (k.t >= minute + 1) break
+    if (k.t >= hi) break
+    // A shot in the window (logged in its own minute): only what came after it is news
+    if (k.kind === 'shot' || k.kind === 'goal' || k.kind === 'kickoff') {
+      tagged.length = 0
+      options.length = 0
+      continue
+    }
     const prev = mpath.path[i - 1]
-    if (k.kind !== 'pass' || !k.holder || !prev) continue
-    const fill = (tpl: string) => tpl.replace('{a}', name(prev.holder)).replace('{b}', name(k.holder)).replace('{zone}', zoneOf(k))
+    const team = names[k.side]
+    const fill = (tpl: string, who: { a?: string; b?: string } = {}) => tpl.replace('{a}', who.a ?? name(prev.holder)).replace('{b}', who.b ?? name(k.holder)).replace('{zone}', zoneOf(k)).replace('{team}', team)
+    // A set piece being taken: the man over the ball and where it goes next
+    const sp = k.setPiece?.kind
+    if (sp && sp !== 'kickoff' && sp !== 'penalty') {
+      const lines = PLAY_LINES[sp]
+      const after = mpath.path[i + 2]
+      if (lines) {
+        const fouled = sp === 'freekick' ? name(k.holder) : undefined
+        tagged.push({ rank: PLAY_RANK.indexOf(sp), text: fill(lines[h % lines.length], { a: fouled ?? name(k.holder), b: name(after?.holder) }), side: k.side })
+      }
+      continue
+    }
+    if (k.play && k.holder && k.play !== 'short' && k.play !== 'forward' && k.play !== 'layoff') {
+      const lines = PLAY_LINES[k.play]
+      const rank = PLAY_RANK.indexOf(k.play)
+      if (lines && rank >= 0) {
+        // A cross into the box: the line names who put it in and who dealt with it
+        tagged.push({ rank, text: fill(lines[h % lines.length]), side: k.play === 'cross' ? prev.side : k.side })
+        continue
+      }
+    }
+    if (k.kind !== 'pass' || !k.holder) continue
     if (prev.side !== k.side) options.push({ text: fill(TURNOVER_LINES[h % TURNOVER_LINES.length]), side: k.side })
-    else if (prev.holder && prev.holder !== k.holder && (prev.kind === 'pass' || prev.kind === 'save')) {
+    else if (prev.holder && prev.holder !== k.holder && (prev.kind === 'pass' || prev.kind === 'save' || prev.kind === 'carry')) {
       const tpl = keepers.has(prev.holder) ? KEEPER_LINES[h % KEEPER_LINES.length] : PASS_LINES[h % PASS_LINES.length]
       options.push({ text: fill(tpl), side: k.side })
     }
   }
-  const pick = options.length ? options[Math.floor(h / 7) % options.length] : null
+  tagged.sort((x, y) => x.rank - y.rank)
+  const pick = tagged.length ? tagged[0] : options.length ? options[Math.floor(h / 7) % options.length] : null
   if (pick) return { minute, text: capitalise(pick.text), kind: 'play', side: pick.side, weight: KIND_WEIGHT.play }
   const side: Side = (feed.momentum[Math.min(17, Math.max(0, Math.ceil(minute / 5) - 1))] ?? 0.5) >= 0.5 ? 'home' : 'away'
   const tpl = QUIET_LINES[h % QUIET_LINES.length]

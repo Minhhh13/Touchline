@@ -58,9 +58,9 @@ describe('separating mirrored shapes', () => {
       const lw = sep.home.find((p) => p.psId === 'h-lw')
       const s = sep.home.find((p) => p.psId === 'h-sub')
       if (lw && s) expect({ x: s.x, y: s.y }).toEqual({ x: lw.x, y: lw.y })
-      // The ball still never jumps more than a hop between separated men
+      // The ball still never jumps more than a hop between separated men (a corner or a cross to the far post goes further, in the air)
       const path = buildBallPath({ from: 0, to: 90, momentum: [], events: [], home: sep.home, away: sep.away, seed: hf + af })
-      for (let i = 1; i < path.length; i++) if (path[i].kind !== 'reset') expect(Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y)).toBeLessThanOrEqual(MAX_HOP + 1)
+      for (let i = 1; i < path.length; i++) if (path[i].kind !== 'reset' && (path[i].loft ?? 0) < 0.5) expect(Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y)).toBeLessThanOrEqual(MAX_HOP + 1)
     }
   })
 })

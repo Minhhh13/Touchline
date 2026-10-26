@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ListOrdered, Search, Star as StarIcon, Trophy } from 'lucide-react'
+import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { EXPLORE } from '../boxSets'
 import { useStore } from '@game/store'
 import { ClubBadge, EstimatedChip, Info, Rating, Pos } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
@@ -68,6 +70,7 @@ export function Explore() {
       .sort((a, b) => a.playerId.localeCompare(b.playerId) || a.season - b.season)
       .slice(0, 120)
   }, [u, query])
+  const boxes = useBoxes(EXPLORE)
   if (!u) return null
   // Classic seasons (estimated ratings) come first for a league that has them
   const firstShown = classicFromFor(u, [leagueId]) ?? u.firstSeason
@@ -80,6 +83,7 @@ export function Explore() {
   const shownClubId = clubId || (clubsInSeason.find((cs) => cs.champions) ?? clubsInSeason[0])?.clubId || ''
   const selected = shownClubId ? u.clubSeasonByKey[`${shownClubId}@${season}`] : undefined
   const seasonEstimated = clubsInSeason.some((cs) => cs.estimated)
+  const browseGrid = boxes.grid([{ track: '1fr', ids: ['table'] }, { track: '1fr', ids: ['squad'] }])
 
   return (
     <div className="page">
@@ -91,9 +95,12 @@ export function Explore() {
             <Info label="About Explore">Each club-season has its real squad and the ratings the engine uses. Tap a player for his whole career; the star shortlists that season for the market.</Info>
           </div>
         </div>
-        <button className="btn ghost" onClick={() => go('home')}>
-          ← Home
-        </button>
+        <div className="head-actions">
+          {view === 'browse' && <BoxesMenu groups={[boxes]} />}
+          <button className="btn ghost" onClick={() => go('home')}>
+            ← Home
+          </button>
+        </div>
       </div>
       <div className="screen-body fill">
       <div className={`explore-bar ${view === 'search' ? 'all-leagues' : ''}`}>
@@ -121,7 +128,8 @@ export function Explore() {
       </div>
 
       {view === 'browse' && (
-        <div className="grid two">
+        <div className={`grid two ${browseGrid.className}`} style={browseGrid.style}>
+          {boxes.on('table') && (
           <div className="panel">
             <div className="panel-head">
               <h3>League table</h3>
@@ -179,6 +187,8 @@ export function Explore() {
             </table>
             </div>
           </div>
+          )}
+          {boxes.on('squad') && (
           <div className="panel explore-squad" ref={squadRef}>
             {!selected && (
               <div className="empty-state">
@@ -228,6 +238,7 @@ export function Explore() {
               </>
             )}
           </div>
+          )}
         </div>
       )}
 
