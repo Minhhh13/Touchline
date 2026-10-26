@@ -393,6 +393,11 @@ export function Draft() {
                         <span className="when">
                           {isIcons(h) ? <TierDot tier="icons" /> : tier && <TierDot tier={tier} />}
                           {isIcons(h) ? 'Icons' : seasonLabel(h.season)}
+                          {grades.has(at) && (
+                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={`${grades.get(at)!.rating} in his slot; the best on that spin was ${grades.get(at)!.best} (${grades.get(at)!.bestName})`}>
+                              {grades.get(at)!.grade}
+                            </span>
+                          )}
                           {h.twist && TwistIcon && (
                             <span className="log-twist" title={TWIST_INFO[h.twist].title} aria-label={TWIST_INFO[h.twist].title}>
                               <TwistIcon size={12} aria-hidden="true" />
@@ -401,11 +406,6 @@ export function Draft() {
                         </span>
                       </span>
                       {/* A blind pick keeps its secret in the log; the squad screens show it afterwards */}
-                      {grades.has(at) && (
-                        <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={`${grades.get(at)!.rating} in his slot; the best on that spin was ${grades.get(at)!.best} (${grades.get(at)!.bestName})`}>
-                          {grades.get(at)!.grade}
-                        </span>
-                      )}
                       {p && !hiddenAll && h.twist !== 'blind' && <Rating value={p.overall} />}
                       {p && d.rules.chain && <ChainLogNote u={u} h={h} prevName={prevId ? get(prevId)?.name : undefined} name={p.name} />}
                     </li>

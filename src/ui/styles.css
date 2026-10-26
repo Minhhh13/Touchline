@@ -1710,6 +1710,7 @@ label.field,
   min-width: 0;
 }
 .peek-card {
+  color: var(--float-text);
   position: fixed;
   z-index: 60;
   width: 240px;
@@ -1735,7 +1736,14 @@ label.field,
   gap: 4px;
   align-items: center;
   font-size: var(--fs-meta);
-  color: var(--text-3);
+}
+/* The card sits on --float-bg in both themes, so its quiet text is the float ink at 70%, not --text-3 */
+.peek-card .muted,
+.peek-meta {
+  color: color-mix(in srgb, var(--float-text) 70%, transparent);
+}
+.chip.pick-grade {
+  margin-left: 2px;
 }
 .peek-form {
   display: flex;
@@ -1750,7 +1758,9 @@ label.field,
 }
 /* A pick's grade in the finished draft log */
 .chip.pick-grade {
-  padding: 0 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 1.5;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
