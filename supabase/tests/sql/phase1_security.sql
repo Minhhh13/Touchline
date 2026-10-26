@@ -15,7 +15,7 @@ do $t$ declare got text[]; want text[] := array[
   'public.daily_alltime_board', 'public.daily_board', 'public.daily_rank', 'public.daily_summary', 'public.get_challenge',
   'public.weekly_board', 'public.weekly_rank', 'public.weekly_summary'];
 begin
-  select array_agg(distinct n.nspname || '.' || p.proname order by n.nspname || '.' || p.proname collate "C") into got
+  select array_agg(distinct n.nspname || '.' || p.proname order by n.nspname || '.' || p.proname) into got
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute');
   assert got = (select array_agg(x order by x collate "C") from unnest(want) x), 'anon can execute: ' || got::text;
@@ -37,7 +37,7 @@ do $t$ declare got text[]; want text[] := array[
   'public.profile_put', 'public.save_claim', 'public.save_delete', 'public.save_orphans', 'public.weekly_board',
   'public.weekly_my_entries', 'public.weekly_rank', 'public.weekly_summary'];
 begin
-  select array_agg(distinct n.nspname || '.' || p.proname order by n.nspname || '.' || p.proname collate "C") into got
+  select array_agg(distinct n.nspname || '.' || p.proname order by n.nspname || '.' || p.proname) into got
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('authenticated', p.oid, 'execute');
   assert got = (select array_agg(x order by x collate "C") from unnest(want) x), 'authenticated can execute: ' || got::text;
