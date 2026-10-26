@@ -3196,6 +3196,46 @@ table.tbl.contracts .btn.sm {
 .resume-card.parked {
   opacity: 0.9;
 }
+/* Home's waiting games, one strip each; on a desktop two or more sit side by side, so the mode cards keep their height */
+.resume-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.resume-list .resume-card {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+.resume-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.resume-text {
+  min-width: 0;
+}
+.resume-name {
+  font-weight: 700;
+}
+@media (min-width: 1100px) {
+  .resume-list:not([data-count='1']) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  }
+  .resume-list .resume-card {
+    flex-wrap: nowrap;
+  }
+  .resume-name,
+  .resume-status {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .resume-actions {
+    flex: none;
+  }
+}
 .modes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -8291,6 +8331,10 @@ table.tbl.match-stats th {
   .app.shell .page.home .mode-text {
     flex: none;
   }
+  .app.shell .page.home .resume-list {
+    margin: 0;
+    gap: var(--space-2);
+  }
   .app.shell .page.home .resume-card {
     margin: 0;
     padding: var(--space-2) var(--space-4);
@@ -11112,6 +11156,15 @@ table.tbl.contracts-overview .link-btn.name {
 @media (max-width: 900px) {
   .home-tiles.casual {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* On a phone the tiles stack their icon over the text, so the casual row's line wraps rather than being cut mid-word */
+@media (max-width: 520px) {
+  .home-tiles.casual .tile-text {
+    align-self: stretch;
+  }
+  .home-tiles.casual .tile-text span {
+    white-space: normal;
   }
 }
 /* Setup's Modes row carries the two casual cards too (Moneyball, Teammate chain): eleven across, two rows of six below 1200px */
