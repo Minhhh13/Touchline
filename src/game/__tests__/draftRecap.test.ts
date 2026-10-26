@@ -68,6 +68,21 @@ describe('the draft recap', () => {
     expect(r.miss).toBeNull()
     expect(r.xiRating).toBeNull()
     expect(r.picks).toBeGreaterThanOrEqual(11)
+    // With no grade the recap lists the picks instead, with no rating
+    expect(r.ungraded.length).toBe(r.picks)
+    expect(r.ungraded.every((x) => x.rating === null)).toBe(true)
+  })
+
+  it('lists as ungraded only the picks no grade covers, rated as the draft rated them', () => {
+    for (const seed of ['recap-ungraded-1', 'recap-ungraded-2']) {
+      const g = createGame(quick(seed))
+      autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+      const get = playerLookup(g, u)
+      const r = draftRecap(u, g.draft!, get, true)
+      const graded = new Set(pickGrades(u, g.draft!, get).map((x) => x.spin))
+      expect(r.ungraded.map((x) => x.spin)).toEqual(g.draft!.history.flatMap((h, i) => (h.pickedId && !graded.has(i) ? [i] : [])))
+      for (const x of r.ungraded) expect(x.rating).toBe(get(x.id)!.overall)
+    }
   })
 
   it("prints the recap's own grade in the share line, for the quick modes only, without touching the game", () => {

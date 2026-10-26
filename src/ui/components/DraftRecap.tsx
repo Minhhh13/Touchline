@@ -1,4 +1,4 @@
-import { Check, Compass, History, Sparkles, Trophy } from 'lucide-react'
+import { Check, Compass, History, Sparkles, Trophy, UserPlus } from 'lucide-react'
 import type { DraftRecap as Recap } from '@game/logic/draftRecap'
 import type { Hindsight } from '@game/logic/hindsight'
 import type { PickGrade } from '@game/logic/pickGrades'
@@ -91,6 +91,7 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
           </div>
         </div>
       </div>
+      {!r.grade && r.ungraded.length > 0 && <Signings picks={r.ungraded} get={get} />}
       {r.hindsight && <HindsightXI h={r.hindsight} slotName={slotName} />}
     </div>
   )
@@ -125,6 +126,37 @@ function HindsightXI({ h, slotName }: { h: Hindsight; slotName: (slotId: string)
           ))}
         </ol>
       )}
+    </div>
+  )
+}
+
+/** A draft with no grade (a run-in's reinforcements, grades hidden): the men it brought, so the box is not empty. */
+function Signings({ picks, get }: { picks: Recap['ungraded']; get: (id: string) => PlayerSeason | undefined }) {
+  return (
+    <div className="recap-hindsight" data-testid="recap-signings">
+      <div className="hs-head">
+        <span className="recap-icon good" aria-hidden>
+          <UserPlus size={18} />
+        </span>
+        <div className="col" style={{ gap: 2, minWidth: 0 }}>
+          <span className="eyebrow">Your picks</span>
+          <b>{countPhrase(picks.length, 'players')} from the wheel</b>
+        </div>
+      </div>
+      <ol className="hs-grid" aria-label="Your picks">
+        {picks.map((x) => {
+          const p = get(x.id)
+          if (!p) return null
+          return (
+            <li key={x.spin} className="hs-man">
+              <span className="hs-pos">{p.positions[0]}</span>
+              <span className="hs-name">{p.name}</span>
+              {x.rating !== null ? <span className="hs-rating">{x.rating}</span> : <span />}
+              <span className="hs-spin">{seasonLabel(p.season)}</span>
+            </li>
+          )
+        })}
+      </ol>
     </div>
   )
 }
