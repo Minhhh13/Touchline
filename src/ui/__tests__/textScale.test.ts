@@ -26,6 +26,7 @@ describe('Dynamic Type to the root font size', () => {
 
   it('caps the one-screen desktop layout (an iPad) lower', () => {
     expect(textScaleFor(preferred(DYNAMIC_TYPE.xLarge), 1180)).toBe(1.1)
+    expect(textScaleFor(preferred(DYNAMIC_TYPE.xxLarge), 1180)).toBe(1.15)
     expect(textScaleFor(preferred(DYNAMIC_TYPE.ax5), 1180)).toBe(TEXT_SCALE_WIDE_MAX)
     expect(textScaleFor(preferred(DYNAMIC_TYPE.ax5), 1099)).toBe(TEXT_SCALE_MAX)
   })

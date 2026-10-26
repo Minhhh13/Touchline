@@ -12,9 +12,9 @@
 export const TEXT_SCALE_MIN = 1
 /** Phones are checked to 200 % (the accessibility sizes above it are capped there). */
 export const TEXT_SCALE_MAX = 2
-/** From this width the shell is the one-screen desktop layout, whose boxes are only checked to 135 % text. */
+/** From this width the shell is the one-screen desktop layout, whose boxes hold at 115 % text (at 135 % the Setup cards crowd at 1280x720). */
 export const TEXT_SCALE_WIDE_FROM = 1100
-export const TEXT_SCALE_WIDE_MAX = 1.35
+export const TEXT_SCALE_WIDE_MAX = 1.15
 
 /** The root font scale for a preferred text size and the window width: clamped, in steps of 5 %. */
 export function textScaleFor(preferred: number, viewportWidth: number): number {

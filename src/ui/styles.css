@@ -14464,3 +14464,12 @@ html {
     height: 24px;
   }
 }
+/* A tablet at 200 % text (820 px): the manager spin's edges run past the window too */
+@media (max-width: 1099.98px) {
+  .mspin-style-edge {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+}
