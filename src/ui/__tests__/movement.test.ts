@@ -2,67 +2,126 @@ import { describe, expect, it } from 'vitest'
 import { dotPosition, swayPhase } from '../match/movement'
 import { matchPath } from '../match/epochs'
 import { metres, onPitchAt, type PlacedPlayer } from '../match/pitchGeometry'
-import { ballAt, type BallKeyframe, type BallState } from '../match/possession'
+import { ballAt } from '../match/possession'
+import { block, sceneAt, shapePoint } from '../match/shape'
 import { resultFeed } from './feeds'
 
-/** The frame loop's formula as LivePitch had it inline before it moved to movement.ts: the reference. */
-function reference(p: PlacedPlayer, path: BallKeyframe[], b: BallState | null, T: number, phase: number): { x: number; y: number } {
-  const lean = b ? (b.x - 50) * 0.08 : 0
-  const i = b?.index ?? -1
-  const cur = i >= 0 ? path[i] : undefined
-  const next = b?.next ?? null
-  const f = b?.progress ?? 1
-  let saveKf: BallKeyframe | null = null
-  for (let k = i; k >= 0 && k >= i - 2; k--) {
-    const kf = path[k]
-    if (kf.kind === 'save' && Math.abs(T - kf.t) < 0.5) saveKf = kf
-  }
-  let hold = 0
-  if (cur?.holder === p.psId) hold += next ? 1 - f : 1
-  if (next?.holder === p.psId) hold += f
-  hold = Math.min(1, hold)
-  let x = p.x + lean * (1 - hold) * (p.position === 'GK' ? 0.35 : 1)
-  let y = p.y
-  if (b && hold < 1 && p.position !== 'GK') {
-    const pull = 0.24 * Math.max(0, 1 - metres(b, { x, y }) / 26) * (1 - hold)
-    x += (b.x - x) * pull
-    y += (b.y - y) * pull
-    x += Math.sin(T * 1.7 + phase) * 0.5 * (1 - hold)
-    y += Math.cos(T * 1.3 + phase) * 0.7 * (1 - hold)
-  }
-  if (saveKf && saveKf.holder === p.psId) {
-    const prev = path[path.indexOf(saveKf) - 1]
-    const dive = 1 - Math.abs(T - saveKf.t) / 0.5
-    if (prev) {
-      x += (prev.x - p.x) * 0.35 * dive
-      y += (prev.y - p.y) * 0.5 * dive
-    }
-  }
-  return { x, y }
-}
+const along = (p: { side: 'home' | 'away' }, pt: { x: number }) => (p.side === 'home' ? pt.x : 100 - pt.x)
 
 describe('dot movement', () => {
-  it('reproduces the live pitch’s old inline formula exactly, keepers diving at saves included', () => {
-    let saves = 0
-    for (let i = 0; i < 6; i++) {
-      const mpath = matchPath(resultFeed(i))
+  const feeds = Array.from({ length: 6 }, (_, i) => resultFeed(i))
+  const paths = feeds.map((f) => matchPath(f))
+
+  it('is deterministic, stays on the pitch, and the man on the ball has it at his feet', () => {
+    let carries = 0
+    for (const mpath of paths) {
       const { home, away } = mpath.epochs[0]
-      for (let T = 0.2; T < 45; T += 0.23) {
-        const b = ballAt(mpath.path, T)
-        for (const p of [...onPitchAt(home, Math.floor(T)), ...onPitchAt(away, Math.floor(T))]) {
-          expect(dotPosition(p, mpath.path, b, T, swayPhase(p.psId))).toEqual(reference(p, mpath.path, b, T, swayPhase(p.psId)))
+      for (let T = 0.2; T < 45; T += 0.19) {
+        const b = ballAt(mpath.path, T)!
+        const men = [...onPitchAt(home, Math.floor(T)), ...onPitchAt(away, Math.floor(T))]
+        for (const p of men) {
+          const a = dotPosition(p, mpath.path, b, T, swayPhase(p.psId))
+          expect(dotPosition(p, mpath.path, b, T, swayPhase(p.psId))).toEqual(a)
+          expect(a.x).toBeGreaterThanOrEqual(-1)
+          expect(a.x).toBeLessThanOrEqual(101)
+          expect(a.y).toBeGreaterThanOrEqual(-1)
+          expect(a.y).toBeLessThanOrEqual(101)
+        }
+        const cur = mpath.path[b.index]
+        const next = b.next
+        if (next?.kind === 'carry' && cur.holder && next.holder === cur.holder && cur.side === next.side) {
+          const p = men.find((m) => m.psId === cur.holder && m.side === cur.side)
+          if (!p) continue
+          const at = dotPosition(p, mpath.path, b, T, swayPhase(p.psId))
+          expect(Math.hypot(at.x - b.x, at.y - b.y)).toBeLessThan(1.6)
+          carries++
         }
       }
-      for (const k of mpath.path.filter((x) => x.kind === 'save' && x.t < 45)) {
-        const keeper = [...home, ...away].find((p) => p.psId === k.holder)
-        if (!keeper) continue
-        const T = k.t + 0.1
-        expect(dotPosition(keeper, mpath.path, ballAt(mpath.path, T), T, 0)).toEqual(reference(keeper, mpath.path, ballAt(mpath.path, T), T, 0))
-        saves++
+    }
+    expect(carries).toBeGreaterThan(100)
+  })
+
+  it('climbs as a block with the ball in possession and drops and narrows out of it', () => {
+    const inPos: number[] = []
+    const outPos: number[] = []
+    const inWidth: number[] = []
+    const outWidth: number[] = []
+    for (const mpath of paths) {
+      const { home, away } = mpath.epochs[0]
+      for (let T = 2; T < 44; T += 0.37) {
+        const b = ballAt(mpath.path, T)!
+        const sc = sceneAt(mpath.path, b, T)
+        if (sc.settle < 1 || sc.setPiece) continue
+        for (const side of [home, away]) {
+          const men = onPitchAt(side, Math.floor(T)).filter((p) => p.position !== 'GK')
+          const pts = men.map((p) => shapePoint(p, sc, swayPhase(p.psId)))
+          const depth = Math.max(...pts.map((p, i) => along(men[i], p))) - Math.min(...pts.map((p, i) => along(men[i], p)))
+          const width = Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y))
+          if (men[0].side === sc.poss) {
+            inPos.push(depth)
+            inWidth.push(width)
+          } else {
+            outPos.push(depth)
+            outWidth.push(width)
+          }
+        }
       }
     }
-    expect(saves).toBeGreaterThan(0)
-    expect(dotPosition({ psId: 'x', slotId: 'gk', position: 'GK', onAt: 0, offAt: 90, red: false, injured: false, side: 'home', x: 5, y: 50 }, [], null, 10, 0)).toEqual({ x: 5, y: 50 })
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+    expect(inPos.length).toBeGreaterThan(200)
+    expect(outPos.length).toBeGreaterThan(200)
+    // Out of possession a side is compact, short and narrow; on the ball it stretches out
+    expect(avg(outPos)).toBeLessThan(avg(inPos) - 8)
+    expect(avg(outWidth)).toBeLessThan(avg(inWidth) - 8)
+    // The block's lines: higher with the ball than without it, and never inverted
+    for (let ab = 0; ab <= 100; ab += 5) {
+      const on = block(ab, true)
+      const off = block(ab, false)
+      expect(on.front).toBeGreaterThan(on.back)
+      expect(off.front).toBeGreaterThan(off.back)
+      expect(on.back).toBeGreaterThanOrEqual(off.back - 12)
+    }
+  })
+
+  it('closes the ball down: out of possession the nearest man is drawn towards it from his place in the shape', () => {
+    let closer = 0
+    let total = 0
+    for (const mpath of paths) {
+      const { home, away } = mpath.epochs[0]
+      for (let T = 2; T < 44; T += 0.53) {
+        const b = ballAt(mpath.path, T)!
+        const sc = sceneAt(mpath.path, b, T)
+        if (sc.settle < 1 || sc.setPiece) continue
+        const defenders = onPitchAt(sc.poss === 'home' ? away : home, Math.floor(T)).filter((p) => p.position !== 'GK')
+        const nearest = defenders.reduce((a, p) => (metres(shapePoint(p, sc, swayPhase(p.psId)), b) < metres(shapePoint(a, sc, swayPhase(a.psId)), b) ? p : a))
+        const spot = shapePoint(nearest, sc, swayPhase(nearest.psId))
+        if (metres(spot, b) > 18) continue
+        total++
+        if (metres(dotPosition(nearest, mpath.path, b, T, swayPhase(nearest.psId), sc), b) < metres(spot, b) - 1) closer++
+      }
+    }
+    expect(total).toBeGreaterThan(40)
+    expect(closer / total).toBeGreaterThan(0.8)
+  })
+
+  it('lines both sides up in their own halves for a kick-off, and keeps a keeper at his end', () => {
+    for (const mpath of paths) {
+      const { home, away } = mpath.epochs[0]
+      const T = 0.05
+      const b = ballAt(mpath.path, T)!
+      const sc = sceneAt(mpath.path, b, T)
+      expect(sc.setPiece?.kind).toBe('kickoff')
+      for (const p of [...home, ...away].filter((x) => x.onAt === 0)) {
+        const pt = shapePoint(p, sc, swayPhase(p.psId))
+        expect(along(p, pt)).toBeLessThanOrEqual(50.5)
+      }
+      for (let T2 = 1; T2 < 44; T2 += 1.3) {
+        const b2 = ballAt(mpath.path, T2)!
+        for (const gk of [...home, ...away].filter((x) => x.position === 'GK')) expect(along(gk, dotPosition(gk, mpath.path, b2, T2, 0))).toBeLessThan(30)
+      }
+    }
+    const lone: PlacedPlayer = { psId: 'x', slotId: 'gk', position: 'GK', onAt: 0, offAt: 90, red: false, injured: false, side: 'home', x: 5, y: 50 }
+    expect(dotPosition(lone, [], null, 10, 0)).toEqual({ x: 5, y: 50 })
   })
 
   it('gives every man a fixed sway phase from his id', () => {

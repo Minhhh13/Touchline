@@ -4,7 +4,7 @@ import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { CASE_ITEMS, CASE_RARITIES, caseRarityOdds } from '@engine/endCase'
 import { POWER_UP_INFO } from '@engine/powerups'
-import { ratingsHidden } from '@engine/draft'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 import { CASE_RARITY_LABEL, CASE_TIER, caseIconChoices, lockerCount } from '@game/logic/endCase'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
@@ -39,7 +39,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   const get = playerLookup(game, u)
   const icon = c.drop.kind === 'icon' ? get(c.drop.id) : undefined
   const choices = c.drop.kind === 'icon' ? caseIconChoices(game, u) : []
-  const hide = ratingsHidden(game.settings.rules)
+  // The Icon is still on offer; the starter making way is in the squad
+  const hide = ratingHidden(game.settings.rules, 'offer')
   const card = caseDropCard(c.drop)
   useEffect(() => {
     if (!spinning) return
@@ -119,7 +120,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               <div className="case-slots row wrap" style={{ gap: 6 }}>
                 {choices.map((x) => (
                   <button key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot">
-                    <b>{x.label}</b> {hide ? '?' : x.rating} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{hide ? '' : ` (${x.outRating})`}
+                    <b>{x.label}</b> {hide ? '?' : x.rating} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outRating})`}
                   </button>
                 ))}
               </div>

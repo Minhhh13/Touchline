@@ -4,7 +4,7 @@ import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
-import { ratingsHidden } from '@engine/draft'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 import { playerLookup } from '@game/logic/players'
 import { playbackResults, quickChangeProblem, quickSeasonGames, quickSquadAt } from '@game/logic/quick'
 import { canPlayFor, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
@@ -166,7 +166,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
   const { benchChange } = useStore()
   const [inId, setInId] = useState<string | null>(null)
   const get = playerLookup(game, u)
-  const hide = ratingsHidden(game.settings.rules)
+  const hide = ratingHidden(game.settings.rules, 'squad')
   const formation = getFormation(game.tactics.formationId)
   const view = quickSquadAt(game, u, results, revealed)
   const problem = quickChangeProblem(game, u, results, revealed)

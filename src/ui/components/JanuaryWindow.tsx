@@ -5,7 +5,7 @@ import type { Game, QuickJanuary } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason } from '@engine/types'
 import { getFormation } from '@engine/formations'
-import { ratingsHidden } from '@engine/draft'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 import { ratingAt } from '@engine/positions'
 import { playerLookup } from '@game/logic/players'
 import { openSpinChoices, quickSeasonGames } from '@game/logic/quick'
@@ -41,7 +41,8 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
   const [stage, setStage] = useState<Stage>(j.spin ? 'spin' : j.upgrade ? 'upgrade' : 'halfway')
   const [tactics, setShowTactics] = useState(false)
   const get = playerLookup(game, u)
-  const hide = ratingsHidden(game.settings.rules)
+  // The Upgrader and the captain picker act on the user's own XI, so their ratings show even in blind mode
+  const hide = ratingHidden(game.settings.rules, 'squad')
   const xi = Object.values(game.lineup)
     .map((id) => get(id))
     .filter((p): p is PlayerSeason => !!p)
@@ -137,7 +138,8 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
   const { closeJanuary } = useStore()
   const [chosen, setChosen] = useState<number | null>(null)
   const get = playerLookup(game, u)
-  const hide = ratingsHidden(game.settings.rules)
+  // The deals are players from outside the squad: hidden in blind mode, as every offer is
+  const hide = ratingHidden(game.settings.rules, 'market')
   const formation = getFormation(game.tactics.formationId)
   const slotOf = (slotId: string) => formation.slots.find((x) => x.id === slotId)
   const pick = chosen === null ? null : j.listings[chosen]
@@ -192,7 +194,9 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
   const { januarySpin, closeJanuarySpin } = useStore()
   const [quick] = usePref(quickSpinPref)
   const get = playerLookup(game, u)
-  const hide = ratingsHidden(game.settings.rules)
+  // The player the case lands on is still being chosen until he is brought in: hidden in blind mode, as any offer;
+  // the XI man he would replace is the user's own, so his rating shows
+  const hide = ratingHidden(game.settings.rules, 'offer')
   const pool = useMemo(() => januarySpinPool(game, u, game.lineup, game.bench, playerLookup(game, u)), [game, u])
   const odds = useMemo(() => januarySpinOdds(pool), [pool])
   const [opened, setOpened] = useState(false)
@@ -300,7 +304,9 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
                 <button key={c.slotId} type="button" role="option" aria-selected={slot === c.slotId} className={`jw-slot${slot === c.slotId ? ' on' : ''}`} onClick={() => setSlot(slot === c.slotId ? null : c.slotId)} data-testid="january-spin-choice">
                   <span className="jw-slot-pos">{c.label}</span>
                   <span className="jw-slot-out">for {c.outName}</span>
-                  {!hide && (
+                  {hide ? (
+                    <b>? v {c.outRating}</b>
+                  ) : (
                     <b className={gain > 0 ? 'up' : gain < 0 ? 'down' : ''}>
                       {c.rating} v {c.outRating} ({gain >= 0 ? '+' : ''}
                       {gain})

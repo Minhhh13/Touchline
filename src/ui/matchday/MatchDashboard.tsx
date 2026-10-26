@@ -15,7 +15,7 @@ import { feedFromLive, feedFromResult, scoreAt, type MatchFeed } from '@engine/m
 import { statsSeries, xgStory } from '@engine/matchStats'
 import { liveCondition, ratingsAt } from '@engine/liveRatings'
 import { getFormation } from '@engine/formations'
-import { ratingsHidden } from '@engine/draft'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 import { USER_TEAM } from '@engine/season'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
@@ -26,10 +26,10 @@ import { LivePitch, useMediaQuery } from '../components/LivePitch'
 import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
 import { matchPath } from '../match/epochs'
-import { useLiveClock } from '../match/clockStore'
+import { cuePending, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
 import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
-import { goalHolds } from '../match/possession'
+import { cueTimes, goalHolds } from '../match/possession'
 import { samplePlayers } from '../match/heat'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
@@ -95,10 +95,13 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   // Every goal holds the clock for its celebration: ours the full one, theirs a short one (from the same strike moments the ball path uses)
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   const holds = useMemo(() => mpath.epochs.flatMap((e) => goalHolds(feed.events, e.from, e.to, { userSide: userSide ?? undefined, reduced })).sort((a, b) => a.t - b.t), [mpath, feed.events, userSide, reduced])
-  const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, holds, reduced, onFinish: final ? onWhistle : undefined })
+  // Every chance, save and foul behind a card is a cue: its minute's commentary and panels wait until the pitch has shown it
+  const cues = useMemo(() => mpath.epochs.flatMap((e) => cueTimes(feed.events, e.from, e.to)).sort((a, b) => a - b), [mpath, feed.events])
+  const clock = useMatchClock({ start, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
   // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
   const revealed = useLiveClock((s) => s.revealed)
-  const pending = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock.clock && h.t >= start)
+  const cued = useLiveClock((s) => s.cued ?? 0)
+  const pending = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock.clock && h.t >= start) || (!clock.finished && cuePending(cues, cued, clock.clock, start))
   const minute = pending ? Math.max(start, clock.clock - 1) : clock.clock
   const whistle = clock.finished && final
 
@@ -235,7 +238,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
       }
     : undefined
   const top = <TopBar feed={feed} clock={clock} minute={minute} home={home} away={away} label={label} control={control} hand={hand} playback={playback} highlights={highlights} />
-  const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} hideRatings={ratingsHidden(game.settings.rules)} /> : null
+  const drawer = hand.drawer ? <ActiveDrawer id={hand.drawer} hand={hand} view={stripSide === 'home' ? home : away} get={get} squad={game.squad} condition={condition} selected={selected} hideRatings={ratingHidden(game.settings.rules, 'squad')} /> : null
   const pitch = (
     <LivePitch
       home={{ name: home.name, shortName: home.code, colour: home.colour, tactics: feed.home.tactics, appearances: feed.home.appearances }}
@@ -270,7 +273,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
           The assistant is making the {stopAt === 45 ? 'half-time' : '70th-minute'} calls…
         </div>
       ) : (
-        <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingsHidden(game.settings.rules) }} />
+        <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingHidden(game.settings.rules, 'squad') }} />
       )
     ) : null
   const strip = <SquadStrip feed={feed} minute={minute} side={stripSide} view={stripSide === 'home' ? home : away} ratings={ratings} squad={game.squad} selected={selected} onSelect={setSelected} control={control} hand={hand} name={getName} condition={condition} />

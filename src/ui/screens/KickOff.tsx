@@ -3,7 +3,7 @@ import { QUICK_CONTINENTAL_PLACES } from '@game/logic/quickCups'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
 import { getFormation } from '@engine/formations'
-import { ratingsHidden } from '@engine/draft'
+import { ratingHidden } from '@game/logic/ratingVisibility'
 import type { PlayerSeason } from '@engine/types'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
@@ -41,7 +41,7 @@ export function KickOff() {
   const xi = Object.values(game.lineup)
     .map((id) => get(id))
     .filter((p): p is PlayerSeason => !!p)
-  const hide = ratingsHidden(game.settings.rules)
+  const hide = ratingHidden(game.settings.rules, 'squad')
   const t = game.tactics
   const s = game.settings
   return (
