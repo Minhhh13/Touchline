@@ -4106,7 +4106,7 @@ table.tbl.contracts .btn.sm {
 .tier-banner .tier {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 44px;
+  font-size: calc(var(--fs-h1) * 1.375);
   line-height: 1;
   letter-spacing: 0.01em;
 }
@@ -4133,12 +4133,12 @@ table.tbl.contracts .btn.sm {
   margin: 8px auto 0;
   max-width: 46ch;
   color: var(--text-2);
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 .record {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 30px;
+  font-size: calc(var(--fs-h1) - 2px);
   font-variant-numeric: tabular-nums;
   display: flex;
   gap: 18px;
@@ -4298,7 +4298,7 @@ table.tbl.contracts .btn.sm {
 .tick .min {
   font-family: var(--mono);
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 @keyframes fadein {
   from {
@@ -4326,7 +4326,7 @@ table.tbl.contracts .btn.sm {
   gap: 10px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 19px;
+  font-size: var(--fs-h3);
 }
 .scoreboard .team.away {
   justify-content: flex-end;
@@ -4335,7 +4335,7 @@ table.tbl.contracts .btn.sm {
 .scoreboard .score {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 46px;
+  font-size: calc(var(--fs-h1) * 1.4375);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -4343,7 +4343,7 @@ table.tbl.contracts .btn.sm {
   text-align: center;
   font-family: var(--mono);
   color: var(--text-3);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .news {
   display: flex;
@@ -4365,7 +4365,7 @@ table.tbl.contracts .btn.sm {
 }
 .news .item .b {
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .news .item.new {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
@@ -4376,7 +4376,7 @@ table.tbl.contracts .btn.sm {
   gap: 10px;
   margin: 4px 0;
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
