@@ -6,7 +6,7 @@
 import type { ClubSeason, Formation, PlayerSeason } from './types'
 import type { Rng } from './rng'
 import type { LoadedUniverse } from './universe'
-import { canUse, eligibleSlots, isComplete, newDraft, pick, wheelPool, type DraftRules, type DraftState } from './draft'
+import { assistantChoice, canUse, eligibleSlots, isComplete, newDraft, pick, wheelPool, type DraftRules, type DraftState } from './draft'
 
 export interface H2HDraft {
   drafts: [DraftState, DraftState]
@@ -160,20 +160,15 @@ export function h2hEligibleSlots(h: H2HDraft, p: PlayerSeason) {
   return eligibleSlots(h.drafts[h.picking], p)
 }
 
-/** Auto-pick for the current manager (used by "let the assistant pick"). */
+/**
+ * Auto-pick for the current manager (used by "let the assistant pick"): the Quick Draft assistant's choice
+ * (`assistantChoice`: the best rating times positional fit, in the slot `bestSlotFor` gives, natural first; the bench
+ * once the XI is full) from the current spin. ENGINE_VERSION 4 and before took the highest overall into the first
+ * eligible slot in formation order (TL-04).
+ */
 export function h2hAutoPick(u: LoadedUniverse, h: H2HDraft): void {
-  if (h.picking === null) return
-  const usable = h2hUsable(u, h).sort((a, b) => b.overall - a.overall)
-  const d = h.drafts[h.picking]
-  for (const p of usable) {
-    const slots = eligibleSlots(d, p)
-    if (slots.length) {
-      h2hPick(u, h, p.id, slots[0].id)
-      return
-    }
-    if (!slots.length && isComplete(d) === false && Object.keys(d.lineup).length >= d.formation.slots.length) {
-      h2hPick(u, h, p.id, 'bench')
-      return
-    }
-  }
+  if (h.picking === null || !h.current) return
+  const cs = u.clubSeasonByKey[`${h.current.clubId}@${h.current.season}`]
+  const best = cs ? assistantChoice(u, h.drafts[h.picking], cs) : null
+  if (best) h2hPick(u, h, best.id, best.slot)
 }

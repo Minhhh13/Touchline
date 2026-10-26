@@ -68,9 +68,10 @@ function quickPin(s: GameSettings): string {
   return hash([g.quickResult, g.rngState, g.tier])
 }
 
-const SEASON_BASELINE = 'dbe2f750e506032cd097088e9014c4833d3321040e9bc488d5e918b6d4291970'
-const QUICK_BASELINE = '0961a4547306881091862f7c8feb7caa4d07e1b50c968edf25c13b22c5712a2c'
-const DAILY_BASELINE = '48e5541ce2e880b360c1f9013e40545b2a04ab72650f35371005c7f3895b73a2'
+// Re-baselined on ENGINE_VERSION '5' (the playtest fixes: fixtures, the assistant's placement, keeper subs, development)
+const SEASON_BASELINE = '39e10ac6a28f8ee460db3299fccd48787cc347c757c75c13ac5d44bc371b15df'
+const QUICK_BASELINE = '42390930bdeb20f07777789eb896b62d978dd20f2c6924b62cf4415d627a657c'
+const DAILY_BASELINE = '29510b95f4857fced7b41611de33ee8a130c6ec2a8da5739bb6ff72bec29243b'
 
 describe('the See your squad batch moves no seeded outcome', () => {
   it('plays three seeded Seasons to the same table, stream, finances and squad states', () => {

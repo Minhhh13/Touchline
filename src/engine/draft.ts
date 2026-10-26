@@ -13,7 +13,7 @@
  */
 import type { ClubSeason, Formation, PlayerSeason, Position } from './types'
 import { Rng, type RngState } from './rng'
-import { canCover, describeFit, type Fit } from './positions'
+import { canCover, positionFactor, type Fit } from './positions'
 import type { LoadedUniverse } from './universe'
 import { formerTeammates, sharedClubSeasons } from './teammates'
 import { primeOf } from './prime'
@@ -963,13 +963,36 @@ function chainRow(u: LoadedUniverse, d: DraftState, p: PlayerSeason): { chainLin
   return link ? { chainLink: link } : {}
 }
 
-/** Best slot suggestion for a player given what is open. */
-export function suggestSlot(d: DraftState, p: PlayerSeason): string | 'bench' | null {
+/**
+ * The slot the assistant puts a player in, of the open slots he may take (`eligibleSlots`): his best positional fit
+ * (`positionFactor` there, so a natural slot always beats a cover), then the position with the fewest open slots left
+ * (the scarcest place in the remaining formation: a DM/CM fills the lone DM and leaves the two CMs for the many who
+ * play there), then formation order. Null when he can take none. Pure, no RNG.
+ *
+ * ENGINE_VERSION 4 and before, the head-to-head assistant took the first eligible slot in formation order, so a DM/CM
+ * went to centre-back while both central midfield slots were open (TL-04).
+ */
+export function bestSlotFor(d: DraftState, p: PlayerSeason): Formation['slots'][number] | null {
   const slots = eligibleSlots(d, p)
-  if (slots.length) {
-    const natural = slots.find((s) => describeFit(p, s.position) === 'natural')
-    return (natural ?? slots[0]).id
+  if (!slots.length) return null
+  const open = openSlots(d)
+  const left = (position: Position) => open.filter((s) => s.position === position).length
+  let best = slots[0]
+  let bestFit = positionFactor(p, best.position)
+  for (const s of slots.slice(1)) {
+    const fit = positionFactor(p, s.position)
+    if (fit > bestFit || (fit === bestFit && left(s.position) < left(best.position))) {
+      best = s
+      bestFit = fit
+    }
   }
+  return best
+}
+
+/** Best slot suggestion for a player given what is open: the assistant's (`bestSlotFor`), else the bench. */
+export function suggestSlot(d: DraftState, p: PlayerSeason): string | 'bench' | null {
+  const slot = bestSlotFor(d, p)
+  if (slot) return slot.id
   if (canBench(d, p)) return 'bench'
   return null
 }
@@ -980,8 +1003,11 @@ export function neededPositions(d: DraftState): Position[] {
 }
 
 /**
- * The assistant's pick from a club-season: natural fits for the open slots first (0.92 for a cover), otherwise the
- * highest rating (career best under Prime); onto the bench once the XI is full. Null when no one can be used. No RNG.
+ * The assistant's pick from a club-season: the man who would play best where he would go, his rating (career best under
+ * Prime) times his `positionFactor` in the slot `bestSlotFor` gives him (natural first, then the scarcest open place);
+ * the highest rating onto the bench once the XI is full. Null when no one can be used. No RNG.
+ *
+ * ENGINE_VERSION 4 and before charged every cover a flat 0.92 and took the first slot of a tie in formation order.
  */
 export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason): { id: string; slot: string | 'bench' } | null {
   // Under a salary cap the assistant spreads the money (`capCandidates`); everyone is a candidate without one
@@ -991,12 +1017,10 @@ export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason
   let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
   for (const p of candidates) {
     if (open.length) {
-      for (const s of open) {
-        if (!canCover(p, s.position, d.rules.minFit)) continue
-        const fit = describeFit(p, s.position)
-        const score = draftRating(u, d, p) * (fit === 'natural' ? 1 : 0.92)
-        if (!best || score > best.score) best = { p, slot: s.id, score }
-      }
+      const s = bestSlotFor(d, p)
+      if (!s) continue
+      const score = draftRating(u, d, p) * positionFactor(p, s.position)
+      if (!best || score > best.score) best = { p, slot: s.id, score }
     } else {
       const score = draftRating(u, d, p)
       if (!best || score > best.score) best = { p, slot: 'bench', score }

@@ -49,7 +49,7 @@ function play(settings: GameSettings) {
   return { key: historyKey(d.history), lineup: d.lineup, result: g.quickResult }
 }
 
-/** The spins each date's Daily lands on, as `historyKey` (ENGINE_VERSION '4'); re-baseline only with an engine bump. */
+/** The spins each date's Daily lands on, as `historyKey` (ENGINE_VERSION '4', unchanged on '5'); re-baseline only with an engine bump. */
 const PINNED_KEYS: Record<string, string> = { 'daily-2026-10-25': 'ez08n9yv8i', 'daily-2026-12-31': '259rqyo5r6p', 'daily-2027-03-07': '9y7ck5om5c', 'daily-2027-06-15': 'a1y6wvzob3' }
 
 const DATES = ['daily-2026-10-25', 'daily-2026-12-31', 'daily-2027-03-07', 'daily-2027-06-15']

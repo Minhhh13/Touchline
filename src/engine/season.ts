@@ -124,35 +124,38 @@ export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer
   }
 }
 
-/** Double round robin via the circle method, then a deterministic shuffle of rounds. */
+/**
+ * Double round robin with balanced venues, in matchweek order. The clubs are shuffled onto the places of the circle
+ * method's canonical schedule (one shuffle, the only draw): in round r the place m = n − 1 meets place r, home on odd
+ * rounds, and places r + k and r − k (mod m) meet, the first at home when k is even. That schedule gives every club at
+ * most one pair of games at the same venue running in a half. The second half is the first with the venues swapped
+ * and its first round moved to the end, so a half's join never makes three in a row and no rematch follows straight
+ * on: every club plays at most two home or two away games running, all season (`season.test.ts` checks every size
+ * from 2 to 24). An odd field puts the bye on the fixed place, so each club sits out once a half.
+ *
+ * ENGINE_VERSION 4 and before shuffled the rounds of a circle whose venues alternated only along each side of it, so
+ * a club could be away for a whole half and home for the other (TL-05).
+ */
 export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
   const teams = [...teamIds]
+  rng.shuffle(teams)
   if (teams.length % 2 === 1) teams.push('bye')
   const n = teams.length
+  const m = n - 1
   const rounds: Array<Array<[string, string]>> = []
-  const arr = teams.slice(1)
-  for (let r = 0; r < n - 1; r++) {
-    const pairs: Array<[string, string]> = []
-    const left = [teams[0], ...arr.slice(0, (n - 1) / 2 | 0)]
-    const right = arr.slice((n - 1) / 2 | 0).reverse()
-    for (let i = 0; i < left.length; i++) {
-      const a = left[i]
-      const b = right[i]
-      if (!a || !b) continue
-      if (a === 'bye' || b === 'bye') continue
-      // Alternate home/away so teams do not have long runs
-      if ((r + i) % 2 === 0) pairs.push([a, b])
-      else pairs.push([b, a])
+  for (let r = 0; r < m; r++) {
+    const pairs: Array<[string, string]> = [r % 2 === 0 ? [teams[r], teams[m]] : [teams[m], teams[r]]]
+    for (let k = 1; k < n / 2; k++) {
+      const a = teams[(r + k) % m]
+      const b = teams[(r - k + m) % m]
+      pairs.push(k % 2 === 0 ? [a, b] : [b, a])
     }
-    rounds.push(pairs)
-    arr.unshift(arr.pop() as string)
+    rounds.push(pairs.filter(([h, a]) => h !== 'bye' && a !== 'bye'))
   }
-  rng.shuffle(rounds)
+  const second = [...rounds.slice(1), ...rounds.slice(0, 1)]
   const first = rounds.map((pairs, i) => pairs.map(([h, a]) => ({ matchweek: i + 1, homeTeamId: h, awayTeamId: a })))
-  const second = rounds.map((pairs, i) => pairs.map(([h, a]) => ({ matchweek: i + 1 + rounds.length, homeTeamId: a, awayTeamId: h })))
-  rng.shuffle(second)
-  second.forEach((pairs, i) => pairs.forEach((f) => (f.matchweek = i + 1 + rounds.length)))
-  return [...first.flat(), ...second.flat()]
+  const back = second.map((pairs, i) => pairs.map(([h, a]) => ({ matchweek: i + 1 + rounds.length, homeTeamId: a, awayTeamId: h })))
+  return [...first.flat(), ...back.flat()]
 }
 
 export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
