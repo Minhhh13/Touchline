@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import { isComplete, positionFirst, targetSlot, type DraftState } from '@engine/draft'
 import { ICONS_SEASON } from '@engine/icons'
@@ -8,22 +8,27 @@ import { ARMBAND_BOOST, POWER_UP_INFO, armbandId, canArmband, canLock, canPeek, 
 import { Package } from 'lucide-react'
 import { LOCKER_ICON, PowerUpIcon } from './icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
-import { formatOdds } from '@game/logic/tierOdds'
+import { draftTurnKey, openWindow, type TurnWindow } from '@game/logic/draftTurn'
 import { Modal, Pos } from './bits'
 import { PowerUpButton } from './PowerUpButton'
 import { Upgrader } from './Upgrader'
 import { seasonLabel } from '../format'
 
-type Sheet = 'reroll' | 'swap' | 'armband' | 'lock' | null
+type Sheet = 'reroll' | 'swap' | 'armband' | 'lock'
 
 /**
  * The power-up tray on a Quick Draft with power-ups: six one-use buttons (the Upgrader, Re-roll season, Peek, Swap,
  * Captain's armband, Lock), each with an Info tip, and a sheet for those that need a choice. Every decision is the
  * store's and the engine's (`src/engine/powerups.ts`); this only shows what each would do, with the odds first.
+ * Every sheet belongs to the draft turn it was opened on (`draftTurnKey`): a spin, a pick or a Speedrun timeout closes
+ * it, and its confirm button acts only while the store's draft is still on that turn.
  */
-export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: LoadedUniverse; d: DraftState; get: (id: string) => PlayerSeason | undefined; hideRatings: boolean; /** The reel is running. */ busy: boolean; onRerolled: () => void }) {
+export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled, onRolling }: { u: LoadedUniverse; d: DraftState; get: (id: string) => PlayerSeason | undefined; hideRatings: boolean; /** The reel is running. */ busy: boolean; onRerolled: () => void; /** The Upgrader's dial is turning (the Speedrun clock waits for it as for the reel). */ onRolling?: (rolling: boolean) => void }) {
   const { game, upgradePlayer, rerollSeason, peekSpin, swapSlots, giveArmband, lockPlayer } = useStore()
-  const [sheet, setSheet] = useState<Sheet>(null)
+  const turn = draftTurnKey(d)
+  const [win, setWin] = useState<TurnWindow<Sheet> | null>(null)
+  const sheet = openWindow(win, turn)
+  const setSheet = (kind: Sheet) => setWin({ kind, turn })
   const [from, setFrom] = useState<string | null>(null)
   const [to, setTo] = useState<string | null>(null)
   const [who, setWho] = useState<string | null>(null)
@@ -37,10 +42,22 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
   const slotPos = (id: string) => d.formation.slots.find((s) => s.id === id)?.position
   const nameOf = (id: string) => get(id)?.name ?? 'your player'
   const close = () => {
-    setSheet(null)
+    setWin(null)
     setFrom(null)
     setTo(null)
     setWho(null)
+  }
+  // A new turn (a spin, a pick, the assistant's pick on a Speedrun timeout) closes whatever was open on the last one
+  useEffect(() => {
+    setWin(null)
+    setFrom(null)
+    setTo(null)
+    setWho(null)
+  }, [turn])
+  /** Whether the store's draft is still on the turn this sheet was opened on: a confirm on a later turn does nothing. */
+  const onItsTurn = () => {
+    const live = useStore.getState().game?.draft
+    return !!win && !!live && draftTurnKey(live) === win.turn
   }
 
   const peekUse = d.powerUps?.find((x) => x.kind === 'peek')
@@ -75,7 +92,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
       )}
       <div className="pu-grid">
         {kinds.includes('upgrader') && (
-          <Upgrader tray players={players} ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0} available={canUpgrade(d) && drafting} result={d.upgrade} hideRatings={hideRatings} lockedId={lock} onConfirm={(id, boost) => upgradePlayer(id, boost)} />
+          <Upgrader tray turn={turn} onRolling={onRolling} players={players} ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0} available={canUpgrade(d) && drafting} result={d.upgrade} hideRatings={hideRatings} lockedId={lock} onConfirm={(id, boost) => upgradePlayer(id, boost)} />
         )}
         {kinds.includes('reroll') && (
           <PowerUpButton icon={<PowerUpIcon kind="reroll" />} title={POWER_UP_INFO.reroll.title} line={POWER_UP_INFO.reroll.line} status={status.reroll} used={powerUpUsed(d, 'reroll')} disabled={!drafting || busy || !canReroll(u, d)} onClick={() => setSheet('reroll')} testId="pu-reroll" />
@@ -100,7 +117,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
           <div className="pu-odds" data-testid="reroll-odds">
             {options.map((cs) => (
               <span key={cs.season} className="pu-odd">
-                {seasonLabel(cs.season)} <b>{formatOdds(1 / options.length)}</b>
+                {seasonLabel(cs.season)} <b>1 in {options.length}</b>
               </span>
             ))}
           </div>
@@ -108,13 +125,15 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
             className="btn primary"
             disabled={!options.length}
             onClick={() => {
-              rerollSeason()
-              onRerolled()
+              if (onItsTurn()) {
+                rerollSeason()
+                onRerolled()
+              }
               close()
             }}
             data-testid="reroll-confirm"
           >
-            Re-roll (1 in {options.length})
+            {options.length ? `Re-roll (1 in ${options.length} season${options.length === 1 ? '' : 's'})` : 'No other season on this wheel'}
           </button>
           <div className="tiny-note small muted">In-game only: no money, nothing to buy. The chances shown are the exact chances.</div>
         </div>
@@ -154,7 +173,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
               className="btn primary"
               disabled={!from || !to}
               onClick={() => {
-                if (from && to) swapSlots(from, to)
+                if (from && to && onItsTurn()) swapSlots(from, to)
                 close()
               }}
               data-testid="swap-confirm"
@@ -181,7 +200,7 @@ export function PowerUpTray({ u, d, get, hideRatings, busy, onRerolled }: { u: L
             className="btn primary"
             disabled={!who}
             onClick={() => {
-              if (who) (sheet === 'lock' ? lockPlayer : giveArmband)(who)
+              if (who && onItsTurn()) (sheet === 'lock' ? lockPlayer : giveArmband)(who)
               close()
             }}
             data-testid="pu-player-confirm"

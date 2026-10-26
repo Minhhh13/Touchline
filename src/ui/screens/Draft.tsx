@@ -31,6 +31,7 @@ import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
+import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
 import { tierTable, type TierTable } from '@game/logic/rarity'
@@ -52,16 +53,19 @@ export function Draft() {
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
-  // A selected player belongs to the spin he was selected on
-  const [picked, setPicked] = useState<{ id: string; spin: number } | null>(null)
+  // A selected player belongs to the draft turn he was selected on (`draftTurnKey`): a pick or a Speedrun timeout drops him
+  const [picked, setPicked] = useState<{ id: string; turn: string } | null>(null)
+  // The Upgrader's dial is turning: the Speedrun clock waits for it as it waits for the reel
+  const [dialRolling, setDialRolling] = useState(false)
   const [sort, setSort] = useState<'rating' | 'position'>('rating')
   const d = game?.draft
   const get = useMemo(() => (game && u ? playerLookup(game, u) : () => undefined), [game, u])
 
   const spinning = !!d?.current && settled !== d.current
   const revealed = !!d?.current && settled === d.current
-  const selectedPlayer = picked && picked.spin === d?.spins ? picked.id : null
-  const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, spin: d.spins } : null)
+  const turn = d ? draftTurnKey(d) : ''
+  const selectedPlayer = picked && picked.turn === turn ? picked.id : null
+  const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, turn } : null)
 
   // The reel: the draft's leagues, their tiers, and what this spin could land on (recomputed per spin and per pick)
   const leagues = useMemo(() => (u && d ? reelLeagues(u, d.rules) : []), [u, d?.rules])
@@ -82,7 +86,7 @@ export function Draft() {
   // Position First: the open slots a spin could fill, offered on the pitch before each spin
   const choosable = useMemo(() => (u && d && positionFirst(d) && !d.current ? spinnableSlots(u, d).map((s) => s.id) : []), [u, d])
 
-  // Speedrun: a clock per pick, paused while the reel runs. It is only the UI's; on expiry the assistant makes the pick
+  // Speedrun: a clock per pick, paused while the reel runs (and while the Upgrader's dial turns). It is only the UI's; on expiry the assistant makes the pick
   // through the store (`speedrunPick`), a deterministic choice, so a replay of the same picks lands the same way
   const speedrun = !!d && hasMode(d.rules, 'speedrun') && !isComplete(d) && !dry
   const pickNo = d ? picksMade(d) : 0
@@ -100,17 +104,18 @@ export function Draft() {
     const t = window.setTimeout(() => setRevealId(null), 1200)
     return () => window.clearTimeout(t)
   }, [pickNo])
+  const paused = spinning || dialRolling
   useEffect(() => {
-    if (!speedrun || spinning) return
+    if (!speedrun || paused) return
     const t = setInterval(() => setClock((c) => Math.max(0, c - 1)), 1000)
     return () => clearInterval(t)
-  }, [speedrun, spinning])
+  }, [speedrun, paused])
   useEffect(() => {
-    if (!speedrun || spinning || clock > 0) return
+    if (!speedrun || paused || clock > 0) return
     setClock(SPEEDRUN_SECONDS)
     setSelectedPlayer(null)
     speedrunPick()
-  }, [clock, speedrun, spinning, speedrunPick])
+  }, [clock, speedrun, paused, speedrunPick])
 
   // On a phone the columns stack, so the landed squad would sit under the wheel: bring it on screen when it is revealed
   const squadRef = useRef<HTMLDivElement>(null)
@@ -451,9 +456,11 @@ export function Draft() {
         {/* The power-ups sit over the landed squad, so the reel's column stays one box high on a desktop */}
         <div className="panel col draft-squad" ref={squadRef} data-testid="draft-squad">
           <LockerBar game={game} busy={spinning} />
-          {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hideSquad} busy={spinning} onRerolled={() => setSelectedPlayer(null)} />}
+          {trayKinds(d).length > 0 && <PowerUpTray u={u} d={d} get={get} hideRatings={hideSquad} busy={spinning} onRerolled={() => setSelectedPlayer(null)} onRolling={setDialRolling} />}
           {!powerUpsOn(d) && upgraderOn(d.rules) && d.upgradeRng && (
             <Upgrader
+              turn={turn}
+              onRolling={setDialRolling}
               players={upgradeCandidates(d).flatMap((id) => get(id) ?? [])}
               ratingOf={(id) => upgradeBaseRating(u, d, id) ?? 0}
               available={canUpgrade(d) && game.phase === 'draft'}
