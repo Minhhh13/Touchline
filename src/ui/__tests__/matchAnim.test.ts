@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { shotXg } from '@engine/matchStats'
 import { ballSprite, ballView, DRAG, flightHeight, flightKind, flightWarp, type FlightKind } from '../match/flight'
-import { dotName, FLASH, passFlash, shotMarks, shotTrailAt, xgBand } from '../match/overlays'
+import { cornerDelivery, dotName, FLASH, passFlash, shotMarks, shotTrailAt, xgBand } from '../match/overlays'
 import { CAMERA, cameraTransform, celebrationMs, FOCUS_XG, focusAt, focusMoments, REPLAY, replayFrame } from '../match/keyMoments'
 import { HOLD_MS, skipHold, timeline, type GoalHold, type LiveClockState } from '../match/clockStore'
 import { ballAt, goalHolds, strikeTimes } from '../match/possession'
@@ -152,6 +152,32 @@ describe('the overlays', () => {
       })
     }
     expect(trails).toBeGreaterThan(10)
+  })
+
+  it("says where a corner is going while it is in the air, near post on the flag's side of the goal", () => {
+    const seen = new Set<string>()
+    for (const mp of paths) {
+      const path = mp.path
+      for (let k = 0; k + 1 < path.length; k++) {
+        const a = path[k]
+        if (!((a.x < 2 || a.x > 98) && (a.y < 2 || a.y > 98)) || path[k + 1].play !== 'cross') continue
+        const n = path[k + 1]
+        const T = (a.t + n.t) / 2
+        const d = cornerDelivery(path, ballAt(path, T))
+        expect(d).not.toBeNull()
+        seen.add(d!)
+        if (d === 'near post') expect(Math.sign(n.y - 50)).toBe(Math.sign(a.y - 50))
+        if (d === 'far post') expect(Math.sign(n.y - 50)).toBe(-Math.sign(a.y - 50))
+        // Not before it is struck, nor once it has landed
+        expect(cornerDelivery(path, ballAt(path, n.t + 0.001))).toBeNull()
+      }
+      // Open play never reads as a corner
+      for (let T = 1; T < 90; T += 0.5) {
+        const b = ballAt(path, T)
+        if (cornerDelivery(path, b)) expect(path[b!.index].x < 2 || path[b!.index].x > 98).toBe(true)
+      }
+    }
+    expect(seen.size).toBeGreaterThan(1)
   })
 
   it('names a dot by its surname, keeping a particle and cutting a long one', () => {

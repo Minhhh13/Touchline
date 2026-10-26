@@ -98,3 +98,23 @@ export function dotName(name: string | undefined, max = 12): string {
   if (prev && parts.length > 2 && /^(van|von|de|da|di|del|der|le|la|dos|das|ter|ten|el|al|mac|mc)$/i.test(prev)) last = `${prev} ${last}`
   return last.length > max ? `${last.slice(0, max - 1)}.` : last
 }
+
+/** Where a corner is being swung in while it flies: to the near post, the far post, the middle of the goal or the edge of the box. */
+export type Delivery = 'near post' | 'far post' | 'six-yard box' | 'edge of the box'
+
+/** The delivery of a corner in flight at this moment (the ball has left the flag for the box), or null. */
+export function cornerDelivery(path: BallKeyframe[], b: BallState | null): Delivery | null {
+  if (!b || !b.next || b.progress >= 1) return null
+  const a = path[b.index]
+  const n = b.next
+  const atFlag = (a.x < 2 || a.x > 98) && (a.y < 2 || a.y > 98)
+  if (!atFlag || n.kind !== 'pass' || n.play !== 'cross') return null
+  const right = a.x > 50
+  const along = right ? n.x : 100 - n.x
+  if (along < 84) return 'edge of the box'
+  const flagTop = a.y < 50
+  // Shared units across: the goal mouth is 44.6 to 55.4; a ball on the flag's side of the middle is at the near post
+  const off = n.y - 50
+  if (Math.abs(off) < 3.5) return 'six-yard box'
+  return (off < 0) === flagTop ? 'near post' : 'far post'
+}
