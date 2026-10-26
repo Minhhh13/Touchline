@@ -71,6 +71,20 @@ export function ItemReel({ deal, timing: runTiming, stagger = 0, sound = true, s
         reduced: reduced || !sound,
       })
     }
+    let slide: Animation | null = null
+    let stop = end()
+    // A resize (a window dragged, a phone turned, the reel's card size changing at a breakpoint) moves the landing card
+    // and the needle, so the stop is measured again, as the case reel does: mid-slide the slide retargets, after it the
+    // strip moves (the slide's fill holds its last frame, so its keyframes move too)
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+      const next = end()
+      if (next === stop) return
+      stop = next
+      if (slide?.effect instanceof KeyframeEffect) slide.effect.setKeyframes(reelKeyframes(stripOffset(), overshoot(), timing))
+      if (done) strip.style.transform = stop
+    }) : null
+    observer?.observe(win)
+    if (landCard) observer?.observe(landCard)
     const land = () => {
       if (!alive || done) return
       done = true
@@ -90,10 +104,12 @@ export function ItemReel({ deal, timing: runTiming, stagger = 0, sound = true, s
         alive = false
         window.clearTimeout(t)
         snd?.stop()
+        observer?.disconnect()
         skipRef.current = () => undefined
       }
     }
     const run = strip.animate(reelKeyframes(stripOffset(), overshoot(), timing), { duration: timing.spin, easing: 'linear', fill: 'both' })
+    slide = run
     // A quiet reel still plays its landing; only the first rattles
     snd = sound ? soundOf(run) : { land: (tier) => playLanding(tier, reduced), stop: () => undefined }
     let hold = 0
@@ -112,6 +128,7 @@ export function ItemReel({ deal, timing: runTiming, stagger = 0, sound = true, s
       alive = false
       window.clearTimeout(hold)
       snd?.stop()
+      observer?.disconnect()
       run.cancel()
       skipRef.current = () => undefined
     }

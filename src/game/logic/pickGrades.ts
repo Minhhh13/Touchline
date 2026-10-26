@@ -1,7 +1,9 @@
 /**
  * Pick grades for a finished draft (draft-preserving: it only reads the draft log). Each XI pick is graded A to D by
  * his rating in the slot he was drafted into against the best rating in that slot the spun club-season held, leaving
- * out players already drafted by then. Display only: nothing about spins, picks or power-ups changes.
+ * out players already drafted by then. Every man is rated as the draft rated him (`get`: under Prime ratings at his
+ * career best), so the pick and the rest of his squad compare like with like. Display only: nothing about spins,
+ * picks or power-ups changes.
  */
 import type { DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
@@ -35,7 +37,8 @@ export function pickGrades(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'f
     const picked = h.pickedId ? get(h.pickedId) : undefined
     const slot = h.slotId ? d.formation.slots.find((s) => s.id === h.slotId) : undefined
     if (picked && slot && !isIcons(h)) {
-      const pool = (u.clubSeasonByKey[`${h.clubId}@${h.season}`]?.squad ?? []).filter((p) => p.id === picked.id || !taken.has(p.playerId))
+      // Every man as the draft rated him (`get`: Prime ratings, an upgrade), as the man you took is, so like meets like
+      const pool = (u.clubSeasonByKey[`${h.clubId}@${h.season}`]?.squad ?? []).filter((p) => p.id === picked.id || !taken.has(p.playerId)).map((p) => (p.id === picked.id ? picked : get(p.id) ?? p))
       let best = ratingAt(picked, slot.position)
       let bestName = picked.name
       for (const p of pool) {

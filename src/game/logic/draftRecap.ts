@@ -2,12 +2,14 @@
  * The draft recap: what fills the Draft's middle box once every pick is made (it was an empty "All picks made" panel).
  * A grade for the whole draft from the pick grades, a one-line verdict, the best pick, the one that got away (the pick
  * furthest short of the best man on his spin), and how far the wheel travelled: clubs, nations and seasons. Pure and
- * draft-preserving, like `pickGrades`: it only reads the draft log, so nothing about a seed moves.
+ * draft-preserving, like `pickGrades`: it only reads the draft log, so nothing about a seed moves. The Hindsight XI
+ * (`hindsight.ts`) is the best XI the same spins could have given.
  */
-import type { DraftState } from '@engine/draft'
+import type { DraftRules, DraftState } from '@engine/draft'
 import type { LoadedUniverse } from '@engine/universe'
 import type { PlayerSeason } from '@engine/types'
 import { bestPick, pickGrades, type GradedPick, type PickGrade } from './pickGrades'
+import { hindsightXI, type Hindsight } from './hindsight'
 
 export interface DraftRecap {
   /** The whole draft's grade (the mean of the pick grades, A = 4 to D = 1); null when no pick is graded or grades are hidden. */
@@ -27,6 +29,8 @@ export interface DraftRecap {
   nations: number
   seasons: [number, number] | null
   picks: number
+  /** The best XI the same spins could have given (`hindsightXI`); null without grades, under a cap or a chain. */
+  hindsight: Hindsight | null
 }
 
 const POINTS: Record<PickGrade, number> = { A: 4, B: 3, C: 2, D: 1 }
@@ -47,7 +51,7 @@ export function recapVerdict(grade: PickGrade | null, tally: Record<PickGrade, n
   return 'A draft to forget, but the season is still to play'
 }
 
-export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'formation'>, get: (id: string) => PlayerSeason | undefined, showGrades: boolean): DraftRecap {
+export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'formation'> & { rules?: Pick<DraftRules, 'budget' | 'chain'> }, get: (id: string) => PlayerSeason | undefined, showGrades: boolean): DraftRecap {
   const graded = showGrades ? pickGrades(u, d, get) : []
   const tally: Record<PickGrade, number> = { A: 0, B: 0, C: 0, D: 0 }
   for (const g of graded) tally[g.grade]++
@@ -70,5 +74,6 @@ export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'f
     nations: new Set(picked.map((x) => x.p.nationality).filter(Boolean)).size,
     seasons: seasons.length ? [Math.min(...seasons), Math.max(...seasons)] : null,
     picks: picked.length,
+    hindsight: showGrades ? hindsightXI(u, d, get) : null,
   }
 }
