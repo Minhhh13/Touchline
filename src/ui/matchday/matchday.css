@@ -76,6 +76,7 @@
   font-family: var(--font-display);
   font-size: calc(var(--fs-h1) - 2px);
   line-height: 1;
+  white-space: nowrap;
   min-width: 64px;
   text-align: center;
 }

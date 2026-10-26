@@ -703,7 +703,7 @@ p {
   }
   .topbar nav button {
     padding: 6px 10px;
-    font-size: var(--fs-sm);
+    font-size: 13px; /* px: one row of six labels under 1100 px, like a tab bar it keeps its size at larger text */
   }
 }
 /* The sun and moon: flips Light and Dark and stores the choice on the profile */
@@ -4377,6 +4377,7 @@ table.tbl.contracts .btn.sm {
   font-weight: 700;
   font-size: calc(var(--fs-h1) * 1.4375);
   line-height: 1;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .scoreboard .clock {
@@ -8229,7 +8230,7 @@ table.tbl.match-stats th {
 }
 @media (max-width: 720px) {
   .tier-banner .tier {
-    font-size: calc(var(--fs-h1) * 1.25);
+    font-size: min(calc(var(--fs-h1) * 1.25), 12vw);
   }
   .banner-meta {
     flex-direction: column;
@@ -9051,6 +9052,12 @@ table.tbl.match-stats th {
 }
 .jw-boxes .tally-box.wdl .tally-num {
   letter-spacing: 0.02em;
+}
+/* A third of a phone: the W-D-L never runs past its box at larger text (8vw is above the token at 100 %) */
+@media (max-width: 520px) {
+  .jw-boxes .tally-num {
+    font-size: min(var(--fs-h2), 8vw);
+  }
 }
 .jw-pace {
   margin: 0;
@@ -10038,7 +10045,7 @@ table.tbl.match-stats th {
 }
 .vp-record {
   font-family: var(--font-display);
-  font-size: calc(var(--fs-hero) * 0.8125);
+  font-size: min(calc(var(--fs-hero) * 0.8125), 17vw);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
