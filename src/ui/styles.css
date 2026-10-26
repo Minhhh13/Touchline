@@ -9135,7 +9135,7 @@ table.tbl.match-stats th {
   left: 0;
   right: 0;
   top: 0;
-  height: 26px;
+  height: var(--lt-row, 26px);
   border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
   transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.3, 1);
 }
@@ -12386,4 +12386,154 @@ table.tbl.tv-compact .tv-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ short windows (2026-10-26) */
+/* The season playback on a desktop, down to a 1280 x 720 window: the head and the tally slim down (the goals line joins
+   the strip), the live table's rows shorten until all of them fit its box, and in the third column the position chart
+   gives way first (down to 140 px) so the bench box stays whole, its pitch beside the bench and sized by the height */
+@media (min-width: 1100px) and (min-height: 600px) {
+  .page.fit.pb-page {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .pb-page .fit-head {
+    gap: 8px 16px;
+  }
+  .pb-page .fit-head h1 {
+    font-size: 28px;
+    line-height: 1.1;
+  }
+  /* The side's two rows sit on one line when the window is wide enough; it keeps the head's first line either way */
+  .pb-page .fit-head-side {
+    flex: 1 1 560px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .pb-page .chase {
+    padding: 5px 14px;
+  }
+  .pb-page .chase b {
+    font-size: 18px;
+  }
+  .pb-page .pb-tally-row {
+    margin-top: 8px;
+  }
+  .pb-tally-row .tally {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px 16px;
+    min-width: 0;
+  }
+  .pb-tally-row .tally-boxes {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .pb-tally-row .tally-box {
+    flex-direction: row;
+    justify-content: center;
+    align-items: baseline;
+    gap: 8px;
+    padding: 5px 8px;
+  }
+  .pb-tally-row .tally-num {
+    font-size: 22px;
+  }
+  .pb-tally-row .tally-label {
+    margin-top: 0;
+  }
+  .pb-tally-row .tally-goals {
+    flex: none;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    gap: 4px 12px;
+  }
+  .pb-page > .fit-grid {
+    margin-top: 10px;
+  }
+  .fit-grid.c3.pb-bench {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr);
+  }
+  /* The live table: every row in the box, as tall as the box allows (19 to 26 px) */
+  .pb-grid > [data-pane='table'] {
+    container: pb-table / size;
+  }
+  .pb-grid > [data-pane='table'] .live-table {
+    --lt-row: clamp(19px, calc((100cqh - 60px) / var(--lt-n, 20)), 26px);
+  }
+  /* The third column: the chart takes what the bench leaves */
+  .pb-grid > [data-pane='chart'] {
+    container: pb-column / size;
+    gap: 10px;
+  }
+  /* The chart's head stays one line: the rivals' names end in an ellipsis rather than wrap into the drawing's room */
+  .pb-grid > [data-pane='chart'] .pos-chart > .row {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    gap: 10px;
+    min-width: 0;
+  }
+  .pb-grid > [data-pane='chart'] .pos-chart > .row > .row {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .pb-grid > [data-pane='chart'] .pc-rival-key {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pb-grid > [data-pane='chart']:not(:has(> .january-panel)) > .pos-chart {
+    flex: 1 1 0;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+  }
+  .pb-grid > [data-pane='chart']:not(:has(> .january-panel)) > .pos-chart > svg {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .pb-grid > [data-pane='chart'] > .bench-panel {
+    flex: none;
+  }
+  .bench-panel {
+    container: bench / inline-size;
+  }
+  .bench-panel > .panel-head {
+    margin-bottom: 6px;
+  }
+  /* The pitch: as wide as leaves the chart its 140 px (the whole column when the chart is hidden), 150 to 240 px */
+  .page.fit .bench-panel .bench-pitch {
+    width: clamp(150px, calc((100cqh - 246px) * 0.75), 240px);
+    margin: 0 auto;
+  }
+  .pb-grid > [data-pane='chart']:not(:has(> .pos-chart)) .bench-panel .bench-pitch {
+    width: clamp(150px, calc((100cqh - 80px) * 0.75), 240px);
+  }
+}
+@container pb-table (max-height: 600px) {
+  .live-table {
+    font-size: 12px;
+  }
+}
+@container bench (min-width: 400px) {
+  .page.fit .bench-panel .bench-grid {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+}
+/* A narrow bench box (a 1280 px window): the bench player's button goes under his name, so his club stays on one line or two */
+@container bench (min-width: 400px) and (max-width: 520px) {
+  .page.fit .bench-panel .prow {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 4px 10px;
+  }
+  .page.fit .bench-panel .prow > .right {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .page.fit .bench-panel .help {
+    font-size: 12px;
+  }
 }

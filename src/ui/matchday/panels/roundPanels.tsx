@@ -59,7 +59,8 @@ export function LiveTable({ d }: PanelProps) {
     const top = row.offsetTop - box.clientHeight / 2 + row.clientHeight / 2
     box.scrollTop = Math.max(0, top)
   }, [userPos])
-  if (!d.table) return <Empty>No table: this is a friendly.</Empty>
+  // An arena knockout has no league around it; only a friendly is a friendly
+  if (!d.table) return <Empty>{d.ref && !d.ref.friendly ? 'No league table in this competition.' : 'No table: this is a friendly.'}</Empty>
   const league = d.ref?.competition === 'league'
   return (
     <div className="md-table" ref={ref}>
