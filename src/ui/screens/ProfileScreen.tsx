@@ -249,6 +249,7 @@ export function ProfileScreen() {
               />
               <Stat label="Achievements" value={`${unlocked}/${ACHIEVEMENTS.length}`} />
               <Stat label="Head-to-head" value={cabinet.h2h.played} />
+              {(cabinet.h2hOnline?.played ?? 0) > 0 && <Stat label="Online head-to-head" value={cabinet.h2hOnline?.played ?? 0} sub={`${cabinet.h2hOnline?.won ?? 0} won`} />}
             </div>
             <div className="field" data-testid="profile-locker">
               <span>

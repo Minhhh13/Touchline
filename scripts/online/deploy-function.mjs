@@ -5,7 +5,9 @@
 //   npm run deploy:function -- --stage-only   build the verifier bundle and stage supabase/functions/touchline-e{V}/
 //                                             (index.ts importing ./verifier.js, verifier.js, deno.json, deno.lock)
 //                                             plus deploy-files.json, the file list an agent passes to the Supabase
-//                                             connector's deploy_edge_function (entrypoint index.ts, verify_jwt true)
+//                                             connector's deploy_edge_function (entrypoint index.ts, verify_jwt false:
+//                                             withSupabase checks a user's JWT or the publishable key itself, so
+//                                             guests can reach the online rooms; docs/ONLINE.md section 5e)
 //   SUPABASE_ACCESS_TOKEN=... npm run deploy:function
 //                                             stage, then deploy with the Supabase CLI (server-side bundling, no Docker)
 //
@@ -36,7 +38,7 @@ export async function stage() {
   copyFileSync(path.join(source, 'deno.json'), path.join(dir, 'deno.json'))
   if (existsSync(path.join(source, 'deno.lock'))) copyFileSync(path.join(source, 'deno.lock'), path.join(dir, 'deno.lock'))
   const files = ['index.ts', 'verifier.js', 'deno.json', ...(existsSync(path.join(dir, 'deno.lock')) ? ['deno.lock'] : [])]
-  writeFileSync(path.join(dir, 'deploy-files.json'), JSON.stringify({ project_id: PROJECT_REF, name, entrypoint_path: 'index.ts', verify_jwt: true, files: files.map((f) => ({ name: f, content: readFileSync(path.join(dir, f), 'utf8') })) }))
+  writeFileSync(path.join(dir, 'deploy-files.json'), JSON.stringify({ project_id: PROJECT_REF, name, entrypoint_path: 'index.ts', verify_jwt: false, files: files.map((f) => ({ name: f, content: readFileSync(path.join(dir, f), 'utf8') })) }))
   return { name, dir, files }
 }
 
@@ -48,6 +50,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error('SUPABASE_ACCESS_TOKEN is not set: deploy with the Supabase connector (deploy-files.json) or set a scoped token')
     process.exit(1)
   }
-  execFileSync('npx', ['-y', CLI, 'functions', 'deploy', staged.name, '--project-ref', PROJECT_REF, '--use-api'], { cwd: root, stdio: 'inherit' })
+  execFileSync('npx', ['-y', CLI, 'functions', 'deploy', staged.name, '--project-ref', PROJECT_REF, '--use-api', '--no-verify-jwt'], { cwd: root, stdio: 'inherit' })
   console.log(`deployed ${staged.name} to ${PROJECT_REF}; set the function secret TOUCHLINE_SITE_URL if it is not set yet`)
 }

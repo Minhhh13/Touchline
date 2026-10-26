@@ -44,12 +44,18 @@ describe('the hashed edge bundle the loader runs', () => {
     const signedOut = await handle(new Request('https://f.invalid/', { method: 'POST', body: '{"op":"status"}' }), ctx)
     expect(signedOut.status).toBe(401)
     expect(await signedOut.json()).toMatchObject({ code: 'unauthorised' })
+    // A guest (the publishable key, no JWT) reaches the server, which keeps it to the rooms before touching anything
+    const guest = await handle(new Request('https://f.invalid/', { method: 'POST', headers: { 'x-forwarded-for': '203.0.113.7' }, body: '{"op":"daily.pin"}' }), { ...ctx, authMode: 'publishable' })
+    expect(guest.status).toBe(401)
+    expect(await guest.json()).toMatchObject({ code: 'unauthorised', reason: 'Sign in first' })
+    // Any other credential mode without a user is refused at the door
+    expect((await handle(new Request('https://f.invalid/', { method: 'POST', body: '{"op":"room.leave"}' }), { ...ctx, authMode: 'none' })).status).toBe(401)
   }, 120000)
 
-  it('is what the loader template pins: every placeholder filled by build-loader.mjs, Verify JWT kept by withSupabase', () => {
+  it('is what the loader template pins: every placeholder filled by build-loader.mjs, users and the publishable key checked by withSupabase', () => {
     const loader = readFileSync(path.resolve(__dirname, '..', '..', '..', 'supabase', 'functions', 'touchline', 'loader.ts'), 'utf8')
     for (const p of ['__ENGINE__', '__VERIFIER_SHA256__', '__SUPABASE_JS__', '__SUPABASE_SERVER__']) expect(loader).toContain(p)
-    expect(loader).toContain("withSupabase({ auth: 'user'")
+    expect(loader).toContain("withSupabase({ auth: ['user', 'publishable']")
     expect(loader).toContain('if (got !== VERIFIER_SHA256)')
     expect(loader).toMatch(/\/edge\/verifier-\$\{VERIFIER_SHA256\.slice\(0, 16\)\}\.js/)
     expect(Buffer.byteLength(loader)).toBeLessThan(6 * 1024)

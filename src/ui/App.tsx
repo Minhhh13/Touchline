@@ -36,8 +36,9 @@ export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
 import { WorldBoard } from './online/WorldBoard'
 import { AccountChip } from './online/AccountChip'
 import { AccountScreen } from './online/AccountPanel'
+import { RoomScreen } from './online/Rooms'
 import { parseGameHash } from '../online/core/codes'
-import { onlineAvailable, resolveShort } from '../online/api'
+import { onlineAvailable, openRoom, resolveShort } from '../online/api'
 
 export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
@@ -99,7 +100,18 @@ export function App() {
     if (!universe) return
     const open = () => {
       const h = parseGameHash(location.hash)
-      if (!h || h.kind === 'h') return
+      if (!h) return
+      // A head-to-head room link (`#h=K7Q2MX9A`) opens the room screen, which keeps the hash while it is open
+      if (h.kind === 'h') {
+        if (onlineAvailable()) {
+          useStore.getState().go('room')
+          void openRoom(h.code)
+        } else {
+          history.replaceState(null, '', location.pathname + location.search)
+          useStore.getState().showToast('Online rooms need the online version of TouchLine.')
+        }
+        return
+      }
       history.replaceState(null, '', location.pathname + location.search)
       if (h.kind === 'c') void openChallenge(h.payload)
       else
@@ -180,7 +192,7 @@ export function App() {
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
   // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
   // Setup and the match day keep their own layouts
-  let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto' || screen === 'privacy' || screen === 'world' || screen === 'account'
+  let shell = screen === 'home' || screen === 'h2h' || screen === 'room' || screen === 'explore' || screen === 'profile' || screen === 'howto' || screen === 'privacy' || screen === 'world' || screen === 'account'
   if (screen === 'game' && game) {
     // An arena shoot-out waiting for its takers is a shell screen too (`.page.fit`)
     shell = game.phase !== 'match' || !!game.arena?.pending
@@ -194,6 +206,7 @@ export function App() {
     else body = game.arena ? <Arena /> : <Dugout />
   } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
+  else if (screen === 'room') body = <RoomScreen />
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />
   else if (screen === 'howto') body = <HowTo />
@@ -219,7 +232,7 @@ export function App() {
               <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
             </button>
           )}
-          <button className={screen === 'h2h' ? 'active' : ''} onClick={() => nav('h2h')}>
+          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
             <Swords size={16} />
             <span className="nav-label">Head-to-head</span>
           </button>

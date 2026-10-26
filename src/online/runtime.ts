@@ -16,6 +16,7 @@ import { freshRecord, loadRecord, saveRecord } from './localState'
 import { flushOutbox, nextDue } from './outbox'
 import { onlineStore, type OnlineSession, type OnlineState } from './state'
 import { SupabaseTransport, type OnlineTransport, type CloudRow } from './transport'
+import { browserSeats, RoomSession } from './rooms'
 import { SEASON_UPLOAD_GAP_MS, SyncEngine, type SyncOptions, type SyncStoreLike } from './sync'
 import { weekKeyOf } from './weekly'
 import type { PuzzlePin } from './server/dailyVerify'
@@ -68,6 +69,8 @@ export class Runtime {
   readonly sb: SupabaseClient
   readonly transport: OnlineTransport
   readonly ready: Promise<void>
+  /** The online head-to-head room on this device (guests too: every write goes through the Edge Function). */
+  readonly rooms: RoomSession
   private engine: SyncEngine | null = null
   private session: OnlineSession | null = null
   private timer: ReturnType<typeof setTimeout> | null = null
@@ -81,6 +84,18 @@ export class Runtime {
     const sb = createOnlineClient(cfg)
     this.sb = sb
     this.transport = new SupabaseTransport(this.sb, cfg)
+    this.rooms = new RoomSession({
+      transport: this.transport,
+      seats: browserSeats,
+      report: (room) => report({ room }),
+      now: () => Date.now(),
+      visible: () => document.visibilityState === 'visible',
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+      // A finished room leaves one mark on this device's Trophy Room online shelf (apart from the hot-seat's)
+      onFinished: (room, seat) => useStore.getState().creditH2HRoom(room.result?.winner === seat),
+      signedIn: () => this.signedIn,
+    })
     report({ configured: true, started: true })
     this.sb.auth.onAuthStateChange((_event, session) => {
       // Never call back into auth from inside its own callback (supabase-js would wait on itself)
@@ -155,6 +170,7 @@ export class Runtime {
     })
     window.addEventListener('offline', () => report({ syncStatus: 'offline', syncMessage: 'Offline: your games sync when the connection is back.' }))
     document.addEventListener('visibilitychange', () => {
+      this.rooms.visibilityChanged()
       if (document.visibilityState === 'hidden') {
         this.hiddenAt = Date.now()
         void this.syncNow({ force: true })

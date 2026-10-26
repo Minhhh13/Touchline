@@ -7328,6 +7328,67 @@ table.tbl.contracts .btn.sm {
   top: var(--space-2);
   right: var(--space-2);
 }
+/* Online head-to-head rooms (src/ui/online/Rooms.tsx): the code to read out, the link to share, whose turn it is */
+.room-code {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  color: var(--text);
+}
+.room-code-input {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.room-share {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.room-share .input {
+  flex: 1;
+  min-width: 0;
+}
+.room-share .btn {
+  flex: none;
+}
+.room-turn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  border: var(--border);
+  background: var(--panel-2);
+  font-weight: 700;
+}
+.room-turn.mine {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.room-manager {
+  padding: var(--space-2);
+  border-radius: var(--radius-m);
+  border: var(--border);
+}
+.room-manager.empty {
+  border-style: dashed;
+}
+.room-rules {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.room-rules li + li {
+  margin-top: var(--space-1);
+}
+.room-notice {
+  margin-bottom: var(--space-3);
+}
+@media (max-width: 520px) {
+  .room-share {
+    flex-direction: column;
+  }
+}
 /* Explore */
 .explore-bar {
   display: flex;

@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, type LucideIcon } from 'lucide-react'
+import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { APP_NAME } from '../brand'
 import { getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
 import { poolClubSeasons } from '@engine/universe'
 import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine/h2h'
-import { isComplete, picksMade, fillingXI, suggestSlot } from '@engine/draft'
-import { H2H_IDS } from '@game/logic/h2h'
+import { isComplete, picksMade, fillingXI, suggestSlot, type DraftState } from '@engine/draft'
+import { H2H_IDS, type H2HManager, type H2HResult } from '@game/logic/h2h'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
@@ -23,6 +23,8 @@ import { SpinOdds } from '../components/SpinOdds'
 import { renderShareCard, downloadDataUrl } from '../shareCard'
 import { GameByGame } from '../components/GameByGame'
 import { ratingHidden } from '@game/logic/ratingVisibility'
+import { onlineAvailable } from '../../online/api'
+import { RoomSetup } from '../online/Rooms'
 
 export function H2HSetup() {
   const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
@@ -35,7 +37,34 @@ export function H2HSetup() {
   const [difficulty, setDifficulty] = useState<'calibrated' | 'realistic'>('calibrated')
   const [hardMode, setHardMode] = useState(false)
   const [seed, setSeed] = useState(() => randomSeed())
+  // Two devices instead of one: only in a build with the online layer (an offline build shows exactly the hot-seat setup)
+  const [where, setWhere] = useState<'device' | 'online'>('device')
   if (!u) return null
+  const online = onlineAvailable()
+  const back = (
+    <button className="btn ghost" onClick={() => go('home')}>
+      ← Back
+    </button>
+  )
+  const switcher = online ? <Segmented value={where} onChange={setWhere} options={[{ value: 'device', label: <><Users size={14} aria-hidden="true" /> This device</>, testId: 'h2h-where-device' }, { value: 'online', label: <><Wifi size={14} aria-hidden="true" /> Play online</>, testId: 'h2h-where-online' }]} /> : null
+  if (online && where === 'online')
+    return (
+      <div className="page">
+        <div className="screen-head">
+          <div className="screen-title">
+            <h1>Head-to-head</h1>
+            <div className="screen-meta">
+              <span>Two managers, two devices, one wheel</span>
+            </div>
+          </div>
+          <div className="toolbar">
+            {switcher}
+            {back}
+          </div>
+        </div>
+        <RoomSetup />
+      </div>
+    )
   const seasons = [...new Set(poolClubSeasons(u, false).filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort()
   const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1]
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort()
@@ -54,9 +83,14 @@ export function H2HSetup() {
             <span>Two managers, one device, one wheel</span>
           </div>
         </div>
-        <button className="btn ghost" onClick={() => go('home')}>
-          ← Back
-        </button>
+        {switcher ? (
+          <div className="toolbar">
+            {switcher}
+            {back}
+          </div>
+        ) : (
+          back
+        )}
       </div>
       <div className="screen-body scroll-whole fill">
       <ol className="steps" aria-label="How a head-to-head works">
@@ -357,17 +391,37 @@ export function H2HScreen() {
 }
 
 function H2HSummary() {
-  const { universe: u, h2h, abandonH2H, go, showToast } = useStore()
+  const { h2h, abandonH2H, go } = useStore()
+  if (!h2h?.result) return null
+  return <H2HResultView managers={h2h.managers} result={h2h.result} drafts={h2h.draft.drafts} leagueId={h2h.leagueId} leagueSeason={h2h.leagueSeason} seed={h2h.seed} onRematch={() => { abandonH2H(); go('h2h') }} onHome={() => abandonH2H()} />
+}
+
+export interface H2HResultViewProps {
+  managers: [H2HManager, H2HManager]
+  result: H2HResult
+  drafts: [DraftState, DraftState]
+  leagueId: string
+  leagueSeason: number
+  seed: string
+  onRematch: () => void
+  onHome: () => void
+  /** The banner's mode line: "Head-to-head" (hot-seat) or "Online head-to-head". */
+  label?: string
+  rematchLabel?: string
+  testId?: string
+}
+
+/** A head-to-head's result, hot-seat or online: the banner with both sides, the derbies, the XIs and the table. */
+export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label = 'Head-to-head', rematchLabel = 'Rematch', testId }: H2HResultViewProps) {
+  const { universe: u, showToast } = useStore()
   const [copied, setCopied] = useState(false)
-  if (!u || !h2h?.result) return null
-  const r = h2h.result
-  const m = h2h.managers
+  if (!u) return null
   const text = [
-    `${APP_NAME} · Head-to-head · ${seasonLabel(h2h.leagueSeason)}`,
+    `${APP_NAME} · ${label} · ${seasonLabel(leagueSeason)}`,
     ...([0, 1] as const).map((i) => `${m[i].name}: ${tierName(r.tiers[i], r.positions[i])} · ${r.rows[i].won}-${r.rows[i].drawn}-${r.rows[i].lost} · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
     `Derbies: ${r.derbies.map((dby) => `${m[dby.homeIdx].shortName} ${dby.homeGoals}-${dby.awayGoals} ${m[dby.homeIdx === 0 ? 1 : 0].shortName}`).join(', ')}`,
     r.winner === null ? 'Dead heat.' : `${m[r.winner].name} wins.`,
-    `Seed ${h2h.seed}`,
+    `Seed ${seed}`,
   ].join('\n')
   const copy = async () => {
     try {
@@ -382,15 +436,15 @@ function H2HSummary() {
     try {
       const url = await renderShareCard({
         title: m[i].name,
-        subtitle: `Head-to-head v ${m[i === 0 ? 1 : 0].name} · ${u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? ''} ${seasonLabel(h2h.leagueSeason)}`,
+        subtitle: `Head-to-head v ${m[i === 0 ? 1 : 0].name} · ${u.leagues.find((l) => l.id === leagueId)?.name ?? ''} ${seasonLabel(leagueSeason)}`,
         tier: r.tiers[i],
         row: r.rows[i],
         position: r.positions[i],
         formation: getFormation(m[i].formationId),
-        lineup: h2h.draft.drafts[i].lineup,
+        lineup: drafts[i].lineup,
         getPlayer: (id) => u.index[id],
-        footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${h2h.seed}`,
-        hideRatings: ratingHidden(h2h.draft.drafts[i].rules, 'squad'),
+        footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${seed}`,
+        hideRatings: ratingHidden(drafts[i].rules, 'squad'),
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
@@ -398,14 +452,14 @@ function H2HSummary() {
     }
   }
   return (
-    <div className="page summary">
+    <div className="page summary" data-testid={testId}>
       <div className="tier-banner">
         <div className="banner-meta">
           <span className="bm-team">
-            <Swords size={16} aria-hidden="true" /> Head-to-head
+            <Swords size={16} aria-hidden="true" /> {label}
           </span>
           <span className="bm-rest">
-            <LeagueFlag leagueId={h2h.leagueId} label={u.leagues.find((l) => l.id === h2h.leagueId)?.name} /> {seasonLabel(h2h.leagueSeason)}
+            <LeagueFlag leagueId={leagueId} label={u.leagues.find((l) => l.id === leagueId)?.name} /> {seasonLabel(leagueSeason)}
           </span>
         </div>
         <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`}>{r.winner === null ? 'Dead heat' : `${m[r.winner].name} wins`}</div>
@@ -442,10 +496,10 @@ function H2HSummary() {
               <ImageDown size={16} aria-hidden="true" /> Card · {m[i].shortName}
             </button>
           ))}
-          <button className="btn" onClick={() => { abandonH2H(); go('h2h') }}>
-            <RotateCcw size={16} aria-hidden="true" /> Rematch
+          <button className="btn" onClick={onRematch} data-testid="h2h-rematch">
+            <RotateCcw size={16} aria-hidden="true" /> {rematchLabel}
           </button>
-          <button className="btn ghost" onClick={() => abandonH2H()}>
+          <button className="btn ghost" onClick={onHome}>
             Home
           </button>
         </div>
@@ -478,7 +532,7 @@ function H2HSummary() {
                   </span>
                 )}
               </div>
-              <Pitch formation={h2h.draft.drafts[i].formation} lineup={h2h.draft.drafts[i].lineup} getPlayer={(id) => u.index[id]} />
+              <Pitch formation={drafts[i].formation} lineup={drafts[i].lineup} getPlayer={(id) => u.index[id]} />
             </div>
           ))}
           {r.results?.map((games, i) => (

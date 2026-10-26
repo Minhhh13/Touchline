@@ -73,6 +73,19 @@ export function h2hSpin(u: LoadedUniverse, h: H2HDraft, rng: Rng): ClubSeason {
   const season = rng.pick(seasons)
   const inSeason = pool.filter((cs) => cs.season === season)
   const chosen = rng.pickWeighted(inSeason, h2hWeight)
+  h2hLand(u, h, chosen)
+  return chosen
+}
+
+/**
+ * Land a spin on a club-season already chosen (by `h2hSpin`'s draws, or read back from an online room's public log):
+ * everything a spin does after its two draws, with no RNG. An online room's clients rebuild the draft with it without
+ * ever seeing the seed.
+ */
+export function h2hLand(u: LoadedUniverse, h: H2HDraft, chosen: ClubSeason): void {
+  const active = activeManagers(h)
+  if (!active.length) throw new Error('Draft complete')
+  const firstIdx = active.includes(h.first) ? h.first : active[0]
   h.current = { clubId: chosen.clubId, season: chosen.season }
   for (const d of h.drafts) {
     d.current = { ...h.current }
@@ -83,7 +96,6 @@ export function h2hSpin(u: LoadedUniverse, h: H2HDraft, rng: Rng): ClubSeason {
   h.picking = firstIdx
   h.log.push(`Spin ${h.spins}: ${u.clubById[chosen.clubId]?.name ?? chosen.clubId} ${chosen.season}-${String((chosen.season + 1) % 100).padStart(2, '0')}. ${firstIdx === 0 ? 'Manager 1' : 'Manager 2'} picks first.`)
   skipIfStuck(u, h)
-  return chosen
 }
 
 /** Players the current picker could take from the current squad. */

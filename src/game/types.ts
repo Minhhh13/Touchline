@@ -777,6 +777,10 @@ export interface Cabinet {
   cups: { runs: number; won: number; bySize: Record<string, number> }
   giantKills: number
   h2h: { played: number }
+  /** Online head-to-head rooms (Phase 2), a shelf of their own apart from the hot-seat's `h2h`: rooms this device held
+   * a seat in that finished, and those its manager won. Optional (absent on cabinets before the rooms); read with
+   * `??`, filled by `normaliseCabinet`. */
+  h2hOnline?: { played: number; won: number }
   runIns: { played: number; met: number }
   /** Set when the counts beyond `trophies` were rebuilt from the 50-entry leaderboard of an older save. */
   rebuilt?: boolean

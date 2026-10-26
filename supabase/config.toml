@@ -27,3 +27,8 @@ otp_expiry = 900
 
 [storage]
 enabled = true
+
+# The Edge Function (deployed per engine as touchline-e{ENGINE_VERSION}): withSupabase checks a user's JWT or the
+# publishable key itself, so guests can play the online head-to-head rooms (docs/ONLINE.md section 5e).
+[functions.touchline-e4]
+verify_jwt = false

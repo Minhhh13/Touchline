@@ -4,6 +4,8 @@ import path from 'node:path'
 import { RETENTION } from '../core/retention'
 import { SUPABASE_REGION } from '../config'
 import { AUTH_KEY, ONLINE_KEY, PROMPTS_KEY } from '../localState'
+import { ROOMS_KEY, SEAT_KEEP_MS } from '../rooms'
+import { ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS, ROOM_WAIT_MINUTES } from '@game/logic/h2hRoom'
 import { logId } from '../server/validate'
 
 // The privacy page states these figures; each one is checked against the code or SQL that enforces it, so the
@@ -34,7 +36,16 @@ describe('the privacy page figures', () => {
   })
 
   it('lists every device key the online layer writes', () => {
-    expect([...RETENTION.deviceKeys].sort()).toEqual([AUTH_KEY, ONLINE_KEY, PROMPTS_KEY].sort())
+    expect([...RETENTION.deviceKeys].sort()).toEqual([AUTH_KEY, ONLINE_KEY, PROMPTS_KEY, ROOMS_KEY].sort())
+  })
+
+  it('matches the online rooms\' join window, idle timeout and purge, in the SQL and the client', () => {
+    expect(sql).toContain(`select interval '${RETENTION.roomWaitMinutes} minutes'`)
+    expect(sql).toContain(`select interval '${RETENTION.roomIdleMinutes} minutes'`)
+    expect(sql).toContain(`select interval '${RETENTION.roomKeepHours} hours'`)
+    expect(sql).toContain("x.ended_at < now() - private.h2h_keep()")
+    expect([ROOM_WAIT_MINUTES, ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS]).toEqual([RETENTION.roomWaitMinutes, RETENTION.roomIdleMinutes, RETENTION.roomKeepHours])
+    expect(SEAT_KEEP_MS).toBe(RETENTION.seatKeepDays * 86400000)
   })
 
   it('logs no more of an account id than the page says', () => {

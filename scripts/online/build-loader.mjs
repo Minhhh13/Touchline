@@ -7,7 +7,8 @@
 //   node scripts/online/build-loader.mjs [outfile]
 //     default outfile: supabase/functions/touchline-e{V}-loader/index.ts (gitignored, like the staged function)
 //
-// Deploy it as `touchline-e{V}` with Verify JWT on; no deno.json or lock is needed (npm: specifiers inline).
+// Deploy it as `touchline-e{V}` with Verify JWT off (since Phase 2: withSupabase accepts a user's JWT or the project's
+// publishable key and checks either itself, so a guest can reach the rooms); no deno.json or lock is needed.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { canonicalJson, fingerprint } from '../core/canonical'
 import { gunzipText, gzipText, sha256Hex } from '../core/bytes'
-import { formatCode, normaliseCode, parseGameHash } from '../core/codes'
+import { formatCode, normaliseCode, parseGameHash, roomLink } from '../core/codes'
 import { cleanAuthParams, parseAuthRedirect } from '../core/authUrl'
 import { countryFlag, normaliseCountry } from '../core/country'
 
@@ -68,6 +68,7 @@ describe('short codes', () => {
   it('parses the game link fragments', () => {
     expect(parseGameHash('#s=k7q2-mx9a')).toEqual({ kind: 's', code: 'K7Q2MX9A' })
     expect(parseGameHash('#h=K7Q2MX9A')).toEqual({ kind: 'h', code: 'K7Q2MX9A' })
+    expect(parseGameHash(roomLink('K7Q2MX9A', 'https://touchline.quest', '/').slice('https://touchline.quest/'.length))).toEqual({ kind: 'h', code: 'K7Q2MX9A' })
     expect(parseGameHash('#c=eyJ2IjoxfQ')).toEqual({ kind: 'c', payload: 'eyJ2IjoxfQ' })
     expect(parseGameHash('#s=K7Q2MX91')).toBeNull()
     expect(parseGameHash('#x=K7Q2MX9A')).toBeNull()
