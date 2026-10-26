@@ -17,3 +17,17 @@ export function summaryMainCall(game: Game, u: LoadedUniverse): SummaryCall {
   if (quickCupStatus(game, u, 'continental').state === 'open') return 'continental'
   return 'copy'
 }
+
+/**
+ * Pass on a post-season cup that is on offer. `skipQuickCup` refuses the Continental Cup while the other leagues are
+ * not loaded (its field is short only for want of loading, which `quickCupStatus` still reads as open), so its Skip it
+ * did nothing but say "Too few clubs from the other leagues are loaded". Passing needs no field: any cup the summary
+ * offers (`open`) can be passed, as skipping stores it (null). Returns false, changing nothing, otherwise.
+ */
+export function passQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp): boolean {
+  const q = game.quickResult
+  if (!q || quickCupStatus(game, u, comp).state !== 'open') return false
+  if (comp === 'cup') q.cup = null
+  else q.continentalCup = null
+  return true
+}

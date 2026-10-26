@@ -54,7 +54,8 @@ import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, cha
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
-import { creditCupRun, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { passQuickCup } from './logic/summaryCall'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
@@ -778,6 +779,11 @@ export const useStore = create<Store>()(
         skipCup: (comp) => {
           const { game, universe } = get()
           if (!game || !universe) return
+          // A cup on offer can be passed even when its field is not loaded yet (passQuickCup); otherwise say why not
+          if (quickCupStatus(game, universe, comp).state === 'open') {
+            mutate((g, u) => void passQuickCup(g, u, comp))
+            return
+          }
           const problem = quickCupProblem(game, universe, comp)
           if (problem) {
             set({ toast: problem })

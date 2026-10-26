@@ -5,7 +5,7 @@ import { autoDraft, QUICK_RULES } from '@engine/draft'
 import { kickOff, toKickoff } from '../logic/quick'
 import { quickCupStatus, skipQuickCup } from '../logic/quickCups'
 import { createGame } from '../logic/setup'
-import { summaryMainCall } from '../logic/summaryCall'
+import { passQuickCup, summaryMainCall } from '../logic/summaryCall'
 import type { Game } from '../types'
 
 const u = loadTestUniverse(['england'])
@@ -45,5 +45,20 @@ describe("the quick summary's main call", () => {
   it('is Copy result with no quick season', () => {
     const g = played('call-1')
     expect(summaryMainCall({ ...g, quickResult: null }, u)).toBe('copy')
+  }, 60_000)
+
+  it('passes on a cup on offer, the Continental Cup too while its field is not loaded, and nothing else', () => {
+    const g = played('call-pass')
+    if (quickCupStatus(g, u, 'continental').state === 'open') {
+      // Only the wheel's league is loaded: skipQuickCup refuses, passing does not need the field
+      expect(() => skipQuickCup(JSON.parse(JSON.stringify(g)), u, 'continental')).toThrow()
+      expect(passQuickCup(g, u, 'continental')).toBe(true)
+      expect(quickCupStatus(g, u, 'continental').state).toBe('skipped')
+      expect(passQuickCup(g, u, 'continental')).toBe(false)
+    }
+    expect(passQuickCup(g, u, 'cup')).toBe(true)
+    expect(g.quickResult!.cup).toBeNull()
+    expect(passQuickCup(g, u, 'cup')).toBe(false)
+    expect(passQuickCup({ ...g, quickResult: null }, u, 'cup')).toBe(false)
   }, 60_000)
 })
