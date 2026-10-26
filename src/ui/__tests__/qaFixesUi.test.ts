@@ -15,6 +15,8 @@ import { TacticsTab } from '../screens/Dugout'
 import { Explore } from '../screens/Explore'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { StatsTab } from '../screens/StatsTab'
+import { App } from '../App'
+import { useStore } from '@game/store'
 import { markupProblems, renderProblems, show } from './qaSsr'
 import { ScreenBoundary } from '../components/ScreenBoundary'
 import { renderToString } from 'react-dom/server'
@@ -81,5 +83,29 @@ describe('QA-6: key-value lists are description lists', () => {
     // The Club tab is inside the Dugout: its source holds no key-value div any more
     const src = readFileSync(join(__dirname, '..', 'screens', 'Dugout.tsx'), 'utf8') + readFileSync(join(__dirname, '..', 'components', 'ContractTalks.tsx'), 'utf8')
     expect(src).not.toMatch(/<div className="kv/)
+  })
+})
+
+describe('QA-8: ARIA states and keyboard-reachable scroll panels', () => {
+  it('the squad view switch is a radio group without aria-pressed, and the match-day panels that scroll take focus', () => {
+    const u = loadTestUniverse(['england'])
+    const g = createGame({ mode: 'season', seed: 'qa-fix-aria', formationId: '4-3-3', teamName: 'QA', shortName: 'QAA', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'everton', leagueSeason: 2024, rules: { ...SEASON_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated' })
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginSeason(g, u)
+    show({ universe: u, loadedLeagues: ['england'], game: g, screen: 'game', matchView: 'ticker' })
+    const dugout = renderToString(createElement(App))
+    expect(dugout).toContain('data-testid="squad-view-overview"')
+    expect(markupProblems(dugout)).toEqual([])
+    // A live match on the dashboard: every panel body and the table can be focused to scroll
+    useStore.getState().startSeason()
+    useStore.getState().setMatchPlay('watch')
+    useStore.getState().playWeek()
+    show({})
+    const match = renderToString(createElement(App))
+    const bodies = [...match.matchAll(/<div class="(md-slot-body|md-table)"([^>]*)>/g)]
+    expect(bodies.length).toBeGreaterThan(0)
+    for (const b of bodies) expect(b[2]).toContain('tabindex="0"')
   })
 })

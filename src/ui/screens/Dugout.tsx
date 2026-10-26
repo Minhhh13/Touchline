@@ -385,7 +385,7 @@ export function Dugout() {
                 </button>
                 <span className="segmented squad-views-seg" role="radiogroup" aria-label="Squad list view" data-testid="squad-view">
                   {SQUAD_VIEWS.map((v) => (
-                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} aria-pressed={view === v.id} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
+                    <button key={v.id} type="button" role="radio" aria-checked={view === v.id} className={view === v.id ? 'active' : ''} title={v.hint} onClick={() => setView(writeSquadView(v.id))} data-testid={v.id === 'fitness' ? 'toggle-stamina' : `squad-view-${v.id}`}>
                       {v.label}
                     </button>
                   ))}

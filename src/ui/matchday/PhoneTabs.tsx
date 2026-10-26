@@ -66,7 +66,7 @@ export function PhoneTabs({ d, tabs, twoUp }: { d: MatchdayData; tabs: PhoneTab[
                   <b>{t.label}</b>
                 </header>
               )}
-              <div className="md-slot-body">
+              <div className="md-slot-body" tabIndex={0}>
                 <Widget d={d} compact />
               </div>
             </div>
