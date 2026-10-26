@@ -14331,7 +14331,7 @@ table.tbl.tv-compact .tv-name {
   .pitch-wrap .slot .disc {
     width: 28px;
     height: 28px;
-    font-size: 12px;
+    font-size: 12px; /* px: drawn to the pitch disc */
     border-width: 1.5px;
   }
   .pitch-wrap .slot .disc .disc-cost {
