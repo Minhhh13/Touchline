@@ -50,6 +50,7 @@ import { ChaseStatus } from '../online/ChaseStatus'
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
+import { summaryMainCall } from '@game/logic/summaryCall'
 import { ManagerChip } from '../components/ManagerPick'
 import { caseIconIn, caseLine } from '@game/logic/endCase'
 import { managerLine } from '@game/logic/managers'
@@ -459,7 +460,7 @@ export function Summary() {
           )}
         </div>
         <div className="banner-actions">
-          <button className={`btn ${continuing ? '' : 'primary'}`} onClick={copy}>
+          <button className={`btn ${continuing || (q && !replay.playing && summaryMainCall(game, u) !== 'copy') ? '' : 'primary'}`} onClick={copy} data-testid="summary-copy">
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
           </button>
           <button className="btn" onClick={makeCard}>
