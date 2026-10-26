@@ -1,8 +1,11 @@
 import type { Game, GameSettings, Profile, QuickBests } from '../types'
-import type { PlayerSeason } from '@engine/types'
+import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
 import { DIFFICULTY_RESPINS, type DraftRules } from '@engine/draft'
+import { MORALE_LOG_CAP } from './happiness'
+import { cleanLocker } from './endCase'
+import { REPORTS_CAP, SCOUTED_CAP } from './scouting'
 
 /**
  * Draft rules written before the 38-0 options: the difficulty is read from hard mode (hard) or the
@@ -27,7 +30,7 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     ...g,
     settings,
     draft,
-    squad: g.squad ?? {},
+    squad: withMoraleLogs(g.squad ?? {}),
     contracts: g.contracts ?? {},
     customPlayers: withDepthAttributes(g.customPlayers ?? {}),
     lineup: g.lineup ?? {},
@@ -46,9 +49,25 @@ export function normaliseGame(g: Game | null | undefined): Game | null {
     jobOffers: g.jobOffers ?? [],
     pendingMove: g.pendingMove ?? null,
     quickResult: g.quickResult ?? null,
+    arena: g.arena ?? null,
     // A season paused for a January window that is not there cannot go on: back to the tactics step, which replays it
     phase: g.phase === 'january' && !g.quickJanuary ? 'kickoff' : g.phase,
+    ...recruitmentFields(g),
   }
+}
+
+/**
+ * Recruitment (FM-depth Batch 2) is optional throughout: a save from before it has none of these fields and every
+ * reader uses `??`. A list longer than its cap keeps its newest entries; a value of the wrong shape is dropped. A save
+ * that needs neither gets nothing back, so its fields stay exactly as they were.
+ */
+function recruitmentFields(g: Game): Partial<Game> {
+  const out: Partial<Game> = {}
+  if (g.scouted !== undefined && !(Array.isArray(g.scouted) && g.scouted.length <= SCOUTED_CAP)) out.scouted = Array.isArray(g.scouted) ? g.scouted.slice(-SCOUTED_CAP) : []
+  if (g.scoutReports !== undefined && !(Array.isArray(g.scoutReports) && g.scoutReports.length <= REPORTS_CAP)) out.scoutReports = Array.isArray(g.scoutReports) ? g.scoutReports.slice(0, REPORTS_CAP) : []
+  if (g.assignments !== undefined && !Array.isArray(g.assignments)) out.assignments = []
+  if (g.knowledge !== undefined && (typeof g.knowledge !== 'object' || g.knowledge === null)) out.knowledge = {}
+  return out
 }
 
 /**
@@ -74,6 +93,28 @@ function withDepthAttributes(players: Record<string, PlayerSeason>): Record<stri
 }
 
 /**
+ * The happiness log (`SquadPlayer.moraleLog`) is optional: a save from before it simply has none, and every reader
+ * uses `?? []`. A log that is not a list is dropped and one longer than the cap is trimmed to its newest entries; a
+ * squad that needs neither is returned as it was.
+ */
+function withMoraleLogs(squad: Record<string, SquadPlayer>): Record<string, SquadPlayer> {
+  let changed = false
+  const out: Record<string, SquadPlayer> = {}
+  for (const [id, s] of Object.entries(squad)) {
+    const log = s?.moraleLog
+    if (log === undefined || (Array.isArray(log) && log.length <= MORALE_LOG_CAP)) {
+      out[id] = s
+      continue
+    }
+    changed = true
+    const rest = { ...s }
+    delete rest.moraleLog
+    out[id] = Array.isArray(log) ? { ...rest, moraleLog: log.slice(-MORALE_LOG_CAP) } : rest
+  }
+  return changed ? out : squad
+}
+
+/**
  * A profile from any build: the defaults under whatever was saved, and the Quick Draft bests (added with the 38-0
  * chase) filled in, so a profile written before them reads as no perfect seasons and no run yet.
  */
@@ -81,5 +122,7 @@ export function normaliseProfile(p: Partial<Profile> | null | undefined, default
   const saved = p && typeof p === 'object' ? p : {}
   const b: QuickBests = saved.quickBests && typeof saved.quickBests === 'object' ? saved.quickBests : {}
   const quickBests: QuickBests = { perfectSeasons: b.perfectSeasons ?? 0, longestPerfectRun: b.longestPerfectRun ?? 0, ...(b.bestRecord ? { bestRecord: b.bestRecord } : {}) }
-  return { ...defaults, ...saved, quickBests }
+  // The locker (end-of-draft case drops): known power-ups with whole counts only; empty on a profile from before it
+  const inventory = cleanLocker(saved.inventory)
+  return { ...defaults, ...saved, quickBests, inventory }
 }

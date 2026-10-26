@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { Home } from './screens/Home'
 import { Setup } from './screens/Setup'
@@ -12,11 +12,19 @@ import { Explore } from './screens/Explore'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { HowTo } from './screens/HowTo'
 import { H2HScreen } from './screens/H2H'
+import { Arena } from './screens/Arena'
+import { ArenaSetup } from './screens/ArenaSetup'
+import { ArenaChallengeSetup } from './screens/ArenaChallengeSetup'
+import { isArenaPayload } from '@engine/challenge'
+import { ArenaSummary } from './screens/ArenaSummary'
+import { RunInSetup } from './screens/RunInSetup'
+import { RunInSummary } from './screens/RunInSummary'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
-import { clubName, ordinal } from './format'
+import { clubName, ordinal, outcomeClass } from './format'
+import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
 import { withViewTransition } from './motion'
@@ -26,7 +34,7 @@ import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dic
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
 
 export function App() {
-  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback } = useStore()
+  const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
@@ -38,6 +46,21 @@ export function App() {
   const barToggled = useRef(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const restoreRef = useRef<HTMLButtonElement>(null)
+  // The top bar's real height (one row or two) as --topbar-h, so whatever scrolls into view stops clear of it (U3, U22)
+  const [topbar, setTopbar] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    const root = document.documentElement
+    if (!topbar || barHidden) {
+      root.style.setProperty('--topbar-h', '0px')
+      return
+    }
+    const set = () => root.style.setProperty('--topbar-h', `${Math.ceil(topbar.getBoundingClientRect().height)}px`)
+    set()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(set)
+    ro.observe(topbar)
+    return () => ro.disconnect()
+  }, [topbar, barHidden])
   const flipBar = () => {
     barToggled.current = true
     toggleBar()
@@ -147,16 +170,17 @@ export function App() {
   // Setup and the match day keep their own layouts
   let shell = screen === 'home' || screen === 'h2h' || screen === 'explore' || screen === 'profile' || screen === 'howto'
   if (screen === 'game' && game) {
-    shell = game.phase !== 'match'
+    // An arena shoot-out waiting for its takers is a shell screen too (`.page.fit`)
+    shell = game.phase !== 'match' || !!game.arena?.pending
     if (game.phase === 'draft') body = <Draft />
     else if (game.phase === 'kickoff') body = <KickOff />
     // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
     // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
     else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
     else if (game.phase === 'match') body = <MatchScreen />
-    else if (game.phase === 'summary') body = <Summary />
-    else body = <Dugout />
-  } else if (screen === 'setup') body = <Setup />
+    else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
+    else body = game.arena ? <Arena /> : <Dugout />
+  } else if (screen === 'setup') body = setupMode === 'runin' ? <RunInSetup /> : setupMode === 'arena' ? (pendingChallenge && isArenaPayload(pendingChallenge.payload) ? <ArenaChallengeSetup /> : <ArenaSetup />) : <Setup />
   else if (screen === 'h2h') body = <H2HScreen />
   else if (screen === 'explore') body = <Explore />
   else if (screen === 'profile') body = <ProfileScreen />
@@ -165,7 +189,7 @@ export function App() {
 
   return (
     <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`}>
-      <header className="topbar" inert={barHidden} aria-hidden={barHidden || undefined}>
+      <header className="topbar" ref={setTopbar} inert={barHidden} aria-hidden={barHidden || undefined}>
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
@@ -177,7 +201,7 @@ export function App() {
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
-              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : 'Dugout'}</span>
+              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
             </button>
           )}
           <button className={screen === 'h2h' ? 'active' : ''} onClick={() => nav('h2h')}>
@@ -280,7 +304,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         {d.results.map((r, i) => (
           <span
             key={i}
-            className={`chip ${r.outcome === 'W' ? 'good' : r.outcome === 'L' ? 'bad' : ''} ${r.comp !== 'league' ? 'cup' : ''}`}
+            className={`chip ${outcomeClass(r.outcome)} ${r.comp !== 'league' ? 'cup' : ''}`}
             title={`${r.comp === 'league' ? `Matchweek ${r.matchweek}` : `${r.roundLabel ?? 'Cup tie'} after matchweek ${r.matchweek}`}: ${r.home ? 'v' : 'at'} ${clubName(u, r.opponentId)} ${r.gf}-${r.ga}${r.penalties ? ` (${r.penalties.gf}-${r.penalties.ga} on penalties)` : ''}`}
           >
             <ClubBadge clubId={r.opponentId} size={18} />
@@ -294,7 +318,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
       </div>
       <div data-testid="digest-table">
         <b>
-          {league.length ? `${tally.W}W ${tally.D}D ${tally.L}L · ` : ''}
+          {league.length ? <><span className="res-w">{tally.W}W</span> <span className="res-d">{tally.D}D</span> <span className="res-l">{tally.L}L</span> · </> : ''}
           {d.fromMatchweek === 0 ? `${ordinal(d.positionTo)} in the table` : move === 'level' ? `Still ${ordinal(d.positionTo)}` : `${ordinal(d.positionFrom)} to ${ordinal(d.positionTo)}`}, {d.points} point{d.points === 1 ? '' : 's'}
         </b>
         <span className="muted"> from {league.length} league match{league.length === 1 ? '' : 'es'}</span>
@@ -358,11 +382,34 @@ function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNod
   if (!items.length) return null
   return (
     <DigestGroup title={title} icon={icon} count={items.length}>
-      {items.slice(0, DIGEST_GROUP_CAP).map((n, i) => (
-        <li key={i}>
-          <b>{n.title}</b> <span className="muted">{n.body}</span>
-        </li>
-      ))}
+      {items.slice(0, DIGEST_GROUP_CAP).map((n, i) => {
+        // A development report lists a dozen players: up and down as two short lists, five names each
+        const dev = n.kind === 'training' ? developmentLists(n.body) : null
+        if (!dev) {
+          return (
+            <li key={i}>
+              <b>{n.title}</b> <span className="muted">{n.body}</span>
+            </li>
+          )
+        }
+        return (
+          <li key={i} className="dev-report">
+            <b>{n.title}</b>
+            {(
+              [
+                ['Improving', dev.improving, 'res-w'],
+                ['Fading', dev.fading, 'res-l'],
+              ] as const
+            ).map(([label, list, cls]) =>
+              list.length ? (
+                <div key={label} className="dev-line small">
+                  <span className={cls}>{label}</span> <span className="muted">{list.slice(0, 5).join(' · ')}{list.length > 5 ? ` · +${list.length - 5} more` : ''}</span>
+                </div>
+              ) : null,
+            )}
+          </li>
+        )
+      })}
     </DigestGroup>
   )
 }

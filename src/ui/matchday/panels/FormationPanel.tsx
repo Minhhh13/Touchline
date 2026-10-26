@@ -6,6 +6,7 @@
  */
 import { getFormation } from '@engine/formations'
 import { tacticsAt } from '@engine/matchFeed'
+import { DEFAULT_ROLE, getRole } from '@engine/roles'
 import { roleCode, surname } from '../../match/shirts'
 import { Shirt } from '../Shirt'
 import { VerticalPitch } from '../VerticalPitch'
@@ -47,7 +48,7 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}
               aria-pressed={selected}
-              title={`${name ?? 'Empty'}${s.subbedOn ? `, on ${s.onAt}'` : ''}`}
+              title={`${name ?? 'Empty'} · ${getRole(tactics.roles[s.slotId] ?? DEFAULT_ROLE[s.position]).name}${rating === undefined ? '' : ` · ${rating.toFixed(1)}`}${s.subbedOn ? `, on ${s.onAt}'` : ''}`}
             >
               <span className="md-man-shirt">
                 <Shirt colour={s.position === 'GK' ? view.keeper : view.colour} number={s.psId ? view.numbers[s.psId] : undefined} size={24} dim={s.out} />

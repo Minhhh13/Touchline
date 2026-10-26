@@ -76,7 +76,9 @@ export function Explore() {
   const season = Math.max(pickedSeason, firstShown)
   const table = u.tables[leagueId]?.[season] ?? []
   const clubsInSeason = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === season).sort((a, b) => (a.position || 99) - (b.position || 99))
-  const selected = clubId ? u.clubSeasonByKey[`${clubId}@${season}`] : undefined
+  // Nothing picked yet: open on the champions (or the first club listed), so the squad panel is never an empty box
+  const shownClubId = clubId || (clubsInSeason.find((cs) => cs.champions) ?? clubsInSeason[0])?.clubId || ''
+  const selected = shownClubId ? u.clubSeasonByKey[`${shownClubId}@${season}`] : undefined
   const seasonEstimated = clubsInSeason.some((cs) => cs.estimated)
 
   return (
@@ -94,7 +96,7 @@ export function Explore() {
         </button>
       </div>
       <div className="screen-body fill">
-      <div className="explore-bar">
+      <div className={`explore-bar ${view === 'search' ? 'all-leagues' : ''}`}>
         <div className="segmented" role="group" aria-label="League">
           {u.available.map((l) => (
             <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { setLeagueId(l.id); setClubId(''); void ensureLeagues([l.id]) }} disabled={loadingLeagues}>
@@ -102,6 +104,7 @@ export function Explore() {
             </button>
           ))}
         </div>
+        {view === 'search' && <span className="chip info" data-testid="search-all-leagues">Search covers every league</span>}
         {loadingLeagues && <span className="chip">Loading league…</span>}
         {!loadedLeagues.includes(leagueId) && !loadingLeagues && <span className="chip warn">Loading…</span>}
       </div>
@@ -136,6 +139,11 @@ export function Explore() {
                 <EstimatedChip compact /> Real squads and table; ratings are TouchLine's estimate.
               </p>
             )}
+            {table.length === 0 && clubsInSeason.length > 0 && (
+              <p className="help" style={{ marginTop: 0 }} data-testid="explore-no-table">
+                No final table in the data for this league, so the clubs are not ranked.
+              </p>
+            )}
             <div className="tbl-wrap">
             <table className="tbl">
               <thead>
@@ -153,7 +161,7 @@ export function Explore() {
                   const top11 = cs.squad.slice(0, 11)
                   const avg = top11.length ? top11.reduce((s, p) => s + p.overall, 0) / top11.length : 0
                   return (
-                    <tr key={cs.clubId} className={`clickable ${clubId === cs.clubId ? 'me' : ''}`} onClick={() => setClubId(cs.clubId)}>
+                    <tr key={cs.clubId} className={`clickable ${shownClubId === cs.clubId ? 'me' : ''}`} onClick={() => setClubId(cs.clubId)}>
                       <td>{cs.position || '–'}</td>
                       <td>
                         <span className="row" style={{ gap: 8 }}>
@@ -235,27 +243,41 @@ export function Explore() {
               ))}
             </div>
           </div>
+          <div className="legend-row legend-head" aria-hidden="true">
+            <span>#</span>
+            <span>Rtg</span>
+            <span className="lg-name">Player</span>
+            <span className="lg-age">Age</span>
+            <span className="lg-pos">Pos</span>
+            <span className="lg-club">Club</span>
+            <span className="lg-season">Season</span>
+            <span className="lg-star" title="Shortlist">
+              <StarIcon size={14} aria-hidden="true" />
+            </span>
+          </div>
           {legends.map((p, i) => (
             <div key={p.id} className="legend-row">
               <span className="muted">{i + 1}</span>
               <Rating value={p.overall} />
-              <span>
+              <span className="lg-name">
                 <button type="button" className="link-btn" onClick={() => setCareerId(p.playerId)} title="Career">
                   {p.name}
-                </button>{' '}
-                <span className="muted small">{p.age}y</span>{' '}
+                </button>
+              </span>
+              <span className="lg-age muted small">{p.age}</span>
+              <span className="lg-pos">
                 {p.positions.map((x) => (
                   <Pos key={x} p={x} />
                 ))}
               </span>
-              <span className="row small" style={{ gap: 6 }}>
-                <ClubBadge clubId={p.clubId} size={18} /> {clubName(u, p.clubId)}
+              <span className="lg-club row small" style={{ gap: 6 }}>
+                <ClubBadge clubId={p.clubId} size={18} /> <span className="ellipsis">{clubName(u, p.clubId)}</span>
               </span>
-              <span className="small muted">
+              <span className="lg-season small muted">
                 {seasonLabel(p.season)}
                 {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
               </span>
-              <button type="button" className="btn sm ghost" onClick={() => toggleShortlist(p.id)} title="Shortlist" aria-label={shortlist.includes(p.id) ? 'Remove from shortlist' : 'Shortlist'} aria-pressed={shortlist.includes(p.id)}>
+              <button type="button" className="lg-star btn sm ghost" onClick={() => toggleShortlist(p.id)} title={shortlist.includes(p.id) ? 'On your shortlist' : 'Shortlist'} aria-label={shortlist.includes(p.id) ? 'Remove from shortlist' : 'Shortlist'} aria-pressed={shortlist.includes(p.id)}>
                 <Star on={shortlist.includes(p.id)} />
               </button>
             </div>

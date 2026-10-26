@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import type { SeasonTier } from '@engine/types'
 
 /*
  * TouchLine's own illustrations, drawn inline (no downloaded art): a neon flow of cyan-to-magenta curves, and
@@ -334,5 +335,149 @@ export function ModeArt({ kind }: { kind: ModeArtKind }) {
         </g>
       )}
     </Scene>
+  )
+}
+
+export type ResultArtKind = 'trophy' | 'stadium' | 'rain'
+
+/** The scene for a season's tier: a trophy for a title (or better), rain for the drop zone, the ground for the rest. */
+export function resultArtKind(tier: SeasonTier): ResultArtKind {
+  if (tier === 'PERFECT' || tier === 'INVINCIBLE' || tier === 'CHAMPIONS') return 'trophy'
+  if (tier === 'RELEGATED' || tier === 'RELEGATION_BATTLE') return 'rain'
+  return 'stadium'
+}
+
+/** A ball in outline only, for the sketches: the rim, the centre panel and the seams out to the edge. */
+function SketchBall({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  const pt = (deg: number, rr: number) => {
+    const a = (deg - 90) * (Math.PI / 180)
+    return [cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]
+  }
+  const centre = [0, 72, 144, 216, 288].map((d) => pt(d, r * 0.38))
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={r} />
+      <polygon points={centre.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')} />
+      {[0, 72, 144, 216, 288].map((d, i) => {
+        const [x1, y1] = centre[i]
+        const [x2, y2] = pt(d, r * 0.97)
+        return <path key={d} d={`M ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x2.toFixed(1)} ${y2.toFixed(1)}`} />
+      })}
+    </g>
+  )
+}
+
+/** A floodlight in outline: the lattice pole, the lamp head and two dashed beams. */
+function SketchFloodlight({ x, top, foot, lean }: { x: number; top: number; foot: number; lean: 1 | -1 }) {
+  return (
+    <g>
+      <path d={`M ${x - 5} ${top + 30} L ${x - 9} ${foot} M ${x + 5} ${top + 30} L ${x + 9} ${foot}`} />
+      {[0, 1, 2, 3].map((i) => {
+        const y = top + 44 + i * ((foot - top - 50) / 4)
+        return <path key={i} d={`M ${x - 6} ${y} L ${x + 7} ${y + 22} M ${x + 6} ${y} L ${x - 7} ${y + 22}`} />
+      })}
+      <rect x={x - 26} y={top} width={52} height={30} rx={7} />
+      {[0, 1, 2].map((i) => (
+        <circle key={i} cx={x - 15 + i * 15} cy={top + 15} r={5} />
+      ))}
+      <path className="sk-faint" d={`M ${x + lean * 10} ${top + 34} L ${x + lean * 90} ${foot + 30} M ${x - lean * 6} ${top + 34} L ${x + lean * 40} ${foot + 44}`} strokeDasharray="6 9" />
+    </g>
+  )
+}
+
+/** The bowl of a ground in outline: the rim, two rows of seats, the roof over the far side and the pitch inside. */
+function SketchBowl({ y }: { y: number }) {
+  return (
+    <g>
+      <path d={`M 30 ${y} C 40 ${y - 70}, 360 ${y - 70}, 370 ${y} C 370 ${y + 50}, 30 ${y + 50}, 30 ${y} Z`} />
+      <path d={`M 52 ${y - 2} C 64 ${y - 50}, 336 ${y - 50}, 348 ${y - 2}`} />
+      <path d={`M 76 ${y + 2} C 90 ${y - 32}, 310 ${y - 32}, 324 ${y + 2}`} />
+      <path d={`M 96 ${y + 8} C 110 ${y - 16}, 290 ${y - 16}, 304 ${y + 8} C 296 ${y + 30}, 104 ${y + 30}, 96 ${y + 8} Z`} />
+      <path d={`M 200 ${y - 10} L 200 ${y + 26}`} />
+      <ellipse cx={200} cy={y + 9} rx={18} ry={7} />
+      <path d={`M 60 ${y - 40} C 120 ${y - 86}, 280 ${y - 86}, 340 ${y - 40} L 334 ${y - 30} C 276 ${y - 70}, 124 ${y - 70}, 66 ${y - 30} Z`} />
+      {[110, 160, 200, 240, 290].map((x) => (
+        <path key={x} d={`M ${x} ${y - 66 + Math.abs(x - 200) * 0.12} L ${x} ${y - 52 + Math.abs(x - 200) * 0.12}`} />
+      ))}
+    </g>
+  )
+}
+
+/** A cloud in outline, three bumps on a flat base, with its rain falling at a slant. */
+function SketchCloud({ x, y, s }: { x: number; y: number; s: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`}>
+      <path d="M -60 20 C -78 20, -80 -6, -58 -8 C -58 -32, -24 -38, -14 -20 C -4 -44, 40 -42, 42 -14 C 66 -16, 72 20, 50 20 Z" />
+      {[-44, -22, 0, 22, 44].map((dx, i) => (
+        <path key={dx} className="sk-faint" d={`M ${dx} ${32 + (i % 2) * 10} l -8 22`} />
+      ))}
+      {[-34, -10, 14, 36].map((dx, i) => (
+        <path key={dx} className="sk-faint" d={`M ${dx} ${70 + (i % 2) * 12} l -8 22`} />
+      ))}
+    </g>
+  )
+}
+
+/**
+ * The summary banner's faint sketch: line art only, in one ink (--sketch-line), kept back by --sketch-opacity so
+ * the result reads over it. A trophy and confetti for a title, the floodlit ground for a season in between, rain
+ * clouds over the ground for the drop. Every scene stands on the same pitch arc with a ball. Decoration only.
+ */
+export function ResultArt({ kind }: { kind: ResultArtKind }) {
+  const id = useDefs('result')
+  return (
+    <svg className={`art result-art ${kind}`} viewBox="0 0 400 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" data-testid="result-art" data-kind={kind}>
+      <defs>
+        <SharedDefs id={id} blur={0} wobble={2.2} />
+      </defs>
+      <g className="sk" filter={`url(#${id.sketch})`}>
+        {/* The pitch arc and the box line it sits on, with the ball beside it */}
+        <path d="M 10 520 L 390 520" />
+        <path d="M 120 520 C 130 470, 270 470, 280 520" />
+        <path d="M 60 520 L 60 556 M 340 520 L 340 556" />
+        <circle cx={200} cy={538} r={2.5} />
+        <SketchBall cx={330} cy={486} r={20} />
+        <path className="sk-faint" d="M 300 478 q -16 -2 -28 6 M 302 494 q -14 0 -24 8" />
+        {kind === 'stadium' && (
+          <g>
+            <SketchFloodlight x={56} top={150} foot={350} lean={1} />
+            <SketchFloodlight x={344} top={150} foot={350} lean={-1} />
+            <SketchBowl y={400} />
+          </g>
+        )}
+        {kind === 'rain' && (
+          <g>
+            <SketchBowl y={420} />
+            <SketchCloud x={130} y={190} s={1.15} />
+            <SketchCloud x={290} y={250} s={0.9} />
+            <path className="sk-faint" d="M 150 470 c 10 -6 30 -6 40 0 M 230 478 c 8 -5 22 -5 30 0" />
+          </g>
+        )}
+        {kind === 'trophy' && (
+          <g>
+            {/* The cup: bowl, handles, stem, the plinth and a shine on the bowl */}
+            <path d="M 140 170 L 260 170 C 262 250, 240 290, 200 298 C 160 290, 138 250, 140 170 Z" />
+            <path d="M 142 186 C 100 184, 96 244, 152 252 M 258 186 C 300 184, 304 244, 248 252" />
+            <path d="M 186 298 L 214 298 L 220 340 L 180 340 Z" />
+            <rect x={160} y={340} width={80} height={26} rx={5} />
+            <rect x={150} y={366} width={100} height={30} rx={6} />
+            <path className="sk-faint" d="M 162 190 C 162 230, 172 258, 190 274" />
+            <path d="M 176 380 L 224 380" />
+            {/* The confetti: strips, discs and curls, never stars */}
+            <g className="confetti">
+              {[[70, 120, 20], [118, 70, -30], [300, 96, 40], [340, 160, -15], [58, 230, 60], [330, 250, -50], [240, 60, 10], [96, 320, 25], [312, 336, -35]].map(([x, y, r], i) => (
+                <rect key={i} className={`cf c${i % 3}`} x={x - 7} y={y - 3} width={14} height={6} rx={2} transform={`rotate(${r} ${x} ${y})`} />
+              ))}
+              {[[150, 110], [270, 130], [40, 170], [366, 210], [80, 280], [350, 300], [200, 92]].map(([x, y], i) => (
+                <circle key={i} className={`cf c${(i + 1) % 3}`} cx={x} cy={y} r={4} />
+              ))}
+              <path className="cf-curl" d="M 100 160 q 10 -14 20 0 t 20 0" />
+              <path className="cf-curl" d="M 270 200 q 10 -14 20 0 t 20 0" />
+              <path className="cf-curl" d="M 180 50 q 10 -14 20 0 t 20 0" />
+            </g>
+          </g>
+        )}
+      </g>
+    </svg>
   )
 }

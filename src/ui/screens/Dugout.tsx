@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Check, GraduationCap, Globe, Medal, MessageSquare, Star, TrendingDown, TrendingUp, X } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Check, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
 import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from '@engine/season'
 import { getFormation } from '@engine/formations'
@@ -11,13 +11,15 @@ import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
 import { canCover, ratingAt } from '@engine/positions'
 import { teamStrength } from '@game/logic/squad'
-import { SQUAD_CAP, suggestedStatus } from '@game/logic/marketOps'
+import { SELL_ON_OPTIONS, SQUAD_CAP, sellOnValue, suggestedStatus } from '@game/logic/marketOps'
+import { canFullScout, focusActive, maskedView } from '@game/logic/scouting'
 import { recentShare, statusOf } from '@game/logic/week'
 import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
+import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { Pitch, PitchLegend } from '../components/Pitch'
@@ -30,12 +32,22 @@ import { SQUAD_COLUMNS } from '../components/AttributePanel'
 import { PlayerCardModal } from '../components/PlayerCard'
 import { careerSeasons } from '@game/logic/playerCard'
 import { LeagueFlag } from '../components/Flag'
-import { clubName, clubShort, money, moraleWord, ordinal, seasonLabel, wage } from '../format'
-import type { Position, TableRow } from '@engine/types'
+import { roleCode } from '../match/shirts'
+import { clubName, clubShort, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
+import type { PlayerSeason, Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
+import { RunInBanner } from '../components/RunInBanner'
+import { DressingRoomTab } from './DressingRoomTab'
+import { PlannerTab } from './PlannerTab'
+import { InboxActions } from '../components/InboxActions'
+import { HappinessCard } from '../components/Happiness'
+import { personalityOf } from '@game/logic/personality'
+import { RecruitmentPanel, ScoutModal, ScoutReportsPanel } from './Recruitment'
+import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_BUDGET, SHIFT_LIMIT, SHIFT_WAGE, wageRoom } from '@game/logic/board'
+import { ContractCard, ContractTalks } from '../components/ContractTalks'
 
 type Tab = DugoutTab
 
@@ -75,11 +87,14 @@ export function Dugout() {
   // Above the early return, so the hooks run in the same order on every render
   const fixtures = game?.season?.fixtures
   const ai = game?.season?.ai
-  const table = useMemo(() => (fixtures && ai ? computeTable(fixtures, [USER_TEAM, ...Object.keys(ai)]) : []), [fixtures, ai])
+  // A run-in's table carries the points the clubs had when the manager took over
+  const carryIn = game?.season?.carryIn
+  const table = useMemo(() => (fixtures && ai ? computeTable(fixtures, [USER_TEAM, ...Object.keys(ai)], carryIn) : []), [fixtures, ai, carryIn])
   if (!u || !game || !game.season) return null
   const season = game.season
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
+
   const pos = positionOf(table, USER_TEAM)
   const row = table.find((r) => r.teamId === USER_TEAM)!
   const next = nextOpponent(game)
@@ -92,6 +107,9 @@ export function Dugout() {
   const openOffers = game.window?.offers.filter((o) => o.status === 'open').length ?? 0
   const briefing = weeklyBriefing(game, u)
   const headline = briefingHeadline(briefing)
+  // Highlights: the stop the last run made (only while the game still stands where it stopped) and whether the next week is itself one
+  const stopped = store.simStop && store.simStop.gameId === game.id && store.simStop.year === game.year && store.simStop.matchweek === season.matchweek ? store.simStop.stop : null
+  const bigNext = done ? null : nextStop(game, u)
   const act = (a: BriefingAction) => {
     if (a.op === 'autoPick') store.autoPick()
     else if (a.op === 'friendly') store.playFriendly()
@@ -113,7 +131,7 @@ export function Dugout() {
   })
 
   return (
-    <div className={`page ${done ? '' : 'has-bottom-bar'}`} style={!done && barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
+    <div className={`page dugout-page ${done ? '' : 'has-bottom-bar'}`} style={!done && barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       {/* Header */}
       <div className="panel club-header">
         <div className="club-head">
@@ -142,6 +160,7 @@ export function Dugout() {
         </div>
       </div>
 
+      <RunInBanner />
       {/* Next match CTA: the fixture, the assistant's briefing and the buttons (a fixed bottom bar on phones) */}
       {!done && (
         <div className="panel cta" data-testid="cta">
@@ -164,6 +183,12 @@ export function Dugout() {
                     <span>{STYLE_LABEL[u.clubById[next.clubId]?.style ?? 'balanced']} side</span>
                     <span>{ordinal(positionOf(table, next.clubId))}</span>
                     {u.clubById[season.hostClubId]?.rivals.includes(next.clubId) && <span className="chip warn">Derby</span>}
+                    {/* Season Highlights: why the last Sim to the next big match stopped here (a chip, so the box keeps its height) */}
+                    {stopped && (
+                      <span className="chip info" data-testid="sim-stop" title={stopLine(stopped, u)}>
+                        ⏸ {stopped.label}
+                      </span>
+                    )}
                     {cupTie && <span>then {cupTie.label} {cupTie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} {clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId)} midweek</span>}
                   </div>
                 </div>
@@ -171,7 +196,14 @@ export function Dugout() {
             ) : (
               <div className="cta-fixture">
                 <div>
-                  <div className="eyebrow">Matchweek {season.matchweek + 1}</div>
+                  <div className="eyebrow">
+                    Matchweek {season.matchweek + 1}
+                    {stopped && (
+                      <span className="chip info" data-testid="sim-stop" title={stopLine(stopped, u)} style={{ marginLeft: 8 }}>
+                        ⏸ {stopped.label}
+                      </span>
+                    )}
+                  </div>
                   <div className="cta-title">
                     Free weekend <Info label="Why a free weekend">An odd number of clubs means everyone sits one round out.</Info>
                   </div>
@@ -219,6 +251,9 @@ export function Dugout() {
                 {preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
+              <button className="btn" data-testid="sim-big" onClick={() => store.simToNextBigMatch()} disabled={!!game.pendingEvent || !!bigNext} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
+                {bigNext ? `${bigNext.label} next` : simToLabel(game, u)}
+              </button>
               <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
                 Sim 5
               </button>
@@ -237,9 +272,11 @@ export function Dugout() {
         tabs={[
           { id: 'squad', label: 'Squad' },
           { id: 'tactics', label: 'Tactics' },
+          { id: 'dressing', label: 'Dressing room' },
+          { id: 'planner', label: 'Planner' },
           { id: 'fixtures', label: 'Fixtures' },
           { id: 'table', label: 'Table' },
-          { id: 'cup', label: 'Cup' },
+          ...(season.cup.length ? [{ id: 'cup' as const, label: 'Cup' }] : []),
           ...(season.continental ? [{ id: 'europe' as const, label: 'Europe' }] : []),
           { id: 'stats', label: 'Stats' },
           { id: 'market', label: 'Market', alert: !!game.window && (openOffers > 0 || game.window.day === 0) },
@@ -351,7 +388,7 @@ export function Dugout() {
                   ))}
                 </span>
               </div>
-              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} />
+              <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} roleCodes={Object.fromEntries(formation.slots.map((s) => [s.id, roleCode(game.tactics, s.id, s.position)]))} />
               {showKey && <PitchLegend />}
               {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.join(', ')}</div>}
             </div>
@@ -408,13 +445,23 @@ export function Dugout() {
       )}
 
       {tab === 'tactics' && <TacticsTab />}
+      {tab === 'dressing' && <DressingRoomTab onPlayer={onPlayerClick} />}
+      {tab === 'planner' && <PlannerTab onPlayer={onPlayerClick} />}
 
       {tab === 'fixtures' && (
         <div className="panel">
           <h3>Fixtures and results</h3>
           <div className="fixture-list">
+            {season.takeoverAt ? (
+              <div className="fixture me" data-testid="before-you-arrived">
+                <span className="mw">MW 1-{season.takeoverAt}</span>
+                <span className="muted small" style={{ gridColumn: '2 / -1' }}>
+                  Before you arrived: the table you took over is projected from the real final one.
+                </span>
+              </div>
+            ) : null}
             {season.fixtures
-              .filter((f) => f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)
+              .filter((f) => (f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM) && f.matchweek > (season.takeoverAt ?? 0))
               .sort((a, b) => a.matchweek - b.matchweek)
               .map((f) => {
                 const home = f.homeTeamId === USER_TEAM
@@ -422,18 +469,18 @@ export function Dugout() {
                 const r = f.result
                 const gf = r ? (home ? r.homeGoals : r.awayGoals) : null
                 const ga = r ? (home ? r.awayGoals : r.homeGoals) : null
-                const cls = gf === null ? '' : gf > ga! ? 'good' : gf === ga ? '' : 'bad'
+                const cls = gf === null || ga === null ? '' : outcomeClass(outcomeOf(gf, ga))
                 return (
                   <div key={f.matchweek} className="fixture me">
                     <span className="mw">MW {f.matchweek}</span>
                     <span className="h row" style={{ justifyContent: 'flex-end', gap: 6 }}>
-                      {home ? game.settings.teamName : clubName(u, opp)} {home ? null : <ClubBadge clubId={opp} size={18} />}
+                      {home ? <span className="fx-name">{game.settings.teamName}</span> : <FxName full={clubName(u, opp)} short={clubShort(u, opp)} />} {home ? null : <ClubBadge clubId={opp} size={18} />}
                     </span>
                     <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
                       {r ? `${r.homeGoals} - ${r.awayGoals}` : 'v'}
                     </span>
                     <span className="row" style={{ gap: 6 }}>
-                      {home ? <ClubBadge clubId={opp} size={18} /> : null} {home ? clubName(u, opp) : game.settings.teamName}
+                      {home ? <ClubBadge clubId={opp} size={18} /> : null} {home ? <FxName full={clubName(u, opp)} short={clubShort(u, opp)} /> : <span className="fx-name">{game.settings.teamName}</span>}
                     </span>
                   </div>
                 )
@@ -446,7 +493,7 @@ export function Dugout() {
         <div className="panel">
           <div className="panel-head">
             <span className="head-title">
-              <h3><LeagueFlag leagueId={season.leagueId} label={u.leagues.find((l) => l.id === season.leagueId)?.name} /> League table · {seasonLabel(season.leagueSeason)}</h3>
+              <h3><LeagueFlag leagueId={season.leagueId} label={u.leagues.find((l) => l.id === season.leagueId)?.name} /> League table · {seasonLabel(season.leagueSeason)}{season.carryIn ? ` · from MW ${season.takeoverAt}, projected` : ''}</h3>
               <Info label="About the table">The other clubs field their real squads from that season, with their own injuries and form.</Info>
             </span>
           </div>
@@ -478,6 +525,7 @@ export function Dugout() {
                   <span>
                     <div className="t">{n.title}</div>
                     <div className="b">{n.body}</div>
+                    <InboxActions item={n} game={game} onAction={act} />
                   </span>
                   <span className="news-mw">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
                 </div>
@@ -492,10 +540,10 @@ export function Dugout() {
           </div>
         </div>
       )}
-      {tab === 'club' && <ClubTab table={table} />}
+      {tab === 'club' && <ClubTab table={table} onPlayer={onPlayerClick} />}
       </div>
 
-      <PlayerModal id={playerModal} onClose={() => setPlayerModal(null)} />
+      <PlayerModal key={playerModal ?? 'none'} id={playerModal} onClose={() => setPlayerModal(null)} />
       <SlotSheet slotId={sheetSlot} onClose={() => setSheetSlot(null)} />
     </div>
   )
@@ -578,33 +626,66 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
   )
 }
 
-/** The assistant's briefing: one line per thing to do, with the button that does it. */
-function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
-  if (items.length === 0) return null
+/** A club's name in a fixture or cup row: the full name, or on a phone the short one, with the full name in the tooltip. */
+function FxName({ full, short }: { full: string; short: string }) {
   return (
-    <ul className={`briefing ${checklist ? 'checklist' : ''}`} data-testid="briefing">
-      {items.map((item) => (
-        <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
-          <span className="icon" aria-hidden="true">
-            <BriefingIcon item={item} size={15} />
-          </span>
-          <span className="text">
-            {item.text}
-            {item.hint && <Info label={`About: ${item.text}`}>{item.hint}</Info>}
-          </span>
-          {/* Play friendly is the panel's own button, so the checklist line does not repeat it */}
-          {item.action && item.action.op !== 'friendly' && (
-            <button className="btn sm" onClick={() => onAction(item.action!)}>
-              {item.action.label}
-            </button>
-          )}
-        </li>
-      ))}
-    </ul>
+    <span className={`fx-name ${short && short !== full ? 'has-short' : ''}`} title={full}>
+      <span className="fx-full">{full}</span>
+      <span className="fx-short">{short}</span>
+    </span>
   )
 }
 
-function TacticsTab() {
+/**
+ * The assistant's briefing: one line per thing to do, with the button that does it. On a short desktop window
+ * (styles.css) only the first line shows, with a "+n more" button that opens the rest over the tab rather than
+ * pushing the tab's box down; elsewhere the toggle is hidden and every line shows.
+ */
+function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; onAction: (a: BriefingAction) => void; checklist?: boolean }) {
+  const [open, setOpen] = useState(false)
+  if (items.length === 0) return null
+  const line = (item: BriefingItem, toggle?: ReactNode) => (
+    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
+      <span className="icon" aria-hidden="true">
+        <BriefingIcon item={item} size={15} />
+      </span>
+      <span className="text">
+        {item.text}
+        {item.hint && <Info label={`About: ${item.text}`}>{item.hint}</Info>}
+      </span>
+      {/* Play friendly is the panel's own button, so the checklist line does not repeat it */}
+      {item.action && item.action.op !== 'friendly' ? (
+        <button className="btn sm" onClick={() => onAction(item.action!)}>
+          {item.action.label}
+        </button>
+      ) : (
+        <span />
+      )}
+      {toggle}
+    </li>
+  )
+  if (checklist || items.length === 1) {
+    return (
+      <div className="briefing-wrap" data-testid="briefing">
+        <ul className={`briefing ${checklist ? 'checklist' : ''}`}>{items.map((item) => line(item))}</ul>
+      </div>
+    )
+  }
+  const [first, ...rest] = items
+  const toggle = (
+    <button type="button" className="chip-btn brief-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)} data-testid="briefing-more">
+      {open ? 'Less' : `+${rest.length} more`}
+    </button>
+  )
+  return (
+    <div className={`briefing-wrap collapsible ${open ? 'open' : ''}`} data-testid="briefing">
+      <ul className="briefing">{line(first, toggle)}</ul>
+      <ul className="briefing brief-rest">{rest.map((item) => line(item))}</ul>
+    </div>
+  )
+}
+
+export function TacticsTab() {
   const store = useStore()
   const { universe: u, game } = store
   if (!u || !game) return null
@@ -783,13 +864,18 @@ function CupTab({ comp }: { comp: Competition }) {
                 const me = t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM
                 const name = (id: string) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))
                 return (
-                  <div key={i} className={`fixture ${me ? 'me' : ''}`}>
-                    <span className="mw">{t.result ? '' : 'v'}</span>
-                    <span className="h" style={{ fontWeight: t.winnerId === t.homeTeamId ? 700 : 400 }}>
-                      {name(t.homeTeamId)}
+                  <div key={i} className={`fixture ${me ? 'me' : ''}`} data-testid="cup-tie">
+                    <span className="mw">MW {r.afterMatchweek}</span>
+                    <span className="h row" style={{ justifyContent: 'flex-end', gap: 6, fontWeight: t.winnerId === t.homeTeamId ? 700 : 400 }}>
+                      {t.homeTeamId === USER_TEAM ? <span className="fx-name">{name(t.homeTeamId)}</span> : <FxName full={name(t.homeTeamId)} short={clubShort(u, t.homeTeamId)} />} {t.homeTeamId === USER_TEAM ? null : <ClubBadge clubId={t.homeTeamId} size={18} />}
                     </span>
-                    <span className="sc">{t.result ? `${t.result.homeGoals}-${t.result.awayGoals}${t.result.penalties ? ` (${t.result.penalties.home}-${t.result.penalties.away}p)` : ''}` : '–'}</span>
-                    <span style={{ fontWeight: t.winnerId === t.awayTeamId ? 700 : 400 }}>{name(t.awayTeamId)}</span>
+                    <span className={`sc chip ${me && t.result ? outcomeClass(t.winnerId === USER_TEAM ? 'W' : 'L') : ''}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                      {t.result ? `${t.result.homeGoals} - ${t.result.awayGoals}` : 'v'}
+                      {t.result?.penalties && <span className="pens">{t.result.penalties.home}-{t.result.penalties.away}p</span>}
+                    </span>
+                    <span className="row" style={{ gap: 6, fontWeight: t.winnerId === t.awayTeamId ? 700 : 400 }}>
+                      {t.awayTeamId === USER_TEAM ? null : <ClubBadge clubId={t.awayTeamId} size={18} />} {t.awayTeamId === USER_TEAM ? <span className="fx-name">{name(t.awayTeamId)}</span> : <FxName full={name(t.awayTeamId)} short={clubShort(u, t.awayTeamId)} />}
+                    </span>
                   </div>
                 )
               })}
@@ -814,9 +900,12 @@ function MarketTab() {
   const [years, setYears] = useState<Record<string, number>>({})
   const [statuses, setStatuses] = useState<Record<string, SquadStatus>>({})
   const [exchange, setExchange] = useState<Record<string, string>>({})
+  const [sellOn, setSellOn] = useState<Record<string, number>>({})
   const [filter, setFilter] = useState<'all' | Position>('all')
   const [msg, setMsg] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [scoutId, setScoutId] = useState<string | null>(null)
+  const [approach, setApproach] = useState(false)
   const results = useMemo(() => {
     if (!u || !game) return []
     const q = query.trim().toLowerCase()
@@ -833,13 +922,18 @@ function MarketTab() {
   const w = game.window
   const squad = squadPlayers(game, u)
   const scout = staffTier(game.staff, 'scout')
+  // What the club can see of a player outside the squad: a range until he is scouted (none for anyone known exactly)
+  const rangeOf = (p: PlayerSeason) => {
+    const v = maskedView(game, u, p)
+    return v.exact ? undefined : v.overall
+  }
   const shortlisted = store.shortlist.map((id) => u.index[id]).filter((p): p is NonNullable<typeof p> => !!p)
   const shortlistPanel = shortlisted.length > 0 && (
     <div className="panel">
       <div className="panel-head">
         <span className="head-title">
           <h3>Shortlist</h3>
-          <Info label="About the shortlist">Players you starred in Explore. {w ? 'Tap one to approach his club.' : 'Approach them when a window opens; tap one to remove it.'}</Info>
+          <Info label="About the shortlist">Players you starred in Explore or from a scout report. Tap one for his report: scout him, enquire when a window is open, or take him off the list.</Info>
         </span>
         <span className="chip">{shortlisted.length}</span>
       </div>
@@ -851,21 +945,13 @@ function MarketTab() {
               key={p.id}
               p={p}
               showClub
-              onClick={
-                w
-                  ? () => {
-                      const out = store.enquire(p.id)
-                      setMsg(out.message)
-                    }
-                  : () => store.toggleShortlist(p.id)
-              }
+              range={rangeOf(p)}
+              onClick={() => setScoutId(p.id)}
               right={
                 <span className="btn sm">
-                  {w ? (
-                    listed ? (listed.status === 'signed' ? 'Signed' : listed.status === 'gone' ? 'Gone' : money(listed.asking)) : 'Enquire'
-                  ) : (
+                  {w && listed ? (listed.status === 'signed' ? 'Signed' : listed.status === 'gone' ? 'Gone' : money(listed.asking)) : (
                     <>
-                      <Star size={14} aria-hidden="true" /> Remove
+                      <Star size={14} aria-hidden="true" /> Report
                     </>
                   )}
                 </span>
@@ -876,42 +962,52 @@ function MarketTab() {
       </div>
     </div>
   )
+  const scoutModal = <ScoutModal id={scoutId} onClose={() => setScoutId(null)} />
   if (!w) {
     return (
-      <div className="panel">
-        <h3>Transfer market</h3>
-        <div className="notice" style={{ marginBottom: 'var(--space-4)' }}>
-          Window closed: January opens at the halfway point.{' '}
-          <Info label="About transfer windows">The January window runs for seven market days, three per matchweek. In Dynasty mode a longer summer window opens between seasons.</Info>
+      <div className="grid three fill squad-views market-closed" data-testid="market-closed">
+        <div className="col">
+          <RecruitmentPanel onMessage={setMsg} />
+          {msg && <div className="notice">{msg}</div>}
         </div>
-        {shortlistPanel}
-        <h4 style={{ margin: 'var(--space-4) 0 var(--space-2)' }}>Squad values</h4>
-        <div className="tbl-wrap"><table className="tbl">
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th className="num">Value</th>
-              <th className="num">Wage</th>
-              <th className="num">Contract</th>
-            </tr>
-          </thead>
-          <tbody>
-            {squad
-              .sort((a, b) => b.p.value - a.p.value)
-              .map((x) => (
-                <tr key={x.p.id}>
-                  <td>
-                    <span className="row" style={{ gap: 6 }}>
-                      <Rating value={x.p.overall} /> {x.p.name}
-                    </span>
-                  </td>
-                  <td className="num">{money(x.p.value)}</td>
-                  <td className="num">{wage(x.p.wage)}</td>
-                  <td className="num">{game.contracts[x.p.id]?.loan ? 'Loan' : `${game.contracts[x.p.id]?.years ?? 1}y`}</td>
+        <ScoutReportsPanel onOpen={setScoutId} />
+        <div className="col">
+          <div className="notice">
+            Window closed: January opens at the halfway point.{' '}
+            <Info label="About transfer windows">The January window runs for seven market days, three per matchweek. In Dynasty mode a longer summer window opens between seasons.</Info>
+          </div>
+          {shortlistPanel}
+          <div className="panel">
+            <h3>Squad values</h3>
+            <div className="tbl-wrap"><table className="tbl">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th className="num">Value</th>
+                  <th className="num">Wage</th>
+                  <th className="num">Contract</th>
                 </tr>
-              ))}
-          </tbody>
-        </table></div>
+              </thead>
+              <tbody>
+                {squad
+                  .sort((a, b) => b.p.value - a.p.value)
+                  .map((x) => (
+                    <tr key={x.p.id}>
+                      <td>
+                        <span className="row" style={{ gap: 6 }}>
+                          <Rating value={x.p.overall} /> <span className="name one-line" title={x.p.name}>{x.p.name}</span>
+                        </span>
+                      </td>
+                      <td className="num">{money(x.p.value)}</td>
+                      <td className="num">{wage(x.p.wage)}</td>
+                      <td className="num">{game.contracts[x.p.id]?.loan ? 'Loan' : `${game.contracts[x.p.id]?.years ?? 1}y`}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+        {scoutModal}
       </div>
     )
   }
@@ -952,13 +1048,18 @@ function MarketTab() {
             return (
               <div key={l.playerSeasonId} className="listing">
                 <div>
-                  <PlayerRow p={p} showClub right={<span className="small muted">{wage(p.wage)}</span>} />
+                  <PlayerRow p={p} showClub range={rangeOf(p)} onClick={() => setScoutId(p.id)} right={<span className="small muted">{wage(p.wage)}</span>} />
                   <div className="tags">
                     {l.tags.map((t) => (
                       <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' || t === 'Scouted' ? 'good' : ''}`}>
                         {t}
                       </span>
                     ))}
+                    {rangeOf(p) && (
+                      <button type="button" className="chip-btn" data-testid="listing-scout" disabled={!canFullScout(game)} title={canFullScout(game) ? 'Full scout: reveal him exactly (one a market day)' : 'Your scout has watched someone today'} onClick={() => setMsg(store.scoutPlayer(p.id).message)}>
+                        Scout
+                      </button>
+                    )}
                     {scout > 0 &&
                       traitTags(p.traits).map((t) => (
                         <span key={t} className="chip" style={{ borderStyle: 'dashed' }} title="Scouting report">
@@ -974,7 +1075,7 @@ function MarketTab() {
                     <button
                       className="btn sm primary"
                       onClick={() => {
-                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], status: offered, exchangeId: exchange[l.playerSeasonId] || undefined })
+                        const out = store.bid(l.playerSeasonId, bid, { years: years[l.playerSeasonId], status: offered, exchangeId: exchange[l.playerSeasonId] || undefined, sellOn: sellOn[l.playerSeasonId] || undefined })
                         setMsg(out.message)
                       }}
                     >
@@ -1008,6 +1109,13 @@ function MarketTab() {
                           </option>
                         ))}
                     </select>
+                    <select className="input" value={sellOn[l.playerSeasonId] ?? 0} onChange={(e) => setSellOn({ ...sellOn, [l.playerSeasonId]: Number(e.target.value) })} title="Offer the selling club a share of his next sale: worth something to them now, paid when you sell him on" data-testid="bid-sell-on">
+                      {SELL_ON_OPTIONS.map((pct) => (
+                        <option key={pct} value={pct}>
+                          {pct ? `${Math.round(pct * 100)}% sell-on (+${money(sellOnValue(p, pct))})` : 'No sell-on'}
+                        </option>
+                      ))}
+                    </select>
                     {l.loanFee !== undefined && (
                       <button className="btn sm" onClick={() => setMsg(store.loan(l.playerSeasonId).message)} title="Season-long loan: small fee, full wages, back to his club in the summer">
                         Loan for {money(l.loanFee)}
@@ -1028,32 +1136,44 @@ function MarketTab() {
         </div>
       </div>
       <div className="col">
+        <RecruitmentPanel onMessage={setMsg} />
+        {(game.scoutReports ?? []).length > 0 && <ScoutReportsPanel onOpen={setScoutId} />}
         <div className="panel">
           <div className="panel-head">
             <span className="head-title">
               <h3>Approach any player</h3>
               <Info label="About approaches">Not on the market? Ask anyway. Clubs quote a premium for players they wanted to keep and refuse outright for their stars.</Info>
             </span>
+            {focusActive(game.recruitFocus) && (
+              <button type="button" className="btn sm" aria-expanded={approach} onClick={() => setApproach((v) => !v)} data-testid="approach-toggle">
+                {approach ? 'Hide' : 'Search'}
+              </button>
+            )}
           </div>
-          <input className="input" aria-label="Search players" placeholder="Search every player…" value={query} onChange={(e) => setQuery(e.target.value)} />
-          {results.length > 0 && (
-            <div className="plist lined scroll-list" style={{ marginTop: 'var(--space-2)' }}>
-              {results.map((p) => (
-                <PlayerRow
-                  key={p.id}
-                  p={p}
-                  showClub
-                  onClick={() => {
-                    const out = store.enquire(p.id)
-                    setMsg(out.message)
-                    if (out.ok) setQuery('')
-                  }}
-                  right={<span className="btn sm">Enquire</span>}
-                />
-              ))}
-            </div>
+          {(approach || !focusActive(game.recruitFocus)) && (
+            <>
+              <input className="input" aria-label="Search players" placeholder="Search every player…" value={query} onChange={(e) => setQuery(e.target.value)} />
+              {results.length > 0 && (
+                <div className="plist lined scroll-list" style={{ marginTop: 'var(--space-2)' }}>
+                  {results.map((p) => (
+                    <PlayerRow
+                      key={p.id}
+                      p={p}
+                      showClub
+                      range={rangeOf(p)}
+                      onClick={() => {
+                        const out = store.enquire(p.id)
+                        setMsg(out.message)
+                        if (out.ok) setQuery('')
+                      }}
+                      right={<span className="btn sm">Enquire</span>}
+                    />
+                  ))}
+                </div>
+              )}
+              {query.trim().length >= 2 && results.length === 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>No one by that name in this game's leagues and eras.</div>}
+            </>
           )}
-          {query.trim().length >= 2 && results.length === 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>No one by that name in this game's leagues and eras.</div>}
         </div>
         {shortlistPanel}
         <div className="panel">
@@ -1095,13 +1215,15 @@ function MarketTab() {
           </div>
         </div>
       </div>
+      {scoutModal}
     </div>
   )
 }
 
-function ClubTab({ table }: { table: TableRow[] }) {
+function ClubTab({ table, onPlayer }: { table: TableRow[]; onPlayer: (id: string) => void }) {
   const store = useStore()
   const { universe: u, game } = store
+  const [clubMsg, setClubMsg] = useState<string | null>(null)
   if (!u || !game?.season) return null
   const season = game.season
   const squad = squadPlayers(game, u)
@@ -1109,7 +1231,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
   const wages = playerWages + staffWages(game.staff)
   const host = u.clubById[season.hostClubId]
   return (
-    <div className="grid two club-grid">
+    <div className="grid three fill squad-views club-grid3" data-testid="club-tab">
+      <div className="col">
       <div className="panel">
         <h3>Board</h3>
         <div className="kv tight">
@@ -1161,6 +1284,10 @@ function ClubTab({ table }: { table: TableRow[] }) {
           </>
         )}
       </div>
+      <BoardRequests onMessage={setClubMsg} />
+      {clubMsg && <div className="notice">{clubMsg}</div>}
+      </div>
+      <div className="col">
       <div className="panel">
         <div className="panel-head">
           <span className="head-title">
@@ -1180,8 +1307,9 @@ function ClubTab({ table }: { table: TableRow[] }) {
           <dt>Spent on fees</dt>
           <dd>{money(game.finances.spent)}</dd>
           <dt>Wages paid</dt>
-          <dd>{money(game.finances.wagesPaid)}</dd>
+          <dd>{money(game.finances.wagesPaid)}{game.finances.bonusesPaid ? ` (bonuses ${money(game.finances.bonusesPaid)})` : ''}</dd>
         </div>
+        <WageSlider onMessage={setClubMsg} />
       </div>
       <div className="panel">
         <div className="panel-head">
@@ -1214,6 +1342,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
           })}
         </div>
       </div>
+      </div>
+      <div className="col">
       <div className="panel">
         <div className="panel-head">
           <span className="head-title">
@@ -1228,9 +1358,9 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <th className="num">Age</th>
               <th className="num">Years</th>
               <th>Status</th>
-              <th className="num">Minutes</th>
+              <th className="num" title="Share of the minutes over the last six matchweeks">Mins</th>
               <th>Morale</th>
-              <th></th>
+              <th className="end" aria-label="Release" title="Release" />
             </tr>
           </thead>
           <tbody>
@@ -1241,11 +1371,15 @@ function ClubTab({ table }: { table: TableRow[] }) {
               <tr key={x.p.id}>
                 <td>
                   <span className="row" style={{ gap: 6 }}>
-                    <Rating value={x.p.overall} /> <span className="name" title={x.p.name}>{x.p.name}</span>
+                    <Rating value={x.p.overall} />{' '}
+                    <button type="button" className="link-btn name" title={`${x.p.name}: details and contract talks`} onClick={() => onPlayer(x.p.id)} data-testid="contract-name">
+                      {x.p.name}
+                    </button>
+                    {game.contracts[x.p.id]?.shopped && <span className="chip warn" title="His agent is finding a buyer">Shopped</span>}
                   </span>
                 </td>
                 <td className="num">{x.p.age}</td>
-                <td className="num">{game.contracts[x.p.id]?.years ?? 1}</td>
+                <td className="num" title={game.contracts[x.p.id]?.clauses?.release ? `Release clause £${game.contracts[x.p.id]!.clauses!.release}M` : undefined}>{game.contracts[x.p.id]?.years ?? 1}{game.contracts[x.p.id]?.clauses?.release ? '*' : ''}</td>
                 <td>
                   <select className="input sm" data-testid="status-select" value={status} onChange={(e) => store.setStatus(x.p.id, e.target.value as SquadStatus)} title="Squad status: a promotion lifts morale 6 and his wage with it; a demotion costs 6 morale">
                     {STATUSES.map((st) => (
@@ -1260,8 +1394,8 @@ function ClubTab({ table }: { table: TableRow[] }) {
                 </td>
                 <td>{moraleWord(x.s.morale)}</td>
                 <td className="end">
-                  <button className="btn sm ghost danger" onClick={() => confirm(`Release ${x.p.name}? No fee is received.`) && store.release(x.p.id)}>
-                    Release
+                  <button className="btn sm ghost danger icon-only" aria-label={`Release ${x.p.name}`} title="Release: no fee is received" onClick={() => confirm(`Release ${x.p.name}? No fee is received.`) && store.release(x.p.id)}>
+                    <UserMinus size={14} aria-hidden="true" />
                   </button>
                 </td>
               </tr>
@@ -1320,6 +1454,93 @@ function ClubTab({ table }: { table: TableRow[] }) {
             ))}
         </div>
       </div>
+      </div>
+    </div>
+  )
+}
+
+/** The board requests box: what can be asked, the condition the board checks, and when the next ask is possible. */
+function BoardRequests({ onMessage }: { onMessage: (m: string) => void }) {
+  const store = useStore()
+  const { universe: u, game } = store
+  if (!u || !game?.season) return null
+  const season = game.season
+  const wait = nextRequestAt(game)
+  const confident = season.confidence >= REQUEST_CONFIDENCE
+  return (
+    <div className="panel" data-testid="board-requests">
+      <div className="panel-head">
+        <span className="head-title">
+          <h3 className="icon-title">
+            <Landmark size={18} aria-hidden="true" /> Requests
+          </h3>
+          <Info label="About board requests">The board grants a request when its confidence is {REQUEST_CONFIDENCE} or more and the condition holds; no dice. A refusal costs 2 confidence. One request every {REQUEST_GAP} matchweeks.</Info>
+        </span>
+        <span className={`chip ${confident ? 'good' : 'warn'}`}>Confidence {Math.round(season.confidence)}</span>
+      </div>
+      <div className="col" style={{ gap: 'var(--space-2)' }}>
+        {requestOptions(game, u).map((o) => (
+          <div key={o.kind} className="request-row" data-testid={`request-${o.kind}`}>
+            <span className="col" style={{ gap: 0, minWidth: 0 }}>
+              <b>{o.label}</b>
+              <span className="small muted">{o.ask}</span>
+              <span className={`small ${o.conditionMet ? 'good-text' : 'muted'}`}>
+                {o.conditionMet ? '✓' : '✗'} {o.condition}
+              </span>
+            </span>
+            <button className="btn sm" disabled={wait !== null} onClick={() => onMessage(store.boardRequest(o.kind).message)} title={wait !== null ? `Next request after matchweek ${wait - 1}` : confident && o.conditionMet ? 'The board will grant this' : 'The board will refuse this: −2 confidence'}>
+              Ask
+            </button>
+          </div>
+        ))}
+      </div>
+      {wait !== null && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Next request after matchweek {wait - 1}.</div>}
+      {(season.requests ?? []).length > 0 && (
+        <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>
+          This season: {season.requests!.map((r) => `${r.kind} ${r.accepted ? 'granted' : 'refused'} (MW ${r.mw})`).join(', ')}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The wage-to-transfer slider: each step moves £10k a week of wage cap against £2M of budget. */
+function WageSlider({ onMessage }: { onMessage: (m: string) => void }) {
+  const store = useStore()
+  const { universe: u, game } = store
+  if (!u || !game) return null
+  const net = game.finances.wageShift ?? 0
+  const move = (target: number) => {
+    let cur = net
+    while (cur !== target) {
+      const dir = target > cur ? 1 : -1
+      const out = store.shiftWages(dir)
+      if (!out.ok) {
+        onMessage(out.message)
+        return
+      }
+      cur += dir
+    }
+  }
+  return (
+    <div className="wage-slider" data-testid="wage-slider">
+      <div className="row between" style={{ gap: 'var(--space-2)' }}>
+        <span className="head-title">
+          <b className="small">Wages ⇄ transfers</b>
+          <Info label="About the slider">Slide right to turn £{SHIFT_WAGE}k a week of wage room into £{SHIFT_BUDGET}M of transfer budget; slide left to turn budget back into wage room. Up to {SHIFT_LIMIT} steps either way a season, within the room under the cap.</Info>
+        </span>
+        <span className="small mono">{net === 0 ? 'Level' : net > 0 ? `+${money(net * SHIFT_BUDGET)} budget` : `+${wage(-net * SHIFT_WAGE)} wages`}</span>
+      </div>
+      <div className="row" style={{ gap: 'var(--space-2)' }}>
+        <button type="button" className="btn sm ghost" aria-label="Budget into wages" onClick={() => move(net - 1)}>
+          −
+        </button>
+        <input type="range" min={-SHIFT_LIMIT} max={SHIFT_LIMIT} step={1} value={net} aria-label="Wage to transfer balance" onChange={(e) => move(Number(e.target.value))} data-testid="wage-range" />
+        <button type="button" className="btn sm ghost" aria-label="Wages into budget" onClick={() => move(net + 1)} data-testid="wage-to-budget">
+          +
+        </button>
+      </div>
+      <div className="small muted">Wage room {wage(Math.max(0, wageRoom(game, u)))}</div>
     </div>
   )
 }
@@ -1366,6 +1587,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
   const store = useStore()
   const { universe: u, game } = store
   const [talkMsg, setTalkMsg] = useState<string | null>(null)
+  const [talks, setTalks] = useState(false)
   if (!u || !game || !id) return null
   const get = playerLookup(game, u)
   const p = get(id)
@@ -1374,6 +1596,13 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
   const formation = getFormation(game.tactics.formationId)
   const dev = game.development?.[p.id]
   const share = s ? recentShare(s) : null
+  if (talks && s) {
+    return (
+      <Modal open onClose={onClose} title={`Contract talks: ${p.name}`} wide testId="talks-modal">
+        <ContractTalks id={id} onBack={() => setTalks(false)} />
+      </Modal>
+    )
+  }
   return (
     <PlayerCardModal
       title={p.name}
@@ -1396,7 +1625,6 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
               {share === null ? '' : ` · ${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}
             </span>
           )}
-          {s && <span className="chip">{game.contracts[p.id]?.loan ? 'On loan until the summer' : `Contract ${game.contracts[p.id]?.years ?? 1} season${(game.contracts[p.id]?.years ?? 1) === 1 ? '' : 's'}`}</span>}
           {s?.injury && <span className="chip bad">{s.injury.description}, {s.injury.weeksOut} wk</span>}
           {s && (s.yellowCards > 0 || s.suspension > 0) && (
             <span className={`chip ${s.suspension ? 'bad' : 'warn'}`}>
@@ -1406,6 +1634,7 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
           )}
         </>
       }
+      headExtra={<span className="chip" title={personalityOf(p).blurb} data-testid="personality">{personalityOf(p).label}</span>}
       actions={
         s && (
           <>
@@ -1445,6 +1674,14 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
             )}
           </>
         )
+      }
+      panels={
+        s
+          ? [
+              { id: 'happiness', label: 'Happiness', content: <HappinessCard s={s} /> },
+              { id: 'contract', label: 'Contract', content: <ContractCard id={p.id} onTalks={() => setTalks(true)} /> },
+            ]
+          : undefined
       }
     />
   )

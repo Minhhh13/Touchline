@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Star, Trophy } from 'lucide-react'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { useStore } from '@game/store'
@@ -8,7 +8,7 @@ import { MoraleFace } from '../matchday/MoraleFace'
 import { AttributePanel } from './AttributePanel'
 import { FormGraph, FormPills, PositionMap, SeasonChart } from './PlayerCharts'
 import { Bar, ClubBadge, EstimatedChip, Flag, Modal, Pos, Rating } from './bits'
-import { clubName, conditionColour, money, moraleWord, seasonLabel } from '../format'
+import { clubName, conditionColour, meterValue, money, moraleWord, seasonLabel } from '../format'
 
 export interface PlayerCardProps {
   /** The season the card describes: its attributes, positions and map (the squad's copy in the Dugout, the peak season in Explore). */
@@ -25,8 +25,8 @@ export interface PlayerCardProps {
   headExtra?: ReactNode
   /** The actions row under the boxes (Start at, To bench, Make captain, Have a word). */
   actions?: ReactNode
-  /** A slot beside the career table for extra cards from other features (a Happiness card). */
-  children?: ReactNode
+  /** Extra cards from other features (Happiness, Contract), each a tab beside Career in the third box, so the box keeps one scroller. */
+  panels?: Array<{ id: string; label: string; content: ReactNode }>
 }
 
 /**
@@ -35,9 +35,11 @@ export interface PlayerCardProps {
  * table, the card's only scroller). It fits one screen on a desktop; on a phone it is a full-height
  * sheet whose boxes stack and scroll together.
  */
-export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtra, actions, children }: PlayerCardProps) {
+export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtra, actions, panels }: PlayerCardProps) {
   const { universe: u, shortlist, toggleShortlist } = useStore()
+  const [tab, setTab] = useState('career')
   if (!u) return null
+  const extra = panels?.find((x) => x.id === tab)
   const points = seasonSeries(u, seasons)
   const peak = points.reduce((m, x) => Math.max(m, x.overall), 0)
   const titles = seasons.filter((s) => s.accolades.includes('Champion')).length
@@ -117,11 +119,23 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
           )}
         </section>
 
-        <section className={`pc-box pc-career ${children ? 'with-aside' : ''}`} aria-label="Career">
+        <section className="pc-box pc-career" aria-label="Career">
           <div className="pc-career-main">
-            <h3 className="pc-title">Career</h3>
+            {panels?.length ? (
+              <div className="pc-tabs" role="tablist" aria-label="Career and more">
+                {[{ id: 'career', label: 'Career' }, ...panels].map((x) => (
+                  <button key={x.id} type="button" role="tab" aria-selected={(extra?.id ?? 'career') === x.id} className={(extra?.id ?? 'career') === x.id ? 'active' : ''} onClick={() => setTab(x.id)} data-testid={`card-tab-${x.id}`}>
+                    {x.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <h3 className="pc-title">Career</h3>
+            )}
             <div className="pc-career-scroll" data-testid="career-table">
-              {seasons.length === 0 ? (
+              {extra ? (
+                <div className="pc-panel">{extra.content}</div>
+              ) : seasons.length === 0 ? (
                 <p className="small muted pc-empty">Not in the database: an academy player.</p>
               ) : (
                 <table className="tbl pc-tbl">
@@ -171,7 +185,6 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
               )}
             </div>
           </div>
-          {children && <div className="pc-aside">{children}</div>}
         </section>
       </div>
 
@@ -181,7 +194,7 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
 }
 
 function Meter({ label, value, colour, face, word }: { label: string; value: number; colour: string; face?: ReactNode; word?: string }) {
-  const v = Math.round(value)
+  const v = meterValue(value)
   return (
     <div className="pc-meter" title={word ? `${label}: ${word} (${v})` : `${label} ${v}`}>
       <span className="pc-meter-top">
@@ -191,7 +204,7 @@ function Meter({ label, value, colour, face, word }: { label: string; value: num
           <span className="mono">{v}</span>
         </span>
       </span>
-      <Bar value={v} colour={colour} />
+      <Bar value={value} colour={colour} />
     </div>
   )
 }

@@ -2,21 +2,31 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Briefcase, Check, ChevronDown, Copy, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { continentalRun } from '@game/logic/week'
-import { USER_TEAM, computeTable, tierBlurb } from '@engine/season'
+import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
+import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
+import { realityLine, storyForGame } from '@game/logic/story'
+import { SeasonStoryPanel } from '../components/SeasonStory'
+import { capLine } from '@game/logic/cap'
+import { inRecordBooks } from '@game/logic/records'
+import { chainCodes, chainLine } from '@game/logic/chain'
 import { shareText } from '@engine/awards'
+import { powerUpsShareLine } from '@game/logic/powerups'
 import { getFormation } from '@engine/formations'
 import { benchmarkSeason, hasRecordBook, realChampion, recordShareLine, type RecordMetric } from '@engine/records'
 import { Pitch } from '../components/Pitch'
 import { TWIST_INFO } from '../components/TwistCard'
 import { QUICK_RULES, SEASON_RULES, rulesTags, type Twist } from '@engine/draft'
+import { activeModeCards, modesLine } from '@engine/modes'
 import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
+import { LeagueAwards } from '../components/LeagueAwards'
 import { versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
-import { LeagueFlag, NationFlag } from '../components/Flag'
+import { LeagueFlag, NationFlag, QuickLeagueFlag } from '../components/Flag'
+import { isSuperLeague, quickLeagueName, sideNamer, superTierBlurb } from '@game/logic/superLeague'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import type { TableRow } from '@engine/types'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
@@ -28,14 +38,16 @@ import { randomSeed } from '@engine/rng'
 import { GameByGame, RunningStrip, useSeasonReplay } from '../components/GameByGame'
 import { HighlightsModal } from '../components/Highlights'
 import { canShowHighlights } from '@game/logic/highlights'
-import { bestWinLine, europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
+import { europeLine, europeRoundLabel, januaryLine, shortName } from '@game/logic/gameByGame'
 import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/logic/quickBench'
 import { cupLine, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { CupRuns } from '../components/CupRuns'
 import { ManagerChip } from '../components/ManagerPick'
+import { caseIconIn, caseLine } from '@game/logic/endCase'
 import { managerLine } from '@game/logic/managers'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
+import { ResultArt, resultArtKind } from '../components/Art'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -57,7 +69,7 @@ export function Summary() {
   const record = q ? { won: q.won, drawn: q.drawn, lost: q.lost, points: q.points, position: q.position, goalsFor: q.goalsFor, goalsAgainst: q.goalsAgainst } : last ? { won: last.won, drawn: last.drawn, lost: last.lost, points: last.points, position: last.position, goalsFor: last.goalsFor, goalsAgainst: last.goalsAgainst } : null
   const table: TableRow[] = useMemo(() => {
     if (q) return q.table.map((r) => ({ ...r, played: (q.table.length - 1) * 2, form: [] }))
-    if (season) return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+    if (season) return seasonTable(season)
     return []
   }, [q, season])
   // Every game of a quick season, game by game; the replay is UI state only
@@ -68,31 +80,43 @@ export function Summary() {
   const chase = chaseAt(results)
   const bests = profile.quickBests ?? emptyBests()
   const leagueId = game?.settings.leagueId ?? ''
+  // The Super League has no real seasons to measure against, no real side replaced and no real champion
+  const superOn = !!game && isSuperLeague(game.settings)
   // Where this season sits against every complete real season of the league with the same number of matches
-  const bench = useMemo(() => (!u || !record || season?.sacked ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked])
+  // A run-in's ten games (or a sacked season) are no full season to put in the record books
+  const bench = useMemo(() => (!u || !record || !game || !inRecordBooks(game) || superOn ? null : benchmarkSeason(u, leagueId, record)), [u, leagueId, superOn, record?.won, record?.drawn, record?.lost, record?.points, record?.goalsFor, record?.goalsAgainst, season?.sacked, season?.carryIn])
   const challenge = game?.settings.challenge
   const ghostLineup = useMemo(() => Object.fromEntries((challenge?.picks ?? []).flatMap((p) => (p.id && p.slotId ? [[p.slotId, p.id] as [string, string]] : []))), [challenge])
   // How the club you replaced actually did that season, when a complete real table exists
   const hostClubId = game?.settings.hostClubId ?? ''
   const leagueSeason = game?.settings.leagueSeason ?? 0
   const realRow = useMemo(() => {
-    if (!u) return null
+    if (!u || superOn) return null
     const cs = u.clubSeasonByKey[`${hostClubId}@${leagueSeason}`]
     if (!cs?.complete) return null
     return u.tables[leagueId]?.[leagueSeason]?.find((r) => r.clubId === hostClubId) ?? null
-  }, [u, hostClubId, leagueSeason, leagueId])
+  }, [u, hostClubId, leagueSeason, leagueId, superOn])
+  // Season Story: when the season was decided, its runs and the one line that tells it
+  const story = useMemo(() => (u && game ? storyForGame(game, u) : null), [game, u])
   if (!u || !game || !record) return null
   const get = playerLookup(game, u)
   const tier = game.tier ?? 'MID_TABLE'
   const formation = getFormation(game.tactics.formationId)
   const row: TableRow = { teamId: USER_TEAM, played: record.won + record.drawn + record.lost, won: record.won, drawn: record.drawn, lost: record.lost, goalsFor: record.goalsFor, goalsAgainst: record.goalsAgainst, points: record.points, form: [] }
-  const leagueName = u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? game.settings.leagueId
+  const leagueName = quickLeagueName(u, game.settings)
+  // A Super League side is named with its season: "Barcelona 2010-11"
+  const sideName = sideNamer(game, u)
   const inBooks = bench !== null && hasRecordBook(bench)
-  const champion = realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
+  const champion = superOn ? undefined : realChampion(u, game.settings.leagueId, game.settings.leagueSeason)
   const extraLines: string[] = []
   // The 38-0 options that differ from the mode's defaults: difficulty, blind, draft mode, ratings
-  const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES)
+  // The Quick Draft modes on one line ("🌀 Crazy · 💀 Hard"); Hard then leaves the tag line so it is not said twice
+  const modeLine = activeModeCards(game.settings.rules).some((c) => c !== 'hard') ? modesLine(game.settings.rules) : ''
+  const tags = rulesTags(game.settings.rules, game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? SEASON_RULES : QUICK_RULES).filter((t) => !(modeLine && t === 'Hard'))
+  if (modeLine) extraLines.push(modeLine)
   if (tags.length) extraLines.push(tags.join(' · '))
+  const powerLine = powerUpsShareLine(game.draft)
+  if (powerLine) extraLines.push(powerLine)
   if (game.settings.rules.onlyNation) extraLines.push(`One nation: ${nationName(u, game.settings.rules.onlyNation)}`)
   if (game.settings.rules.twists) {
     // The twists the picks actually went through, when the draft is still on the game (quick and daily keep it)
@@ -102,12 +126,24 @@ export function Summary() {
   // The Quick Draft's manager, by name and style
   const mgrLine = managerLine(game.manager)
   if (mgrLine) extraLines.push(mgrLine)
+  // The end-of-draft case: what it dropped, and whether its Icon played
+  const boxLine = caseLine(game, (id) => get(id)?.name ?? id)
+  if (boxLine) extraLines.push(boxLine)
   // The 38-0 chase in the share text: how long the perfect run lasted, for a season short of perfect
-  if (q && results.length && chase.perfectRun < games) extraLines.push(runsLine(chase))
+  const runs = q && results.length ? runsLine(chase, games) : null
+  if (runs) extraLines.push(runs)
   const recordLine = bench && inBooks ? recordShareLine(bench, leagueName) : null
   if (recordLine) extraLines.push(recordLine)
-  const bestLine = bestWinLine(q?.results, (id) => clubName(u, id))
-  if (bestLine) extraLines.push(bestLine)
+  // The Moneyball wheel brags in money: what the cap bought, and the points each £M of it earned
+  const capText = capLine(game, record.points)
+  if (capText) extraLines.push(capText)
+  // The Teammate Chain: how many links held, or how often it broke
+  const chainText = chainLine(game)
+  if (chainText) extraLines.push(chainText)
+  // Season Story's moment (its fallback is the best win), then, for a managed season, how the real club did
+  if (story) extraLines.push(story.moment)
+  const managed = game.settings.mode === 'season' || game.settings.mode === 'dynasty' || game.settings.mode === 'runin'
+  if (managed && realRow) extraLines.push(realityLine(realRow, clubName(u, game.settings.hostClubId), record))
   // January business and the European run of a quick season, when there were any
   const janLine = januaryLine(q?.january)
   if (janLine) extraLines.push(janLine)
@@ -135,10 +171,11 @@ export function Summary() {
     cupWon: season?.cupWon ?? quickCupWon,
     continentalWon: season?.continental?.won ?? quickEuroWon,
     leagueSeason: game.settings.leagueSeason,
+    ...(superOn ? { where: leagueName, tierText: tierName(tier, record.position, true) } : {}),
     // A quick season's XI is the user's team, never "as" the club whose place it takes
-    hostClubName: game.settings.mode === 'season' || game.settings.mode === 'dynasty' ? clubName(u, game.settings.hostClubId) : '',
-    mode: game.settings.mode === 'quick' ? 'Quick Draft' : game.settings.mode === 'daily' ? `Daily ${game.settings.seed.replace('daily-', '')}` : game.settings.mode === 'season' ? 'Season' : `Dynasty Y${game.year}`,
-    seed: game.settings.mode === 'daily' ? undefined : game.settings.seed,
+    hostClubName: managed ? clubName(u, game.settings.hostClubId) : '',
+    mode: modeLabel(game, 'share'),
+    seed: isSharedPuzzle(game.settings.mode) ? undefined : game.settings.seed,
     potsName: q ? get(q.pots?.playerSeasonId ?? '')?.name : game.awards?.playerOfTheSeason?.name,
     bootName: q ? get(q.topScorer?.playerSeasonId ?? '')?.name : game.awards?.goldenBoot?.name,
     bootGoals: q ? q.topScorer?.goals : game.awards?.goldenBoot ? Number(game.awards.goldenBoot.value.split(' ')[0]) : undefined,
@@ -190,17 +227,22 @@ export function Summary() {
     })
   }
   const makeCard = async () => {
+    const codes = chainCodes(u, game)
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
-        subtitle: `${q ? `${recordLabel(record.won, record.drawn, record.lost)} · ` : ''}${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`,
+        subtitle: `${q ? `${recordLabel(record.won, record.drawn, record.lost)} · ` : ''}${superOn ? leagueName : `${u.leagues.find((l) => l.id === game.settings.leagueId)?.name ?? ''} ${seasonLabel(game.settings.leagueSeason)}`}`,
         tier,
         row,
         position: record.position,
         formation,
         lineup: game.lineup,
         getPlayer: get,
-        footer: `${game.settings.mode === 'daily' ? `Daily challenge ${game.settings.seed.replace('daily-', '')}` : `Seed ${game.settings.seed}`}${estimated ? ' · estimated ratings' : ''}`,
+        footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
+        strip: story?.strip,
+        moment: story?.moment,
+        // A chained draft prints its chain of club codes under the record
+        ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${record.points} points · finished ${ordinal(record.position)}`, ...codes] } : {}),
       })
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
@@ -209,7 +251,7 @@ export function Summary() {
     }
   }
 
-  const modeName = game.settings.mode === 'dynasty' ? `Dynasty year ${game.year}` : game.settings.mode === 'quick' ? 'Quick draft' : game.settings.mode === 'daily' ? 'Daily challenge' : 'Season'
+  const modeName = modeLabel(game, 'heading')
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
@@ -233,25 +275,38 @@ export function Summary() {
 
   return (
     <div className="page summary" data-testid="summary">
-      <div className="tier-banner">
+      <div className="tier-banner result-banner">
+        {!replay.playing && <ResultArt kind={resultArtKind(tier)} />}
         <div className="banner-meta">
           <span className="bm-team">
             <TeamBadge code={game.settings.shortName} size={22} />
             {game.settings.teamName}
           </span>
           <span className="bm-rest">
-            {game.settings.mode === 'quick' ? <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> : <><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {modeName}</>}
+            {game.settings.mode === 'quick' ? <><QuickLeagueFlag settings={game.settings} label={leagueName} />{superOn && ` ${leagueName}`}</> : <><LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> {seasonLabel(game.settings.leagueSeason)} · {modeName}</>}
+            {modeLine && <span data-testid="summary-modes">{` · ${modeLine}`}</span>}
           </span>
         </div>
         {q && !replay.playing && (
           <div className={`versus-perfect ${record.won >= games && games > 0 ? 'perfect' : record.lost === 0 ? 'unbeaten' : ''}`} data-testid="versus-perfect">
-            <span className="vp-record" data-testid="versus-perfect-record">{recordLabel(record.won, record.drawn, record.lost)}</span>
-            <span className="vp-against">against {perfectTarget(games)}</span>
-            <span className="vp-line small">{versusPerfectLine(record.won, record.lost, games)}</span>
-            <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-              {runsLine(chase)}
-              {bests.longestPerfectRun ? ` · your best run ${bests.longestPerfectRun}-0` : ''}
+            {/* The record in its three colours; the text still reads as recordLabel ("20-8-10") */}
+            <span className="vp-record" data-testid="versus-perfect-record">
+              <span className={`vp-w ${record.won ? '' : 'zero'}`}>{record.won}</span>
+              <span className="vp-dash">-</span>
+              <span className={`vp-d ${record.drawn ? '' : 'zero'}`}>{record.drawn}</span>
+              <span className="vp-dash">-</span>
+              <span className={`vp-l ${record.lost ? '' : 'zero'}`}>{record.lost}</span>
             </span>
+            <span className="vp-line">
+              <b className="vp-against">against {perfectTarget(games)}</b>
+              <span className="vp-sep" aria-hidden="true">·</span>
+              <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
+            </span>
+            {(runs || bests.longestPerfectRun) ? (
+              <span className="vp-runs small muted" data-testid="versus-perfect-runs">
+                {[runs, bests.longestPerfectRun ? `${runs ? 'your' : 'Your'} best run ${bests.longestPerfectRun}-0` : null].filter(Boolean).join(' · ')}
+              </span>
+            ) : null}
           </div>
         )}
         {replay.playing ? (
@@ -262,13 +317,18 @@ export function Summary() {
           <div className="tier-wrap">
             <Celebrate tier={tier} resultKey={`${game.id}:${game.year}`} replayed={replay.used} />
             <div className={`tier ${tier} ${replay.used ? 'pop' : ''}`} data-testid="tier">
-              {tierName(tier, record.position)}
+              {tierName(tier, record.position, superOn)}
             </div>
           </div>
         )}
         {!replay.playing && (
           <p className="tier-blurb" data-testid="tier-blurb">
-            {tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+            {superOn ? superTierBlurb(tier, record.position, table.length || 20) : tierBlurb(tier, record.position, table.length || 20, !!season?.sacked)}
+          </p>
+        )}
+        {!replay.playing && story && (
+          <p className="tier-blurb" data-testid="moment">
+            {story.moment}
           </p>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
@@ -299,10 +359,10 @@ export function Summary() {
               <span key={`w${i}`} style={{ background: 'var(--good)' }} />
             ))}
             {Array.from({ length: record.drawn }, (_, i) => (
-              <span key={`d${i}`} style={{ background: 'var(--draw)' }} />
+              <span key={`d${i}`} style={{ background: 'var(--meter-mid)' }} />
             ))}
             {Array.from({ length: record.lost }, (_, i) => (
-              <span key={`l${i}`} style={{ background: 'var(--danger)' }} />
+              <span key={`l${i}`} style={{ background: 'var(--bad)' }} />
             ))}
           </div>
         )}
@@ -310,6 +370,11 @@ export function Summary() {
           {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, 'Cup winners', 'gold')}</span>}
           {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, 'Continental champions', 'gold')}</span>}
           {game.manager && <ManagerChip manager={game.manager} />}
+          {caseIconIn(game) && (
+            <span className="chip case-icon-chip" data-tier="icons" data-testid="summary-case-icon" title="An Icon from the end-of-draft case played: a non-standard season, kept out of the record book">
+              ★ Case Icon
+            </span>
+          )}
           {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
           {season?.sacked && <span className="chip bad">Sacked</span>}
           {tags.map((t) => (
@@ -338,7 +403,7 @@ export function Summary() {
           <button className="btn" onClick={makeCard}>
             <ImageDown size={16} aria-hidden="true" /> Download share card
           </button>
-          {!isManage && game.settings.mode !== 'daily' && (
+          {!isManage && !isSharedPuzzle(game.settings.mode) && (
             <button className="btn" onClick={() => startGame({ ...game.settings, challenge: undefined, seed: randomSeed() })}>
               <Dices size={16} aria-hidden="true" /> Draft again
             </button>
@@ -370,7 +435,7 @@ export function Summary() {
       {q && results.length > 0 && (
         <GameByGame
           results={results}
-          opponent={(id) => ({ clubId: id, name: clubName(u, id) })}
+          opponent={(id) => ({ clubId: id, name: sideName(id) })}
           replay={replay}
           orderToggle
           strip={false}
@@ -387,6 +452,8 @@ export function Summary() {
         />
       )}
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
+      {story && !replay.playing && <SeasonStoryPanel story={story} opponentName={(id) => sideName(id)} />}
+      {!q && story && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} compact fold={8} />}
 
       {q?.january && (
         <div className="panel" data-testid="january-summary">
@@ -478,7 +545,7 @@ export function Summary() {
               <div className="row between wrap">
                 <b>{challenge.name}</b>
                 <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
-                  {challenge.claim.pts} pts · {tierName(challenge.claim.t)} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
+                  {challenge.claim.pts} pts · {tierName(challenge.claim.t, undefined, superOn)} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
                 </span>
               </div>
               {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
@@ -488,7 +555,7 @@ export function Summary() {
               <div className="row between wrap">
                 <b>{game.settings.teamName}</b>
                 <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
-                  {mine.pts} pts · {tierName(mine.t)} · {mine.w}-{mine.d}-{mine.l}
+                  {mine.pts} pts · {tierName(mine.t, undefined, superOn)} · {mine.w}-{mine.d}-{mine.l}
                 </span>
               </div>
               {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
@@ -643,6 +710,7 @@ export function Summary() {
               </div>
             )}
           </div>
+          <LeagueAwards />
           {isManage && (
             <div className="panel">
               <h3>Squad statistics</h3>
@@ -683,10 +751,10 @@ export function Summary() {
         <div className="col">
           <div className="panel">
             <h3>
-              <LeagueFlag leagueId={game.settings.leagueId} label={leagueName} /> Final table{game.settings.mode === 'quick' ? '' : ` · ${seasonLabel(game.settings.leagueSeason)}`}
+              <QuickLeagueFlag settings={game.settings} label={leagueName} /> Final table{game.settings.mode === 'quick' ? '' : ` · ${seasonLabel(game.settings.leagueSeason)}`}
             </h3>
             <div className="tbl-wrap">
-              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop />
+              <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} />
             </div>
           </div>
           {isManage && (

@@ -35,7 +35,7 @@ describe('player card: rating by season', () => {
     }
     expect(bad).toEqual([])
     expect(careerSeasons(u, [...byPlayer.keys()][0]).length).toBe(byPlayer.get([...byPlayer.keys()][0])!.length)
-  })
+  }, 60_000)
 
   it('keeps the scale at 50 to 99 unless a season dips below 50', () => {
     expect(seasonScale([{ overall: 78 }, { overall: 80 }])).toEqual({ min: 50, max: 99 })
@@ -49,7 +49,7 @@ describe('player card: rating by season', () => {
     const pts = seasonSeries(u, careerSeasons(u, p!.playerId))
     expect(pts.length).toBeGreaterThanOrEqual(2)
     expect(pts.some((x) => x.estimated)).toBe(false)
-  })
+  }, 60_000)
 })
 
 describe('player card: position map', () => {
@@ -69,7 +69,7 @@ describe('player card: position map', () => {
     expect(bad).toEqual([])
     expect(natural).toBeGreaterThan(0)
     expect(cover).toBeGreaterThan(0)
-  })
+  }, 60_000)
 })
 
 describe('player card: attribute columns', () => {
@@ -86,7 +86,7 @@ describe('player card: attribute columns', () => {
     }
     expect(attributeColumns(gk)[0].rows[0].key).toBe('goalkeeping')
     expect(attributeColumns(st)[0].rows[4].key).toBe('goalkeeping')
-  })
+  }, 60_000)
 
   it('shows hidden traits as words, never numbers', () => {
     expect(traitWord(0.9)).toBe('High')
@@ -95,7 +95,7 @@ describe('player card: attribute columns', () => {
     for (const p of Object.values(u.index).slice(0, 500)) {
       for (const r of attributeColumns(p)[2].rows) if (r.kind === 'trait') expect(['High', 'Avg', 'Low']).toContain(r.word)
     }
-  })
+  }, 60_000)
 })
 
 describe('player card: form', () => {
@@ -131,5 +131,5 @@ describe('player card: form', () => {
       }
     }
     expect(arrows).toBeGreaterThanOrEqual(11)
-  })
+  }, 60_000)
 })

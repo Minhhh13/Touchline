@@ -8,7 +8,7 @@ import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE } from '@engine/roles'
-import { computeTable, positionOf, USER_TEAM } from '@engine/season'
+import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
 import { staffWages, STAFF, STAFF_ROLES, staffTier } from '@engine/staff'
 import { TRAINING_LABEL } from '@engine/training'
 import type { Objective } from '@engine/objectives'
@@ -16,8 +16,9 @@ import type { TeamTalk } from '@engine/match'
 import { playerLookup, squadPlayers } from './players'
 import { lineupProblems } from './squad'
 import { nextOpponent, upcomingCupTie } from './week'
+import { riskiestStarter } from './medical'
 
-export type DugoutTab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club'
+export type DugoutTab = 'squad' | 'tactics' | 'fixtures' | 'table' | 'cup' | 'europe' | 'stats' | 'market' | 'inbox' | 'club' | 'dressing' | 'planner'
 
 export type BriefingLevel = 'block' | 'warn' | 'info' | 'ok'
 
@@ -104,7 +105,7 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
     case 'goals': {
       if (mw < PACE_FROM_MATCHWEEK) return null
       const target = o.target ?? 0
-      const gf = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)]).find((r) => r.teamId === USER_TEAM)?.goalsFor ?? 0
+      const gf = seasonTable(season).find((r) => r.teamId === USER_TEAM)?.goalsFor ?? 0
       const pace = Math.round((gf / mw) * season.matchweeks)
       return pace < target ? `On pace for ${pace} of the ${target} league goals asked (${gf} so far)` : null
     }
@@ -115,6 +116,11 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
       const pace = Math.round((best / mw) * season.matchweeks)
       return pace < target ? `Best under-21 on pace for ${pace} of the ${target} starts asked (${best} so far)` : null
     }
+    case 'title':
+    case 'top-four':
+    case 'survive':
+      // A run-in's brief: the takeover banner shows where it stands every week
+      return null
   }
 }
 
@@ -162,7 +168,7 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
 
   if (game.youthIntake) {
     const decided = game.youthIntake.chosen !== undefined
-    check('youth', decided, decided ? (game.youthIntake.chosen ? `Youth: ${get(game.youthIntake.chosen)?.name ?? 'a prospect'} promoted` : 'Youth intake passed') : 'Youth intake', 'Three academy prospects: sign one for nothing or pass.', decided ? undefined : { label: 'Squad', tab: 'squad' })
+    check('youth', decided, decided ? (game.youthIntake.chosen ? `Youth: ${get(game.youthIntake.chosen)?.name ?? 'a prospect'} promoted` : 'Youth intake passed') : 'Youth intake', `${game.youthIntake.candidates.length} academy prospects: sign one for nothing or pass.`, decided ? undefined : { label: 'Squad', tab: 'squad' })
   }
   return items
 }
@@ -193,6 +199,9 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
     const s = game.squad[id]
     if (p && s && s.suspension <= 0 && s.yellowCards % YELLOWS_PER_BAN === YELLOWS_PER_BAN - 1) items.push({ id: `yellow-${id}`, level: 'warn', text: `${p.name} is one yellow card from a ban`, action: { label: 'View', op: 'player', playerId: id } })
   }
+  // The starter the medical view rates at high risk, when tired legs are part of it (proneness alone is no news)
+  const risk = riskiestStarter(game, u)
+  if (risk && (game.squad[risk.id]?.condition ?? 100) < 80 && !items.some((i) => i.id === `tired-${risk.id}`)) items.push({ id: `risk-${risk.id}`, level: 'warn', text: `${risk.name} is at high injury risk (${risk.matchPct}% a match)`, action: { label: 'Medical', tab: 'planner' } })
   if (game.promisedStart && !starters.includes(game.promisedStart)) {
     const p = get(game.promisedStart)
     if (p && game.squad[game.promisedStart]) items.push({ id: 'promise', level: 'warn', text: `You promised ${p.name} a start and he is not in the XI`, action: { label: 'View', op: 'player', playerId: game.promisedStart } })
@@ -220,7 +229,7 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
   }
 
   const next = nextOpponent(game)
-  const table = computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)])
+  const table = seasonTable(season)
   const where = next ? ` for ${u.clubById[next.clubId]?.shortName ?? next.clubId} (${positionOf(table, next.clubId)}${ordinalSuffix(positionOf(table, next.clubId))})` : ''
   items.push({ id: 'knobs', level: 'ok', text: `Training ${TRAINING_LABEL[game.training]}, team talk ${TALK_LABEL[game.teamTalk]}${where}`, action: { label: 'Tactics', tab: 'tactics' } })
   return items

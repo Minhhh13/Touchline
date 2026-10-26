@@ -7,7 +7,8 @@ import type { Mode } from '@game/types'
 
 /** A mode as it is shown in a table cell or a chip. */
 export function modeLabel(mode: Mode): string {
-  return { quick: 'Quick draft', daily: 'Daily', season: 'Season', dynasty: 'Dynasty' }[mode]
+  const label: Record<Mode, string> = { quick: 'Quick draft', daily: 'Daily', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly', runin: 'Run-in' }
+  return label[mode]
 }
 
 /**
@@ -28,4 +29,18 @@ export function versusReal(ours: number, real: number): { delta: number; label: 
 export function shownGames(revealed: number, fold: number | undefined, expanded: boolean, playing: boolean): number {
   if (!fold || expanded || playing) return revealed
   return Math.min(revealed, fold)
+}
+
+/**
+ * The weekly development report's body ("Improving: A. Name 71→72, B 70→71. Fading: C 80→79.") as two lists, so the
+ * digest can show them one player a line; null when the body is in any other shape (it is then shown as it is).
+ */
+export function developmentLists(body: string): { improving: string[]; fading: string[] } | null {
+  const part = (label: string) => {
+    const m = body.match(new RegExp(`${label}: (.*?→\\d+)\\.(?:\\s|$)`))
+    return m ? m[1].split(', ').filter(Boolean) : []
+  }
+  const improving = part('Improving')
+  const fading = part('Fading')
+  return improving.length || fading.length ? { improving, fading } : null
 }

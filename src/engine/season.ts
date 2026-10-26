@@ -82,6 +82,21 @@ export interface SeasonState {
   /** Secondary asks from the board, judged at the end of the season. */
   objectives?: Objective[]
   sacked: boolean
+  /** Run-in: the table the manager took over, keyed by team id (the user's row under `USER_TEAM`), projected from the real final table; absent in every other season. */
+  carryIn?: Record<string, CarryRow>
+  /** Run-in: the matchweek the manager took over after; fixtures up to it carry no result ("before you arrived"). */
+  takeoverAt?: number
+  /** Requests made to the board this season (`src/game/logic/board.ts`); absent until the first. */
+  requests?: Array<{ kind: 'budget' | 'staff' | 'youth'; mw: number; accepted: boolean }>
+}
+
+/** A league row carried into a season that starts part-way through (the run-in): its points are `3 × won + drawn`. */
+export interface CarryRow {
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
 }
 
 export interface NewsItem {
@@ -89,6 +104,8 @@ export interface NewsItem {
   kind: 'result' | 'injury' | 'suspension' | 'board' | 'transfer' | 'award' | 'event' | 'cup' | 'training' | 'info'
   title: string
   body: string
+  /** The player the item is about, when there is one, so the Inbox can offer to act on him. Absent on older saves. */
+  playerId?: string
 }
 
 export function newSquadPlayer(playerSeasonId: string, opts: Partial<SquadPlayer> = {}): SquadPlayer {
@@ -141,15 +158,24 @@ export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
 export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason && cs.clubId !== hostClubId)
-  for (const cs of clubs) {
-    const club = u.clubById[cs.clubId]
-    const style = club?.style ?? 'balanced'
-    const tactics = tacticsForStyle(style, formationForStyle(style))
-    const state: Record<string, SquadPlayer> = {}
-    for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
-    ai[cs.clubId] = { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
-  }
+  for (const cs of clubs) ai[cs.clubId] = aiClubOf(u, cs)
   return ai
+}
+
+/** One real club-season as an AI side: its style's tactics and shape, its squad, every player fresh. Draws nothing. */
+export function aiClubOf(u: LoadedUniverse, cs: ClubSeason): AiClub {
+  const club = u.clubById[cs.clubId]
+  const style = club?.style ?? 'balanced'
+  const tactics = tacticsForStyle(style, formationForStyle(style))
+  const state: Record<string, SquadPlayer> = {}
+  for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
+  return { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
+}
+
+/** An AI side's overall team strength as the season fields it: its auto-picked best XI rated by `computeTeamStrength`. Pure. */
+export function aiStrength(u: LoadedUniverse, club: AiClub): number {
+  const inp = aiTeamInput(u, club)
+  return computeTeamStrength(club.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
 }
 
 export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0): MatchTeamInput {
@@ -173,17 +199,18 @@ export const CALIBRATED_LEAGUE_AVERAGE = 75
 
 export function aiRatingOffset(u: LoadedUniverse, ai: Record<string, AiClub>, difficulty: 'calibrated' | 'realistic'): number {
   if (difficulty === 'realistic') return 0
-  const strengths = Object.values(ai).map((c) => {
-    const inp = aiTeamInput(u, c)
-    return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
-  })
+  const strengths = Object.values(ai).map((c) => aiStrength(u, c))
   const avg = strengths.reduce((a, b) => a + b, 0) / Math.max(1, strengths.length)
   return Math.max(0, Math.round((avg - CALIBRATED_LEAGUE_AVERAGE) * 10) / 10)
 }
 
-export function computeTable(fixtures: Fixture[], teamIds: string[]): TableRow[] {
+export function computeTable(fixtures: Fixture[], teamIds: string[], carryIn?: Record<string, CarryRow>): TableRow[] {
   const rows = new Map<string, TableRow>()
-  for (const id of teamIds) rows.set(id, { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, form: [] })
+  for (const id of teamIds) {
+    // A carried row (the run-in's projection) is where the club starts; its form is not known
+    const c = carryIn?.[id]
+    rows.set(id, c ? { teamId: id, played: c.won + c.drawn + c.lost, won: c.won, drawn: c.drawn, lost: c.lost, goalsFor: c.goalsFor, goalsAgainst: c.goalsAgainst, points: 3 * c.won + c.drawn, form: [] } : { teamId: id, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0, form: [] })
+  }
   const sorted = [...fixtures].filter((f) => f.result).sort((a, b) => a.matchweek - b.matchweek)
   for (const f of sorted) {
     const r = f.result!
@@ -219,6 +246,15 @@ export function computeTable(fixtures: Fixture[], teamIds: string[]): TableRow[]
     if (a.form.length > 5) a.form.shift()
   }
   return [...rows.values()].sort((x, y) => y.points - x.points || y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) || y.goalsFor - x.goalsFor || x.teamId.localeCompare(y.teamId))
+}
+
+/**
+ * The league table of a season in play: its fixtures' results over the rows it
+ * carried in (a run-in's projected table), or from zero. Every screen and rule
+ * reads a season's table through here, so a carried table is never left out.
+ */
+export function seasonTable(season: Pick<SeasonState, 'fixtures' | 'ai' | 'carryIn'>): TableRow[] {
+  return computeTable(season.fixtures, [USER_TEAM, ...Object.keys(season.ai)], season.carryIn)
 }
 
 export function positionOf(table: TableRow[], teamId: string): number {

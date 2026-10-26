@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, isComplete, QUICK_RULES } from '@engine/draft'
-import { decodeChallenge, encodeChallenge } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge , type QuickChallengePayload } from '@engine/challenge'
 import { getFormation } from '@engine/formations'
 import { ratingAt } from '@engine/positions'
 import { closeJanuary, kickOff, quickSeasonGames, quickUserInput, quickXI, runQuickSeason, toKickoff } from '../logic/quick'
@@ -368,11 +368,11 @@ describe('challenge links carry the season’s choices', { timeout: 90_000 }, ()
     expect(c.x?.t).toMatchObject({ mentality: 'attacking', captain: cap })
     expect(c.x?.t2).toMatchObject({ mentality: 'attacking', pressing: 'high' })
     expect(c.x?.j).toEqual([g.quickJanuary!.move!.playerSeasonId, g.quickJanuary!.move!.slotId])
-    const decoded = decodeChallenge(encodeChallenge(c))
+    const decoded = decodeChallenge(encodeChallenge(c)) as QuickChallengePayload
     expect(decoded.x).toEqual(c.x)
     expect(replayChallenge(u, decoded).verified).toBe('yes')
     // A deal that was not offered, or other tactics, do not replay to the claim
-    expect(replayChallenge(u, { ...decoded, x: { ...decoded.x, j: ['s1@2025@burnley', decoded.x!.j![1]] } }).verified).toBe('no')
+    expect(replayChallenge(u, { ...decoded, x: { ...decoded.x, j: ['s1@2025@burnley', decoded.x!.j![1]] as [string, string] } }).verified).toBe('no')
     expect(replayChallenge(u, { ...decoded, x: undefined }).verified).toBe('no')
   })
 
@@ -401,7 +401,7 @@ describe('challenge links carry the season’s choices', { timeout: 90_000 }, ()
     expect(bad({ t: { formation: '4-4-2' } })).toThrow('Not a Touchline challenge link')
     expect(bad({ j: ['only-one'] })).toThrow('Not a Touchline challenge link')
     expect(bad({ y: 1 })).toThrow('Not a Touchline challenge link')
-    expect(decodeChallenge(encodeChallenge({ ...c, x: { t: { tempo: 'fast' } } })).x).toEqual({ t: { tempo: 'fast' } })
+    expect((decodeChallenge(encodeChallenge({ ...c, x: { t: { tempo: 'fast' as const } } })) as QuickChallengePayload).x).toEqual({ t: { tempo: 'fast' } })
   })
 })
 

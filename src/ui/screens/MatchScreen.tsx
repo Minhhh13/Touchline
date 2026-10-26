@@ -8,7 +8,7 @@ import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../co
 import { RedCard, YellowCard } from '../components/icons'
 import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { clubName, clubShort, minuteLabel } from '../format'
+import { clubName, clubShort, minuteLabel, outcomeClass, outcomeOf } from '../format'
 import { playerLookup } from '@game/logic/players'
 import type { Appearance, FullMatchResult } from '@engine/match'
 import { feedFromResult } from '@engine/matchFeed'
@@ -17,6 +17,8 @@ import type { MatchContext } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
+import { arenaContinueLabel } from '@game/logic/arena'
+import { ShootoutPanel } from '../components/ShootoutPanel'
 import { MatchDashboard } from '../matchday/MatchDashboard'
 import { cardSeries, reportFigures } from '../matchday/model'
 import { XgStory } from '../matchday/panels/XgStory'
@@ -103,8 +105,14 @@ export function MatchScreen() {
   const outcome = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat'
   const seasonOver = game.phase === 'summary' || !!game.seasonEnding
   const cupNext = !!game.live && holdLive
-  const continueLabel = seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
+  // The arena: penalties first, then the run's summary or its next match
+  const arena = game.arena
+  const continueLabel = arena ? arenaContinueLabel(game) : seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
   const onContinue = () => {
+    if (arena) {
+      closeMatch()
+      return
+    }
     if (seasonOver) {
       // The final whistle has gone; closing the match closes the season
       if (game.seasonEnding) closeMatch()
@@ -120,9 +128,39 @@ export function MatchScreen() {
     closeMatch()
   }
 
+  const tabs = <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
+  const replay = matchView === 'ticker'
+  // An arena match level at the whistle: the shoot-out is the whole screen (a shell box that scrolls inside itself)
+  if (arena?.pending) {
+    return (
+      <div className="page fit arena-shootout">
+        <div className="fit-head">
+          <div>
+            <h2>
+              <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
+              {ctx.roundLabel ?? 'Penalties'}
+            </h2>
+            <div className="small muted">
+              {homeName} {res.homeGoals}-{res.awayGoals} {awayName} · level at 90
+            </div>
+          </div>
+          <button className="btn primary" disabled data-testid="match-continue">
+            {continueLabel}
+          </button>
+        </div>
+        <div className="fit-grid">
+          <div className="fit-cell">
+            <ShootoutPanel />
+          </div>
+        </div>
+      </div>
+    )
+  }
   return (
-    <div className={`page ${matchView === 'ticker' ? 'matchday-page' : ''}`}>
-      <div className="row between wrap" style={{ marginBottom: 10 }}>
+    <div className={`page ${replay ? 'matchday-page' : ''}`}>
+      {/* The replay's dashboard names the match in its own line, so the page head is one slim row: the tabs and the buttons */}
+      <div className={`row between wrap ${replay ? 'replay-head' : ''}`} style={{ marginBottom: 10 }}>
+        {replay ? tabs : (
         <div>
           <h2>
             <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
@@ -133,6 +171,7 @@ export function MatchScreen() {
             {homeName} v {awayName}
           </div>
         </div>
+        )}
         <div className="row">
           {game.lastCupMatch && !cupNext && (
             <div className="segmented">
@@ -144,13 +183,15 @@ export function MatchScreen() {
               </button>
             </div>
           )}
-          <button className="btn primary" onClick={onContinue}>
+          <button className="btn primary" onClick={onContinue} disabled={!!arena?.pending} data-testid="match-continue">
             {continueLabel}
           </button>
         </div>
       </div>
 
-      <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
+      {/* The shoot-out's kicks reveal on the report; the replay dashboard keeps its one-screen fit */}
+      {arena && !replay && <ShootoutPanel />}
+      {!replay && tabs}
 
       {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} />}
       {matchView === 'report' && <Report res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
@@ -207,7 +248,7 @@ function Report({ res, ctx, names, outcome, get, colours }: { res: FullMatchResu
               {res.homeGoals} - {res.awayGoals}
             </div>
             <div className="clock">
-              {outcome.toUpperCase()} · HT {res.halfTimeScore.home}-{res.halfTimeScore.away}
+              <span className={`outcome-word ${outcomeClass(userIsHome ? outcomeOf(res.homeGoals, res.awayGoals) : outcomeOf(res.awayGoals, res.homeGoals))}`} data-testid="report-outcome">{outcome.toUpperCase()}</span> · HT {res.halfTimeScore.home}-{res.halfTimeScore.away}
             </div>
           </div>
           <div className="team away">

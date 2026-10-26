@@ -73,10 +73,17 @@ export function HeatMap({ d }: PanelProps) {
         <label className="small">
           <span className="sr-only">Player</span>
           <select className="md-select" value={subject ?? ''} onChange={(e) => d.select(e.target.value)}>
-            {people.map(({ a, side: s }) => (
-              <option key={a.psId} value={a.psId}>
-                {(s === 'home' ? d.home : d.away).numbers[a.psId] ?? ''} {surname(d.getName(a.psId))} ({(s === 'home' ? d.home : d.away).code})
-              </option>
+            {/* Grouped by side, so the team code is the group's label and each option is just the number and the name */}
+            {(['home', 'away'] as const).map((s) => (
+              <optgroup key={s} label={(s === 'home' ? d.home : d.away).code}>
+                {people
+                  .filter((x) => x.side === s)
+                  .map(({ a }) => (
+                    <option key={a.psId} value={a.psId}>
+                      {(s === 'home' ? d.home : d.away).numbers[a.psId] ?? ''} {surname(d.getName(a.psId))}
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </select>
         </label>

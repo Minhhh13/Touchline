@@ -10,6 +10,9 @@ import { autoPickLineup } from '@engine/ratings'
 import { releasePlayer } from './marketOps'
 import { openWindow } from '@engine/market'
 import { WAGE_MULT } from '@engine/status'
+import { logMorale } from './happiness'
+import { focusFilter } from './scouting'
+import type { Contract } from '../types'
 
 /**
  * Age a player-season by one year. Young players grow towards an estimated
@@ -54,6 +57,11 @@ export function ageOneYear(p: PlayerSeason, rng: Rng, year: number): PlayerSeaso
   next.value = Math.round(base * ageF * 10) / 10
   next.wage = Math.round(5 * Math.pow(Math.max(0.1, next.value), 0.85))
   return next
+}
+
+/** Terms that travel with a contract into the next season: the clauses and a sell-on (an agent stops shopping him in the summer). */
+function carried(c: Contract): Partial<Contract> {
+  return { ...(c.clauses ? { clauses: c.clauses } : {}), ...(c.sellOn ? { sellOn: c.sellOn } : {}) }
 }
 
 export interface OffseasonReport {
@@ -110,16 +118,16 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
       continue
     }
     if (contract.renewed) {
-      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : 3, status: contract.status }
+      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : 3, status: contract.status, ...carried(contract) }
     } else if (contract.years - 1 <= 0) {
       // Contract up: a declined renewal, poor morale or plain bad luck means he walks
       if (contract.declined || s.morale < 50 || rng.chance(0.25)) {
         report.expired.push(p.name)
         continue
       }
-      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : rng.int(2, 3), status: contract.status }
+      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : rng.int(2, 3), status: contract.status, ...carried(contract) }
     } else {
-      newContracts[aged.id] = { years: contract.years - 1, listed: contract.listed, status: contract.status }
+      newContracts[aged.id] = { years: contract.years - 1, listed: contract.listed, status: contract.status, ...carried(contract) }
     }
     // Ageing recomputes the wage from the new value; the status premium he signed on stays
     if (contract.status) aged.wage = Math.round(aged.wage * WAGE_MULT[contract.status])
@@ -127,7 +135,9 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     if (aged.overall > p.overall + 1) report.improved.push({ name: p.name, from: p.overall, to: aged.overall })
     if (aged.overall < p.overall - 1) report.declined.push({ name: p.name, from: p.overall, to: aged.overall })
     idMap[id] = aged.id
-    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], recentMinutes: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 } }
+    newSquad[aged.id] = { ...s, playerSeasonId: aged.id, condition: 95, sharpness: 60, morale: Math.max(50, s.morale), familiarity: Math.min(100, s.familiarity + 10), recentRatings: [], recentMinutes: [], injury: null, suspension: 0, yellowCards: 0, seasonStats: { apps: 0, starts: 0, goals: 0, assists: 0, minutes: 0, ratingSum: 0, cleanSheets: 0, motm: 0 }, moraleLog: undefined }
+    // A new season starts a new happiness log; the summer lift is its first line
+    logMorale(newSquad[aged.id], 0, s.morale, 'summer')
   }
   game.squad = newSquad
   game.contracts = newContracts
@@ -156,11 +166,15 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   game.pendingEvent = null
   game.window = null
   game.development = {}
+  // Contract talks reopen, the data hub starts again and nothing is owed from last season
+  delete game.negotiations
+  delete game.dataHub
+  delete game.bonusDue
   // Summer: bonus wheel spins scale with how many left, plus a summer market
   const lost = report.retired.length + report.expired.length + report.returned.length
   game.bonusSpins += Math.min(6, 2 + lost)
   const formation = getFormation(game.tactics.formationId)
-  const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1 })
+  const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1, budget: undefined, chain: undefined })
   // Seed the draft with the existing squad: best eleven on the pitch, the rest on the bench,
   // so the bonus spins add squad depth wherever the wheel lands.
   for (const x of squadPlayers(game, u)) d.takenPlayers.push(x.p.playerId)
@@ -171,7 +185,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   d.bench = pool.filter((p) => !inXI.has(p.id)).map((p) => p.id)
   game.draft = d
   game.phase = 'draft'
-  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic }, 'summer', 40)
+  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }, 'summer', 40)
   game.rngState = rng.getState()
   void releasePlayer
   return report

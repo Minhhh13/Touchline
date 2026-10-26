@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { modeLabel, shownGames, versusReal } from '../screenText'
+import { developmentLists, modeLabel, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -33,5 +33,13 @@ describe('screen labels', () => {
         }
       }
     }
+  })
+})
+
+describe('development report lists', () => {
+  it('splits the report into improving and fading players, names with initials included', () => {
+    expect(developmentLists('Improving: V. van Dijk 80→81, Rodri 85→86. Fading: J. Milner 74→73.')).toEqual({ improving: ['V. van Dijk 80→81', 'Rodri 85→86'], fading: ['J. Milner 74→73'] })
+    expect(developmentLists('Fading: A. B. Cole 70→69.')).toEqual({ improving: [], fading: ['A. B. Cole 70→69'] })
+    expect(developmentLists('Something else entirely.')).toBeNull()
   })
 })

@@ -36,18 +36,43 @@ function activeManagers(h: H2HDraft): Array<0 | 1> {
   return out
 }
 
+/** The pool a head-to-head spin draws from: club-seasons useful to everyone still drafting, else the first picker's wheel. */
+function h2hPool(u: LoadedUniverse, h: H2HDraft, active: Array<0 | 1>, firstIdx: 0 | 1): ClubSeason[] {
+  const pools = active.map((i) => wheelPool(u, h.drafts[i]))
+  const both = pools.length === 2 ? pools[0].filter((cs) => pools[1].some((x) => x.clubId === cs.clubId && x.season === cs.season)) : pools[0]
+  return both.length ? both : pools[active.indexOf(firstIdx)]
+}
+
+/** A club-season's weight within its season on a head-to-head spin: stronger sides a little more. */
+export function h2hWeight(cs: ClubSeason): number {
+  return cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6
+}
+
+/** The exact chance of each club-season on the next head-to-head spin: a season uniformly, then `h2hWeight`. Empty once the draft is complete. No RNG. */
+export function h2hSpinOdds(u: LoadedUniverse, h: H2HDraft): Array<{ cs: ClubSeason; p: number }> {
+  const active = activeManagers(h)
+  if (!active.length) return []
+  const pool = h2hPool(u, h, active, active.includes(h.first) ? h.first : active[0])
+  const seasons = [...new Set(pool.map((cs) => cs.season))]
+  const out: Array<{ cs: ClubSeason; p: number }> = []
+  for (const season of seasons) {
+    const inSeason = pool.filter((cs) => cs.season === season)
+    const total = inSeason.reduce((a, cs) => a + h2hWeight(cs), 0)
+    for (const cs of inSeason) out.push({ cs, p: h2hWeight(cs) / total / seasons.length })
+  }
+  return out
+}
+
 /** Spin for both managers: prefer club-seasons useful to everyone still drafting. */
 export function h2hSpin(u: LoadedUniverse, h: H2HDraft, rng: Rng): ClubSeason {
   const active = activeManagers(h)
   if (!active.length) throw new Error('Draft complete')
   const firstIdx = active.includes(h.first) ? h.first : active[0]
-  const pools = active.map((i) => wheelPool(u, h.drafts[i]))
-  const both = pools.length === 2 ? pools[0].filter((cs) => pools[1].some((x) => x.clubId === cs.clubId && x.season === cs.season)) : pools[0]
-  const pool = both.length ? both : pools[active.indexOf(firstIdx)]
+  const pool = h2hPool(u, h, active, firstIdx)
   const seasons = [...new Set(pool.map((cs) => cs.season))]
   const season = rng.pick(seasons)
   const inSeason = pool.filter((cs) => cs.season === season)
-  const chosen = rng.pickWeighted(inSeason, (cs) => (cs.position > 0 ? 1 + 0.06 * (21 - cs.position) : 1.6))
+  const chosen = rng.pickWeighted(inSeason, h2hWeight)
   h.current = { clubId: chosen.clubId, season: chosen.season }
   for (const d of h.drafts) {
     d.current = { ...h.current }

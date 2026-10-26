@@ -60,6 +60,9 @@ export interface Window {
   log: string[]
 }
 
+/** What an agent shopping a player round the clubs adds to his desirability in the daily offer check. */
+export const SHOPPED_BOOST = 0.4
+
 /** Lines a window's log keeps, newest first: the oldest drop off a long summer. */
 export const WINDOW_LOG_CAP = 80
 
@@ -85,7 +88,12 @@ export interface Finances {
   /** Running totals for the season. */
   income: number
   spent: number
+  /** Wages paid this season, GBP millions, appearance and goal bonuses included. */
   wagesPaid: number
+  /** Net steps moved on the wage-to-transfer slider this season (+1 is £10k a week of wage room turned into £2M of budget). Absent until used. */
+  wageShift?: number
+  /** Appearance and goal bonuses paid this season, GBP millions (already inside `wagesPaid`). Absent until one is paid. */
+  bonusesPaid?: number
 }
 
 export interface MarketContext {
@@ -104,6 +112,11 @@ export interface MarketContext {
   onlyNation?: string
   /** The game opted in to classic seasons (`DraftRules.classic`): their players may be listed. */
   classic?: boolean
+  /**
+   * A recruitment focus (`src/game/logic/scouting.ts`): when set, new listings are drawn only from players it accepts.
+   * Absent, the market lists and draws exactly as it always has.
+   */
+  focus?: (p: PlayerSeason) => boolean
 }
 
 function nationNameOf(u: LoadedUniverse, nation: string): string {
@@ -170,15 +183,16 @@ function roundM(v: number): number {
 export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36): Window {
   const { u, rng } = ctx
   const nation = ctx.onlyNation
-  const eligible = (p: PlayerSeason): boolean => !nation || p.nationality === nation
-  // A one-nation market only samples club-seasons that hold someone of that nation, so a thin nation still fills the window
-  const pool = poolClubSeasons(u, ctx.classic).filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason) && (!ctx.leagues || ctx.leagues.includes(cs.leagueId)) && (!nation || cs.squad.some(eligible)))
+  const focus = ctx.focus
+  const eligible = (p: PlayerSeason): boolean => (!nation || p.nationality === nation) && (!focus || focus(p))
+  // A one-nation market (or a recruitment focus) only samples club-seasons that hold someone it accepts, so a thin nation still fills the window
+  const pool = poolClubSeasons(u, ctx.classic).filter((cs) => (ctx.fromSeason === undefined || cs.season >= ctx.fromSeason) && (ctx.toSeason === undefined || cs.season <= ctx.toSeason) && (!ctx.leagues || ctx.leagues.includes(cs.leagueId)) && ((!nation && !focus) || cs.squad.some(eligible)))
   const candidates: PlayerSeason[] = []
   const seenHumans = new Set<string>()
   // Sample club-seasons, then take a few players from each with a bias to quality so the market is interesting.
   // Rejections (already seen, already ours) are frequent for a small nation, so it gets a longer run.
   let guard = 0
-  const maxTries = count * (nation ? 60 : 20)
+  const maxTries = count * (nation || focus ? 60 : 20)
   while (candidates.length < count && guard++ < maxTries && pool.length) {
     const cs = rng.pick(pool)
     const picks = rng.int(1, 3)
@@ -211,7 +225,7 @@ export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36)
  * cheaper near the deadline, some players sign elsewhere, and AI clubs may bid
  * for our players.
  */
-export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p: PlayerSeason; s: SquadPlayer; listed?: boolean; loan?: boolean }>, clubsInLeague: string[]): { signings: AiSigning[] } {
+export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p: PlayerSeason; s: SquadPlayer; listed?: boolean; loan?: boolean; shopped?: boolean }>, clubsInLeague: string[]): { signings: AiSigning[] } {
   const { rng, u } = ctx
   const signings: AiSigning[] = []
   w.day++
@@ -250,12 +264,12 @@ export function advanceWindow(ctx: MarketContext, w: Window, ownSquad: Array<{ p
     w.listings.push(...extra)
     if (extra.length) logLine(w, `${extra.length} new player${extra.length > 1 ? 's' : ''} listed: ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(', ')}.`)
   }
-  // Offers for our players
-  for (const { p, s: state, listed, loan } of ownSquad) {
+  // Offers for our players; an agent shopping him round the clubs (`shopped`) finds buyers as a listing does, on top of it
+  for (const { p, s: state, listed, loan, shopped } of ownSquad) {
     if (loan) continue // not ours to sell
-    const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0) + (listed ? 0.6 : 0)
+    const desirability = (p.overall - 72) / 20 + (p.age <= 25 ? 0.2 : 0) + (state.morale < 45 ? 0.3 : 0) + (listed ? 0.6 : 0) + (shopped ? SHOPPED_BOOST : 0)
     if (desirability <= 0) continue
-    if (rng.chance((listed ? 0.12 : 0.05) * desirability)) {
+    if (rng.chance((listed || shopped ? 0.12 : 0.05) * desirability)) {
       const { price } = askingPrice(p, ctx, state)
       const amount = roundM(price * rng.float(0.75, 1.1))
       const fromClubId = rng.pick(clubsInLeague)
@@ -354,7 +368,7 @@ export interface StatusTerms {
  * Make a bid for a listed player, optionally with one of our players in
  * part-exchange. Clubs accept at or near asking; low-balls annoy them.
  */
-export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount: number, finances: Finances, wageCommitment: number, exchange?: Exchange, terms?: StatusTerms): BidOutcome {
+export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount: number, finances: Finances, wageCommitment: number, exchange?: Exchange, terms?: StatusTerms, sweetener?: { value: number; label: string }): BidOutcome {
   const { rng, u } = ctx
   const p = u.index[listing.playerSeasonId]
   if (!p) return { accepted: false, message: 'Player not found.' }
@@ -375,9 +389,10 @@ export function placeBid(ctx: MarketContext, w: Window, listing: Listing, amount
   }
   const wagesAfter = wageCommitment - (exchange?.p.wage ?? 0) + wage
   if (wagesAfter > finances.wageCap) return { accepted: false, message: `${p.name}'s wages (£${wage}k/wk${terms && wage !== p.wage ? ` as ${STATUS_LABEL[terms.status].toLowerCase()}` : ''}) would break the wage cap (£${finances.wageCap}k/wk).` }
-  const total = amount + credit
+  // A sell-on clause offered to the selling club is worth something to them now, without any cash
+  const total = amount + credit + (sweetener?.value ?? 0)
   const ratio = total / listing.asking
-  const dealText = exchange ? `£${amount}M plus ${exchange.p.name}` : `£${amount}M`
+  const dealText = `${exchange ? `£${amount}M plus ${exchange.p.name}` : `£${amount}M`}${sweetener ? ` with ${sweetener.label}` : ''}`
   listing.bid = amount
   listing.status = 'bidding'
   if (ratio >= 0.97) {

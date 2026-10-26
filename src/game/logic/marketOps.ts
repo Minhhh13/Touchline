@@ -1,13 +1,14 @@
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { acceptOffer as acceptOfferEngine, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, logLine, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
+import { acceptOffer as acceptOfferEngine, askingPrice, placeBid, rejectOffer as rejectOfferEngine, advanceWindow, enquire, logLine, openWindow, signOnLoan, type AiSigning, type Listing, type MarketContext } from '@engine/market'
 import { staffTier } from '@engine/staff'
 import { newSquadPlayer, type AiClub } from '@engine/season'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, squadWages } from './squad'
 import { naturalStatus, STATUS_LABEL, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { postNews } from './news'
+import { focusFilter } from './scouting'
 
 export const SQUAD_CAP = 23
 
@@ -23,8 +24,17 @@ export function ownedHumans(game: Game, u: LoadedUniverse): Set<string> {
 }
 
 function marketContext(game: Game, u: LoadedUniverse, rng: Rng, priceLevel: number): MarketContext {
-  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic }
+  return { u, rng, ownedPlayerIds: ownedHumans(game, u), leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }
 }
+
+/** Sell-on shares a bid can offer the selling club. */
+export const SELL_ON_OPTIONS = [0, 0.1, 0.2] as const
+/** What a sell-on clause is worth to the selling club now, GBP millions: the share of a future fee at 60% of his value. */
+export function sellOnValue(p: { value: number }, pct: number): number {
+  return Math.round(p.value * pct * 0.6 * 10) / 10
+}
+/** The agent's cut when a player he shopped round the clubs is sold. */
+export const AGENT_CUT = 0.05
 
 export interface BidOptions {
   /** One of our players offered in part-exchange. */
@@ -33,6 +43,8 @@ export interface BidOptions {
   years?: number
   /** Squad status offered; his natural rank in our squad when omitted. */
   status?: SquadStatus
+  /** A sell-on share offered to the selling club (0.1 or 0.2): worth `sellOnValue` to them now, paid out of his next sale. */
+  sellOn?: number
 }
 
 /**
@@ -64,13 +76,16 @@ export function bidFor(game: Game, u: LoadedUniverse, listingId: string, amount:
   // The player he would replace in part-exchange is not part of the squad he measures himself against
   const overalls = squadOveralls(game, u, exchange?.p.id)
   const status = opts.status ?? (target ? naturalStatus(target, overalls) : 'rotation')
-  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls })
+  const pct = opts.sellOn && opts.sellOn > 0 && target ? Math.min(0.2, opts.sellOn) : 0
+  const sweetener = pct && target ? { value: sellOnValue(target, pct), label: `a ${Math.round(pct * 100)}% sell-on` } : undefined
+  const out = placeBid(marketContext(game, u, rng, 1), game.window, listing, amount, game.finances, squadWages(game, u), exchange, { status, squadOveralls: overalls }, sweetener)
   if (out.accepted) {
     if (exchange) {
       releasePlayer(game, u, exchange.p.id)
       if (game.season) postNews(game, { matchweek: game.season.matchweek, kind: 'transfer', title: `${exchange.p.name} leaves in part-exchange`, body: `Valued at £${out.credit ?? 0}M in the deal for ${u.index[listing.playerSeasonId]?.name ?? 'a new signing'}.` })
     }
     signListing(game, u, listing, amount, { years: clampYears(opts.years, target?.age ?? 27), status })
+    if (pct && target && game.contracts[target.id]) game.contracts[target.id].sellOn = { pct, clubId: target.clubId }
   }
   game.rngState = rng.getState()
   return out
@@ -143,7 +158,16 @@ export function acceptOffer(game: Game, u: LoadedUniverse, index: number): void 
     log(game, `${p?.name ?? 'He'} is only on loan here; his parent club will not sell.`)
     return
   }
+  const contract = game.contracts[offer.playerSeasonId]
   acceptOfferEngine(offer, game.finances)
+  // A sell-on clause sends its share to the club he came from; an agent who found the buyer takes his cut
+  const owed = Math.round(offer.amount * ((contract?.sellOn?.pct ?? 0) + (contract?.shopped ? AGENT_CUT : 0)) * 10) / 10
+  if (owed > 0) {
+    game.finances.budget = Math.round((game.finances.budget - owed) * 10) / 10
+    game.finances.income -= owed
+    const parts = [contract?.sellOn ? `£${Math.round(offer.amount * contract.sellOn.pct * 10) / 10}M sell-on to ${u.clubById[contract.sellOn.clubId]?.name ?? 'his old club'}` : '', contract?.shopped ? `£${Math.round(offer.amount * AGENT_CUT * 10) / 10}M to his agent` : ''].filter(Boolean)
+    log(game, `Out of the fee: ${parts.join(' and ')}.`)
+  }
   releasePlayer(game, u, offer.playerSeasonId)
   applyAiSignings(game, u, [{ playerSeasonId: offer.playerSeasonId, clubId: offer.fromClubId, fee: offer.amount }])
   log(game, `${p?.name ?? 'Player'} sold to ${u.clubById[offer.fromClubId]?.name ?? 'a rival'} for £${offer.amount}M.`)
@@ -169,6 +193,7 @@ export function releasePlayer(game: Game, u: LoadedUniverse, playerSeasonId: str
   if (game.captainId === playerSeasonId) game.captainId = undefined
   if (game.promisedStart === playerSeasonId) game.promisedStart = undefined
   if (game.markTarget === playerSeasonId) game.markTarget = undefined
+  if (game.dataHub) delete game.dataHub[playerSeasonId]
   // Nobody can buy a player we no longer have
   for (const o of game.window?.offers ?? []) if (o.playerSeasonId === playerSeasonId && o.status === 'open') o.status = 'withdrawn'
   autoPick(game, u, true)
@@ -205,8 +230,9 @@ export function applyAiSignings(game: Game, u: LoadedUniverse, signings: AiSigni
 /** Move the window on by one market day and let the league's clubs do their business. */
 export function tickWindow(game: Game, u: LoadedUniverse, rng: Rng): void {
   if (!game.window || !game.season) return
-  const { signings } = advanceWindow(marketContext(game, u, rng, 1.05), game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed, loan: game.contracts[x.p.id]?.loan })), Object.keys(game.season.ai))
+  const { signings } = advanceWindow(marketContext(game, u, rng, 1.05), game.window, squadPlayers(game, u).map((x) => ({ ...x, listed: game.contracts[x.p.id]?.listed, loan: game.contracts[x.p.id]?.loan, shopped: game.contracts[x.p.id]?.shopped })), Object.keys(game.season.ai))
   applyAiSignings(game, u, signings)
+  releaseClauses(game, u, rng)
   // Scouts turn up players the open market would not have shown
   const scout = staffTier(game.staff, 'scout')
   if (scout > 0 && game.window.day < game.window.days) {
@@ -219,6 +245,34 @@ export function tickWindow(game: Game, u: LoadedUniverse, rng: Rng): void {
     }
     game.window.listings.push(...extra)
     if (extra.length) logLine(game.window, `Your scouts flag ${extra.map((l) => u.index[l.playerSeasonId]?.name).join(' and ')}.`)
+  }
+}
+
+/**
+ * Release clauses: an AI club may pay one in a window and take the player, no
+ * say. The rule runs only for a contract that carries a clause, and draws from
+ * a fork of a copy of the stream, so the market's own draws never move.
+ */
+export function releaseClauses(game: Game, u: LoadedUniverse, rng: Rng): void {
+  const w = game.window
+  const season = game.season
+  if (!w || !season) return
+  const clubs = Object.keys(season.ai)
+  for (const { p, s } of squadPlayers(game, u)) {
+    const c = game.contracts[p.id]
+    const clause = c?.clauses?.release
+    if (!clause || c.loan || p.overall < 68 || !clubs.length) continue
+    // The clause looks cheap against what he would fetch: the cheaper it is, the likelier someone pays it
+    const price = askingPrice(p, { priceLevel: 1.05 }, s).price
+    if (clause > price * 1.1) continue
+    const roll = Rng.fromState(rng.getState()).fork(`release-${game.year}-${season.matchweek}-${w.day}-${p.id}`)
+    if (!roll.chance(Math.min(0.45, 0.12 + 0.3 * (price / clause - 1)))) continue
+    const fromClubId = roll.pick(clubs)
+    w.offers.push({ playerSeasonId: p.id, fromClubId, amount: clause, day: w.day, status: 'open' })
+    const name = p.name
+    acceptOffer(game, u, w.offers.length - 1)
+    logLine(w, `${u.clubById[fromClubId]?.name ?? 'A rival'} trigger ${name}'s £${clause}M release clause.`)
+    postNews(game, { matchweek: season.matchweek, kind: 'transfer', title: `Release clause triggered: ${name}`, body: `${u.clubById[fromClubId]?.name ?? 'A rival'} paid the £${clause}M in his contract. He has gone.` })
   }
 }
 

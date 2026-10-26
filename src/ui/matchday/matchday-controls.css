@@ -502,7 +502,7 @@
 }
 .matchday .sub-bench-card {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto auto 14px;
+  grid-template-columns: 22px minmax(56px, 1fr) auto auto 14px;
   align-items: center;
   gap: 5px;
   padding: 3px 6px;
@@ -535,6 +535,11 @@
 .matchday .sub-bench-card .pos {
   font-size: 10px;
   color: var(--text-3);
+  /* The name has first call on the card's width: a long list of positions gives way */
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .matchday .sub-bench-card .ovr {
   font-size: 11px;

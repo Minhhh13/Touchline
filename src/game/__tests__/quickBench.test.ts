@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, benchPlaces, benchRoom, canCloseBench, closeBench, eligibleSlots, fillingXI, isComplete, pick, QUICK_RULES, spin, type DraftRules } from '@engine/draft'
-import { decodeChallenge, encodeChallenge, isRulesDiff, replayDraft } from '@engine/challenge'
+import { decodeChallenge, encodeChallenge, isRulesDiff, replayDraft, type QuickChallengePayload } from '@engine/challenge'
 import { closeJanuary, closeQuickSeason, kickOff, makeQuickChange, playbackResults, quickChangeProblem, quickSquadAt, runQuickSeason, toKickoff } from '../logic/quick'
 import { applyChange, canPlayFor, changesLine, fieldXI, injuredThrough, QUICK_CHANGES } from '../logic/quickBench'
 import type { QuickGameResult } from '../types'
@@ -299,7 +299,7 @@ describe('the bench in the quick season', { timeout: 300_000 }, () => {
     const games = playbackResults(g)
     const c2 = legal(g, games, 25)
     makeQuickChange(g, u, games, 25, c2.slotId, c2.inId)
-    const c = decodeChallenge(encodeChallenge(challengeFromGame(g, u, 'Gaffer')!))
+    const c = decodeChallenge(encodeChallenge(challengeFromGame(g, u, 'Gaffer')!)) as QuickChallengePayload
     expect(c.x!.s).toHaveLength(2)
     const out = replayChallenge(u, c)
     expect(out.verified).toBe('yes')
