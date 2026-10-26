@@ -3,50 +3,18 @@
  * It takes the focus when it opens, keeps Tab inside itself, closes on Escape
  * or a click outside, and gives the focus back to the control that opened it.
  */
-import { useEffect, useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
-
-const FOCUSABLE = 'button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+import { useId, useRef, type ReactNode } from 'react'
+import { useDialog } from '../../useDialog'
 
 export function Drawer({ title, sub, onClose, children, foot, wide = false, className = '' }: { title: string; sub?: ReactNode; onClose: () => void; children: ReactNode; foot?: ReactNode; wide?: boolean; className?: string }) {
+  const backRef = useRef<HTMLDivElement>(null)
   const ref = useRef<HTMLDivElement>(null)
   const id = useId()
-  const closeRef = useRef(onClose)
-  useEffect(() => {
-    closeRef.current = onClose
-  })
-  useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    // The dialog itself takes the focus, so its title is read first
-    ref.current?.focus()
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        closeRef.current()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      if (opener && opener.isConnected) opener.focus()
-    }
-  }, [])
-  const trap = (e: ReactKeyboardEvent) => {
-    if (e.key !== 'Tab' || !ref.current) return
-    const items = [...ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
-    if (!items.length) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault()
-      last.focus()
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault()
-      first.focus()
-    }
-  }
+  // The dialog itself takes the focus, so its title is read first; the match behind is inert while it is open
+  useDialog(backRef, ref, true, onClose)
   return (
-    <div className="md-drawer-back" onClick={onClose}>
-      <div ref={ref} className={`md-drawer ${wide ? 'wide' : ''} ${className}`} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onClick={(e) => e.stopPropagation()} onKeyDown={trap}>
+    <div className="md-drawer-back" ref={backRef} onClick={onClose}>
+      <div ref={ref} className={`md-drawer ${wide ? 'wide' : ''} ${className}`} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <header className="md-drawer-head">
           <div>
             <h3 id={id}>{title}</h3>

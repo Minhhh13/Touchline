@@ -22,6 +22,7 @@ import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingIte
 import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
+import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { Pitch, PitchLegend } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
@@ -328,10 +329,10 @@ export function Dugout() {
                 <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
                 <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
-              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions">
+              <button className="btn" onClick={() => store.simWeeks(5)} disabled={!!game.pendingEvent} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
                 Sim 5
               </button>
-              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent}>
+              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && store.simToEnd()} disabled={!!game.pendingEvent} data-testid="sim-end">
                 Sim to end
               </button>
             </div>
@@ -686,7 +687,8 @@ export function Dugout() {
 }
 
 /** One row of the slot picker: the player rated in the slot, his fit, the disc number and where he is now. */
-function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
+function SlotOptionRow({ o, at, onPick }: { o: SlotOption; at: Position; onPick?: () => void }) {
+  const rated = slotRating(o.p, at)
   const fitChip = o.fit === 'natural' ? <span className="chip good">fits</span> : o.fit === 'accomplished' ? <span className="chip warn">acc.</span> : <span className="chip bad">awk.</span>
   return (
     <PlayerRow
@@ -702,8 +704,9 @@ function SlotOptionRow({ o, onPick }: { o: SlotOption; onPick?: () => void }) {
         </>
       }
       right={
-        <span className="slot-disc" title="The number on his pitch disc in this slot">
+        <span className="slot-disc" title={slotRatingLine(rated, at, { attributes: true })} aria-label={slotRatingLine(rated, at)} data-testid="slot-disc">
           {o.disc}
+          {rated.cost > 0 && <span className="slot-disc-cost">−{rated.cost}</span>}
         </span>
       }
     />
@@ -727,11 +730,11 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
       <div className="sheet-meta">
         <span className="chip">{role}</span>
         <span className="small muted">Best first</span>
-        <Info label="About the numbers">Sorted by rating in the position. The number on the right is what his pitch disc would show in this slot.</Info>
+        <Info label="About the numbers">The badge on the left is his overall. The number on the right is his rating in this slot, the one his pitch disc would show: his overall less any out-of-position cost (the −N under it). Sorted best first by how his attributes suit the position.</Info>
       </div>
       {sheet.occupant ? (
         <div className="sheet-occupant">
-          <SlotOptionRow o={sheet.occupant} />
+          <SlotOptionRow o={sheet.occupant} at={sheet.slot.position} />
           <button className="btn sm" data-testid="sheet-to-bench" onClick={() => pick(sheet.occupant!.p.id, 'bench')}>
             To bench
           </button>
@@ -745,7 +748,7 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
       <div className="plist lined" data-testid="sheet-cover">
         {sheet.cover.length === 0 && <div className="muted small">No other natural or accomplished {sheet.slot.position}. Try out of position below.</div>}
         {sheet.cover.map((o) => (
-          <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+          <SlotOptionRow key={o.p.id} o={o} at={sheet.slot.position} onPick={() => pick(o.p.id)} />
         ))}
       </div>
       {sheet.outOfPosition.length > 0 && (
@@ -753,7 +756,7 @@ function SlotSheet({ slotId, onClose }: { slotId: string | null; onClose: () => 
           <summary>Out of position · {sheet.outOfPosition.length}</summary>
           <div className="plist lined">
             {sheet.outOfPosition.map((o) => (
-              <SlotOptionRow key={o.p.id} o={o} onPick={() => pick(o.p.id)} />
+              <SlotOptionRow key={o.p.id} o={o} at={sheet.slot.position} onPick={() => pick(o.p.id)} />
             ))}
           </div>
         </details>
@@ -1923,7 +1926,7 @@ function EventCard() {
   const p = ev.playerSeasonId ? get(ev.playerSeasonId) : undefined
   const who = p ? `${p.name} · ${p.positions.join('/')} · morale ${moraleWord(game.squad[p.id]?.morale ?? 70).toLowerCase()}` : null
   return (
-    <div className={`panel event-card${open ? ' open' : ''}`} data-testid="event-card">
+    <div className={`panel event-card${open ? ' open' : ''}`} data-testid="event-card" data-dialog-return="">
       <div className="event-row">
         <h3 className="icon-title event-title">
           <MessageSquare size={18} aria-hidden="true" /> {ev.title}

@@ -13975,3 +13975,217 @@ table.tbl.tv-compact .tv-name {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------ ratings: overall and in a slot (TL-03) */
+/* A disc out of position carries its cost against his overall (−5), so the pitch's 84 and the card's 89 read as one
+   number; the slot pickers print the same pair ("84 · can cover (89 overall, −5 out of position)") */
+.pitch-wrap .slot .disc {
+  position: relative;
+}
+.pitch-wrap .slot .disc .disc-cost {
+  position: absolute;
+  top: -6px;
+  right: -12px;
+  min-width: 22px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1.5px solid var(--gold);
+  background: var(--pitch-disc);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+.pitch-mini .pitch-wrap .slot .disc .disc-cost {
+  display: none;
+}
+.slot-chip .slot-cost {
+  font-weight: 400;
+  color: var(--text-2);
+}
+/* A chip with the cost spelled out may be wider than a phone's row: it flows as one line of text and wraps inside
+   itself, never past the box */
+.slot-chip {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  height: auto;
+  line-height: 1.35;
+  border-radius: 14px;
+}
+.slot-disc {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+}
+.slot-disc .slot-disc-cost {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* ------------------------------------------------------------ dialogs (TL-06) */
+/* A dialog takes the focus itself when it opens (so its title is read first): no ring round the whole box, the
+   controls inside keep theirs */
+.modal[role='dialog']:focus,
+.decision-sheet:focus,
+.md-drawer:focus {
+  outline: none;
+}
+
+/* ------------------------------------------------------------ the arena hub's calls column and the opposition report (2026-10-26) */
+@media (min-width: 1100px) and (min-height: 600px) {
+  /*
+   * The third box never scrolls on a desktop: the pitch's panel takes the height the team talk, training, captain and
+   * the calls leave, and the pitch inside it is sized to that height (a size container, 3:4, so at most 75% of the
+   * height wide), so it shows whole with the calls at the foot. At 2000x870 the box scrolled 126 px and the pitch's
+   * top went out of view once it had been scrolled to the calls.
+   */
+  .arena-hub .arena-side > .arena-pitch-panel {
+    flex: 1 1 0;
+    min-height: 210px;
+    display: flex;
+    flex-direction: column;
+  }
+  .arena-hub .arena-pitch-panel > .panel-head {
+    flex: none;
+    margin-bottom: var(--space-2);
+  }
+  .arena-hub .arena-pitch-box {
+    flex: 1 1 0;
+    min-height: 0;
+    container-type: size;
+  }
+  .arena-hub .arena-pitch-box > .pitch-wrap {
+    max-width: min(100%, 75cqh);
+    margin-inline: auto;
+  }
+  .arena-hub .arena-side > .arena-prep,
+  .arena-hub .arena-side > .arena-actions {
+    flex: none;
+  }
+  /* The match prep in two columns: the team talk across, training and captain side by side */
+  .arena-hub .arena-prep {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+    padding-block: var(--space-3);
+  }
+  .arena-hub .arena-prep > .field:first-child {
+    grid-column: 1 / -1;
+  }
+  .arena-hub .arena-prep > .field:last-child:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .arena-hub .arena-actions {
+    gap: var(--space-2);
+    padding-block: var(--space-3);
+  }
+  .arena-hub .arena-actions > .btn.big {
+    min-height: 44px;
+    padding-block: 8px;
+  }
+}
+
+/* A short desktop window (1280x720): the prep and the calls slim down so the pitch keeps the room. The "v opponent"
+   line repeats the first box's heading, and the team talk's four buttons share one row */
+@media (min-width: 1100px) and (min-height: 600px) and (max-height: 820px) {
+  .arena-hub .arena-vs {
+    display: none;
+  }
+  .arena-hub .arena-prep .segmented {
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .arena-hub .arena-prep .segmented button {
+    flex: 1 1 auto;
+    min-height: 28px;
+    padding: 3px 6px;
+  }
+  .arena-hub .arena-prep .field {
+    gap: 4px;
+  }
+  .arena-hub .arena-prep .input {
+    min-height: 34px;
+    padding-block: 4px;
+  }
+  .arena-hub .arena-pitch-panel,
+  .arena-hub .arena-prep,
+  .arena-hub .arena-actions {
+    padding-block: var(--space-2);
+  }
+}
+/* A very small pitch (a short window's arena hub) shows the numbers only: the names would run into each other, and
+   each slot's tooltip still names him and his rating there */
+@container (max-width: 200px) {
+  .pitch-wrap .slot .label,
+  .pitch-wrap .slot .sub {
+    display: none;
+  }
+  .pitch-wrap .slot .disc {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    border-width: 1.5px;
+  }
+  .pitch-wrap .slot .disc .disc-cost {
+    display: none;
+  }
+}
+
+/* The opposition report: its own width decides the columns, so a narrow box (the arena hub's) never overlaps them */
+details.opposition {
+  container: opp / inline-size;
+}
+.grid.three.opp-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+}
+@container opp (max-width: 640px) {
+  .grid.three.opp-grid {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+  .grid.three.opp-grid > .opp-notes {
+    grid-column: 1 / -1;
+  }
+}
+@container opp (max-width: 420px) {
+  .grid.three.opp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* A danger man's row: rating, name, position, then Man-mark, which drops under the name when the column is narrow */
+.danger-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+  min-width: 0;
+}
+.danger-row .danger-name {
+  flex: 1 1 5em;
+}
+.danger-row > .btn {
+  margin-left: auto;
+  flex: none;
+}
+.opp-notes .notes-list li {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* ------------------------------------------------------------ the man picked out from the squad strip (2026-10-26) */
+/* On the formation panels: a ring round his shirt, in the colour LivePitch's highlightId rings his dot with */
+.matchday .md-man.lit .md-shirt {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--pitch-highlight), 0 0 10px 2px color-mix(in srgb, var(--pitch-highlight) 55%, transparent);
+}
+.matchday .md-man.lit .md-man-name {
+  color: #fff;
+  font-weight: 700;
+}
+
