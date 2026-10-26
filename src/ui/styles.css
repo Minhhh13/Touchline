@@ -6278,7 +6278,7 @@ dl.kv {
   font-weight: 700;
 }
 .badge-tile .desc {
-  font-size: 12.5px;
+  font-size: calc(var(--fs-meta) + 0.5px);
   color: var(--text-2);
 }
 .badge-ring {
@@ -6288,7 +6288,7 @@ dl.kv {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  font-size: 20px;
+  font-size: 20px; /* px: the 44 px ring */
   border: 3px solid var(--line-2);
   background: var(--bg-2);
 }
