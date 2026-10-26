@@ -349,24 +349,24 @@ export function Dugout() {
       <div className="tab-body fill" data-testid="tab-body">
       {tab === 'squad' && <Tip id="dugout-first">The bars are condition and sharpness, the face his morale; the arrow is his form. The disc number is his rating in that slot; acc. is a small out-of-position cost, awk. a big one.</Tip>}
       {tab === 'squad' && game.youthIntake && game.youthIntake.chosen === undefined && preseason && (
-        <div className="panel emphasis" style={{ marginBottom: 'var(--space-4)' }}>
+        <div className="panel emphasis youth-intake" style={{ marginBottom: 'var(--space-4)' }} data-testid="youth-intake">
           <div className="panel-head">
             <h3 className="icon-title">
               <GraduationCap size={20} aria-hidden="true" /> Youth intake
             </h3>
-            <span className="small muted">Sign one free on a three-year deal</span>
+            <span className="row" style={{ gap: 'var(--space-3)' }}>
+              <span className="small muted">Sign one free on a three-year deal</span>
+              <button className="btn ghost sm" onClick={() => store.showToast(store.signYouth(null).message)} data-testid="youth-pass">
+                Pass this year
+              </button>
+            </span>
           </div>
-          <div className="plist lined">
+          <div className="plist lined youth-list">
             {game.youthIntake.candidates.map((id) => {
               const p = u.index[id]
               if (!p) return null
               return <PlayerRow key={id} p={p} showClub onClick={() => store.showToast(store.signYouth(id).message)} right={<span className="btn sm primary">Sign</span>} extra={p.clubId === game.settings.hostClubId ? <span className="chip gold">Homegrown</span> : undefined} />
             })}
-          </div>
-          <div className="row" style={{ marginTop: 8 }}>
-            <button className="btn ghost sm" onClick={() => store.showToast(store.signYouth(null).message)}>
-              Pass this year
-            </button>
           </div>
         </div>
       )}

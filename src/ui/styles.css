@@ -923,6 +923,40 @@ p {
   max-width: 100%;
   text-align: left;
 }
+/* Pre-season's youth intake on a desktop: the candidates side by side, so the squad list under it keeps rows in view
+   (stacked, three to five rows left the squad list no height at 1280 x 720) */
+@media (min-width: 1100px) {
+  .youth-intake {
+    padding-block: var(--space-3);
+  }
+  .youth-intake > .panel-head {
+    margin-bottom: var(--space-2);
+  }
+  .youth-intake .youth-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-2);
+  }
+  .youth-intake .plist.lined.youth-list > .prow {
+    border: var(--border);
+    border-radius: var(--radius-s);
+    box-shadow: none;
+  }
+}
+/* On a short window the intake gives way first: the squad grid under it keeps at least 120 px, and the intake scrolls
+   inside itself, down to its head */
+@media (min-width: 1100px) and (min-height: 600px) {
+  .app.shell .tab-body:has(> .grid.dugout) > .youth-intake {
+    flex-shrink: 1;
+    min-height: 60px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app.shell .tab-body:has(> .youth-intake) > .grid.dugout {
+    flex: 1 1 0;
+    min-height: 120px;
+  }
+}
 /* A pending dressing-room decision (Dugout's EventCard): the title, the story, the choices with their hints */
 .event-card {
   margin-bottom: var(--space-4);
