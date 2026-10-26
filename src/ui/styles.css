@@ -1489,7 +1489,7 @@ label.field,
   border-radius: var(--radius-xs);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 15px; /* px: the rating badge box */
   color: var(--rating-ink);
   background: var(--rating-base);
 }
@@ -1511,7 +1511,7 @@ label.field,
 .rating.lg {
   min-width: 42px;
   height: 30px;
-  font-size: 21px;
+  font-size: 21px; /* px: the rating badge box */
 }
 .rating.hidden {
   background: var(--bg-3);
