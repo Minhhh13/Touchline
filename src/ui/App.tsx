@@ -20,7 +20,7 @@ import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dic
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
-import { parseGameHash } from '../online/core/codes'
+import { DAMAGED_LINK_TOAST, readGameHash } from './gameHash'
 import { onlineAvailable, openRoom, resolveShort } from '../online/api'
 
 // Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
@@ -124,7 +124,12 @@ export function App() {
   useEffect(() => {
     if (!universe) return
     const open = () => {
-      const h = parseGameHash(location.hash)
+      const { link: h, damaged } = readGameHash(location.hash)
+      if (damaged) {
+        history.replaceState(null, '', location.pathname + location.search)
+        useStore.getState().showToast(DAMAGED_LINK_TOAST)
+        return
+      }
       if (!h) return
       // A head-to-head room link (`#h=K7Q2MX9A`) opens the room screen, which keeps the hash while it is open
       if (h.kind === 'h') {
@@ -308,7 +313,9 @@ export function App() {
           <span>Show top bar</span>
         </button>
       )}
-      <ScreenBoundary screenKey={screen === 'game' ? `game:${game?.phase ?? ''}` : screen}>{body}</ScreenBoundary>
+      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')}>
+        {body}
+      </ScreenBoundary>
       <Toast />
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
         {offseason && (
