@@ -19,6 +19,7 @@ import type { PitchPoint } from '@engine/matchDetail'
 import type { PlacedPlayer, Side } from './pitchGeometry'
 import { HOLD_MS, type GoalHold } from './clockStore'
 import { strikeTimes } from './timing'
+import { REPLAY } from './keyMoments'
 
 export { buildBallPath } from './playbook'
 export { cueTimes, foulTimes, MAX_HOP, MAX_SQUEEZE, PASS_SPEED, STRIKE_KICKOFF, STRIKE_RESTART, STRIKE_TRAVEL, strikeTimes } from './timing'
@@ -107,15 +108,16 @@ export interface PossessionInput {
 
 const GOAL_TYPES = new Set<MatchEvent['type']>(['goal', 'penalty', 'own_goal'])
 
-/** The clock holds for the goals in a range: our goals get the full celebration, theirs a short one; a still frame when motion is reduced. */
-export function goalHolds(events: MatchEvent[], from: number, to: number, opts: { userSide?: Side; reduced?: boolean } = {}): GoalHold[] {
+/** The clock holds for the goals in a range: our goals get the full celebration, theirs a short one; a still frame when motion is reduced. With `replay` (and motion) each hold ends with the goal's replay (keyMoments.ts `REPLAY`). */
+export function goalHolds(events: MatchEvent[], from: number, to: number, opts: { userSide?: Side; reduced?: boolean; replay?: boolean } = {}): GoalHold[] {
   const times = strikeTimes(events, from, to)
   const out: GoalHold[] = []
   for (const [idx, t] of times) {
     const e = events[idx]
     if (!GOAL_TYPES.has(e.type)) continue
     const tone: GoalHold['tone'] = !opts.userSide ? 'neutral' : e.side === opts.userSide ? 'ours' : 'theirs'
-    out.push({ t, ms: opts.reduced ? HOLD_MS.reduced : HOLD_MS[tone], side: e.side, key: String(idx), tone })
+    const replay = opts.replay && !opts.reduced ? REPLAY.ms : 0
+    out.push({ t, ms: (opts.reduced ? HOLD_MS.reduced : HOLD_MS[tone]) + replay, side: e.side, key: String(idx), tone, ...(replay ? { replay } : {}) })
   }
   return out.sort((a, b) => a.t - b.t)
 }
