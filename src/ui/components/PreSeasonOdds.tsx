@@ -13,30 +13,22 @@ const CACHE_MAX = 24
 type Cancel = () => void
 
 /**
- * Seasons sampled between two checks of the clock, and the main-thread time one idle slice may take. A 4x-throttled
- * phone samples about one season a millisecond, so a slice stays well under a frame and never shows as a long task;
- * a slice runs to the end of the browser's idle period when it says how long that is. The partition never changes the
- * odds: `sampleSeasons` over any split of the 2,000 seasons draws the same stream (odds.test.ts).
+ * Seasons sampled between two checks of the clock, and the main-thread time one slice may take. A 4x-throttled phone
+ * samples about one season a millisecond, so a slice stays under a frame and never shows as a long task; between two
+ * slices the page gets a turn (input, a frame), so the 2,000 seasons take little longer than in one go. The partition
+ * never changes the odds: `sampleSeasons` over any split of the seasons draws the same stream (odds.test.ts).
  */
 const ODDS_BATCH = 5
-const SLICE_MS = 12
+const SLICE_MS = 20
 
-/** Run `fn` when the browser is idle (or on the next turn where it cannot say), with the time it may take, so sampling never blocks a frame for long. */
-function whenIdle(fn: (budgetMs: number) => void, delay = 0): Cancel {
-  const w = window as Window & { requestIdleCallback?: (cb: (d: { timeRemaining: () => number }) => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void }
-  let idle: number | null = null
-  const t = window.setTimeout(() => {
-    if (w.requestIdleCallback) idle = w.requestIdleCallback((d) => fn(Math.max(SLICE_MS, Math.min(d.timeRemaining(), 30))), { timeout: 250 })
-    else fn(SLICE_MS)
-  }, delay)
-  return () => {
-    window.clearTimeout(t)
-    if (idle !== null) w.cancelIdleCallback?.(idle)
-  }
+/** Run `fn` after `delay` ms, or on the next turn, with the time it may take, so sampling never blocks a frame for long. */
+function nextSlice(fn: (budgetMs: number) => void, delay = 0): Cancel {
+  const t = window.setTimeout(() => fn(SLICE_MS), delay)
+  return () => window.clearTimeout(t)
 }
 
 /**
- * The pre-season odds of the squad on show, sampled a slice at a time in idle moments and cached by `oddsKey`. Null
+ * The pre-season odds of the squad on show, sampled a slice at a time between the page's own work and cached by `oddsKey`. Null
  * while they are being worked out; a change of tactics starts again after a short pause, so a run of taps samples once.
  * Display only: the odds never feed the season.
  */
@@ -77,10 +69,10 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
           shown = progress
           setState({ key, odds: null, progress: progress / ODDS_SEASONS })
         }
-        cancel = whenIdle(step)
+        cancel = nextSlice(step)
       }
     }
-    cancel = whenIdle(step, 180)
+    cancel = nextSlice(step, 180)
     return () => cancel()
     // The key holds everything the odds depend on; the game object itself changes identity on every store write
   }, [key, u])
