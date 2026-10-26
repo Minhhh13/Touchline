@@ -13167,11 +13167,11 @@ table.tbl.hub td.name {
   .pitch-wrap .slot .disc {
     width: 36px;
     height: 36px;
-    font-size: 15px;
+    font-size: 15px; /* px: drawn to the pitch disc */
   }
   .pitch-wrap .slot .label,
   .pitch-wrap .slot .sub {
-    font-size: 10px;
+    font-size: 10px; /* px: drawn to the pitch disc */
   }
   .pitch-wrap .slot.foot .label,
   .pitch-wrap .slot.foot .sub {
@@ -13182,7 +13182,7 @@ table.tbl.hub td.name {
   .pitch-wrap .slot .disc {
     width: 32px;
     height: 32px;
-    font-size: 14px;
+    font-size: 14px; /* px: drawn to the pitch disc */
   }
   .pitch-wrap .slot.foot .label,
   .pitch-wrap .slot.foot .sub {
