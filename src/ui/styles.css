@@ -8332,6 +8332,20 @@ table.tbl.match-stats th {
 .h2h-derbies .fixture {
   grid-template-columns: 52px 1fr auto 1fr;
 }
+/* The head-to-head's final table: the club cell takes what the numbers leave and ends a long name in an ellipsis */
+.h2h-table td.h2h-club {
+  width: 100%;
+  max-width: 0;
+}
+.h2h-table .h2h-club-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.h2h-table .h2h-club > .row {
+  flex-wrap: nowrap;
+}
 @media (max-width: 520px) {
   .howto-facts.tiles {
     grid-template-columns: 1fr;
