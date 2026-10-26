@@ -55,6 +55,7 @@ import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
 import { withTipSeen, type TipId } from './logic/tips'
 import { creditCupRun, playQuickCup, quickCupProblem, skipQuickCup, type QuickCupComp } from './logic/quickCups'
+import { leaguesBeforeSkip } from './logic/cupSkip'
 import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
@@ -186,7 +187,7 @@ interface Store {
   /** Quick Draft after the league: play the domestic cup or the Continental Cup through (loading every league first for the Continental Cup). Resolves true when it was played. */
   playCup: (comp: QuickCupComp) => Promise<boolean>
   /** Quick Draft after the league: pass on a cup. */
-  skipCup: (comp: QuickCupComp) => void
+  skipCup: (comp: QuickCupComp) => Promise<void>
 
   playFriendly: () => void
   startSeason: () => void
@@ -775,7 +776,12 @@ export const useStore = create<Store>()(
           unlockFromGame()
           return true
         },
-        skipCup: (comp) => {
+        skipCup: async (comp) => {
+          const first = get()
+          if (!first.game || !first.universe) return
+          // The Continental Cup is offered before the other leagues are in (Play loads them): Skip loads them too, or it only toasts
+          const load = leaguesBeforeSkip(first.game, first.universe, comp)
+          if (load.length && !(await get().ensureLeagues(load))) return
           const { game, universe } = get()
           if (!game || !universe) return
           const problem = quickCupProblem(game, universe, comp)
