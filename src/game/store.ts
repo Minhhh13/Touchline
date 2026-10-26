@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { produce } from 'immer'
+import { freeze, produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DEFAULT_LEAGUE } from '@engine/universe'
@@ -25,6 +25,7 @@ import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
 import { workerSaveEncoder } from './saveEncoder'
 import { afterNextPaint, nextTask } from './yieldToPage'
+import { runQuickInWorker, stopQuickWorker, warmQuickWorker } from './quickWorkerClient'
 import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
@@ -180,6 +181,16 @@ interface Store {
   finishCase: () => void
   /** Quick Draft and the Daily: leave the tactics step and play the season (to the January window when it is on); `skip` restores the default tactics first. */
   kickOff: (skip?: boolean) => void
+  /**
+   * The kick-off as the tactics step plays it: `kickOff` with the season played in a worker (`quickWorker.ts`), so a
+   * slow phone stays responsive; the page plays it itself where there is no worker or the worker cannot. The same
+   * game as `kickOff` from the same state.
+   */
+  kickOffSoon: (skip?: boolean) => Promise<void>
+  /** Transient: a `kickOffSoon` is under way. Never saved. */
+  kickingOff: boolean
+  /** Have the quick-season worker load the packs now (the tactics step is up); the function returned lets it go. */
+  warmKickOff: () => () => void
   /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
   closeJanuary: (index: number | null) => void
   /** Quick Draft's January spin: open the case (the window's one deal from then on); the reel then lands on the player drawn. */
@@ -436,6 +447,16 @@ export const useStore = create<Store>()(
         unlockFromGame()
         get().recordResult()
       }
+      /** After a kick-off: the playback from the first game, and a season with no bench recorded at once. */
+      const afterKickOff = () => {
+        const { game } = get()
+        if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
+        // A season with a bench stays open to changes until the playback closes, and is recorded then
+        if (game?.phase === 'summary' && !game.quickOpen) {
+          unlockFromGame()
+          get().recordResult()
+        }
+      }
       const unlockFromGame = () => {
         const { game, profile } = get()
         if (!game) return
@@ -473,6 +494,7 @@ export const useStore = create<Store>()(
         pendingChallenge: null,
         playback: null,
         playingWeek: false,
+        kickingOff: false,
 
         loadData: async () => {
           if (get().universe || get().loading) return
@@ -767,12 +789,29 @@ export const useStore = create<Store>()(
           // The manager spin and the case come first: the season waits for both
           if (before?.phase !== 'kickoff' || kickoffStep(before) !== 'tactics') return
           mutate((g, u) => kickOff(g, u, skip))
-          const { game } = get()
-          if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
-          // A season with a bench stays open to changes until the playback closes, and is recorded then
-          if (game?.phase === 'summary' && !game.quickOpen) {
-            unlockFromGame()
-            get().recordResult()
+          afterKickOff()
+        },
+        kickOffSoon: async (skip) => {
+          const { game: before, universe: u0, kickingOff } = get()
+          if (before?.phase !== 'kickoff' || kickoffStep(before) !== 'tactics' || !u0 || kickingOff) return
+          set({ kickingOff: true })
+          try {
+            await afterNextPaint()
+            const same = () => get().game === before && get().universe === u0
+            const played = same() ? await runQuickInWorker({ op: 'kickOff', game: before, skip: !!skip }, get().loadedLeagues, get().classicLoaded, u0) : null
+            // No worker, or the game moved meanwhile: the page plays it, on the game as it is now
+            if (!played || !same()) return get().kickOff(skip)
+            set({ game: freeze(played, true) })
+            afterKickOff()
+          } finally {
+            set({ kickingOff: false })
+            stopQuickWorker()
+          }
+        },
+        warmKickOff: () => {
+          warmQuickWorker(get().loadedLeagues, get().classicLoaded)
+          return () => {
+            if (!get().kickingOff) stopQuickWorker()
           }
         },
         januarySpin: () =>
