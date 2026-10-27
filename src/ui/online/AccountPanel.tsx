@@ -8,6 +8,7 @@ import { restorable } from '../../online/sync'
 import type { CloudRow } from '../../online/transport'
 import { countryFlag } from '../../online/core/country'
 import { savedLine } from '../../online/core/status'
+import { deviceSlotsLine, SLOT_LABEL, whereLabel } from '../../online/core/slots'
 import { AUTH_MODES, authCopy, authOutcomeNote, type AuthMode } from '../../online/core/authCopy'
 import { ClubBadge, Segmented } from '../components/bits'
 import { COUNTRY_OPTIONS, countryName } from './countries'
@@ -15,7 +16,6 @@ import { ConflictCards } from './ConflictCard'
 import { OnlineRecord } from './OnlineRecord'
 import { onlineErrorText } from '../../online/postText'
 
-const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft / Daily', season: 'Season', dynasty: 'Dynasty', h2h: 'Head-to-head' }
 
 /** The account's promise, said the same way everywhere a guest is invited to sign in. */
 export const ACCOUNT_PROMISE = 'Sign in to save your seasons, records and Dailies to your account.'
@@ -380,7 +380,7 @@ function CloudHistory() {
       {rows.length === 0 && <span className="small muted">Nothing in the cloud yet.</span>}
       {rows.map((r) => (
         <div key={r.slot} className="small">
-          <b>{SLOT_LABEL[r.slot]}</b>: {r.deletedAt ? 'removed on a device' : `${r.meta.teamName ?? ''} · ${r.meta.phase ?? ''}${r.meta.matchweek ? ` · matchweek ${r.meta.matchweek}` : ''} · ${r.meta.deviceLabel ?? ''}`}
+          <b>{SLOT_LABEL[r.slot] ?? r.slot}</b>: {r.deletedAt ? 'removed on a device' : `${r.meta.teamName ?? ''} · ${whereLabel({ phase: r.meta.phase ?? '', matchweek: r.meta.matchweek ?? 0, mode: r.meta.mode, arena: r.meta.arena })} · ${r.meta.deviceLabel ?? ''}`}
           {r.prevMeta && (
             <div className="row wrap" style={{ gap: 6 }}>
               <span className="muted">
@@ -411,8 +411,9 @@ function CloudHistory() {
 /** What is saved to the account: the status line, Sync now, questions waiting, history, and the two deletions. */
 function CloudPanel({ setup }: { setup: boolean }) {
   const status = useOnline((s) => s.syncStatus)
-  const parked = useStore((s) => Object.keys(s.parked).length)
-  const hasGame = useStore((s) => !!s.game)
+  const game = useStore((s) => s.game)
+  const parked = useStore((s) => s.parked)
+  const h2h = useStore((s) => s.h2h)
   const records = useStore((s) => s.profile.leaderboard.length)
   return (
     <section className="panel fit-panel" data-testid="account-cloud">
@@ -427,7 +428,7 @@ function CloudPanel({ setup }: { setup: boolean }) {
         <ConflictCards />
         <ul className="plain-list small" data-testid="account-saves">
           <li>
-            <b>Your games:</b> {hasGame || parked ? `${(hasGame ? 1 : 0) + parked} on this device` : 'none on this device yet'}, plus Quick Drafts, Dailies and the head-to-head.
+            <b>Your games:</b> <span data-testid="account-saves-here">{deviceSlotsLine({ game, parked, h2h })}</span>. Every kind syncs: Quick Drafts, Dailies and Weeklies, Season, Dynasty, the head-to-head, arena runs and Run-ins.
           </li>
           <li>
             <b>Your records:</b> {records ? `${records} best season${records === 1 ? '' : 's'}` : 'your best seasons'}, the 38-0 bests, Daily results and streak, achievements and trophies.

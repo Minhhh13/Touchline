@@ -3,6 +3,10 @@ import { loadTestUniverse } from '@engine/__tests__/helpers'
 import { SEASON_RULES } from '@engine/draft'
 import type { Game, GameSettings } from '../types'
 import { createGame, dailyGameSettings } from '../logic/setup'
+import { beginArena, cupGameSettings, simArenaToEnd } from '../logic/arena'
+import { compactGame } from '../logic/compact'
+import { Rng } from '@engine/rng'
+import { autoDraft } from '@engine/draft'
 
 vi.hoisted(() => {
   const mem = new Map<string, string>()
@@ -44,6 +48,25 @@ describe('cloud restores go through the store', () => {
     expect(await useStore.getState().importCloudGame('season', cloud, 'replace')).toBe(true)
     expect(useStore.getState().game?.id).toBe(active.id)
     expect(useStore.getState().game).not.toBe(active)
+  })
+
+  it('parks an arena run in the arena slot with its run whole, and replaces the active one only on "replace"', async () => {
+    const g = createGame(cupGameSettings(u, { teamName: 'Cloud XI', formationId: '4-3-3', field: 'wheel', wheelLeagues: ['england'], difficulty: 'calibrated', seed: 'CLOUD-ARENA', hardMode: false, twists: true, size: 8 }, 'CXI'))
+    const rng = Rng.fromState(g.rngState)
+    autoDraft(u, g.draft!, rng)
+    g.rngState = rng.getState()
+    beginArena(g, u)
+    simArenaToEnd(g, u)
+    // what the cloud hands back: the uploaded JSON
+    const cloud = JSON.parse(JSON.stringify(compactGame(g))) as Game
+    reset(createGame(seasonSettings('CLOUD-A')))
+    expect(await useStore.getState().importCloudGame('season', cloud, 'park')).toBe(false)
+    expect(await useStore.getState().importCloudGame('arena', cloud, 'park')).toBe(true)
+    expect(JSON.parse(JSON.stringify(useStore.getState().parked.arena!.arena))).toEqual(JSON.parse(JSON.stringify(g.arena)))
+    reset({ ...cloud, id: 'older-run' })
+    expect(await useStore.getState().importCloudGame('arena', cloud, 'park')).toBe(false)
+    expect(await useStore.getState().importCloudGame('arena', cloud, 'replace')).toBe(true)
+    expect(useStore.getState().game?.id).toBe(g.id)
   })
 
   it('refuses a game in the wrong slot, a non-game, and a swap during a live match', async () => {

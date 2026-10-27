@@ -1,12 +1,12 @@
 import { useOnline, type SyncConflict } from '../../online/state'
-import type { SaveMeta } from '../../online/core/slots'
+import { whereLabel, type SaveMeta } from '../../online/core/slots'
 import * as api from '../../online/api'
 
-const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft', season: 'Season', dynasty: 'Dynasty', h2h: 'head-to-head' }
+const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft', season: 'Season', dynasty: 'Dynasty', h2h: 'head-to-head', arena: 'arena run', runin: 'Run-in' }
 
 function describe(m: SaveMeta | null): string {
   if (!m) return 'a game'
-  const where = m.phase === 'draft' ? 'drafting' : m.phase === 'summary' ? 'season complete' : m.matchweek ? `matchweek ${m.matchweek}` : m.phase
+  const where = whereLabel(m)
   return `${m.teamName} (${where}${m.mode === 'dynasty' ? `, year ${m.year}` : ''})${m.deviceLabel ? ` on ${m.deviceLabel}` : ''}`
 }
 

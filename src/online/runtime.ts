@@ -11,7 +11,7 @@ import { onlineConfig, type OnlineConfig } from './config'
 import { createOnlineClient } from './client'
 import { consumeAuthRedirect, sessionOf, signOut as authSignOut, type AuthLike } from './auth'
 import type { AuthRedirect } from './core/authUrl'
-import { deviceLabel, type MetaContext, type SlotId } from './core/slots'
+import { deviceLabel, throttledSlot, type MetaContext, type SlotId } from './core/slots'
 import { freshRecord, loadRecord, saveRecord } from './localState'
 import { flushOutbox, nextDue } from './outbox'
 import { onlineStore, type OnlineSession, type OnlineState } from './state'
@@ -186,15 +186,15 @@ export class Runtime {
     }, PERIODIC_MS)
   }
 
-  /** The push budget: Quick and head-to-head 20 s after a change (2 s at a checkpoint); Season and Dynasty at most every 2 minutes. */
+  /** The push budget: Quick, head-to-head and the arena 20 s after a change (2 s at a checkpoint); Season, Dynasty and the Run-in at most every 2 minutes. */
   private scheduleSlot(slot: SlotId, prev: ReturnType<typeof useStore.getState>, next: ReturnType<typeof useStore.getState>): void {
     const checkpoint = (() => {
       const a = prev.game
       const b = next.game
       if (!a || !b || a.id !== b.id) return true
-      return a.phase !== b.phase || (a.season?.matchweek ?? 0) !== (b.season?.matchweek ?? 0) || a.year !== b.year
+      return a.phase !== b.phase || (a.season?.matchweek ?? 0) !== (b.season?.matchweek ?? 0) || a.year !== b.year || (a.arena?.step ?? 0) !== (b.arena?.step ?? 0)
     })()
-    if (slot === 'season' || slot === 'dynasty') {
+    if (throttledSlot(slot)) {
       const last = loadRecord().lastUploadAt[slot] ?? 0
       this.schedule(Math.max(checkpoint ? 2000 : 20000, last + SEASON_UPLOAD_GAP_MS - Date.now() + 500))
     } else this.schedule(checkpoint ? 2000 : 20000)
