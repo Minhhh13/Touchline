@@ -10,7 +10,9 @@
 -- chase_my_entries for signed-in accounts; its writers svc_chase_start, svc_chase_attempt, svc_chase_submit are
 -- service_role only like every svc_*. The casual boards (migration casual_boards) add casual_board and casual_summary
 -- for everyone and casual_my_entries for signed-in accounts; svc_casual_pin, svc_casual_get_pin and svc_casual_submit
--- are service_role only.
+-- are service_role only. Error reports (migration error_reports) add nothing for anon or authenticated: the writer
+-- svc_error_report is service_role only and its helpers are private. The arena and Run-in cloud slots (migration
+-- cloud_slots_arena_runin) add no function; they widen save_claim_impl and save_delete_impl, already listed below.
 do $t$ declare got text[]; want text[] := array[
   'private.chase_board_impl', 'private.chase_summary_impl',
   -- The casual boards (casual_boards migration): the Daily Arena, Weekly Challenge and Run-in of the week readers
@@ -66,6 +68,10 @@ do $t$ declare bad text; begin
     and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
          or not has_function_privilege('service_role', p.oid, 'execute'));
   assert bad is null, 'svc_ functions reachable by a client role (or not by service_role): ' || bad;
+  -- The engine 7 release's writers exist, so the check above covers them (error_reports, casual_boards)
+  select string_agg(w, ', ') into bad from unnest(array['svc_error_report', 'svc_casual_pin', 'svc_casual_get_pin', 'svc_casual_submit']) w
+  where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = w);
+  assert bad is null, 'missing svc_ writers: ' || bad;
   select string_agg(p.proname, ', ') into bad from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.prosecdef;
   assert bad is null, 'SECURITY DEFINER in public: ' || bad;
