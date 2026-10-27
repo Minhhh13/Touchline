@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
+import { aiLookup } from '@engine/reserve'
 import { useMediaQuery } from './LivePitch'
 
 /** The kicks reveal one at a time, at once for anyone who asked the system for less motion. */
@@ -48,7 +49,9 @@ export function ShootoutPanel() {
   const phone = useMediaQuery('(max-width: 720px)')
   if (!u || !game?.arena) return null
   const get = playerLookup(game, u)
-  const name = (id: string, ours: boolean) => (ours ? get(id)?.name : u.index[id]?.name) ?? id
+  // Their side through the AI lookup, so a reserve keeper (never in the index) is named
+  const theirs = aiLookup(u)
+  const name = (id: string, ours: boolean) => (ours ? get(id)?.name : theirs(id)?.name) ?? id
 
   if (pending) {
     const list = order ?? pending.defaultOrder
@@ -105,7 +108,7 @@ export function ShootoutPanel() {
                 ))}
               </select>
             </label>
-            <p className="help">The takers go in this order and start again from the top in sudden death. Their side: {pending.theirOrder.slice(0, 5).map((id) => u.index[id]?.name ?? id).join(', ')}.</p>
+            <p className="help">The takers go in this order and start again from the top in sudden death. Their side: {pending.theirOrder.slice(0, 5).map((id) => name(id, false)).join(', ')}.</p>
             {!phone && take}
           </div>
         </div>
