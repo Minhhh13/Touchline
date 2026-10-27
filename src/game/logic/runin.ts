@@ -19,6 +19,7 @@ import { startingFinances } from '@engine/market'
 import { defaultStatuses } from '@engine/status'
 import { ordinal, seasonLabel } from '@engine/universe'
 import { runInShareText } from '@engine/awards'
+import { historyKey, picksFromHistory } from '@engine/challenge'
 import type { Game, GameSettings, RunInEntry } from '../types'
 import { moveDraftToSquad } from './setup'
 import { autoPick, squadWages } from './squad'
@@ -126,6 +127,11 @@ export function beginRunIn(game: Game, u: LoadedUniverse): void {
   const carryIn = projectedCarryIn(u, s.leagueId, s.leagueSeason, s.hostClubId)
   if (!carryIn) throw new Error(`${seasonLabel(s.leagueSeason)} has no complete table for a run-in`)
   const rng = Rng.fromState(game.rngState)
+  // The draft closes here: its rows stay for the Run-in of the week's ranked replay (no draw)
+  if (game.draft) {
+    const get = playerLookup(game, u)
+    game.runInDraft = { p: picksFromHistory(game.draft.history, (id) => get(id)?.playerId), k: historyKey(game.draft.history) }
+  }
   moveDraftToSquad(game, rng)
   // The wheel's signings leave their real clubs (engine 6, E6-2)
   const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, humansOf(Object.keys(game.squad), playerLookup(game, u)))

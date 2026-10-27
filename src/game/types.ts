@@ -10,7 +10,7 @@ import type { TrainingFocus } from '@engine/training'
 import type { SeasonAwards } from '@engine/awards'
 import type { Lineup, PlayerSeason, Position, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
 import type { DraftRules } from '@engine/draft'
-import type { ArenaClaim, ChallengeClaim } from '@engine/challenge'
+import type { ArenaClaim, ChallengeClaim, ChallengePick } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
 import type { AiClub } from '@engine/season'
 import type { ArenaField, ArenaTier } from '@engine/knockout'
@@ -368,6 +368,12 @@ export interface Game {
   history: SeasonRecord[]
   /** Bonus wheel spins available (agent meetings, summer window). */
   bonusSpins: number
+  /**
+   * A run-in's reinforcement draft as link rows (each spin's real player id and slot, or nulls) and its `historyKey`,
+   * kept at the takeover (the draft closes there) for the Run-in of the week's ranked replay. Absent before the
+   * takeover, in any other mode and in older saves.
+   */
+  runInDraft?: { p: ChallengePick[]; k: string }
   /** Friendlies played in preseason (max 3). */
   friendliesPlayed: number
   /** Achievement ids unlocked during this game. */
