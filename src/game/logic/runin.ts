@@ -12,7 +12,7 @@ import { newDraft, SEASON_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { formationForStyle, tacticsForStyle } from '@engine/tactics'
 import { autoPickLineup } from '@engine/ratings'
-import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, newSquadPlayer, positionOf, seasonTable, USER_TEAM, type SeasonState } from '@engine/season'
+import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, humansOf, matchweeksFor, newSquadPlayer, positionOf, seasonTable, USER_TEAM, type SeasonState } from '@engine/season'
 import { briefTarget, projectedCarryIn, relegatedDirectly, takeoverWeek, type RunInJob, type RunInTemplate } from '@engine/scenario'
 import type { Objective, ObjectiveId } from '@engine/objectives'
 import { startingFinances } from '@engine/market'
@@ -22,7 +22,7 @@ import { runInShareText } from '@engine/awards'
 import type { Game, GameSettings, RunInEntry } from '../types'
 import { moveDraftToSquad } from './setup'
 import { autoPick, squadWages } from './squad'
-import { squadPlayers } from './players'
+import { playerLookup, squadPlayers } from './players'
 import { resultId } from './cabinet'
 import { storyForGame } from './story'
 
@@ -127,7 +127,9 @@ export function beginRunIn(game: Game, u: LoadedUniverse): void {
   if (!carryIn) throw new Error(`${seasonLabel(s.leagueSeason)} has no complete table for a run-in`)
   const rng = Rng.fromState(game.rngState)
   moveDraftToSquad(game, rng)
-  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
+  // The wheel's signings leave their real clubs (engine 6, E6-2)
+  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, humansOf(Object.keys(game.squad), playerLookup(game, u)))
+  const full = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
@@ -149,7 +151,7 @@ export function beginRunIn(game: Game, u: LoadedUniverse): void {
     cupEliminated: true,
     cupWon: false,
     ai,
-    aiOffset: aiRatingOffset(u, ai, s.difficulty),
+    aiOffset: aiRatingOffset(u, full, s.difficulty),
     news: [{ matchweek: takeoverAt, kind: 'board', title: 'The job is yours', body: `You take over ${s.teamName} after matchweek ${takeoverAt}, ${ordinal(pos)} on ${from[pos - 1].points} points (projected from the final table), with ${toPlay} to play. The board's brief: ${brief.label.toLowerCase()}.` }],
     confidence: RUN_IN_CONFIDENCE[template],
     boardTarget: target,

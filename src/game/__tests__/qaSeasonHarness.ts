@@ -3,7 +3,7 @@
  * week by week, with the invariants checked after every step.
  */
 import type { LoadedUniverse } from '@engine/universe'
-import { USER_TEAM, computeTable, seasonTable } from '@engine/season'
+import { USER_TEAM, seasonTable } from '@engine/season'
 import { FORMATIONS } from '@engine/formations'
 import { useStore } from '../store'
 import { SQUAD_CAP } from '../logic/marketOps'
@@ -38,8 +38,8 @@ export function seasonProblems(g: Game, label: string): string[] {
   const done = s.fixtures.filter((f) => f.matchweek <= s.matchweek && f.matchweek > (s.takeoverAt ?? 0))
   const missing = done.filter((f) => !f.result)
   if (missing.length && !g.live) out.push(`${label}: ${missing.length} fixtures up to matchweek ${s.matchweek} unplayed`)
-  // A run-in's carried rows are each club's real row scaled on its own (`scaleRow`), so only the games played since balance
-  out.push(...tableProblems(s.carryIn ? computeTable(s.fixtures, table.map((r) => r.teamId)) : table, null, label))
+  // A run-in's carried table adds up league-wide (`scaleTable`, engine 6), so the whole table balances
+  out.push(...tableProblems(table, null, label))
   const userFixtures = s.fixtures.filter((f) => f.homeTeamId === USER_TEAM || f.awayTeamId === USER_TEAM)
   if (userFixtures.length !== s.matchweeks && Object.keys(s.ai).length % 2 === 1) out.push(`${label}: ${userFixtures.length} user fixtures for ${s.matchweeks} matchweeks`)
   return out

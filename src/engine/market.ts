@@ -456,18 +456,40 @@ export function startingFinances(u: LoadedUniverse, hostClubId: string, leagueSe
 }
 
 /**
- * Weekly cash flow: match-day and broadcast income roughly covers the wage
- * cap. Spending under the cap drips into the budget; over it drains.
+ * Weekly cash flow: match-day and broadcast income roughly covers the wage cap. A tenth of what the wages leave
+ * under the cap drips into the budget (the rest runs the club); spending over it drains in full. Engine 6: the whole
+ * headroom dripped before, so a Dynasty that signed nobody grew from £74M to £820M in four seasons (item 2).
  */
+export const HEADROOM_SHARE = 0.1
+
 export function weeklyCashFlow(finances: Finances, wages: number): number {
-  return (finances.wageCap - wages) / 1000
+  const headroom = finances.wageCap - wages
+  return (headroom > 0 ? headroom * HEADROOM_SHARE : headroom) / 1000
 }
 
-/** Prize money by final league position (GBP millions), roughly real-world shaped. */
-export function prizeMoney(position: number, cupWon: boolean): number {
-  const base = 100 - (position - 1) * 3.2
-  return roundM(base + (cupWon ? 12 : 0))
+/**
+ * The season's league money net of the club's running costs (GBP millions), by final position: +£20M for the
+ * champions down to −£20M for last place in a straight line (0 at mid-table), plus £10M for the cup. Success grows
+ * the budget modestly and failure shrinks it. Engine 6; before it a title paid £100M and last place £39M.
+ */
+export const PRIZE_SPREAD = 20
+export const CUP_PRIZE = 10
+
+export function prizeMoney(position: number, cupWon: boolean, clubs = 20): number {
+  const frac = clubs > 1 ? Math.min(1, Math.max(0, (position - 1) / (clubs - 1))) : 0
+  return roundM(PRIZE_SPREAD * (1 - 2 * frac) + (cupWon ? CUP_PRIZE : 0))
 }
+
+/**
+ * The budget once a season's league money (`net`, which may be negative) lands: running costs beyond the money take it
+ * down to nothing at worst; only a wage bill over the cap (the weekly cash flow) runs a club into debt. Rounded to £0.1M.
+ */
+export function afterSeasonMoney(budget: number, net: number): number {
+  return Math.round(Math.max(Math.min(budget, 0), budget + net) * 10) / 10
+}
+
+/** The Continental Cup's money by the round reached (GBP millions); engine 6 (4, 8, 15, 25 and 45 before). */
+export const CONTINENTAL_PRIZE: Readonly<Record<string, number>> = { R16: 2, QF: 4, SF: 7, F: 11, W: 18 }
 
 export const POSITION_NEEDS: Record<Position, string> = {
   GK: 'a goalkeeper',

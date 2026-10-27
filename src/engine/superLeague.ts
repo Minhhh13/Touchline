@@ -57,10 +57,11 @@ export function superLeagueField(u: LoadedUniverse, classic: boolean | undefined
 }
 
 /** The Super League's AI sides, keyed by club id (one season per club, so the id is unique), strongest first. */
-export function buildSuperClubs(u: LoadedUniverse, classic: boolean | undefined): Record<string, AiClub> {
+export function buildSuperClubs(u: LoadedUniverse, classic: boolean | undefined, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
-  // Named with the season it enters with, so the match feed and the highlights say "Barcelona 2010-11" too
-  for (const cs of superLeagueField(u, classic)) ai[cs.clubId] = { ...aiClubOf(u, cs), name: superSideName(u.clubById[cs.clubId]?.name ?? cs.clubId, cs.season) }
+  // Named with the season it enters with, so the match feed and the highlights say "Barcelona 2010-11" too. The field
+  // is chosen on full squads; the user's humans then leave them (`taken`, engine 6)
+  for (const cs of superLeagueField(u, classic)) ai[cs.clubId] = { ...aiClubOf(u, cs, taken), name: superSideName(u.clubById[cs.clubId]?.name ?? cs.clubId, cs.season) }
   return ai
 }
 
@@ -68,9 +69,9 @@ export function buildSuperClubs(u: LoadedUniverse, classic: boolean | undefined)
  * The Super League's Continental Cup field: the next strongest clubs after the league's nineteen, one season each,
  * so the post-season run meets the best of the rest. Pure.
  */
-export function buildSuperRestClubs(u: LoadedUniverse, classic: boolean | undefined, n: number): Record<string, AiClub> {
+export function buildSuperRestClubs(u: LoadedUniverse, classic: boolean | undefined, n: number, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
-  for (const r of rankedClubs(u, classic).slice(SUPER_LEAGUE_RIVALS, SUPER_LEAGUE_RIVALS + n)) ai[r.cs.clubId] = { ...aiClubOf(u, r.cs), name: superSideName(u.clubById[r.cs.clubId]?.name ?? r.cs.clubId, r.cs.season) }
+  for (const r of rankedClubs(u, classic).slice(SUPER_LEAGUE_RIVALS, SUPER_LEAGUE_RIVALS + n)) ai[r.cs.clubId] = { ...aiClubOf(u, r.cs, taken), name: superSideName(u.clubById[r.cs.clubId]?.name ?? r.cs.clubId, r.cs.season) }
   return ai
 }
 

@@ -18,6 +18,7 @@ vi.hoisted(() => {
   })
 })
 import { useStore } from '../store'
+import { emptyCabinet } from '../logic/cabinet'
 import { getFormation } from '@engine/formations'
 import { canPlayFor } from '../logic/quickBench'
 import { playerLookup } from '../logic/players'
@@ -259,7 +260,7 @@ describe('the post-season cups of a Quick Draft', { timeout: 120_000 }, () => {
   it('count a won cup in the trophy cabinet and the achievements through the store', async () => {
     for (const seed of SEEDS.slice(0, 4)) {
       const g = played({ seed })
-      useStore.setState({ universe: u, game: g, loadedLeagues: ['england', 'spain', 'italy', 'germany'], playback: null, profile: { ...useStore.getState().profile, trophies: { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }, achievements: {} } })
+      useStore.setState({ universe: u, game: g, loadedLeagues: ['england', 'spain', 'italy', 'germany'], playback: null, profile: { ...useStore.getState().profile, cabinet: emptyCabinet(), trophies: { league: 0, cup: 0, continental: 0, doubles: 0, trebles: 0 }, achievements: {} } })
       expect(await useStore.getState().playCup('cup')).toBe(true)
       const after = useStore.getState()
       const run = after.game!.quickResult!.cup!

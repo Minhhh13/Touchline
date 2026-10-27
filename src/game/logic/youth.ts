@@ -10,6 +10,7 @@ import type { PlayerSeason } from '@engine/types'
 import { newSquadPlayer } from '@engine/season'
 import { squadPlayers } from './players'
 import { postNews } from './news'
+import { SQUAD_CAP } from './marketOps'
 
 export const INTAKE_SIZE = 3
 
@@ -61,7 +62,7 @@ export function signYouth(game: Game, u: LoadedUniverse, playerSeasonId: string 
   const p = u.index[playerSeasonId]
   if (!p) return { ok: false, message: 'Player not found.' }
   if (squadPlayers(game, u).some((x) => x.p.playerId === p.playerId)) return { ok: false, message: `${p.name} is already in your squad.` }
-  if (Object.keys(game.squad).length >= 23) return { ok: false, message: 'Squad is full (23). Make room first.' }
+  if (Object.keys(game.squad).length >= SQUAD_CAP) return { ok: false, message: `Squad is full (${SQUAD_CAP}). Make room first.` }
   game.squad[p.id] = newSquadPlayer(p.id, { familiarity: 30, sharpness: 60 })
   game.contracts[p.id] = { years: 3, status: 'prospect' }
   if (!game.bench.includes(p.id)) game.bench.push(p.id)

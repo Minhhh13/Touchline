@@ -350,6 +350,12 @@ export interface Game {
   seasonEnding?: boolean
   /** Player-season ids who played this week (league and cup), for recovery. */
   weekPlayed: string[]
+  /**
+   * Squad men who missed a match this week injured or suspended (engine 6, item 4): the week's housekeeping records no
+   * zero minutes for them and their run of missed matches does not grow, so a key man back from injury does not knock on
+   * the door about minutes. Cleared with `weekPlayed`; absent in older saves (read as nobody).
+   */
+  weekUnavailable?: string[]
   lastMatch: FullMatchResult | null
   lastMatchContext: MatchContext | null
   /** Cup result played this week, if any, shown with the league match. */

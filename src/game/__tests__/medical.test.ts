@@ -26,11 +26,13 @@ function seeded(seed: string): Game {
 }
 
 describe('the medical view', () => {
-  it('over 600 seeded matches, high-risk starters are injured at least 1.5 times as often as low-risk ones', () => {
+  // 1,500 matches: on engine 6's stream 600 held only 35 injuries to high-risk starters (a ratio of 1.42 that 2,400 matches
+  // put at 1.98), too few for the 1.5 bound to be more than a coin toss
+  it('over 1,500 seeded matches, high-risk starters are injured at least 1.5 times as often as low-risk ones', () => {
     const starts: Record<RiskBand, number> = { low: 0, medium: 0, high: 0 }
     const injuries: Record<RiskBand, number> = { low: 0, medium: 0, high: 0 }
     let matches = 0
-    for (let i = 0; matches < 600; i++) {
+    for (let i = 0; matches < 1500; i++) {
       const g = seeded(`medical-${i}`)
       const get = playerLookup(g, u)
       // The test's own stream spreads the squad's condition over the engine's bands, so every risk band gets starts
@@ -58,11 +60,11 @@ describe('the medical view', () => {
       }
     }
     const rate = (b: RiskBand) => injuries[b] / Math.max(1, starts[b])
-    expect(starts.high).toBeGreaterThan(200)
-    expect(starts.low).toBeGreaterThan(200)
+    expect(starts.high).toBeGreaterThan(500)
+    expect(starts.low).toBeGreaterThan(500)
     expect(rate('high')).toBeGreaterThanOrEqual(1.5 * rate('low'))
     expect(rate('medium')).toBeGreaterThan(rate('low'))
-  }, 300_000)
+  }, 600_000)
 
   it('mirrors the engine terms and names the reasons', () => {
     const g = seeded('medical-reasons')

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { Bandage, ChevronDown } from 'lucide-react'
 import { useStore } from '@game/store'
 import { staffTier } from '@engine/staff'
-import { aiTeamInput, seasonTable, type AiClub } from '@engine/season'
+import { seasonTable, type AiClub } from '@engine/season'
+import { opponentInput } from '@game/logic/squadDisplay'
 import { computeTeamStrength } from '@engine/ratings'
 import { STYLE_LABEL } from '@engine/tactics'
 import { FormDots, Rating, Pos } from '../components/bits'
@@ -22,7 +23,7 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
     if (!u || !game || (!game.season && !given)) return null
     const club = given ?? game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]
     if (!club) return null
-    const input = aiTeamInput(u, club, aiOffset ?? game.season?.aiOffset ?? 0)
+    const input = opponentInput(game, u, club, aiOffset ?? game.season?.aiOffset ?? 0)
     const strength = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
     const xi = Object.values(input.lineup).map((id) => u.index[id]).filter(Boolean)
     const stars = [...xi].sort((a, b) => b.overall - a.overall).slice(0, 3)

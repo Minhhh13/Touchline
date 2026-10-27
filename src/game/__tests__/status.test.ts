@@ -193,7 +193,8 @@ describe('squad status and playing time', () => {
   })
 
   it('suggests the status against the squad without the part-exchange player, and the bid carries exactly that status', () => {
-    const g = newGame(u, { seed: 'status-exchange' })
+    // A seed whose January window lists a man rated between our fourth and fifth best (engine 6: status-exchange-1)
+    const g = newGame(u, { seed: 'status-exchange-1' })
     while (g.season!.matchweek < 19) playMatchweek(g, u, true)
     expect(g.window?.kind).toBe('january')
     g.finances.budget = 999
@@ -220,10 +221,18 @@ describe('squad status and playing time', () => {
 
   it('records minutes per matchweek, cup minutes in the same week, and keeps six weeks', () => {
     const g = newGame(u, { seed: 'status-minutes' })
+    // A man out injured or banned records no week (engine 6, item 4), so only the men available every week have one each
+    const missed = new Set<string>()
     for (let w = 1; w <= 8; w++) {
+      for (const [id, s] of Object.entries(g.squad)) if (s.injury || s.suspension > 0) missed.add(id)
       playMatchweek(g, u, true)
-      for (const s of Object.values(g.squad)) expect(s.recentMinutes!.length).toBe(Math.min(w, RECENT_WEEKS))
+      for (const [id, s] of Object.entries(g.squad)) {
+        if (s.injury) missed.add(id)
+        if (missed.has(id)) expect(s.recentMinutes!.length).toBeLessThanOrEqual(Math.min(w, RECENT_WEEKS))
+        else expect(s.recentMinutes!.length).toBe(Math.min(w, RECENT_WEEKS))
+      }
     }
+    expect(Object.keys(g.squad).length - missed.size).toBeGreaterThan(10)
     // Matchweek 6 was followed by a cup tie: someone who played both has more than 90 in that week's entry
     const weekSix = Object.values(g.squad).map((s) => s.recentMinutes![5 - 2])
     expect(weekSix.some((m) => m > 90)).toBe(true)
