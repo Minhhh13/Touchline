@@ -18,10 +18,11 @@ import { OnlineError } from './transport'
 import { checkDisplayName, nameVerdictFrom, sendEmailCode, signInWithGoogle, verifyEmailCode, type AuthResult, type NameVerdict } from './auth'
 import { normaliseCountry } from './core/country'
 import { googleEnabledIn, googleForced } from './core/providers'
-import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchCasualBoard, fetchCasualSummary, fetchChaseBoard, fetchChaseStatus, fetchChaseSummary, fetchSummary, myCasualEntries, myEntries, rankOf, type AlltimeOrder, type CasualKind, type ChaseScope, type RankedKind } from './boards'
-import { chaseGameSettings, chaseLeagues, chaseUnrankedReason, type ChaseOptions } from './chase'
+import type { AlltimeOrder, CasualKind, ChaseScope, RankedKind } from './boards'
+/** The board readers load with the World screen and the summaries' rank lines, never in the first download (every reader here is async already). */
+const boards = () => import('./boards')
+import type { ChaseOptions } from './chase'
 import { updateRecord } from './localState'
-import { captureChaseEntry, enqueue } from './outbox'
 import { createShortLink, resolveShortCode, type Resolved, type ShareLink } from './challengeLinks'
 import type { RoomManagerInput, RoomSettings } from '@game/logic/h2hRoom'
 
@@ -202,32 +203,32 @@ export async function refreshPins(): Promise<void> {
 
 export async function board(kind: RankedKind, key: string, country: string | null, offset = 0) {
   const r = await rt()
-  return r ? fetchBoard(r.transport, kind, key, country, offset) : []
+  return r ? (await boards()).fetchBoard(r.transport, kind, key, country, offset) : []
 }
 
 export async function boardSummary(kind: RankedKind, key: string, country: string | null) {
   const r = await rt()
-  return r ? fetchSummary(r.transport, kind, key, country) : null
+  return r ? (await boards()).fetchSummary(r.transport, kind, key, country) : null
 }
 
 export async function boardRank(kind: RankedKind, key: string, result: { points: number; lost: number; goalDiff: number; goalsFor: number }, country: string | null) {
   const r = await rt()
-  return r ? rankOf(r.transport, kind, key, result, country) : null
+  return r ? (await boards()).rankOf(r.transport, kind, key, result, country) : null
 }
 
 export async function alltime(order: AlltimeOrder, country: string | null, offset = 0) {
   const r = await rt()
-  return r ? fetchAlltime(r.transport, order, country, offset) : []
+  return r ? (await boards()).fetchAlltime(r.transport, order, country, offset) : []
 }
 
 export async function alltimeMine(order: AlltimeOrder, country: string | null) {
   const r = await rt()
-  return r && r.signedIn ? fetchAlltimeMine(r.transport, order, country) : null
+  return r && r.signedIn ? (await boards()).fetchAlltimeMine(r.transport, order, country) : null
 }
 
 export async function mine(kind: RankedKind) {
   const r = await rt()
-  return r && r.signedIn ? myEntries(r.transport, kind) : []
+  return r && r.signedIn ? (await boards()).myEntries(r.transport, kind) : []
 }
 
 // ------------------------------------------------------------------ challenge links
@@ -309,12 +310,12 @@ export async function roomSeats(): Promise<string[]> {
 
 export async function chaseBoard(scope: ChaseScope, week: string | null, country: string | null, offset = 0) {
   const r = await rt()
-  return r ? fetchChaseBoard(r.transport, scope, week, country, offset) : []
+  return r ? (await boards()).fetchChaseBoard(r.transport, scope, week, country, offset) : []
 }
 
 export async function chaseSummary(scope: ChaseScope, week: string | null, country: string | null) {
   const r = await rt()
-  return r ? fetchChaseSummary(r.transport, scope, week, country) : null
+  return r ? (await boards()).fetchChaseSummary(r.transport, scope, week, country) : null
 }
 
 /** Today's attempts and the caller's best run; null signed out. */
@@ -322,7 +323,7 @@ export async function chaseStatus() {
   const r = await rt()
   if (!r) return null
   await r.ready
-  return r.signedIn ? fetchChaseStatus(r.transport) : null
+  return r.signedIn ? (await boards()).fetchChaseStatus(r.transport) : null
 }
 
 export type ChaseStart = { ok: true; left: number } | { ok: false; message: string; signIn?: boolean }
@@ -339,6 +340,8 @@ export async function startChaseRun(leagueId: string, formationId: string, optio
   await r.ready
   if (!r.signedIn) return { ok: false, message: 'Sign in to play the 38-0 chase.', signIn: true }
   if (!(await useStore.getState().ensureLeagues([leagueId]))) return { ok: false, message: 'Could not load that league: check the connection and try again.' }
+  // The chase's mapping loads with its first use, out of the first download
+  const { chaseGameSettings, chaseLeagues } = await import('./chase')
   const u = useStore.getState().universe
   if (!u || !chaseLeagues(u).includes(leagueId)) return { ok: false, message: 'That league has no complete season to play.' }
   let reply: { status: number; body: Record<string, unknown> }
@@ -363,6 +366,7 @@ export async function submitChase(game: Game): Promise<{ ok: boolean; message?: 
   const u = st.universe
   if (!u) return { ok: false, message: 'The game data is still loading.' }
   const name = cleanName(st.profile.managerName) || cleanName(game.settings.teamName) || 'A friend'
+  const [{ chaseUnrankedReason }, { captureChaseEntry, enqueue }] = await Promise.all([import('./chase'), import('./outbox')])
   const entry = captureChaseEntry(game, u, name, new Date(), onlineStore.getState().session?.userId ?? null)
   if (!entry) return { ok: false, message: chaseUnrankedReason(game, u) ?? 'This run cannot go to the 38-0 chase.' }
   const next = updateRecord((rec) => enqueue(rec, entry))
@@ -379,12 +383,12 @@ export async function submitChase(game: Game): Promise<{ ok: boolean; message?: 
 
 export async function casualBoard(board: CasualKind, key: string, country: string | null, offset = 0) {
   const r = await rt()
-  return r ? fetchCasualBoard(r.transport, board, key, country, offset) : []
+  return r ? (await boards()).fetchCasualBoard(r.transport, board, key, country, offset) : []
 }
 
 export async function casualSummary(board: CasualKind, key: string, country: string | null) {
   const r = await rt()
-  return r ? fetchCasualSummary(r.transport, board, key, country) : null
+  return r ? (await boards()).fetchCasualSummary(r.transport, board, key, country) : null
 }
 
 /** The caller's own posts on the casual boards (one board, or all three); empty signed out. */
@@ -392,5 +396,5 @@ export async function casualMine(board: CasualKind | null = null) {
   const r = await rt()
   if (!r) return []
   await r.ready
-  return r.signedIn ? myCasualEntries(r.transport, board) : []
+  return r.signedIn ? (await boards()).myCasualEntries(r.transport, board) : []
 }

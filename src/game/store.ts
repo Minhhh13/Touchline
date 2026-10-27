@@ -61,7 +61,6 @@ import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
 import { simToNextStop, simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
 import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
-import { weeklyRunInPlan, weeklyRunInSettings } from './logic/runinWeekly'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
@@ -807,6 +806,8 @@ export const useStore = create<Store>()(
           return true
         },
         startRunInWeek: async (seed) => {
+          // The Run-in of the week's mapping loads on demand, out of the first download (only this action needs it here)
+          const { weeklyRunInPlan, weeklyRunInSettings } = await import('./logic/runinWeekly')
           const plan = weeklyRunInPlan(seed)
           if (!plan || !(await get().ensureLeagues([plan.leagueId]))) return false
           const u = get().universe
