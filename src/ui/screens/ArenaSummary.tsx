@@ -227,7 +227,7 @@ export function ArenaSummary() {
                       </span>
                     </span>
                     <span className="col" style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                      <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                         {s.gf}-{s.ga}
                         {s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}
                       </span>

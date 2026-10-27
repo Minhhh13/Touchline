@@ -589,7 +589,7 @@ export function Dugout() {
                     <span className="h row" style={{ justifyContent: 'flex-end', gap: 6 }}>
                       {home ? null : oppPos} {home ? <span className="fx-name">{game.settings.teamName}</span> : <FxName full={clubName(u, opp)} short={clubShort(u, opp)} />} {home ? null : <ClubBadge clubId={opp} size={18} />}
                     </span>
-                    <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                    <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                       {r ? `${r.homeGoals} - ${r.awayGoals}` : 'v'}
                       {gf !== null && ga !== null && <span className="res-letter">{outcomeOf(gf, ga)}</span>}
                     </span>
