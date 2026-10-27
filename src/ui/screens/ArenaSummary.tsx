@@ -12,6 +12,7 @@ import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
 import { modeLabel, shareCardFooter } from '@game/logic/modes'
 import { playerLookup } from '@game/logic/players'
+import { aiLookup } from '@engine/reserve'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge, Info, Stat, TeamBadge } from '../components/bits'
 import { Check, Copy, Dices, ImageDown, Plus, RotateCcw, Send } from 'lucide-react'
@@ -112,7 +113,7 @@ export function ArenaSummary() {
       })
       downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not render the share card.')
+      showToast('Could not make the share card. Try again.')
     }
   }
 
@@ -227,7 +228,7 @@ export function ArenaSummary() {
                       </span>
                     </span>
                     <span className="col" style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                      <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                         {s.gf}-{s.ga}
                         {s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}
                       </span>
@@ -241,7 +242,7 @@ export function ArenaSummary() {
                   {last.pens.kicks.map((k, i) => (
                     <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`}>
                       {k.us ? '' : '⇢ '}
-                      {(k.us ? get(k.takerId)?.name : u.index[k.takerId]?.name) ?? k.takerId} {k.scored ? '✓' : '✗'}
+                      {(k.us ? get(k.takerId)?.name : aiLookup(u)(k.takerId)?.name) ?? k.takerId} {k.scored ? '✓' : '✗'}
                     </span>
                   ))}
                 </div>

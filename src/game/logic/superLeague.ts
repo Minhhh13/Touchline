@@ -19,15 +19,17 @@ export function isSuperLeague(s: Pick<GameSettings, 'mode' | 'rules'>): boolean 
  * The league a quick season is played in and the handicap its AI sides carry: the real league season with its
  * calibration, or the Super League's nineteen at full strength (no calibration: the greatest sides are the point).
  */
-export function quickLeague(u: LoadedUniverse, s: Pick<GameSettings, 'mode' | 'rules' | 'leagueId' | 'leagueSeason' | 'hostClubId' | 'difficulty'>): { ai: Record<string, AiClub>; offset: number } {
-  if (isSuperLeague(s)) return { ai: buildSuperClubs(u, s.rules.classic), offset: 0 }
-  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
-  return { ai, offset: aiRatingOffset(u, ai, s.difficulty ?? 'calibrated') }
+export function quickLeague(u: LoadedUniverse, s: Pick<GameSettings, 'mode' | 'rules' | 'leagueId' | 'leagueSeason' | 'hostClubId' | 'difficulty'>, taken?: ReadonlySet<string>): { ai: Record<string, AiClub>; offset: number } {
+  if (isSuperLeague(s)) return { ai: buildSuperClubs(u, s.rules.classic, taken), offset: 0 }
+  // The calibration is the league's own, from full squads; then the humans the user holds leave their real clubs (E6-2)
+  const full = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
+  const ai = taken?.size ? buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, taken) : full
+  return { ai, offset: aiRatingOffset(u, full, s.difficulty ?? 'calibrated') }
 }
 
-/** The Super League's Continental Cup field: the next `n` greatest clubs after the league's nineteen, at full strength. */
-export function superContinentalField(u: LoadedUniverse, s: Pick<GameSettings, 'rules'>, n: number): Record<string, AiClub> {
-  return buildSuperRestClubs(u, s.rules.classic, n)
+/** The Super League's Continental Cup field: the next `n` greatest clubs after the league's nineteen, at full strength (less the user's humans). */
+export function superContinentalField(u: LoadedUniverse, s: Pick<GameSettings, 'rules'>, n: number, taken?: ReadonlySet<string>): Record<string, AiClub> {
+  return buildSuperRestClubs(u, s.rules.classic, n, taken)
 }
 
 /** League games in a Super League season: every one of the nineteen twice. */

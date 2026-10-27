@@ -115,7 +115,9 @@ describe('match engine', () => {
   // real players, and un-swapping the 2008-14 left and right positions put C. Ronaldo 2008-09 in the
   // elite pool for D. Silva 2012-13 (the pool's injury proneness fell from 35.0 to 32.4) while 47
   // players of the mid and weak pools got their real consistency instead of a missing value.
-  const BASELINE = { goals: 4.154, cards: 2.828, injuries: 0.3545 }
+  // Re-baselined on engine 6: base xG 1.28 and the soft ceiling (goals 4.154 to 3.737 over these sides), keepers booked and
+  // the card rates retuned to the Premier League's (2.828 to 3.861), and a new sample of the same injury model (0.3545 to 0.378)
+  const BASELINE = { goals: 3.737, cards: 3.861, injuries: 0.378 }
   const TOLERANCE = 0.03
 
   it('keeps goal, card and injury means within 3% of the depth engine\'s pinned values over 2,000 seeded matches', () => {
@@ -283,9 +285,12 @@ describe('match engine', () => {
       const on = a.home.bench.find((id) => !mp.hLive.some((p) => p.psId === id))!
       const awayPending = pending.away.map((s) => s.on)
       const r = finishMatch(mp, a, { side: 'home', substitutions: [{ off: off.psId, on }], shout: 'keep-shape' })
-      const ours = r.homeReport.substitutions.filter((s) => s.minute >= 70)
+      // His own change at the stop, and none of his parked routine changes after it (a routine change the 46-70 segment
+      // made at 70 itself, or a man injured after 70 replaced, is not one of them)
+      const ours = r.homeReport.substitutions.filter((s) => s.minute === 70 && s.reason === '70th minute')
       expect(ours).toHaveLength(1)
       expect(ours[0]).toMatchObject({ minute: 70, off: off.psId, on, reason: '70th minute' })
+      expect(r.homeReport.substitutions.filter((s) => s.minute > 70 && s.reason !== 'injury')).toHaveLength(0)
       // The AI's parked changes went ahead unless the last twenty minutes overtook them
       const theirs = r.awayReport.substitutions.filter((s) => s.minute > 70)
       for (const s of theirs) expect(awayPending).toContain(s.on)

@@ -48,12 +48,16 @@ export function roleRating(player: PlayerSeason, role: Role, position: Position)
 export function liveModifiers(state: SquadPlayer | undefined): SlotEvaluation['modifiers'] {
   if (!state) return { condition: 1, morale: 1, sharpness: 1, familiarity: 1, form: 1 }
   const condition = state.condition >= 85 ? 1 : state.condition >= 70 ? 1 - (85 - state.condition) * 0.003 : 0.955 - (70 - state.condition) * 0.0045
-  const morale = 1 + ((state.morale - 65) / 35) * 0.04
+  // Engine 6 halved morale and form (±2% at full morale, ±1.5% of form; engine 5: 4% and 3%) and flattened familiarity
+  // above 70 (1.011 at 100; engine 5: 1.02), keeping a new squad's handicap below it (0.9745 at 35). The match engine
+  // turns rating points into goals exponentially and stretches them above 80, so a winning side's +9% made a drafted XI
+  // score 160 a season
+  const morale = 1 + ((state.morale - 65) / 35) * 0.02
   const sharpness = state.sharpness >= 75 ? 1 : 1 - (75 - state.sharpness) * 0.0012
-  const familiarity = 0.95 + (state.familiarity / 100) * 0.07
+  const familiarity = state.familiarity <= 70 ? 0.95 + (state.familiarity / 100) * 0.07 : 0.999 + (state.familiarity - 70) * 0.0004
   const recent = state.recentRatings.slice(-5)
   const avg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 7
-  const form = 1 + Math.max(-0.03, Math.min(0.03, (avg - 7) * 0.02))
+  const form = 1 + Math.max(-0.015, Math.min(0.015, (avg - 7) * 0.02))
   return { condition: round4(condition), morale: round4(morale), sharpness: round4(sharpness), familiarity: round4(familiarity), form: round4(form) }
 }
 
@@ -233,6 +237,64 @@ export function autoPickLineup(
   }
   const bench = available
     .filter((p) => !used.has(p.id))
+    .sort((a, b) => b.overall - a.overall)
+    .slice(0, 9)
+    .map((p) => p.id)
+  return { lineup, bench }
+}
+
+/**
+ * The user's assistant's eleven (engine 6, round 6 item 6): `autoPickLineup`, then a natural man for every slot the
+ * greedy gave to a cover while a natural one was left out. `autoPickLineup` fills the scarcest positions first, so a
+ * DM/CM (D. Rice) took a centre-back slot at −12 because his cover rating beat the natural centre-back's, and his own
+ * midfield slot then went to a weaker man while the centre-back sat on the bench. For each such slot (formation order)
+ * the repair tries the left-out natural there and the cover in a slot of his own position, whose man drops out, and
+ * takes the move that adds most to the XI's total score (the same score as the greedy: the role rating at the slot's
+ * position times condition and sharpness), only when it adds something; a man playing out of position stays when that
+ * still makes the XI stronger. Repeats until no move helps (at most once per slot and round). Pure, no RNG; ties keep
+ * pool and formation order. AI clubs keep `autoPickLineup` (their lineups, and engine 6's calibration, do not move).
+ */
+export function assistantLineup(
+  formation: Formation,
+  pool: PlayerSeason[],
+  tactics: Tactics,
+  isAvailable: (p: PlayerSeason) => boolean = () => true,
+  getState: StateLookup = () => undefined,
+): { lineup: Lineup; bench: string[] } {
+  const { lineup } = autoPickLineup(formation, pool, tactics, isAvailable, getState)
+  const available = pool.filter(isAvailable)
+  const byId = new Map(available.map((p) => [p.id, p]))
+  const score = (p: PlayerSeason, slot: Formation['slots'][number]) => {
+    const mods = liveModifiers(getState(p.id))
+    return roleRating(p, getRole(tactics.roles[slot.id] ?? DEFAULT_ROLE[slot.position]), slot.position) * mods.condition * mods.sharpness
+  }
+  for (let round = 0; round < formation.slots.length; round++) {
+    const used = new Set(Object.values(lineup))
+    const out = available.filter((p) => !used.has(p.id))
+    let best: { slot: string; q: string; target?: string; gain: number } | null = null
+    for (const slot of formation.slots) {
+      const p = byId.get(lineup[slot.id])
+      if (!p || positionFactor(p, slot.position) >= 1) continue
+      for (const q of out) {
+        if (!q.positions.includes(slot.position)) continue
+        const base = score(q, slot) - score(p, slot)
+        // The cover to the bench, or into a slot he plays naturally, whose man leaves the XI
+        if (base > 1e-9 && (!best || base > best.gain + 1e-9)) best = { slot: slot.id, q: q.id, gain: base }
+        for (const t of formation.slots) {
+          const r = byId.get(lineup[t.id])
+          if (t.id === slot.id || !r || !p.positions.includes(t.position)) continue
+          const gain = base + score(p, t) - score(r, t)
+          if (gain > 1e-9 && (!best || gain > best.gain + 1e-9)) best = { slot: slot.id, q: q.id, target: t.id, gain }
+        }
+      }
+    }
+    if (!best) break
+    if (best.target) lineup[best.target] = lineup[best.slot]
+    lineup[best.slot] = best.q
+  }
+  const inXI = new Set(Object.values(lineup))
+  const bench = available
+    .filter((p) => !inXI.has(p.id))
     .sort((a, b) => b.overall - a.overall)
     .slice(0, 9)
     .map((p) => p.id)

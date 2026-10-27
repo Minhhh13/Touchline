@@ -63,12 +63,13 @@ export const EXPLORE = set('explore', 'Seasons', [['table', 'League table'], ['s
 
 /** The Profile page. */
 export const PROFILE = set('profile', 'Profile', [
-  ['manager', 'Manager and settings'],
+  ['manager', 'Manager and career'],
   ['cabinet', 'Trophy cabinet'],
   ['room', 'Trophy Room'],
   ['chase', 'The 38-0 chase'],
   ['achievements', 'Achievements'],
   ['save', 'Save data'],
+  ['settings', 'Settings'],
   ['seasons', 'Best seasons'],
   ['runs', 'Best runs'],
   ['runins', 'Run-ins'],

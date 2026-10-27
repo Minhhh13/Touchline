@@ -79,6 +79,8 @@ interface BoundaryProps {
   /** The screen on show: a new key (another screen or phase) clears a caught error, so that screen gets its own try. */
   resetKey: string
   onHome: () => void
+  /** Home itself is the screen: Back to home would land on the same error, so only Reload is offered. */
+  atHome?: boolean
 }
 
 interface BoundaryState {
@@ -89,7 +91,7 @@ interface BoundaryState {
 /**
  * The one boundary around the screens: it holds the Suspense frame of a lazy screen and catches whatever goes wrong
  * below it, so the page is never left white with no way out. A chunk that did not load says so and offers a reload; a
- * screen that threw while rendering shows the error, Back to home and Reload, the top bar kept. The save is untouched:
+ * screen that threw while rendering shows the error, Back to home (not when Home itself threw) and Reload, the top bar kept. The save is untouched:
  * the store's state is not part of the render. Navigating to another screen or phase resets it.
  */
 export class ScreenBoundary extends Component<BoundaryProps, BoundaryState> {
@@ -111,12 +113,13 @@ export class ScreenBoundary extends Component<BoundaryProps, BoundaryState> {
     const { error } = this.state
     if (!error) return <Suspense fallback={<ScreenFallback />}>{this.props.children}</Suspense>
     const chunk = isChunkLoadError(error)
+    const atHome = !!this.props.atHome
     const reload = (
-      <button type="button" className={chunk ? 'btn primary' : 'btn'} onClick={() => location.reload()} data-testid="screen-error-reload">
+      <button type="button" className={chunk || atHome ? 'btn primary' : 'btn'} onClick={() => location.reload()} data-testid="screen-error-reload">
         <RotateCcw size={16} aria-hidden="true" /> Reload
       </button>
     )
-    const home = (
+    const home = atHome ? null : (
       <button type="button" className={chunk ? 'btn' : 'btn primary'} onClick={this.props.onHome} data-testid="screen-error-home">
         <House size={16} aria-hidden="true" /> Back to home
       </button>
@@ -131,7 +134,7 @@ export class ScreenBoundary extends Component<BoundaryProps, BoundaryState> {
             <p className="muted">It needs a connection the first time. Your game is saved: reload to try again.</p>
           ) : (
             <>
-              <p className="muted">Your game and your record are saved. Go back to the home screen, or reload the page to try this screen again.</p>
+              <p className="muted">{atHome ? 'Your game and your record are saved. Reload the page to try again.' : 'Your game and your record are saved. Go back to the home screen, or reload the page to try this screen again.'}</p>
               <p className="muted small mono">{error.message}</p>
             </>
           )}

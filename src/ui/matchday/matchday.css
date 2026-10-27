@@ -36,6 +36,30 @@
   font-size: calc(var(--fs-base) + 1px);
   letter-spacing: 0.02em;
 }
+/* The replay: the Live and Report tabs and its buttons end the competition line, so the board keeps the row they took */
+.matchday .md-crumb.has-end {
+  align-items: center;
+  overflow: visible;
+}
+.matchday .md-crumb.has-end > b,
+.matchday .md-crumb.has-end > .muted {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-crumb-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  flex: none;
+}
+.matchday .md-crumb-end > .tabs {
+  margin: 0;
+  border-bottom: 0;
+}
+.matchday .md-crumb-end > .row {
+  flex-wrap: nowrap;
+}
 
 /* ------------------------------------------------------------------ top bar */
 .matchday .md-topbar {
@@ -245,7 +269,7 @@
     display: none;
   }
   .matchday .md-formation .md-man {
-    transform: translate(-50%, -50%);
+    --md-man-dy: -50%;
   }
   .matchday .md-formation .md-man-shirt {
     display: flex;
@@ -275,10 +299,14 @@
 .matchday .md-vpitch-layer {
   position: absolute;
   inset: 4% 6%;
+  /* A size container: each man's place (--x, --y, per cent of the layer) is a transform in cqw and cqh (motion rule 2) */
+  container-type: size;
 }
 .matchday .md-man {
   position: absolute;
-  transform: translate(-50%, -42%);
+  left: 0;
+  top: 0;
+  transform: translate(calc(var(--x, 0) * 1cqw - 50%), calc(var(--y, 0) * 1cqh + var(--md-man-dy, -42%)));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -289,7 +317,7 @@
   color: #fff;
   cursor: pointer;
   max-width: 76px;
-  transition: left calc(var(--dur-1) * 4) var(--ease-out), top calc(var(--dur-1) * 4) var(--ease-out);
+  transition: transform calc(var(--dur-1) * 4) var(--ease-out);
 }
 .matchday .md-man:focus-visible {
   outline: 2px solid var(--focus);
@@ -912,7 +940,7 @@
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 15%, transparent), var(--gold), var(--danger));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--heat-warm) 15%, transparent), var(--heat-warm), var(--heat-hot));
 }
 
 /* ------------------------------------------------------------------ latest scores, live table, info */

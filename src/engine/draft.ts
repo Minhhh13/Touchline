@@ -402,7 +402,7 @@ export function benchRoom(d: DraftState): boolean {
 
 /** Whether this player could be sent to the bench from the current spin. */
 export function canBench(d: DraftState, p: PlayerSeason): boolean {
-  return benchRoom(d) && !d.takenPlayers.includes(p.playerId) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p)
+  return benchRoom(d) && !d.takenPlayers.includes(p.playerId) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p) && benchAffordable(d, p)
 }
 
 /** Quick bench: the XI is full and bench places are left, so the manager may stop drafting. */
@@ -463,12 +463,31 @@ export function capSpent(d: DraftState): number {
   return d.spent ?? 0
 }
 
+/**
+ * The picks the cap keeps `BUDGET_FLOOR` for after the next one. A squad draft owes it to every pick up to its size. A
+ * Quick Draft with a bench owes it to its open XI slots only (its bench may close once the XI is full), whatever the
+ * bench already holds: counting bench picks against the XI's eleven let an early bench pick spend the money the last
+ * XI slots needed, and the wheel ran dry with a keeper still to find (r7 QA; engine 6).
+ */
+function picksOwed(d: DraftState): number {
+  if (hasQuickBench(d)) return Math.max(0, openSlots(d).length - 1)
+  return Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+}
+
 /** The most the next pick may cost: what is left of the cap after keeping `BUDGET_FLOOR` for every pick still to make after it. Infinite without a cap. */
 export function capRoom(d: DraftState): number {
   const budget = d.rules.budget
   if (budget === undefined) return Infinity
-  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
-  return round1(budget - capSpent(d) - BUDGET_FLOOR * after)
+  return round1(budget - capSpent(d) - BUDGET_FLOOR * picksOwed(d))
+}
+
+/**
+ * A Quick Draft bench pick while XI slots are open fills none of them, so it keeps the floor for every one: one floor
+ * more than an XI pick. Always true without a cap.
+ */
+function benchAffordable(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions'>): boolean {
+  if (d.rules.budget === undefined) return true
+  return capPrice(p) <= capRoom(d) - (hasQuickBench(d) && fillingXI(d) ? BUDGET_FLOOR : 0) + 1e-9
 }
 
 /**
@@ -518,7 +537,7 @@ export function capMoney(m: number): string {
 export function capRefusal(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions' | 'name'>): string | null {
   if (affordable(d, p)) return null
   const price = capPrice(p)
-  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+  const after = picksOwed(d)
   // Within the cap itself, it is the money kept for the picks still to make that rules him out
   const reserve = d.rules.budget !== undefined && price <= d.rules.budget - capSpent(d) + 1e-9 && after > 0
   return `${p.name} (${capMoney(price)}) would take you ${capMoney(capOverBy(d, p))} over the cap${reserve ? `, keeping ${capMoney(BUDGET_FLOOR)} for each of the ${after} picks still to make` : ''}`
@@ -892,6 +911,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (slotId === 'bench') {
     if (isComplete(d)) throw new Error('Squad complete')
     if (!benchRoom(d)) throw new Error(!hasQuickBench(d) ? 'Fill your starting XI first' : positionFirst(d) ? 'This spin fills the slot you chose' : 'The bench is full: this pick goes into the XI')
+    if (!benchAffordable(d, p)) throw new Error(`${p.name} (${capMoney(capPrice(p))}) would leave too little for the ${openSlots(d).length} XI places still open: keep ${capMoney(BUDGET_FLOOR)} for each`)
     d.bench.push(p.id)
   } else {
     const slot = d.formation.slots.find((s) => s.id === slotId)
@@ -1009,11 +1029,47 @@ export function neededPositions(d: DraftState): Position[] {
  *
  * ENGINE_VERSION 4 and before charged every cover a flat 0.92 and took the first slot of a tie in formation order.
  */
-export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason): { id: string; slot: string | 'bench' } | null {
+/**
+ * Keepers in an assistant-drafted squad (engine 6, item 3): at least `MIN_KEEPERS` in a squad of `FULL_SQUAD` places or
+ * more (one keeper in 18 put an outfielder in goal when he was hurt), and never more than `MAX_KEEPERS` (Dynasty summer
+ * drafts reached six or seven in 23). The XI's own keeper slot is filled as before; the rule only steers bench picks.
+ */
+export const MIN_KEEPERS = 2
+export const MAX_KEEPERS = 3
+export const FULL_SQUAD = 16
+
+function isKeeper(p: PlayerSeason | undefined): boolean {
+  return p?.positions[0] === 'GK'
+}
+
+/**
+ * What the bench needs from this pick: `'keeper'` (only a keeper will do while one is on offer), `'outfield'` (no more
+ * keepers), or null (anyone). `keeperShort` says the squad cannot afford to pass on the keeper it needs.
+ */
+function benchNeed(d: DraftState, get: (id: string) => PlayerSeason | undefined): { need: 'keeper' | 'outfield' | null; keeperShort: boolean } {
+  const held = [...Object.values(d.lineup), ...d.bench].filter((id) => isKeeper(get(id))).length
+  if (held >= MAX_KEEPERS) return { need: 'outfield', keeperShort: false }
+  const min = d.rules.squadSize >= FULL_SQUAD ? MIN_KEEPERS : 1
+  if (held >= min) return { need: null, keeperShort: false }
+  // Picks still to make after this one
+  const left = d.rules.squadSize - picksMade(d) - 1
+  return { need: 'keeper', keeperShort: left < min - held }
+}
+
+export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason, get: (id: string) => PlayerSeason | undefined = (id) => u.index[id]): { id: string; slot: string | 'bench' } | null {
   // Under a salary cap the assistant spreads the money (`capCandidates`); everyone is a candidate without one
-  const candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))
+  let candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))
   if (!candidates.length) return null
   const open = candidateSlots(d)
+  if (!open.length) {
+    const { need, keeperShort } = benchNeed(d, get)
+    const keepers = candidates.filter(isKeeper)
+    if (need === 'outfield') candidates = candidates.filter((p) => !isKeeper(p))
+    else if (need === 'keeper' && keepers.length) candidates = keepers
+    // Short of a keeper with no picks to spare: pass on this spin rather than fill the last place outfield
+    else if (need === 'keeper' && keeperShort) return null
+    if (!candidates.length) return null
+  }
   let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
   for (const p of candidates) {
     if (open.length) {
@@ -1033,16 +1089,20 @@ export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason
  * Auto-draft the rest (used by "sim the rest" and for AI opponents in head-to-head).
  * Stops short of the squad size when the wheel has run dry (a one-nation draft).
  */
-export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
+export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng, get?: (id: string) => PlayerSeason | undefined): void {
   let guard = 0
   while (!isComplete(d) && guard++ < 200) {
     if (!canSpin(u, d)) break
     // Position First: keep a slot already chosen, otherwise take the first open slot (formation order) the wheel can fill. No RNG.
     if (positionFirst(d) && !targetSlot(d)) d.target = spinnableSlots(u, d)[0].id
     const cs = spin(u, d, rng)
-    const best = assistantChoice(u, d, cs)
+    const best = assistantChoice(u, d, cs, get)
     if (best) pick(u, d, best.id, best.slot)
     else {
+      // A spin the assistant passes on (nobody usable, or only a keeper the squad has no room for) is logged as a
+      // discarded spin, as the store logs the one showing when Auto-complete starts: it drew from the stream, so a
+      // challenge replay spins it too (engine 6; before, it left no row and the replay fell out of step)
+      if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, skipped: true, ...(d.twist ? { twist: d.twist } : {}), ...(targetSlot(d) ? { target: targetSlot(d)!.id } : {}) })
       d.current = null
       d.twist = null
     }

@@ -27,6 +27,14 @@ export function arenaWarmPool(game: Pick<Game, 'settings' | 'arena'>, u: LoadedU
 }
 
 /**
+ * On the arena's setup, before any run exists: every club-season of the loaded leagues any field could rank, a superset
+ * of a run's pool (every era, every field), so the warm-up can start before the draft does.
+ */
+export function arenaSetupPool(u: LoadedUniverse, leagues: string[]): ClubSeason[] {
+  return arenaPool(u, { leagues })
+}
+
+/**
  * Work out the strengths of `pool[from]` onwards while `more()` says there is time (at least one each call), and
  * return the index to carry on from; `pool.length` when done.
  */

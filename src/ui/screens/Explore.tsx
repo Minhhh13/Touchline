@@ -3,15 +3,32 @@ import { ListOrdered, Search, Star as StarIcon, Trophy } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { EXPLORE } from '../boxSets'
 import { useStore } from '@game/store'
-import { ClubBadge, EstimatedChip, Info, Rating, Pos } from '../components/bits'
+import { ClubBadge, EstimatedChip, Info, Rating, Pos, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { PlayerCardModal } from '../components/PlayerCard'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, ordinal, seasonLabel } from '../format'
+import { clubName, clubShort, ordinal, seasonLabel } from '../format'
+import { countPhrase } from '../screenText'
 import type { Position } from '@engine/types'
 import { classicFromFor, isEstimated } from '@game/logic/era'
 import { careerSeasons } from '@game/logic/playerCard'
+import { searchPlayers, SEARCH_LIMIT, topPlayerSeasons } from '@game/logic/exploreSearch'
 import { pressable } from '../a11y'
+
+const POS_FILTERS = ['all', 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const
+
+/** The position chips of Highest rated and the search (a player's first position). */
+function PosFilter({ value, onChange }: { value: 'all' | Position; onChange: (p: 'all' | Position) => void }) {
+  return (
+    <div className="segmented scroll-x" role="group" aria-label="Position">
+      {POS_FILTERS.map((p) => (
+        <button key={p} className={value === p ? 'active' : ''} aria-pressed={value === p} onClick={() => onChange(p)}>
+          {p === 'all' ? 'All' : p}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
@@ -35,6 +52,11 @@ function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
 /** Every season of one real player across all loaded leagues, on the shared player card at his peak season. */
 function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: () => void }) {
   const u = useStore((s) => s.universe)
+  const ensureLeagues = useStore((s) => s.ensureLeagues)
+  // His whole career: the leagues not loaded yet load behind the card, and it fills in when they arrive
+  useEffect(() => {
+    if (playerId && u) void ensureLeagues(u.available.map((l) => l.id))
+  }, [playerId, u, ensureLeagues])
   const seasons = useMemo(() => (u && playerId ? careerSeasons(u, playerId) : []), [u, playerId])
   if (!u || !playerId || !seasons.length) return null
   const best = [...seasons].sort((a, b) => b.overall - a.overall)[0]
@@ -55,6 +77,9 @@ export function Explore() {
   const [careerId, setCareerId] = useState<string | null>(null)
   const [view, setView] = useState<'browse' | 'legends' | 'search'>('browse')
   const [posFilter, setPosFilter] = useState<'all' | Position>('all')
+  const [onePerPlayer, setOnePerPlayer] = useState(false)
+  const [legendSeason, setLegendSeason] = useState<'all' | number>('all')
+  const [searchPos, setSearchPos] = useState<'all' | Position>('all')
   // On a phone the squad sits under the whole table: bring it into view when a club is picked
   const squadRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -62,19 +87,13 @@ export function Explore() {
     squadRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [clubId])
   // Every hook runs before the early return below
-  const legends = useMemo(() => {
-    if (!u) return []
-    const all = Object.values(u.index).filter((p) => (posFilter === 'all' || p.positions[0] === posFilter) && u.clubById[p.clubId]?.leagueId === leagueId)
-    return all.sort((a, b) => b.overall - a.overall).slice(0, 60)
-  }, [u, posFilter, leagueId])
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!u || q.length < 2) return []
-    return Object.values(u.index)
-      .filter((p) => p.name.toLowerCase().includes(q))
-      .sort((a, b) => a.playerId.localeCompare(b.playerId) || a.season - b.season)
-      .slice(0, 120)
-  }, [u, query])
+  const legends = useMemo(() => (u ? topPlayerSeasons(u, { leagueId, position: posFilter === 'all' ? undefined : posFilter, onePerPlayer, season: legendSeason === 'all' ? undefined : legendSeason }) : []), [u, posFilter, leagueId, onePerPlayer, legendSeason])
+  const searching = query.trim().length >= 2
+  // The search covers every league: the ones not loaded yet load on the first search
+  useEffect(() => {
+    if (view === 'search' && searching && u) void ensureLeagues(u.available.map((l) => l.id))
+  }, [view, searching, u, ensureLeagues])
+  const results = useMemo(() => (u && searching ? searchPlayers(u, query, { position: searchPos === 'all' ? undefined : searchPos }) : []), [u, query, searching, searchPos])
   const boxes = useBoxes(EXPLORE)
   if (!u) return null
   // Classic seasons (estimated ratings) come first for a league that has them
@@ -128,7 +147,7 @@ export function Explore() {
           <ListOrdered size={14} aria-hidden="true" /> Highest rated
         </button>
         <button className={view === 'search' ? 'active' : ''} onClick={() => setView('search')}>
-          <Search size={14} aria-hidden="true" /> Search players
+          <Search size={14} aria-hidden="true" /> Search<span className="view-long"> players</span>
         </button>
       </div>
 
@@ -158,7 +177,7 @@ export function Explore() {
               </p>
             )}
             <div className="tbl-wrap">
-            <table className="tbl">
+            <table className="tbl explore-table">
               <thead>
                 <tr>
                   <th>#</th>
@@ -176,9 +195,9 @@ export function Explore() {
                   return (
                     <tr key={cs.clubId} className={`clickable ${shownClubId === cs.clubId ? 'me' : ''}`} onClick={() => setClubId(cs.clubId)} {...pressable(() => setClubId(cs.clubId))} aria-current={shownClubId === cs.clubId ? 'true' : undefined}>
                       <td>{cs.position || '–'}</td>
-                      <td>
-                        <span className="row" style={{ gap: 8 }}>
-                          <ClubBadge clubId={cs.clubId} size={22} /> {clubName(u, cs.clubId)}
+                      <td className="club-cell">
+                        <span className="row" style={{ gap: 8 }} title={clubName(u, cs.clubId)}>
+                          <ClubBadge clubId={cs.clubId} size={22} /> <span className="ellipsis club-nm">{clubName(u, cs.clubId)}</span>
                           {cs.champions && <Trophy size={14} className="gold-ic" role="img" aria-label="Champions" />}
                         </span>
                       </td>
@@ -250,14 +269,23 @@ export function Explore() {
       {view === 'legends' && (
         <div className="panel">
           <div className="panel-head">
-            <h3>Highest rated player-seasons</h3>
-            <div className="segmented scroll-x" role="group" aria-label="Position">
-              {(['all', 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const).map((p) => (
-                <button key={p} className={posFilter === p ? 'active' : ''} onClick={() => setPosFilter(p)}>
-                  {p === 'all' ? 'All' : p}
-                </button>
+            <h3>{onePerPlayer ? 'Highest rated players' : 'Highest rated player-seasons'}</h3>
+            <PosFilter value={posFilter} onChange={setPosFilter} />
+          </div>
+          <div className="row wrap explore-filters" style={{ gap: 'var(--space-2)' }}>
+            <Segmented value={onePerPlayer ? 'player' : 'season'} onChange={(v) => setOnePerPlayer(v === 'player')} options={[{ value: 'season', label: 'Every season', testId: 'legends-every' }, { value: 'player', label: 'Best season each', hint: "Each player once, at his best season in this league", testId: 'legends-one' }]} />
+            <select className="input" style={{ width: 'auto' }} aria-label="Season" data-testid="legends-season" value={legendSeason} onChange={(e) => setLegendSeason(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+              <option value="all">All seasons</option>
+              {[...seasons].reverse().map((s) => (
+                <option key={s} value={s}>
+                  {seasonLabel(s)}
+                  {s < u.firstSeason ? ' (est.)' : ''}
+                </option>
               ))}
-            </div>
+            </select>
+            <span className="small muted" data-testid="legends-count">
+              {legends.length ? `Top ${legends.length}` : 'No players match'}
+            </span>
           </div>
           <div className="legend-row legend-head" aria-hidden="true">
             <span>#</span>
@@ -305,15 +333,34 @@ export function Explore() {
         <div className="panel">
           <label className="search-field">
             <Search size={16} aria-hidden="true" />
-            <input className="input" placeholder="Search a player name…" aria-label="Search a player name" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+            <input className="input" type="search" placeholder="Search a player name…" aria-label="Search a player name" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
           </label>
-          <div className="plist lined" style={{ marginTop: 'var(--space-3)' }}>
-            {results.map((p) => (
-              <PlayerRow key={p.id} p={p} showClub onClick={() => setCareerId(p.playerId)} right={<Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} />} />
-            ))}
-            {query.length >= 2 && results.length === 0 && <div className="muted small">No players match.</div>}
+          <div className="row wrap explore-filters" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+            <PosFilter value={searchPos} onChange={setSearchPos} />
+            {searching && (
+              <span className="small muted" data-testid="search-count" aria-live="polite">
+                {loadingLeagues ? 'Loading every league…' : results.length >= SEARCH_LIMIT ? `First ${SEARCH_LIMIT} players: add more of the name` : countPhrase(results.length, 'players')}
+              </span>
+            )}
           </div>
-          {query.length < 2 && <p className="help">Tap a player for his career; the star shortlists him.</p>}
+          <div className="plist lined" style={{ marginTop: 'var(--space-3)' }} data-testid="search-results">
+            {results.map((h) => (
+              <PlayerRow
+                key={h.playerId}
+                p={h.name === h.best.name ? h.best : { ...h.best, name: h.name }}
+                onClick={() => setCareerId(h.playerId)}
+                extra={
+                  <span className="search-career">
+                    {h.from === h.to ? seasonLabel(h.from) : `${seasonLabel(h.from)} to ${seasonLabel(h.to)}`} · {countPhrase(h.seasons, 'seasons')} · {h.clubs.slice(0, 3).map((c) => clubShort(u, c)).join(', ')}
+                    {h.clubs.length > 3 ? ` +${h.clubs.length - 3}` : ''}
+                  </span>
+                }
+                right={<Star on={shortlist.includes(h.best.id)} onClick={() => toggleShortlist(h.best.id)} />}
+              />
+            ))}
+            {searching && !loadingLeagues && results.length === 0 && <div className="muted small">No players match{searchPos === 'all' ? '' : ` at ${searchPos}`}.</div>}
+          </div>
+          {!searching && <p className="help">Every league, with or without accents. Each player shows at his best season; tap him for his whole career, and the star shortlists that season.</p>}
         </div>
       )}
       </div>

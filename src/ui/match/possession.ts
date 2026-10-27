@@ -184,8 +184,11 @@ export function ballAt(path: BallKeyframe[], t: number, jump = false): BallState
   const p = smoothPoint(path, lo, raw)
   const h = arcHeight(b.loft ?? 0, raw)
   // On the ball during a carry; the receiver once a pass has all but arrived
-  const holder = b.kind === 'carry' ? b.holder : raw >= 0.92 ? b.holder : raw <= 0.08 && b.kind !== 'reset' ? a.holder : undefined
-  return { x: p.x, y: p.y, h, kind: raw >= 1 ? b.kind : a.kind, side: raw >= 0.5 ? b.side : a.side, holder, index: lo, next: b, progress: raw }
+  const fromNext = b.kind === 'carry' || raw >= 0.92
+  const holder = fromNext ? b.holder : raw <= 0.08 && b.kind !== 'reset' ? a.holder : undefined
+  // The side is the holder's own (a carry by the other side after a reset used to keep the old side to halfway)
+  const side = holder !== undefined ? (fromNext ? b.side : a.side) : raw >= 0.5 ? b.side : a.side
+  return { x: p.x, y: p.y, h, kind: raw >= 1 ? b.kind : a.kind, side, holder, index: lo, next: b, progress: raw }
 }
 
 /** Keyframes where the ball changes direction at once (struck, saved, in the net, placed for a restart): no velocity carries through them. */

@@ -6,7 +6,9 @@
  * a change schedules one write a moment later, which carries the latest state
  * (so a steady stream of changes still writes every moment), and a waiting
  * write goes out at once when the page is hidden or closed. A write the browser refuses
- * (its storage is full) is reported and the game carries on in memory.
+ * (its storage is full) is reported and the game carries on in memory. A write that would store exactly what this
+ * page last stored is skipped (a toast or a screen change alters nothing saved), so an idle page never writes, and a
+ * second tab is never told about a change that is not one.
  *
  * With an `encoder` (a Web Worker in the browser, `saveEncoder.ts`) the coalesced write compresses off the page's
  * main thread: the page only turns the state into JSON and stores the bytes that come back, the same bytes
@@ -45,7 +47,13 @@ export function decodeSave(raw: string): string | null {
 export function parseSave<S>(raw: string): StorageValue<S> {
   const json = decodeSave(raw)
   if (json === null) throw new Error('not a Touchline save')
-  const parsed: unknown = JSON.parse(json.replace(/^\uFEFF/, ''))
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(json.replace(/^\uFEFF/, ''))
+  } catch {
+    // A file cut short in a download or a copy, or edited by hand: the parser's own words mean nothing to a player
+    throw new Error('the file is damaged or incomplete')
+  }
   if (!parsed || typeof parsed !== 'object' || !('state' in parsed) || !parsed.state || typeof parsed.state !== 'object') throw new Error('not a Touchline save')
   return parsed as StorageValue<S>
 }
@@ -82,10 +90,17 @@ export interface SaveStorage<S> extends PersistStorage<S, void> {
   freeze: () => void
   /** Whether a write is waiting. */
   pending: () => boolean
+  /**
+   * Whether the stored save under `name` is no longer the one this page last read or wrote: another page wrote it while
+   * this one could not hear about it (restored from the back-forward cache, or a frozen background tab).
+   */
+  changedElsewhere: (name: string) => boolean
 }
 
 export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
   let queued: { name: string; value: StorageValue<S> } | null = null
+  /** The JSON this page last read or stored under each name: a write of the same text is skipped. */
+  const storedJson = new Map<string, string>()
   let timer: ReturnType<typeof setTimeout> | null = null
   let frozen = false
   // Writes are numbered as they start; bytes older than the newest stored write are dropped when they come back
@@ -101,7 +116,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       return undefined
     }
   }
-  const put = (name: string, encoded: string, seq: number) => {
+  const put = (name: string, encoded: string, seq: number, json: string) => {
     if (frozen || seq <= stored) return
     stored = seq
     const store = backing()
@@ -112,6 +127,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       opts.onError?.(e, isQuotaError(e))
       return
     }
+    storedJson.set(name, json)
     opts.onWrite?.()
   }
   const stringify = (value: StorageValue<S>): string | null => {
@@ -130,7 +146,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       opts.onError?.(e, false)
       return
     }
-    put(name, encoded, seq)
+    put(name, encoded, seq, json)
   }
   const flush = () => {
     if (timer !== null) clearTimeout(timer)
@@ -144,7 +160,8 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       const seq = ++started
       if (!backing()) return
       const json = stringify(job.value)
-      if (json !== null) encodeHere(job.name, json, seq)
+      // Exactly what this page last stored: nothing to write
+      if (json !== null && storedJson.get(job.name) !== json) encodeHere(job.name, json, seq)
       return
     }
     // The worker's bytes are not back yet: write that state now
@@ -166,7 +183,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
     queued = null
     if (!backing()) return
     const json = stringify(job.value)
-    if (json === null) return
+    if (json === null || storedJson.get(job.name) === json) return
     const seq = ++started
     inflight = { seq, name: job.name, value: job.value, json }
     const done = () => {
@@ -181,7 +198,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
     }
     asked.then(
       (encoded) => {
-        if (inflight?.seq === seq) put(job.name, encoded, seq)
+        if (inflight?.seq === seq) put(job.name, encoded, seq, json)
         done()
       },
       () => {
@@ -199,7 +216,9 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       const raw = backing()?.getItem(name)
       if (!raw) return null
       try {
-        return parseSave<S>(raw)
+        const value = parseSave<S>(raw)
+        storedJson.set(name, decodeSave(raw)!)
+        return value
       } catch (e) {
         console.warn(`Could not read the save: ${e instanceof Error ? e.message : String(e)}`)
         return null
@@ -221,6 +240,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
         inflight = null
         stored = started
       }
+      storedJson.delete(name)
       backing()?.removeItem(name)
     },
     flush,
@@ -232,5 +252,15 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       timer = null
     },
     pending: () => queued !== null || inflight !== null,
+    changedElsewhere: (name) => {
+      let raw: string | null | undefined
+      try {
+        raw = backing()?.getItem(name)
+      } catch {
+        return false
+      }
+      const now = raw ? decodeSave(raw) : null
+      return now !== (storedJson.get(name) ?? null)
+    },
   }
 }

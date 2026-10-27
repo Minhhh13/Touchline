@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
+import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings, Mode } from '@game/types'
-import { defaultHostClub, describeRules, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, describeRuleChips, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
+import { EMPTY_WHEEL_LABEL, wheelHasRoom } from '@game/logic/wheelCheck'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
@@ -25,7 +26,7 @@ import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, type ChoiceOption, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
-import { MODE_ICON } from '../components/icons'
+import { MODE_ICON, RULE_ICON } from '../components/icons'
 import { clubName } from '../format'
 import { dailyStartSettings } from '../../online/daily'
 import { useOnline } from '../../online/state'
@@ -308,6 +309,8 @@ export function Setup() {
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
+  // Some mixes of modes, era and leagues admit no side at all: say so here rather than open a draft on an empty wheel
+  const emptyWheel = ready && !fixed && !challenge && !wheelHasRoom(u, preview.rules, preview.formationId)
   // Offline with a league that never loaded: the button says so and Retry sits above it (leagueLoad.ts)
   const needs = fixed ? [fixed.leagueId, ...fixed.wheelLeagues] : [leagueId, ...wheelLeagues, ...(isManage && continental ? u.available.map((l) => l.id) : [])]
   const gate = leagueGate(needs, { loadedLeagues, failedLeagues, loadingLeagues, classicLoaded, classicFailed }, !fixed && classic)
@@ -459,11 +462,15 @@ export function Setup() {
                 )}
                 {fixed?.rules && (
                   <div className="pill-list" data-testid="fixed-rules">
-                    {describeRules(u, fixed.rules).map((t) => (
-                      <span key={t} className="chip">
-                        {t}
-                      </span>
-                    ))}
+                    {describeRuleChips(u, fixed.rules).map((c) => {
+                      const Icon = c.icon ? RULE_ICON[c.icon] : null
+                      return (
+                        <span key={c.text} className="chip">
+                          {Icon && <Icon size={12} aria-hidden="true" />}
+                          {Icon ? ` ${c.text}` : c.text}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
               </section>
@@ -615,7 +622,7 @@ export function Setup() {
                             <div className="toggle-row">
                               <label className="toggle">
                                 <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
-                                🪑 Job security
+                                <Armchair size={14} aria-hidden="true" /> Job security
                               </label>
                               <InfoTip label="Job security" text="On: miss the board's target badly and you are sacked." />
                             </div>
@@ -768,8 +775,8 @@ export function Setup() {
                 )}
               </div>
               <LeagueRetry needs={needs} classic={!fixed && classic} />
-              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
-                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
+              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || emptyWheel} data-testid="setup-start">
+                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : emptyWheel ? EMPTY_WHEEL_LABEL : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start draft'}
               </button>
             </section>
           </div>

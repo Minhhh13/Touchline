@@ -77,9 +77,6 @@ export function seasonLabel(season: number): string {
  */
 export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueInfo, classic?: PlayersFile): LoadedUniverse {
   const leagueId = meta.league.id
-  let col = Object.fromEntries(players.columns.map((c, i) => [c, i])) as Record<string, number>
-  const get = (row: Array<string | number>, key: string) => row[col[key]]
-
   const clubById: Record<string, Club> = {}
   const clubs: Club[] = meta.clubs.map((c) => ({ ...c, leagueId }))
   for (const c of clubs) clubById[c.id] = c
@@ -92,67 +89,70 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
   // visit) or a classic row in a standard season must never add unflagged players or replace standard ones
   const classicSeasonSet = new Set(meta.seasons.filter((s) => s.classic).map((s) => s.season))
   for (const file of files) {
-  col = Object.fromEntries(file.columns.map((c, i) => [c, i])) as Record<string, number>
+  // Each column's place, looked up once per file rather than once per field of every row (-1, which reads as
+  // undefined, for a column this file does not have)
+  const col = Object.fromEntries(file.columns.map((c, i) => [c, i])) as Record<string, number>
+  const at = (key: string): number => (key in col ? col[key] : -1)
+  const c = { season: at('season'), club: at('club'), pos: at('pos'), age: at('age'), height: at('height'), pac: at('pac'), sho: at('sho'), pas: at('pas'), dri: at('dri'), def: at('def'), phy: at('phy'), men: at('men'), gk: at('gk'), sta: at('sta'), str: at('str'), agg: at('agg'), jmp: at('jmp'), wr: at('wr'), cons: at('cons'), inj: at('inj'), big: at('big'), prof: at('prof'), id: at('id'), name: at('name'), nation: at('nation'), ovr: at('ovr'), value: at('value'), wage: at('wage'), foot: at('foot') }
+  // A depth column missing from an older pack reads as undefined and is derived from the eight core attributes
+  const depth = (row: Array<string | number>, i: number): number | undefined => (i >= 0 ? Number(row[i]) : undefined)
+  // A missing trait column reads as an average player, never as NaN
+  const trait = (raw: string | number | undefined): number => {
+    if (raw === '' || raw === null || raw === undefined) return 0.5
+    const v = Number(raw)
+    return Number.isFinite(v) ? v / 100 : 0.5
+  }
   for (const row of file.rows) {
-    const season = Number(get(row, 'season'))
+    const season = Number(row[c.season])
     if (file !== players && !classicSeasonSet.has(season)) continue
-    const clubId = String(get(row, 'club'))
-    const positions = String(get(row, 'pos')).split('|') as Position[]
-    const age = Number(get(row, 'age'))
-    const height = Number(get(row, 'height')) || 0
-    // A depth column missing from an older pack reads as undefined and is derived from the eight core attributes
-    const depth = (key: string): number | undefined => (key in col ? Number(get(row, key)) : undefined)
+    const clubId = String(row[c.club])
+    const positions = String(row[c.pos]).split('|') as Position[]
+    const age = Number(row[c.age])
+    const height = Number(row[c.height]) || 0
     const attributes: Attributes = withDepth(
       {
-        pace: Number(get(row, 'pac')),
-        shooting: Number(get(row, 'sho')),
-        passing: Number(get(row, 'pas')),
-        dribbling: Number(get(row, 'dri')),
-        defending: Number(get(row, 'def')),
-        physical: Number(get(row, 'phy')),
-        mentality: Number(get(row, 'men')),
-        goalkeeping: Number(get(row, 'gk')),
-        stamina: depth('sta'),
-        strength: depth('str'),
-        aggression: depth('agg'),
-        jumping: depth('jmp'),
-        workRate: depth('wr'),
+        pace: Number(row[c.pac]),
+        shooting: Number(row[c.sho]),
+        passing: Number(row[c.pas]),
+        dribbling: Number(row[c.dri]),
+        defending: Number(row[c.def]),
+        physical: Number(row[c.phy]),
+        mentality: Number(row[c.men]),
+        goalkeeping: Number(row[c.gk]),
+        stamina: depth(row, c.sta),
+        strength: depth(row, c.str),
+        aggression: depth(row, c.agg),
+        jumping: depth(row, c.jmp),
+        workRate: depth(row, c.wr),
       },
       age,
       height,
     )
-    // A missing trait column reads as an average player, never as NaN
-    const trait = (col: string): number => {
-      const raw = get(row, col)
-      if (raw === '' || raw === null || raw === undefined) return 0.5
-      const v = Number(raw)
-      return Number.isFinite(v) ? v / 100 : 0.5
-    }
     const traits: Traits = {
-      consistency: trait('cons'),
-      injuryProneness: trait('inj'),
-      bigMatch: trait('big'),
-      professionalism: trait('prof'),
+      consistency: trait(row[c.cons]),
+      injuryProneness: trait(row[c.inj]),
+      bigMatch: trait(row[c.big]),
+      professionalism: trait(row[c.prof]),
     }
-    const playerId = String(get(row, 'id'))
+    const playerId = String(row[c.id])
     // A player can appear for two clubs in one season (a mid-season move), so
     // the club is part of the player-season id.
     const id = `${playerId}@${season}@${clubId}`
     const ps: PlayerSeason = {
       id,
       playerId,
-      name: String(get(row, 'name')),
-      nationality: String(get(row, 'nation')),
+      name: String(row[c.name]),
+      nationality: String(row[c.nation]),
       age,
       clubId,
       season,
       positions,
       attributes,
       traits,
-      overall: Number(get(row, 'ovr')),
-      value: Number(get(row, 'value')),
-      wage: Number(get(row, 'wage')),
-      foot: String(get(row, 'foot')) === 'L' ? 'L' : 'R',
+      overall: Number(row[c.ovr]),
+      value: Number(row[c.value]),
+      wage: Number(row[c.wage]),
+      foot: String(row[c.foot]) === 'L' ? 'L' : 'R',
       height,
       accolades: [],
     }
@@ -163,7 +163,6 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     squads[key].push(ps)
   }
   }
-  col = Object.fromEntries(players.columns.map((c, i) => [c, i])) as Record<string, number>
 
   const tables: Record<number, LeagueSeasonRow[]> = {}
   const clubSeasons: ClubSeason[] = []
@@ -216,7 +215,7 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
   // A classic season's table stays readable (records, Explore) even when its rows were not loaded
   for (const s of meta.seasons) if (s.classic && !tables[s.season] && s.table.length) tables[s.season] = toRows(s.table)
   const seasons = standard.map((s) => s.season)
-  const leagueInfo: LeagueInfo = info ?? { id: leagueId, name: meta.league.name, shortName: meta.league.shortName, country: meta.league.country ?? '', firstSeason: Math.min(...seasons), lastSeason: Math.max(...seasons), playerSeasons: players.rows.length, players: new Set(players.rows.map((r) => String(get(r, 'id')))).size, clubs: clubs.length }
+  const leagueInfo: LeagueInfo = info ?? { id: leagueId, name: meta.league.name, shortName: meta.league.shortName, country: meta.league.country ?? '', firstSeason: Math.min(...seasons), lastSeason: Math.max(...seasons), playerSeasons: players.rows.length, players: new Set(playerIds(players)).size, clubs: clubs.length }
   return {
     seed: `${leagueId}-v${players.version}-${players.generatedAt}`,
     leagues: [leagueInfo],
@@ -236,6 +235,13 @@ export function buildLeague(players: PlayersFile, meta: MetaFile, info?: LeagueI
     voidTitles: { [leagueId]: [...voidTitles].sort((a, b) => a - b) },
     ...(classicSeasons.length ? { classicFirstSeason: Math.min(...classicSeasons.map((s) => s.season)) } : {}),
   }
+}
+
+/** Every row's player id, as the column map reads it (the last column of a name wins). */
+function playerIds(players: PlayersFile): string[] {
+  const col = Object.fromEntries(players.columns.map((c, i) => [c, i])) as Record<string, number>
+  const i = 'id' in col ? col.id : -1
+  return players.rows.map((r) => String(r[i]))
 }
 
 /**

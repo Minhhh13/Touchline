@@ -20,6 +20,7 @@ import { SoundToggle, TierChip } from './CaseReel'
 import { Pos, Rating } from './bits'
 import { useFocusOnLanding } from '../a11y'
 import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
+import { surname } from '@game/logic/slotSheet'
 
 /**
  * The end-of-draft case (`DraftRules.endCase`): the odds of each rarity first, then one case reel landing on what the
@@ -144,7 +145,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               <div className="case-slots row wrap" style={{ gap: 6 }}>
                 {choices.map((x, i) => (
                   <button ref={i === 0 ? action : undefined} key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingLine(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingLine(x.outSlot, x.label)}` : ''}`}>
-                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · for {x.outName.split(/\s+/).slice(-1)[0]}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
+                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · for {surname(x.outName)}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
                   </button>
                 ))}
               </div>

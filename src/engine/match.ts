@@ -51,6 +51,11 @@ export interface MatchTeamInput {
    * own expected goals and `defence` on the opponent's. Absent, the side plays exactly as before managers existed.
    */
   managerBoost?: { attack: number; defence: number }
+  /**
+   * The side's league scoring level (engine 6, E6-7): an AI side carries its league's (`leagueGoalFactor` in season.ts),
+   * the user's none. A pairing's base expected goals take `pairingGoalFactor` of the two.
+   */
+  goalFactor?: number
 }
 
 export interface MatchOptions {
@@ -247,6 +252,8 @@ export interface TeamSnapshot {
   shout?: Shout
   /** The late fade applied at 70 (full-detail matches), reused by a change in play after 70 so it never applies twice. */
   lateFadeAt70?: number
+  /** The side's `MatchTeamInput.goalFactor`, kept so a resumed or changed match prices goals as it kicked off. */
+  goalFactor?: number
 }
 
 export interface MatchInProgress {
@@ -299,8 +306,32 @@ export interface TeamLookups {
   getState: (id: string) => SquadPlayer | undefined
 }
 
-const BASE_XG = 1.32
+/** Engine 6: 1.28 (engine 5: 1.32), with the managed leagues' drift gone (section 8 of docs/GAME_DESIGN.md). */
+const BASE_XG = 1.28
 const K = 0.055
+/** Above 80 each rating point of attack or defence power counts 1 + STRETCH (1.8): an all-time XI should feel like one. */
+const STRETCH = 0.8
+/**
+ * The soft ceiling on a side's expected goals for a match (engine 6, E6-4): untouched up to `XG_KNEE`, then bending
+ * towards `XG_CEILING` (4.0 stays 3.97, 5.0 becomes 4.46, 5.8 becomes 4.57). The hard clamp at 5.8 let a side reach
+ * 14-0; the knee sits above what the elite XI of the 38-0 chase makes against a calibrated league.
+ */
+export const XG_KNEE = 3.5
+export const XG_CEILING = 4.6
+
+export function softCeiling(lam: number): number {
+  return lam <= XG_KNEE ? lam : XG_KNEE + (XG_CEILING - XG_KNEE) * Math.tanh((lam - XG_KNEE) / (XG_CEILING - XG_KNEE))
+}
+
+/**
+ * The goal factor of a pairing (engine 6, E6-7): the mean of the two sides' `goalFactor`s, or the one side's that has
+ * one (an AI side carries its league's; the user's side none), 1 when neither does.
+ */
+export function pairingGoalFactor(home: { goalFactor?: number }, away: { goalFactor?: number }): number {
+  const h = home.goalFactor
+  const a = away.goalFactor
+  return h !== undefined && a !== undefined ? (h + a) / 2 : h ?? a ?? 1
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -1018,6 +1049,7 @@ function snapshotOf(t: MatchTeamInput, strength: TeamStrength, modifiers: Tactic
     talkText,
     variance,
     boost: withManager(boost ?? { attack: 1, defence: 1 }, t.managerBoost),
+    ...(t.goalFactor !== undefined ? { goalFactor: t.goalFactor } : {}),
   }
 }
 
@@ -1057,14 +1089,15 @@ function expectedGoals(mp: Pick<MatchInProgress, 'home' | 'away' | 'hLive' | 'aL
   const am = mp.away.modifiers
   // The top of the scale is stretched: the gap between a 90 and an 87 is far
   // bigger in football terms than between a 72 and a 69, and an all-time XI
-  // should feel like one.
-  const stretch = (x: number) => x + Math.max(0, x - 80) * 0.8
+  // should feel like one (`STRETCH`).
+  const stretch = (x: number) => x + Math.max(0, x - 80) * STRETCH
   const attackPower = (s: TeamStrength) => stretch(0.62 * s.attack + 0.38 * s.midfield)
   const defencePower = (s: TeamStrength) => stretch(0.55 * s.defence + 0.28 * s.goalkeeping + 0.17 * s.midfield)
   const homeAdv = mp.neutral ? 1 : 1.12
   const awayAdv = mp.neutral ? 1 : 0.9
-  let lamH = BASE_XG * Math.exp(K * (attackPower(hs) - defencePower(as))) * hm.attack * am.defence * homeAdv * mp.home.variance
-  let lamA = BASE_XG * Math.exp(K * (attackPower(as) - defencePower(hs))) * am.attack * hm.defence * awayAdv * mp.away.variance
+  const base = BASE_XG * pairingGoalFactor(mp.home, mp.away)
+  let lamH = base * Math.exp(K * (attackPower(hs) - defencePower(as))) * hm.attack * am.defence * homeAdv * mp.home.variance
+  let lamA = base * Math.exp(K * (attackPower(as) - defencePower(hs))) * am.attack * hm.defence * awayAdv * mp.away.variance
   lamH *= mp.home.boost.attack * mp.away.boost.defence
   lamA *= mp.away.boost.attack * mp.home.boost.defence
   // Designated set-piece takers: a good corner or free-kick specialist on the pitch adds chances
@@ -1089,7 +1122,7 @@ function expectedGoals(mp: Pick<MatchInProgress, 'home' | 'away' | 'hLive' | 'aL
     lamH *= 1 + (big(mp.hLive, home.getPlayer) - 0.5) * 0.14 * (mp.importance - 1) * 2.5
     lamA *= 1 + (big(mp.aLive, away.getPlayer) - 0.5) * 0.14 * (mp.importance - 1) * 2.5
   }
-  return { lamH: clamp(lamH, 0.12, 5.8), lamA: clamp(lamA, 0.12, 5.8) }
+  return { lamH: Math.max(0.12, softCeiling(lamH)), lamA: Math.max(0.12, softCeiling(lamA)) }
 }
 
 /**
@@ -1109,8 +1142,10 @@ function playSegment(mp: MatchInProgress, rng: Rng, home: MatchTeamInput, away: 
   const aShort = shortHandedFactor(mp.aLive, from, to)
   // First halves are quieter; second halves open up.
   const share = ((to - from + 1) / 90) * (to <= 45 ? 0.94 : 1.06)
-  const lh = clamp(lamH * share * hShort.ownAttack * aShort.oppAttackBoostFor, 0.02, 3.5)
-  const la = clamp(lamA * share * aShort.ownAttack * hShort.oppAttackBoostFor, 0.02, 3.5)
+  // A segment's ceiling is its share of the match's, with room for the 30 per cent a man advantage adds
+  const segMax = share * XG_CEILING * 1.3
+  const lh = clamp(lamH * share * hShort.ownAttack * aShort.oppAttackBoostFor, 0.02, segMax)
+  const la = clamp(lamA * share * aShort.ownAttack * hShort.oppAttackBoostFor, 0.02, segMax)
   const hg = rng.poisson(lh)
   const ag = rng.poisson(la)
   if (opts.replay) {
@@ -1261,27 +1296,28 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
   // three segments add up to exactly what two halves did.
   const halfF = (to - from + 1) / 90
   for (const p of live) {
-    if (p.position === 'GK' || p.red || p.offAt < 90) continue
+    if (p.red || p.offAt < 90) continue
     const ps = team.getPlayer(p.psId)
     if (!ps) continue
-    // Aggression scales every card: ×0.7 for the meekest, ×1.3 for the most combative
-    const aggF = aggressionCardFactor(ps.attributes.aggression)
+    // Aggression scales every card: ×0.7 for the meekest, ×1.3 for the most combative. A keeper is booked at a fifth of
+    // an outfielder's rate (time-wasting, a late challenge; engine 6, E6-6: never before)
+    const aggF = aggressionCardFactor(ps.attributes.aggression) * (p.position === 'GK' ? 0.2 : 1)
     if (!p.yellow) {
-      const pYellow = (0.07 + 0.09 * p.shares.defence + (ps.attributes.physical > 82 ? 0.02 : 0)) * pressF * derbyF * (1.15 - ps.traits.professionalism * 0.3) * halfF * aggF
+      const pYellow = (0.108 + 0.12 * p.shares.defence + (ps.attributes.physical > 82 ? 0.02 : 0)) * pressF * derbyF * (1.15 - ps.traits.professionalism * 0.3) * halfF * aggF
       if (rng.chance(pYellow)) {
         const minute = rng.int(from, to)
         p.yellow = true
         p.cardAt = minute
         events.push({ minute, type: 'yellow', side, playerId: p.psId, playerName: ps.name, text: `${ps.name} is booked.` })
       }
-    } else if (rng.chance(0.09 * halfF * aggF)) {
+    } else if (rng.chance(0.07 * halfF * aggF)) {
       const minute = rng.int(Math.max(from, p.cardAt ?? from), to)
       p.red = true
       p.offAt = minute
       events.push({ minute, type: 'red', side, playerId: p.psId, playerName: ps.name, text: `${ps.name} sees a second yellow and is sent off!` })
       continue
     }
-    const pRed = (0.004 + 0.004 * p.shares.defence) * derbyF * halfF * aggF
+    const pRed = (0.002 + 0.002 * p.shares.defence) * derbyF * halfF * aggF
     if (!p.red && rng.chance(pRed)) {
       const minute = rng.int(Math.max(from, p.cardAt ?? from), to)
       p.red = true
@@ -1294,7 +1330,10 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
   const injuryFrom = Math.max(from, 3)
   const injuryTo = Math.min(to, 88)
   for (const p of [...live]) {
-    if (p.red || p.offAt < 90 || p.injury || injuryFrom > injuryTo) continue
+    // A man booked in this segment can only be injured after his booking (engine 6, E6-1: a card used to land after he
+    // had gone off injured, and his replacement waited for it)
+    const lo = Math.max(injuryFrom, p.cardAt ?? injuryFrom)
+    if (p.red || p.offAt < 90 || p.injury || lo > injuryTo) continue
     const ps = team.getPlayer(p.psId)
     if (!ps) continue
     const st = team.getState(p.psId)
@@ -1303,7 +1342,7 @@ function disciplineAndInjuries(rng: Rng, live: LivePlayer[], team: MatchTeamInpu
     // Tired legs on an outfielder with little stamina: up to 30 per cent more risk (never a keeper)
     const pInj = 0.021 * (0.5 + ps.traits.injuryProneness) * condF * (p.position === 'GK' ? 1 : fatigueInjuryFactor(ps.attributes.stamina, cond)) * halfF
     if (rng.chance(pInj)) {
-      const minute = rng.int(injuryFrom, injuryTo)
+      const minute = rng.int(lo, injuryTo)
       const injury = rollInjury(rng)
       p.injury = injury
       p.offAt = minute

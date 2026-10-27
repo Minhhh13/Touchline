@@ -22,6 +22,7 @@ import { clockText, skipLabel } from './model'
 import type { TopBarProps } from './types'
 import type { ManagerHand } from './useManagerHand'
 import { SPEEDS } from './useMatchClock'
+import { useMediaQuery } from '../components/LivePitch'
 
 const GOALS = new Set(['goal', 'penalty', 'own_goal'])
 
@@ -133,6 +134,18 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
   // The board lights up for the minute after a goal, and while one is celebrated
   const flash = celebrating || feed.events.some((e) => GOALS.has(e.type) && e.minute <= t && e.minute >= t - 1)
   const state = { atStop: clock.atStop, stopAt: clock.stopAt, finished: clock.finished, final: clock.final, addedTime: feed.addedTime }
+  // On a phone the playback row scrolls sideways: Skip and Sim result come straight after Pause so they start in view
+  const phone = useMediaQuery('(max-width: 720px)')
+  const skip = !clock.finished && (
+    <button className="btn sm" onClick={clock.skip} data-testid="skip-replay">
+      {skipLabel(clock.stopAt)}
+    </button>
+  )
+  const sim = playback?.simResult && (
+    <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title="The assistant makes any remaining calls and the match goes straight to the whistle and the report">
+      Sim result
+    </button>
+  )
   return (
     <div className="md-topbar" role="group" aria-label={label}>
       <Tools hand={hand} />
@@ -158,6 +171,8 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
             {clock.running ? 'Pause' : 'Resume'}
           </button>
         )}
+        {phone && skip}
+        {phone && sim}
         <div className="segmented" role="group" aria-label="Speed">
           {SPEEDS.map((s) => (
             <button key={s} className={clock.speed === s ? 'active' : ''} onClick={() => clock.setSpeed(s)} aria-pressed={clock.speed === s} data-testid={`speed-${s}`}>
@@ -189,21 +204,13 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
             Highlights wound down: {highlights.wound}
           </span>
         )}
-        {!clock.finished && (
-          <button className="btn sm" onClick={clock.skip} data-testid="skip-replay">
-            {skipLabel(clock.stopAt)}
-          </button>
-        )}
+        {!phone && skip}
         {playback && (
           <label className={`chip-toggle ${playback.auto ? 'on' : ''}`} title="The assistant makes the calls at the stops still to come">
             <input type="checkbox" checked={playback.auto} onChange={(e) => playback.setAuto(e.target.checked)} data-testid="auto-toggle" /> Auto from here
           </label>
         )}
-        {playback?.simResult && (
-          <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title="The assistant makes any remaining calls and the match goes straight to the whistle and the report">
-            Sim result
-          </button>
-        )}
+        {!phone && sim}
       </div>
     </div>
   )

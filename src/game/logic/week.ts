@@ -2,10 +2,11 @@ import type { Game, LiveMatch } from '../types'
 import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { advanceMatch, beginMatch, changeInPlay, finishMatch, simulateMatch, type FullMatchResult, type InPlayChange, type InPlayOutcome, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
-import { aiTeamInput, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
+import { aiLookup } from '@engine/reserve'
+import { aiFixtureInputs, aiTeamInput, applyMatchToAiState, humansOf, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
-import { openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
+import { afterSeasonMoney, CONTINENTAL_PRIZE, openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
 import { computeAwards } from '@engine/awards'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, lineupProblems, squadWages } from './squad'
@@ -56,7 +57,7 @@ export function tiesOf(season: SeasonState, comp: Competition): CupTie[] {
 
 function aiLookups(game: Game, u: LoadedUniverse, clubId: string) {
   const club = clubOf(game.season!, clubId)
-  return { getPlayer: (id: string) => u.index[id], getState: (id: string) => club?.state[id] }
+  return { getPlayer: aiLookup(u), getState: (id: string) => club?.state[id] }
 }
 
 function matchBoosts(game: Game): { attack: number; defence: number } {
@@ -107,8 +108,10 @@ function applyResultToUser(game: Game, u: LoadedUniverse, res: FullMatchResult, 
   accrueBonuses(game, stats)
   recordMatchData(game, res, userIsHome ? 'home' : 'away')
   for (const id of played) game.weekPlayed.push(id)
-  for (const id of Object.keys(game.squad)) {
+  for (const [id, s] of Object.entries(game.squad)) {
     if (played.has(id)) game.consecutiveMissed[id] = 0
+    // Out injured or banned is not left out: no missed match, and no zero minutes this week
+    else if (s.injury || s.suspension > 0) (game.weekUnavailable ??= []).push(id)
     else game.consecutiveMissed[id] = (game.consecutiveMissed[id] ?? 0) + 1
   }
   serveSuspensions(game.squad, played)
@@ -146,9 +149,14 @@ function applyResultToAi(game: Game, teamId: string, res: FullMatchResult, isHom
     const s = club.state[st.playerSeasonId]
     if (!s) continue
     played.add(st.playerSeasonId)
-    applyMatchToState(s, st, true, res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result)
+    applyMatchToAiState(s, st, res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, result)
   }
   serveSuspensions(club.state, played)
+}
+
+/** The real player ids of the squad's men (E6-2): no AI side fields any of them, in any season of his. */
+function squadHumans(game: Game, u: LoadedUniverse): Set<string> {
+  return humansOf(Object.keys(game.squad), playerLookup(game, u))
 }
 
 /** A banned player serves one match of his suspension for every match his side plays without him. */
@@ -162,6 +170,7 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
   const get = playerLookup(game, u)
   const t = TRAINING[game.training]
   const played = new Set(game.weekPlayed)
+  const unavailable = new Set(game.weekUnavailable ?? [])
   const physio = staffTier(game.staff, 'physio')
   const coach = staffTier(game.staff, 'coach')
   const assistant = staffTier(game.staff, 'assistant')
@@ -177,7 +186,7 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
     s.familiarity = Math.min(100, s.familiarity + t.familiarity + assistant)
     if (weekHadMatch) {
       const recent = (s.recentMinutes ??= [])
-      if (!played.has(id)) recent.push(0)
+      if (!played.has(id) && !unavailable.has(id)) recent.push(0)
       if (recent.length > RECENT_WEEKS) recent.splice(0, recent.length - RECENT_WEEKS)
     }
     // Playing time against his squad status moves morale, instead of a flat bench penalty
@@ -203,6 +212,7 @@ function weeklyRecovery(game: Game, u: LoadedUniverse): void {
     }
   }
   game.weekPlayed = []
+  delete game.weekUnavailable
 }
 
 /** A player's squad status; rotation for contracts written before statuses existed. */
@@ -293,6 +303,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   const table = seasonTable(season)
   const week = season.fixtures.filter((f) => f.matchweek === mw)
   const boosts = matchBoosts(game)
+  const taken = squadHumans(game, u)
 
   for (const f of week) {
     const userIsHome = f.homeTeamId === USER_TEAM
@@ -301,7 +312,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
       const opponentId = userIsHome ? f.awayTeamId : f.homeTeamId
       const imp = describeImportance(u, season.hostClubId, opponentId, table, mw)
       const user = userInput(game, u)
-      const opp = aiTeamInput(u, season.ai[opponentId], season.aiOffset)
+      const opp = aiTeamInput(u, season.ai[opponentId], season.aiOffset, taken)
       const opts = { rng, home: userIsHome ? user : opp, away: userIsHome ? opp : user, importance: imp.importance, importanceLabel: imp.label, neutral: false, detail: 'full' as const, boosts: userIsHome ? { home: boosts } : { away: boosts } }
       const ctx = { matchweek: mw, competition: 'league' as const, opponentClubId: opponentId, home: userIsHome, importanceLabel: imp.label }
       if (autoManage) {
@@ -312,8 +323,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
         game.live = { kind: 'league', mp: beginMatch(opts), ctx, userIsHome, opponentId }
       }
     } else {
-      const home = aiTeamInput(u, season.ai[f.homeTeamId], season.aiOffset)
-      const away = aiTeamInput(u, season.ai[f.awayTeamId], season.aiOffset)
+      const { home, away } = aiFixtureInputs(u, season.ai[f.homeTeamId], season.ai[f.awayTeamId], season.aiOffset, taken)
       const res = simulateMatch({ rng, home, away, detail: 'summary' })
       f.result = res
       applyResultToAi(game, f.homeTeamId, res, true)
@@ -526,7 +536,7 @@ function afterLeagueMatch(game: Game, u: LoadedUniverse, autoManage: boolean, pl
       if (lineupProblems(game, u).length || autoManage) autoPick(game, u, !autoManage)
       const user = userInput(game, u)
       const imp = describeImportance(u, season.hostClubId, opponentId, null, mw, roundInfo.round, comp)
-      const opp = aiTeamInput(u, clubOf(season, opponentId)!, season.aiOffset)
+      const opp = aiTeamInput(u, clubOf(season, opponentId)!, season.aiOffset, squadHumans(game, u))
       const neutral = roundInfo.round === 'F'
       const opts = { rng, home: userIsHome ? user : opp, away: userIsHome ? opp : user, importance: imp.importance, importanceLabel: imp.label ?? roundInfo.label, neutral, detail: 'full' as const }
       const ctx = { matchweek: mw, competition: comp, roundLabel: roundInfo.label, opponentClubId: opponentId, home: userIsHome, importanceLabel: imp.label }
@@ -556,8 +566,7 @@ function simulateAiCupTies(game: Game, u: LoadedUniverse, rng: Rng, round: CupTi
     const hc = clubOf(season, tie.homeTeamId)
     const ac = clubOf(season, tie.awayTeamId)
     if (!hc || !ac) continue
-    const home = aiTeamInput(u, hc, season.aiOffset)
-    const away = aiTeamInput(u, ac, season.aiOffset)
+    const { home, away } = aiFixtureInputs(u, hc, ac, season.aiOffset, squadHumans(game, u))
     const res = simulateMatch({ rng, home, away, neutral: round === 'F', detail: 'summary' })
     applyResultToAi(game, tie.homeTeamId, res, true)
     applyResultToAi(game, tie.awayTeamId, res, false)
@@ -825,9 +834,12 @@ export function playFriendly(game: Game, u: LoadedUniverse): void {
   const cs = rng.pick(pool)
   const club = u.clubById[cs.clubId]
   const oppTactics = { ...game.season.ai[Object.keys(game.season.ai)[0]].tactics }
-  const byId = new Map(cs.squad.map((p) => [p.id, p]))
+  // The friendly's opponents field none of our men (engine 6, E6-2)
+  const taken = squadHumans(game, u)
+  const squad = cs.squad.filter((p) => !taken.has(p.playerId))
+  const byId = new Map(squad.map((p) => [p.id, p]))
   const formation = getFormation(oppTactics.formationId)
-  const picked = autoPickLineup(formation, cs.squad, oppTactics)
+  const picked = autoPickLineup(formation, squad, oppTactics)
   const key = `${cs.clubId}@${cs.season}`
   const label = `${club?.name ?? cs.clubId} ${cs.season}-${String((cs.season + 1) % 100).padStart(2, '0')}`
   const opp: MatchTeamInput = { teamId: `friendly-${cs.clubId}`, teamName: label, shortName: club?.shortName ?? cs.clubId, tactics: oppTactics, lineup: picked.lineup, bench: picked.bench, getPlayer: (id) => byId.get(id), getState: () => undefined, ratingOffset: game.season.aiOffset }
@@ -857,10 +869,11 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   const squad = squadPlayers(game, u)
   game.awards = computeAwards(squad, season.matchweeks)
   const run = continentalRun(season)
-  const euroPrize = { R16: 4, QF: 8, SF: 15, F: 25, W: 45 }[run ?? 'R16'] ?? 0
-  const prize = season.sacked ? 0 : prizeMoney(pos, season.cupWon) + (run ? euroPrize : 0)
-  game.finances.budget = Math.round((game.finances.budget + prize) * 10) / 10
-  game.finances.income += prize
+  const euroPrize = CONTINENTAL_PRIZE[run ?? 'R16'] ?? 0
+  const prize = season.sacked ? 0 : Math.round((prizeMoney(pos, season.cupWon, table.length) + (run ? euroPrize : 0)) * 10) / 10
+  // Running costs beyond the league money take the budget down to the summer floor at worst (`afterSeasonMoney`)
+  game.finances.budget = afterSeasonMoney(game.finances.budget, prize)
+  if (prize > 0) game.finances.income += prize
   // Top four, or the continental trophy, earns a place in next season's Continental Cup
   game.qualifiedContinental = !season.sacked && (pos <= 4 || !!season.continental?.won)
   // Board objectives: judged now, paid now
@@ -939,7 +952,7 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   const titles = game.history.slice(-3).filter((h) => h.position === 1).length
   if (titles >= 3) unlock('dynasty-3')
   game.unlocked = game.unlocked.filter((x) => x !== 'survivor-pending')
-  news(game, { kind: 'award', title: 'Season over', body: `${row.won}W ${row.drawn}D ${row.lost}L, ${row.points} points, ${pos}${['th', 'st', 'nd', 'rd'][pos % 10 > 3 || (pos % 100 >= 11 && pos % 100 <= 13) ? 0 : pos % 10]}. Prize money £${prize}M.` })
+  news(game, { kind: 'award', title: 'Season over', body: `${row.won}W ${row.drawn}D ${row.lost}L, ${row.points} points, ${pos}${['th', 'st', 'nd', 'rd'][pos % 10 > 3 || (pos % 100 >= 11 && pos % 100 <= 13) ? 0 : pos % 10]}. ${prize >= 0 ? `League money after running costs: £${prize}M.` : `Running costs beyond the league money: £${-prize}M.`}` })
   game.jobOffers = game.settings.mode === 'dynasty' && !season.sacked ? jobOffersFor(game, u, pos, table.length) : []
   game.pendingMove = null
   game.phase = 'summary'

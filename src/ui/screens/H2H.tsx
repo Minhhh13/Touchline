@@ -246,7 +246,7 @@ export function H2HScreen() {
   const onSlot = (idx: 0 | 1, slotId: string) => {
     if (!selected || picking !== idx) return
     if (!eligible.includes(slotId)) {
-      showToast(`${selected.name} cannot play there`)
+      showToast(`${selected.name} cannot play there. Pick a highlighted slot.`)
       return
     }
     h2hPick(selected.id, slotId)
@@ -265,7 +265,7 @@ export function H2HScreen() {
               <LeagueFlag leagueId={h2h.leagueId} /> {u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? 'League'} {seasonLabel(h2h.leagueSeason)}
             </span>
             {h2h.hardMode && <span className="chip">Hard mode</span>}
-            <span className="mono">seed {h2h.seed}</span>
+            <span className="mono">Seed {h2h.seed}</span>
           </div>
         </div>
         <div className="toolbar">
@@ -438,7 +438,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      showToast('Could not copy.')
+      showToast('Could not copy. Select the text manually.')
     }
   }
   const card = async (i: 0 | 1) => {
@@ -457,7 +457,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not render the card.')
+      showToast('Could not make the share card. Try again.')
     }
   }
   return (

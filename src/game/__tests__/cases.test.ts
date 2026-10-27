@@ -68,7 +68,7 @@ describe('the rules', () => {
     const base = { difficulty: 'normal' as const, showRatings: true, draftMode: 'squad' as const, ratings: 'season' as const, eraFrom: 0, eraTo: 9999, first: 0, last: 9999, twists: true, leagues: ['england'] }
     expect(setupRules(QUICK_RULES, { ...base, managers: false, managerSpin: true }).managerSpin).toBeUndefined()
     expect(setupRules(QUICK_RULES, { ...base, managerSpin: false, endCase: false }).endCase).toBeUndefined()
-    expect(describeRules(u, SETUP)).toEqual(expect.arrayContaining(['Manager spin', '🎁 End case']))
+    expect(describeRules(u, SETUP)).toEqual(expect.arrayContaining(['Manager spin', 'End case']))
     expect(describeRules(u, QUICK_RULES)).toContain('Manager pick')
   })
 

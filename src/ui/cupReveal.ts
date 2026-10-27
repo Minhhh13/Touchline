@@ -8,7 +8,7 @@ import { USER_TEAM } from '@engine/season'
 import { inTie, tieAtStep, type BracketView } from '@game/logic/bracket'
 
 /** Milliseconds: a tie of the field, one once the user is out, the user's tie in play, the hold after it, a new round's draw. */
-export const CUP_REVEAL = { step: 240, fast: 140, live: 1000, hold: 600, round: 450 } as const
+export const CUP_REVEAL = { step: 340, fast: 200, live: 1400, hold: 850, round: 650 } as const
 
 function isMine(view: BracketView, at: { round: number; tie: number } | null, userId: string): boolean {
   return !!at && inTie(view.rounds[at.round].ties[at.tie], userId)

@@ -7,7 +7,7 @@ import { DEFAULT_LEAGUE } from '@engine/universe'
 import { loadLeague, loadPacks as loadRawPacks, warmClassicPacks } from './packs'
 import { tidyUniverseNames } from './logic/playerNames'
 import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
-import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
+import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, fillingXI, isComplete, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
@@ -31,10 +31,13 @@ import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
 import { januaryGambleMade } from './logic/januaryGamble'
+import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonStale } from './logic/quickSeam'
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
+import { availableStopChanges } from './logic/stopChanges'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
+import { playerLookup } from './logic/players'
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
@@ -127,6 +130,12 @@ interface Store {
   h2h: H2HGame | null
   profile: Profile
   toast: string | null
+  /**
+   * Why this page has stopped saving (transient, never saved): `elsewhere` once another tab or window has saved over
+   * this page's save (this page then stops writing until it is reloaded, so it never overwrites that progress with its
+   * older game). A full storage is `saveFailing`, which goes with the next write that lands.
+   */
+  saveIssue: 'elsewhere' | null
   offseason: OffseasonReport | null
   /** What happened over the matchweeks just simulated (Sim 5, Sim to end); transient, never saved. */
   digest: SimDigest | null
@@ -224,9 +233,11 @@ interface Store {
   /**
    * Play matchweek as the Dugout plays it: `playWeek` in three parts with a break for the page between them (the busy
    * state painted, the matchweek played, then the screen that shows it), so a slow phone stays responsive. The same
-   * game as `playWeek` from the same state; a tap while one runs is ignored.
+   * game as `playWeek` from the same state; a tap while one runs is ignored. `prepare` (the screen's, presentation
+   * only) runs on the played game before it is shown, in tasks of its own, to build what the next screen's first
+   * render would (the match day's ball path); it must not change the game, and an error in it is ignored.
    */
-  playWeekSoon: () => Promise<void>
+  playWeekSoon: (prepare?: (next: Game) => Promise<void>) => Promise<void>
   /** Transient: a `playWeekSoon` is under way (the Dugout's button shows it). Never saved. */
   playingWeek: boolean
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
@@ -368,6 +379,7 @@ export const saveStorage = createSaveStorage<Store>({
       return
     }
     failedWrites++
+    // The banner stays while writes fail; the toast says why, on the first refusal and every twentieth
     if (!useStore.getState().saveFailing) useStore.setState({ saveFailing: true })
     if (failedWrites === 1 || failedWrites % 20 === 0) useStore.setState({ toast: SAVE_FULL_TOAST })
   },
@@ -424,9 +436,21 @@ export const useStore = create<Store>()(
           }
         })
       /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
+      /**
+       * A window drawn by an earlier engine (a season kicked off before a release): draw it again on this one, with the
+       * reason, before anything plays the season again. True when it did.
+       */
+      const redrawStaleJanuary = (): boolean => {
+        const { game, universe } = get()
+        if (!game || !universe || !januaryStale(game, universe)) return false
+        mutate((g, u) => reopenJanuary(g, u))
+        set({ toast: JANUARY_REDRAWN_NOTE })
+        return true
+      }
       const closeWindow = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const before = get().game
         if (before?.phase !== 'january' || !before.quickJanuary) return
+        if (redrawStaleJanuary()) return
         const from = before.quickJanuary.firstHalf.length
         mutate(fn)
         if (get().game?.phase === 'january') {
@@ -501,6 +525,7 @@ export const useStore = create<Store>()(
         h2h: null,
         profile: defaultProfile,
         toast: null,
+        saveIssue: null,
         offseason: null,
         digest: null,
         matchView: 'ticker',
@@ -741,7 +766,8 @@ export const useStore = create<Store>()(
             if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: targetSlot(g.draft)!.id } : {}) })
             g.draft.current = null
             g.draft.twist = null
-            autoDraft(u, g.draft, rng)
+            // The lookup sees a Dynasty summer's own players (their keepers count towards the squad's limits)
+            autoDraft(u, g.draft, rng, playerLookup(g, u))
             g.rngState = rng.getState()
           }),
         upgradePlayer: (id, boost) =>
@@ -770,8 +796,9 @@ export const useStore = create<Store>()(
             if (!g.draft) return
             // A Quick Draft with a bench may close once the XI is full, bench places to spare
             if (canCloseBench(g.draft)) closeBench(g.draft)
-            // A one-nation wheel that has run dry may close with a full XI short of the squad size
-            if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
+            // A one-nation wheel that has run dry may close with a full XI short of the squad size (never with an XI
+            // slot open: bench picks once counted towards eleven, and a quick season kicked off with a striker in goal)
+            if (!isComplete(g.draft) && !(!fillingXI(g.draft) && !canSpin(u, g.draft))) return
             if (g.settings.mode === 'arena') beginArena(g, u)
             else if (g.settings.mode === 'runin') beginRunIn(g, u)
             // Quick Draft, the Daily and the Weekly stop at the tactics step before the season
@@ -830,22 +857,26 @@ export const useStore = create<Store>()(
             if (!get().kickingOff) stopQuickWorker()
           }
         },
-        januarySpin: () =>
+        januarySpin: () => {
+          if (redrawStaleJanuary()) return
           mutate((g, u) => {
             try {
               rollJanuarySpin(g, u)
             } catch (e) {
               set({ toast: e instanceof Error ? e.message : String(e) })
             }
-          }),
-        januaryUpgrade: (id, boost) =>
+          })
+        },
+        januaryUpgrade: (id, boost) => {
+          if (redrawStaleJanuary()) return
           mutate((g, u) => {
             try {
               rollJanuaryUpgrade(g, u, id, boost)
             } catch (e) {
               set({ toast: e instanceof Error ? e.message : String(e) })
             }
-          }),
+          })
+        },
         closeJanuarySpin: (slotId) => {
           const { game, universe } = get()
           if (!game || !universe) return
@@ -874,6 +905,11 @@ export const useStore = create<Store>()(
           const problem = quickChangeProblem(game, universe, results, revealed, { slotId, inId })
           if (problem) {
             set({ toast: problem })
+            return
+          }
+          // A change plays the season again: on one an earlier engine played, that would rewrite the games already shown
+          if (game.phase === 'january' ? redrawStaleJanuary() : quickSeasonStale(game, universe)) {
+            if (game.phase !== 'january') set({ toast: CHANGES_CLOSED_NOTE })
             return
           }
           mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
@@ -929,7 +965,11 @@ export const useStore = create<Store>()(
           set({ matchView: 'ticker', liveAuto: false })
         },
         advanceLive: (opts, hold = false) => {
-          mutate((g, u) => (g.arena ? advanceArenaMatch(g, u, opts, hold) : advanceLiveMatch(g, u, opts, false, hold)))
+          mutate((g, u) => {
+            const fit = availableStopChanges(g, opts)
+            if (g.arena) advanceArenaMatch(g, u, fit, hold)
+            else advanceLiveMatch(g, u, fit, false, hold)
+          })
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
@@ -958,7 +998,7 @@ export const useStore = create<Store>()(
           }
         },
         finishLiveNow: (changes) => {
-          mutate((g, u) => finishWithAssistant(g, u, changes))
+          mutate((g, u) => finishWithAssistant(g, u, availableStopChanges(g, changes)))
           set({ matchView: 'report' })
           if (get().game?.phase === 'summary') {
             unlockFromGame()
@@ -981,7 +1021,7 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
-        playWeekSoon: async () => {
+        playWeekSoon: async (prepare) => {
           const { game: g0, universe: u0, playingWeek } = get()
           if (!g0 || !u0 || playingWeek) return
           const mode = matchPlayOf(g0)
@@ -1003,6 +1043,14 @@ export const useStore = create<Store>()(
               return
             }
             await nextTask()
+            if (prepare) {
+              try {
+                await prepare(next)
+              } catch (e) {
+                console.error(e)
+              }
+              await nextTask()
+            }
             if (moved()) return get().playWeek()
             // One update for the game and the view: the screen that shows the week renders once
             set({ game: next, matchView: mode === 'sim' ? 'report' : 'ticker', liveAuto: mode === 'auto', playingWeek: false })
@@ -1486,11 +1534,32 @@ export const useStore = create<Store>()(
   ),
 )
 
+/**
+ * Another tab or window wrote the save (it played on, imported a file or wiped the browser): this page's game is now
+ * older than the stored one, and its next write would put that older game back over the newer progress. It stops
+ * writing at once and asks to be reloaded. The browser fires the event only in the other pages, never in the writer.
+ */
+export function saveChangedElsewhere(key: string | null): void {
+  // A null key is localStorage.clear(), which takes the save with it
+  if (key !== null && key !== SAVE_KEY) return
+  saveStorage.freeze()
+  useStore.setState({ saveIssue: 'elsewhere' })
+}
+
 if (typeof window !== 'undefined') {
   // A write still waiting goes out before the page is hidden or closed
   window.addEventListener('pagehide', () => saveStorage.flush())
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') saveStorage.flush()
+    // Back from the background (a frozen tab may not have heard): the save is still this page's, or it stops
+    else if (saveStorage.changedElsewhere(SAVE_KEY)) saveChangedElsewhere(SAVE_KEY)
+  })
+  // Back or Forward to this page out of the back-forward cache: other pages may have saved while it slept, unheard
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted && saveStorage.changedElsewhere(SAVE_KEY)) saveChangedElsewhere(SAVE_KEY)
+  })
+  window.addEventListener('storage', (e) => {
+    if (e.storageArea === window.localStorage) saveChangedElsewhere(e.key)
   })
 }
 
@@ -1506,14 +1575,27 @@ export function exportSaveJson(): string {
  */
 export function readSaveFile(text: string): string {
   const value = parseSave<Record<string, unknown>>(text)
+  // A save written under another persist version would be thrown away on load (there is no migrate): refuse it here
+  if (typeof value.version === 'number' && value.version !== SAVE_VERSION) throw new Error(value.version > SAVE_VERSION ? 'the save was made by a newer version of TouchLine' : 'the save is from a version of TouchLine this one cannot read')
   const state = { ...value.state }
+  if (!state.game && !state.profile && !state.h2h && !state.parked) throw new Error('not a Touchline save')
+  // A game, parked game or profile that cannot be read would load as nothing and take this browser's own with it
   const compact = (g: unknown) => {
     const n = normaliseGame(g as Game)
-    return n ? compactGame(n) : g
+    if (!n) throw new Error('the saved game is damaged')
+    return compactGame(n)
   }
   if (state.game) state.game = compact(state.game)
-  if (state.parked && typeof state.parked === 'object') state.parked = Object.fromEntries(Object.entries(state.parked as Record<string, unknown>).map(([k, g]) => [k, compact(g)]))
-  return encodeSave(JSON.stringify({ ...value, state }))
+  if (state.parked !== undefined && state.parked !== null) {
+    if (typeof state.parked !== 'object' || Array.isArray(state.parked)) throw new Error('the saved games are damaged')
+    state.parked = Object.fromEntries(Object.entries(state.parked as Record<string, unknown>).map(([k, g]) => [k, compact(g)]))
+  }
+  if (state.profile !== undefined && state.profile !== null && (typeof state.profile !== 'object' || Array.isArray(state.profile))) throw new Error('the saved record is damaged')
+  const h2h = state.h2h as Partial<H2HGame> | null | undefined
+  if (h2h !== undefined && h2h !== null && (typeof h2h !== 'object' || !Array.isArray(h2h.managers) || h2h.managers.length !== 2 || !h2h.draft || typeof h2h.draft !== 'object' || typeof h2h.seed !== 'string')) throw new Error('the saved head-to-head is damaged')
+  // A file with games but no record keeps this browser's record rather than starting it again
+  if (!state.profile) state.profile = useStore.getState().profile
+  return encodeSave(JSON.stringify({ ...value, version: SAVE_VERSION, state }))
 }
 
 /**

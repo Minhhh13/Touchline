@@ -3,7 +3,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type FullMatchResult, type MatchTeamInput } from '@engine/match'
 import type { RngState } from '@engine/rng'
-import { aiTeamInput, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, USER_TEAM, type AiClub } from '@engine/season'
+import { aiFixtureInputs, aiTeamInput, computeTable, generateFixtures, humansOf, matchweeksFor, positionOf, seasonTier, USER_TEAM, type AiClub } from '@engine/season'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -94,6 +94,11 @@ interface QuickRun {
   out: Record<string, number>
   /** Injuries and covers of the user's game in each matchweek, for the results. */
   notes: Record<number, Pick<QuickGameResult, 'injuries' | 'covers'>>
+  /**
+   * The real player ids the user's side holds (engine 6, E6-2): none of them plays for an AI side. The league is built
+   * without the drafted men; a January signing joins before the second half, so his club fields him no more.
+   */
+  taken: Set<string>
   /** Handed each of the user's games as it is played, with the generator's state just before it (the highlights replay). */
   capture?: (m: ReplayedMatch) => void
 }
@@ -113,13 +118,14 @@ function startRun(game: Game, u: LoadedUniverse, from: RngState = game.quickStar
   const rng = Rng.fromState(from)
   const get = playerLookup(game, u)
   const { lineup, bench } = quickXI(game, u)
-  // A real league season with its calibration, or the Super League's nineteen at full strength
-  const { ai, offset } = quickLeague(u, game.settings)
+  const taken = humansOf([...Object.values(lineup), ...bench], get)
+  // A real league season with its calibration, or the Super League's nineteen at full strength, without the user's men
+  const { ai, offset } = quickLeague(u, game.settings, taken)
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
   const benchOn = quickBenchRule(game) && bench.length > 0
-  return { rng, get, ai, offset, ids, matchweeks, half: matchweeks / 2, fixtures, lineup, bench, goals: {}, ratings: {}, formation: getFormation(game.tactics.formationId), benchOn, changes: benchOn ? game.quickChanges ?? [] : [], canPlay: canPlayFor(game), applied: [], out: {}, notes: {} }
+  return { rng, get, ai, offset, ids, matchweeks, half: matchweeks / 2, fixtures, lineup, bench, goals: {}, ratings: {}, formation: getFormation(game.tactics.formationId), benchOn, changes: benchOn ? game.quickChanges ?? [] : [], canPlay: canPlayFor(game), applied: [], out: {}, notes: {}, taken }
 }
 
 /** Whether a player is out injured for matchweek `mw`. */
@@ -171,6 +177,10 @@ function userResults(run: QuickRun): QuickGameResult[] {
 function playMatchweeks(run: QuickRun, u: LoadedUniverse, game: Game, side: QuickSide, from: number, to: number): void {
   // Without a bench one side plays every game, as it always has
   const fixed = run.benchOn ? null : userFor(game, run, side, from).input
+  for (const id of [...Object.values(run.lineup), ...run.bench]) {
+    const p = run.get(id)
+    if (p) run.taken.add(p.playerId)
+  }
   let mw = -1
   for (const f of run.fixtures) {
     if (f.matchweek < from || f.matchweek > to) continue
@@ -186,8 +196,10 @@ function playMatchweeks(run: QuickRun, u: LoadedUniverse, game: Game, side: Quic
       user = side1.input
       if (side1.covers.length) (run.notes[mw] ??= {}).covers = side1.covers
     }
-    const home = userIsHome ? user! : aiTeamInput(u, run.ai[f.homeTeamId], run.offset)
-    const away = userIsAway ? user! : aiTeamInput(u, run.ai[f.awayTeamId], run.offset)
+    // Two AI sides never share a man (a January mover, or one human at two clubs of the Super League)
+    const both = userIsHome || userIsAway ? null : aiFixtureInputs(u, run.ai[f.homeTeamId], run.ai[f.awayTeamId], run.offset, run.taken)
+    const home = userIsHome ? user! : both?.home ?? aiTeamInput(u, run.ai[f.homeTeamId], run.offset, run.taken)
+    const away = userIsAway ? user! : both?.away ?? aiTeamInput(u, run.ai[f.awayTeamId], run.offset, run.taken)
     const before = run.capture && (userIsHome || userIsAway) ? run.rng.getState() : null
     const res = simulateMatch({ rng: run.rng, home, away, detail: 'summary' })
     f.result = res

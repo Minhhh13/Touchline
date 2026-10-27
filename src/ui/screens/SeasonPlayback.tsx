@@ -13,7 +13,7 @@ import { Pitch } from '../components/Pitch'
 import { playbackDelay, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { gapLine, momentAt, positionSeries, rivalsOf, tableAfterGame, weeklyTables } from '@game/logic/liveTable'
 import { chaseAt, chaseLine, perfectOverLabel } from '@game/logic/perfect'
-import { brokeMoment } from '../screenText'
+import { brokeMoment, countPhrase } from '../screenText'
 import { USER_TEAM } from '@engine/season'
 import { LiveTable, PositionChart } from '../components/LiveLeague'
 import { QuickTeamLine } from '../components/QuickTeamLine'
@@ -24,10 +24,14 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ManagerChip } from '../components/ManagerPick'
 import { Segmented } from '../components/bits'
 import { JanuaryWindow } from '../components/JanuaryWindow'
-import { ordinal } from '../format'
+import { clubName, clubShort, ordinal } from '../format'
 import { sideNamer } from '@game/logic/superLeague'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { useMediaQuery } from '../components/LivePitch'
 import { PLAYBACK } from '../boxSets'
+import { clinchMatchweeks } from '@engine/story'
+import { roundsFixtures } from '@game/logic/story'
+import { usePlaybackSounds } from '../sound/usePlaybackSounds'
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -51,6 +55,26 @@ export function SeasonPlayback() {
   const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
   const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
   const allBoxes = useBoxes(PLAYBACK)
+  // A phone keeps the head's controls to two short rows: the manager joins the team line
+  const phone = useMediaQuery('(max-width: 720px)')
+  // The season's sounds as each result lands (seasonCues.ts): the clinch weeks come from the whole season's rounds, so none in the first half
+  const q = game?.quickResult
+  const seasonGames = q?.results?.length ?? (u && game ? quickSeasonGames(u, game.settings) : results.length)
+  usePlaybackSounds({
+    results,
+    tables,
+    userId: USER_TEAM,
+    total: seasonGames,
+    stopAt: results.length,
+    january: !!j,
+    finalPosition: q?.position ?? results.at(-1)?.position ?? 0,
+    teams: tables[0]?.length || seasonGames / 2 + 1,
+    revealed: pb.revealed,
+    playing: pb.playing,
+    done: pb.done,
+    speed: pb.speed,
+    clinch: () => (j || !q ? null : q.clinchedAt !== undefined ? { clinchedAt: q.clinchedAt ?? null, doomedAt: q.doomedAt ?? null } : q.rounds ? clinchMatchweeks(roundsFixtures(q.rounds), q.rounds.ids, USER_TEAM) : null),
+  })
   if (!u || !game) return null
   // Watching a game's highlights pauses the playback on the game shown
   const watch = canShowHighlights(game)
@@ -62,7 +86,11 @@ export function SeasonPlayback() {
   const s = game.settings
   // A Super League side carries its season: "Barcelona 2010-11"
   const sideName = sideNamer(game, u)
-  const opponent = (id: string) => ({ clubId: id, name: sideName(id) })
+  // The club's short name for the narrow game list, where the side is the plain club (not a Super League "Barcelona 2018-19")
+  const opponent = (id: string) => {
+    const name = sideName(id)
+    return { clubId: id, name, ...(name === clubName(u, id) ? { short: clubShort(u, id) } : {}) }
+  }
   const total = game.quickResult?.results?.length ?? quickSeasonGames(u, s)
   const chase = chaseAt(results, pb.revealed)
   const line = chaseLine(chase, total)
@@ -96,22 +124,24 @@ export function SeasonPlayback() {
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{j && pb.done ? 'January' : 'The season'}</h1>
-          <QuickTeamLine game={game} u={u} />
+          <QuickTeamLine game={game} u={u}>
+            {phone && game.manager && <ManagerChip manager={game.manager} />}
+          </QuickTeamLine>
         </div>
         <div className={`chase ${line.tone} ${line.justBroke ? 'broke' : ''}`} key={line.justBroke ? `b${pb.revealed}` : line.tone} data-testid="chase" data-tone={line.tone}>
           <b data-testid="chase-headline">{line.headline}</b>
           {line.detail && <span className="small" data-testid="chase-detail">{line.detail}</span>}
         </div>
         <div className="col fit-head-side" style={{ gap: 6 }}>
-          <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end' }}>
-            {game.manager && <ManagerChip manager={game.manager} />}
+          <div className="row wrap pb-head-row pb-head-meta">
+            {!phone && game.manager && <ManagerChip manager={game.manager} />}
             <BoxesMenu groups={[boxes]} />
             <span className="playback-mw" data-testid="playback-matchweek">
               Matchweek <b>{pb.revealed}</b> / {total}
             </span>
           </div>
           {!pb.done && (
-            <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end' }}>
+            <div className="row wrap pb-head-row pb-head-controls">
               <button className="btn sm" onClick={pb.toggle} data-testid="playback-pause">
                 {pb.playing ? 'Pause' : 'Play'}
               </button>
@@ -124,7 +154,7 @@ export function SeasonPlayback() {
           {!j && pb.done && (
             <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end', alignItems: 'center' }} data-testid="playback-end">
               <span className="small">
-                Full time: {ordinal(game.quickResult?.position ?? 0)}, {game.quickResult?.points ?? 0} points.
+                Full time: {ordinal(game.quickResult?.position ?? 0)}, {countPhrase(game.quickResult?.points ?? 0, 'points')}.
               </span>
               <button className="btn primary" onClick={endPlayback} data-testid="playback-summary">
                 See the summary
@@ -147,7 +177,7 @@ export function SeasonPlayback() {
         )}
         {/* One short line for a screen reader: the big moments and the end, never every game (the tally is not live) */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="playback-live">
-          {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${game.quickResult?.points ?? 0} points.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText}` : ''}
+          {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${countPhrase(game.quickResult?.points ?? 0, 'points')}.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText}` : ''}
         </span>
       </div>
       <div className="pb-tabs segmented" role="tablist" aria-label="Season views">

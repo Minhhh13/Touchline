@@ -31,7 +31,7 @@ describe('the cup reveal’s pace', () => {
     expect(revealDelay(out, steps, 2)).toBe(CUP_REVEAL.fast + CUP_REVEAL.round)
   })
 
-  it('keeps a whole sixteen-club cup to about ten seconds, and every pause on the motion scale or longer', () => {
+  it('keeps a whole sixteen-club cup to about thirteen seconds, and every pause on the motion scale or longer', () => {
     const r0 = Array.from({ length: 8 }, (_, i) => t(i === 0 ? 'user' : `h${i}`, `a${i}`, 1, 0))
     const r1 = Array.from({ length: 4 }, (_, i) => t(r0[2 * i].winner!, r0[2 * i + 1].winner!, 2, 1))
     const r2 = Array.from({ length: 2 }, (_, i) => t(r1[2 * i].winner!, r1[2 * i + 1].winner!, 1, 0))
@@ -39,8 +39,8 @@ describe('the cup reveal’s pace', () => {
     const view = buildBracket(['Fourth round', 'Quarter-final', 'Semi-final', 'Final'], [r0, r1, r2, r3])
     expect(view.champion).toBe('user')
     const ms = revealLength(view, revealSteps(view))
-    expect(ms).toBeGreaterThan(6000)
-    expect(ms).toBeLessThan(11000)
+    expect(ms).toBeGreaterThan(9000)
+    expect(ms).toBeLessThan(15000)
     expect(Math.min(...Object.values(CUP_REVEAL))).toBeGreaterThanOrEqual(140)
   })
 })

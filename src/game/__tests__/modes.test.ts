@@ -71,7 +71,7 @@ describe('the Modes row', () => {
   it('names the modes in the setup line, the fixed-rules pills and the share line', () => {
     const r = rules(['crazy', 'speedrun'], { difficulty: 'hard', hardMode: true, respins: 0, showRatings: false })
     expect(modesLine(r)).toBe('🌀 Crazy · 💀 Hard · ⏱️ Speedrun')
-    expect(describeRules(u, r)).toEqual(expect.arrayContaining(['🌀 Crazy', '⏱️ Speedrun']))
+    expect(describeRules(u, r)).toEqual(expect.arrayContaining(['Crazy', 'Speedrun']))
     const line = summariseSetup(u, settings({ seed: 'S', rules: r }))
     expect(line).toContain('crazy mode')
     expect(line).toContain('speedrun mode')

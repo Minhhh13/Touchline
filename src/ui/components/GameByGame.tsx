@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
-import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, scorersLabel, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ChevronDown, Play, SkipForward } from 'lucide-react'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
+import { scorersText } from '../scorers'
 import { shownGames } from '../screenText'
 
 /** Milliseconds between two games revealed by the season replay. */
@@ -137,6 +138,8 @@ export interface Opponent {
   /** The club whose badge and colours stand for the opponent. */
   clubId: string
   name: string
+  /** The club's short name ("Wolves"), shown in place of the full one where the list is narrow (`.gbg-list` container). */
+  short?: string
 }
 
 /** The running P W D L GF GA strip and the position after the last game counted. */
@@ -311,7 +314,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
         {shown.map((r) => {
           const opp = opponent(r.opponentId)
           const o = outcomeOf(r)
-          const scorers = scorersLabel(r.scorers)
+          const scorers = scorersText(r.scorers)
           const isNewest = r.matchweek === newestWeek
           return (
             <li key={r.matchweek} className={`gbg-game ${o} ${isNewest && order === 'newest' ? 'newest' : ''}`} data-testid="gbg-game" data-outcome={o} data-matchweek={r.matchweek} ref={isNewest ? newestRef : undefined}>
@@ -320,13 +323,22 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               </span>
               <ClubBadge clubId={opp.clubId} size={22} />
               <span className="gbg-fix">
-                <span className="gbg-name">{opp.name}</span> <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
+                {opp.short && opp.short !== opp.name ? (
+                  <span className="gbg-name has-short" title={opp.name}>
+                    <span className="gbg-full">{opp.name}</span>
+                    <span className="gbg-short">{opp.short}</span>
+                  </span>
+                ) : (
+                  <span className="gbg-name">{opp.name}</span>
+                )}{' '}
+                <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
               </span>
               <span className="gbg-score">
                 {r.gf}-{r.ga}
               </span>
               <span className="gbg-mw" title="Matchweek, and the league position after it">
-                MW {r.matchweek} · {ordinal(r.position)}
+                MW {r.matchweek}
+                <span className="gbg-pos"> · {ordinal(r.position)}</span>
               </span>
               {onHighlights && (
                 <button className="btn sm ghost gbg-hl" onClick={() => onHighlights(r)} title="Highlights" aria-label={`Highlights of matchweek ${r.matchweek}`} data-testid="gbg-highlights">

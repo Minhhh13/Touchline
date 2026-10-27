@@ -22,7 +22,7 @@ import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
 import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
-import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
+import { slotSheet, surname, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { Pitch, PitchLegend } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
@@ -37,7 +37,7 @@ import { PlayerCardModal } from '../components/PlayerCard'
 import { careerSeasons } from '@game/logic/playerCard'
 import { LeagueFlag } from '../components/Flag'
 import { roleCode } from '../match/shirts'
-import { clubName, clubShort, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
+import { chemistryLinkLabel, clubName, clubShort, signedValue, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
 import type { PlayerSeason, Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
@@ -62,8 +62,15 @@ import type { Game } from '@game/types'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { countPhrase } from '../screenText'
 import { newsBody } from '@game/logic/newsFlavour'
+import { watchSeasonSounds } from '../sound/seasonWatch'
 
 type Tab = DugoutTab
+
+// The season's sounds after Play matchweek on Sim result, Sim 5 and Sim to end (presentation only; it reads the store)
+watchSeasonSounds()
+
+/** Between playing the week and showing it, the match day's ball path is built in its own tasks (presentation only). */
+const prepareWeek = (next: Game): Promise<void> => import('../match/prepare').then((m) => m.prepareMatchDay(next))
 
 /** A tab with one box (the Cup, the Continental Cup, the Inbox) lists nothing in the Boxes checklist. */
 const NO_BOXES: BoxSet = { screen: 'dugout-none', title: '', boxes: [] }
@@ -185,7 +192,7 @@ export function Dugout() {
     { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: 'Club' },
   ]
-  keys.current = { play: done || game.pendingEvent ? null : () => void store.playWeekSoon(), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id) }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)
@@ -324,7 +331,7 @@ export function Dugout() {
                   <span className="lbl-short">Friendly</span>
                 </button>
               )}
-              <button className="btn primary big" onClick={() => void store.playWeekSoon()} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
+              <button className="btn primary big" onClick={() => void store.playWeekSoon(prepareWeek)} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
                 <span className="lbl-long">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
                 <span className="lbl-short">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
@@ -450,7 +457,7 @@ export function Dugout() {
                             </span>
                             {mins !== null && (
                               <span className="season-line" title="Minutes over the last three matchweeks, league and cup">
-                                {mins}′ last 3 wks
+                                {mins} min in 3 weeks
                               </span>
                             )}
                           </>
@@ -502,7 +509,7 @@ export function Dugout() {
               </div>
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} roleCodes={Object.fromEntries(formation.slots.map((s) => [s.id, roleCode(game.tactics, s.id, s.position)]))} />
               {showKey && <PitchLegend />}
-              {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.join(', ')}</div>}
+              {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {signedValue(strength.chemistry)}: {strength.chemistryBreakdown.map((l) => chemistryLinkLabel(u, l)).join(', ')}</div>}
             </div>
             )}
             {tabBoxes.on('depth') && (
@@ -528,7 +535,7 @@ export function Dugout() {
                         {cover.map((x) => (
                           <PlayerPeek key={x.p.id} p={x.p} s={x.s}>
                             <button type="button" className={`chip ${inXI.has(x.p.id) ? 'info' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
-                              {x.p.name.split(' ').slice(-1)[0]} {x.r}
+                              {surname(x.p.name)} {x.r}
                             </button>
                           </PlayerPeek>
                         ))}
@@ -586,7 +593,7 @@ export function Dugout() {
                     <span className="h row" style={{ justifyContent: 'flex-end', gap: 6 }}>
                       {home ? null : oppPos} {home ? <span className="fx-name">{game.settings.teamName}</span> : <FxName full={clubName(u, opp)} short={clubShort(u, opp)} />} {home ? null : <ClubBadge clubId={opp} size={18} />}
                     </span>
-                    <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                    <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                       {r ? `${r.homeGoals} - ${r.awayGoals}` : 'v'}
                       {gf !== null && ga !== null && <span className="res-letter">{outcomeOf(gf, ga)}</span>}
                     </span>
@@ -928,7 +935,7 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
   const line = (item: BriefingItem, toggle?: ReactNode) => (
-    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
+    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`} data-brief={item.id}>
       <span className="icon" aria-hidden="true">
         <BriefingIcon item={item} size={15} />
       </span>
@@ -1198,6 +1205,9 @@ function CupTab({ comp }: { comp: Competition }) {
   )
 }
 
+/** Listings a phone shows before "Show all" (styles.css hides the rest under 720 px; a desktop's box scrolls them all). */
+export const PHONE_LISTINGS = 8
+
 function MarketTab({ boxes }: { boxes: Boxes }) {
   const store = useStore()
   const { universe: u, game } = store
@@ -1206,7 +1216,13 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
   const [statuses, setStatuses] = useState<Record<string, SquadStatus>>({})
   const [exchange, setExchange] = useState<Record<string, string>>({})
   const [sellOn, setSellOn] = useState<Record<string, number>>({})
-  const [filter, setFilter] = useState<'all' | Position>('all')
+  const [filter, setFilterState] = useState<'all' | Position>('all')
+  // On a phone the window lists its first few men until "Show all" (40 stacked listings ran to 18,000 px in January)
+  const [allListed, setAllListed] = useState(false)
+  const setFilter = (f: 'all' | Position) => {
+    setFilterState(f)
+    setAllListed(false)
+  }
   const [msg, setMsg] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [scoutId, setScoutId] = useState<string | null>(null)
@@ -1361,7 +1377,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
             </button>
           ))}
         </div>
-        <div className="col listings" style={{ gap: 'var(--space-2)' }}>
+        <div className={`col listings ${!allListed && listings.length > PHONE_LISTINGS ? 'capped' : ''}`} style={{ gap: 'var(--space-2)' }} data-testid="listings">
           {listings.map((l) => {
             const p = get(l.playerSeasonId)
             if (!p) return null
@@ -1457,6 +1473,11 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
           })}
           {listings.length === 0 && <div className="muted">Nothing listed for that position right now. Advance a day for new listings.</div>}
         </div>
+        {!allListed && listings.length > PHONE_LISTINGS && (
+          <button type="button" className="btn block listings-more" onClick={() => setAllListed(true)} data-testid="listings-more">
+            Show all {listings.length} listed{filter === 'all' ? '' : ` at ${filter}`}
+          </button>
+        )}
       </div>
       <div className="col">
         {boxes.on('recruitment') && <RecruitmentPanel onMessage={setMsg} />}
@@ -1656,7 +1677,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
         <div className="panel-head">
           <span className="head-title">
             <h3>Finances</h3>
-            <Info label="About finances">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</Info>
+            <Info label="About finances">Match-day and broadcast income covers the wage cap: spend under it and a tenth of the surplus drips into the budget each week, go over and the whole overspend drains it. The league money lands at the end of the season, after running costs: +£20M for the title down to −£20M for last place, plus £10M for the cup.</Info>
           </span>
         </div>
         <dl className="kv tight">
@@ -1817,7 +1838,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
       {on('achievements') && (
       <div className="panel">
         <h3>Achievements this game</h3>
-        {game.unlocked.filter((x) => x !== 'survivor-pending').length === 0 && <div className="muted small">Nothing yet. Win something.</div>}
+        {game.unlocked.filter((x) => x !== 'survivor-pending').length === 0 && <div className="muted small">None yet this game: win the league or a cup to earn one.</div>}
         <div className="pill-list">
           {game.unlocked
             .filter((x) => x !== 'survivor-pending')

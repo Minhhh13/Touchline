@@ -234,6 +234,8 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
     expect(setupRules(QUICK_RULES, { ...base, superLeague: true }).superLeague).toBe(true)
     const s = settings()
     expect(summariseSetup(u, s)).toContain('in the Super League, full strength')
+    // Its field loads every league, which is no European Nights wheel
+    expect(summariseSetup(u, s)).not.toContain('European Nights')
     expect(summariseSetup(u, settings({}, false))).toContain('in the Premier League 2025-26, calibrated')
     expect(describeRules(u, s.rules)).toContain('Super League')
     // The line above Spin and the chips name the Super League, not the all-league wheel's count or the opposition
@@ -269,12 +271,12 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
 /**
  * Adding the Super League changes no other game: these hashes were taken on the commit before it (57f3453) and must
  * not move. Re-baselined on ENGINE_VERSION '5' (the playtest fixes moved every quick season; two of the three odds
- * hashes held). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
+ * hashes held), and on '6' (every match moved: the calibration, the user's men out of their real clubs). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
  * classic seasons in La Liga 2015-16 (the Continental Cup included), the pundits' odds and today's Daily.
  */
 describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
   it('reproduces the pinned results of the commit before the Super League', () => {
-    expect(ENGINE_VERSION).toBe('5')
+    expect(ENGINE_VERSION).toBe('6')
     const play = (s: GameSettings): Game => {
       const g = drafted(s)
       kickOff(g, u)
@@ -291,9 +293,9 @@ describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
       return g
     }
     const pins: Record<string, string> = {
-      'pin-1': '6512045160711701 6788889306780096 8572552196302467',
-      'pin-2': '5734444457826963 7978705248904558 2241520542739478',
-      'pin-3': '7150402115234313 1436278297455982 8232083168600727',
+      'pin-1': '263157395973345 2118823020534152 1925156832764192',
+      'pin-2': '7561430288685487 6881622854730792 2829385333339880',
+      'pin-3': '2932701264777520 104418861209913 7200968562615668',
     }
     for (const seed of Object.keys(pins)) {
       const s: GameSettings = { mode: 'quick', seed, formationId: '4-3-3', teamName: 'Pin XI', shortName: 'PIN', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated', january: true }
@@ -303,7 +305,7 @@ describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
       expect(`${hashString(JSON.stringify([g.quickResult, g.rngState]))} ${hashString(JSON.stringify([e.quickResult, e.rngState]))} ${hashString(JSON.stringify(odds))}`, seed).toBe(pins[seed])
     }
     const d = play(dailyGameSettings(u, 'daily-2026-10-25'))
-    expect(hashString(JSON.stringify([d.quickResult, d.rngState]))).toBe(1093606196752067)
+    expect(hashString(JSON.stringify([d.quickResult, d.rngState]))).toBe(8710513422125818)
     // The table helper the season uses is untouched by the field
     expect(computeTable([], [USER_TEAM]).length).toBe(1)
   })

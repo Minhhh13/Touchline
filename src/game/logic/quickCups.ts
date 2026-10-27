@@ -8,7 +8,7 @@ import type { Cabinet, Game, QuickBracketTie, QuickCupReach, QuickCupRound, Quic
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
-import { aiRatingOffset, aiTeamInput, buildAiClubs, buildContinentalClubs, cupRounds, continentalRounds, drawFirstRound, drawNextRound, extraTime, shootout, USER_TEAM, type AiClub, type CupRoundInfo, type CupTie } from '@engine/season'
+import { aiFixtureInputs, aiRatingOffset, aiTeamInput, buildAiClubs, buildContinentalClubs, cupRounds, continentalRounds, drawFirstRound, drawNextRound, extraTime, humansOf, shootout, USER_TEAM, type AiClub, type CupRoundInfo, type CupTie } from '@engine/season'
 import { getFormation } from '@engine/formations'
 import type { Lineup, Position } from '@engine/types'
 import { playerLookup } from './players'
@@ -157,6 +157,7 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   const formation = getFormation(game.tactics.formationId)
   const xi = quickCupXI(game, u)
   const user = quickUserInput(game, xi, benchOn ? [] : game.bench, game.tactics, game.captainId, get)
+  const taken = humansOf([...Object.values(xi), ...game.bench, ...Object.values(game.draft?.lineup ?? {}), ...(game.draft?.bench ?? [])], get)
   const userSlots = formation.slots.filter((sl) => xi[sl.id]).map((sl) => ({ id: xi[sl.id], w: SCORER_WEIGHT[sl.position] }))
   const rounds = quickCupRounds(comp)
   const ties = drawFirstRound([USER_TEAM, ...Object.keys(field)], rng, rounds)
@@ -166,8 +167,10 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
     const round = rounds[r].round
     const kept: QuickBracketTie[] = []
     for (const tie of ties.filter((t) => t.round === round)) {
-      const home = tie.homeTeamId === USER_TEAM ? user : aiTeamInput(u, field[tie.homeTeamId], offset)
-      const away = tie.awayTeamId === USER_TEAM ? user : aiTeamInput(u, field[tie.awayTeamId], offset)
+      // No human on both sides (E6-2): the user's men never play for the field, and two AI sides never share one
+      const both = tie.homeTeamId === USER_TEAM || tie.awayTeamId === USER_TEAM ? null : aiFixtureInputs(u, field[tie.homeTeamId], field[tie.awayTeamId], offset, taken)
+      const home = tie.homeTeamId === USER_TEAM ? user : both?.home ?? aiTeamInput(u, field[tie.homeTeamId], offset, taken)
+      const away = tie.awayTeamId === USER_TEAM ? user : both?.away ?? aiTeamInput(u, field[tie.awayTeamId], offset, taken)
       const played = playTie(rng, tie, home, away, round === 'F', userSlots, nameOf)
       if (played.user) mine.push(played.user)
       kept.push(played.tie)

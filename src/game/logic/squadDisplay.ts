@@ -3,7 +3,7 @@
  * and sparkline, the squad list's views, role fit and options, the XI's familiarity, the inbox filters, the window
  * countdown and the league position by matchweek. Pure: nothing here draws a number or changes the game.
  */
-import { aiTeamInput, computeTable, positionOf, USER_TEAM, type CarryRow, type CupTie, type NewsItem } from '@engine/season'
+import { aiTeamInput, computeTable, humansOf, positionOf, USER_TEAM, type AiClub, type CarryRow, type CupTie, type NewsItem } from '@engine/season'
 import { computeTeamStrength, roleRating } from '@engine/ratings'
 import type { LoadedUniverse } from '@engine/universe'
 import { teamStrength } from './squad'
@@ -11,6 +11,8 @@ import { rolesFor } from '@engine/roles'
 import type { Attributes, Fixture, PlayerSeason, Position, SquadPlayer, TableRow } from '@engine/types'
 import type { Window } from '@engine/market'
 import type { Game } from '../types'
+import type { MatchTeamInput } from '@engine/match'
+import { playerLookup } from './players'
 
 // ---------------------------------------------------------------- form
 
@@ -239,11 +241,16 @@ export interface MatchUpRow {
   edge: Edge
 }
 
+/** An opponent's side as the match will field it: without any of the user's men (E6-2), so a preview shows the XI the match plays. Pure. */
+export function opponentInput(game: Game, u: LoadedUniverse, club: AiClub, offset: number): MatchTeamInput {
+  return aiTeamInput(u, club, offset, humansOf(Object.keys(game.squad), playerLookup(game, u)))
+}
+
 /** Our XI against the next opponent's, unit against unit: our attack on their defence, midfield on midfield, our defence on their attack, and the two sides overall. Null when the club is not in this season. */
 export function matchUp(game: Game, u: LoadedUniverse, clubId: string): MatchUpRow[] | null {
   const club = game.season?.ai[clubId] ?? game.season?.continental?.clubs[clubId]
   if (!club) return null
-  const input = aiTeamInput(u, club, game.season?.aiOffset ?? 0)
+  const input = opponentInput(game, u, club, game.season?.aiOffset ?? 0)
   const them = computeTeamStrength(club.tactics, input.lineup, input.getPlayer, input.getState)
   const us = teamStrength(game, u)
   const row = (label: string, ours: number, theirs: number): MatchUpRow => ({ label, ours: Math.round(ours * 10) / 10, theirs: Math.round(theirs * 10) / 10, edge: ours - theirs > EVEN_BAND ? 'ahead' : theirs - ours > EVEN_BAND ? 'behind' : 'even' })

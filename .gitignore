@@ -21,3 +21,4 @@ supabase/.temp/
 supabase/.branches/
 supabase/functions/touchline-e*/
 supabase/functions/_shared/verifier.js
+.gameplay/

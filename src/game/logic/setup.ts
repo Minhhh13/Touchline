@@ -2,13 +2,13 @@ import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { benchPlaces, difficultyOf, DIFFICULTY_RESPINS, draftModeOf, modesOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
-import { MODE_INFO, crazyFormation, withModes } from '@engine/modes'
+import { MODE_INFO, crazyFormation, withModes, type ModeCard } from '@engine/modes'
 import { POWER_UPS_ICON } from '@engine/powerups'
 import { dailySettings } from './daily'
 import { eraFirstSeason } from './era'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
-import { newSquadPlayer, buildAiClubs, buildContinentalClubs, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
+import { newSquadPlayer, buildAiClubs, buildContinentalClubs, humansOf, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
 import { startingFinances } from '@engine/market'
 import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
@@ -120,31 +120,50 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
   return c.powerUps ? { ...moded, powerUps: true } : moded
 }
 
+/** The picture a fixed-rules chip carries (`describeRuleChips`): a Quick Draft mode card, the power-ups, the end case or the manager; the screen draws its Lucide icon (`RULE_ICON`), never an emoji. */
+export type RuleIcon = ModeCard | 'power-ups' | 'end-case' | 'manager-spin' | 'manager-pick'
+
+/** One fixed-rules chip: its words, and the picture beside them when it has one. */
+export interface RuleChip {
+  text: string
+  icon?: RuleIcon
+}
+
 /**
  * The draft rules in plain words, one short item each, for a fixed wheel (the Daily, a challenge link) where the
  * cards are not the player's to change: `['Normal: 1 re-spin', 'Ratings on', 'Squad First', 'Season ratings',
  * 'All-time', 'Twists on']`.
  */
 export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
+  return describeRuleChips(u, r).map((c) => c.text)
+}
+
+/**
+ * `describeRules` as chips: the same words in the same order, the modes, the Player Upgrader, the power-ups, the
+ * manager and the end case with the id of their picture (the cards Setup draws for them carry the same icons).
+ */
+export function describeRuleChips(u: LoadedUniverse, r: DraftRules): RuleChip[] {
   const diff = difficultyOf(r)
   const name = diff === 'easy' ? 'Easy' : diff === 'hard' ? 'Hard' : 'Normal'
   const respins = r.respins
   const respinWords = respins === 0 ? 'no re-spins' : `${respins} re-spin${respins === 1 ? '' : 's'}`
+  const plain = (text: string): RuleChip => ({ text })
   return [
     // A budget that is not the difficulty's own (the Daily's 2) is stated alone, so it never reads as "Normal: 2"
-    respins === DIFFICULTY_RESPINS[diff] ? `${name}: ${respinWords}` : respinWords[0].toUpperCase() + respinWords.slice(1),
-    ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on',
-    draftModeOf(r) === 'position' ? 'Position First' : 'Squad First',
-    ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
-    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
-    r.twists ? 'Twists on' : 'No twists',
-    ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
-    ...modesOf(r).map((m) => `${MODE_INFO[m].icon} ${MODE_INFO[m].title}`),
-    ...(r.upgrader ? [`${MODE_INFO.upgrader.icon} ${MODE_INFO.upgrader.title}`] : []),
-    ...(r.powerUps ? [`${POWER_UPS_ICON} Power-ups`] : []),
-    ...(r.managers ? [r.managerSpin ? 'Manager spin' : 'Manager pick'] : []),
-    ...(r.endCase ? ['🎁 End case'] : []),
-    ...(r.superLeague ? [SUPER_LEAGUE_NAME] : []),
+    plain(respins === DIFFICULTY_RESPINS[diff] ? `${name}: ${respinWords}` : respinWords[0].toUpperCase() + respinWords.slice(1)),
+    plain(ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on'),
+    plain(draftModeOf(r) === 'position' ? 'Position First' : 'Squad First'),
+    plain(ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings'),
+    plain(r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`),
+    plain(r.twists ? 'Twists on' : 'No twists'),
+    ...(benchPlaces(r) ? [plain(`Bench of ${benchPlaces(r)}`)] : []),
+    // Plain words with a picture id: the screen draws the Lucide icon beside the label, never an emoji
+    ...modesOf(r).map((m): RuleChip => ({ text: MODE_INFO[m].title, icon: m })),
+    ...(r.upgrader ? [{ text: MODE_INFO.upgrader.title, icon: 'upgrader' } satisfies RuleChip] : []),
+    ...(r.powerUps ? [{ text: 'Power-ups', icon: 'power-ups' } satisfies RuleChip] : []),
+    ...(r.managers ? [r.managerSpin ? ({ text: 'Manager spin', icon: 'manager-spin' } satisfies RuleChip) : ({ text: 'Manager pick', icon: 'manager-pick' } satisfies RuleChip)] : []),
+    ...(r.endCase ? [{ text: 'End case', icon: 'end-case' } satisfies RuleChip] : []),
+    ...(r.superLeague ? [plain(SUPER_LEAGUE_NAME)] : []),
   ]
 }
 
@@ -201,7 +220,8 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, full strength` : `in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}${where}, seed ${s.seed}`]
   const r = s.rules
-  if (s.wheelLeagues.length > 1) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
+  // The Super League loads every league for its field; that is no European Nights wheel
+  if (s.wheelLeagues.length > 1 && !isSuperLeague(s)) parts.push(`European Nights wheel of ${s.wheelLeagues.length} leagues`)
   if (r.fromSeason !== undefined || r.toSeason !== undefined) parts.push(`${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`)
   if (r.classic) parts.push('classic seasons (estimated ratings)')
   if (r.onlyClub) parts.push(`${u.clubById[r.onlyClub]?.name ?? r.onlyClub} only`)
@@ -383,13 +403,17 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   const inLeague = u.clubSeasons.filter((cs) => cs.leagueId === game.settings.leagueId && cs.season === game.settings.leagueSeason).map((cs) => cs.clubId)
   if (inLeague.length && !inLeague.includes(game.settings.hostClubId)) game.settings = { ...game.settings, hostClubId: rng.pick(inLeague) }
   const s = game.settings
-  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
+  // The squad's humans play for us alone, in any season of theirs (engine 6, E6-2); the calibration stays the league's
+  // own, from full squads
+  const taken = humansOf(Object.keys(game.squad), playerLookup(game, u))
+  const full = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
+  const ai = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, taken)
   const ids = [USER_TEAM, ...Object.keys(ai)]
   const matchweeks = matchweeksFor(ids.length)
   const fixtures = generateFixtures(ids, rng)
   const cup = drawFirstCupRound(ids, rng, matchweeks)
   const userStrength = teamStrength(game, u).overall
-  const aiOffset = aiRatingOffset(u, ai, s.difficulty ?? 'calibrated')
+  const aiOffset = aiRatingOffset(u, full, s.difficulty ?? 'calibrated')
   const aiStrengths = Object.values(ai).map((c) => {
     const inp = aiTeamInput(u, c)
     return computeTeamStrength(c.tactics, inp.lineup, inp.getPlayer, inp.getState).overall - aiOffset
@@ -399,7 +423,7 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   let continental: ContinentalState | undefined
   const wantsEurope = game.year === 1 ? !!s.continental : !!game.qualifiedContinental
   if (wantsEurope) {
-    const clubs = buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, 15)
+    const clubs = buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, 15, taken)
     if (Object.keys(clubs).length === 15) continental = { ties: drawFirstRound([USER_TEAM, ...Object.keys(clubs)], rng, continentalRounds(matchweeks)), clubs, eliminated: false, won: false }
   }
   game.season = {

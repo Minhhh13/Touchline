@@ -204,6 +204,36 @@ No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pa
 when this was measured; merged onto engine 5 at ec520f3, `quickWorker.test.ts` still finds the worker's 50 seasons
 byte for byte the page's).
 
+## Round 6 (`r6-ui`)
+
+Measured as above (iPhone 13 viewport, 4x CPU, network unthrottled; `vite preview` of the build before, `release-combined`
+7b2ca17, and after, interleaved), five runs each for Kick off, two for the arena. The machine was quiet (load average under 3). "Longest task" is the
+longest task from the tap to the screen being up.
+
+| Phone, 4x CPU | Before | After |
+| --- | --- | --- |
+| Season: Kick off (Watch) to the live pitch, the tasks | 222 to 275 ms (the week), then 406 to 520 ms (the match screen's render) | 226 to 326 ms (the week), 50 to 77 ms each for the feed and ball path and the two sample slices, 306 to 425 ms (the render) |
+| Season: Kick off, longest task (median of five) | 406 to 520 ms (476) | 306 to 425 ms (319) |
+| Arena Final, drafted fast (Auto-complete, then On to the final at once): longest task, to the hub | 2,180 to 2,292 ms, 2.7 to 2.8 s | 251 to 252 ms, 2.4 to 2.9 s (the busy button painted, the rest in 12 ms slices) |
+| The same after four seconds on the arena's setup | 1,969 ms, 2.4 s | 224 to 298 ms, 0.75 to 0.8 s |
+| Phone market in January (38 listings): the page | 19,288 px | 5,920 px (eight listed, Show all) |
+
+What changed:
+
+1. **The match day's first build before its render** (`src/ui/match/prepare.ts`): the Dugout hands `playWeekSoon` a
+   `prepare` step that builds the live segment's feed and ball path (`matchPath`) in one task and the sampled positions
+   (`samplePlayersIn`, 25 minutes a task) in the next, between playing the week and setting it; the dashboard's memos
+   read the same caches (WeakMaps on the store's frozen match objects). The CPU profile of the render before: the
+   memos 267 ms (`samplePlayers` 101, `matchPath` 88), the rest React's mount and the first layout (the phone layout's
+   `measure` forcing it, about 85 to 100 ms). `prepare.test.ts`: the same values, and the same weeks as `playWeek`.
+2. **The arena's field warmed on its setup** (`arenaSetupPool`, `useArenaWarmup`) and a cold remainder worked out in
+   12 ms slices behind the Draft's busy finish button (`useFinishDraft`), so `beginArena` reads the memoised strengths.
+3. **The save write** was already off the page (`perf-r2`'s worker): after Kick off a 50 to 70 ms task stringifies it.
+
+Left: the week's own task (`produce` over `playMatchweekAs`: the AI fixtures' `simulateMatch` about 110 ms of it) and
+the match screen's mount; both in BACKLOG's Next. No seeded outcome moved; ENGINE_VERSION `'6'`, the edge bundles
+`verifier-0fee2b6b3c0bbd80.js`, `verifier-603b905d0570f641.js` and `verifier-37d256f009b3b3e9.js` unchanged.
+
 ## Next
 
 In order of what a phone would gain:
@@ -214,9 +244,9 @@ In order of what a phone would gain:
    counted it); a column-index build was tried in round 2 and measures the same on the phone. It did not ship: it
    renames the edge verifier, so it is parked on the branch `perf-r2-with-buildleague` for a future engine bump, when
    the function is redeployed anyway.
-2. **The match screen's first render** (about 370 ms at 4x on a session's first match, 170 after): `MatchDashboard`'s
-   memos (`samplePlayers`, the feed, the commentary) run in the render that opens it; they could start a frame
-   later, or the dashboard could mount its panels over two frames.
+2. **The match screen's first render**: its heaviest memos are built before it since round 6; what is left (about 300
+   ms at 4x) is React's mount of the dashboard and its first layout, which mounting the panels a frame later
+   would split.
 3. **Close the January window and bench changes in the worker**: `closeJanuary` and `makeQuickChange` replay the
    whole quick season on the page (about the kick-off's 0.9 s); `quickJob.ts` can take them as further ops.
 4. **Sim 5 and Sim to end** run their weeks in one produce (0.6 + 0.3 s at 4x); `playWeekSoon`'s pattern (a week a

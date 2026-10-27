@@ -1,13 +1,22 @@
 name: CI
 
+# Push runs only on main (Render deploys main once this passes); every other branch is checked through its pull request,
+# so a branch with an open PR is not built twice. Concurrency cancels a superseded run of the same ref. The full test
+# suite (most of the run's minutes) runs on the pull request, which tests the merged tree; the push to main that merging
+# makes runs everything else, so a release is not tested twice.
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+        if: github.event_name == 'pull_request'
       - run: npm run build
       # The phone's first download: the entry chunk and the stylesheet under their gzip budgets (docs/PERFORMANCE.md)
       - run: npx vitest run src/ui/__tests__/budget.test.ts

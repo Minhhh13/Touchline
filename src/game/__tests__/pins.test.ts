@@ -12,7 +12,9 @@
  * never copy them. Baselined on ENGINE_VERSION '4' with the 2026-10-25 packs; re-baselined when main (d4d9b2f) merged
  * into the casual modes, from a run on origin/main itself: main's own changes since 3e9a594 (the audit sweep,
  * the match-day work) moved this season, and main's `noMove.test.ts` season hash holds unchanged. Re-baselined on
- * ENGINE_VERSION '5' (the playtest fixes: fixtures, the assistant's placement, keeper subs, development).
+ * ENGINE_VERSION '5' (the playtest fixes: fixtures, the assistant's placement, keeper subs, development), and on '6' (the
+ * goal calibration, discipline, the reserve keeper, the user's men out of their real clubs, the assistant's keepers,
+ * the economy and minutes: every match of the season moved).
  */
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
@@ -40,9 +42,9 @@ describe('pins', () => {
     expect(weeks).toBe(38)
     const s = g.season!
     const table = computeTable(s.fixtures, [USER_TEAM, ...Object.keys(s.ai)])
-    expect(table.slice(0, 3).map((r) => `${r.teamId}:${r.points}`)).toEqual(['user:94', 'manchester-united:89', 'manchester-city:87'])
-    expect(s.cup.find((t) => t.round === 'F')?.winnerId).toBe('arsenal')
-    expect(g.rngState).toEqual({ a: -519650793, b: -663731353, c: -1408666288, d: 1976968796 })
+    expect(table.slice(0, 3).map((r) => `${r.teamId}:${r.points}`)).toEqual(['user:99', 'manchester-city:85', 'newcastle-united:69'])
+    expect(s.cup.find((t) => t.round === 'F')?.winnerId).toBe('leeds-united')
+    expect(g.rngState).toEqual({ a: -474852327, b: -17855737, c: 1170251567, d: -1221589694 })
     // A whole season: allow for a loaded machine rather than the 5 s default
   }, 30_000)
 })

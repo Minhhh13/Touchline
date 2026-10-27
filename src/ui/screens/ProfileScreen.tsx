@@ -28,6 +28,7 @@ import { countPhrase } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
+import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
 import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
@@ -134,6 +135,13 @@ export function ProfileScreen() {
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
   const milestones = milestoneStates({ cabinet, profile })
+  const career = careerOverview(profile, cabinet)
+  const [achView, setAchView] = useState<AchievementView>('all')
+  const achievements = orderAchievements(ACHIEVEMENTS, profile.achievements, achView)
+  // The honours board shows the latest few; the rest open on a tap
+  const [allHonours, setAllHonours] = useState(false)
+  const honours = cabinet.honours ?? []
+  const HONOURS_SHOWN = 5
   const [filter, setFilterState] = useState<BoardFilter>(readFilter)
   const setFilter = (f: BoardFilter) => {
     setFilterState(f)
@@ -199,7 +207,7 @@ export function ProfileScreen() {
     }
   }
   const wipe = () => {
-    if (!confirm('Delete every saved game, your record and achievements from this browser?')) return
+    if (!confirm('Delete every saved game, your record and achievements from this browser? This cannot be undone.')) return
     wipeSave()
     location.reload()
   }
@@ -244,32 +252,6 @@ export function ProfileScreen() {
               Name
               <input className="input" value={profile.managerName} onChange={(e) => setManagerName(e.target.value)} placeholder="The Gaffer" />
             </label>
-            <div className="field">
-              <span>
-                Theme <Info label="About the theme">Auto follows your device's light or dark setting. The sun and moon in the top bar flips it too.</Info>
-              </span>
-              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto', hint: "Follows your device's light or dark setting" }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
-            </div>
-            <div className="field">
-              <span>
-                Sound <Info label="About the sound">Every sound in the game: the case reel, the draft, the match and the trophies, all made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
-              </span>
-              <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
-            </div>
-            {soundOn && (
-              <div className="field">
-                <span>
-                  Match sounds <Info label="About the match sounds">The referee's whistle, the crowd, the net, cards and substitutions on match day. Off keeps the rest of the sound. Kept on this device only.</Info>
-                </span>
-                <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'match-sound-on' }, { value: 'off', label: 'Off', testId: 'match-sound-off' }]} />
-              </div>
-            )}
-            <div className="field">
-              <span>
-                Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, about seven seconds; Quick takes under three. Re-spins always run quick, and a tap on the reel skips to the landing. Kept on this device only.</Info>
-              </span>
-              <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }]} />
-            </div>
             <div className="stat-strip profile-stats">
               <Stat label="Games" value={profile.gamesPlayed} />
               <Stat label="Seasons" value={profile.seasonsSimulated} />
@@ -286,6 +268,41 @@ export function ProfileScreen() {
               <Stat label="Head-to-head" value={cabinet.h2h.played} />
               {(cabinet.h2hOnline?.played ?? 0) > 0 && <Stat label="Online head-to-head" value={cabinet.h2hOnline?.played ?? 0} sub={`${cabinet.h2hOnline?.won ?? 0} won`} />}
             </div>
+            <div className="career-overview" data-testid="career-overview">
+              <h4 className="career-head">Career</h4>
+              {career.results === 0 ? (
+                <p className="small muted" style={{ margin: 0 }}>Your record starts with your first finished game: a season, a run or a run-in.</p>
+              ) : (
+                <>
+                  {career.record.games > 0 && (
+                    <div className="stat-strip profile-stats career-stats">
+                      <Stat label="Win rate" value={`${career.winRate}%`} sub={<span className="mono">{career.record.won}-{career.record.drawn}-{career.record.lost}</span>} />
+                      <Stat label="Points a game" value={career.pointsPerGame?.toFixed(1)} />
+                      <Stat label="Title rate" value={career.titleRate === null ? '—' : `${career.titleRate}%`} sub={countPhrase(cabinet.league, 'titles')} />
+                      <Stat label="Finished first" value={career.firstPlaces} sub={`of ${career.kept}`} />
+                    </div>
+                  )}
+                  {career.record.games > 0 && <p className="small muted" style={{ margin: 0 }}>{career.kept === 1 ? 'Across your one league season on Best seasons.' : `Across the ${career.kept} league seasons on Best seasons.`}</p>}
+                  <div className="row wrap career-modes" role="list" aria-label="Results by mode">
+                    {career.byMode.map((m) => (
+                      <span key={m.mode} className="chip" role="listitem" data-testid="career-mode">
+                        {m.label} <b>{m.count}</b>
+                      </span>
+                    ))}
+                  </div>
+                  {career.regulars.length > 0 && u && (
+                    <div className="career-regulars small" data-testid="career-regulars">
+                      <span className="muted">Most often in charge of</span>
+                      {career.regulars.map((r) => (
+                        <span key={r.clubId} className="row" style={{ gap: 6 }}>
+                          <ClubBadge clubId={r.clubId} size={18} /> {u.clubById[r.clubId] ? clubName(u, r.clubId) : (clubLeagues?.[r.clubId]?.name ?? r.clubId)} <span className="muted">×{r.seasons}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
             <div className="field" data-testid="profile-locker">
               <span>
                 Locker <Info label="About the locker">Power-ups from end-of-draft cases. Unpack one in a Quick Draft played without the power-up tray; each works once, as the tray's does.</Info>
@@ -299,22 +316,6 @@ export function ProfileScreen() {
                       </span>
                     ))
                   : 'Empty: open a case at the end of a Quick Draft'}
-              </span>
-            </div>
-            <div className="toolbar">
-              <button
-                className="btn sm"
-                data-testid="reset-tips"
-                disabled={tipsSeen === 0}
-                onClick={() => {
-                  resetTips()
-                  showToast('The coach marks will show again where they first appeared.')
-                }}
-              >
-                Show tips again
-              </button>
-              <span className="small muted">
-                {tipsSeen === 0 ? `All ${TIP_IDS.length} tips are showing` : `${tipsSeen} of ${TIP_IDS.length} tips dismissed`}
               </span>
             </div>
           </div>
@@ -336,23 +337,28 @@ export function ProfileScreen() {
               <h4 className="honours-head">
                 <Crown size={16} aria-hidden="true" /> Honours board
               </h4>
-              {(cabinet.honours ?? []).length === 0 ? (
+              {honours.length === 0 ? (
                 <p className="small muted" style={{ margin: 0 }}>Win the league and a cup in the same season for a Double; add the Continental Cup for the Treble.</p>
               ) : (
                 <ol className="honours-list">
-                  {(cabinet.honours ?? []).map((h) => (
+                  {(allHonours ? honours : honours.slice(0, HONOURS_SHOWN)).map((h) => (
                     <li key={h.id} className={`honour-row ${h.kind}`} data-testid="honour-row" data-kind={h.kind}>
                       <span className={`honour-icon ${h.kind}`}>{h.kind === 'treble' ? <Crown size={18} aria-hidden="true" /> : <Trophy size={16} aria-hidden="true" />}</span>
                       <span className="honour-main">
                         <b>{honourLabel(h.kind, h.cups)}</b> <span className="small muted">{honourDetail(h.cups)}</span>
                         <span className="honour-meta small muted">
                           {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {MODE_TITLE[h.mode] ?? h.mode}
-                          {h.date ? ` · ${h.date}` : ''}
+                          {h.date && <> · <span className="nowrap">{h.date}</span></>}
                         </span>
                       </span>
                     </li>
                   ))}
                 </ol>
+              )}
+              {honours.length > HONOURS_SHOWN && (
+                <button type="button" className="btn sm ghost" data-testid="honours-more" aria-expanded={allHonours} onClick={() => setAllHonours((v) => !v)}>
+                  {allHonours ? 'Show the latest only' : `Show all ${honours.length}`}
+                </button>
               )}
             </div>
           </div>
@@ -440,8 +446,13 @@ export function ProfileScreen() {
                 {unlocked}/{ACHIEVEMENTS.length}
               </span>
             </div>
+            {unlocked > 0 && unlocked < ACHIEVEMENTS.length && (
+              <div style={{ marginBottom: 'var(--space-3)' }} data-testid="achievement-view">
+                <Segmented value={achView} onChange={setAchView} options={[{ value: 'all', label: 'All' }, { value: 'unlocked', label: `Unlocked ${unlocked}` }, { value: 'locked', label: `Locked ${ACHIEVEMENTS.length - unlocked}` }]} />
+              </div>
+            )}
             <div className="achievements">
-              {ACHIEVEMENTS.map((a) => {
+              {achievements.map((a) => {
                 const date = profile.achievements[a.id]
                 return (
                   <div key={a.id} className={`ach ${date ? '' : 'locked'}`}>
@@ -504,6 +515,55 @@ export function ProfileScreen() {
                 )}
               </div>
             )}
+          </div>
+          )}
+          {on('settings') && (
+          <div className="panel col" data-testid="profile-settings">
+            <h3 style={{ margin: 0 }}>Settings</h3>
+            <div className="settings-grid">
+            <div className="field">
+              <span>
+                Theme <Info label="About the theme">Auto follows your device's light or dark setting. The sun and moon in the top bar flips it too.</Info>
+              </span>
+              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: 'Auto', hint: "Follows your device's light or dark setting" }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+            </div>
+            <div className="field">
+              <span>
+                Sound <Info label="About the sound">Every sound in the game: the case reel, the draft, the match and the trophies, all made in the browser. Kept on this device only; the speaker beside the reel flips it too.</Info>
+              </span>
+              <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
+            </div>
+            {soundOn && (
+              <div className="field">
+                <span>
+                  Match sounds <Info label="About the match sounds">The referee's whistle, the crowd, the net, cards and substitutions on match day. Off keeps the rest of the sound. Kept on this device only.</Info>
+                </span>
+                <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'match-sound-on' }, { value: 'off', label: 'Off', testId: 'match-sound-off' }]} />
+              </div>
+            )}
+            <div className="field">
+              <span>
+                Reel speed <Info label="About the reel speed">Full runs the case opening at its own pace, about seven seconds; Quick takes under three. Re-spins always run quick, and a tap on the reel skips to the landing. Kept on this device only.</Info>
+              </span>
+              <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }]} />
+            </div>
+            </div>
+            <div className="toolbar">
+              <button
+                className="btn sm"
+                data-testid="reset-tips"
+                disabled={tipsSeen === 0}
+                onClick={() => {
+                  resetTips()
+                  showToast('The coach marks will show again where they first appeared.')
+                }}
+              >
+                Show tips again
+              </button>
+              <span className="small muted">
+                {tipsSeen === 0 ? `All ${TIP_IDS.length} tips are showing` : `${tipsSeen} of ${TIP_IDS.length} tips dismissed`}
+              </span>
+            </div>
           </div>
           )}
           {on('seasons') && (

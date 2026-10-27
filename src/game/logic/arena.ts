@@ -16,7 +16,8 @@ import { Rng } from '@engine/rng'
 import { autoDraft, capForSquad, picksMade, QUICK_RULES } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { advanceMatch, beginMatch, changeInPlay, finishMatch, onPitch, type FullMatchResult, type InPlayChange, type InPlayOutcome, type LiveChanges, type MatchInProgress, type MatchOptions, type MatchTeamInput, type SecondHalfOptions, type TeamLookups } from '@engine/match'
-import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, USER_TEAM, userTeamInput, type AiClub } from '@engine/season'
+import { aiLookup } from '@engine/reserve'
+import { aiTeamInput, applyMatchToState, humansOf, newSquadPlayer, recoverWeek, USER_TEAM, userTeamInput, type AiClub } from '@engine/season'
 import { TRAINING } from '@engine/training'
 import { arenaClub, arenaPool, arenaTierLabel, clubIdOfKey, clubSeasonKey, clubSeasonName, defaultTakers, finalOpponent, knockoutOffset, penaltyShootout, takerOf, teamStrengthOf, type ArenaField, type ArenaTier } from '@engine/knockout'
 import { buildLadder, gauntletHome, gauntletImportance, gauntletOffset, GAUNTLET_RUNGS, GIANT_KILLING, rungLabels } from '@engine/gauntlet'
@@ -416,7 +417,7 @@ export function arenaUserInput(game: Game, u: LoadedUniverse): MatchTeamInput {
 
 function lookupsFor(game: Game, u: LoadedUniverse, club: AiClub, userIsHome: boolean): { home: TeamLookups; away: TeamLookups } {
   const user: TeamLookups = { getPlayer: playerLookup(game, u), getState: (id) => game.squad[id] }
-  const opp: TeamLookups = { getPlayer: (id) => u.index[id], getState: (id) => club.state[id] }
+  const opp: TeamLookups = { getPlayer: aiLookup(u), getState: (id) => club.state[id] }
   return userIsHome ? { home: user, away: opp } : { home: opp, away: user }
 }
 
@@ -438,7 +439,9 @@ export function playArenaStep(game: Game, u: LoadedUniverse, live: boolean): voi
   const boosts = { attack: t.attack, defence: t.defence }
   const user = arenaUserInput(game, u)
   // The opponent plays under its club id, so badges and kits resolve; the arena files it by club and season
-  const them: MatchTeamInput = { ...aiTeamInput(u, opp.club, opp.offset), teamId: opp.club.clubId }
+  // The field is drawn whatever was drafted; the opponent then fields none of the user's humans (engine 6, E6-2: a man
+  // drafted from an arena club, or another season of him, used to play for both sides and take a kick for each)
+  const them: MatchTeamInput = { ...aiTeamInput(u, opp.club, opp.offset, humansOf(Object.keys(game.squad), playerLookup(game, u))), teamId: opp.club.clubId }
   const opts: MatchOptions = { rng, home: info.home ? user : them, away: info.home ? them : user, importance: info.importance, importanceLabel: billing ?? info.label, neutral: info.neutral, detail: 'full', boosts: info.home ? { home: boosts } : { away: boosts } }
   const ctx: MatchContext = { matchweek: a.step + 1, competition: 'arena', roundLabel: info.label, opponentClubId: opp.club.clubId, home: info.home, ...(billing ? { importanceLabel: billing } : {}) }
   const mp = beginMatch(opts)
@@ -562,8 +565,10 @@ function pendingShootout(game: Game, u: LoadedUniverse, mp: MatchInProgress, use
   const made = (userIsHome ? mp.hSubs : mp.aSubs).length
   const benchKeepers = made < 5 ? game.bench.filter((id) => !appeared.has(id) && get(id)?.positions[0] === 'GK' && !game.squad[id]?.injury && (game.squad[id]?.suspension ?? 0) <= 0) : []
   const theirIds = theirs.map((p) => p.id)
-  const theirKeeper = theirs.find((p) => p.keeper)?.id ?? [...theirIds].sort((x, y) => (u.index[y]?.attributes.goalkeeping ?? 0) - (u.index[x]?.attributes.goalkeeping ?? 0))[0] ?? null
-  return { defaultOrder, keepers: [...(inGoal ? [inGoal] : []), ...outfield, ...benchKeepers], theirOrder: defaultTakers(theirIds, (id) => u.index[id]), theirKeeper }
+  // Their men through the AI lookup, so a reserve keeper (never in the index) is himself, not an unknown man
+  const theirMan = aiLookup(u)
+  const theirKeeper = theirs.find((p) => p.keeper)?.id ?? [...theirIds].sort((x, y) => (theirMan(y)?.attributes.goalkeeping ?? 0) - (theirMan(x)?.attributes.goalkeeping ?? 0))[0] ?? null
+  return { defaultOrder, keepers: [...(inGoal ? [inGoal] : []), ...outfield, ...benchKeepers], theirOrder: defaultTakers(theirIds, theirMan), theirKeeper }
 }
 
 /**
@@ -657,9 +662,11 @@ function kickPenalties(game: Game, u: LoadedUniverse, pending: PendingShootout, 
   // The toss decides who kicks first
   const usFirst = rng.chance(0.5)
   const ours = order.map((id) => takerOf(id, get))
-  const theirs = (pending.theirOrder.length ? pending.theirOrder : ['none']).map((id) => takerOf(id, (x) => u.index[x]))
+  // Their side through the AI lookup: a reserve keeper in goal (E6-5) saves and kicks as himself, not as an unknown man
+  const theirMan = aiLookup(u)
+  const theirs = (pending.theirOrder.length ? pending.theirOrder : ['none']).map((id) => takerOf(id, theirMan))
   const ourKeeper = keeperId ? (get(keeperId)?.attributes.goalkeeping ?? 30) : 30
-  const theirKeeper = pending.theirKeeper ? (u.index[pending.theirKeeper]?.attributes.goalkeeping ?? 30) : 30
+  const theirKeeper = pending.theirKeeper ? (theirMan(pending.theirKeeper)?.attributes.goalkeeping ?? 30) : 30
   const so = penaltyShootout(rng, usFirst ? { home: ours, away: theirs } : { home: theirs, away: ours }, usFirst ? { home: ourKeeper, away: theirKeeper } : { home: theirKeeper, away: ourKeeper })
   game.rngState = rng.getState()
   const us = usFirst ? so.home : so.away
@@ -956,7 +963,12 @@ function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
   const a = game.arena
   if (!a?.over) return null
   const get = playerLookup(game, u)
-  const motmId = a.log[a.log.length - 1]?.motmId
+  const last = a.log[a.log.length - 1]
+  const motmId = last?.motmId
+  // A man of the match from the other side is named with his club (he is not one of ours), as the summary names him:
+  // the club's short name, or the club-season's short name when its league is not loaded
+  const motmClub = motmId && !game.squad[motmId] && last ? (u.clubById[clubIdOfKey(last.opponent)]?.shortName ?? arenaClubShortName(u, last.opponent)) : undefined
+  const motmOf = (label?: string) => (motmId ? { motm: get(motmId)?.name ?? motmId, ...(label ? { motmLabel: label } : {}), ...(motmClub ? { motmClub } : {}) } : {})
   const s = game.settings
   // The Daily Arena names its day in the mode line, so it prints no seed line (the day is the seed), as the Daily does
   const day = s.arena?.daily ? `Daily Arena ${s.seed.replace('arena-', '')} · ` : ''
@@ -974,7 +986,7 @@ function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
       icon: a.won ? '🏆' : inFinal ? '🥈' : '🏟️',
       steps: a.log.map((x, i) => ({ code: arenaStepInfo({ ...a, step: i }).code, gf: x.gf, ga: x.ga, opponent: arenaClubName(u, x.opponent), ...(x.pens ? { pens: { us: x.pens.us, them: x.pens.them } } : {}) })),
       ...(!a.won && !inFinal && winner ? { lines: [`🏆 Won by ${winner}`] } : {}),
-      ...(inFinal && motmId ? { motm: get(motmId)?.name ?? motmId, motmLabel: 'Final MOTM' } : {}),
+      ...(inFinal ? motmOf('Final MOTM') : {}),
       seed,
     }
   }
@@ -986,7 +998,7 @@ function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
     banner: arenaBanner(a),
     icon: a.format === 'gauntlet' ? (a.won ? '🏔️' : '🪜') : a.won ? '🏆' : '🥈',
     steps: a.log.map((x, i) => ({ code: arenaStepInfo({ ...a, step: i }).code, gf: x.gf, ga: x.ga, opponent: arenaClubName(u, x.opponent), ...(x.pens ? { pens: { us: x.pens.us, them: x.pens.them } } : {}) })),
-    ...(a.format === 'gauntlet' ? { strip: a.log.map(rungMark).join(''), lines: gauntletLines(game, u) } : motmId ? { motm: get(motmId)?.name ?? motmId } : {}),
+    ...(a.format === 'gauntlet' ? { strip: a.log.map(rungMark).join(''), lines: gauntletLines(game, u) } : motmOf()),
     seed,
   }
 }

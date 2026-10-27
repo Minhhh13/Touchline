@@ -10,6 +10,7 @@ import type { MatchEvent } from '@engine/types'
 import { minuteLabel } from '../../format'
 import { xgStepPoints } from '../model'
 import { Swatch } from './bits'
+import { lineTone } from '../../match/charts'
 
 export interface XgStoryProps {
   story: { home: XgStep[]; away: XgStep[] }
@@ -60,6 +61,8 @@ export function XgStory({ story, events, minute, span, home, away, dense = false
   const pts = (p: Array<[number, number]>) => p.map(([m, v]) => `${X(m).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')
   const goals = [...story.home, ...story.away].filter((s) => s.goal && s.minute <= upto)
   const score = scoreAt(events, upto)
+  const homeTone = lineTone(home.colour)
+  const awayTone = lineTone(away.colour)
   return (
     <div className={`mchart md-xg ${dense ? 'dense' : ''}`} data-testid="xg-race">
       <div className="row between small">
@@ -88,7 +91,9 @@ export function XgStory({ story, events, minute, span, home, away, dense = false
             {m === 0 ? "0'" : m === 45 ? 'HT' : 'FT'}
           </text>
         ))}
-        {/* The home line first: its points are the ones the smokes count */}
+        {/* The home line first: its points are the ones the smokes count. A kit too close to the panel's colour gets a casing under its line, in the theme that needs it (lineTone) */}
+        {homeTone && <polyline className="line-casing" data-tone={homeTone} data-testid="xg-casing" points={pts(hp)} fill="none" strokeWidth="4.2" strokeLinejoin="round" />}
+        {awayTone && <polyline className="line-casing" data-tone={awayTone} data-testid="xg-casing" points={pts(ap)} fill="none" strokeWidth="4.2" strokeLinejoin="round" />}
         <polyline points={pts(hp)} fill="none" stroke={home.colour} strokeWidth="2.2" strokeLinejoin="round" />
         <polyline points={pts(ap)} fill="none" stroke={away.colour} strokeWidth="2.2" strokeLinejoin="round" />
         <polyline points={pts(hp)} fill="none" stroke="var(--text)" strokeWidth="0.6" strokeLinejoin="round" opacity="0.35" />
