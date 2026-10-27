@@ -70,8 +70,11 @@ function quickPin(s: GameSettings): string {
 
 // Re-baselined on ENGINE_VERSION '5' (the playtest fixes: fixtures, the assistant's placement, keeper subs, development)
 // and on '6' (every match moved: the goal calibration, cards, the reserve keeper, the user's men out of their real clubs;
-// the Season's finances follow the new economy and its squads the keeper limits)
-const SEASON_BASELINE = 'f7f5dc09a54694399863dd78d682d2c2b556d90a1e803d6327152f46bdd01884'
+// the Season's finances follow the new economy and its squads the keeper limits), and again inside engine 6 for round 6
+// item 6 (`assistantLineup`): the three Seasons open with the greedy's XI, but the assistant re-picks every matchweek
+// with the squad's condition and some of those weeks now put a natural man where the greedy played a cover. The Quick
+// Draft and the Daily field the draft's XI and hold
+const SEASON_BASELINE = '70a974c2478dcaf7af93648182b81cb08ef5f88b74c045d12686b56b8d7c1d72'
 const QUICK_BASELINE = '4e07e3cec479ea921e46c0f8026e70fde73381812bf31118bb6bb6ed61dc5e6f'
 const DAILY_BASELINE = '7a1c2fc4be66cb66acb142dd66c60def02c9df91e6c0f0b77746e301694b4c53'
 

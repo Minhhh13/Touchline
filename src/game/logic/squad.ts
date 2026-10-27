@@ -2,21 +2,24 @@ import { staffWages } from '@engine/staff'
 import type { Game } from '../types'
 import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
-import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
+import { assistantLineup, computeTeamStrength } from '@engine/ratings'
 import { retargetRoles } from '@engine/tactics'
 import { isAvailable, playerLookup, squadPlayers } from './players'
 import { logMorale } from './happiness'
 import type { Lineup } from '@engine/types'
 import { STATUS_RANK, WAGE_MULT, type SquadStatus } from '@engine/status'
 
-/** Fill the lineup with the best available players; keeps existing valid picks when `keep` is true. */
+/**
+ * Fill the lineup with the best available players; keeps existing valid picks when `keep` is true. The assistant's
+ * eleven (`assistantLineup`): a natural man in every slot unless a cover makes the XI stronger (round 6 item 6).
+ */
 export function autoPick(game: Game, u: LoadedUniverse, keep = false): void {
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
   const pool = squadPlayers(game, u).map((x) => x.p)
   const getState = (id: string) => game.squad[id]
   if (!keep) {
-    const { lineup, bench } = autoPickLineup(formation, pool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
+    const { lineup, bench } = assistantLineup(formation, pool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
     game.lineup = lineup
     game.bench = bench
     return
@@ -32,7 +35,7 @@ export function autoPick(game: Game, u: LoadedUniverse, keep = false): void {
     }
   }
   const remainingPool = pool.filter((p) => !used.has(p.id))
-  const { lineup: fill } = autoPickLineup({ ...formation, slots: formation.slots.filter((s) => !lineup[s.id]) }, remainingPool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
+  const { lineup: fill } = assistantLineup({ ...formation, slots: formation.slots.filter((s) => !lineup[s.id]) }, remainingPool, game.tactics, (p) => isAvailable(game.squad[p.id]), getState)
   Object.assign(lineup, fill)
   game.lineup = lineup
   const inXI = new Set(Object.values(lineup))
