@@ -871,7 +871,7 @@ export function finishSeason(game: Game, u: LoadedUniverse): void {
   const run = continentalRun(season)
   const euroPrize = CONTINENTAL_PRIZE[run ?? 'R16'] ?? 0
   const prize = season.sacked ? 0 : Math.round((prizeMoney(pos, season.cupWon, table.length) + (run ? euroPrize : 0)) * 10) / 10
-  // Running costs beyond the league money take the budget to nothing at worst (`afterSeasonMoney`)
+  // Running costs beyond the league money take the budget down to the summer floor at worst (`afterSeasonMoney`)
   game.finances.budget = afterSeasonMoney(game.finances.budget, prize)
   if (prize > 0) game.finances.income += prize
   // Top four, or the continental trophy, earns a place in next season's Continental Cup

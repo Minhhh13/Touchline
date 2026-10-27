@@ -480,12 +480,17 @@ export function prizeMoney(position: number, cupWon: boolean, clubs = 20): numbe
   return roundM(PRIZE_SPREAD * (1 - 2 * frac) + (cupWon ? CUP_PRIZE : 0))
 }
 
+/** The board's least summer budget for a club not in debt, so a side that keeps finishing bottom can still sign a keeper */
+export const SUMMER_FLOOR = 10
+
 /**
  * The budget once a season's league money (`net`, which may be negative) lands: running costs beyond the money take it
- * down to nothing at worst; only a wage bill over the cap (the weekly cash flow) runs a club into debt. Rounded to £0.1M.
+ * down to nothing at worst; only a wage bill over the cap (the weekly cash flow) runs a club into debt. A club not in
+ * debt starts the summer with at least `SUMMER_FLOOR`; one in debt keeps it. Rounded to £0.1M.
  */
 export function afterSeasonMoney(budget: number, net: number): number {
-  return Math.round(Math.max(Math.min(budget, 0), budget + net) * 10) / 10
+  const after = Math.max(Math.min(budget, 0), budget + net)
+  return Math.round((budget < 0 ? after : Math.max(SUMMER_FLOOR, after)) * 10) / 10
 }
 
 /** The Continental Cup's money by the round reached (GBP millions); engine 6 (4, 8, 15, 25 and 45 before). */

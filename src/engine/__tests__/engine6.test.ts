@@ -4,7 +4,7 @@ import { Rng } from '../rng'
 import { pairingGoalFactor, simulateMatch, softCeiling, XG_CEILING, XG_KNEE } from '../match'
 import { aiClubOf, aiFixtureInputs, aiRatingOffset, aiTeamInput, applyMatchToAiState, buildAiClubs, computeTable, generateFixtures, LEAGUE_GOAL_FACTOR, leagueGoalFactor, newSquadPlayer, type AiClub } from '../season'
 import { aiLookup, isReserveKeeperId, reserveKeeper, reserveKeeperById, reserveKeeperId } from '../reserve'
-import { afterSeasonMoney, CONTINENTAL_PRIZE, HEADROOM_SHARE, prizeMoney, weeklyCashFlow } from '../market'
+import { afterSeasonMoney, CONTINENTAL_PRIZE, HEADROOM_SHARE, prizeMoney, SUMMER_FLOOR, weeklyCashFlow } from '../market'
 import { liveModifiers } from '../ratings'
 
 /**
@@ -216,10 +216,12 @@ describe('the money (item 2)', () => {
     expect(CONTINENTAL_PRIZE.W).toBeGreaterThan(CONTINENTAL_PRIZE.F)
   })
 
-  it('lets a losing season take the budget to nothing at worst, never into debt (only wages over the cap do)', () => {
+  it('lets a losing season take the budget down to the summer floor at worst, never into debt (only wages over the cap do)', () => {
     expect(afterSeasonMoney(50, 20)).toBe(70)
     expect(afterSeasonMoney(50, -20)).toBe(30)
-    expect(afterSeasonMoney(8, -20)).toBe(0)
+    expect(afterSeasonMoney(8, -20)).toBe(SUMMER_FLOOR)
+    expect(afterSeasonMoney(0, -20)).toBe(SUMMER_FLOOR)
+    expect(afterSeasonMoney(3, 5)).toBe(SUMMER_FLOOR)
     expect(afterSeasonMoney(-5, -20)).toBe(-5)
     expect(afterSeasonMoney(-5, 12)).toBe(7)
   })
