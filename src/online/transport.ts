@@ -8,7 +8,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ChallengePayload } from '@engine/challenge'
-import type { OnlineConfig } from './config'
+import { FUNCTION_PREFIX, type OnlineConfig } from './config'
 import type { SaveMeta, SlotId } from './core/slots'
 import type { PuzzlePin, PuzzleSettings } from './server/dailyVerify'
 import type { AccountProfile } from './state'
@@ -95,6 +95,11 @@ export interface FunctionReply {
   body: Record<string, unknown>
 }
 
+export interface InvokeOptions {
+  guest?: boolean
+  engine?: string
+}
+
 export interface ChallengeRow {
   code: string
   createdAt: string
@@ -124,8 +129,9 @@ export interface OnlineTransport {
   pin(kind: 'daily' | 'weekly', key: string): Promise<PuzzlePin | null>
   rpc<T>(fn: string, args: Record<string, unknown>): Promise<T>
   /** POST to the Edge Function with the session's JWT. `guest`: with no session, send the publishable key alone (the
-   * function lets a guest play the online rooms and nothing else); without it a signed-out call answers 401 locally. */
-  invoke(body: Record<string, unknown>, opts?: { guest?: boolean }): Promise<FunctionReply>
+   * function lets a guest play the online rooms and nothing else); without it a signed-out call answers 401 locally.
+   * `engine`: call that engine's function (`touchline-e<engine>`) instead of this build's (a run filed on an older build). */
+  invoke(body: Record<string, unknown>, opts?: InvokeOptions): Promise<FunctionReply>
   // challenge short codes
   myChallenges(): Promise<ChallengeRow[]>
   deleteChallenge(code: string): Promise<void>
@@ -282,7 +288,7 @@ export class SupabaseTransport implements OnlineTransport {
     return this.q<T>(this.sb.rpc(fn, args))
   }
 
-  async invoke(body: Record<string, unknown>, opts: { guest?: boolean } = {}): Promise<FunctionReply> {
+  async invoke(body: Record<string, unknown>, opts: InvokeOptions = {}): Promise<FunctionReply> {
     const { data } = await this.sb.auth.getSession()
     const token = data.session?.access_token
     if (!token && !opts.guest) return { status: 401, body: { code: 'signed_out', reason: 'Sign in first' } }
@@ -292,7 +298,7 @@ export class SupabaseTransport implements OnlineTransport {
     try {
       // The region goes in the query, never as an `x-region` header: the function's CORS allow-list (supabase-js's
       // corsHeaders, which withSupabase answers the preflight with) does not name it, so a browser would refuse the call
-      res = await this.fetchImpl(functionUrl(this.cfg), {
+      res = await this.fetchImpl(functionUrl(opts.engine && /^[0-9]{1,4}$/.test(opts.engine) ? { ...this.cfg, functionName: FUNCTION_PREFIX + opts.engine } : this.cfg), {
         method: 'POST',
         headers,
         body: JSON.stringify(body),

@@ -5,6 +5,7 @@ import { rankedBoardOf, unrankedReason } from '../../online/daily'
 import { countryFlag } from '../../online/core/country'
 import { ordinal } from '../format'
 import { APP_NAME } from '../brand'
+import { sentence } from '../../online/postText'
 
 /** One line on a Daily or weekly Summary: posted and where it ranks, waiting for sign-in, or why it is unranked. */
 export function RankedStatus({ game }: { game: Game }) {
@@ -32,6 +33,7 @@ export function RankedStatus({ game }: { game: Game }) {
         </button>
       </>
     )
+  else if (post.state === 'waiting' && post.reason === 'retry') line = <>Waiting to post {post.points ?? points} pts: the server did not answer, so this device tries again shortly.</>
   else if (post.state === 'waiting') line = <>Posting to the world leaderboard…</>
   else if (post.state === 'posted') {
     const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} of ${post.countryTotal ?? 0} in ${countryFlag(post.country)}` : ''
@@ -48,8 +50,8 @@ export function RankedStatus({ game }: { game: Game }) {
         {post.claimMatched ? '.' : ' (official result from the server’s replay).'}
       </>
     )
-  } else if (post.state === 'unranked') line = <>Unranked: {post.reason}</>
-  else if (post.state === 'rejected') line = <>Not ranked: {post.reason}</>
+  } else if (post.state === 'unranked') line = <>Unranked: {sentence(post.reason)}</>
+  else if (post.state === 'rejected') line = <>Not ranked: {sentence(post.reason)}</>
   else line = <>That board has closed.</>
   return (
     <div className={`notice row between wrap ${post?.state === 'rejected' ? 'warn' : ''}`} style={{ marginTop: 12 }} data-testid="ranked-status">

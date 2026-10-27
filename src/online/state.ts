@@ -61,6 +61,8 @@ export interface OnlineState {
   account: AccountProfile | null
   /** True once the signed-in account's `profiles` row was read: `account` null then means a new account (the setup step). */
   accountLoaded: boolean
+  /** Why the account's `profiles` row could not be read (offline, an expired session), or null. */
+  accountError: string | null
   syncStatus: SyncStatus
   lastSyncAt: string | null
   syncMessage: string | null
@@ -81,6 +83,7 @@ export const initialOnlineState: OnlineState = {
   session: null,
   account: null,
   accountLoaded: false,
+  accountError: null,
   syncStatus: 'off',
   lastSyncAt: null,
   syncMessage: null,

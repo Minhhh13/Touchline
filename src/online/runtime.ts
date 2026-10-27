@@ -21,6 +21,7 @@ import { SEASON_UPLOAD_GAP_MS, SyncEngine, type SyncOptions, type SyncStoreLike 
 import { weekKeyOf } from './weekly'
 import type { PuzzlePin } from './server/dailyVerify'
 import { DELETE_CONFIRMATION } from './server/validate'
+import { onlineErrorText } from './postText'
 
 const PERIODIC_MS = 5 * 60000
 const HIDDEN_RESYNC_MS = 60000
@@ -133,10 +134,10 @@ export class Runtime {
     this.engine = null
     this.clearTimer()
     if (!s) {
-      report({ session: null, account: null, accountLoaded: false, conflicts: [], accountSwitch: null, syncStatus: 'idle', syncMessage: null })
+      report({ session: null, account: null, accountLoaded: false, accountError: null, conflicts: [], accountSwitch: null, syncStatus: 'idle', syncMessage: null })
       return
     }
-    report({ session: s, syncStatus: 'idle', accountLoaded: false })
+    report({ session: s, syncStatus: 'idle', accountLoaded: false, accountError: null })
     this.engine = new SyncEngine({ transport: this.transport, store: gameStoreForSync, userId: s.userId, load: loadRecord, save: saveRecord, now: () => Date.now(), meta: metaContext(), report })
     void this.loadAccount()
     void this.flushOutbox()
@@ -149,9 +150,11 @@ export class Runtime {
     const uid = this.userId
     if (!uid) return
     try {
-      report({ account: await this.transport.getAccount(uid), accountLoaded: true })
-    } catch {
-      // shown as "no name yet"; the boards assign a default at the first post
+      report({ account: await this.transport.getAccount(uid), accountLoaded: true, accountError: null })
+    } catch (e) {
+      // Not "a new account" (that would offer the setup step to an account that has a name): the screen says why and
+      // offers a retry, and the connection coming back retries by itself
+      if (this.userId === uid) report({ accountError: onlineErrorText(e) })
     }
   }
 
@@ -167,6 +170,7 @@ export class Runtime {
     window.addEventListener('online', () => {
       void this.syncNow()
       void this.flushOutbox()
+      if (this.session && !onlineStore.getState().accountLoaded) void this.loadAccount()
     })
     window.addEventListener('offline', () => report({ syncStatus: 'offline', syncMessage: 'Offline: your games sync when the connection is back.' }))
     document.addEventListener('visibilitychange', () => {
@@ -273,7 +277,17 @@ export class Runtime {
     if (Object.values(rec.posts).some((p) => p.state === 'posted')) void this.refreshPins()
   }
 
-  async refreshPins(): Promise<void> {
+  private pinning: Promise<void> | null = null
+
+  /** Read today's pins (one read at a time: the boot and the session both ask at start). */
+  refreshPins(): Promise<void> {
+    this.pinning ??= this.readPins().finally(() => {
+      this.pinning = null
+    })
+    return this.pinning
+  }
+
+  private async readPins(): Promise<void> {
     const now = new Date()
     const day = now.toISOString().slice(0, 10)
     const week = weekKeyOf(now)
