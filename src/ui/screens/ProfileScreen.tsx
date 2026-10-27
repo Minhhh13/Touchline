@@ -14,7 +14,8 @@ import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, honourDetail, honourLabel, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
 import { RunInsTable } from '../components/RunInsTable'
-import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
+import { ClubBadge, Flag, Info, Segmented, Stat, TeamBadge } from '../components/bits'
+import { shortNameFor } from '@game/logic/setup'
 import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
@@ -133,7 +134,8 @@ export function ProfileScreen() {
       {/* The team cell wraps, so on a phone the format, result and score stay in view */}
       <td style={{ whiteSpace: 'normal' }}>
         <span className="row wrap" style={{ gap: 6 }}>
-          {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} <b>{e.teamName}</b>
+          {/* An arena side's own badge, as on its hub: the colours' club is never shown as ours */}
+          <TeamBadge code={shortNameFor(e.teamName)} size={20} /> <b>{e.teamName}</b>
           {e.challenge && (
             <span className={`chip ${e.score > e.challenge.score ? 'good' : e.score < e.challenge.score ? 'bad' : ''}`} data-testid="run-vs">
               vs {e.challenge.name} {e.challenge.score}

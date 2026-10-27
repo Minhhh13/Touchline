@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStore, type H2HGame } from '@game/store'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { APP_NAME } from '../brand'
 import { getFormation } from '@engine/formations'
@@ -27,16 +27,20 @@ import { ratingHidden } from '@game/logic/ratingVisibility'
 import { onlineAvailable } from '../../online/api'
 import { RoomSetup } from '../online/Rooms'
 
+/** The head-to-head a Rematch came from: the setup opens with its managers, clubs, league and rules (on a new wheel). */
+let rematchOf: H2HGame | null = null
+
 export function H2HSetup() {
   const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
-  const [leagueId, setLeagueId] = useState('england')
-  const [wheelScope, setWheelScope] = useState<'league' | 'europe'>('league')
-  const [names, setNames] = useState(['Manager 1', 'Manager 2'])
-  const [formations, setFormations] = useState(['4-3-3', '4-4-2'])
-  const [leagueSeason, setLeagueSeason] = useState(() => (u ? Math.max(...u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)) : 2025))
-  const [hosts, setHosts] = useState(['', ''])
-  const [difficulty, setDifficulty] = useState<'calibrated' | 'realistic'>('calibrated')
-  const [hardMode, setHardMode] = useState(false)
+  const [last] = useState(() => rematchOf)
+  const [leagueId, setLeagueId] = useState(last?.leagueId ?? 'england')
+  const [wheelScope, setWheelScope] = useState<'league' | 'europe'>((last?.wheelLeagues.length ?? 1) > 1 ? 'europe' : 'league')
+  const [names, setNames] = useState(last ? last.managers.map((m) => m.name) : ['Manager 1', 'Manager 2'])
+  const [formations, setFormations] = useState(last ? last.managers.map((m) => m.formationId) : ['4-3-3', '4-4-2'])
+  const [leagueSeason, setLeagueSeason] = useState(() => last?.leagueSeason ?? (u ? Math.max(...u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)) : 2025))
+  const [hosts, setHosts] = useState(last ? last.managers.map((m) => m.hostClubId) : ['', ''])
+  const [difficulty, setDifficulty] = useState<'calibrated' | 'realistic'>(last?.difficulty ?? 'calibrated')
+  const [hardMode, setHardMode] = useState(last?.hardMode ?? false)
   const [seed, setSeed] = useState(() => randomSeed())
   // Two devices instead of one: only in a build with the online layer (an offline build shows exactly the hot-seat setup)
   const [where, setWhere] = useState<'device' | 'online'>('device')
@@ -398,7 +402,7 @@ export function H2HScreen() {
 function H2HSummary() {
   const { h2h, abandonH2H, go } = useStore()
   if (!h2h?.result) return null
-  return <H2HResultView managers={h2h.managers} result={h2h.result} drafts={h2h.draft.drafts} leagueId={h2h.leagueId} leagueSeason={h2h.leagueSeason} seed={h2h.seed} onRematch={() => { abandonH2H(); go('h2h') }} onHome={() => abandonH2H()} />
+  return <H2HResultView managers={h2h.managers} result={h2h.result} drafts={h2h.draft.drafts} leagueId={h2h.leagueId} leagueSeason={h2h.leagueSeason} seed={h2h.seed} onRematch={() => { rematchOf = h2h; abandonH2H(); go('h2h') }} onHome={() => abandonH2H()} />
 }
 
 export interface H2HResultViewProps {
@@ -548,7 +552,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
           <div className="panel">
             <h3>Final table</h3>
             <div className="tbl-wrap">
-              <table className="tbl">
+              <table className="tbl h2h-table">
                 <thead>
                   <tr>
                     <th>#</th>
@@ -566,16 +570,17 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
                     return (
                       <tr key={row.teamId} className={idx !== null ? 'me' : ''}>
                         <td>{i + 1}</td>
-                        <td>
+                        {/* The club cell takes the width left and ends a long name in an ellipsis, so GD and Pts stay in view */}
+                        <td className="h2h-club" title={idx !== null ? m[idx].name : clubName(u, row.teamId)}>
                           <span className="row" style={{ gap: 8 }}>
-                            {idx !== null ? <ClubBadge clubId={m[idx].hostClubId} size={22} /> : <ClubBadge clubId={row.teamId} size={22} />}
-                            {idx !== null ? m[idx].name : clubName(u, row.teamId)}
+                            {idx !== null ? <TeamBadge code={m[idx].shortName} size={22} /> : <ClubBadge clubId={row.teamId} size={22} />}
+                            <span className="h2h-club-name">{idx !== null ? m[idx].name : clubName(u, row.teamId)}</span>
                           </span>
                         </td>
                         <td className="num">{row.won}</td>
                         <td className="num">{row.drawn}</td>
                         <td className="num">{row.lost}</td>
-                        <td className="num">{row.goalsFor - row.goalsAgainst}</td>
+                        <td className="num">{row.goalsFor - row.goalsAgainst > 0 ? '+' : ''}{row.goalsFor - row.goalsAgainst}</td>
                         <td className="num" style={{ fontWeight: 700 }}>
                           {row.points}
                         </td>

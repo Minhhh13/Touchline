@@ -153,6 +153,8 @@ export function Home() {
     if (arenaUnderWay === 'parked') return resumeGame('arena')
     const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
     if (open && !confirm(`Start today's arena? Your current ${modeLabel(open, 'short')} run (${open.settings.teamName}) will be abandoned.`)) return
+    // Played already: a second go is practice, and says so before it replaces today's summary
+    if (!open && arenaDone && !confirm(`You have played today's Daily Arena (${arenaDone.label}). Play it again? Your result and streak stay as they are.`)) return
     startGame(dailyArenaGameSettings(u, arenaSeed))
   }
   // The Weekly Challenge: its setup names the team and loads the week's packs; this week's run under way continues

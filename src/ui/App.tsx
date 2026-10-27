@@ -177,9 +177,11 @@ export function App() {
   // A new screen opens at its top, not where the last one was left (the summary is long; Explore used to open half-way down)
   const phase = game?.phase
   const h2hStage = !h2h ? 'setup' : h2h.result ? 'result' : 'draft'
+  // An arena shoot-out is its own screen inside the match phase: once taken, the report opens at its top, where the kicks reveal
+  const shootout = !!game?.arena?.pending
   useLayoutEffect(() => {
     window.scrollTo(0, 0)
-  }, [screen, phase, h2hStage])
+  }, [screen, phase, h2hStage, shootout])
 
   if (loadError) {
     return (

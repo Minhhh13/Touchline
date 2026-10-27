@@ -4432,6 +4432,10 @@ table.tbl.contracts .btn.sm {
   color: var(--text-3);
   font-size: var(--fs-sm);
 }
+/* The report's half-time score follows the outcome word after a dot (on a phone it goes under the word instead) */
+.clock-ht::before {
+  content: '· ';
+}
 .news {
   display: flex;
   flex-direction: column;
@@ -8419,6 +8423,13 @@ table.tbl.match-stats th {
   table.tbl.match-stats {
     display: table;
   }
+  /* A long word ("Lost on pens") takes its own line over the half-time score, so the names keep their width */
+  .report-board .clock .outcome-word {
+    display: block;
+  }
+  .report-board .clock-ht::before {
+    content: none;
+  }
   .tbl .hide-phone {
     display: none;
   }
@@ -8496,6 +8507,20 @@ table.tbl.match-stats th {
 }
 .h2h-derbies .fixture {
   grid-template-columns: 52px 1fr auto 1fr;
+}
+/* The head-to-head's final table: the club cell takes what the numbers leave and ends a long name in an ellipsis */
+.h2h-table td.h2h-club {
+  width: 100%;
+  max-width: 0;
+}
+.h2h-table .h2h-club-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.h2h-table .h2h-club > .row {
+  flex-wrap: nowrap;
 }
 @media (max-width: 520px) {
   .howto-facts.tiles {
@@ -10534,6 +10559,13 @@ table.tbl.match-stats th {
 }
 .result-banner .blocks {
   margin-top: var(--space-3);
+}
+/* The Gauntlet's ladder takes the blocks' place under the figures, with the same gap */
+.result-banner .banner-ladder {
+  margin-top: var(--space-3);
+}
+.result-banner .banner-ladder [data-testid='gauntlet-ladder'] {
+  justify-content: center;
 }
 .result-banner .banner-actions {
   margin-top: var(--space-4);
@@ -13109,6 +13141,27 @@ table.tbl.hub td.name {
   }
   .page.report-page > [data-testid='shootout-reveal'] h2 {
     font-size: var(--fs-h3);
+  }
+  /* A long shoot-out (sudden death) keeps one line of kicks that scrolls sideways, so the report below keeps its height */
+  .page.report-page > [data-testid='shootout-reveal'] .shootout-kicks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .page.report-page > [data-testid='shootout-reveal'] .shootout-kicks > .chip {
+    flex: none;
+  }
+}
+/* A taker's shooting and composure follow his name, and go under it on a phone (a wrapped line led with its dot) */
+.taker-meta::before {
+  content: ' · ';
+}
+@media (max-width: 699px) {
+  [data-testid='taker'] .taker-meta {
+    display: block;
+  }
+  [data-testid='taker'] .taker-meta::before {
+    content: none;
   }
 }
 
