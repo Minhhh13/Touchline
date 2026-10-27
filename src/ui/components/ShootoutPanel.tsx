@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
+import { useMediaQuery } from './LivePitch'
 
 /** The kicks reveal one at a time, at once for anyone who asked the system for less motion. */
 function prefersReducedMotion(): boolean {
@@ -43,6 +44,8 @@ export function ShootoutPanel() {
     return () => clearInterval(id)
     // The reveal restarts only for a new shoot-out
   }, [revealKey])
+  // On a phone the takers stack above the keeper: Take the penalties rides at the foot of the window instead
+  const phone = useMediaQuery('(max-width: 720px)')
   if (!u || !game?.arena) return null
   const get = playerLookup(game, u)
   const name = (id: string, ours: boolean) => (ours ? get(id)?.name : u.index[id]?.name) ?? id
@@ -57,6 +60,11 @@ export function ShootoutPanel() {
       ;[next[i], next[j]] = [next[j], next[i]]
       setOrder(next)
     }
+    const take = (
+      <button type="button" className="btn primary big" data-testid="take-penalties" onClick={() => takePenalties(list, gk)}>
+        Take the penalties
+      </button>
+    )
     return (
       <div className="panel" style={{ borderColor: 'var(--gold)', marginBottom: 12 }} data-testid="shootout-panel">
         <div className="panel-head">
@@ -98,11 +106,10 @@ export function ShootoutPanel() {
               </select>
             </label>
             <p className="help">The takers go in this order and start again from the top in sudden death. Their side: {pending.theirOrder.slice(0, 5).map((id) => u.index[id]?.name ?? id).join(', ')}.</p>
-            <button type="button" className="btn primary big" data-testid="take-penalties" onClick={() => takePenalties(list, gk)}>
-              Take the penalties
-            </button>
+            {!phone && take}
           </div>
         </div>
+        {phone && <div className="shootout-foot">{take}</div>}
       </div>
     )
   }

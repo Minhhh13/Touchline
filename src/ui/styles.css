@@ -13290,6 +13290,23 @@ table.tbl.hub td.name {
     flex: none;
   }
 }
+/* A phone shoot-out: the disabled "Penalties first" leaves the head, and Take the penalties rides at the foot of the
+   window while the eleven takers scroll under it (ShootoutPanel renders it there under 721 px) */
+.shootout-foot {
+  position: sticky;
+  bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  margin-top: var(--space-3);
+}
+.shootout-foot > .btn {
+  width: 100%;
+  box-shadow: var(--shadow);
+}
+@media (max-width: 720px) {
+  .arena-shootout .fit-head > .shootout-wait {
+    display: none;
+  }
+}
 /* A taker's shooting and composure follow his name, and go under it on a phone (a wrapped line led with its dot) */
 .taker-meta::before {
   content: ' · ';

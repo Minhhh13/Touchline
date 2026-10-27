@@ -151,7 +151,7 @@ export function MatchScreen() {
               {homeName} {res.homeGoals}-{res.awayGoals} {awayName} · level at 90
             </div>
           </div>
-          <button className="btn primary" disabled data-testid="match-continue">
+          <button className="btn primary shootout-wait" disabled data-testid="match-continue">
             {continueLabel}
           </button>
         </div>
