@@ -575,6 +575,8 @@ export function createServer(deps: ServerDeps): Server {
     const seat: 0 | 1 | null = hash === stored.seat0Hash ? 0 : hash === stored.seat1Hash ? 1 : null
     if (seat === null) throw refuse(403, 'not_seated', 'This device does not hold a seat in that room')
     if (room.status !== 'drafting') throw closedRefusal(room)
+    // A room opened on another engine replays its draft and season differently: only that engine's function may move it
+    if (room.engineVersion !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `That room plays on engine ${room.engineVersion}`, { roomEngine: room.engineVersion })
     if (req.version !== room.version) throw refuse(409, 'stale', 'The room moved on: it reloads with the latest picks')
     if (room.turn !== seat) throw refuse(409, 'not_your_turn', 'It is the other manager\'s pick')
     const managers = room.managers
