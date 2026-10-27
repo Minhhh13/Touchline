@@ -4630,7 +4630,8 @@ dl.kv {
   gap: 8px;
 }
 .formations.with-blurbs {
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  /* min(): a tile is never wider than the panel it is in (a panel narrower than 210 px once let the tiles run under its neighbour) */
+  grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
 }
 .formations button {
   display: flex;
@@ -15053,6 +15054,22 @@ table.tbl.tv-compact .tv-name {
 /* The hub's first box already names the opponent, so its report is just "Opposition report" (no wrap to three lines) */
 .arena-hub .opposition .opp-of {
   display: none;
+}
+/*
+ * The Tactics tab inside the hub's middle box. The Dugout's two columns (the shape and the instructions beside the roles)
+ * answer to the window, but this box is only a third or so of it (480 to 800 px at 1280 to 2560 wide), so a fixed 380 px
+ * Roles column left the Formation panel 82 to 300 px wide, with its tiles (210 px at least) running under the Roles
+ * panel. The columns now answer to the box: two when each can have 340 px, else one under the other.
+ */
+.arena-hub .grid.dugout {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+/* A small pitch that names roles (the arena hub on a 1366 x 768 laptop, 200 to 240 px wide) keeps the name and drops the
+   role line: two lines under a midfielder reached the discs of the men behind him. The tooltip still gives the role. */
+@container (max-width: 240px) {
+  .pitch-wrap.has-roles .slot .sub {
+    display: none;
+  }
 }
 /* A very small pitch (a short window's arena hub) shows the numbers only: the names would run into each other, and
    each slot's tooltip still names him and his rating there */
