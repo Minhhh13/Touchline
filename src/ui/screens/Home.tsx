@@ -66,7 +66,8 @@ function Tile({ icon: Icon, title, meta, onClick, testId, disabled }: { icon: Lu
       </span>
       <span className="tile-text">
         <b>{title}</b>
-        <span>{meta}</span>
+        {/* The meta line can be cut short on a narrow tile: the whole line is its tooltip */}
+        <span title={meta}>{meta}</span>
       </span>
     </button>
   )

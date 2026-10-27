@@ -7990,6 +7990,21 @@ dl.kv {
 .link-btn:hover {
   color: var(--accent);
 }
+/* Explore's table: a long club name gives way (ellipsis, the name as its tooltip) so Pts, Best and XI avg stay in view */
+.explore-table td.club-cell {
+  max-width: 0;
+  width: 100%;
+}
+.explore-table td.club-cell .row {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.explore-table td.club-cell .ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .search-field {
   position: relative;
   display: block;
@@ -8013,6 +8028,39 @@ dl.kv {
 .profile-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
+}
+/* Profile: the career overview under the manager's stats, and the settings two to a row */
+.career-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.career-head {
+  margin: 0;
+}
+.career-modes .chip b {
+  margin-left: 4px;
+}
+.career-regulars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+.settings-grid .field {
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .streak-on {
   color: var(--warn);
@@ -8414,6 +8462,10 @@ table.tbl.match-stats th {
     max-width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
+  }
+  /* "Search players" reads "Search" on a phone, so the three views fit without a scroll */
+  .view-switch .view-long {
+    display: none;
   }
   .explore-bar .segmented button,
   .view-switch button {
@@ -14440,6 +14492,12 @@ table.tbl.tv-compact .tv-name {
 .honour-meta {
   display: block;
   margin-top: 2px;
+}
+.honour-meta .nowrap {
+  white-space: nowrap;
+}
+.honours > .btn {
+  align-self: flex-start;
 }
 /* Reduced motion for the cup nights: after the rules above, which it must follow to win (equal specificity) */
 @media (prefers-reduced-motion: reduce) {
