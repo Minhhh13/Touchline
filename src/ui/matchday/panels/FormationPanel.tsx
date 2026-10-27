@@ -4,6 +4,7 @@
  * the surname, card marks, a sub arrow on a changed slot and a greyed slot for a
  * man sent off or injured with nobody to replace him. Click a man for his heat map.
  */
+import type { CSSProperties } from 'react'
 import { getFormation } from '@engine/formations'
 import { tacticsAt } from '@engine/matchFeed'
 import { DEFAULT_ROLE, getRole } from '@engine/roles'
@@ -47,7 +48,8 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
               type="button"
               className={`md-man ${s.out ? 'out' : ''} ${selected ? 'selected' : ''} ${lit ? 'lit' : ''}`}
               data-lit={lit ? 'yes' : undefined}
-              style={{ left: `${left}%`, top: `${top}%`, maxWidth: gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}% - 4px))` }}
+              // His place as per cent of the layer, moved by transform (`--x`, `--y`, matchday.css), so a change of shape glides without a reflow
+              style={{ '--x': left.toFixed(2), '--y': top.toFixed(2), maxWidth: gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}% - 4px))` } as CSSProperties}
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}
               aria-pressed={selected}

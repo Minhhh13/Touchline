@@ -5304,6 +5304,27 @@ dl.kv {
     font-size: 9px; /* px: drawn to the pitch disc */
   }
 }
+/* A large window (2560 x 1440): the pitch was width-bound at 420 px tall in a third of the box. The tiles take less
+   of step 1's width and the pitch the rest, up to 640 px tall, so the step has no large empty area */
+@media (min-width: 2200px) and (min-height: 1200px) {
+  .setup-page .setup-formation-body > .formations {
+    flex: 1 1 40%;
+  }
+  .setup-page .setup-formation-body > .setup-preview {
+    flex: 1 1 60%;
+  }
+  .setup-formation .pitch-mini .pitch-wrap {
+    max-height: 640px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot {
+    width: 40px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot .disc {
+    width: 32px;
+    height: 32px;
+    font-size: 11px; /* px: drawn to the pitch disc */
+  }
+}
 .setup-sub {
   margin: 4px 0 0;
 }

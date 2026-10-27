@@ -269,7 +269,7 @@
     display: none;
   }
   .matchday .md-formation .md-man {
-    transform: translate(-50%, -50%);
+    --md-man-dy: -50%;
   }
   .matchday .md-formation .md-man-shirt {
     display: flex;
@@ -299,10 +299,14 @@
 .matchday .md-vpitch-layer {
   position: absolute;
   inset: 4% 6%;
+  /* A size container: each man's place (--x, --y, per cent of the layer) is a transform in cqw and cqh (motion rule 2) */
+  container-type: size;
 }
 .matchday .md-man {
   position: absolute;
-  transform: translate(-50%, -42%);
+  left: 0;
+  top: 0;
+  transform: translate(calc(var(--x, 0) * 1cqw - 50%), calc(var(--y, 0) * 1cqh + var(--md-man-dy, -42%)));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -313,7 +317,7 @@
   color: #fff;
   cursor: pointer;
   max-width: 76px;
-  transition: left calc(var(--dur-1) * 4) var(--ease-out), top calc(var(--dur-1) * 4) var(--ease-out);
+  transition: transform calc(var(--dur-1) * 4) var(--ease-out);
 }
 .matchday .md-man:focus-visible {
   outline: 2px solid var(--focus);
