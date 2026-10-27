@@ -4,10 +4,12 @@ import { Home } from './screens/Home'
 import { isArenaPayload } from '@engine/challenge'
 import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
+import { SaveBanner } from './components/SaveBanner'
+import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
-import { clubName, ordinal, outcomeClass } from './format'
+import { clubName, ordinal, outcomeClass, seasonLabel } from './format'
 import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
@@ -16,7 +18,7 @@ import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
@@ -58,6 +60,8 @@ export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
   // An arena run's field strengths, worked out in idle moments while it drafts
   useArenaWarmup()
+  // After the first finished game, ask the browser to keep the save through storage pressure (persistStorage.ts)
+  usePersistAfterFirstResult(profile)
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
@@ -174,9 +178,11 @@ export function App() {
   // A new screen opens at its top, not where the last one was left (the summary is long; Explore used to open half-way down)
   const phase = game?.phase
   const h2hStage = !h2h ? 'setup' : h2h.result ? 'result' : 'draft'
+  // An arena shoot-out is its own screen inside the match phase: once taken, the report opens at its top, where the kicks reveal
+  const shootout = !!game?.arena?.pending
   useLayoutEffect(() => {
     window.scrollTo(0, 0)
-  }, [screen, phase, h2hStage])
+  }, [screen, phase, h2hStage, shootout])
 
   if (loadError) {
     return (
@@ -220,6 +226,8 @@ export function App() {
   }
 
   let body: React.ReactNode
+  // The quick season's playback after kick-off runs in the summary phase: the nav still calls it the season until it closes
+  const seasonPlaying = !!game && game.phase === 'summary' && !!(playback || game.quickOpen) && !!game.quickResult?.results?.length
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
   // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
   // Setup and the match day keep their own layouts
@@ -231,7 +239,7 @@ export function App() {
     else if (game.phase === 'kickoff') body = <KickOff />
     // The quick season plays game by game: the first half to the January window, then (or all at once) to the summary.
     // A season with a bench stays here until the playback is closed, even after a reload, so its result is recorded once
-    else if (game.phase === 'january' || (game.phase === 'summary' && (playback || game.quickOpen) && game.quickResult?.results?.length)) body = <SeasonPlayback key={game.phase} />
+    else if (game.phase === 'january' || seasonPlaying) body = <SeasonPlayback key={game.phase} />
     else if (game.phase === 'match') body = <MatchScreen />
     else if (game.phase === 'summary') body = game.arena ? <ArenaSummary /> : game.settings.mode === 'runin' ? <RunInSummary /> : <Summary />
     else body = game.arena ? <Arena /> : <Dugout />
@@ -255,6 +263,7 @@ export function App() {
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
+        <SaveBanner />
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
             <House size={16} />
@@ -262,8 +271,8 @@ export function App() {
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
-              {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' ? <Trophy size={16} /> : <ClipboardList size={16} />}
-              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
+              {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <ClipboardCheck size={16} /> : <ClipboardList size={16} />}
+              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
             </button>
           )}
           <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
@@ -318,6 +327,7 @@ export function App() {
         {body}
       </ScreenBoundary>
       <Toast />
+      {barHidden && <SaveBanner floating />}
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
         {offseason && (
           <div className="col">
@@ -346,7 +356,12 @@ export function App() {
                 <b>Declined:</b> {offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}
               </p>
             )}
-            <p className="muted small">You have bonus spins to rebuild, and the summer market is open from the Dugout once the season begins. Finish the draft to carry on.</p>
+            {game && (game.history.at(-1)?.leagueSeason ?? 0) > game.settings.leagueSeason && (
+              <p className="small" data-testid="season-wrap">
+                <b>Back to the start:</b> after the last season on the wheel the league turns over to {seasonLabel(game.settings.leagueSeason)}, with that season's clubs.
+              </p>
+            )}
+            <p className="muted small">{game && game.bonusSpins > 0 ? `You have ${game.bonusSpins} bonus spin${game.bonusSpins === 1 ? '' : 's'} to rebuild` : 'Your squad is full, so there are no summer spins'}, and the summer market opens in the Dugout after the draft, before the first match. Finish the draft to carry on.</p>
             <button className="btn primary" onClick={dismissOffseason}>
               To the draft
             </button>
@@ -386,6 +401,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
             <b>
               {r.gf}-{r.ga}
             </b>
+            {r.penalties && <span className="small muted">{r.penalties.gf}-{r.penalties.ga} pens</span>}
             <span className="res-letter">{r.outcome}</span>
             <span className="small muted">{r.home ? 'H' : 'A'}</span>
             {r.comp !== 'league' && <span className="small muted">{r.comp === 'cup' ? 'Cup' : 'Eur'}</span>}
@@ -418,7 +434,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         <DigestGroup title="Decided for you" icon={<MessageSquare size={14} />} count={d.decisions.length}>
           {d.decisions.slice(0, DIGEST_GROUP_CAP).map((x, i) => (
             <li key={i}>
-              <b>{x.title}</b>: {x.choice}
+              <b>{x.title}</b>{x.count ? ` (${x.count} times)` : ''}: {x.choice}
               {x.outcome && <span className="muted"> · {x.outcome}</span>}
             </li>
           ))}

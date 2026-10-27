@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
+import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
 import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { persistLine, usePersistState } from '../persistStorage'
+import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
 import { BadgeCheck, BrickWall, CalendarCheck, CalendarClock, Footprints, Heart, Hourglass, Layers, Link as LinkIcon, Moon, Mountain, PiggyBank, Route, ScrollText, Users, Zap } from 'lucide-react'
@@ -14,7 +16,8 @@ import { capTotal } from '@game/logic/cap'
 import { BOARD_FILTERS, filterBoard, honourDetail, honourLabel, leaguesWon, normaliseCabinet, type BoardFilter } from '@game/logic/cabinet'
 import { downloadDataUrl, renderManagerCard } from '../shareCard'
 import { RunInsTable } from '../components/RunInsTable'
-import { ClubBadge, Flag, Info, Segmented, Stat } from '../components/bits'
+import { ClubBadge, Flag, Info, Segmented, Stat, TeamBadge } from '../components/bits'
+import { shortNameFor } from '@game/logic/setup'
 import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
@@ -91,13 +94,8 @@ const MILESTONE_ICON: Record<string, LucideIcon> = {
 
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
-  const blob = new Blob([exportSaveJson()], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `touchline-save-${new Date().toISOString().slice(0, 10)}.json`
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  // Downloaded; shared where a download goes nowhere (an iOS home-screen app or web view: saveFile.ts)
+  void saveBlob(new Blob([exportSaveJson()], { type: 'application/json' }), `touchline-save-${new Date().toISOString().slice(0, 10)}.json`)
 }
 
 export function ProfileScreen() {
@@ -118,6 +116,7 @@ export function ProfileScreen() {
   const runsBySeed = new Map<string, LeaderboardEntry[]>()
   for (const e of profile.leaderboard) if (isQuickLike(e.mode)) runsBySeed.set(e.seed, [...(runsBySeed.get(e.seed) ?? []), e])
   const fileRef = useRef<HTMLInputElement>(null)
+  const persist = usePersistState()
   // Trophy Room: leagues won in come from the titled hosts' leagues, the loaded clubs first, then the packs' club lists
   const cabinet = normaliseCabinet(profile.cabinet ?? {})
   const [clubLeagues, setClubLeagues] = useState<Record<string, { leagueId: string; name: string }> | null>(null)
@@ -161,7 +160,8 @@ export function ProfileScreen() {
       {/* The team cell wraps, so on a phone the format, result and score stay in view */}
       <td style={{ whiteSpace: 'normal' }}>
         <span className="row wrap" style={{ gap: 6 }}>
-          {e.hostClubId && <ClubBadge clubId={e.hostClubId} size={20} />} <b>{e.teamName}</b>
+          {/* An arena side's own badge, as on its hub: the colours' club is never shown as ours */}
+          <TeamBadge code={shortNameFor(e.teamName)} size={20} /> <b>{e.teamName}</b>
           {e.challenge && (
             <span className={`chip ${e.score > e.challenge.score ? 'good' : e.score < e.challenge.score ? 'bad' : ''}`} data-testid="run-vs">
               vs {e.challenge.name} {e.challenge.score}
@@ -492,6 +492,18 @@ export function ProfileScreen() {
                 <Trash2 size={16} aria-hidden="true" /> Delete all data
               </button>
             </div>
+            {persist.state && (
+              <div className="row wrap" style={{ gap: 'var(--space-2)' }}>
+                <span className={`small ${persist.state === 'persisted' ? 'muted' : ''}`} data-testid="persist-line">
+                  {persistLine(persist.state)}
+                </span>
+                {persist.state === 'best-effort' && (
+                  <button className="btn sm" onClick={persist.ask} data-testid="persist-ask">
+                    <ShieldCheck size={14} aria-hidden="true" /> Protect my save
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           )}
           {on('seasons') && (
@@ -591,7 +603,8 @@ export function ProfileScreen() {
                 <span className="empty-icon" aria-hidden="true">
                   <Award size={26} />
                 </span>
-                <p className="muted small">No arena runs yet: try the Cup or the Gauntlet from Home.</p>
+                <h3>No runs yet</h3>
+                <p className="muted small">Try the Cup or the Gauntlet from Home.</p>
               </div>
             )}
             {!!profile.arenaRuns?.length && (

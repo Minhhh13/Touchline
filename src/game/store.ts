@@ -12,6 +12,7 @@ import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
 import { needsClassic } from './logic/era'
+import { nextFailed, nextSeasonLeagues } from './logic/leagueLoad'
 import { createGame, beginSeason } from './logic/setup'
 import { normaliseGame, normaliseProfile } from './logic/save'
 import { isQuickLike } from './logic/modes'
@@ -76,6 +77,8 @@ export const SAVE_VERSION = 1
 /** Delay from a change to the write: a burst of changes inside it is written once, with the latest state. */
 const SAVE_DELAY_MS = 250
 /** Shown when the browser refuses to store the save. */
+/** The banner that stays up while the browser refuses every save write. */
+export const SAVE_FAILING_LINE = 'Not saving: storage full'
 export const SAVE_FULL_TOAST = "Could not save: this browser's storage is full. Your game carries on; export your save from Your record, or discard a parked game, to free space."
 
 export type Screen = 'home' | 'setup' | 'game' | 'explore' | 'profile' | 'howto' | 'h2h' | 'world' | 'privacy' | 'account' | 'room'
@@ -104,6 +107,12 @@ interface Store {
   /** League packs currently merged into `universe`. */
   loadedLeagues: string[]
   loadingLeagues: boolean
+  /** Leagues whose last load failed (offline, a pack that never came): the start buttons say so and offer a retry (leagueLoad.ts). Transient. */
+  failedLeagues: string[]
+  /** The classic seasons' last load failed. Transient. */
+  classicFailed: boolean
+  /** The browser refused the last save write (its storage is full): a banner stays up until a write goes through (O-14). Transient. */
+  saveFailing: boolean
   /** Whether `universe` holds the classic seasons: they load on demand (a classic game, the Classic toggle, Explore), never at start. */
   classicLoaded: boolean
   screen: Screen
@@ -351,6 +360,7 @@ export const saveStorage = createSaveStorage<Store>({
   encoder: workerSaveEncoder(),
   onWrite: () => {
     failedWrites = 0
+    if (useStore.getState().saveFailing) useStore.setState({ saveFailing: false })
   },
   onError: (e, quota) => {
     if (!quota) {
@@ -358,6 +368,7 @@ export const saveStorage = createSaveStorage<Store>({
       return
     }
     failedWrites++
+    if (!useStore.getState().saveFailing) useStore.setState({ saveFailing: true })
     if (failedWrites === 1 || failedWrites % 20 === 0) useStore.setState({ toast: SAVE_FULL_TOAST })
   },
 })
@@ -477,6 +488,9 @@ export const useStore = create<Store>()(
         loadError: null,
         loadedLeagues: [],
         loadingLeagues: false,
+        failedLeagues: [],
+        classicFailed: false,
+        saveFailing: false,
         classicLoaded: false,
         screen: 'home',
         setupMode: 'quick',
@@ -523,8 +537,8 @@ export const useStore = create<Store>()(
               }
             }
             if (!classic && ids.length > 1) u = await loadPacks(ids, false)
-            const next: Partial<Store> = { universe: u, loading: false, loadedLeagues: ids, classicLoaded: classic }
             const classicFailed = wantClassic && !classic
+            const next: Partial<Store> = { universe: u, loading: false, loadedLeagues: ids, classicLoaded: classic, failedLeagues: nextFailed(get().failedLeagues, failed, false), classicFailed }
             if (failed.length || classicFailed) {
               const names = [...failed.map((id) => base.available.find((l) => l.id === id)?.name ?? id), ...(classicFailed ? ['the classic seasons'] : [])].join(', ')
               next.toast = `Could not load ${names}. Check your connection and reload to get it back.`
@@ -555,10 +569,10 @@ export const useStore = create<Store>()(
             try {
               const all = [...new Set([...get().loadedLeagues, ...missing])]
               const u = await loadPacks(all, withClassic)
-              set({ universe: u, loadedLeagues: all, loadingLeagues: false, classicLoaded: withClassic })
+              set({ universe: u, loadedLeagues: all, loadingLeagues: false, classicLoaded: withClassic, failedLeagues: nextFailed(get().failedLeagues, all, true), ...(withClassic ? { classicFailed: false } : {}) })
               return true
             } catch (e) {
-              set({ loadingLeagues: false, toast: `Could not load league data: ${e instanceof Error ? e.message : String(e)}` })
+              set({ loadingLeagues: false, failedLeagues: nextFailed(get().failedLeagues, missing, false), ...(withClassic && !get().classicLoaded ? { classicFailed: true } : {}), toast: `Could not load league data: ${e instanceof Error ? e.message : String(e)}` })
               return false
             }
           }
@@ -577,9 +591,10 @@ export const useStore = create<Store>()(
               const u = await loadPacks(all, true)
               // A league added meanwhile keeps its place: merge again over what is loaded now
               if (get().loadedLeagues.join() !== all.join()) return false
-              set({ universe: u, classicLoaded: true })
+              set({ universe: u, classicLoaded: true, classicFailed: false })
               return true
             } catch {
+              set({ classicFailed: true })
               return false
             }
           }
@@ -1250,7 +1265,7 @@ export const useStore = create<Store>()(
             set({ offseason: report })
           }
           // Moving to a league that is not loaded yet, or into Europe: load first.
-          const want = [game?.pendingMove?.leagueId, ...(game?.qualifiedContinental ? (get().universe?.available ?? []).map((l) => l.id) : [])].filter((x): x is string => !!x)
+          const want = nextSeasonLeagues(game, (get().universe?.available ?? []).map((l) => l.id))
           if (want.some((id) => !get().loadedLeagues.includes(id))) {
             void get()
               .ensureLeagues(want)

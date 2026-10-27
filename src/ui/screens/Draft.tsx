@@ -369,7 +369,7 @@ export function Draft() {
                   </div>
                 )}
                 <button className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
-                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 ? 'Spin the wheel' : places && !fillingStarters ? 'Spin for the bench' : 'Spin again'}
+                  {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 || (isDynastySummer && !d.history.length) ? 'Spin the wheel' : places && !fillingStarters ? 'Spin for the bench' : 'Spin again'}
                 </button>
                 {firstDraft && made === 0 && !d.current && !spinning && !choosing && (
                   <p className="help first-spin-help" data-testid="first-spin-help">
@@ -497,7 +497,7 @@ export function Draft() {
               <h3>
                 {isDynastySummer ? `${total - made} summer spin${total - made === 1 ? '' : 's'} to add depth` : 'Spin for a club and a season'}{' '}
                 <Info label="How the wheel works">
-                  {isDynastySummer ? 'Your squad carries over, best eleven on the pitch; each spin adds one player, and the summer market is open in the Dugout. ' : ''}The wheel only stops on squads with someone who fits a slot you still need, so there are no dead spins. Each player can be drafted once, whichever season you catch him in.
+                  {isDynastySummer ? 'Your squad carries over, best eleven on the pitch; each spin adds one player, and the summer market opens in the Dugout after the draft. ' : ''}The wheel only stops on squads with someone who fits a slot you still need, so there are no dead spins. Each player can be drafted once, whichever season you catch him in.
                 </Info>
               </h3>
               <p className="muted small">Then pick one player from that squad.</p>

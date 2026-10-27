@@ -13,6 +13,7 @@ import { ClubBadge, Segmented } from '../components/bits'
 import { COUNTRY_OPTIONS, countryName } from './countries'
 import { ConflictCards } from './ConflictCard'
 import { OnlineRecord } from './OnlineRecord'
+import { onlineErrorText } from '../../online/postText'
 
 const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft / Daily', season: 'Season', dynasty: 'Dynasty', h2h: 'Head-to-head' }
 
@@ -353,14 +354,20 @@ export function SavedStatus({ testId = 'sync-status' }: { testId?: string }) {
   return (
     <span className={`saved-line ${line.tone}`} data-testid={testId}>
       {line.text}
-      {message && line.tone === 'warn' && <span className="muted"> · {message}</span>}
+      {message && line.tone === 'warn' && status !== 'offline' && <span className="muted"> · {message}</span>}
     </span>
   )
 }
 
 function CloudHistory() {
   const [rows, setRows] = useState<CloudRow[] | null>(null)
-  const load = async () => setRows(await api.cloudHistory())
+  const load = async () => {
+    try {
+      setRows(await api.cloudHistory())
+    } catch (e) {
+      useStore.getState().showToast(`Could not load the cloud history. ${onlineErrorText(e)}`)
+    }
+  }
   if (!rows)
     return (
       <button className="btn sm ghost" onClick={() => void load()} data-testid="cloud-history">
@@ -384,7 +391,10 @@ function CloudHistory() {
                   className="btn sm"
                   onClick={() => {
                     if (!confirm('Put the previous copy on this device? It replaces the game in this slot here.')) return
-                    void api.restorePrevious(r).then((ok) => useStore.getState().showToast(ok ? 'Restored the previous copy.' : 'Could not restore that copy.'))
+                    void api.restorePrevious(r).then(
+                      (ok) => useStore.getState().showToast(ok ? 'Restored the previous copy.' : 'Could not restore that copy.'),
+                      (e: unknown) => useStore.getState().showToast(`Could not restore that copy. ${onlineErrorText(e)}`),
+                    )
                   }}
                 >
                   Restore
@@ -431,7 +441,10 @@ function CloudPanel({ setup }: { setup: boolean }) {
           className="btn sm ghost danger"
           onClick={() => {
             if (!confirm('Delete every cloud save and the synced record of this account? The games on this device stay here, and this device stops syncing until you press Sync now. Other signed-in devices upload their own copies again on their next sync.')) return
-            void api.deleteCloudData().then((n) => useStore.getState().showToast(`Cloud data deleted (${n} file${n === 1 ? '' : 's'}).`))
+            void api.deleteCloudData().then(
+              (n) => useStore.getState().showToast(`Cloud data deleted (${n} file${n === 1 ? '' : 's'}).`),
+              (e: unknown) => useStore.getState().showToast(`Nothing was deleted. ${onlineErrorText(e)}`),
+            )
           }}
         >
           Delete my cloud data
@@ -440,7 +453,10 @@ function CloudPanel({ setup }: { setup: boolean }) {
           className="btn sm ghost danger"
           onClick={() => {
             if (prompt('This deletes your account, its cloud saves and its leaderboard entries for good. The games on this device stay. Type DELETE to confirm.') !== 'DELETE') return
-            void api.deleteAccount().then((r) => useStore.getState().showToast(r.message))
+            void api.deleteAccount().then(
+              (r) => useStore.getState().showToast(r.message),
+              (e: unknown) => useStore.getState().showToast(`Your account was not deleted. ${onlineErrorText(e)}`),
+            )
           }}
           data-testid="delete-account"
         >
@@ -503,6 +519,7 @@ export function AccountScreen() {
   const session = useOnline((s) => s.session)
   const account = useOnline((s) => s.account)
   const accountLoaded = useOnline((s) => s.accountLoaded)
+  const accountError = useOnline((s) => s.accountError)
   const go = useStore((s) => s.go)
   useEffect(() => {
     if (configured && !started) void api.startOnline()
@@ -566,7 +583,18 @@ export function AccountScreen() {
                     <span className="small muted" data-testid="account-email">
                       {session.maskedEmail ?? 'Your account'} · {session.provider === 'google' ? 'Google' : 'email'}
                     </span>
-                    {accountLoaded ? <ProfileForm setup={setup} /> : <span className="small muted">Loading your profile…</span>}
+                    {accountLoaded ? (
+                      <ProfileForm setup={setup} />
+                    ) : accountError ? (
+                      <div className="notice warn row between wrap" data-testid="account-load-error">
+                        <span>Could not load your profile. {accountError}</span>
+                        <button className="btn sm" onClick={() => void api.reloadAccount()} data-testid="account-retry">
+                          Try again
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="small muted">Loading your profile…</span>
+                    )}
                   </>
                 )}
               </div>

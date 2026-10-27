@@ -14,6 +14,8 @@ import { isTransient } from './transport'
 import type { PostState } from './state'
 import { postKey } from './state'
 import { weekStartOf } from './weekly'
+import { ENGINE_VERSION } from '@engine/version'
+import { engineMismatchReason, entryEngine, olderEngine, retiredReason } from './engineRoute'
 
 const DAY = 86400000
 const MIN_BACKOFF = 5000
@@ -45,8 +47,13 @@ export type Outcome =
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
-/** What an Edge Function answer means for the entry (the table in the build plan, section 4.8). */
-export function classify(status: number, body: Record<string, unknown>, points: number): Outcome {
+/**
+ * What an Edge Function answer means for the entry (the table in the build plan, section 4.8). `engine` is the engine
+ * the entry was played on (this build's when omitted): an older engine's function answering 404 has been retired, so
+ * the run is told it cannot rank rather than retried until its board closes, and an `engine_mismatch` is worded for
+ * the player.
+ */
+export function classify(status: number, body: Record<string, unknown>, points: number, engine: string = ENGINE_VERSION): Outcome {
   const code = typeof body.code === 'string' ? body.code : ''
   const reason = typeof body.reason === 'string' ? body.reason : ''
   if (status === 200) {
@@ -77,6 +84,11 @@ export function classify(status: number, body: Record<string, unknown>, points: 
   if (status === 401) return { kind: 'wait_sign_in' }
   if (status === 403) return { kind: 'wait_sign_in' }
   if (status === 409 && code === 'closed') return { kind: 'drop', post: { state: 'closed' } }
+  if (status === 409 && code === 'engine_mismatch') {
+    const pinned = typeof body.pinnedEngine === 'string' ? body.pinnedEngine : typeof body.liveEngine === 'string' ? body.liveEngine : null
+    return { kind: 'done', post: { state: 'unranked', code, reason: engineMismatchReason(engine, pinned) } }
+  }
+  if (status === 404 && olderEngine(engine)) return { kind: 'done', post: { state: 'unranked', code: 'engine_retired', reason: retiredReason(engine) } }
   if (status === 409) return { kind: 'done', post: { state: 'unranked', code: code || 'unranked', reason: reason || 'This run cannot rank on today’s board' } }
   if (status === 400 || status === 413 || status === 422) return { kind: 'done', post: { state: 'rejected', code: code || String(status), reason: reason || 'The server refused this run' } }
   // 404 (the function for this engine is not deployed yet), 429, 5xx: later
@@ -90,7 +102,7 @@ export function captureEntry(game: Game, u: LoadedUniverse, name: string, now: D
   const board = rankedBoardOf(game.settings)
   if (!board) return null
   const { kind, key } = board
-  return { id: `${kind}:${key}:${game.id}`, kind, key, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner }
+  return { id: `${kind}:${key}:${game.id}`, kind, key, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner, engine: ENGINE_VERSION }
 }
 
 /**
@@ -102,7 +114,7 @@ export function captureChaseEntry(game: Game, u: LoadedUniverse, name: string, n
   const code = chaseCodeOfSeed(game.settings.seed)
   if (!sub || !code) return null
   const created = Date.parse(game.createdAt)
-  return { id: `chase:${code}:${game.id}`, kind: 'chase', key: code, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner, closes: (Number.isFinite(created) ? created : now.getTime()) + CHASE_ATTEMPT_HOURS * 3600000 }
+  return { id: `chase:${code}:${game.id}`, kind: 'chase', key: code, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner, closes: (Number.isFinite(created) ? created : now.getTime()) + CHASE_ATTEMPT_HOURS * 3600000, engine: ENGINE_VERSION }
 }
 
 /** Add a captured entry: one per board key and device (the server keeps the first post anyway). */
@@ -145,9 +157,12 @@ export async function flushOutbox(r: OnlineRecord, deps: FlushDeps): Promise<Onl
       continue
     }
     let outcome: Outcome
+    // A run played on an older engine goes to that engine's function (kept deployed after a release): this build's
+    // function verifies only its own engine and would refuse it
+    const engine = entryEngine(e)
     try {
-      const reply = await deps.transport.invoke({ op: e.kind === 'daily' ? 'daily.submit' : e.kind === 'weekly' ? 'weekly.submit' : 'chase.submit', encoded: e.encoded, teamName: e.teamName, shortName: e.shortName })
-      outcome = classify(reply.status, reply.body, e.points)
+      const reply = await deps.transport.invoke({ op: e.kind === 'daily' ? 'daily.submit' : e.kind === 'weekly' ? 'weekly.submit' : 'chase.submit', encoded: e.encoded, teamName: e.teamName, shortName: e.shortName }, engine === ENGINE_VERSION ? undefined : { engine })
+      outcome = classify(reply.status, reply.body, e.points, engine)
     } catch (err) {
       outcome = isTransient(err) ? { kind: 'retry' } : { kind: 'done', post: { state: 'rejected', code: 'error', reason: err instanceof Error ? err.message : String(err) } }
     }

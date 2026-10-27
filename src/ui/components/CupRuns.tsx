@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Globe, Medal, Network, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game, QuickCupRun } from '@game/types'
@@ -58,13 +58,29 @@ function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: 
   const [night, setNight] = useState<'reveal' | 'view' | null>(null)
   const [revealing, setRevealing] = useState(false)
   const run = status.state === 'played' ? status.run : null
+  // Whether this card holds the summary's trophy back, and the latest way to let go: a card that goes while it holds
+  // (the summary's season replay hides the cups mid-draw) lets go, or the summary kept the trophy and its share line hidden
+  const held = useRef(false)
+  const release = useRef(onReveal)
+  useLayoutEffect(() => {
+    release.current = onReveal
+  })
+  useEffect(
+    () => () => {
+      if (held.current) release.current(comp, false)
+      held.current = false
+    },
+    [comp],
+  )
   const endReveal = useCallback(() => {
+    held.current = false
     setRevealing(false)
     onReveal(comp, false)
   }, [onReveal, comp])
   const play = async () => {
     setBusy(true)
     // Nothing of the run shows until its bracket opens on the draw
+    held.current = true
     setRevealing(true)
     onReveal(comp, true)
     const ok = await playCup(comp)
@@ -141,7 +157,7 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
             </span>
             <ClubBadge clubId={t.opponentId} size={22} />
             <span className="gbg-fix">
-              {nameOf(t.opponentId)} <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
+              <span className="gbg-name">{nameOf(t.opponentId)}</span> <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
             </span>
             <span className="gbg-score">
               {t.gf}-{t.ga}

@@ -29,6 +29,8 @@ export function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 export function money(m: number): string {
+  // Nothing at all reads £0, not £0k beside figures in millions
+  if (m === 0) return '£0'
   if (Math.abs(m) >= 1000) return `£${(m / 1000).toFixed(2)}bn`
   if (Math.abs(m) >= 100) return `£${Math.round(m)}M`
   if (Math.abs(m) >= 10) return `£${m.toFixed(1)}M`

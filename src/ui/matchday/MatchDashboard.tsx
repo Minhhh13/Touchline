@@ -111,7 +111,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const cues = useMemo(() => mpath.epochs.flatMap((e) => cueTimes(feed.events, e.from, e.to)).sort((a, b) => a - b), [mpath, feed.events])
   // A reload picks the clock up where this tab left the segment (resume.ts), not from its first minute again
   const resumeKey = live ? segmentKey(game.id, feed.key, feed.decidedTo, start, feed.events.length) : null
-  const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(), resumeKey, start, stopAt) : start))
+  const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(resumeKey), resumeKey, start, stopAt) : start))
   const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
   useEffect(() => {
     if (!resumeKey) return

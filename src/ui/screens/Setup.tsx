@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Skull, Smile, UserRound, Users } from 'lucide-react'
+import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
+import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
+import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings, Mode } from '@game/types'
-import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, describeRules, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
@@ -29,6 +31,7 @@ import { dailyStartSettings } from '../../online/daily'
 import { useOnline } from '../../online/state'
 import { SignInPrompt } from '../online/SignInPrompt'
 import { MODE_TITLE } from '@game/logic/modes'
+import { quickSetupLineFull } from '@game/logic/setupLine'
 import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
 import { previousWeeklySeed, weeklySeed } from '@engine/rng'
 import { weeklyRecord } from '@game/logic/weeklyRecord'
@@ -93,7 +96,7 @@ function writeAdvanced(open: boolean): void {
 }
 
 export function Setup() {
-  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, loadingLeagues, loadedLeagues, pendingChallenge, profile } = useStore()
+  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, classicFailed, loadingLeagues, loadedLeagues, failedLeagues, pendingChallenge, profile } = useStore()
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
@@ -305,6 +308,9 @@ export function Setup() {
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
+  // Offline with a league that never loaded: the button says so and Retry sits above it (leagueLoad.ts)
+  const needs = fixed ? [fixed.leagueId, ...fixed.wheelLeagues] : [leagueId, ...wheelLeagues, ...(isManage && continental ? u.available.map((l) => l.id) : [])]
+  const gate = leagueGate(needs, { loadedLeagues, failedLeagues, loadingLeagues, classicLoaded, classicFailed }, !fixed && classic)
   const capOn = cap.preset !== 'off'
   const capCard = capBudget(cap, isManage ? squadSize : QUICK_RULES.squadSize)
   const setCapChoice = (c: CapChoice) => {
@@ -626,7 +632,7 @@ export function Setup() {
                           <div className="toggle-row">
                             <label className="toggle">
                               <input type="checkbox" checked={twists || crazyOn} disabled={crazyOn} onChange={(e) => setTwistsChoice(e.target.checked)} data-testid="twists-toggle" />
-                              🃏 Twists{crazyOn ? ': every spin' : ''}
+                              <Shuffle size={14} aria-hidden="true" /> Twists{crazyOn ? ': every spin' : ''}
                             </label>
                             <InfoTip label="Twists" text={`${crazyOn ? 'Crazy puts a twist on every spin.' : 'Every third spin is golden, basement, blind or decade.'} Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.`} />
                           </div>
@@ -634,7 +640,7 @@ export function Setup() {
                             <div className="toggle-row">
                               <label className="toggle" data-testid="january-toggle">
                                 <input type="checkbox" checked={january} onChange={(e) => setJanuary(e.target.checked)} />
-                                ❄️ January window
+                                <Snowflake size={14} aria-hidden="true" /> January window
                               </label>
                               <InfoTip label="January window" text="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change." />
                             </div>
@@ -751,7 +757,7 @@ export function Setup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={fixed ? 4 : 5} title="Spin" />
               <div className="small muted" data-testid="setup-summary" title={isQuickLine ? summary : undefined}>
-                {isQuickLine ? quickSetupLine(u, preview) : summary}
+                {isQuickLine ? quickSetupLineFull(u, preview) : summary}
                 {!fixed && (
                   <>
                     {' · '}
@@ -761,8 +767,9 @@ export function Setup() {
                   </>
                 )}
               </div>
+              <LeagueRetry needs={needs} classic={!fixed && classic} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
-                {!ready ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
+                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
               </button>
             </section>
           </div>

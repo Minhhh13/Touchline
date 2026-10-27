@@ -10,6 +10,7 @@ import type { BadgeState, BadgeTier } from '@engine/badges'
 import type { Cabinet } from '@game/types'
 import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, clothStops, pennantPath } from './brand'
 import { tierName } from './format'
+import { saveDataUrl } from './saveFile'
 
 export interface ShareCardInput {
   title: string
@@ -627,11 +628,7 @@ function fit(ctx: CanvasRenderingContext2D, text: string, max: number): string {
   return t + '…'
 }
 
+/** Download a card; where a download goes nowhere (an iOS home-screen app or web view), the share sheet (saveFile.ts). */
 export function downloadDataUrl(dataUrl: string, filename: string): void {
-  const a = document.createElement('a')
-  a.href = dataUrl
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
+  void saveDataUrl(dataUrl, filename)
 }

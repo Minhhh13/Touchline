@@ -32,9 +32,22 @@ async function rt(): Promise<Runtime | null> {
   // Constant-folded by Vite in a build without the variables, so the runtime chunk is never even emitted there
   if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) return null
   if (!onlineConfig()) return null
-  const m = await import('./runtime')
-  return m.startRuntime()
+  try {
+    const m = await import('./runtime')
+    startFailed = false
+    return m.startRuntime()
+  } catch {
+    // The runtime chunk did not load (offline before the service worker cached it, or a deploy replaced it): every
+    // caller falls back to its offline behaviour rather than throwing into a screen
+    startFailed = true
+    return null
+  }
 }
+
+/** Whether the last attempt to start the online layer failed to load it (as opposed to a build without it). */
+let startFailed = false
+
+const unreachable: AuthResult = { ok: false, message: 'Could not reach the online service: check your connection, then try again.' }
 
 /** Start the layer (an online surface opened). */
 export async function startOnline(): Promise<boolean> {
@@ -43,7 +56,9 @@ export async function startOnline(): Promise<boolean> {
   return !!r
 }
 
-const notAvailable: AuthResult = { ok: false, message: 'Online features are not available in this build.' }
+const notAvailableInBuild: AuthResult = { ok: false, message: 'Online features are not available in this build.' }
+/** Why an auth call could not run: no online layer in this build, or it could not be loaded just now. */
+const notAvailable = (): AuthResult => (startFailed ? unreachable : notAvailableInBuild)
 
 let googleCheck: Promise<boolean> | null = null
 
@@ -64,17 +79,17 @@ export function googleSignInAvailable(): Promise<boolean> {
 
 export async function emailCode(email: string): Promise<AuthResult> {
   const r = await rt()
-  return r ? sendEmailCode(r.auth, email) : notAvailable
+  return r ? sendEmailCode(r.auth, email) : notAvailable()
 }
 
 export async function emailVerify(email: string, code: string): Promise<AuthResult> {
   const r = await rt()
-  return r ? verifyEmailCode(r.auth, email, code) : notAvailable
+  return r ? verifyEmailCode(r.auth, email, code) : notAvailable()
 }
 
 export async function googleSignIn(): Promise<AuthResult> {
   const r = await rt()
-  return r ? signInWithGoogle(r.auth) : notAvailable
+  return r ? signInWithGoogle(r.auth) : notAvailable()
 }
 
 export async function signOutOnline(): Promise<void> {
@@ -94,10 +109,19 @@ export async function checkName(name: string): Promise<NameVerdict> {
   }
 }
 
+/** Read the signed-in account's name and flag again (the Account screen's Try again). */
+export async function reloadAccount(): Promise<void> {
+  const r = await rt()
+  if (r) {
+    onlineStore.setState({ accountError: null })
+    await r.loadAccount()
+  }
+}
+
 /** Save the name on the leaderboards and the flag. */
 export async function saveAccount(name: string, country: string | null): Promise<AuthResult> {
   const r = await rt()
-  if (!r) return notAvailable
+  if (!r) return notAvailable()
   const uid = r.userId
   if (!uid) return { ok: false, message: 'Sign in first.' }
   const check = checkDisplayName(name)

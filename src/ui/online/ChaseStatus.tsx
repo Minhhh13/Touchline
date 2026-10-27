@@ -10,6 +10,7 @@ import * as api from '../../online/api'
 import { ordinal } from '../format'
 import { APP_NAME } from '../brand'
 import { rememberWorldTab } from './WorldBoard'
+import { sentence } from '../../online/postText'
 
 /**
  * The 38-0 chase line on a Quick Draft Summary (online builds only): "Submit to the 38-0 chase" for an eligible chase
@@ -74,8 +75,8 @@ export function ChaseStatus({ game }: { game: Game }) {
         {post.claimMatched ? '.' : ' (official result from the server’s replay).'}
       </>
     )
-  } else if (post.state === 'unranked') line = <>Not on the 38-0 chase: {post.reason}</>
-  else if (post.state === 'rejected') line = <>Not ranked: {post.reason}</>
+  } else if (post.state === 'unranked') line = <>Not on the 38-0 chase: {sentence(post.reason)}</>
+  else if (post.state === 'rejected') line = <>Not ranked: {sentence(post.reason)}</>
   else line = <>This chase run closed before it was posted.</>
   return (
     <div className={`notice row between wrap ${post?.state === 'rejected' ? 'warn' : ''}`} style={{ marginTop: 12 }} data-testid="chase-status">

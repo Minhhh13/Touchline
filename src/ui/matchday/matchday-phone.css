@@ -72,7 +72,7 @@
   background: transparent;
   color: var(--text-2);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -132,6 +132,25 @@
   max-width: max(480px, calc((100vh - 250px) * 1.45));
   margin: 0 auto;
 }
+/* A landscape tablet (an iPad at 1180x820) takes more of its width: at 860 px the playback wrapped Sim result onto a
+   third row of the top bar and left wide empty sides */
+@media (min-width: 1000px) {
+  .matchday.compact.tablet {
+    max-width: 1120px;
+  }
+}
+/* The stop pop-up on a tablet: the instructions take the right column's full height and the substitutions sit under the
+   talk, where an empty half row stood beside them */
+.matchday.compact.tablet .md-stop-grid > .col:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+/* Measured (CompactLayout's --md-above, the pitch's top on the page): the pitch, its legend and the commentary line
+   under it fit the window. The fixed 250 px guess left the commentary under an iPad's fold in landscape (1180x820) */
+.matchday.compact.tablet[style*='--md-above'] .md-pitch {
+  max-width: max(480px, calc((100vh - var(--md-above) - 84px) * 1.5));
+  max-width: max(480px, calc((100dvh - var(--md-above) - 84px) * 1.5));
+}
 
 /* Phone */
 @media (max-width: 720px) {
@@ -186,6 +205,15 @@
   .matchday.compact .md-tools .md-chip {
     align-self: center;
   }
+  /* The scoreboard is the top bar's last row, just over the pitch, and stays in view while the page scrolls: the
+     bar sticks under the app's own sticky bar (`--topbar-h`) with its tool and playback rows tucked under that
+     (`--md-stick`, measured by CompactLayout) */
+  .matchday.compact.phone .md-topbar {
+    grid-template-areas: 'tools' 'play' 'board';
+    position: sticky;
+    top: calc(var(--topbar-h, 0px) + var(--md-stick, 0px));
+    z-index: 5;
+  }
   .matchday .md-tool {
     padding: 5px 9px;
   }
@@ -198,12 +226,24 @@
   .matchday select.md-highlights {
     height: 32px;
   }
+  /* 16px keeps iOS from zooming into a picker on focus (O-8 in docs/QA.md): the mentality, highlights, panel and set-piece selects */
+  .matchday .md-select,
+  .matchday .md-ment .md-select,
+  .matchday .md-heat-side .md-select,
+  .matchday select.md-highlights {
+    font-size: 16px; /* px: 16 px so iOS does not zoom */
+  }
   .matchday .md-moments {
     min-width: 32px;
     height: 32px;
   }
   .matchday.compact .md-stop-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  /* Stacked, the substitutions come straight after the talk (or the shout): under the four instructions they were the
+     last thing in a pop-up taller than the phone */
+  .matchday .md-stop-grid > .col:nth-child(2) {
+    order: 1;
   }
 
   /* Drawers become bottom sheets */
@@ -240,7 +280,7 @@
   }
   .matchday .md-drawer.board .md-drawer-foot .md-chip {
     flex: 1 1 auto;
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
   .matchday .sub-board {
     --sb-pitch-h: min(46dvh, calc((100vw - 20px) * 80.2 / 68));
@@ -277,7 +317,7 @@
     column-gap: 4px;
     row-gap: 0;
     padding: 3px 5px;
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
   .matchday .sub-bench-card > .md-shirt {
     grid-row: 1 / span 2;
@@ -300,7 +340,7 @@
     max-width: 70px;
   }
   .matchday .sub-slot-name {
-    font-size: 10px;
+    font-size: 10px; /* px: on the substitution pitch */
   }
 }
 @keyframes md-sheet-in {
