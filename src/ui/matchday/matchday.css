@@ -575,7 +575,7 @@
 /* The live pitch repaints every frame. A box beside it that is not a stacking context of its own is painted again with
    it each frame (the squad strip alone was about 90 ms a second of Paint on a 4x-throttled phone); isolated, each box
    keeps its cached paint until its own content changes. Nothing in these boxes overlaps a sibling (their pop-ups and
-   drawers are fixed or portalled at the board's root), so the picture is unchanged (docs/PERFORMANCE.md, round 7). */
+   drawers are fixed or portalled at the board's root), so the picture is unchanged (docs/PERFORMANCE.md, round 3). */
 .matchday .md-strip-scroll,
 .matchday .md-strip,
 .matchday .md-pulse,
