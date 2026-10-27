@@ -85,11 +85,13 @@ describe('a chart line on its panel (lineTone)', () => {
     expect(lineTone('#000000')).toBe('deep')
     expect(lineTone('#0b1f4d')).toBe('deep')
     expect(lineTone('#7a263a')).toBe('deep')
-    // Reds, sky blue and green read on both panels
+    // A bright red and a mid green read on both panels at 3:1 (WCAG 1.4.11)
     expect(lineTone('#ef0107')).toBeNull()
-    expect(lineTone('#c8102e')).toBeNull()
-    expect(lineTone('#6cabdd')).toBeNull()
-    expect(lineTone('#16a34a')).toBeNull()
+    expect(lineTone('#da291c')).toBeNull()
+    expect(lineTone('#22c55e')).toBe('pale')
+    // Under 3:1: sky blue in Daylight (2.3:1), a deep red in Floodlit (2.6:1)
+    expect(lineTone('#6cabdd')).toBe('pale')
+    expect(lineTone('#c8102e')).toBe('deep')
     expect(lineTone('var(--primary)')).toBeNull()
   })
 
@@ -105,6 +107,6 @@ describe('a chart line on its panel (lineTone)', () => {
     // The casing comes first and draws the home line's own points
     const lines = [...white.matchAll(/<polyline[^>]*points="([^"]*)"/g)].map((m) => m[1])
     expect(lines[0]).toBe(lines[1])
-    expect(html('#ef0107', '#6cabdd')).not.toContain('line-casing')
+    expect(html('#ef0107', '#da291c')).not.toContain('line-casing')
   })
 })

@@ -18,6 +18,7 @@ import { withViewTransition } from './motion'
 import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
+import { watchFocusRescue } from './focusRescue'
 import { skipToMain, watchMainLandmark } from './landmarks'
 import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
@@ -124,6 +125,8 @@ export function App() {
   }, [dataReady])
   // A box that scrolls with nothing focusable inside joins the Tab order while it scrolls (keyboard and Safari reach)
   useEffect(() => watchScrollFocus(), [])
+  // A focus whose control leaves the page goes back to the nearest box, or to the new screen's page
+  useEffect(() => watchFocusRescue(), [])
 
   // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
   // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { FOCUSABLE } from '../focusRescue'
 import { useAfterPaint } from '../afterPaint'
 import { Check, ChevronDown, GraduationCap, Globe, Landmark, Medal, MessageSquare, Star, TrendingDown, TrendingUp, UserMinus, X } from 'lucide-react'
 import { useStore } from '@game/store'
@@ -1215,6 +1216,12 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
   const [filter, setFilterState] = useState<'all' | Position>('all')
   // On a phone the window lists its first few men until "Show all" (40 stacked listings ran to 18,000 px in January)
   const [allListed, setAllListed] = useState(false)
+  // "Show all" goes once pressed: the focus moves on to the first listing it brought into view
+  const listingsRef = useRef<HTMLDivElement>(null)
+  const showAllListed = () => {
+    setAllListed(true)
+    window.setTimeout(() => listingsRef.current?.children[PHONE_LISTINGS]?.querySelector<HTMLElement>(FOCUSABLE)?.focus(), 0)
+  }
   const setFilter = (f: 'all' | Position) => {
     setFilterState(f)
     setAllListed(false)
@@ -1373,7 +1380,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
             </button>
           ))}
         </div>
-        <div className={`col listings ${!allListed && listings.length > PHONE_LISTINGS ? 'capped' : ''}`} style={{ gap: 'var(--space-2)' }} data-testid="listings">
+        <div ref={listingsRef} className={`col listings ${!allListed && listings.length > PHONE_LISTINGS ? 'capped' : ''}`} style={{ gap: 'var(--space-2)' }} data-testid="listings">
           {listings.map((l) => {
             const p = get(l.playerSeasonId)
             if (!p) return null
@@ -1470,7 +1477,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
           {listings.length === 0 && <div className="muted">Nothing listed for that position right now. Advance a day for new listings.</div>}
         </div>
         {!allListed && listings.length > PHONE_LISTINGS && (
-          <button type="button" className="btn block listings-more" onClick={() => setAllListed(true)} data-testid="listings-more">
+          <button type="button" className="btn block listings-more" onClick={showAllListed} data-testid="listings-more">
             Show all {listings.length} listed{filter === 'all' ? '' : ` at ${filter}`}
           </button>
         )}

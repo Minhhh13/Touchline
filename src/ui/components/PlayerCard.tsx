@@ -10,6 +10,7 @@ import { FormGraph, FormPills, PositionMap, SeasonChart } from './PlayerCharts'
 import { Bar, ClubBadge, EstimatedChip, Flag, Modal, Pos, Rating } from './bits'
 import { clubName, conditionColour, meterValue, money, moraleWord, seasonLabel } from '../format'
 import { countPhrase } from '../screenText'
+import { onTabListKey } from '../a11y'
 
 export interface PlayerCardProps {
   /** The season the card describes: its attributes, positions and map (the squad's copy in the Dugout, the peak season in Explore). */
@@ -123,9 +124,9 @@ export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtr
         <section className="pc-box pc-career" aria-label="Career">
           <div className="pc-career-main">
             {panels?.length ? (
-              <div className="pc-tabs" role="tablist" aria-label="Career and more">
+              <div className="pc-tabs" role="tablist" aria-label="Career and more" onKeyDown={onTabListKey}>
                 {[{ id: 'career', label: 'Career' }, ...panels].map((x) => (
-                  <button key={x.id} type="button" role="tab" aria-selected={(extra?.id ?? 'career') === x.id} className={(extra?.id ?? 'career') === x.id ? 'active' : ''} onClick={() => setTab(x.id)} data-testid={`card-tab-${x.id}`}>
+                  <button key={x.id} type="button" role="tab" aria-selected={(extra?.id ?? 'career') === x.id} tabIndex={(extra?.id ?? 'career') === x.id ? 0 : -1} className={(extra?.id ?? 'career') === x.id ? 'active' : ''} onClick={() => setTab(x.id)} data-testid={`card-tab-${x.id}`}>
                     {x.label}
                   </button>
                 ))}

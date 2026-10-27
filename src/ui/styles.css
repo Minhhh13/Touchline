@@ -316,6 +316,13 @@ a {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* A box focused only so the next Tab starts inside it (the skip link and the focus rescue give the screen's page or a
+   panel tabindex -1) is not a control and draws no ring; every control keeps the one above */
+.app > .page[tabindex='-1']:focus-visible,
+.panel[tabindex='-1']:focus-visible,
+.fit-cell[tabindex='-1']:focus-visible {
+  outline: none;
+}
 ::selection {
   background: color-mix(in srgb, var(--primary) 30%, transparent);
 }
@@ -2237,6 +2244,12 @@ kbd {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* The keeper's target reaches 6 px above and below his disc: on a short pitch (the Dugout at 1280x720) the centre-backs'
+   slots overlap its top, and it keeps 24 px of its own (WCAG 2.5.8); the disc stays centred in it */
+.pitch-wrap .slot.foot {
+  justify-content: center;
+  padding-block: 6px;
 }
 /* The keeper (Pitch.tsx's foot slot): the name and role beside the disc, so the goal line never cuts them off */
 .pitch-wrap .slot.foot .label,
