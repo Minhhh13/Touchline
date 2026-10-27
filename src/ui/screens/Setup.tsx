@@ -4,7 +4,7 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings, Mode } from '@game/types'
-import { defaultHostClub, describeRules, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, describeRuleChips, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
@@ -25,7 +25,7 @@ import { SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
 import { Pitch } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { ChoiceCards, type ChoiceOption, ModeCards, SeasonRange, SectionHead, TeamNameField } from '../components/SetupBits'
-import { MODE_ICON } from '../components/icons'
+import { MODE_ICON, RULE_ICON } from '../components/icons'
 import { clubName } from '../format'
 import { dailyStartSettings } from '../../online/daily'
 import { useOnline } from '../../online/state'
@@ -459,11 +459,15 @@ export function Setup() {
                 )}
                 {fixed?.rules && (
                   <div className="pill-list" data-testid="fixed-rules">
-                    {describeRules(u, fixed.rules).map((t) => (
-                      <span key={t} className="chip">
-                        {t}
-                      </span>
-                    ))}
+                    {describeRuleChips(u, fixed.rules).map((c) => {
+                      const Icon = c.icon ? RULE_ICON[c.icon] : null
+                      return (
+                        <span key={c.text} className="chip">
+                          {Icon && <Icon size={12} aria-hidden="true" />}
+                          {Icon ? ` ${c.text}` : c.text}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
               </section>

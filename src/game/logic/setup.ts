@@ -2,7 +2,7 @@ import type { Game, GameSettings } from '../types'
 import { seasonLabel, type LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { benchPlaces, difficultyOf, DIFFICULTY_RESPINS, draftModeOf, modesOf, newDraft, QUICK_RULES, ratingsHidden, ratingsModeOf, rulesTags, SEASON_RULES, withDifficulty, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
-import { MODE_INFO, crazyFormation, withModes } from '@engine/modes'
+import { MODE_INFO, crazyFormation, withModes, type ModeCard } from '@engine/modes'
 import { POWER_UPS_ICON } from '@engine/powerups'
 import { dailySettings } from './daily'
 import { eraFirstSeason } from './era'
@@ -120,32 +120,50 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
   return c.powerUps ? { ...moded, powerUps: true } : moded
 }
 
+/** The picture a fixed-rules chip carries (`describeRuleChips`): a Quick Draft mode card, the power-ups, the end case or the manager; the screen draws its Lucide icon (`RULE_ICON`), never an emoji. */
+export type RuleIcon = ModeCard | 'power-ups' | 'end-case' | 'manager-spin' | 'manager-pick'
+
+/** One fixed-rules chip: its words, and the picture beside them when it has one. */
+export interface RuleChip {
+  text: string
+  icon?: RuleIcon
+}
+
 /**
  * The draft rules in plain words, one short item each, for a fixed wheel (the Daily, a challenge link) where the
  * cards are not the player's to change: `['Normal: 1 re-spin', 'Ratings on', 'Squad First', 'Season ratings',
  * 'All-time', 'Twists on']`.
  */
 export function describeRules(u: LoadedUniverse, r: DraftRules): string[] {
+  return describeRuleChips(u, r).map((c) => c.text)
+}
+
+/**
+ * `describeRules` as chips: the same words in the same order, the modes, the Player Upgrader, the power-ups, the
+ * manager and the end case with the id of their picture (the cards Setup draws for them carry the same icons).
+ */
+export function describeRuleChips(u: LoadedUniverse, r: DraftRules): RuleChip[] {
   const diff = difficultyOf(r)
   const name = diff === 'easy' ? 'Easy' : diff === 'hard' ? 'Hard' : 'Normal'
   const respins = r.respins
   const respinWords = respins === 0 ? 'no re-spins' : `${respins} re-spin${respins === 1 ? '' : 's'}`
+  const plain = (text: string): RuleChip => ({ text })
   return [
     // A budget that is not the difficulty's own (the Daily's 2) is stated alone, so it never reads as "Normal: 2"
-    respins === DIFFICULTY_RESPINS[diff] ? `${name}: ${respinWords}` : respinWords[0].toUpperCase() + respinWords.slice(1),
-    ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on',
-    draftModeOf(r) === 'position' ? 'Position First' : 'Squad First',
-    ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings',
-    r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`,
-    r.twists ? 'Twists on' : 'No twists',
-    ...(benchPlaces(r) ? [`Bench of ${benchPlaces(r)}`] : []),
-    // Plain words: a screen that wants a picture draws the mode's Lucide icon beside the label, never an emoji
-    ...modesOf(r).map((m) => MODE_INFO[m].title),
-    ...(r.upgrader ? [MODE_INFO.upgrader.title] : []),
-    ...(r.powerUps ? ['Power-ups'] : []),
-    ...(r.managers ? [r.managerSpin ? 'Manager spin' : 'Manager pick'] : []),
-    ...(r.endCase ? ['End case'] : []),
-    ...(r.superLeague ? [SUPER_LEAGUE_NAME] : []),
+    plain(respins === DIFFICULTY_RESPINS[diff] ? `${name}: ${respinWords}` : respinWords[0].toUpperCase() + respinWords.slice(1)),
+    plain(ratingsHidden(r) ? 'Ratings hidden' : 'Ratings on'),
+    plain(draftModeOf(r) === 'position' ? 'Position First' : 'Squad First'),
+    plain(ratingsModeOf(r) === 'prime' ? 'Prime ratings' : 'Season ratings'),
+    plain(r.fromSeason === undefined && r.toSeason === undefined ? 'All-time' : `${seasonLabel(eraFirstSeason(u, r))} to ${seasonLabel(r.toSeason ?? u.lastSeason)}`),
+    plain(r.twists ? 'Twists on' : 'No twists'),
+    ...(benchPlaces(r) ? [plain(`Bench of ${benchPlaces(r)}`)] : []),
+    // Plain words with a picture id: the screen draws the Lucide icon beside the label, never an emoji
+    ...modesOf(r).map((m): RuleChip => ({ text: MODE_INFO[m].title, icon: m })),
+    ...(r.upgrader ? [{ text: MODE_INFO.upgrader.title, icon: 'upgrader' } satisfies RuleChip] : []),
+    ...(r.powerUps ? [{ text: 'Power-ups', icon: 'power-ups' } satisfies RuleChip] : []),
+    ...(r.managers ? [r.managerSpin ? ({ text: 'Manager spin', icon: 'manager-spin' } satisfies RuleChip) : ({ text: 'Manager pick', icon: 'manager-pick' } satisfies RuleChip)] : []),
+    ...(r.endCase ? [{ text: 'End case', icon: 'end-case' } satisfies RuleChip] : []),
+    ...(r.superLeague ? [plain(SUPER_LEAGUE_NAME)] : []),
   ]
 }
 
