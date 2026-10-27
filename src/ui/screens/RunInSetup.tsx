@@ -9,6 +9,10 @@ import { jobLine, RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, RUN_IN_TEMPLATE_LABEL, runIn
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, formationName, seasonLabel } from '../format'
+import { translator } from '../i18n'
+import { runin } from '../i18n/en/runin'
+
+const t = translator(runin)
 
 const keyOf = (j: RunInJob) => `${j.clubId}@${j.season}`
 
@@ -46,7 +50,7 @@ export function RunInSetup() {
     }
     return out
   }, [jobs])
-  if (!u) return <div className="page">Loading…</div>
+  if (!u) return <div className="page">{t('loading')}</div>
   const job = jobs.find((j) => keyOf(j) === picked) ?? suggested[0] ?? null
   const clubStyle = job ? (u.clubById[job.clubId]?.style ?? 'balanced') : 'balanced'
   const formationId = formation === 'club' ? formationForStyle(clubStyle) : formation
@@ -55,7 +59,7 @@ export function RunInSetup() {
   const unfinished = [game, parked.runin].find((g) => g && slotOf(g) === 'runin' && g.phase !== 'summary')
   const start = () => {
     if (!job) return
-    if (unfinished && !confirm(`Take a new job? Your unfinished run-in (${unfinished.settings.teamName}) will be abandoned.`)) return
+    if (unfinished && !confirm(t('newJobConfirm', { team: unfinished.settings.teamName }))) return
     startGame(runInGameSettings(u, job, { seed: seedValue, formationId }))
   }
   const row = (j: RunInJob, testid?: string) => (
@@ -77,38 +81,38 @@ export function RunInSetup() {
       <div className="setup-flow setup-wide">
         <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
           <div>
-            <h1>Run-in</h1>
+            <h1>{t('title')}</h1>
             <p className="muted setup-sub">
-              Take over a real club at matchweek 28 with a brief, four spins and ten games.{' '}
-              <Info label="About the run-in">Only leagues with real final tables offer run-ins. The table you take over is projected from the final one, scaled back to matchweek 28. The real squad lines up in your shape; Realistic, and the board can sack you from the first week.</Info>
+              {t('sub')}{' '}
+              <Info label={t('aboutRunIn')}>{t('runInInfo')}</Info>
             </p>
           </div>
           <button className="btn ghost" onClick={() => go('home')}>
-            ← Back
+            {t('back')}
           </button>
         </div>
 
         <div className="setup-grid">
           <div className="panel setup-box">
             <section className="setup-step">
-              <StepHead n={1} title="Choose the brief" />
+              <StepHead n={1} title={t('stepBrief')} />
               <div className="field" data-testid="runin-template">
                 <Segmented
                   value={template}
-                  onChange={(t) => {
-                    setTemplate(t)
+                  onChange={(v) => {
+                    setTemplate(v)
                     setPicked(null)
                   }}
                   options={[
-                    { value: 'title', label: RUN_IN_TEMPLATE_LABEL.title, hint: 'Second or third, within six points of the top: win the title' },
-                    { value: 'europe', label: RUN_IN_TEMPLATE_LABEL.europe, hint: 'Fifth to eighth, within five points of fourth: reach the top four' },
-                    { value: 'survival', label: RUN_IN_TEMPLATE_LABEL.survival, hint: 'In the bottom three, within six points of safety: stay up' },
+                    { value: 'title', label: RUN_IN_TEMPLATE_LABEL.title, hint: t('titleHint') },
+                    { value: 'europe', label: RUN_IN_TEMPLATE_LABEL.europe, hint: t('europeHint') },
+                    { value: 'survival', label: RUN_IN_TEMPLATE_LABEL.survival, hint: t('survivalHint') },
                   ]}
                 />
               </div>
             </section>
             <section className="setup-step">
-              <StepHead n={2} title="Choose your league" />
+              <StepHead n={2} title={t('stepLeague')} />
               <div className="field setup-league" data-testid="runin-league">
                 <Segmented
                   value={leagueId}
@@ -121,13 +125,13 @@ export function RunInSetup() {
               </div>
             </section>
             <section className="setup-step">
-              <StepHead n={3} title="Shape and seed" />
+              <StepHead n={3} title={t('stepShape')} />
               <label className="field">
                 <span>
-                  Shape <Info label="About the shape">The real squad lines up in it. Four spins of the {leagues.find((l) => l.id === leagueId)?.name ?? 'league'} wheel add to it.</Info>
+                  {t('shape')} <Info label={t('aboutShape')}>{t('shapeInfo', { league: leagues.find((l) => l.id === leagueId)?.name ?? t('leagueFallback') })}</Info>
                 </span>
                 <select className="input" value={formation} onChange={(e) => setFormation(e.target.value)} data-testid="runin-formation">
-                  <option value="club">The club's own ({formationName(formationForStyle(clubStyle))})</option>
+                  <option value="club">{t('clubOwn', { name: formationName(formationForStyle(clubStyle)) })}</option>
                   {FORMATIONS.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.name}
@@ -137,12 +141,12 @@ export function RunInSetup() {
               </label>
               <label className="field">
                 <span>
-                  Seed <Info label="About the seed">The seed draws the three suggested jobs, your {RUN_IN_SPINS} spins and the rest of the season.</Info>
+                  {t('seed')} <Info label={t('aboutSeed')}>{t('seedInfo', { n: RUN_IN_SPINS })}</Info>
                 </span>
                 <div className="row">
                   <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} data-testid="runin-seed" />
                   <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                    New
+                    {t('newSeed')}
                   </button>
                 </div>
               </label>
@@ -151,17 +155,17 @@ export function RunInSetup() {
 
           <div className="panel setup-box">
             <section className="setup-step">
-              <StepHead n={4} title="Pick the job" />
+              <StepHead n={4} title={t('stepJob')} />
               <div className="setup-rules runin-jobs">
                 <div className="setup-opt setup-wide-opt col" data-testid="runin-suggested">
-                  <h3>Three jobs for this seed</h3>
+                  <h3>{t('threeJobs')}</h3>
                   {!ready && <span className="muted small"><LeagueWait needs={[leagueId]} /></span>}
-                  {ready && suggested.length === 0 && <span className="muted small">No jobs of this kind in this league.</span>}
+                  {ready && suggested.length === 0 && <span className="muted small">{t('noJobs')}</span>}
                   {suggested.map((j, i) => row(j, `runin-job-${i}`))}
                 </div>
                 {ready && jobs.length > 0 && (
                   <details className="setup-opt setup-wide-opt" data-testid="runin-browse">
-                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Browse all {jobs.length}</summary>
+                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{t('browseAll', { n: jobs.length })}</summary>
                     <div className="col" style={{ marginTop: 8, gap: 6 }}>
                       {bySeason.map((g) => (
                         <div key={g.season} className="col" style={{ gap: 4 }}>
@@ -175,13 +179,13 @@ export function RunInSetup() {
               </div>
             </section>
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
-              <StepHead n={5} title="Take the job" />
+              <StepHead n={5} title={t('stepTake')} />
               <div className="small muted" data-testid="runin-summary">
-                {settings ? summariseRunIn(u, settings) : ready ? 'Pick a job' : <LeagueWait needs={[leagueId]} />}
+                {settings ? summariseRunIn(u, settings) : ready ? t('pickJob') : <LeagueWait needs={[leagueId]} />}
               </div>
               <LeagueRetry needs={[leagueId]} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !job} data-testid="runin-start">
-                {!ready ? <LeagueWait needs={[leagueId]} /> : job ? `Take over ${clubName(u, job.clubId)}` : 'Pick a job'}
+                {!ready ? <LeagueWait needs={[leagueId]} /> : job ? t('takeOver', { club: clubName(u, job.clubId) }) : t('pickJob')}
               </button>
             </section>
           </div>
@@ -198,7 +202,7 @@ function StepHead({ n, title }: { n: number; title: string }) {
       <span className="step-num" aria-hidden="true">
         {n}
       </span>
-      <span className="sr-only">Step {n}: </span>
+      <span className="sr-only">{t('stepN', { n })}</span>
       {title}
     </h3>
   )

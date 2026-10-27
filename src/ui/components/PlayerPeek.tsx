@@ -12,6 +12,10 @@ import { clubShort, seasonLabel } from '../format'
 import { MoraleFace } from '../matchday/MoraleFace'
 import { Pos, Rating } from './bits'
 import { FormArrow, Sparkline } from './FormBits'
+import { translator } from '../i18n'
+import { explore } from '../i18n/en/explore'
+
+const t = translator(explore)
 
 export const PEEK_DELAY = 350
 
@@ -83,7 +87,7 @@ export function PlayerPeek({ p, s, children }: { p: PlayerSeason | undefined; s?
                   {p.positions.map((x) => (
                     <Pos key={x} p={x} />
                   ))}
-                  <span>{p.age}y</span>
+                  <span>{t('ageShort', { n: p.age })}</span>
                   <span>
                     {clubShort(u, p.clubId)} {seasonLabel(p.season)}
                   </span>
@@ -92,7 +96,7 @@ export function PlayerPeek({ p, s, children }: { p: PlayerSeason | undefined; s?
             </div>
             {s && (
               <div className="peek-form">
-                <span className="small muted">Form</span>
+                <span className="small muted">{t('form')}</span>
                 <Sparkline ratings={s.recentRatings} />
                 <FormArrow s={s} />
                 <MoraleFace value={s.morale} />

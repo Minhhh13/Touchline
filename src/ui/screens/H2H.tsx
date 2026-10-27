@@ -15,7 +15,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Info, Segmented, Stat, TeamBadge } from '../components/bits'
 import { FormationPicker } from '../components/FormationPicker'
 import { LeagueFlag } from '../components/Flag'
-import { clubName, ordinal, seasonLabel, tierName, formationName } from '../format'
+import { clubName, fixed, ordinal, seasonLabel, tierName, formationName } from '../format'
 import { TeamNameField } from '../components/SetupBits'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
@@ -26,6 +26,10 @@ import { GameByGame } from '../components/GameByGame'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { onlineAvailable } from '../../online/api'
 import { RoomSetup } from '../online/Rooms'
+import { translator } from '../i18n'
+import { h2h as h2hText } from '../i18n/en/h2h'
+
+const t = translator(h2hText)
 
 /** The head-to-head a Rematch came from: the setup opens with its managers, clubs, league and rules (on a new wheel). */
 let rematchOf: H2HGame | null = null
@@ -35,7 +39,7 @@ export function H2HSetup() {
   const [last] = useState(() => rematchOf)
   const [leagueId, setLeagueId] = useState(last?.leagueId ?? 'england')
   const [wheelScope, setWheelScope] = useState<'league' | 'europe'>((last?.wheelLeagues.length ?? 1) > 1 ? 'europe' : 'league')
-  const [names, setNames] = useState(last ? last.managers.map((m) => m.name) : ['Manager 1', 'Manager 2'])
+  const [names, setNames] = useState(last ? last.managers.map((m) => m.name) : [t('managerN', { n: 1 }), t('managerN', { n: 2 })])
   const [formations, setFormations] = useState(last ? last.managers.map((m) => m.formationId) : ['4-3-3', '4-4-2'])
   const [leagueSeason, setLeagueSeason] = useState(() => last?.leagueSeason ?? (u ? Math.max(...u.clubSeasons.filter((cs) => cs.complete).map((cs) => cs.season)) : 2025))
   const [hosts, setHosts] = useState(last ? last.managers.map((m) => m.hostClubId) : ['', ''])
@@ -48,18 +52,18 @@ export function H2HSetup() {
   const online = onlineAvailable()
   const back = (
     <button className="btn ghost" onClick={() => go('home')}>
-      ← Back
+      {t('back')}
     </button>
   )
-  const switcher = online ? <Segmented value={where} onChange={setWhere} options={[{ value: 'device', label: <><Users size={14} aria-hidden="true" /> This device</>, testId: 'h2h-where-device' }, { value: 'online', label: <><Wifi size={14} aria-hidden="true" /> Play online</>, testId: 'h2h-where-online' }]} /> : null
+  const switcher = online ? <Segmented value={where} onChange={setWhere} options={[{ value: 'device', label: <><Users size={14} aria-hidden="true" /> {t('thisDevice')}</>, testId: 'h2h-where-device' }, { value: 'online', label: <><Wifi size={14} aria-hidden="true" /> {t('playOnline')}</>, testId: 'h2h-where-online' }]} /> : null
   if (online && where === 'online')
     return (
       <div className="page">
         <div className="screen-head">
           <div className="screen-title">
-            <h1>Head-to-head</h1>
+            <h1>{t('title')}</h1>
             <div className="screen-meta">
-              <span>Two managers, two devices, one wheel</span>
+              <span>{t('metaOnline')}</span>
             </div>
           </div>
           <div className="toolbar">
@@ -78,14 +82,14 @@ export function H2HSetup() {
   const host0 = clubs.includes(hosts[0]) ? hosts[0] : clubs[Math.floor(clubs.length / 3)]
   const host1 = clubs.includes(hosts[1]) && hosts[1] !== host0 ? hosts[1] : clubs.find((c) => c !== host0) ?? clubs[0]
   const short = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase() || 'MGR'
-  const nameOf = (i: number) => names[i].trim() || `Manager ${i + 1}`
+  const nameOf = (i: number) => names[i].trim() || t('managerN', { n: i + 1 })
   return (
     <div className="page">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>Head-to-head</h1>
+          <h1>{t('title')}</h1>
           <div className="screen-meta">
-            <span>Two managers, one device, one wheel</span>
+            <span>{t('metaDevice')}</span>
           </div>
         </div>
         {switcher ? (
@@ -98,8 +102,8 @@ export function H2HSetup() {
         )}
       </div>
       <div className="screen-body scroll-whole fill">
-      <ol className="steps" aria-label="How a head-to-head works">
-        {H2H_STEPS.map(({ Icon, title, line }) => (
+      <ol className="steps" aria-label={t('howItWorks')}>
+        {h2hSteps().map(({ Icon, title, line }) => (
           <li key={title}>
             <span className="step-icon" aria-hidden="true">
               <Icon size={20} />
@@ -119,16 +123,16 @@ export function H2HSetup() {
             <div key={i} className="panel col">
               <div className="club-head">
                 {host ? <ClubBadge clubId={host} size={36} /> : null}
-                <h3 style={{ margin: 0 }}>Manager {i + 1}</h3>
+                <h3 style={{ margin: 0 }}>{t('managerN', { n: i + 1 })}</h3>
               </div>
-              <TeamNameField label="Name" value={names[i]} onChange={(v) => setNames(names.map((n, j) => (j === i ? v : n)))} fallback={`Manager ${i + 1}`} maxLength={24} testId={`h2h-name-${i}`} taken={[names[1 - i]]} />
+              <TeamNameField label={t('name')} value={names[i]} onChange={(v) => setNames(names.map((n, j) => (j === i ? v : n)))} fallback={t('managerN', { n: i + 1 })} maxLength={24} testId={`h2h-name-${i}`} taken={[names[1 - i]]} />
               <div className="field formation-field">
-                Formation
-                <FormationPicker value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} label={`Manager ${i + 1} formation`} testId={`h2h-formation-${i}`} />
+                {t('formation')}
+                <FormationPicker value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} label={t('managerFormation', { n: i + 1 })} testId={`h2h-formation-${i}`} />
                 <span className="help">{getFormation(formations[i]).blurb}</span>
               </div>
               <label className="field">
-                Club whose place you take
+                {t('hostClub')}
                 <select className="input" value={host ?? ''} onChange={(e) => setHosts(hosts.map((h, j) => (j === i ? e.target.value : h)))}>
                   {clubs.filter((c) => (i === 0 ? c !== host1 : c !== host0)).map((c) => (
                     <option key={c} value={c}>
@@ -141,21 +145,21 @@ export function H2HSetup() {
           )
         })}
         <div className="panel col h2h-league">
-          <h3 style={{ margin: 0 }}>The league</h3>
+          <h3 style={{ margin: 0 }}>{t('theLeague')}</h3>
           <div className="grid two">
           <div className="col">
           <div className="field">
-            League
+            {t('league')}
             <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
           </div>
           <div className="field">
-            Draft from
-            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> This league</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> All {u.available.length} leagues</> }]} />
+            {t('draftFrom')}
+            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {t('thisLeague')}</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> {t('allLeagues', { n: u.available.length })}</> }]} />
           </div>
           </div>
           <div className="col">
           <label className="field">
-            Season
+            {t('season')}
             <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
               {seasons.map((s) => (
                 <option key={s} value={s}>
@@ -166,22 +170,22 @@ export function H2HSetup() {
           </label>
           <div className="field">
             <span>
-              Difficulty <Info label="About difficulty">Calibrated scales the real clubs so an average draft finishes mid-table; Realistic plays them as they were.</Info>
+              {t('difficulty')} <Info label={t('aboutDifficulty')}>{t('difficultyInfo')}</Info>
             </span>
-            <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: 'Calibrated' }, { value: 'realistic', label: 'Realistic' }]} />
+            <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: t('calibrated') }, { value: 'realistic', label: t('realistic') }]} />
           </div>
           <label className="toggle">
             <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
-            Hard mode <Info label="About hard mode">Ratings stay hidden while you both draft.</Info>
+            {t('hardMode')} <Info label={t('aboutHardMode')}>{t('hardModeInfo')}</Info>
           </label>
           <div className="field">
             <span>
-              Seed <Info label="About seeds">The same seed gives the same spins, so a rematch on it replays the wheel.</Info>
+              {t('seed')} <Info label={t('aboutSeeds')}>{t('seedInfo')}</Info>
             </span>
             <div className="row">
-              <input className="input mono" aria-label="Seed" value={seed} onChange={(e) => setSeed(e.target.value)} />
+              <input className="input mono" aria-label={t('seed')} value={seed} onChange={(e) => setSeed(e.target.value)} />
               <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                New
+                {t('newSeed')}
               </button>
             </div>
           </div>
@@ -191,7 +195,7 @@ export function H2HSetup() {
         <div className="h2h-start">
           <LeagueRetry needs={[leagueId, ...wheelLeagues]} />
           <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues || !host0 || !host1} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
-            {ready ? 'Start the head-to-head' : <LeagueWait needs={[leagueId, ...wheelLeagues]} />}
+            {ready ? t('start') : <LeagueWait needs={[leagueId, ...wheelLeagues]} />}
           </button>
         </div>
       </div>
@@ -246,7 +250,7 @@ export function H2HScreen() {
   const onSlot = (idx: 0 | 1, slotId: string) => {
     if (!selected || picking !== idx) return
     if (!eligible.includes(slotId)) {
-      showToast(`${selected.name} cannot play there. Pick a highlighted slot.`)
+      showToast(t('cannotPlayThere', { name: selected.name }))
       return
     }
     h2hPick(selected.id, slotId)
@@ -256,25 +260,25 @@ export function H2HScreen() {
     <div className="page">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>Head-to-head draft</h1>
+          <h1>{t('draftTitle')}</h1>
           <div className="screen-meta">
             <span>
-              {h2h.managers[0].name} v {h2h.managers[1].name}
+              {t('versus', { a: h2h.managers[0].name, b: h2h.managers[1].name })}
             </span>
             <span>
-              <LeagueFlag leagueId={h2h.leagueId} /> {u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? 'League'} {seasonLabel(h2h.leagueSeason)}
+              <LeagueFlag leagueId={h2h.leagueId} /> {u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? t('leagueFallback')} {seasonLabel(h2h.leagueSeason)}
             </span>
-            {h2h.hardMode && <span className="chip">Hard mode</span>}
-            <span className="mono">Seed {h2h.seed}</span>
+            {h2h.hardMode && <span className="chip">{t('hardMode')}</span>}
+            <span className="mono">{t('seedValue', { seed: h2h.seed })}</span>
           </div>
         </div>
         <div className="toolbar">
-          {manager && !spinning && <span className="chip info">{manager.name} to pick</span>}
+          {manager && !spinning && <span className="chip info">{t('toPick', { name: manager.name })}</span>}
           <button className="btn ghost sm" onClick={() => go('home')}>
-            Home
+            {t('home')}
           </button>
-          <button className="btn ghost sm danger" onClick={() => confirm('Abandon this head-to-head?') && abandonH2H()}>
-            Abandon
+          <button className="btn ghost sm danger" onClick={() => confirm(t('abandonConfirm')) && abandonH2H()}>
+            {t('abandon')}
           </button>
         </div>
       </div>
@@ -282,26 +286,26 @@ export function H2HScreen() {
         <div className="col">
           <div className="panel col">
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
-            {!d.current && !complete && <SpinOdds odds={odds} label="Next spin" />}
+            {!d.current && !complete && <SpinOdds odds={odds} label={t('nextSpin')} />}
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
-                {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
+                {d.current ? (spinning ? t('spinning') : t('picks', { name: manager?.name ?? '' })) : t('spinFirst', { name: h2h.managers[d.first].name })}
               </button>
             )}
             {complete && (
               <button className="btn primary spin-btn display" onClick={() => h2hFinish()}>
-                Play the season
+                {t('playSeason')}
               </button>
             )}
             {picking !== null && revealed && (
               <button className="btn sm ghost" onClick={() => h2hAuto()}>
-                Let the assistant pick for {manager?.name}
+                {t('assistantPick', { name: manager?.name })}
               </button>
             )}
           </div>
           {d.log.length > 0 && (
             <div className="panel tight">
-              <div className="eyebrow">Draft log</div>
+              <div className="eyebrow">{t('draftLog')}</div>
               <ol className="h2h-log">
                 {[...d.log].reverse().slice(0, 30).map((l, i) => (
                   <li key={i}>{l}</li>
@@ -316,16 +320,16 @@ export function H2HScreen() {
               <span className="empty-icon" aria-hidden="true">
                 {complete ? <CircleCheck size={26} /> : <Dices size={26} />}
               </span>
-              <h3>{complete ? 'Both squads complete' : `Spin: ${h2h.managers[d.first].name} picks first`}</h3>
-              {!complete && <p className="muted small">One spin, one club-season, a pick each.</p>}
+              <h3>{complete ? t('bothComplete') : t('spinPicksFirst', { name: h2h.managers[d.first].name })}</h3>
+              {!complete && <p className="muted small">{t('oneSpin')}</p>}
             </div>
           )}
           {current && spinning && !revealed && (
             <div className="club-head">
               <span className="badge" style={{ width: 44, height: 44, background: 'var(--raised)', color: 'var(--text)', fontSize: 18 }}>?</span>
               <div>
-                <h2>Opening…</h2>
-                <div className="muted small">Landing on a club and a season</div>
+                <h2>{t('opening')}</h2>
+                <div className="muted small">{t('landing')}</div>
               </div>
             </div>
           )}
@@ -338,21 +342,21 @@ export function H2HScreen() {
                   <div className="club-sub">
                     <span>{seasonLabel(current.season)}</span>
                     {!current.complete ? (
-                      <span>season in progress</span>
+                      <span>{t('inProgress')}</span>
                     ) : current.champions ? (
                       <span className="chip gold icon-chip">
-                        <Trophy size={12} aria-hidden="true" /> Champions
+                        <Trophy size={12} aria-hidden="true" /> {t('champions')}
                       </span>
                     ) : current.position > 0 ? (
                       <span>{ordinal(current.position)}</span>
                     ) : (
-                      <span>no table on record</span>
+                      <span>{t('noTable')}</span>
                     )}
                     {tier && <TierChip tier={tier} />}
                   </div>
                 </div>
               </div>
-              {revealed && manager && <div className="notice">{manager.name}, pick a player{selected ? ` and a slot for ${selected.name} on your pitch` : ''}.</div>}
+              {revealed && manager && <div className="notice">{t('pickPlayer', { name: manager.name, slot: selected ? 'yes' : 'no', player: selected?.name })}</div>}
               {revealed && (
                 <div className="plist lined draft-list">
                   {[...current.squad]
@@ -360,7 +364,7 @@ export function H2HScreen() {
                     .map((p) => {
                       const takenBy = d.drafts.findIndex((x) => x.takenPlayers.includes(p.playerId) && (Object.values(x.lineup).includes(p.id) || x.bench.includes(p.id)))
                       return (
-                        <PlayerRow key={p.id} p={p} hideRatings={hide} hideChampion={current.champions} dim={!usableIds.has(p.id)} selected={selectedPlayer === p.id} onClick={() => onPick(p.id)} extra={takenBy >= 0 ? <span className="chip info">{h2h.managers[takenBy].shortName}</span> : null} right={usableIds.has(p.id) ? <span className={`btn sm ${selectedPlayer === p.id ? 'primary' : ''}`}>Draft</span> : null} />
+                        <PlayerRow key={p.id} p={p} hideRatings={hide} hideChampion={current.champions} dim={!usableIds.has(p.id)} selected={selectedPlayer === p.id} onClick={() => onPick(p.id)} extra={takenBy >= 0 ? <span className="chip info">{h2h.managers[takenBy].shortName}</span> : null} right={usableIds.has(p.id) ? <span className={`btn sm ${selectedPlayer === p.id ? 'primary' : ''}`}>{t('draft')}</span> : null} />
                       )
                     })}
                 </div>
@@ -388,7 +392,7 @@ export function H2HScreen() {
               </div>
               {selected && picking === i && suggestSlot(d.drafts[i], selected) && suggestSlot(d.drafts[i], selected) !== 'bench' && (
                 <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(i, suggestSlot(d.drafts[i], selected) as string)}>
-                  Put {selected.name} at {d.drafts[i].formation.slots.find((s) => s.id === suggestSlot(d.drafts[i], selected))?.position}
+                  {t('putAt', { name: selected.name, pos: d.drafts[i].formation.slots.find((s) => s.id === suggestSlot(d.drafts[i], selected))?.position })}
                 </button>
               )}
             </div>
@@ -414,19 +418,23 @@ export interface H2HResultViewProps {
   seed: string
   onRematch: () => void
   onHome: () => void
-  /** The banner's mode line: "Head-to-head" (hot-seat) or "Online head-to-head". */
+  /** The banner's mode line: "Head-to-head" (hot-seat) or "Online head-to-head"; the share text keeps "Head-to-head" in English when unset. */
   label?: string
   rematchLabel?: string
+  /** The mode in the share text, which stays English: "Head-to-head" when unset. */
+  shareLabel?: string
   testId?: string
 }
 
 /** A head-to-head's result, hot-seat or online: the banner with both sides, the derbies, the XIs and the table. */
-export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label = 'Head-to-head', rematchLabel = 'Rematch', testId }: H2HResultViewProps) {
+export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label: labelProp, rematchLabel = t('rematch'), shareLabel = 'Head-to-head', testId }: H2HResultViewProps) {
   const { universe: u, showToast } = useStore()
   const [copied, setCopied] = useState(false)
   if (!u) return null
+  const label = labelProp ?? t('title')
+  // The share text stays English (it travels to whoever reads it)
   const text = [
-    `${APP_NAME} · ${label} · ${seasonLabel(leagueSeason)}`,
+    `${APP_NAME} · ${shareLabel} · ${seasonLabel(leagueSeason)}`,
     ...([0, 1] as const).map((i) => `${m[i].name}: ${tierName(r.tiers[i], r.positions[i])} · ${r.rows[i].won}-${r.rows[i].drawn}-${r.rows[i].lost} · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
     `Derbies: ${r.derbies.map((dby) => `${m[dby.homeIdx].shortName} ${dby.homeGoals}-${dby.awayGoals} ${m[dby.homeIdx === 0 ? 1 : 0].shortName}`).join(', ')}`,
     r.winner === null ? 'Dead heat.' : `${m[r.winner].name} wins.`,
@@ -438,7 +446,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      showToast('Could not copy. Select the text manually.')
+      showToast(t('copyFailed'))
     }
   }
   const card = async (i: 0 | 1) => {
@@ -457,7 +465,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not make the share card. Try again.')
+      showToast(t('cardFailed'))
     }
   }
   return (
@@ -471,7 +479,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
             <LeagueFlag leagueId={leagueId} label={u.leagues.find((l) => l.id === leagueId)?.name} /> {seasonLabel(leagueSeason)}
           </span>
         </div>
-        <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`}>{r.winner === null ? 'Dead heat' : `${m[r.winner].name} wins`}</div>
+        <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`}>{r.winner === null ? t('deadHeat') : t('wins', { name: m[r.winner].name })}</div>
         <div className="h2h-sides">
           {([0, 1] as const).map((i) => (
             <div key={i} className={`h2h-side ${r.winner === i ? 'won' : ''}`}>
@@ -480,36 +488,36 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
                 <div style={{ textAlign: 'left' }}>
                   <h3 style={{ margin: 0 }}>{m[i].name}</h3>
                 </div>
-                {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label="Winner" />}
+                {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label={t('winner')} />}
               </div>
               <span className={`chip ${r.tiers[i] === 'CHAMPIONS' || r.tiers[i] === 'INVINCIBLE' || r.tiers[i] === 'PERFECT' ? 'gold' : ''}`}>{tierName(r.tiers[i], r.positions[i])}</span>
               <div className="record">
-                <span className="w">{r.rows[i].won}W</span>
-                <span className="d">{r.rows[i].drawn}D</span>
-                <span className="l">{r.rows[i].lost}L</span>
+                <span className="w">{t('wonN', { n: r.rows[i].won })}</span>
+                <span className="d">{t('drawnN', { n: r.rows[i].drawn })}</span>
+                <span className="l">{t('lostN', { n: r.rows[i].lost })}</span>
               </div>
               <div className="banner-stats">
-                <Stat label="Points" value={r.rows[i].points} />
-                <Stat label="Finished" value={ordinal(r.positions[i])} />
-                <Stat label="Rating" value={r.strengths[i].toFixed(1)} />
+                <Stat label={t('points')} value={r.rows[i].points} />
+                <Stat label={t('finished')} value={ordinal(r.positions[i])} />
+                <Stat label={t('rating')} value={fixed(r.strengths[i], 1)} />
               </div>
             </div>
           ))}
         </div>
         <div className="banner-actions">
           <button className="btn primary" onClick={copy}>
-            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
           </button>
           {([0, 1] as const).map((i) => (
             <button key={i} className="btn" onClick={() => void card(i)}>
-              <ImageDown size={16} aria-hidden="true" /> Card · {m[i].shortName}
+              <ImageDown size={16} aria-hidden="true" /> {t('card', { code: m[i].shortName })}
             </button>
           ))}
           <button className="btn" onClick={onRematch} data-testid="h2h-rematch">
             <RotateCcw size={16} aria-hidden="true" /> {rematchLabel}
           </button>
           <button className="btn ghost" onClick={onHome}>
-            Home
+            {t('home')}
           </button>
         </div>
       </div>
@@ -517,11 +525,11 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       <div className="grid two">
         <div className="col">
           <div className="panel">
-            <h3>Derbies</h3>
+            <h3>{t('derbies')}</h3>
             <div className="fixture-list h2h-derbies">
               {r.derbies.map((dby, i) => (
                 <div key={i} className="fixture me">
-                  <span className="mw">MW {dby.matchweek}</span>
+                  <span className="mw">{t('mw', { n: dby.matchweek })}</span>
                   <span className="h">{m[dby.homeIdx].name}</span>
                   <span className="sc">
                     {dby.homeGoals} - {dby.awayGoals}
@@ -534,9 +542,9 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
           {([0, 1] as const).map((i) => (
             <div key={i} className="panel">
               <div className="panel-head">
-                <h3>{m[i].name}'s XI</h3>
+                <h3>{t('xi', { name: m[i].name })}</h3>
                 {r.topScorers[i] && u.index[r.topScorers[i]!.playerSeasonId] && (
-                  <span className="chip good icon-chip" title="Top scorer">
+                  <span className="chip good icon-chip" title={t('topScorer')}>
                     <Footprints size={12} aria-hidden="true" /> {u.index[r.topScorers[i]!.playerSeasonId].name} · {r.topScorers[i]!.goals}
                   </span>
                 )}
@@ -545,23 +553,23 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
             </div>
           ))}
           {r.results?.map((games, i) => (
-            <GameByGame key={i} results={games} title={`${m[i].name}, game by game`} compact opponent={(id) => (id === H2H_IDS[0] ? { clubId: m[0].hostClubId, name: m[0].name } : id === H2H_IDS[1] ? { clubId: m[1].hostClubId, name: m[1].name } : { clubId: id, name: clubName(u, id) })} />
+            <GameByGame key={i} results={games} title={t('gameByGame', { name: m[i].name })} compact opponent={(id) => (id === H2H_IDS[0] ? { clubId: m[0].hostClubId, name: m[0].name } : id === H2H_IDS[1] ? { clubId: m[1].hostClubId, name: m[1].name } : { clubId: id, name: clubName(u, id) })} />
           ))}
         </div>
         <div className="col">
           <div className="panel">
-            <h3>Final table</h3>
+            <h3>{t('finalTable')}</h3>
             <div className="tbl-wrap">
               <table className="tbl h2h-table">
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Club</th>
-                    <th className="num">W</th>
-                    <th className="num">D</th>
-                    <th className="num">L</th>
-                    <th className="num">GD</th>
-                    <th className="num">Pts</th>
+                    <th>{t('colClub')}</th>
+                    <th className="num">{t('colW')}</th>
+                    <th className="num">{t('colD')}</th>
+                    <th className="num">{t('colL')}</th>
+                    <th className="num">{t('colGD')}</th>
+                    <th className="num">{t('colPts')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -593,7 +601,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
           </div>
           <details className="panel fold">
             <summary className="panel-head">
-              <h3>Share text</h3>
+              <h3>{t('shareText')}</h3>
               <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
             </summary>
             <pre className="mono small share-text">{text}</pre>
@@ -606,9 +614,9 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
 }
 
 /** The four rules of a head-to-head, as pictures with a line each. */
-const H2H_STEPS: Array<{ Icon: LucideIcon; title: string; line: string }> = [
-  { Icon: Dices, title: 'One spin, two picks', line: 'Each spin lands on one club-season for both of you.' },
-  { Icon: Repeat, title: 'Snake order', line: 'Whoever picked second picks first on the next spin.' },
-  { Icon: Lock, title: 'One player, one manager', line: 'Nobody fits your open slots? You miss that spin.' },
-  { Icon: Swords, title: 'Same season', line: 'Two derbies against each other; the higher finish wins.' },
+const h2hSteps = (): Array<{ Icon: LucideIcon; title: string; line: string }> => [
+  { Icon: Dices, title: t('step1Title'), line: t('step1Line') },
+  { Icon: Repeat, title: t('step2Title'), line: t('step2Line') },
+  { Icon: Lock, title: t('step3Title'), line: t('step3Line') },
+  { Icon: Swords, title: t('step4Title'), line: t('step4Line') },
 ]

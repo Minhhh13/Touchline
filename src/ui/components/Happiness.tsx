@@ -2,6 +2,10 @@ import type { SquadPlayer } from '@engine/types'
 import { happinessOf } from '@game/logic/happiness'
 import { meterValue, moraleWord } from '../format'
 import { Info } from './bits'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 /** A morale value as a chip class: good from 70, warn under 55, bad under 40. */
 export function moraleClass(m: number): string {
@@ -21,20 +25,20 @@ export function HappinessCard({ s }: { s: SquadPlayer }) {
     <div className="card happiness" data-testid="happiness">
       <div className="row between wrap" style={{ gap: 'var(--space-2)' }}>
         <span className="head-title">
-          <b>Happiness</b>
-          <Info label="About happiness">The last few things that moved his morale, newest first: results and his rating, minutes against his status, talks, promises, events and the captain.</Info>
+          <b>{t('happiness')}</b>
+          <Info label={t('aboutHappiness')}>{t('happinessCardInfo')}</Info>
         </span>
         <span className={`chip ${moraleClass(h.morale)}`}>
           {moraleWord(h.morale)} · {meterValue(h.morale)}
         </span>
       </div>
       {h.lines.length === 0 ? (
-        <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Nothing has moved him yet.</div>
+        <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>{t('nothingMoved')}</div>
       ) : (
         <ul className="mood-lines">
           {h.lines.map((l, i) => (
             <li key={i}>
-              <span className="mw">{l.week ? `MW ${l.week}` : 'Pre'}</span>
+              <span className="mw">{l.week ? t('mwShort', { week: l.week }) : t('pre')}</span>
               <span className="why">{l.text}</span>
               <span className={`delta ${l.delta > 0 ? 'up' : 'down'}`}>{signed(l.delta)}</span>
             </li>

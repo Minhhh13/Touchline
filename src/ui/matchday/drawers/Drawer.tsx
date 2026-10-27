@@ -5,6 +5,10 @@
  */
 import { useId, useRef, type ReactNode } from 'react'
 import { useDialog } from '../../useDialog'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 export function Drawer({ title, sub, onClose, children, foot, wide = false, className = '' }: { title: string; sub?: ReactNode; onClose: () => void; children: ReactNode; foot?: ReactNode; wide?: boolean; className?: string }) {
   const backRef = useRef<HTMLDivElement>(null)
@@ -20,7 +24,7 @@ export function Drawer({ title, sub, onClose, children, foot, wide = false, clas
             <h3 id={id}>{title}</h3>
             {sub && <div className="md-drawer-sub">{sub}</div>}
           </div>
-          <button type="button" className="md-x" onClick={onClose} aria-label={`Close ${title.toLowerCase()}`}>
+          <button type="button" className="md-x" onClick={onClose} aria-label={tx('closeDrawer', { title: title.toLowerCase() })}>
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
               <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>

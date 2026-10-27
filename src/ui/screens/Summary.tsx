@@ -10,6 +10,8 @@ import { FirstNext } from '../components/FirstNext'
 import { continentalRun } from '@game/logic/week'
 import { USER_TEAM, seasonTable, tierBlurb } from '@engine/season'
 import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
+import { modeText } from '../i18n/modeText'
+import { B, rich } from '../i18n/rich'
 import { realityLine, storyForGame } from '@game/logic/story'
 import { SeasonStoryPanel } from '../components/SeasonStory'
 import { capLine } from '@game/logic/cap'
@@ -66,6 +68,10 @@ import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
 import { Mic } from 'lucide-react'
 import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
+import { translator } from '../i18n'
+import { summary } from '../i18n/en/summary'
+
+const t = translator(summary)
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -229,7 +235,7 @@ export function Summary() {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      showToast('Could not copy. Select the text manually.')
+      showToast(t('copyFailed'))
     }
   }
   const squad = squadPlayers(game, u)
@@ -240,7 +246,7 @@ export function Summary() {
   const makeChallenge = async () => {
     const c = challengeFromGame(game, u, challengeName)
     if (!c) {
-      showToast('This result cannot be packed into a challenge.')
+      showToast(t('cannotPack'))
       return
     }
     // A short #s= link when signed in and online; the long #c= link otherwise (it always works)
@@ -251,9 +257,9 @@ export function Summary() {
     setLongLink(share.code ? share.longUrl : null)
     try {
       await navigator.clipboard.writeText(url)
-      showToast(share.code ? `Short link ${share.code} copied. Send it to a friend.` : `Challenge link copied (${url.length} characters). Send it to a friend.`)
+      showToast(share.code ? t('shortLinkCopied', { code: share.code }) : t('linkCopied', { n: url.length }))
     } catch {
-      showToast('Could not copy. The link is below, selected.')
+      showToast(t('copyFailedBelow'))
       setLinkShown((n) => n + 1)
     }
   }
@@ -298,16 +304,20 @@ export function Summary() {
       setCardUrl(url)
       downloadDataUrl(url, `touchline-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not make the share card. Try again.')
+      showToast(t('cardFailed'))
     }
   }
 
-  const modeName = modeLabel(game, 'heading')
+  const modeName = modeText(game, 'heading')
   // A meta line too long for one row wraps with its dot first: such a line puts the season and mode on a row of their own
   const metaChars = game.settings.teamName.length + (game.settings.mode === 'quick' ? (superOn ? leagueName.length + 1 : 0) : seasonLabel(game.settings.leagueSeason).length + modeName.length + 3) + (modeLine ? modeLine.length + 3 : 0)
   // The pundit's verdict on the result (display only, picked by a hash of the season's id); not for a run-in or the arena
   const verdictInput = game.settings.mode === 'runin' || game.settings.mode === 'arena' ? null : verdictInputOf(game, table.length || 20)
   const verdict = verdictInput ? punditVerdict(verdictInput) : null
+  const euroRound = (r: ReturnType<typeof continentalRun>) => {
+    const round = r ?? 'R16'
+    return t(`euroRound_${round}`)
+  }
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
@@ -376,7 +386,7 @@ export function Summary() {
               <span className={`vp-l ${record.lost ? '' : 'zero'}`}>{record.lost}</span>
             </span>
             <span className="vp-line">
-              <b className="vp-against">against {perfectTarget(games)}</b>
+              <b className="vp-against">{t('against', { target: perfectTarget(games) })}</b>
               <span className="vp-sep" aria-hidden="true">·</span>
               <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
             </span>
@@ -389,7 +399,7 @@ export function Summary() {
         )}
         {replay.playing ? (
           <div className="tier" style={{ color: 'var(--text-3)' }} data-testid="tier-pending">
-            Season in play…
+            {t('seasonInPlay')}
           </div>
         ) : (
           <div className="tier-wrap">
@@ -411,29 +421,29 @@ export function Summary() {
         )}
         {!replay.playing && verdict && (
           <p className="tier-blurb pundit-verdict" data-testid="pundit-verdict">
-            <Mic size={13} aria-hidden="true" /> <b>Pundit:</b> {verdict}
+            <Mic size={13} aria-hidden="true" /> {rich(t('pundit', { verdict }), B)}
           </p>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}
         {!q && !replay.playing && (
           <div className="record">
             <span className="w">
-              <CountUp value={record.won} />W
+              <CountUp value={record.won} />{t('letterW')}
             </span>
             <span className="d">
-              <CountUp value={record.drawn} />D
+              <CountUp value={record.drawn} />{t('letterD')}
             </span>
             <span className="l">
-              <CountUp value={record.lost} />L
+              <CountUp value={record.lost} />{t('letterL')}
             </span>
           </div>
         )}
         {!replay.playing && (
           <div className="banner-stats">
-            <Stat label="Points" value={<CountUp value={record.points} />} />
-            <Stat label="Finished" value={ordinal(record.position)} />
-            <Stat label="Goals" value={`${record.goalsFor}-${record.goalsAgainst}`} />
-            {q && <Stat label="Team rating" value={q.strength.overall.toFixed(1)} />}
+            <Stat label={t('points')} value={<CountUp value={record.points} />} />
+            <Stat label={t('finished')} value={ordinal(record.position)} />
+            <Stat label={t('goals')} value={`${record.goalsFor}-${record.goalsAgainst}`} />
+            {q && <Stat label={t('teamRating')} value={q.strength.overall.toFixed(1)} />}
           </div>
         )}
         {!replay.playing && (
@@ -452,24 +462,24 @@ export function Summary() {
         <div className="banner-chips">
           {!replay.playing && honour === 'treble' && (
             <span className="chip gold icon-chip honour-chip treble" data-testid="banner-treble" title={honourDetail(honourCups)}>
-              <Crown size={14} aria-hidden="true" /> Treble
+              <Crown size={14} aria-hidden="true" /> {t('treble')}
             </span>
           )}
           {!replay.playing && honour === 'double' && (
             <span className="chip gold icon-chip honour-chip" data-testid="banner-double" title={honourDetail(honourCups)}>
-              <Trophy size={12} aria-hidden="true" /> {honourLabel(honour, honourCups) === 'The Double' ? 'Double' : 'League and Continental double'}
+              <Trophy size={12} aria-hidden="true" /> {t(honourLabel(honour, honourCups) === 'The Double' ? 'double' : 'leagueContinentalDouble')}
             </span>
           )}
-          {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, 'Cup winners', 'gold')}</span>}
-          {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, 'Continental champions', 'gold')}</span>}
+          {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, t('cupWinners'), 'gold')}</span>}
+          {(season?.continental?.won || (!replay.playing && quickEuroWon)) && <span data-testid="banner-continental">{iconChip(Globe, t('continentalChampions'), 'gold')}</span>}
           {game.manager && <ManagerChip manager={game.manager} />}
           {caseIconIn(game) && (
-            <span className="chip case-icon-chip" data-tier="icons" data-testid="summary-case-icon" title="An Icon from the end-of-draft case played: a non-standard season, kept out of the record book">
-              ★ Case Icon
+            <span className="chip case-icon-chip" data-tier="icons" data-testid="summary-case-icon" title={t('caseIconTip')}>
+              {t('caseIcon')}
             </span>
           )}
-          {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
-          {season?.sacked && <span className="chip bad">Sacked</span>}
+          {season?.continental && !season.continental.won && iconChip(Globe, t('continentalChip', { round: euroRound(continentalRun(season)) }))}
+          {season?.sacked && <span className="chip bad">{t('sacked')}</span>}
           {casualChips(game).map((c) => (
             <span key={c.key} className="chip icon-chip" title={c.title} data-testid={`summary-${c.key}`}>
               {c.key === 'cap' ? <PoundSterling size={12} aria-hidden="true" /> : <Link size={12} aria-hidden="true" />} {c.text}
@@ -482,53 +492,53 @@ export function Summary() {
           ))}
           {game.settings.rules.onlyNation && (
             <span className="chip">
-              <NationFlag nation={game.settings.rules.onlyNation} named /> {nationName(u, game.settings.rules.onlyNation)} only
+              <NationFlag nation={game.settings.rules.onlyNation} named /> {t('nationOnly', { nation: nationName(u, game.settings.rules.onlyNation) })}
             </span>
           )}
-          {season?.objectives?.length ? iconChip(objectivesMet === season.objectives.length ? Check : Landmark, `Objectives ${objectivesMet}/${season.objectives.length}`, objectivesMet === season.objectives.length ? 'good' : '') : null}
+          {season?.objectives?.length ? iconChip(objectivesMet === season.objectives.length ? Check : Landmark, t('objectives', { met: objectivesMet, n: season.objectives.length }), objectivesMet === season.objectives.length ? 'good' : '') : null}
           {/* Against the real side whose place you took, without naming it: the replaced club stays off the result */}
           {!replay.playing && vsReal && (
-            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`} title={`Against the real side's ${ordinal(realRow?.position ?? 0)} that season`}>
+            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`} title={t('againstRealTip', { pos: realRow?.position ?? 0 })}>
               {vsReal.delta > 0 ? <TrendingUp size={12} aria-hidden="true" /> : vsReal.delta < 0 ? <TrendingDown size={12} aria-hidden="true" /> : <Minus size={12} aria-hidden="true" />}
-              {vsReal.delta === 0 ? 'Same place as the real side' : `${vsReal.label} than the real side`}
+              {vsReal.delta === 0 ? t('samePlaceReal') : t('thanRealSide', { label: vsReal.label })}
             </span>
           )}
         </div>
         <div className="banner-actions">
           <button className={`btn ${continuing || (q && !replay.playing && summaryMainCall(game, u) !== 'copy') ? '' : 'primary'}`} onClick={copy} data-testid="summary-copy">
-            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
           </button>
           <button className="btn" onClick={makeCard}>
-            <ImageDown size={16} aria-hidden="true" /> Download share card
+            <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
             <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))}>
-              <Dices size={16} aria-hidden="true" /> Draft again
+              <Dices size={16} aria-hidden="true" /> {t('draftAgain')}
             </button>
           )}
           {canChallenge && (
             <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend">
-              <Send size={16} aria-hidden="true" /> Challenge a friend
+              <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
             </button>
           )}
           {canChallenge && (
-            <button className="btn" onClick={runItBack} data-testid="run-it-back" title="Draft this wheel again against your own result">
-              <RotateCcw size={16} aria-hidden="true" /> Run it back
+            <button className="btn" onClick={runItBack} data-testid="run-it-back" title={t('runItBackTip')}>
+              <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
             </button>
           )}
           {continuing && <LeagueRetry needs={nextSeasonLeagues(game, u.available.map((l) => l.id))} />}
           {continuing && (
             <button className="btn primary" onClick={() => nextSeason()} disabled={loadingLeagues}>
-              {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `On to year ${game.year + 1} →`}
+              {loadingLeagues ? t('loadingLeagues') : game.pendingMove ? t('joinClub', { club: clubName(u, game.pendingMove.clubId) }) : t('onToYear', { year: game.year + 1 })}
             </button>
           )}
           {continuing && game.jobOffers.length > 0 && !game.pendingMove && (
             <button className="btn ghost sm" onClick={() => document.getElementById('job-offers')?.scrollIntoView({ block: 'start' })} data-testid="job-offers-link">
-              <Briefcase size={14} aria-hidden="true" /> {game.jobOffers.length} job offer{game.jobOffers.length === 1 ? '' : 's'} below
+              <Briefcase size={14} aria-hidden="true" /> {t('jobOffersBelow', { n: game.jobOffers.length })}
             </button>
           )}
-          <button className="btn ghost" onClick={() => { if (continuing && !confirm(`End this Dynasty after year ${game.year}? It cannot be picked up again.`)) return; abandonGame(); go('home') }}>
-            <Plus size={16} aria-hidden="true" /> New game
+          <button className="btn ghost" onClick={() => { if (continuing && !confirm(t('endDynasty', { year: game.year }))) return; abandonGame(); go('home') }}>
+            <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>
       </div>
@@ -565,11 +575,11 @@ export function Summary() {
       {q?.january && on('january') && (
         <div className="panel" data-testid="january-summary">
           <div className="panel-head">
-            <h3>January business</h3>
+            <h3>{t('januaryBusiness')}</h3>
             <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
           </div>
           <div className="small">
-            {q.january.kind === 'sign' ? `Signed ${q.january.inName} for ${money(q.january.fee)}; ${q.january.outName} left.` : `Swapped ${q.january.outName} for ${q.january.inName}.`}
+            {q.january.kind === 'sign' ? t('januarySigned', { inName: q.january.inName, fee: q.january.fee, outName: q.january.outName }) : t('januarySwapped', { inName: q.january.inName, outName: q.january.outName })}
           </div>
         </div>
       )}
@@ -577,15 +587,15 @@ export function Summary() {
       {q?.januaryGamble && on('january') && (
         <div className="panel" data-testid="january-gamble-summary">
           <div className="panel-head">
-            <h3>{q.januaryGamble.kind === 'spin' ? 'January spin' : 'January Upgrader'}</h3>
+            <h3>{t(q.januaryGamble.kind === 'spin' ? 'januarySpin' : 'januaryUpgrader')}</h3>
             <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
           </div>
           <div className="small">
             {q.januaryGamble.kind === 'spin'
               ? q.januaryGamble.outName
-                ? `The case landed on ${q.januaryGamble.inName} (${rarityName(q.januaryGamble.tier)}); he came in for ${q.januaryGamble.outName}.`
-                : `The case landed on ${q.januaryGamble.inName} (${rarityName(q.januaryGamble.tier)}); you kept your XI.`
-              : `${q.januaryGamble.name} at ${q.januaryGamble.chance}% for +${q.januaryGamble.boost}: ${q.januaryGamble.won ? `won, +${q.januaryGamble.delta}` : `lost, ${q.januaryGamble.delta}`} for the second half.`}
+                ? t('caseLandedIn', { inName: q.januaryGamble.inName, tier: rarityName(q.januaryGamble.tier), outName: q.januaryGamble.outName })
+                : t('caseLandedKept', { inName: q.januaryGamble.inName, tier: rarityName(q.januaryGamble.tier) })
+              : t('upgraderLine', { name: q.januaryGamble.name, chance: q.januaryGamble.chance, boost: q.januaryGamble.boost, won: q.januaryGamble.won ? 'yes' : 'no', delta: q.januaryGamble.delta })}
           </div>
         </div>
       )}
@@ -593,18 +603,18 @@ export function Summary() {
       {q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 && on('bench') && (
         <div className="panel" data-testid="bench-summary">
           <div className="panel-head">
-            <h3>The bench</h3>
+            <h3>{t('theBench')}</h3>
             <span className="small muted">
-              {q.changes?.length ?? 0} of {QUICK_CHANGES} changes · injury cover in {coveredGames(q.results)} game{coveredGames(q.results) === 1 ? '' : 's'}
+              {t('benchLine', { made: q.changes?.length ?? 0, max: QUICK_CHANGES, n: coveredGames(q.results) })}
             </span>
           </div>
           <div className="col small" style={{ gap: 4 }}>
             {(q.changes ?? []).map((c, i) => (
               <span key={i}>
-                Matchweek {c.from}: {get(c.inId)?.name ?? c.inId} on for {get(c.outId)?.name ?? c.outId}
+                {t('benchChange', { week: c.from, inName: get(c.inId)?.name ?? c.inId, outName: get(c.outId)?.name ?? c.outId })}
               </span>
             ))}
-            {!q.changes?.length && <span className="muted">No changes: the XI you drafted saw it through, the bench covering injuries.</span>}
+            {!q.changes?.length && <span className="muted">{t('noChanges')}</span>}
           </div>
         </div>
       )}
@@ -612,20 +622,20 @@ export function Summary() {
       {q?.europe && on('europe') && (
         <div className="panel" data-testid="europe-run">
           <div className="panel-head">
-            <h3>Continental Cup run</h3>
-            <span className={`chip ${q.europe.reached === 'W' ? 'gold' : ''}`}>{q.europe.reached === 'W' ? 'Winners' : `Out in the ${europeRoundLabel(q.europe.reached)}`}</span>
+            <h3>{t('continentalRun')}</h3>
+            <span className={`chip ${q.europe.reached === 'W' ? 'gold' : ''}`}>{q.europe.reached === 'W' ? t('winners') : t('outInThe', { round: europeRoundLabel(q.europe.reached) })}</span>
           </div>
           <ol className="gbg-list">
-            {q.europe.ties.map((t) => (
-              <li key={t.round} className={`gbg-game ${t.won ? 'W' : 'L'}`}>
-                <span className="gbg-mw">{t.round}</span>
-                <ClubBadge clubId={t.opponentId} size={22} />
-                <span className="gbg-fix">{t.round === 'F' ? `v ${clubName(u, t.opponentId)} (final)` : t.home ? `v ${clubName(u, t.opponentId)} (H)` : `at ${clubName(u, t.opponentId)}`}</span>
+            {q.europe.ties.map((tie) => (
+              <li key={tie.round} className={`gbg-game ${tie.won ? 'W' : 'L'}`}>
+                <span className="gbg-mw">{tie.round}</span>
+                <ClubBadge clubId={tie.opponentId} size={22} />
+                <span className="gbg-fix">{t(tie.round === 'F' ? 'tieFinal' : tie.home ? 'tieHome' : 'tieAway', { club: clubName(u, tie.opponentId) })}</span>
                 <span className="gbg-score">
-                  {t.gf}-{t.ga}
+                  {tie.gf}-{tie.ga}
                 </span>
-                <span className={t.won ? 'chip good' : 'chip bad'}>{t.won ? 'Through' : 'Out'}</span>
-                <span className="gbg-pos small muted">{t.pens ? `${t.pens.for}-${t.pens.against}p` : ''}</span>
+                <span className={tie.won ? 'chip good' : 'chip bad'}>{t(tie.won ? 'through' : 'out')}</span>
+                <span className="gbg-pos small muted">{tie.pens ? t('pensShort', { score: `${tie.pens.for}-${tie.pens.against}` }) : ''}</span>
               </li>
             ))}
           </ol>
@@ -636,17 +646,17 @@ export function Summary() {
         <div className="panel" data-testid="challenge-link">
           <div className="panel-head">
             <span className="head-title">
-              <h3>Challenge link</h3>
-              <Info label="About challenge links">
-                Whoever opens it drafts the same wheel as {challengeName}, sees your pick on every spin and plays the same season. Built on data {u.generatedAt}, engine {ENGINE_VERSION}.
+              <h3>{t('challengeLink')}</h3>
+              <Info label={t('aboutLinks')}>
+                {t('linkInfo', { name: challengeName, data: u.generatedAt, engine: ENGINE_VERSION })}
               </Info>
             </span>
           </div>
           <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} data-testid="challenge-link-url" />
-          {shortCode && <div className="small muted" style={{ marginTop: 6 }}>Code {shortCode}: it opens on any device with a connection, signed in or not.</div>}
+          {shortCode && <div className="small muted" style={{ marginTop: 6 }}>{t('shortCodeLine', { code: shortCode })}</div>}
           {longLink && (
-            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void navigator.clipboard?.writeText(longLink).then(() => showToast('Long link copied.'), () => setLink(longLink))}>
-              Copy the long link (works offline)
+            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void navigator.clipboard?.writeText(longLink).then(() => showToast(t('longLinkCopied')), () => setLink(longLink))}>
+              {t('copyLongLink')}
             </button>
           )}
         </div>
@@ -656,17 +666,17 @@ export function Summary() {
         <div className="panel" data-testid="head-to-head">
           <div className="panel-head">
             <span className="head-title">
-              <h3>Head-to-head · vs {challenge.name}</h3>
-              <Info label="About the challenge">
-                Same seed, same wheel.{' '}
-                {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
-                {challenge.verified === 'unverified' && `Unverified: ${challenge.reason ?? 'built on different data'}.`}
-                {challenge.verified === 'no' && `Could not verify the claim: ${challenge.reason ?? 'the picks do not replay'}.`}
+              <h3>{t('headToHead', { name: challenge.name })}</h3>
+              <Info label={t('aboutChallenge')}>
+                {t('sameSeed')}{' '}
+                {challenge.verified === 'yes' && t('verifiedInfo', { name: challenge.name, pts: challenge.claim.pts })}
+                {challenge.verified === 'unverified' && t('unverifiedInfo', { reason: challenge.reason ?? t('differentData') })}
+                {challenge.verified === 'no' && t('notVerifiedInfo', { reason: challenge.reason ?? t('noReplay') })}
               </Info>
             </span>
             <span className={`chip icon-chip ${challenge.verified === 'yes' ? 'good' : challenge.verified === 'no' ? 'bad' : ''}`}>
               {challenge.verified === 'yes' ? <ShieldCheck size={12} aria-hidden="true" /> : <ShieldQuestion size={12} aria-hidden="true" />}
-              {challenge.verified === 'yes' ? 'Verified' : challenge.verified === 'no' ? 'Not verified' : 'Unverified'}
+              {t(challenge.verified === 'yes' ? 'verified' : challenge.verified === 'no' ? 'notVerified' : 'unverified')}
             </span>
           </div>
           <div className="grid two">
@@ -674,17 +684,17 @@ export function Summary() {
               <div className="row between wrap">
                 <b>{challenge.name}</b>
                 <span className={`chip ${challenge.claim.pts > mine.pts ? 'good' : ''}`}>
-                  {challenge.claim.pts} pts · {tierName(challenge.claim.t, undefined, superOn)} · {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}
+                  {t('claimLine', { pts: challenge.claim.pts, tier: tierName(challenge.claim.t, undefined, superOn), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` })}
                 </span>
               </div>
               {claimCupsLine(challenge.claim) && <div className="small muted">{claimCupsLine(challenge.claim)}</div>}
-              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{challenge.name}'s picks could not be resolved on this data.</div>}
+              {challenge.picks.length ? <Pitch formation={formation} lineup={ghostLineup} getPlayer={get} /> : <div className="muted small">{t('picksUnresolved', { name: challenge.name })}</div>}
             </div>
             <div className="col">
               <div className="row between wrap">
                 <b>{game.settings.teamName}</b>
                 <span className={`chip ${mine.pts > challenge.claim.pts ? 'good' : ''}`}>
-                  {mine.pts} pts · {tierName(mine.t, undefined, superOn)} · {mine.w}-{mine.d}-{mine.l}
+                  {t('claimLine', { pts: mine.pts, tier: tierName(mine.t, undefined, superOn), record: `${mine.w}-${mine.d}-${mine.l}` })}
                 </span>
               </div>
               {claimCupsLine(mine) && <div className="small muted">{claimCupsLine(mine)}</div>}
@@ -701,22 +711,22 @@ export function Summary() {
         <div className="panel" data-testid="record-books">
           <div className="panel-head">
             <span className="head-title">
-              <h3>In the record books</h3>
-              <Info label="About the record books">
-                Against {bench.seasons} complete <LeagueFlag leagueId={game.settings.leagueId} /> {leagueName} seasons of {bench.played} matches in the data{champion ? `; the real champions in ${seasonLabel(game.settings.leagueSeason)} were ${clubName(u, champion)}` : ''}.
+              <h3>{t('recordBooks')}</h3>
+              <Info label={t('aboutRecordBooks')}>
+                {rich(t('recordBooksInfo', { n: bench.seasons, league: leagueName, played: bench.played, champions: champion ? t('realChampionsWere', { season: seasonLabel(game.settings.leagueSeason), club: clubName(u, champion) }) : '' }), { flag: () => <LeagueFlag leagueId={game.settings.leagueId} /> })}
               </Info>
             </span>
             <span className="small muted">
-              vs {bench.seasons} real seasons
+              {t('vsRealSeasons', { n: bench.seasons })}
             </span>
           </div>
           <div className="tbl-wrap">
             <table className="tbl records-tbl">
               <thead>
                 <tr>
-                  <th>Metric</th>
-                  <th className="num">Yours</th>
-                  <th>All-time</th>
+                  <th>{t('metric')}</th>
+                  <th className="num">{t('yours')}</th>
+                  <th>{t('allTime')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -728,13 +738,13 @@ export function Summary() {
                       <td className="num">{m.value}</td>
                       <td style={{ whiteSpace: 'normal' }}>
                         {isRecord ? (
-                          iconChip(ScrollText, 'League record', 'gold')
+                          iconChip(ScrollText, t('leagueRecord'), 'gold')
                         ) : (
                           <span>
-                            {m.rank === 1 ? 'Joint best' : `${ordinal(m.rank)} best`} <span className="muted small">of {m.of + 1} club-seasons{m.equal > 0 && m.rank > 1 ? ` · level with ${m.equal}` : ''}</span>
+                            {m.rank === 1 ? t('jointBest') : t('nthBest', { rank: m.rank })} <span className="muted small">{t('ofClubSeasons', { n: m.of + 1 })}{m.equal > 0 && m.rank > 1 ? t('levelWith', { n: m.equal }) : ''}</span>
                           </span>
                         )}
-                        {m.better.length > 0 && <div className="ahead">Ahead: {m.better.map((b) => `${clubName(u, b.clubId)} ${b.value} (${seasonLabel(b.season)})`).join(', ')}</div>}
+                        {m.better.length > 0 && <div className="ahead">{t('ahead', { list: m.better.map((b) => `${clubName(u, b.clubId)} ${b.value} (${seasonLabel(b.season)})`).join(', ') })}</div>}
                       </td>
                     </tr>
                   )
@@ -744,8 +754,8 @@ export function Summary() {
           </div>
           {game.settings.difficulty !== 'realistic' && (
             <div className="help row" style={{ gap: 'var(--space-1)' }}>
-              On Calibrated difficulty these are benchmarks, not records
-              <Info label="Why benchmarks">Calibrated difficulty handicaps the AI clubs. The Record Books achievement needs a points record on Realistic.</Info>
+              {t('benchmarksNote')}
+              <Info label={t('whyBenchmarks')}>{t('benchmarksInfo')}</Info>
             </div>
           )}
         </div>
@@ -756,9 +766,9 @@ export function Summary() {
           <div className="panel-head">
             <span className="head-title">
               <h3 className="icon-title" style={{ color: 'var(--gold-text)' }}>
-                <Briefcase size={18} aria-hidden="true" /> Job offers
+                <Briefcase size={18} aria-hidden="true" /> {t('jobOffers')}
               </h3>
-              <Info>Your work has been noticed. Stay, or take your squad somewhere new next season.</Info>
+              <Info>{t('jobOffersInfo')}</Info>
             </span>
           </div>
           <div className="grid three">
@@ -774,13 +784,13 @@ export function Summary() {
                         <span>
                           <LeagueFlag leagueId={o.leagueId} /> {u.leagues.find((l) => l.id === o.leagueId)?.name ?? o.leagueId}
                         </span>
-                        <span>+{money(o.budgetBonus)} budget</span>
+                        <span>{t('budgetBonus', { m: o.budgetBonus })}</span>
                       </div>
                     </div>
                   </div>
                   <p className="small" style={{ margin: 'var(--space-2) 0' }}>{o.pitch}</p>
                   <button className={`btn sm ${chosen ? '' : 'primary'}`} onClick={() => acceptJob(chosen ? null : i)}>
-                    {chosen ? 'Change your mind' : 'Accept'}
+                    {t(chosen ? 'changeMind' : 'accept')}
                   </button>
                 </div>
               )
@@ -795,15 +805,15 @@ export function Summary() {
           {on('xi') && (
           <div className="panel">
             <div className="panel-head">
-              <h3>Your XI</h3>
+              <h3>{t('yourXI')}</h3>
               {q && (
-                <span className="unit-strip" role="group" aria-label="Unit ratings">
+                <span className="unit-strip" role="group" aria-label={t('unitRatings')}>
                   {(
                     [
-                      ['GK', q.strength.goalkeeping],
-                      ['DEF', q.strength.defence],
-                      ['MID', q.strength.midfield],
-                      ['ATT', q.strength.attack],
+                      [t('unitGK'), q.strength.goalkeeping],
+                      [t('unitDEF'), q.strength.defence],
+                      [t('unitMID'), q.strength.midfield],
+                      [t('unitATT'), q.strength.attack],
                     ] as const
                   ).map(([k, v]) => (
                     <span key={k}>
@@ -816,9 +826,9 @@ export function Summary() {
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, s.position]))} />
             {q && (
               <div className="toolbar" style={{ marginTop: 'var(--space-3)' }}>
-                <span className="chip" title="How even your four units are: a lopsided XI loses up to 4% of its strength">Balance {Math.round(q.strength.balance * 100)}%</span>
-                <span className={`chip ${q.strength.chemistry > 0 ? 'good' : q.strength.chemistry < 0 ? 'bad' : ''}`} title="Team-mates from the same club and season, nearby seasons and one nation, plus how well they know the system; added to every unit's rating">
-                  Chemistry {signedValue(q.strength.chemistry)}
+                <span className="chip" title={t('balanceTip')}>{t('balance', { pct: Math.round(q.strength.balance * 100) })}</span>
+                <span className={`chip ${q.strength.chemistry > 0 ? 'good' : q.strength.chemistry < 0 ? 'bad' : ''}`} title={t('chemistryTip')}>
+                  {t('chemistry', { value: signedValue(q.strength.chemistry) })}
                 </span>
               </div>
             )}
@@ -826,20 +836,20 @@ export function Summary() {
           )}
           {on('awards') && (
           <div className="panel">
-            <h3>Awards</h3>
+            <h3>{t('awards')}</h3>
             {q && (
               <div className="plist lined award-list">
-                {awardRow(q.pots?.playerSeasonId, AWARD_ICON.pots, `Player of the season · ${q.pots?.rating}`, 'gold')}
-                {awardRow(q.topScorer?.playerSeasonId, AWARD_ICON.boot, `Top scorer · ${countPhrase(q.topScorer?.goals ?? 0, 'goals')}`, 'good')}
+                {awardRow(q.pots?.playerSeasonId, AWARD_ICON.pots, t('playerOfSeason', { value: q.pots?.rating }), 'gold')}
+                {awardRow(q.topScorer?.playerSeasonId, AWARD_ICON.boot, t('topScorer', { n: q.topScorer?.goals ?? 0 }), 'good')}
               </div>
             )}
             {game.awards && (
               <div className="plist lined award-list">
-                {awardRow(game.awards.playerOfTheSeason?.playerSeasonId, AWARD_ICON.pots, `Player of the season · ${game.awards.playerOfTheSeason?.value}`, 'gold')}
-                {awardRow(game.awards.goldenBoot?.playerSeasonId, AWARD_ICON.boot, `Golden boot · ${game.awards.goldenBoot?.value}`, 'good')}
-                {awardRow(game.awards.playmaker?.playerSeasonId, AWARD_ICON.playmaker, `Playmaker · ${game.awards.playmaker?.value}`)}
-                {awardRow(game.awards.goldenGlove?.playerSeasonId, AWARD_ICON.glove, `Golden glove · ${game.awards.goldenGlove?.value}`)}
-                {awardRow(game.awards.youngPlayer?.playerSeasonId, AWARD_ICON.young, `Young player · ${game.awards.youngPlayer?.value}`)}
+                {awardRow(game.awards.playerOfTheSeason?.playerSeasonId, AWARD_ICON.pots, t('playerOfSeason', { value: game.awards.playerOfTheSeason?.value }), 'gold')}
+                {awardRow(game.awards.goldenBoot?.playerSeasonId, AWARD_ICON.boot, t('goldenBoot', { value: game.awards.goldenBoot?.value }), 'good')}
+                {awardRow(game.awards.playmaker?.playerSeasonId, AWARD_ICON.playmaker, t('playmaker', { value: game.awards.playmaker?.value }))}
+                {awardRow(game.awards.goldenGlove?.playerSeasonId, AWARD_ICON.glove, t('goldenGlove', { value: game.awards.goldenGlove?.value }))}
+                {awardRow(game.awards.youngPlayer?.playerSeasonId, AWARD_ICON.young, t('youngPlayer', { value: game.awards.youngPlayer?.value }))}
               </div>
             )}
           </div>
@@ -847,16 +857,16 @@ export function Summary() {
           {on('awards') && <LeagueAwards />}
           {isManage && on('squad-stats') && (
             <div className="panel">
-              <h3>Squad statistics</h3>
+              <h3>{t('squadStats')}</h3>
               <div className="tbl-wrap">
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>Player</th>
-                      <th className="num">Apps</th>
-                      <th className="num">G</th>
-                      <th className="num">A</th>
-                      <th className="num">Avg</th>
+                      <th>{t('player')}</th>
+                      <th className="num">{t('apps')}</th>
+                      <th className="num">{t('colG')}</th>
+                      <th className="num">{t('colA')}</th>
+                      <th className="num">{t('avg')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -888,7 +898,7 @@ export function Summary() {
           {on('table') && (
           <div className="panel">
             <h3>
-              <QuickLeagueFlag settings={game.settings} label={leagueName} /> Final table{game.settings.mode === 'quick' ? '' : ` · ${seasonLabel(game.settings.leagueSeason)}`}
+              <QuickLeagueFlag settings={game.settings} label={leagueName} /> {game.settings.mode === 'quick' ? t('finalTable') : t('finalTableSeason', { season: seasonLabel(game.settings.leagueSeason) })}
             </h3>
             <div className="tbl-wrap">
               <TableView rows={table} teamName={game.settings.teamName} compact={!!q} highlightTop nameOf={sideName} />
@@ -897,29 +907,29 @@ export function Summary() {
           )}
           {isManage && on('finances') && (
             <div className="panel">
-              <h3>Finances</h3>
+              <h3>{t('finances')}</h3>
               <div className="stat-strip">
-                <Stat label="Budget now" value={money(game.finances.budget)} />
-                <Stat label="Income" value={money(game.finances.income)} />
-                <Stat label="Transfers" value={money(game.finances.spent)} />
-                <Stat label="Wages paid" value={money(game.finances.wagesPaid)} />
+                <Stat label={t('budgetNow')} value={money(game.finances.budget)} />
+                <Stat label={t('income')} value={money(game.finances.income)} />
+                <Stat label={t('transfers')} value={money(game.finances.spent)} />
+                <Stat label={t('wagesPaid')} value={money(game.finances.wagesPaid)} />
               </div>
             </div>
           )}
           {game.history.length > 1 && on('history') && (
             <div className="panel">
-              <h3>Dynasty history</h3>
+              <h3>{t('dynastyHistory')}</h3>
               <div className="tbl-wrap">
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>Year</th>
-                      <th>Season</th>
-                      <th>Replaced</th>
-                      <th className="num">Pos</th>
-                      <th className="num">Pts</th>
-                      <th>Result</th>
-                      <th>Real champions</th>
+                      <th>{t('colYear')}</th>
+                      <th>{t('colSeason')}</th>
+                      <th>{t('colReplaced')}</th>
+                      <th className="num">{t('colPos')}</th>
+                      <th className="num">{t('colPts')}</th>
+                      <th>{t('colResult')}</th>
+                      <th>{t('colRealChampions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -943,13 +953,13 @@ export function Summary() {
                             <span className="row" style={{ gap: 4 }}>
                               {tierName(h.tier, h.position)}
                               {h.cupWon && (
-                                <span className="chip gold icon-chip" title="Cup winners">
-                                  <Medal size={12} aria-hidden="true" /> Cup
+                                <span className="chip gold icon-chip" title={t('cupWinners')}>
+                                  <Medal size={12} aria-hidden="true" /> {t('cupChip')}
                                 </span>
                               )}
                               {h.continentalWon && (
-                                <span className="chip gold icon-chip" title="Continental champions">
-                                  <Globe size={12} aria-hidden="true" /> Europe
+                                <span className="chip gold icon-chip" title={t('continentalChampions')}>
+                                  <Globe size={12} aria-hidden="true" /> {t('europeChip')}
                                 </span>
                               )}
                             </span>
@@ -974,14 +984,14 @@ export function Summary() {
           )}
           {cardUrl && on('share') && (
             <div className="panel">
-              <h3>Share card</h3>
-              <img src={cardUrl} alt="Share card" className="share-card-img" />
+              <h3>{t('shareCard')}</h3>
+              <img src={cardUrl} alt={t('shareCard')} className="share-card-img" />
             </div>
           )}
           {on('share') && (
           <details className="panel fold">
             <summary className="panel-head">
-              <h3>Share text</h3>
+              <h3>{t('shareText')}</h3>
               <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
             </summary>
             <pre className="mono small share-text">{text}</pre>

@@ -13,8 +13,11 @@ import { TrebleArt, TrophyArt } from './TrophyArt'
 import { confettiPieces, prefersReducedMotion } from '../motion'
 import { revealDelay, userInPlay } from '../cupReveal'
 import { playSound } from '../sound/synth'
+import { translator } from '../i18n'
+import { summary } from '../i18n/en/summary'
 
-const TITLE: Record<QuickCupComp, string> = { cup: 'The Cup', continental: 'Continental Cup' }
+const t = translator(summary)
+
 const ROUNDS: QuickCupRound[] = ['R16', 'QF', 'SF', 'F']
 const CUP_PIECES = confettiPieces(36)
 const TREBLE_PIECES = confettiPieces(56)
@@ -37,8 +40,8 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
   const [celebrating, setCelebrating] = useState(reveal && lifted)
   useEffect(() => {
     if (done) return
-    const t = setTimeout(() => setShown((n) => n + 1), revealDelay(view, steps, shown))
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setShown((n) => n + 1), revealDelay(view, steps, shown))
+    return () => clearTimeout(timer)
   }, [done, shown, view, steps])
   useEffect(() => {
     if (done) onRevealEnd?.()
@@ -60,27 +63,27 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
   const honour = q && lifted ? honourOf(q.position === 1, wonCup(q, 'cup'), wonCup(q, 'continental')) : null
   const treble = honour === 'treble'
   const line = current
-    ? `${view.rounds[current.round].name}: your tie is in play`
+    ? t('tieInPlay', { round: view.rounds[current.round].name })
     : latest
-      ? `${cupRoundLabel(comp, latest.round)}: ${latest.won ? 'through' : 'out'}, ${cupScoreLabel(latest)} against ${nameOf(latest.opponentId)}`
-      : 'The draw is made'
-  const verdict = done ? (lifted ? (comp === 'cup' ? 'Cup winners' : 'Champions of the continent') : `Out in the ${cupReachLabel(run.reached, comp)}`) : null
+      ? t('tieLine', { round: cupRoundLabel(comp, latest.round), won: latest.won ? 'yes' : 'no', score: cupScoreLabel(latest), opponent: nameOf(latest.opponentId) })
+      : t('drawMade')
+  const verdict = done ? (lifted ? t(comp === 'cup' ? 'cupWinners' : 'continentChampions') : t('outInThe', { round: cupReachLabel(run.reached, comp) })) : null
   const Icon = comp === 'cup' ? Medal : Globe
   return (
-    <Modal open onClose={onClose} title={TITLE[comp]} className="cup-night" testId={`cup-night-${comp}`}>
+    <Modal open onClose={onClose} title={t(`cupTitle_${comp}`)} className="cup-night" testId={`cup-night-${comp}`}>
       <div className="cup-night-bar">
         <span className={`cup-night-line ${live ? 'live' : ''}`} data-testid="cup-night-line" aria-live="polite">
           <Icon size={16} aria-hidden="true" /> {verdict ?? line}
         </span>
         {!done ? (
           <button className="btn sm ghost" onClick={() => setShown(total)} data-testid="cup-night-skip">
-            <SkipForward size={14} aria-hidden="true" /> Skip to the end
+            <SkipForward size={14} aria-hidden="true" /> {t('skipToEnd')}
           </button>
         ) : (
           lifted &&
           !celebrating && (
             <button className="btn sm" onClick={() => setCelebrating(true)} data-testid="cup-night-trophy">
-              {treble ? <Crown size={14} aria-hidden="true" /> : <Icon size={14} aria-hidden="true" />} {treble ? 'The Treble' : 'The trophy'}
+              {treble ? <Crown size={14} aria-hidden="true" /> : <Icon size={14} aria-hidden="true" />} {t(treble ? 'theTreble' : 'theTrophy')}
             </button>
           )
         )}
@@ -120,15 +123,15 @@ export function CupLift({ comp, treble, teamName, detail, played, onBack, onDone
         {treble ? <TrebleArt size={170} className="cup-lift-art" /> : <TrophyArt kind={comp} size={170} className="cup-lift-art" />}
       </div>
       <div className="cup-lift-title" data-testid="cup-celebration-title">
-        {treble ? 'The Treble' : comp === 'cup' ? 'Cup winners' : 'Champions of the continent'}
+        {t(treble ? 'theTreble' : comp === 'cup' ? 'cupWinners' : 'continentChampions')}
       </div>
-      <div className="cup-lift-line">{treble ? `${teamName}: ${detail}, one season` : `${teamName} lift ${comp === 'cup' ? 'the Cup' : 'the Continental Cup'}`}</div>
+      <div className="cup-lift-line">{treble ? t('trebleLine', { team: teamName, detail }) : t(comp === 'cup' ? 'liftCup' : 'liftContinental', { team: teamName })}</div>
       <div className="cup-lift-actions">
         <button className="btn ghost" onClick={onBack} data-testid="cup-celebration-bracket">
-          See the bracket
+          {t('seeBracket')}
         </button>
         <button className="btn primary" onClick={onDone} data-testid="cup-celebration-done">
-          Done
+          {t('done')}
         </button>
       </div>
     </div>

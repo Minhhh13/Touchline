@@ -7,6 +7,10 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, Info, Stat } from '../components/bits'
 import { Check, Copy, House, RotateCcw } from 'lucide-react'
 import { clubName, ordinal, outcomeClass, outcomeOf, seasonLabel } from '../format'
+import { translator } from '../i18n'
+import { runin } from '../i18n/en/runin'
+
+const t = translator(runin)
 
 /** The end of a run-in: the brief's chip, the verdict against the real club, the ten games, the final table and the share text. */
 export function RunInSummary() {
@@ -30,7 +34,7 @@ export function RunInSummary() {
       await navigator.clipboard.writeText(text)
       setCopied(true)
     } catch {
-      showToast('Could not copy. Select the text manually.')
+      showToast(t('copyFailed'))
     }
   }
   return (
@@ -42,7 +46,7 @@ export function RunInSummary() {
             <ClubBadge clubId={host} size={22} />
             {clubName(u, host)} {seasonLabel(game.settings.leagueSeason)}
           </span>
-          <span className="bm-rest">Run-in · {RUN_IN_TEMPLATE_LABEL[v.template]}</span>
+          <span className="bm-rest">{t('modeLine', { template: RUN_IN_TEMPLATE_LABEL[v.template] })}</span>
         </div>
         <div className="tier-wrap">
           <div className={`tier ${v.met ? 'CHAMPIONS' : 'RELEGATED'}`} data-testid="runin-chip">
@@ -53,8 +57,8 @@ export function RunInSummary() {
           {v.line}
         </p>
         <div className="banner-stats">
-          <Stat label="Took over" value={ordinal(v.from.position)} sub={`MW ${v.from.matchweek}, ${v.from.points} pts (projected)`} />
-          <Stat label="Finished" value={ordinal(v.position)} sub={`${v.points} pts`} />
+          <Stat label={t('tookOver')} value={ordinal(v.from.position)} sub={t('tookOverSub', { week: v.from.matchweek, pts: v.from.points })} />
+          <Stat label={t('finished')} value={ordinal(v.position)} sub={t('pts', { n: v.points })} />
         </div>
         {story && story.strip.length > 0 && (
           <div className="blocks" aria-hidden="true">
@@ -63,23 +67,23 @@ export function RunInSummary() {
             ))}
           </div>
         )}
-        {game.season.sacked && <div className="notice danger">The board sacked you before the end.</div>}
+        {game.season.sacked && <div className="notice danger">{t('sackedNotice')}</div>}
         <div className="banner-actions">
           <button className="btn primary" onClick={() => go('setup', 'runin')} data-testid="runin-again">
-            <RotateCcw size={16} aria-hidden="true" /> Another run-in
+            <RotateCcw size={16} aria-hidden="true" /> {t('another')}
           </button>
           <button className="btn" onClick={copy}>
-            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
           </button>
           <button className="btn ghost" onClick={() => go('home')}>
-            <House size={16} aria-hidden="true" /> Home
+            <House size={16} aria-hidden="true" /> {t('home')}
           </button>
         </div>
       </div>
       <div className="summary-body fill" data-testid="summary-body">
         <div className="grid two">
           <div className="panel" data-testid="runin-games">
-            <h3>The run-in</h3>
+            <h3>{t('theRunIn')}</h3>
             <div className="plist lined">
               {(story?.results ?? []).map((r) => (
                 <div key={r.matchweek} className="row between small" style={{ padding: '4px 0' }}>
@@ -96,9 +100,9 @@ export function RunInSummary() {
           <div className="panel">
             <div className="panel-head">
               <span className="head-title">
-                <h3>Final table</h3>
-                <Info label="About the table">
-                  The first {v.from.matchweek} matchweeks are projected from the real final table; the last {game.season.matchweeks - v.from.matchweek} were played.
+                <h3>{t('finalTable')}</h3>
+                <Info label={t('aboutTable')}>
+                  {t('tableInfo', { from: v.from.matchweek, played: game.season.matchweeks - v.from.matchweek })}
                 </Info>
               </span>
             </div>
@@ -107,7 +111,7 @@ export function RunInSummary() {
         </div>
         <details className="panel fold">
           <summary className="fold-head">
-            <h3>Share text</h3>
+            <h3>{t('shareText')}</h3>
           </summary>
           <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="runin-share-text">
             {text}

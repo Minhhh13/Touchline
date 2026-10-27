@@ -10,11 +10,15 @@ import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { DIAL_FULL_MS, DIAL_HOLD_MS, DIAL_QUICK_MS, DIAL_REDUCED_MS, dialTravel, landingAngle, needleAngle, ticksPassed } from '../upgradeDial'
 import { SoundToggle } from './CaseReel'
+import { translator } from '../i18n'
+import { draft } from '../i18n/en/draft'
+import { rich, B } from '../i18n/rich'
+
+const t = translator(draft)
 
 /** The dial's win arc takes a rarity colour by how big the gamble is. */
 const BOOST_TIER: Record<UpgradeBoost, Tier> = { 2: 'purple', 5: 'pink', 10: 'red' }
 /** The three boosts as presets: how big a gamble each is. */
-const BOOST_NAME: Record<UpgradeBoost, string> = { 2: 'Safe', 5: 'Bold', 10: 'All in' }
 
 /** What the Upgrader shows of a gamble made: the logic's record of it (`DraftUpgrade`, `JanuaryUpgradeResult`). */
 export interface UpgradeShown {
@@ -153,12 +157,12 @@ export function UpgradeDial({ chance, tier, roll, won, animate, skip = 0, onLand
         {phase === 'landed' && verdict ? (
           <>
             <b data-testid="upgrader-verdict">{verdict}</b>
-            <span>{won ? 'Upgraded' : 'Missed'}</span>
+            <span>{t(won ? 'upgraded' : 'missed')}</span>
           </>
         ) : (
           <>
             <b data-testid="upgrader-chance">{chance}%</b>
-            <span>{phase === 'spinning' ? 'rolling…' : 'to win'}</span>
+            <span>{t(phase === 'spinning' ? 'rolling' : 'toWin')}</span>
           </>
         )}
       </div>
@@ -212,7 +216,7 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
     <div className="upg-stage col" data-testid="upgrader-stage" data-state={result ? (landed ? 'landed' : 'spinning') : 'choose'}>
       {!result && intro}
       {!result && (
-        <div className="upg-players" role="listbox" aria-label="Your players">
+        <div className="upg-players" role="listbox" aria-label={t('yourPlayers')}>
           {players.map((p) => (
             <button key={p.id} type="button" role="option" aria-selected={pick === p.id} className={`upg-player${pick === p.id ? ' on' : ''}`} onClick={() => setChosen(p.id)} data-testid="upgrader-player">
               <Pos p={p.positions[0]} />
@@ -229,11 +233,11 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
         <div className="upg-side col">
           {!result && (
             <>
-              <div className="upg-presets" role="group" aria-label="Boost">
+              <div className="upg-presets" role="group" aria-label={t('boost')}>
                 {UPGRADE_BOOSTS.map((b) => (
                   <button key={b} type="button" className={`upg-preset${boost === b ? ' on' : ''}`} data-tier={BOOST_TIER[b]} onClick={() => setBoost(b)} aria-pressed={boost === b} data-testid={`boost-${b}`}>
                     <span className="upg-preset-boost">+{b}</span>
-                    <span className="upg-preset-name">{BOOST_NAME[b]}</span>
+                    <span className="upg-preset-name">{t(`boost_${b}`)}</span>
                     <b className="upg-preset-chance">{pick ? `${upgradeChance(base, b)}%` : '–'}</b>
                   </button>
                 ))}
@@ -242,31 +246,31 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
                 <div className="upg-odds small col">
                   <b className="upg-odds-name">{player.name}</b>
                   <span className="upg-win-line">
-                    Win {chance}%: {hideRatings ? `+${upgradeGain(base, boost)}` : `${base} → ${base + upgradeGain(base, boost)}`}
+                    {t('winLine', { chance, what: hideRatings ? `+${upgradeGain(base, boost)}` : `${base} → ${base + upgradeGain(base, boost)}` })}
                   </span>
                   <span className="upg-lose-line">
-                    Lose {100 - chance}%: {locked ? '🔒 locked, no change' : hideRatings ? `-${upgradeLoss(boost)}` : `${base} → ${base - upgradeLoss(boost)}`}
+                    {t('loseLine', { chance: 100 - chance, what: locked ? t('lockedNoChange') : hideRatings ? `-${upgradeLoss(boost)}` : `${base} → ${base - upgradeLoss(boost)}` })}
                   </span>
                 </div>
               ) : (
-                <span className="small muted">Pick a player: the higher he is already, the worse the odds.</span>
+                <span className="small muted">{t('upgPickHint')}</span>
               )}
             </>
           )}
           {result && !landed && (
             <div className="upg-rolling small" aria-live="polite">
-              <b>{resultPlayer?.name ?? 'Your player'}</b> at {result.chance}% for +{result.boost}…
+              {rich(t('upgRolling', { name: resultPlayer?.name ?? t('yourPlayerCap'), chance: result.chance, boost: result.boost }), B)}
             </div>
           )}
           {result && landed && (
             <div className={`upg-result ${result.won ? 'won' : 'lost'}`} data-testid="upgrader-result" data-won={result.won}>
-              <b>{result.won ? 'Upgraded!' : result.locked ? 'The lock held' : 'Downgraded'}</b>
+              <b>{t(result.won ? 'upgradedBang' : result.locked ? 'lockHeldThe' : 'downgraded')}</b>
               <span>
-                {resultPlayer?.name ?? 'Your player'} {result.locked ? 'keeps his rating' : result.delta > 0 ? `+${result.delta}` : result.delta}
+                {t('resultLine', { name: resultPlayer?.name ?? t('yourPlayerCap'), change: result.locked ? t('keepsRating') : result.delta > 0 ? `+${result.delta}` : String(result.delta) })}
                 {!hideRatings && !result.locked && ` (${resultBase} → ${resultBase + result.delta})`}
               </span>
               <span className="small">
-                Rolled {result.roll} against {result.chance}%
+                {t('rolledAgainst', { roll: result.roll, chance: result.chance })}
               </span>
             </div>
           )}
@@ -288,13 +292,13 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
               }}
               data-testid="upgrader-confirm"
             >
-              {pick ? `Upgrade at ${chance}%` : 'Choose a player'}
+              {pick ? t('upgradeAt', { chance }) : t('choosePlayer')}
             </button>
             {back}
           </>
         ) : spinning ? (
           <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="upgrader-skip">
-            Tap to skip
+            {t('tapToSkip')}
           </button>
         ) : (
           <button type="button" className="btn primary" onClick={onDone} data-testid="upgrader-close">
@@ -305,7 +309,7 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
           <SoundToggle />
         </span>
       </div>
-      <div className="tiny-note small muted">In-game only: no money, nothing to buy. The chance shown is the exact chance.</div>
+      <div className="tiny-note small muted">{t('inGameOnlyChance')}</div>
     </div>
   )
 }
@@ -331,26 +335,26 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
   useEffect(() => () => rollingCb.current?.(false), [])
   const resultPlayer = result ? players.find((p) => p.id === result.id) : undefined
   const done = !!result && !rolling
-  const summary = result ? (done ? `${resultPlayer?.name ?? 'Your player'}: ${result.won ? `won, +${result.delta}` : result.locked ? 'lost, the lock held' : `lost, ${result.delta}`} (${result.chance}% chance)` : 'The dial is spinning…') : 'Once per draft: gamble +2, +5 or +10 on a drafted player.'
+  const summary = result ? (done ? t(result.won ? 'summaryWon' : result.locked ? 'summaryLockHeld' : 'summaryLost', { name: resultPlayer?.name ?? t('yourPlayerCap'), delta: result.delta, chance: result.chance }) : t('dialSpinning')) : t('oncePerDraft')
 
   return (
     <div className={tray ? 'pu-upgrader' : 'panel tight upg-panel'} data-testid="upgrader">
       {tray ? (
-        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? (result.won ? `Won +${result.delta}` : result.locked ? 'Lock held' : `Lost ${result.delta}`) : 'Spinning…') : available ? 'Ready' : 'Draft a player'} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
+        <PowerUpButton icon={<PowerUpIcon kind="upgrader" />} title={POWER_UP_INFO.upgrader.title} line={POWER_UP_INFO.upgrader.line} status={result ? (done ? t(result.won ? 'statusWon' : result.locked ? 'statusLockHeld' : 'statusLost', { delta: result.delta }) : t('spinning')) : t(available ? 'ready' : 'draftAPlayer')} used={!!result} disabled={!available} onClick={() => setOpen(true)} testId="pu-upgrader" />
       ) : (
         <div className="row between">
           <div>
-            <b>⬆️ Player Upgrader</b>
+            <b>⬆️ {t('playerUpgrader')}</b>
             <div className="small muted">{summary}</div>
           </div>
           {!result && (
-            <button className="btn sm primary" disabled={!available} onClick={() => setOpen(true)} data-testid="upgrader-open" title={available ? undefined : 'Draft a player first'}>
-              Upgrade
+            <button className="btn sm primary" disabled={!available} onClick={() => setOpen(true)} data-testid="upgrader-open" title={available ? undefined : t('draftPlayerFirst')}>
+              {t('upgrade')}
             </button>
           )}
         </div>
       )}
-      <Modal open={open} onClose={() => !rolling && setOpen(false)} title="Player Upgrader" sheet testId="upgrader-sheet" className="upg-sheet">
+      <Modal open={open} onClose={() => !rolling && setOpen(false)} title={t('playerUpgrader')} sheet testId="upgrader-sheet" className="upg-sheet">
         <UpgraderStage
           players={players}
           ratingOf={ratingOf}
@@ -359,9 +363,9 @@ export function Upgrader({ players, ratingOf, available, result, hideRatings, on
           lockedId={lockedId}
           onConfirm={onConfirm}
           onSpinning={setRolling}
-          doneLabel="Back to the draft"
+          doneLabel={t('backToDraft')}
           onDone={() => setOpen(false)}
-          intro={<div className="small muted">Pick one of your players and a boost. Win and his rating rises by the boost; lose and it drops by half. He stays in your side either way.</div>}
+          intro={<div className="small muted">{t('upgIntro')}</div>}
         />
       </Modal>
     </div>

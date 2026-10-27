@@ -7,7 +7,12 @@ import { shortNameFor } from '@game/logic/setup'
 import { settingsFromChallenge, arenaVerifiedLine } from '@game/logic/challenge'
 import { claimLine, claimWon, stepText } from '@game/logic/arenaClaim'
 import { summariseArena } from '@game/logic/arena'
-import { arenaFormatLabel } from '@game/logic/modes'
+import { arenaFormatText } from '../i18n/modeText'
+import { rich, B } from '../i18n/rich'
+import { translator } from '../i18n'
+import { arena } from '../i18n/en/arena'
+
+const t = translator(arena)
 
 /**
  * A challenge link for the arena, opened: everything is fixed by the link
@@ -28,26 +33,26 @@ export function ArenaChallengeSetup() {
   const ready = [settings.leagueId, ...settings.wheelLeagues].every((l) => u.leagues.some((x) => x.id === l))
   const unfinished = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
   const start = () => {
-    if (unfinished && !confirm(`Take the challenge? Your unfinished ${arenaFormatLabel(unfinished.settings.arena)} (${unfinished.settings.teamName}) will be abandoned.`)) return
+    if (unfinished && !confirm(t('takeChallengeConfirm', { format: arenaFormatText(unfinished.settings.arena), team: unfinished.settings.teamName }))) return
     startGame(settings)
   }
   const code = (i: number) => (format === 'gauntlet' ? `R${i + 1}` : cupRoundName(size, i).code)
   return (
     <div className="page">
       <div className="row between wrap" style={{ marginBottom: 12 }}>
-        <h1>Challenge · {arenaFormatLabel(settings.arena)}</h1>
+        <h1>{t('challengeTitle', { format: arenaFormatText(settings.arena) })}</h1>
         <button className="btn ghost" onClick={() => go('home')}>
-          ← Back
+          {t('back')}
         </button>
       </div>
       <div className={`notice ${ch.verified === 'yes' ? '' : 'warn'}`} data-testid="arena-challenge-banner">
-        <b>Challenge from {ch.name}</b>: {claimLine(ch.name, claim, format, size)}.{c.arena.dl ? ` It was the Daily Arena of ${c.arena.dl}; yours plays as an ordinary run on that seed.` : ''} Same seed, same wheel, the same {format === 'gauntlet' ? 'ladder' : 'draw'}: whoever you draft, you meet {ch.name}'s opponents for as long as you both last.
+        {rich(t('challengeBanner', { name: ch.name, claim: claimLine(ch.name, claim, format, size), daily: c.arena.dl ? 'yes' : 'no', day: c.arena.dl, format }), B)}
         <div className="small" style={{ marginTop: 6 }} data-testid="arena-challenge-verified">
           {arenaVerifiedLine(ch, format)}
         </div>
       </div>
       <div className="panel col" style={{ marginTop: 12 }}>
-        <h3>{ch.name}'s run</h3>
+        <h3>{t('runOf', { name: ch.name })}</h3>
         <div className="row wrap" style={{ gap: 6 }} data-testid="arena-challenge-steps">
           {claim.g.map((g, i) => (
             <span key={i} className={`chip ${claimWon(g) ? 'good' : 'bad'}`}>
@@ -58,7 +63,7 @@ export function ArenaChallengeSetup() {
       </div>
       <div className="panel col" style={{ marginTop: 12 }}>
         <label className="field">
-          Team name
+          {t('teamName')}
           <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={28} data-testid="arena-challenge-name" />
         </label>
         <div className="small muted" data-testid="arena-summary">
@@ -66,7 +71,7 @@ export function ArenaChallengeSetup() {
         </div>
         <LeagueRetry needs={[settings.leagueId, ...settings.wheelLeagues]} />
         <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues} data-testid="arena-challenge-start">
-          {ready ? `Take on ${ch.name}` : <LeagueWait needs={[settings.leagueId, ...settings.wheelLeagues]} />}
+          {ready ? t('takeOn', { name: ch.name }) : <LeagueWait needs={[settings.leagueId, ...settings.wheelLeagues]} />}
         </button>
       </div>
     </div>

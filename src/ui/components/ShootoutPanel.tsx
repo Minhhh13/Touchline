@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
 import { useMediaQuery } from './LivePitch'
+import { translator } from '../i18n'
+import { arena } from '../i18n/en/arena'
+
+const t = translator(arena)
 
 /** The kicks reveal one at a time, at once for anyone who asked the system for less motion. */
 function prefersReducedMotion(): boolean {
@@ -62,14 +66,14 @@ export function ShootoutPanel() {
     }
     const take = (
       <button type="button" className="btn primary big" data-testid="take-penalties" onClick={() => takePenalties(list, gk)}>
-        Take the penalties
+        {t('takePens')}
       </button>
     )
     return (
       <div className="panel" style={{ borderColor: 'var(--gold)', marginBottom: 12 }} data-testid="shootout-panel">
         <div className="panel-head">
-          <h2>Penalties</h2>
-          <span className="small muted">Level at 90. Pick the order: the pressure grows on kicks four and five and in sudden death, so composure counts there.</span>
+          <h2>{t('penalties')}</h2>
+          <span className="small muted">{t('pensHelp')}</span>
         </div>
         <div className="grid two">
           <ol className="plist" style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
@@ -80,13 +84,13 @@ export function ShootoutPanel() {
                   <span className="mono" style={{ width: 22 }}>{i + 1}</span>
                   <span className="name">
                     {p?.name ?? id}
-                    {p && <span className="muted small taker-meta">shooting {p.attributes.shooting} · composure {p.attributes.mentality}</span>}
+                    {p && <span className="muted small taker-meta">{t('takerMeta', { shooting: p.attributes.shooting, composure: p.attributes.mentality })}</span>}
                   </span>
                   <span className="row" style={{ gap: 4 }}>
-                    <button type="button" className="btn sm ghost" aria-label={`Move ${p?.name ?? id} up`} disabled={i === 0} onClick={() => move(i, -1)}>
+                    <button type="button" className="btn sm ghost" aria-label={t('moveUp', { name: p?.name ?? id })} disabled={i === 0} onClick={() => move(i, -1)}>
                       ↑
                     </button>
-                    <button type="button" className="btn sm ghost" aria-label={`Move ${p?.name ?? id} down`} disabled={i === list.length - 1} onClick={() => move(i, 1)}>
+                    <button type="button" className="btn sm ghost" aria-label={t('moveDown', { name: p?.name ?? id })} disabled={i === list.length - 1} onClick={() => move(i, 1)}>
                       ↓
                     </button>
                   </span>
@@ -96,16 +100,16 @@ export function ShootoutPanel() {
           </ol>
           <div className="col">
             <label className="field">
-              In goal
+              {t('inGoal')}
               <select className="input" value={gk} onChange={(e) => setKeeper(e.target.value)} data-testid="shootout-keeper">
                 {pending.keepers.map((id) => (
                   <option key={id} value={id}>
-                    {get(id)?.name ?? id} (goalkeeping {get(id)?.attributes.goalkeeping ?? '?'}){pending.defaultOrder.includes(id) ? '' : ' · off the bench, uses a change'}
+                    {t('keeperOption', { name: get(id)?.name ?? id, n: get(id)?.attributes.goalkeeping ?? '?', bench: pending.defaultOrder.includes(id) ? 'no' : 'yes' })}
                   </option>
                 ))}
               </select>
             </label>
-            <p className="help">The takers go in this order and start again from the top in sudden death. Their side: {pending.theirOrder.slice(0, 5).map((id) => u.index[id]?.name ?? id).join(', ')}.</p>
+            <p className="help">{t('takersHelp', { names: pending.theirOrder.slice(0, 5).map((id) => u.index[id]?.name ?? id).join(', ') })}</p>
             {!phone && take}
           </div>
         </div>
@@ -123,28 +127,28 @@ export function ShootoutPanel() {
     <div className="panel" style={{ borderColor: 'var(--gold)', marginBottom: 12 }} data-testid="shootout-reveal">
       <div className="panel-head">
         <h2>
-          Penalties {us}-{them}
+          {t('penaltiesScore', { us, them })}
         </h2>
         {done ? (
           <span className={`chip ${pens.us > pens.them ? 'good' : 'bad'}`} data-testid="shootout-result">
-            {pens.us > pens.them ? `Won ${pens.us}-${pens.them} on penalties` : `Lost ${pens.us}-${pens.them} on penalties`}
+            {t(pens.us > pens.them ? 'wonPens' : 'lostPens', { score: `${pens.us}-${pens.them}` })}
           </span>
         ) : (
           // In the head beside the score, so the box keeps one line of kicks under it
           <button type="button" className="btn sm ghost" onClick={() => setShown(pens.kicks.length)}>
-            Show them all
+            {t('showAll')}
           </button>
         )}
       </div>
       <div className="row wrap shootout-kicks" style={{ gap: 6 }}>
         {kicks.map((k, i) => (
-          <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`} title={k.us ? 'Ours' : 'Theirs'}>
+          <span key={i} className={`chip ${k.scored ? 'good' : 'bad'}`} title={t(k.us ? 'ours' : 'theirs')}>
             {k.us ? '' : '⇢ '}
             {name(k.takerId, k.us)} {k.scored ? '✓' : '✗'}
           </span>
         ))}
       </div>
-      {pens.keeperSwap && <p className="help">{get(pens.keeperSwap.on)?.name} came off the bench to face them, for {get(pens.keeperSwap.off)?.name}.</p>}
+      {pens.keeperSwap && <p className="help">{t('keeperSwap', { on: get(pens.keeperSwap.on)?.name, off: get(pens.keeperSwap.off)?.name })}</p>}
     </div>
   )
 }

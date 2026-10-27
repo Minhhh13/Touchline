@@ -23,15 +23,17 @@ import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, Cl
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
-import { DAMAGED_LINK_TOAST, readGameHash } from './gameHash'
+import { readGameHash } from './gameHash'
 import { onlineAvailable, openRoom, resolveShort } from '../online/api'
 import { newsBody } from '@game/logic/newsFlavour'
 import { translator } from './i18n'
 import { app } from './i18n/en/app'
+import { shell } from './i18n/en/shell'
 import { useLanguage } from './i18n/language'
 import { B, rich } from './i18n/rich'
 
 const t = translator(app)
+const tShell = translator(shell)
 
 // Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
 // after Home fetches them in this order, the Quick Draft path first
@@ -141,7 +143,7 @@ export function App() {
       const { link: h, damaged } = readGameHash(location.hash)
       if (damaged) {
         history.replaceState(null, '', location.pathname + location.search)
-        useStore.getState().showToast(DAMAGED_LINK_TOAST)
+        useStore.getState().showToast(tShell('damagedLink'))
         return
       }
       if (!h) return
@@ -332,7 +334,7 @@ export function App() {
           <span>{t('showBar')}</span>
         </button>
       )}
-      <ScreenBoundary key={locale} resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')} atHome={screen === 'home'}>
+      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} key={locale} onHome={() => go('home')} atHome={screen === 'home'}>
         {body}
       </ScreenBoundary>
       <Toast />

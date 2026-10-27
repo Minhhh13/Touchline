@@ -13,7 +13,7 @@ import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
 import { GAUNTLET_RUNGS, rungLabels } from '@engine/gauntlet'
 import { GauntletLadder } from '../components/GauntletLadder'
-import { arenaFormatLabel } from '@game/logic/modes'
+import { arenaFormatText } from '../i18n/modeText'
 import { ghostStepLine } from '@game/logic/arenaClaim'
 import { playerLookup, squadPlayers } from '@game/logic/players'
 import { lineupProblems, teamStrength } from '@game/logic/squad'
@@ -24,6 +24,11 @@ import { OppositionReport } from './OppositionReport'
 import { distinctLabels } from '../screenText'
 import { gauntletBandText, splitSeason } from '../arenaText'
 import { TacticsTab } from './Dugout'
+import { fixed } from '../format'
+import { translator } from '../i18n'
+import { arena } from '../i18n/en/arena'
+
+const t = translator(arena)
 
 type ArenaTab = 'team' | 'tactics' | 'draw'
 
@@ -64,7 +69,7 @@ export function Arena() {
   // A challenge's ghost: the challenger's result on this step, and on every rung or round
   const ghost = game.settings.challenge?.arena ? game.settings.challenge : undefined
   const changeDraw = () => {
-    if (opp && confirm(`Change the draw? ${opp.club.name} makes way for another side from the same band. Once a run.`)) store.changeTheDraw()
+    if (opp && confirm(t('changeDrawConfirm', { club: opp.club.name }))) store.changeTheDraw()
   }
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
@@ -104,18 +109,18 @@ export function Arena() {
             <h1 style={{ fontSize: 26 }}>{game.settings.teamName}</h1>
             <div className="screen-meta" data-testid="arena-head">
               {/* The format and the match, once each: a Final's "Cup Final" and "Cup final" read as one chip */}
-              {distinctLabels([arenaFormatLabel(game.settings.arena), info.label]).map((l, i) => (
+              {distinctLabels([arenaFormatText(game.settings.arena), info.label]).map((l, i) => (
                 <span key={l} className={`chip${i === 0 ? ' info' : ''}`}>
                   {l}
                 </span>
               ))}
-              {gauntlet && <span className="chip">{a.step} of {GAUNTLET_RUNGS} climbed</span>}
+              {gauntlet && <span className="chip">{t('climbed', { n: a.step, total: GAUNTLET_RUNGS })}</span>}
             </div>
           </div>
         </div>
         <div className="stat-strip arena-stats">
-          <Stat label="Team rating" value={strength.overall.toFixed(1)} sub={`balance ${Math.round(strength.balance * 100)}%`} />
-          <Stat label="Squad" value={squad.length} sub={game.settings.difficulty} />
+          <Stat label={t('teamRating')} value={fixed(strength.overall, 1)} sub={t('balance', { n: Math.round(strength.balance * 100) })} />
+          <Stat label={t('squad')} value={squad.length} sub={game.settings.difficulty} />
         </div>
       </div>
 
@@ -124,8 +129,8 @@ export function Arena() {
           {opp && (
             <div className="panel col" style={{ gap: 6 }} data-testid="arena-opponent">
               <div className="eyebrow">
-                {gauntlet ? `Rung ${rung} · ${gauntletBandText(rung)}` : cup ? `${info.label} · round ${a.step + 1} of ${cupRoundCount(size)}${seeded ? ' · a seed' : ''}` : info.label}
-                {info.neutral ? ' · neutral ground' : info.home ? ' · home' : ' · away'}
+                {gauntlet ? t('rungLine', { rung, band: gauntletBandText(rung) }) : cup ? t('roundLine', { label: info.label, round: a.step + 1, total: cupRoundCount(size), seed: seeded ? 'yes' : 'no' }) : info.label}
+                {t(info.neutral ? 'neutralGround' : info.home ? 'home' : 'away')}
                 {billing ? ` · ${billing}` : ''}
               </div>
               <div className="row between" style={{ gap: 8 }}>
@@ -138,13 +143,13 @@ export function Arena() {
                   </div>
                 </div>
                 {gauntlet && (
-                  <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined} data-testid="arena-lifeline" title="Once a run: swap this rung's club for another from the same band">
-                    {a.lifelineUsed !== undefined ? 'Lifeline used' : 'Change the draw'}
+                  <button className="btn sm" onClick={changeDraw} disabled={a.lifelineUsed !== undefined} data-testid="arena-lifeline" title={t('lifelineTip')}>
+                    {t(a.lifelineUsed !== undefined ? 'lifelineUsed' : 'changeDraw')}
                   </button>
                 )}
               </div>
               <div className="small muted" data-testid="arena-rating">
-                {opp.offset > 0 ? `Plays at ${(opp.real - opp.offset).toFixed(1)} (real ${opp.real.toFixed(1)})` : `Plays at full strength, ${opp.real.toFixed(1)}`} · you {strength.overall.toFixed(1)}
+                {opp.offset > 0 ? t('playsAt', { at: fixed(opp.real - opp.offset, 1), real: fixed(opp.real, 1) }) : t('playsFull', { real: fixed(opp.real, 1) })}{t('you', { n: fixed(strength.overall, 1) })}
               </div>
               {ghost && (
                 <div className="small" style={{ color: 'var(--accent)' }} data-testid="ghost-here">
@@ -156,8 +161,8 @@ export function Arena() {
           {gauntlet && (
             <div className="panel col" style={{ gap: 8 }}>
               <div className="panel-head" style={{ marginBottom: 0 }}>
-                <h3>The ladder</h3>
-                <span className="small muted">{a.lifelineUsed ? `Lifeline used at rung ${a.lifelineUsed}` : 'Lifeline unused'}</span>
+                <h3>{t('theLadder')}</h3>
+                <span className="small muted">{a.lifelineUsed ? t('lifelineUsedAt', { n: a.lifelineUsed }) : t('lifelineUnused')}</span>
               </div>
               <GauntletLadder u={u} a={a} ghost={ghost} />
             </div>
@@ -167,8 +172,8 @@ export function Arena() {
             <div className="panel col" style={{ gap: 8 }} data-testid="arena-draw">
               <div className="panel-head" style={{ marginBottom: 0 }}>
                 <span className="head-title">
-                  <h3>The draw · {size} clubs</h3>
-                  <Info label="About the draw">Seeds kept apart in round one, four days between ties, the final on neutral ground.</Info>
+                  <h3>{t('theDraw', { n: size })}</h3>
+                  <Info label={t('aboutDraw')}>{t('drawInfo')}</Info>
                 </span>
               </div>
               {ghost?.arena && (
@@ -196,18 +201,18 @@ export function Arena() {
             value={tab}
             onChange={setTab}
             tabs={[
-              { id: 'team', label: 'Team sheet' },
-              { id: 'tactics', label: 'Tactics' },
+              { id: 'team', label: t('teamSheet') },
+              { id: 'tactics', label: t('tactics') },
             ]}
           />
           {tab === 'team' && (
             <div className="panel">
               <div className="panel-head">
-                <h3>Squad · {squad.length}</h3>
+                <h3>{t('squadN', { n: squad.length })}</h3>
                 <div className="row">
-                  <span className="small muted">{selectedSlot ? `Pick a player for ${formation.slots.find((s) => s.id === selectedSlot)?.position}` : 'A slot on the pitch, then a player.'}</span>
+                  <span className="small muted">{selectedSlot ? t('pickFor', { pos: formation.slots.find((s) => s.id === selectedSlot)?.position }) : t('slotThenPlayer')}</span>
                   <button className="btn sm" onClick={() => store.autoPick()} data-testid="arena-autopick">
-                    Auto-pick
+                    {t('autoPick')}
                   </button>
                 </div>
               </div>
@@ -222,7 +227,7 @@ export function Arena() {
                       showClub
                       onClick={() => onPlayerClick(p.id)}
                       extra={game.captainId === p.id ? <span className="chip gold">©</span> : undefined}
-                      right={slot ? <span className="chip info">{slot.position}</span> : <span className="chip">Bench</span>}
+                      right={slot ? <span className="chip info">{slot.position}</span> : <span className="chip">{t('bench')}</span>}
                     />
                   )
                 })}
@@ -239,7 +244,7 @@ export function Arena() {
             <div className="panel-head">
               <h3>{formation.name}</h3>
               <span className="small muted">
-                GK {strength.goalkeeping.toFixed(0)} · DEF {strength.defence.toFixed(0)} · MID {strength.midfield.toFixed(0)} · ATT {strength.attack.toFixed(0)}
+                {t('unitLine', { gk: fixed(strength.goalkeeping, 0), def: fixed(strength.defence, 0), mid: fixed(strength.midfield, 0), att: fixed(strength.attack, 0) })}
               </span>
             </div>
             <div className="arena-pitch-box">
@@ -248,22 +253,22 @@ export function Arena() {
           </div>
           <div className="panel col arena-prep">
             <div className="field">
-              Team talk
+              {t('teamTalk')}
               <Segmented<TeamTalk>
                 value={game.teamTalk}
                 onChange={store.setTeamTalk}
                 options={[
-                  { value: 'calm', label: 'Calm', hint: 'Settles nerves when the odds are against you' },
-                  { value: 'encourage', label: 'Encourage', hint: 'Safe, small lift' },
-                  { value: 'demand', label: 'Demand', hint: 'Keeps favourites honest, pressures underdogs' },
-                  { value: 'fire-up', label: 'Fire up', hint: 'High variance' },
+                  { value: 'calm', label: t('calm'), hint: t('calmHint') },
+                  { value: 'encourage', label: t('encourage'), hint: t('encourageHint') },
+                  { value: 'demand', label: t('demand'), hint: t('demandHint') },
+                  { value: 'fire-up', label: t('fireUp'), hint: t('fireUpHint') },
                 ]}
               />
             </div>
             {(gauntlet || cup) && (
               <label className="field" data-testid="arena-training">
                 <span>
-                  Training focus <Info label="About the training focus">{TRAINING[game.training].blurb} It shapes this match and the recovery before the next.</Info>
+                  {t('trainingFocus')} <Info label={t('aboutTraining')}>{t('trainingInfo', { blurb: TRAINING[game.training].blurb })}</Info>
                 </span>
                 <select className="input" value={game.training} onChange={(e) => store.setTraining(e.target.value as TrainingFocus)} data-testid="arena-training-select">
                   {(Object.keys(TRAINING) as TrainingFocus[]).map((k) => (
@@ -275,32 +280,32 @@ export function Arena() {
               </label>
             )}
             <label className="field">
-              Captain
+              {t('captain')}
               <select className="input" value={game.captainId ?? ''} onChange={(e) => store.setCaptain(e.target.value)} data-testid="arena-captain">
                 <option value="" disabled>
-                  Choose a captain
+                  {t('chooseCaptain')}
                 </option>
                 {xi.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} (composure {p.attributes.mentality})
+                    {t('captainOption', { name: p.name, n: p.attributes.mentality })}
                   </option>
                 ))}
               </select>
             </label>
           </div>
           <div className="panel col bottom-bar arena-actions" ref={barRef} data-testid="arena-actions">
-            {problems.length > 0 && <div className="small" style={{ color: 'var(--warn)' }}>{problems[0]}: the assistant fills the gap at kick-off.</div>}
-            <div className="small muted arena-vs">{opp ? `${info.label} v ${opp.club.name}.` : 'No opponent drawn.'}</div>
-            <button className="btn primary big block" onClick={() => store.playArenaStep(true)} disabled={!opp} data-testid="arena-live" title="Manage it through half time, the 70th minute and any shoot-out">
-              Manage this one
+            {problems.length > 0 && <div className="small" style={{ color: 'var(--warn)' }}>{t('assistantFills', { problem: problems[0] })}</div>}
+            <div className="small muted arena-vs">{opp ? t('versus', { label: info.label, club: opp.club.name }) : t('noOpponent')}</div>
+            <button className="btn primary big block" onClick={() => store.playArenaStep(true)} disabled={!opp} data-testid="arena-live" title={t('manageTip')}>
+              {t('manage')}
             </button>
             <div className="row wrap arena-more-calls" style={{ gap: 8 }}>
-              <button className="btn" onClick={() => store.playArenaStep(false)} disabled={!opp} data-testid="arena-sim" title="The assistant picks the side and plays the match, penalties included">
-                {cup ? 'Sim this tie' : 'Assistant plays it'}
+              <button className="btn" onClick={() => store.playArenaStep(false)} disabled={!opp} data-testid="arena-sim" title={t('simTip')}>
+                {t(cup ? 'simTie' : 'assistantPlays')}
               </button>
               {(gauntlet || cup) && (
-                <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp} data-testid="arena-sim-end" title={cup ? 'The assistant plays every tie left' : 'The assistant plays every rung left and drafts the bonus spins'}>
-                  Sim to the end
+                <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp} data-testid="arena-sim-end" title={t(cup ? 'simEndCupTip' : 'simEndTip')}>
+                  {t('simEnd')}
                 </button>
               )}
             </div>

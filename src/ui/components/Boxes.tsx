@@ -6,6 +6,12 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { ChevronDown, LayoutGrid } from 'lucide-react'
 import { canHide, gridTemplate, popPlacement, presentBoxes, readHidden, toggleBox, visibleIds, writeHidden, type BoxDef, type BoxSet, type GridCol } from '../boxes'
+import { translator } from '../i18n'
+import { shell } from '../i18n/en/shell'
+
+const t = translator(shell)
+/** A box's or a set's words from its screen and id; a label built at run time (a match-day slot) shows as it comes. */
+const boxText = (key: string, english: string) => (t.has(key) ? t(key) : english)
 
 interface HiddenStore {
   get(): string[]
@@ -141,40 +147,40 @@ export function BoxesMenu({ groups, resets, className = '', iconOnly = false }: 
   if (listed.length === 0) return null
   return (
     <div className={`boxes ${className}`} ref={wrap}>
-      <button ref={button} type="button" className={`btn sm ghost boxes-btn ${off ? 'has-off' : ''}`} aria-expanded={open} aria-controls={`${id}-pop`} aria-haspopup="dialog" aria-label={iconOnly ? (off ? `Boxes, ${off} off` : 'Boxes') : undefined} onClick={() => setOpen((v) => !v)} data-testid="boxes-menu" title="Choose which boxes this screen shows">
+      <button ref={button} type="button" className={`btn sm ghost boxes-btn ${off ? 'has-off' : ''}`} aria-expanded={open} aria-controls={`${id}-pop`} aria-haspopup="dialog" aria-label={iconOnly ? (off ? t('boxesOff', { n: off }) : t('boxes')) : undefined} onClick={() => setOpen((v) => !v)} data-testid="boxes-menu" title={t('boxesTip')}>
         <LayoutGrid size={14} aria-hidden="true" />
-        {!iconOnly && <span>Boxes</span>}
+        {!iconOnly && <span>{t('boxes')}</span>}
         {off > 0 && (
           <span className="boxes-off" data-testid="boxes-off">
-            {off} off
+            {t('off', { n: off })}
           </span>
         )}
         {!iconOnly && <ChevronDown size={14} aria-hidden="true" className="boxes-chevron" />}
       </button>
       {open && (
-        <div ref={pop} id={`${id}-pop`} className="boxes-pop" style={place ?? { visibility: 'hidden' }} role="dialog" aria-label="Show or hide boxes" data-testid="boxes-pop">
+        <div ref={pop} id={`${id}-pop`} className="boxes-pop" style={place ?? { visibility: 'hidden' }} role="dialog" aria-label={t('showOrHide')} data-testid="boxes-pop">
           {listed.map((g) => (
             <fieldset key={g.set.screen} className="boxes-group">
-              <legend className="eyebrow">{g.set.title}</legend>
+              <legend className="eyebrow">{boxText(`boxes_${g.set.screen}`, g.set.title)}</legend>
               {g.present.map((b) => {
                 const on = g.visible.includes(b.id)
                 const locked = on && !canHide(g.set, g.hidden, b.id, g.present.map((x) => x.id))
                 return (
-                  <label key={b.id} className={`boxes-item ${locked ? 'locked' : ''}`} title={locked ? 'At least one box stays on' : undefined}>
+                  <label key={b.id} className={`boxes-item ${locked ? 'locked' : ''}`} title={locked ? t('oneStays') : undefined}>
                     <input type="checkbox" checked={on} disabled={locked} onChange={() => g.toggle(b.id)} data-testid={`boxes-toggle-${b.id}`} />
-                    <span>{b.label}</span>
+                    <span>{boxText(`box_${g.set.screen}_${b.id}`, b.label)}</span>
                   </label>
                 )
               })}
             </fieldset>
           ))}
-          <p className="small muted boxes-note">Untick a box to hide it; the others take its room.</p>
+          <p className="small muted boxes-note">{t('boxesNote')}</p>
           <div className="boxes-actions">
             <button type="button" className="btn sm" onClick={() => listed.forEach((g) => g.showAll())} disabled={off === 0} data-testid="boxes-show-all">
-              Show all
+              {t('showAll')}
             </button>
             <button type="button" className="btn sm ghost" onClick={() => resetBoxes(resets ?? listed.map((g) => g.set))} data-testid="boxes-reset">
-              Reset
+              {t('reset')}
             </button>
           </div>
         </div>

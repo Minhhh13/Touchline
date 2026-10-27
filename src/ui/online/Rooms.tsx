@@ -23,13 +23,17 @@ import { TeamNameField } from '../components/SetupBits'
 import { clubName, formationName, ordinal, seasonLabel } from '../format'
 import { H2HResultView } from '../screens/H2H'
 import { roomVersionNote } from '../../online/engineRoute'
+import { translator } from '../i18n'
+import { h2h as h2hText } from '../i18n/en/h2h'
+
+const t = translator(h2hText)
 
 /** The four rules of an online room, as pictures with a line each (the hot-seat's, for two devices). */
-const ROOM_STEPS: Array<{ Icon: LucideIcon; title: string; line: string }> = [
-  { Icon: Link2, title: 'Make a room, share the link', line: 'No account needed: the code works on any device.' },
-  { Icon: Dices, title: 'One wheel for both', line: 'Each spin lands on one club-season for you both.' },
-  { Icon: Repeat, title: 'Take turns', line: 'Snake order, as on one device: a pick each per spin.' },
-  { Icon: Swords, title: 'Same season', line: 'Two derbies; the higher finish wins.' },
+const roomSteps = (): Array<{ Icon: LucideIcon; title: string; line: string }> => [
+  { Icon: Link2, title: t('roomStep1Title'), line: t('roomStep1Line') },
+  { Icon: Dices, title: t('roomStep2Title'), line: t('roomStep2Line') },
+  { Icon: Repeat, title: t('roomStep3Title'), line: t('roomStep3Line') },
+  { Icon: Swords, title: t('roomStep4Title'), line: t('roomStep4Line') },
 ]
 
 /** Whole minutes to a deadline, never more than the rule's own limit (this device's clock may run behind the server's). */
@@ -82,19 +86,19 @@ export function RoomSetup() {
   const make = async () => {
     setBusy(true)
     setError(null)
-    const r = await createRoom(settings, { name: name.trim() || 'Manager 1', formationId, hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')
+    const r = await createRoom(settings, { name: name.trim() || t('managerN', { n: 1 }), formationId, hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')
     setBusy(false)
     if (!r.ok) {
       setError(r.message)
       return
     }
-    showToast(`Room ${formatCode(r.code)} is open: share the link`)
+    showToast(t('roomOpenToast', { code: formatCode(r.code) }))
     go('room')
   }
   return (
     <div className="screen-body scroll-whole fill" data-testid="room-setup">
-      <ol className="steps" aria-label="How an online head-to-head works">
-        {ROOM_STEPS.map(({ Icon, title, line }) => (
+      <ol className="steps" aria-label={t('roomHowItWorks')}>
+        {roomSteps().map(({ Icon, title, line }) => (
           <li key={title}>
             <span className="step-icon" aria-hidden="true">
               <Icon size={20} />
@@ -108,17 +112,17 @@ export function RoomSetup() {
       </ol>
       <div className="grid two">
         <div className="panel col" data-testid="room-create-panel">
-          <h3 style={{ margin: 0 }}>Make a room</h3>
+          <h3 style={{ margin: 0 }}>{t('makeRoom')}</h3>
           <div className="grid two">
             <div className="col">
-              <TeamNameField label="Your name" value={name} onChange={setName} fallback="Manager 1" maxLength={24} testId="room-name" />
+              <TeamNameField label={t('yourName')} value={name} onChange={setName} fallback={t('managerN', { n: 1 })} maxLength={24} testId="room-name" />
               <div className="field formation-field">
-                Formation
-                <FormationPicker value={formationId} onChange={setFormationId} label="Your formation" testId="room-formation" />
+                {t('formation')}
+                <FormationPicker value={formationId} onChange={setFormationId} label={t('yourFormation')} testId="room-formation" />
                 <span className="help">{getFormation(formationId).blurb}</span>
               </div>
               <label className="field">
-                Club whose place you take
+                {t('hostClub')}
                 <select className="input" value={hostClubId} onChange={(e) => setHost(e.target.value)} data-testid="room-club">
                   {clubs.map((c) => (
                     <option key={c} value={c}>
@@ -130,15 +134,15 @@ export function RoomSetup() {
             </div>
             <div className="col">
               <div className="field">
-                League
+                {t('league')}
                 <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHost(''); void ensureLeagues(roomWheel(u, id, scope)) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
               </div>
               <div className="field">
-                Draft from
-                <Segmented value={scope} onChange={(sc) => { setScope(sc); void ensureLeagues(roomWheel(u, leagueId, sc)) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> This league</> }, { value: 'all', label: <><LeagueFlag leagueId="europe" /> All {u.available.length} leagues</> }]} />
+                {t('draftFrom')}
+                <Segmented value={scope} onChange={(sc) => { setScope(sc); void ensureLeagues(roomWheel(u, leagueId, sc)) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {t('thisLeague')}</> }, { value: 'all', label: <><LeagueFlag leagueId="europe" /> {t('allLeagues', { n: u.available.length })}</> }]} />
               </div>
               <label className="field">
-                Season
+                {t('season')}
                 <select className="input" value={leagueSeason} onChange={(e) => setSeason(Number(e.target.value))}>
                   {seasons.map((s) => (
                     <option key={s} value={s}>
@@ -149,13 +153,13 @@ export function RoomSetup() {
               </label>
               <div className="field">
                 <span>
-                  Difficulty <Info label="About difficulty">Calibrated scales the real clubs so an average draft finishes mid-table; Realistic plays them as they were.</Info>
+                  {t('difficulty')} <Info label={t('aboutDifficulty')}>{t('difficultyInfo')}</Info>
                 </span>
-                <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: 'Calibrated' }, { value: 'realistic', label: 'Realistic' }]} />
+                <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: t('calibrated') }, { value: 'realistic', label: t('realistic') }]} />
               </div>
               <label className="toggle">
                 <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
-                Hard mode <Info label="About hard mode">Ratings stay hidden while you both draft.</Info>
+                {t('hardMode')} <Info label={t('aboutHardMode')}>{t('hardModeInfo')}</Info>
               </label>
             </div>
           </div>
@@ -165,24 +169,24 @@ export function RoomSetup() {
             </div>
           )}
           <button className="btn primary big block" data-testid="room-create" disabled={!ready || loadingLeagues || busy} onClick={() => void make()}>
-            {!ready ? 'Loading league data…' : busy ? 'Making the room…' : 'Make the room'}
+            {t(!ready ? 'loadingLeagues' : busy ? 'makingRoom' : 'makeTheRoom')}
           </button>
         </div>
         <div className="panel col" data-testid="room-join-panel">
-          <h3 style={{ margin: 0 }}>Join with a code</h3>
+          <h3 style={{ margin: 0 }}>{t('joinWithCode')}</h3>
           <p className="muted small" style={{ margin: 0 }}>
-            The other manager's link opens the room straight away; or type the 8-character code they read out.
+            {t('joinHelp')}
           </p>
           <label className="field">
-            Room code
+            {t('roomCode')}
             <input className="input mono room-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="K7Q2-MX9A" maxLength={12} autoCapitalize="characters" spellCheck={false} data-testid="room-code-input" onKeyDown={(e) => e.key === 'Enter' && typed && void open(typed)} />
           </label>
           <button className="btn primary block" disabled={!typed} onClick={() => typed && void open(typed)} data-testid="room-open">
-            <DoorOpen size={16} aria-hidden="true" /> Open the room
+            <DoorOpen size={16} aria-hidden="true" /> {t('openRoom')}
           </button>
           {seats.length > 0 && (
             <div className="col" style={{ gap: 'var(--space-2)' }}>
-              <div className="eyebrow">Your rooms on this device</div>
+              <div className="eyebrow">{t('yourRooms')}</div>
               <div className="row wrap">
                 {seats.map((c) => (
                   <button key={c} className="btn sm mono" onClick={() => void open(c)} data-testid="room-seat">
@@ -193,9 +197,9 @@ export function RoomSetup() {
             </div>
           )}
           <ul className="room-rules small muted">
-            <li>A room closes if nobody joins within {ROOM_WAIT_MINUTES} minutes.</li>
-            <li>A draft with no pick for {ROOM_IDLE_MINUTES} minutes times out.</li>
-            <li>Rooms are deleted {ROOM_KEEP_HOURS} hours after they end. Nobody needs an account; your seat is kept on this device.</li>
+            <li>{t('ruleWait', { n: ROOM_WAIT_MINUTES })}</li>
+            <li>{t('ruleIdle', { n: ROOM_IDLE_MINUTES })}</li>
+            <li>{t('ruleKeep', { n: ROOM_KEEP_HOURS })}</li>
           </ul>
         </div>
       </div>
@@ -232,7 +236,7 @@ export function RoomScreen() {
   const head = (
     <div className="screen-head">
       <div className="screen-title">
-        <h1>Online head-to-head</h1>
+        <h1>{t('onlineTitle')}</h1>
         <div className="screen-meta">
           {code && (
             <span className="chip mono" data-testid="room-code-chip">
@@ -241,29 +245,29 @@ export function RoomScreen() {
           )}
           {view && (
             <span>
-              <LeagueFlag leagueId={view.settings.leagueId} /> {u.leagues.find((l) => l.id === view.settings.leagueId)?.name ?? u.available.find((l) => l.id === view.settings.leagueId)?.name ?? 'League'} {seasonLabel(view.settings.leagueSeason)}
+              <LeagueFlag leagueId={view.settings.leagueId} /> {u.leagues.find((l) => l.id === view.settings.leagueId)?.name ?? u.available.find((l) => l.id === view.settings.leagueId)?.name ?? t('leagueFallback')} {seasonLabel(view.settings.leagueSeason)}
             </span>
           )}
-          {view?.settings.hardMode && <span className="chip">Hard mode</span>}
+          {view?.settings.hardMode && <span className="chip">{t('hardMode')}</span>}
         </div>
       </div>
       <div className="toolbar">
         <button className="btn ghost sm" onClick={() => go('h2h')}>
-          ← Head-to-head
+          {t('backToH2H')}
         </button>
       </div>
     </div>
   )
   let body: React.ReactNode
-  if (!ui) body = <RoomMessage icon={<Wifi size={26} />} title="No room open" line="Make a room or open one with its code from Head-to-head." />
-  else if (ui.missing) body = <RoomMessage icon={<DoorOpen size={26} />} title="No room has that code" line={`Check the code, or ask for a new link: rooms are deleted ${ROOM_KEEP_HOURS} hours after they end.`} testId="room-missing" />
-  else if (!view) body = ui.errorCode === 'network' ? <RoomMessage icon={<WifiOff size={26} />} title="No connection to the room" line="The room opens by itself when this device is back online." testId="room-loading" /> : <RoomMessage icon={<Hourglass size={26} />} title="Opening the room…" line={ui.error ?? 'Reading the room from the server.'} testId="room-loading" />
-  else if (versionNote) body = <RoomMessage icon={<Lock size={26} />} title={versionNote.title} line={versionNote.line} testId="room-version" action={versionNote.older ? <button className="btn primary" onClick={() => go('h2h')}>Make a new room</button> : <button className="btn primary" onClick={() => location.reload()}>Reload</button>} />
-  else if (missingLeagues.length) body = <RoomMessage icon={<Hourglass size={26} />} title="Loading league data…" line="The room's wheel needs these leagues on this device." />
+  if (!ui) body = <RoomMessage icon={<Wifi size={26} />} title={t('noRoom')} line={t('noRoomLine')} />
+  else if (ui.missing) body = <RoomMessage icon={<DoorOpen size={26} />} title={t('noCode')} line={t('noCodeLine', { n: ROOM_KEEP_HOURS })} testId="room-missing" />
+  else if (!view) body = ui.errorCode === 'network' ? <RoomMessage icon={<WifiOff size={26} />} title={t('noConnection')} line={t('noConnectionLine')} testId="room-loading" /> : <RoomMessage icon={<Hourglass size={26} />} title={t('openingRoom')} line={ui.error ?? t('readingRoom')} testId="room-loading" />
+  else if (versionNote) body = <RoomMessage icon={<Lock size={26} />} title={versionNote.title} line={versionNote.line} testId="room-version" action={versionNote.older ? <button className="btn primary" onClick={() => go('h2h')}>{t('makeNewRoom')}</button> : <button className="btn primary" onClick={() => location.reload()}>{t('reload')}</button>} />
+  else if (missingLeagues.length) body = <RoomMessage icon={<Hourglass size={26} />} title={t('loadingLeagues')} line={t('leaguesNeeded')} />
   else if (view.status === 'waiting') body = ui.seat === null ? <RoomJoin view={view} /> : <RoomWaiting view={view} />
   else if (view.status === 'drafting') body = <RoomDraft view={view} seat={ui.seat} />
   else if (view.status === 'finished' && view.result && view.managers[1]) return <RoomResult view={view} />
-  else body = <RoomMessage icon={<DoorOpen size={26} />} title="This room has ended" line={roomEndLine(view.status)} testId="room-ended" action={<button className="btn primary" onClick={() => go('h2h')}>Make a new room</button>} />
+  else body = <RoomMessage icon={<DoorOpen size={26} />} title={t('roomEnded')} line={roomEndLine(view.status)} testId="room-ended" action={<button className="btn primary" onClick={() => go('h2h')}>{t('makeNewRoom')}</button>} />
   return (
     <div className="page" data-testid="room-screen" data-status={view?.status ?? 'none'}>
       {head}
@@ -297,7 +301,7 @@ function RoomMessage({ icon, title, line, action, testId }: { icon: React.ReactN
 /** A line naming the room's league season and wheel. */
 function settingsLine(u: NonNullable<ReturnType<typeof useStore.getState>['universe']>, s: RoomSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
-  return `${league} ${seasonLabel(s.leagueSeason)} · ${s.wheelLeagues.length > 1 ? `wheel of all ${s.wheelLeagues.length} leagues` : 'this league\'s wheel'} · ${s.difficulty === 'calibrated' ? 'Calibrated' : 'Realistic'}${s.hardMode ? ' · Hard mode' : ''}`
+  return t('settingsLine', { league, season: seasonLabel(s.leagueSeason), wheel: s.wheelLeagues.length > 1 ? 'all' : 'one', n: s.wheelLeagues.length, difficulty: s.difficulty, hard: s.hardMode ? 'yes' : 'no' })
 }
 
 /** Seat 0, waiting: the code, the link to share and the deadline. */
@@ -313,35 +317,35 @@ function RoomWaiting({ view }: { view: RoomView }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      showToast('Could not copy. Select the link and copy it.')
+      showToast(t('copyLinkFailed'))
     }
   }
   return (
     <div className="screen-body fill">
       <div className="grid two">
         <div className="panel col room-wait" data-testid="room-waiting">
-          <div className="eyebrow">Room code</div>
+          <div className="eyebrow">{t('roomCode')}</div>
           <div className="room-code mono" data-testid="room-code">
             {formatCode(view.code)}
           </div>
           <p className="muted small" style={{ margin: 0 }}>
-            Send the link, or read the code out: whoever opens it first takes the other seat.
+            {t('shareHelp')}
           </p>
           <div className="room-share">
-            <input className="input mono" readOnly value={link} aria-label="Room link" data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
+            <input className="input mono" readOnly value={link} aria-label={t('roomLink')} data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
             <button className="btn primary" onClick={() => void copy()} data-testid="room-copy">
-              {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy link'}
+              {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyLink')}
             </button>
           </div>
           <div className="notice icon-notice">
-            <Hourglass size={16} aria-hidden="true" /> Waiting for the other manager · closes in {minutesLeft(view.expiresAt, now, ROOM_WAIT_MINUTES)} min
+            <Hourglass size={16} aria-hidden="true" /> {t('waitingClosesIn', { n: minutesLeft(view.expiresAt, now, ROOM_WAIT_MINUTES) })}
           </div>
-          <button className="btn ghost danger" onClick={() => confirm('Close this room?') && void leaveRoom()} data-testid="room-leave">
-            Close the room
+          <button className="btn ghost danger" onClick={() => confirm(t('closeConfirm')) && void leaveRoom()} data-testid="room-leave">
+            {t('closeRoom')}
           </button>
         </div>
         <div className="panel col">
-          <h3 style={{ margin: 0 }}>The room</h3>
+          <h3 style={{ margin: 0 }}>{t('theRoom')}</h3>
           <ManagerCard m={view.managers[0]} you />
           <div className="muted small">{settingsLine(u, view.settings)}</div>
         </div>
@@ -357,7 +361,7 @@ function ManagerCard({ m, you, turn }: { m: H2HManager | null; you?: boolean; tu
     return (
       <div className="club-head room-manager empty">
         <span className="badge" style={{ width: 36, height: 36, background: 'var(--raised)', color: 'var(--text-2)' }}>?</span>
-        <div className="muted">Waiting for the other manager</div>
+        <div className="muted">{t('waitingOther')}</div>
       </div>
     )
   return (
@@ -365,9 +369,9 @@ function ManagerCard({ m, you, turn }: { m: H2HManager | null; you?: boolean; tu
       <ClubBadge clubId={m.hostClubId} size={36} />
       <div>
         <b>{m.name}</b>
-        {you && <span className="chip info" style={{ marginLeft: 8 }}>You</span>}
+        {you && <span className="chip info" style={{ marginLeft: 8 }}>{t('you')}</span>}
         <div className="muted small">
-          {formationName(m.formationId)} · in place of {clubName(u, m.hostClubId)}
+          {t('inPlaceOf', { formation: formationName(m.formationId), club: clubName(u, m.hostClubId) })}
         </div>
       </div>
     </div>
@@ -391,15 +395,15 @@ function RoomJoin({ view }: { view: RoomView }) {
     <div className="screen-body fill">
       <div className="grid two">
         <div className="panel col" data-testid="room-join">
-          <h3 style={{ margin: 0 }}>Join {host.name}'s room</h3>
+          <h3 style={{ margin: 0 }}>{t('joinRoom', { name: host.name })}</h3>
           <div className="muted small">{settingsLine(u, view.settings)}</div>
-          <TeamNameField label="Your name" value={name} onChange={setName} fallback="Manager 2" maxLength={24} testId="room-join-name" taken={[host.name]} />
+          <TeamNameField label={t('yourName')} value={name} onChange={setName} fallback={t('managerN', { n: 2 })} maxLength={24} testId="room-join-name" taken={[host.name]} />
           <div className="field formation-field">
-            Formation
-            <FormationPicker value={formationId} onChange={setFormationId} label="Your formation" testId="room-join-formation" />
+            {t('formation')}
+            <FormationPicker value={formationId} onChange={setFormationId} label={t('yourFormation')} testId="room-join-formation" />
           </div>
           <label className="field">
-            Club whose place you take
+            {t('hostClub')}
             <select className="input" value={hostClubId} onChange={(e) => setClub(e.target.value)} data-testid="room-join-club">
               {clubs.map((c) => (
                 <option key={c} value={c}>
@@ -408,21 +412,21 @@ function RoomJoin({ view }: { view: RoomView }) {
               ))}
             </select>
           </label>
-          <button className="btn primary big block" disabled={busy} onClick={() => void joinRoom({ name: name.trim() || 'Manager 2', formationId, hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')} data-testid="room-join-btn">
-            {busy ? 'Joining…' : 'Join and start the draft'}
+          <button className="btn primary big block" disabled={busy} onClick={() => void joinRoom({ name: name.trim() || t('managerN', { n: 2 }), formationId, hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')} data-testid="room-join-btn">
+            {t(busy ? 'joining' : 'joinStart')}
           </button>
           {signedIn && (
             <button className="btn ghost sm" onClick={() => void resumeRoom()} data-testid="room-resume">
-              This is my room: take my seat back on this device
+              {t('myRoom')}
             </button>
           )}
         </div>
         <div className="panel col">
-          <h3 style={{ margin: 0 }}>The room</h3>
+          <h3 style={{ margin: 0 }}>{t('theRoom')}</h3>
           <ManagerCard m={host} />
           <ManagerCard m={null} />
           <div className="notice icon-notice">
-            <Hourglass size={16} aria-hidden="true" /> The room closes in {minutesLeft(view.expiresAt, now, ROOM_WAIT_MINUTES)} min if nobody joins
+            <Hourglass size={16} aria-hidden="true" /> {t('closesIfNobody', { n: minutesLeft(view.expiresAt, now, ROOM_WAIT_MINUTES) })}
           </div>
         </div>
       </div>
@@ -451,7 +455,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
   const pool = useMemo(() => (u && d ? h2hReelPool(u, d) : []), [u, d])
   const rules = d?.drafts[0].rules
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
-  if (!u || !d) return <RoomMessage icon={<Lock size={26} />} title="This room's draft cannot be shown" line="Reload the page; if it stays, the room's data differs from this device's." />
+  if (!u || !d) return <RoomMessage icon={<Lock size={26} />} title={t('cannotShow')} line={t('cannotShowLine')} />
   const currentKey = d.current ? `${d.spins}:${d.current.clubId}@${d.current.season}` : null
   const revealed = !!currentKey && settled === currentKey
   const spinning = !!currentKey && !revealed
@@ -481,13 +485,13 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
   const onSlot = (idx: 0 | 1, slotId: string) => {
     if (!selected || !mine || idx !== seat) return
     if (!eligible.includes(slotId)) {
-      showToast(`${selected.name} cannot play there. Pick a highlighted slot.`)
+      showToast(t('cannotPlayThere', { name: selected.name }))
       return
     }
     send(selected.id, slotId)
   }
   const other = seat === null ? null : managers[seat === 0 ? 1 : 0]
-  const turnLine = picking === null ? 'Spinning…' : mine ? 'Your pick' : seat === null ? `${managers[picking].name} to pick` : `Waiting for ${other?.name}`
+  const turnLine = picking === null ? t('spinning') : mine ? t('yourPick') : seat === null ? t('toPick', { name: managers[picking].name }) : t('waitingFor', { name: other?.name })
   return (
     <div className="grid draft fill" data-testid="room-draft" data-turn={mine ? 'mine' : 'theirs'}>
       <div className="col">
@@ -497,27 +501,27 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
             {mine ? <CircleCheck size={18} aria-hidden="true" /> : <Hourglass size={18} aria-hidden="true" />} {turnLine}
           </div>
           <div className="muted small">
-            Times out after {ROOM_IDLE_MINUTES} minutes with no pick · {minutesLeft(view.idleAt, now, ROOM_IDLE_MINUTES)} min left
+            {t('timesOut', { n: ROOM_IDLE_MINUTES, left: minutesLeft(view.idleAt, now, ROOM_IDLE_MINUTES) })}
           </div>
           {seat === null && (
             <div className="notice">
-              Two managers are in this room: you are watching.
+              {t('watching')}
               {signedIn && (
                 <button className="btn sm" style={{ marginLeft: 8 }} onClick={() => void resumeRoom()}>
-                  Take my seat back
+                  {t('takeSeatBack')}
                 </button>
               )}
             </div>
           )}
           {seat !== null && (
-            <button className="btn ghost sm danger" onClick={() => confirm('Leave this room? The draft ends for both of you.') && void leaveRoom()} data-testid="room-leave">
-              Leave the room
+            <button className="btn ghost sm danger" onClick={() => confirm(t('leaveConfirm')) && void leaveRoom()} data-testid="room-leave">
+              {t('leaveRoom')}
             </button>
           )}
         </div>
         {d.log.length > 0 && (
           <div className="panel tight">
-            <div className="eyebrow">Draft log</div>
+            <div className="eyebrow">{t('draftLog')}</div>
             <ol className="h2h-log">
               {[...d.log].reverse().slice(0, 30).map((l, i) => (
                 <li key={i}>{roomLogLine(l, view.managers)}</li>
@@ -532,15 +536,15 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
             <span className="empty-icon" aria-hidden="true">
               {h2hComplete(d) ? <CircleCheck size={26} /> : <Dices size={26} />}
             </span>
-            <h3>{h2hComplete(d) ? 'Both squads complete' : 'The next spin is on its way'}</h3>
+            <h3>{t(h2hComplete(d) ? 'bothComplete' : 'nextSpinOnWay')}</h3>
           </div>
         )}
         {current && spinning && (
           <div className="club-head">
             <span className="badge" style={{ width: 44, height: 44, background: 'var(--raised)', color: 'var(--text)', fontSize: 18 }}>?</span>
             <div>
-              <h2>Opening…</h2>
-              <div className="muted small">Landing on a club and a season</div>
+              <h2>{t('opening')}</h2>
+              <div className="muted small">{t('landing')}</div>
             </div>
           </div>
         )}
@@ -553,28 +557,28 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
                 <div className="club-sub">
                   <span>{seasonLabel(current.season)}</span>
                   {!current.complete ? (
-                    <span>season in progress</span>
+                    <span>{t('inProgress')}</span>
                   ) : current.champions ? (
                     <span className="chip gold icon-chip">
-                      <Trophy size={12} aria-hidden="true" /> Champions
+                      <Trophy size={12} aria-hidden="true" /> {t('champions')}
                     </span>
                   ) : current.position > 0 ? (
                     <span>{ordinal(current.position)}</span>
                   ) : (
-                    <span>no table on record</span>
+                    <span>{t('noTable')}</span>
                   )}
                   {tier && <TierChip tier={tier} />}
                 </div>
               </div>
             </div>
-            {mine && <div className="notice">Your pick{selected ? `: a slot for ${selected.name} on your pitch` : ''}.</div>}
+            {mine && <div className="notice">{t('yourPickSlot', { slot: selected ? 'yes' : 'no', player: selected?.name })}</div>}
             <div className="plist lined draft-list" data-testid="room-squad">
               {[...current.squad]
                 .sort((a, b) => b.overall - a.overall)
                 .map((p) => {
                   const takenBy = d.drafts.findIndex((x) => Object.values(x.lineup).includes(p.id) || x.bench.includes(p.id))
                   return (
-                    <PlayerRow key={p.id} p={p} hideRatings={hide} hideChampion={current.champions} dim={!usableIds.has(p.id)} selected={selectedId === p.id} onClick={() => onPick(p.id)} extra={takenBy >= 0 ? <span className="chip info">{managers[takenBy].shortName}</span> : null} right={usableIds.has(p.id) ? <span className={`btn sm ${selectedId === p.id ? 'primary' : ''}`} data-testid="room-draft-btn">Draft</span> : null} />
+                    <PlayerRow key={p.id} p={p} hideRatings={hide} hideChampion={current.champions} dim={!usableIds.has(p.id)} selected={selectedId === p.id} onClick={() => onPick(p.id)} extra={takenBy >= 0 ? <span className="chip info">{managers[takenBy].shortName}</span> : null} right={usableIds.has(p.id) ? <span className={`btn sm ${selectedId === p.id ? 'primary' : ''}`} data-testid="room-draft-btn">{t('draft')}</span> : null} />
                   )
                 })}
             </div>
@@ -589,7 +593,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
                 <ClubBadge clubId={managers[i].hostClubId} size={24} />
                 <h3>
                   {managers[i].name}
-                  {seat === i ? ' (you)' : ''} · {formationName(managers[i].formationId)}
+                  {seat === i ? t('youSuffix') : ''} · {formationName(managers[i].formationId)}
                 </h3>
               </span>
               <span className={`chip icon-chip ${isComplete(d.drafts[i]) ? 'good' : ''}`}>
@@ -600,7 +604,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
             <Pitch formation={d.drafts[i].formation} lineup={d.drafts[i].lineup} getPlayer={(id) => u.index[id]} onSlotClick={(s) => onSlot(i, s)} eligibleSlots={mine && seat === i ? eligible : []} hideRatings={ratingHidden(d.drafts[i].rules, 'squad')} />
             {selected && mine && seat === i && suggestSlot(d.drafts[i], selected) && suggestSlot(d.drafts[i], selected) !== 'bench' && (
               <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(i, suggestSlot(d.drafts[i], selected) as string)}>
-                Put {selected.name} at {d.drafts[i].formation.slots.find((s) => s.id === suggestSlot(d.drafts[i], selected))?.position}
+                {t('putAt', { name: selected.name, pos: d.drafts[i].formation.slots.find((s) => s.id === suggestSlot(d.drafts[i], selected))?.position })}
               </button>
             )}
           </div>
@@ -616,5 +620,5 @@ function RoomResult({ view }: { view: RoomView }) {
   const managers = view.managers as [H2HManager, H2HManager]
   const d = useMemo(() => (u ? draftFromEvents(u, view.settings, managers, view.events) : null), [u, view.code, view.version]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!u || !d || !view.result) return null
-  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label="Online head-to-head" rematchLabel="New room" onRematch={() => go('h2h')} onHome={() => go('home')} testId="room-result" />
+  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label={t('onlineTitle')} shareLabel="Online head-to-head" rematchLabel={t('newRoom')} onRematch={() => go('h2h')} onHome={() => go('home')} testId="room-result" />
 }

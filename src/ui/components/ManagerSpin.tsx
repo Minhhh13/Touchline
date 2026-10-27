@@ -18,6 +18,11 @@ import { SpinOdds } from './SpinOdds'
 import { ClubBadge } from './bits'
 import { useFocusOnLanding } from '../a11y'
 import { surname } from '@game/logic/slotSheet'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+import { B, rich } from '../i18n/rich'
+
+const t = translator(season)
 
 /** How much later each reel to the right lands, ms (full timing; half with Quick spin), so the three stop one by one. */
 const STAGGER_MS = 450
@@ -26,7 +31,7 @@ const STAGGER_MS = 450
 const FILLERS = 48
 
 function origin(u: LoadedUniverse, m: Manager): string {
-  return m.archetype || !m.clubId || m.season === undefined ? 'Invented: no record on this wheel' : `${clubName(u, m.clubId)} · ${seasonLabel(m.season)}`
+  return m.archetype || !m.clubId || m.season === undefined ? t('inventedWheel') : t('managerOrigin', { club: clubName(u, m.clubId), season: seasonLabel(m.season) })
 }
 
 /**
@@ -82,11 +87,11 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
     <div className="page fit" data-testid="manager-spin">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
-          <h1>Spin your manager</h1>
-          <span className="small muted">Three reels, three real managers from this wheel's clubs. Pick one for the season.</span>
+          <h1>{t('spinManager')}</h1>
+          <span className="small muted">{t('spinManagerHelp')}</span>
         </div>
         <div className="row wrap" style={{ gap: 10 }}>
-          <SpinOdds odds={odds} label="Each reel" />
+          <SpinOdds odds={odds} label={t('eachReel')} />
           <span className="mspin-sound">
             <SoundToggle />
           </span>
@@ -111,8 +116,8 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
               <div className={`mspin-card choice-card${show ? '' : ' hidden'}`} data-tier={show ? tier : undefined} aria-hidden={!show}>
                 {!show && (
                   <span className="mspin-wait">
-                    <b>Reel {i + 1}</b>
-                    <span className="cline">{run > 0 ? 'Spinning…' : 'A real manager from this wheel lands here'}</span>
+                    <b>{t('reelN', { n: i + 1 })}</b>
+                    <span className="cline">{t(run > 0 ? 'spinning' : 'landsHere')}</span>
                   </span>
                 )}
                 {show && (
@@ -128,10 +133,10 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
                     </span>
                     <span className="cline manager-help">{MANAGER_STYLE_HELP[m.style]}</span>
                     <span className="cline manager-edge" data-testid={`mspin-edge-${i}`}>
-                      On your XI: <b>{edgeLine(edges[m.style])}</b>
+                      {rich(t('onYourXi', { edge: edgeLine(edges[m.style]) }), B)}
                     </span>
                     <button ref={i === 0 ? firstPick : undefined} type="button" className="btn primary sm" disabled={!done} onClick={(e) => { e.stopPropagation(); pickManager(m.id) }} data-testid={`mspin-pick-${i}`}>
-                      Pick {surname(m.name)}
+                      {t('pickName', { name: surname(m.name) })}
                     </button>
                   </>
                 )}
@@ -143,24 +148,24 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
       <div className="mspin-foot">
         {run === 0 ? (
           <button type="button" className="btn primary big display" onClick={() => { unlockAudio(); setRun(1) }} data-testid="mspin-go">
-            Spin 3 managers
+            {t('spin3')}
           </button>
         ) : spinning ? (
           <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="mspin-skip">
-            Tap to skip
+            {t('tapToSkip')}
           </button>
         ) : (
-          <span className="small muted" data-testid="mspin-landed">All three landed: pick your manager.</span>
+          <span className="small muted" data-testid="mspin-landed">{t('allLanded')}</span>
         )}
         {/* The reels are hidden from screen readers: the landing is said once, here */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="mspin-live">
-          {done ? `Landed: ${options.map((m) => `${m.name}, ${MANAGER_STYLE_LABEL[m.style]}`).join('; ')}. Pick your manager.` : ''}
+          {done ? t('landedLiveMgr', { list: options.map((m) => `${m.name}, ${MANAGER_STYLE_LABEL[m.style]}`).join('; ') }) : ''}
         </span>
       </div>
       <div className="panel mspin-guide" data-testid="mspin-guide">
         <div className="panel-head">
-          <h3>What a manager brings</h3>
-          <span className="small muted">Each style's edge on your XI with your current instructions: at most {Math.round(MANAGER_EDGE * 100)}% either way, for every game of the season</span>
+          <h3>{t('managerBrings')}</h3>
+          <span className="small muted">{t('styleEdgeHelp', { pct: Math.round(MANAGER_EDGE * 100) })}</span>
         </div>
         <div className="mspin-styles">
           {MANAGER_STYLES.map((st) => {

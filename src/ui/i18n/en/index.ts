@@ -20,5 +20,7 @@ import { runin } from './runin'
 import { dugout } from './dugout'
 import { match } from './match'
 import { online } from './online'
+import { shell } from './shell'
+import { trophies } from './trophies'
 
-export const CATALOGS = { app, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online } as const
+export const CATALOGS = { app, common, screenText, home, profile, setup, draft, summary, howto, privacy, explore, season, h2h, arena, runin, dugout, match, online, shell, trophies } as const

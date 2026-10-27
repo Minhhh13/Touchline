@@ -1,5 +1,5 @@
 /**
- * `t()`: every user-facing string goes through a catalogue (docs/DESIGN_SYSTEM.md section 16). A catalogue is one
+ * `t()`: every user-facing string goes through a catalogue (docs/DESIGN_SYSTEM.md section 17). A catalogue is one
  * namespace of English messages, declared with `catalog('home', { … })` beside the screen that uses it, so a lazy
  * screen's English travels in its own chunk; `translator(catalogue)` gives that namespace's `t`, whose keys TypeScript
  * checks. Another language is a `locales/<id>.ts` file of full keys (`home.title`), loaded only when chosen
@@ -90,8 +90,10 @@ export function formatText(src: string, vars: Vars = {}): string {
 
 export interface Translate<M extends Messages> {
   (key: keyof M & string, vars?: Vars): string
-  /** The catalogue's namespace, for `rich()` and the tests. */
+  /** The catalogue's namespace, for the tests. */
   readonly ns: string
+  /** Whether the catalogue holds a key built at run time (a box's label from its id). */
+  has(key: string): key is keyof M & string
 }
 
 /** The `t` for one catalogue. A key outside it (only possible through a cast) prints as `⟦ns.key⟧`. */
@@ -101,5 +103,5 @@ export function translator<N extends string, M extends Messages>(c: Catalog<N, M
     if (src === undefined) return `⟦${c.ns}.${key}⟧`
     return formatText(src, vars)
   }
-  return Object.assign(t, { ns: c.ns })
+  return Object.assign(t, { ns: c.ns, has: (key: string): key is keyof M & string => Object.prototype.hasOwnProperty.call(c.messages, key) })
 }

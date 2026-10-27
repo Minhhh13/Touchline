@@ -14,20 +14,25 @@ import { COUNTRY_OPTIONS, countryName } from './countries'
 import { ConflictCards } from './ConflictCard'
 import { OnlineRecord } from './OnlineRecord'
 import { onlineErrorText } from '../../online/postText'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+import { B, rich } from '../i18n/rich'
 
-const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft / Daily', season: 'Season', dynasty: 'Dynasty', h2h: 'Head-to-head' }
+const tr = translator(online)
 
-/** The account's promise, said the same way everywhere a guest is invited to sign in. */
-export const ACCOUNT_PROMISE = 'Sign in to save your seasons, records and Dailies to your account.'
+const SLOT_LABEL: Record<string, () => string> = { quick: () => tr('historyQuick'), season: () => tr('slotSeason'), dynasty: () => tr('slotDynasty'), h2h: () => tr('historyH2H') }
+
+/** The account's promise, said the same way everywhere a guest is invited to sign in (`online.promise` in the viewer's language). */
+export const ACCOUNT_PROMISE = (): string => tr('promise')
 
 /** How long an emailed code works (Supabase Auth's OTP expiry, set to 900 s on the project). */
 const CODE_LIFETIME_MS = 900_000
 const RESEND_SECONDS = 60
 
 /** A country picker: "No flag" plus every country, flags first (the boards' country filter). */
-export function CountrySelect({ value, onChange, emptyLabel = 'No flag', testId }: { value: string | null; onChange: (c: string | null) => void; emptyLabel?: string; testId?: string }) {
+export function CountrySelect({ value, onChange, emptyLabel = tr('noFlag'), testId }: { value: string | null; onChange: (c: string | null) => void; emptyLabel?: string; testId?: string }) {
   return (
-    <select className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} aria-label="Country" data-testid={testId}>
+    <select className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} aria-label={tr('country')} data-testid={testId}>
       <option value="">{emptyLabel}</option>
       {COUNTRY_OPTIONS.map((c) => (
         <option key={c.code} value={c.code}>
@@ -56,19 +61,19 @@ function FlagPicker({ value, onChange }: { value: string | null; onChange: (c: s
   return (
     <div className="field" data-testid="account-country">
       <span>
-        Flag {value && <span className="small muted">· {countryName(value)}</span>}
+        {tr('flag')} {value && <span className="small muted">· {countryName(value)}</span>}
       </span>
-      <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a country" aria-label="Search a country" data-testid="account-country-search" />
-      <div className="flag-list" role="listbox" aria-label="Countries">
+      <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr('searchCountry')} aria-label={tr('searchCountry')} data-testid="account-country-search" />
+      <div className="flag-list" role="listbox" aria-label={tr('countries')}>
         <button type="button" role="option" aria-selected={value === null} className={`flag-pick${value === null ? ' active' : ''}`} onClick={() => onChange(null)}>
-          No flag
+          {tr('noFlag')}
         </button>
         {shown.map((c) => (
           <button key={c.code} type="button" role="option" aria-selected={value === c.code} className={`flag-pick${value === c.code ? ' active' : ''}`} onClick={() => onChange(c.code)} data-testid={`flag-${c.code}`}>
             <CountryFlag code={c.code} /> {countryName(c.code)}
           </button>
         ))}
-        {shown.length === 0 && <span className="small muted">No country matches.</span>}
+        {shown.length === 0 && <span className="small muted">{tr('noCountryMatch')}</span>}
       </div>
     </div>
   )
@@ -87,20 +92,20 @@ function ClubPicker() {
   return (
     <div className="field" data-testid="account-club">
       <span>
-        Favourite club <span className="small muted">(optional)</span>
+        {tr('favouriteClub')} <span className="small muted">{tr('optional')}</span>
       </span>
       {current ? (
         <span className="row" style={{ gap: 8 }}>
           <ClubBadge clubId={current.id} size={22} /> <b>{current.name}</b>
           <button type="button" className="btn ghost sm" onClick={() => setClub(null)}>
-            Change
+            {tr('change')}
           </button>
         </span>
       ) : (
         <>
-          <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a club" aria-label="Search a club" data-testid="account-club-search" />
+          <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr('searchClub')} aria-label={tr('searchClub')} data-testid="account-club-search" />
           {shown.length > 0 && (
-            <div className="flag-list" role="listbox" aria-label="Clubs">
+            <div className="flag-list" role="listbox" aria-label={tr('clubs')}>
               {shown.map((c) => (
                 <button key={c.id} type="button" role="option" aria-selected={false} className="flag-pick" onClick={() => setClub(c.id)}>
                   <ClubBadge clubId={c.id} size={18} /> {c.name}
@@ -184,7 +189,7 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
   return (
     <div className="col" data-testid="account-signin">
       <p className="account-promise" data-testid="account-promise">
-        {ACCOUNT_PROMISE}
+        {ACCOUNT_PROMISE()}
       </p>
       {!onCodeStep && (
         <div data-testid="auth-mode">
@@ -200,11 +205,11 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
           }}
         >
           <label className="field">
-            Email
+            {tr('email')}
             <input className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" data-testid="signin-email" />
           </label>
           <button type="submit" className="btn primary" disabled={step.at === 'sending' || !email.trim()} data-testid="signin-send">
-            {step.at === 'sending' ? 'Sending…' : copy.submit}
+            {step.at === 'sending' ? tr('sending') : copy.submit}
           </button>
           <p className="help" data-testid="signin-help">
             {copy.emailHelp}
@@ -224,22 +229,22 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
           </div>
           {expired ? (
             <div className="notice warn" data-testid="signin-expired">
-              That code has expired. Send a new one.
+              {tr('codeExpired')}
             </div>
           ) : (
             <label className="field">
-              Six-digit code
+              {tr('sixDigitCode')}
               <input className="input code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ''))} placeholder="123456" data-testid="signin-code" />
             </label>
           )}
           <div className="row wrap">
             {!expired && (
               <button type="submit" className="btn primary" disabled={step.at === 'verifying' || code.length < 6} data-testid="signin-verify">
-                {step.at === 'verifying' ? (mode === 'create' ? 'Creating…' : 'Signing in…') : copy.verify}
+                {step.at === 'verifying' ? tr(mode === 'create' ? 'creating' : 'signingIn') : copy.verify}
               </button>
             )}
             <button type="button" className="btn ghost sm" disabled={wait > 0 && !expired} onClick={() => void send()} data-testid="signin-resend">
-              {wait > 0 && !expired ? `Resend in ${wait} s` : 'Send a new code'}
+              {wait > 0 && !expired ? tr('resendIn', { n: wait }) : tr('sendNewCode')}
             </button>
             <button
               type="button"
@@ -249,10 +254,10 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
                 setMsg(null)
               }}
             >
-              Use another email
+              {tr('anotherEmail')}
             </button>
           </div>
-          <p className="help">The email also has a link: opening it on any device signs you in there.</p>
+          <p className="help">{tr('emailLink')}</p>
         </form>
       )}
       {msg && (
@@ -262,11 +267,11 @@ function SignIn({ mode, onMode, onVerify }: { mode: AuthMode; onMode: (m: AuthMo
       )}
       {google && !onCodeStep && (
         <button className="btn" onClick={() => void signInGoogle()} data-testid="signin-google">
-          Continue with Google
+          {tr('google')}
         </button>
       )}
       <button className="btn ghost sm" onClick={() => useStore.getState().go('privacy')} data-testid="signin-privacy">
-        What is stored
+        {tr('whatStored')}
       </button>
     </div>
   )
@@ -307,28 +312,28 @@ function ProfileForm({ setup }: { setup: boolean }) {
     setSaving(true)
     const r = await api.saveAccount(name, country)
     setSaving(false)
-    setMsg(r.ok ? { ok: true, text: setup ? 'Welcome to TouchLine. Your profile is saved.' : 'Saved. New board rows carry this name and flag.' } : { ok: false, text: r.message })
+    setMsg(r.ok ? { ok: true, text: tr(setup ? 'welcomeSaved' : 'savedRows') } : { ok: false, text: r.message })
   }
   const blocked = verdict?.state === 'invalid' || verdict?.state === 'taken'
   return (
     <div className="col" data-testid={setup ? 'account-setup' : 'account-profile'}>
       {setup && (
         <p className="help">
-          <b>Your account is ready.</b> Pick the name and flag the World board shows.
+          {rich(tr('accountReady'), B)}
         </p>
       )}
       <label className="field">
-        Name on the leaderboards
-        <input className="input" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} placeholder="3 to 24 characters" aria-describedby="account-name-check" data-testid="account-name" />
+        {tr('nameOnBoards')}
+        <input className="input" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} placeholder={tr('nameRule')} aria-describedby="account-name-check" data-testid="account-name" />
       </label>
       <span id="account-name-check" className={`small name-check ${verdict?.state ?? ''}`} aria-live="polite" data-testid="account-name-check">
-        {verdict?.state === 'free' ? '✓ Available' : verdict?.state === 'taken' ? 'That name is taken: try another.' : verdict?.state === 'invalid' ? verdict.message : verdict?.state === 'unknown' ? 'Could not check just now: it is checked again when you save.' : ' '}
+        {verdict?.state === 'free' ? tr('nameFree') : verdict?.state === 'taken' ? tr('nameTaken') : verdict?.state === 'invalid' ? verdict.message : verdict?.state === 'unknown' ? tr('nameUnknown') : ' '}
       </span>
       <FlagPicker value={country} onChange={setCountry} />
       <ClubPicker />
       <div className="row wrap">
         <button className="btn primary" disabled={saving || blocked || !name.trim()} onClick={() => void save()} data-testid="account-save">
-          {saving ? 'Saving…' : setup ? 'Continue' : 'Save'}
+          {tr(saving ? 'saving' : setup ? 'continue' : 'save')}
         </button>
       </div>
       {msg && (
@@ -365,39 +370,39 @@ function CloudHistory() {
     try {
       setRows(await api.cloudHistory())
     } catch (e) {
-      useStore.getState().showToast(`Could not load the cloud history. ${onlineErrorText(e)}`)
+      useStore.getState().showToast(tr('historyFailed', { error: onlineErrorText(e) }))
     }
   }
   if (!rows)
     return (
       <button className="btn sm ghost" onClick={() => void load()} data-testid="cloud-history">
-        Cloud history
+        {tr('cloudHistory')}
       </button>
     )
   return (
     <div className="col" data-testid="cloud-history-list">
-      <b className="small">Cloud history</b>
-      {rows.length === 0 && <span className="small muted">Nothing in the cloud yet.</span>}
+      <b className="small">{tr('cloudHistory')}</b>
+      {rows.length === 0 && <span className="small muted">{tr('nothingInCloud')}</span>}
       {rows.map((r) => (
         <div key={r.slot} className="small">
-          <b>{SLOT_LABEL[r.slot]}</b>: {r.deletedAt ? 'removed on a device' : `${r.meta.teamName ?? ''} · ${r.meta.phase ?? ''}${r.meta.matchweek ? ` · matchweek ${r.meta.matchweek}` : ''} · ${r.meta.deviceLabel ?? ''}`}
+          <b>{SLOT_LABEL[r.slot]?.()}</b>: {r.deletedAt ? tr('removedOnDevice') : `${r.meta.teamName ?? ''} · ${r.meta.phase ?? ''}${r.meta.matchweek ? ` · ${tr('matchweekLower', { n: r.meta.matchweek })}` : ''} · ${r.meta.deviceLabel ?? ''}`}
           {r.prevMeta && (
             <div className="row wrap" style={{ gap: 6 }}>
               <span className="muted">
-                Previous copy: {r.prevMeta.teamName ?? ''} · {r.prevMeta.phase ?? ''} {r.prevSavedAt ? `· ${r.prevSavedAt.slice(0, 10)}` : ''}
+                {tr('previousCopy', { team: r.prevMeta.teamName ?? '', phase: r.prevMeta.phase ?? '' })} {r.prevSavedAt ? `· ${r.prevSavedAt.slice(0, 10)}` : ''}
               </span>
               {restorable(r) && (
                 <button
                   className="btn sm"
                   onClick={() => {
-                    if (!confirm('Put the previous copy on this device? It replaces the game in this slot here.')) return
+                    if (!confirm(tr('restoreConfirm'))) return
                     void api.restorePrevious(r).then(
-                      (ok) => useStore.getState().showToast(ok ? 'Restored the previous copy.' : 'Could not restore that copy.'),
-                      (e: unknown) => useStore.getState().showToast(`Could not restore that copy. ${onlineErrorText(e)}`),
+                      (ok) => useStore.getState().showToast(tr(ok ? 'restored' : 'restoreFailed')),
+                      (e: unknown) => useStore.getState().showToast(tr('restoreFailedWhy', { error: onlineErrorText(e) })),
                     )
                   }}
                 >
-                  Restore
+                  {tr('restore')}
                 </button>
               )}
             </div>
@@ -417,9 +422,9 @@ function CloudPanel({ setup }: { setup: boolean }) {
   return (
     <section className="panel fit-panel" data-testid="account-cloud">
       <div className="panel-head">
-        <h3>{setup ? 'Backing up this device' : 'Saved to your account'}</h3>
+        <h3>{tr(setup ? 'backingUp' : 'savedToAccount')}</h3>
         <button className="btn sm" onClick={() => void api.syncNow()} disabled={status === 'syncing'} data-testid="sync-now">
-          Sync now
+          {tr('syncNow')}
         </button>
       </div>
       <div className="fit-scroll col">
@@ -427,12 +432,12 @@ function CloudPanel({ setup }: { setup: boolean }) {
         <ConflictCards />
         <ul className="plain-list small" data-testid="account-saves">
           <li>
-            <b>Your games:</b> {hasGame || parked ? `${(hasGame ? 1 : 0) + parked} on this device` : 'none on this device yet'}, plus Quick Drafts, Dailies and the head-to-head.
+            {rich(tr('yourGames', { n: (hasGame ? 1 : 0) + parked }), B)}
           </li>
           <li>
-            <b>Your records:</b> {records ? `${records} best season${records === 1 ? '' : 's'}` : 'your best seasons'}, the 38-0 bests, Daily results and streak, achievements and trophies.
+            {rich(tr('yourRecords', { n: records }), B)}
           </li>
-          <li>Your games stay on this device as well. Sign in on another device and they are there too.</li>
+          <li>{tr('gamesStay')}</li>
         </ul>
         <CloudHistory />
       </div>
@@ -440,27 +445,27 @@ function CloudPanel({ setup }: { setup: boolean }) {
         <button
           className="btn sm ghost danger"
           onClick={() => {
-            if (!confirm('Delete every cloud save and the synced record of this account? The games on this device stay here, and this device stops syncing until you press Sync now. Other signed-in devices upload their own copies again on their next sync.')) return
+            if (!confirm(tr('deleteCloudConfirm'))) return
             void api.deleteCloudData().then(
-              (n) => useStore.getState().showToast(`Cloud data deleted (${n} file${n === 1 ? '' : 's'}).`),
-              (e: unknown) => useStore.getState().showToast(`Nothing was deleted. ${onlineErrorText(e)}`),
+              (n) => useStore.getState().showToast(tr('cloudDeleted', { n })),
+              (e: unknown) => useStore.getState().showToast(tr('nothingDeleted', { error: onlineErrorText(e) })),
             )
           }}
         >
-          Delete my cloud data
+          {tr('deleteCloud')}
         </button>
         <button
           className="btn sm ghost danger"
           onClick={() => {
-            if (prompt('This deletes your account, its cloud saves and its leaderboard entries for good. The games on this device stay. Type DELETE to confirm.') !== 'DELETE') return
+            if (prompt(tr('deleteAccountPrompt')) !== 'DELETE') return
             void api.deleteAccount().then(
               (r) => useStore.getState().showToast(r.message),
-              (e: unknown) => useStore.getState().showToast(`Your account was not deleted. ${onlineErrorText(e)}`),
+              (e: unknown) => useStore.getState().showToast(tr('accountNotDeleted', { error: onlineErrorText(e) })),
             )
           }}
           data-testid="delete-account"
         >
-          Delete account
+          {tr('deleteAccount')}
         </button>
       </div>
     </section>
@@ -473,33 +478,23 @@ function WhatSigningInAdds() {
   return (
     <section className="panel fit-panel" data-testid="account-benefits">
       <div className="panel-head">
-        <h3>What an account saves</h3>
+        <h3>{tr('whatAccountSaves')}</h3>
       </div>
       <div className="fit-scroll col">
         <ul className="plain-list small">
-          <li>
-            <b>Your seasons.</b> Quick Drafts, Dailies, your Season and Dynasty and the head-to-head, saved as you play.
-          </li>
-          <li>
-            <b>Your records.</b> Best seasons, the 38-0 bests, Daily results and streak, achievements and trophies.
-          </li>
-          <li>
-            <b>Every device.</b> Sign in on another phone or computer and your games are there.
-          </li>
-          <li>
-            <b>The World board.</b> Your Daily and the week's challenge post themselves, checked by the server's replay of your picks.
-          </li>
-          <li>
-            <b>Nothing else changes.</b> Every mode plays offline and signed out, exactly as before.
-          </li>
+          <li>{rich(tr('benefitSeasons'), B)}</li>
+          <li>{rich(tr('benefitRecords'), B)}</li>
+          <li>{rich(tr('benefitDevices'), B)}</li>
+          <li>{rich(tr('benefitWorld'), B)}</li>
+          <li>{rich(tr('benefitNothing'), B)}</li>
         </ul>
       </div>
       <div className="fit-foot row wrap">
         <button className="btn sm ghost" onClick={() => go('world')}>
-          See the World board
+          {tr('seeWorld')}
         </button>
         <button className="btn sm ghost" onClick={() => go('privacy')}>
-          Privacy and fair play
+          {tr('privacyFairPlay')}
         </button>
       </div>
     </section>
@@ -545,28 +540,28 @@ export function AccountScreen() {
     <div className="page account-page" data-testid="account-panel">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>{session ? 'Your account' : 'Account'}</h1>
+          <h1>{tr(session ? 'yourAccount' : 'account')}</h1>
           <div className="screen-meta">
-            <span>{session ? (account ? <>{account.country && <CountryFlag code={account.country} size={16} />} {account.displayName}</> : (session.maskedEmail ?? 'Signed in')) : 'Optional: every mode works signed out'}</span>
+            <span>{session ? (account ? <>{account.country && <CountryFlag code={account.country} size={16} />} {account.displayName}</> : (session.maskedEmail ?? tr('signedIn'))) : tr('optionalMeta')}</span>
           </div>
         </div>
         <button className="btn ghost" onClick={() => go('profile')}>
-          ← Profile
+          {tr('backProfile')}
         </button>
       </div>
       {!api.onlineAvailable() ? (
         <div className="panel">
-          <p className="help">Online features are not available in this build. Everything you play is saved in this browser.</p>
+          <p className="help">{tr('notAvailableAccount')}</p>
         </div>
       ) : (
         <div className="screen-body fill">
           <div className="grid three account-grid">
             <section className="panel fit-panel" data-testid="account-identity">
               <div className="panel-head">
-                <h3>{!session ? authCopy(mode).heading : setup ? 'Set up your profile' : 'You'}</h3>
+                <h3>{!session ? authCopy(mode).heading : tr(setup ? 'setUpProfile' : 'you')}</h3>
                 {session && (
                   <button className="btn sm ghost" onClick={() => void api.signOutOnline()} data-testid="signout">
-                    Sign out
+                    {tr('signOut')}
                   </button>
                 )}
               </div>
@@ -581,19 +576,19 @@ export function AccountScreen() {
                       </div>
                     )}
                     <span className="small muted" data-testid="account-email">
-                      {session.maskedEmail ?? 'Your account'} · {session.provider === 'google' ? 'Google' : 'email'}
+                      {session.maskedEmail ?? tr('yourAccount')} · {tr(session.provider === 'google' ? 'providerGoogle' : 'providerEmail')}
                     </span>
                     {accountLoaded ? (
                       <ProfileForm setup={setup} />
                     ) : accountError ? (
                       <div className="notice warn row between wrap" data-testid="account-load-error">
-                        <span>Could not load your profile. {accountError}</span>
+                        <span>{tr('profileLoadFailed', { error: accountError })}</span>
                         <button className="btn sm" onClick={() => void api.reloadAccount()} data-testid="account-retry">
-                          Try again
+                          {tr('tryAgain')}
                         </button>
                       </div>
                     ) : (
-                      <span className="small muted">Loading your profile…</span>
+                      <span className="small muted">{tr('loadingProfile')}</span>
                     )}
                   </>
                 )}
@@ -617,11 +612,11 @@ export function AccountLink() {
   return (
     <div className="panel row between wrap" data-testid="account-link">
       <div>
-        <h3>{session ? 'Your account' : 'Back up your saves'}</h3>
-        <span className="small muted">{session ? <>{account ? `${account.displayName}: ` : ''}<SavedStatus testId="account-link-status" /></> : ACCOUNT_PROMISE}</span>
+        <h3>{tr(session ? 'yourAccount' : 'backUp')}</h3>
+        <span className="small muted">{session ? <>{account ? `${account.displayName}: ` : ''}<SavedStatus testId="account-link-status" /></> : ACCOUNT_PROMISE()}</span>
       </div>
-      <button className={`btn ${session ? '' : 'primary'}`} onClick={() => go('account')} aria-label={session ? undefined : 'Sign in or create an account'} title={session ? undefined : 'Sign in or create an account'} data-testid="account-open">
-        {session ? 'Open' : 'Sign in'}
+      <button className={`btn ${session ? '' : 'primary'}`} onClick={() => go('account')} aria-label={session ? undefined : tr('signInOrCreate')} title={session ? undefined : tr('signInOrCreate')} data-testid="account-open">
+        {tr(session ? 'open' : 'signIn')}
       </button>
     </div>
   )

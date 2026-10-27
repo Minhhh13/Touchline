@@ -1,6 +1,10 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { inTie, type BracketTie, type BracketView } from '@game/logic/bracket'
 import { TrophyArt, type TrophyKind } from './TrophyArt'
+import { translator } from '../i18n'
+import { summary } from '../i18n/en/summary'
+
+const tr = translator(summary)
 
 /** What a reveal has shown so far: ties whose step is below `shown` are played; the tie at `shown` is the one in play. */
 export interface BracketReveal {
@@ -46,10 +50,10 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
         {show ? badge(id) : <span className="br-blank-badge" aria-hidden="true" />}
         <span className="br-name" title={show ? nameOf(id) : undefined}>
           {show ? nameOf(id) : '?'}
-          {show && seeded.has(id) && <span className="muted small" title="Seeded"> (s)</span>}
+          {show && seeded.has(id) && <span className="muted small" title={tr('seeded')}>{tr('seededMark')}</span>}
         </span>
         <span className="br-goals">{done && goals !== undefined ? goals : ''}</span>
-        {done && pens !== undefined && <span className="br-pens" title="Penalties">{pens}</span>}
+        {done && pens !== undefined && <span className="br-pens" title={tr('penalties')}>{pens}</span>}
       </div>
     )
   }
@@ -61,13 +65,13 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
     const me = show && inTie(t, userId)
     const done = played(r, i) && t.winner !== undefined
     const live = inPlay(r, i) && me && !!reveal?.live
-    const extra = done ? (t.pens ? 'pens' : t.et ? 'aet' : '') : ''
+    const extra = done ? (t.pens ? tr('pens') : t.et ? tr('aet') : '') : ''
     return (
       <div className={`br-tie ${me ? 'me' : ''} ${done ? 'done' : 'open'} ${reveal && done ? 'landed' : ''} ${live ? 'live' : ''}`} data-testid={me ? meTestId : tieTestId} data-me={me ? 'true' : undefined} data-played={done ? 'true' : 'false'} data-in-play={inPlay(r, i) ? 'true' : undefined}>
         {side(t, 'home', show, done)}
         {side(t, 'away', show, done)}
         {extra && <span className="br-extra">{extra}</span>}
-        {live && <span className="br-live small">In play</span>}
+        {live && <span className="br-live small">{tr('inPlay')}</span>}
       </div>
     )
   }
@@ -107,7 +111,7 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
         {tree && (
           <div className="br-col last champ" style={{ gridColumn: view.rounds.length + 1 }} data-testid={`${testId}-winner`}>
             <div className="br-head">
-              <span className="br-round">Winner</span>
+              <span className="br-round">{tr('winner')}</span>
             </div>
             <div className="br-body">
               <div className="br-pair">
@@ -119,7 +123,7 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
                         {badge(champion)} {nameOf(champion)}
                       </span>
                     ) : (
-                      <span className="small muted">To be decided</span>
+                      <span className="small muted">{tr('toBeDecided')}</span>
                     )}
                   </div>
                 </div>

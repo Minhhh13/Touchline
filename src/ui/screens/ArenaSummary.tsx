@@ -11,6 +11,9 @@ import { cupRoundCount } from '@engine/cup'
 import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
 import { modeLabel, shareCardFooter } from '@game/logic/modes'
+import { modeText } from '../i18n/modeText'
+import { translator } from '../i18n'
+import { arena } from '../i18n/en/arena'
 import { playerLookup } from '@game/logic/players'
 import { Pitch } from '../components/Pitch'
 import { ClubBadge, Info, Stat, TeamBadge } from '../components/bits'
@@ -23,6 +26,9 @@ import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
+import { fixed } from '../format'
+
+const t = translator(arena)
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
@@ -70,16 +76,16 @@ export function ArenaSummary() {
   const makeChallenge = async () => {
     const c = arenaChallengeFromGame(game, u, challengeName)
     if (!c) {
-      showToast('This run cannot be packed into a challenge.')
+      showToast(t('cannotPack'))
       return
     }
     const url = challengeLink(c, location.origin, location.pathname)
     setLink(url)
     try {
       await navigator.clipboard.writeText(url)
-      showToast(`Challenge link copied (${url.length} characters). Send it to a friend.`)
+      showToast(t('linkCopied', { n: url.length }))
     } catch {
-      showToast('Could not copy. The link is below.')
+      showToast(t('linkBelow'))
     }
   }
   const runItBack = () => {
@@ -91,7 +97,7 @@ export function ArenaSummary() {
       await navigator.clipboard.writeText(text)
       setCopied(true)
     } catch {
-      showToast('Could not copy. Select the text manually.')
+      showToast(t('copyFailed'))
     }
   }
   const card = async () => {
@@ -112,7 +118,7 @@ export function ArenaSummary() {
       })
       downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not make the share card. Try again.')
+      showToast(t('cardFailed'))
     }
   }
 
@@ -126,7 +132,7 @@ export function ArenaSummary() {
             <TeamBadge code={game.settings.shortName} size={22} />
             {game.settings.teamName}
           </span>
-          <span className="bm-rest">{modeLabel(game, 'short')}</span>
+          <span className="bm-rest">{modeText(game, 'short')}</span>
         </div>
         <div className="tier-wrap">
           <div className={`tier ${a.won ? 'CHAMPIONS' : ''}`} data-testid="tier">
@@ -135,13 +141,13 @@ export function ArenaSummary() {
         </div>
         {winner && (
           <p className="tier-blurb" data-testid="cup-winner">
-            Won by {winner}
+            {t('wonBy', { name: winner })}
           </p>
         )}
         <div className="banner-stats">
-          <Stat label={gauntlet ? 'Rungs' : 'Won'} value={a.log.filter(won).length} />
-          <Stat label="Played" value={a.log.length} />
-          <Stat label="Goals" value={`${a.log.reduce((x, s) => x + s.gf, 0)}-${a.log.reduce((x, s) => x + s.ga, 0)}`} />
+          <Stat label={t(gauntlet ? 'rungs' : 'won')} value={a.log.filter(won).length} />
+          <Stat label={t('played')} value={a.log.length} />
+          <Stat label={t('goals')} value={`${a.log.reduce((x, s) => x + s.gf, 0)}-${a.log.reduce((x, s) => x + s.ga, 0)}`} />
         </div>
         {/* The Gauntlet's ladder below marks every rung, so its blocks would say the same thing twice */}
         {!gauntlet && (
@@ -158,22 +164,22 @@ export function ArenaSummary() {
         )}
         <div className="banner-actions">
           <button className="btn primary" onClick={() => void copy()} data-testid="arena-copy">
-            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {t(copied ? 'copied' : 'copyResult')}
           </button>
           <button className="btn" onClick={card} data-testid="arena-card">
-            <ImageDown size={16} aria-hidden="true" /> Download share card
+            <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
           <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again">
-            <Dices size={16} aria-hidden="true" /> Play again
+            <Dices size={16} aria-hidden="true" /> {t('playAgain')}
           </button>
-          <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={a.handManaged ? 'Managed by hand: your friend sees the draft and the ladder replay, and your scores as your word' : 'Played by the assistant: your friend’s build replays and verifies it'}>
-            <Send size={16} aria-hidden="true" /> Challenge a friend
+          <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
+            <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
           </button>
-          <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title="The same seed again, against your own run">
-            <RotateCcw size={16} aria-hidden="true" /> Run it back
+          <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title={t('runItBackTip')}>
+            <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
           </button>
           <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')}>
-            <Plus size={16} aria-hidden="true" /> New game
+            <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>
       </div>
@@ -183,9 +189,9 @@ export function ArenaSummary() {
           <div className="panel" data-testid="arena-challenge-link">
             <div className="panel-head">
               <span className="head-title">
-                <h3>Challenge link</h3>
-                <Info label="About the link">
-                  Whoever opens it drafts the same wheel as {challengeName} and {gauntlet ? 'climbs the same ladder' : 'faces the same draw'}, with your result on every step. {a.handManaged ? 'You managed this run by hand, so it shows as your word, never as verified.' : 'The assistant played every match, so it verifies on the same data and engine.'} Built on data {u.generatedAt}, engine {ENGINE_VERSION}.
+                <h3>{t('challengeLink')}</h3>
+                <Info label={t('aboutLink')}>
+                  {t('linkInfo', { name: challengeName, gauntlet: gauntlet ? 'yes' : 'no', hand: a.handManaged ? 'yes' : 'no', data: u.generatedAt, engine: ENGINE_VERSION })}
                 </Info>
               </span>
             </div>
@@ -197,8 +203,8 @@ export function ArenaSummary() {
           <div className="panel" data-testid="arena-h2h">
             <div className="panel-head">
               <span className="head-title">
-                <h3>Head-to-head · vs {challenge.name}</h3>
-                <Info label="About the claim">{arenaVerifiedLine(challenge, a.format)}</Info>
+                <h3>{t('h2hVs', { name: challenge.name })}</h3>
+                <Info label={t('aboutClaim')}>{arenaVerifiedLine(challenge, a.format)}</Info>
               </span>
             </div>
             <div style={{ fontWeight: 700 }} data-testid="arena-verdict">
@@ -210,7 +216,7 @@ export function ArenaSummary() {
         <div className="grid two">
           <div className="col">
             <div className="panel" data-testid="arena-log">
-              <h3>The run</h3>
+              <h3>{t('theRun')}</h3>
               <div className="plist lined">
                 {a.log.map((s, i) => (
                   <div key={i} className="row between" style={{ gap: 8, padding: '6px 0' }}>
@@ -218,18 +224,17 @@ export function ArenaSummary() {
                       <ClubBadge clubId={clubIdOfKey(s.opponent)} size={26} />
                       <span style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600 }}>
-                          {s.label} v {arenaClubName(u, s.opponent)}
+                          {t('stepVs', { label: s.label, club: arenaClubName(u, s.opponent) })}
                         </div>
                         <div className="small muted">
-                          {s.neutral ? 'Neutral ground' : s.home ? 'Home' : 'Away'} · real {s.realStrength.toFixed(1)}
-                          {s.offset > 0 ? `, played at ${(s.realStrength - s.offset).toFixed(1)}` : ''} · {s.live ? 'managed live' : 'simmed'}
+                          {t('stepMeta', { where: s.neutral ? 'neutral' : s.home ? 'home' : 'away', real: fixed(s.realStrength, 1), offset: s.offset > 0 ? 'yes' : 'no', at: fixed(s.realStrength - s.offset, 1), live: s.live ? 'yes' : 'no' })}
                         </div>
                       </span>
                     </span>
                     <span className="col" style={{ alignItems: 'flex-end', gap: 2 }}>
                       <span className={`chip ${won(s) ? 'good' : 'bad'}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                         {s.gf}-{s.ga}
-                        {s.pens ? ` (${s.pens.us}-${s.pens.them} pens)` : ''}
+                        {s.pens ? t('pensSuffix', { score: `${s.pens.us}-${s.pens.them}` }) : ''}
                       </span>
                       {challenge && <span className="small muted" data-testid="ghost-step">{ghostStepLine(challenge, i)}</span>}
                     </span>
@@ -248,26 +253,26 @@ export function ArenaSummary() {
               )}
             </div>
             <div className="panel">
-              <h3>{runLong ? 'The run’s scorers' : 'Man of the match and scorers'}</h3>
-              {motm && <div style={{ fontWeight: 600 }}>{cup ? 'Final man of the match: ' : 'Man of the match: '}{motm}</div>}
-              {runLong && runScorers.length === 0 && <div className="muted small">No goals for us.</div>}
+              <h3>{t(runLong ? 'runScorers' : 'motmAndScorers')}</h3>
+              {motm && <div style={{ fontWeight: 600 }}>{t(cup ? 'finalMotm' : 'motm', { name: motm })}</div>}
+              {runLong && runScorers.length === 0 && <div className="muted small">{t('noGoals')}</div>}
               {runLong &&
                 runScorers.map(([id, s]) => (
                   <div key={id} className="row between small">
                     <span>
                       ⚽ {get(id)?.name ?? id}
-                      {s.seasonStats.motm > 0 ? ` · MOTM ${s.seasonStats.motm}` : ''}
+                      {s.seasonStats.motm > 0 ? t('motmCount', { n: s.seasonStats.motm }) : ''}
                     </span>
                     <span className="mono muted">{s.seasonStats.goals}</span>
                   </div>
                 ))}
-              {!runLong && goals.length === 0 && <div className="muted small">No goals for us.</div>}
+              {!runLong && goals.length === 0 && <div className="muted small">{t('noGoals')}</div>}
               {!runLong &&
                 goals.map((g, i) => (
                   <div key={i} className="row between small">
                     <span>
                       ⚽ {g.playerName}
-                      {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
+                      {g.type === 'penalty' ? t('pen') : g.type === 'own_goal' ? t('og') : ''}
                     </span>
                     <span className="mono muted">{minuteLabel(g.minute)}</span>
                   </div>
@@ -275,13 +280,13 @@ export function ArenaSummary() {
             </div>
           </div>
           <div className="panel">
-            <h3>The XI · {formation.name}</h3>
+            <h3>{t('theXI', { name: formation.name })}</h3>
             <Pitch formation={formation} lineup={game.lineup} getPlayer={get} hideRatings={ratingHidden(game.settings.rules, 'squad')} />
           </div>
         </div>
         {cup && a.bracket && (
           <div className="panel" data-testid="arena-bracket">
-            <h3>The draw · {size} clubs</h3>
+            <h3>{t('theDraw', { n: size })}</h3>
             <Bracket
               view={arenaBracketView(size, a.bracket.rounds)}
               nameOf={(k) => (k === USER_TEAM ? game.settings.teamName : arenaClubShortName(u, k))}
@@ -293,7 +298,7 @@ export function ArenaSummary() {
         )}
         <details className="panel fold">
           <summary className="fold-head">
-            <h3>Share text</h3>
+            <h3>{t('shareText')}</h3>
           </summary>
           <pre className="small" style={{ whiteSpace: 'pre-wrap', margin: 0 }} data-testid="arena-share-text">
             {text}

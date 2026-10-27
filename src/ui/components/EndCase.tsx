@@ -21,6 +21,10 @@ import { Pos, Rating } from './bits'
 import { useFocusOnLanding } from '../a11y'
 import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
 import { surname } from '@game/logic/slotSheet'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+
+const t = translator(season)
 
 /**
  * The end-of-draft case (`DraftRules.endCase`): the odds of each rarity first, then one case reel landing on what the
@@ -73,8 +77,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
     <div className="page fit" data-testid="end-case">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
-          <h1>Your end-of-draft case</h1>
-          <span className="small muted">One case per casual draft: a power-up for your locker, or with luck an Icon for this XI.</span>
+          <h1>{t('yourCase')}</h1>
+          <span className="small muted">{t('caseHelp')}</span>
         </div>
         <span className="mspin-sound">
           <SoundToggle />
@@ -95,16 +99,16 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
           )}
           {!c.opened && (
             <button type="button" className="btn primary big display" onClick={() => { unlockAudio(); openCase(); setRun(1) }} data-testid="case-open">
-              Open the case
+              {t('openCase')}
             </button>
           )}
           {/* The reel is hidden from screen readers: the landing is said once, here */}
           <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="case-live">
-            {landed ? (c.drop.kind === 'powerup' ? `${POWER_UP_INFO[c.drop.powerUp].title}, ${CASE_RARITY_LABEL[c.drop.rarity]}: into your locker` : icon ? `An Icon: ${icon.name}. Choose the slot he takes` : '') : ''}
+            {landed ? (c.drop.kind === 'powerup' ? t('caseLivePowerUp', { title: POWER_UP_INFO[c.drop.powerUp].title, rarity: CASE_RARITY_LABEL[c.drop.rarity] }) : icon ? t('caseLiveIcon', { name: icon.name }) : '') : ''}
           </span>
           {spinning && (
             <button type="button" className="reel-skip" onClick={(e) => { e.stopPropagation(); setSkip((n) => n + 1) }} data-testid="case-skip">
-              Tap to skip
+              {t('tapToSkip')}
             </button>
           )}
           {revealed && c.drop.kind === 'powerup' && (
@@ -119,10 +123,10 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               </div>
               <span className="help">{POWER_UP_INFO[c.drop.powerUp].line}</span>
               <span className="small" data-testid="case-locker">
-                Into your locker: you hold {lockerCount(profile, c.drop.powerUp)}. Unpack it in a later Quick Draft played without the power-up tray.
+                {t('intoLocker', { n: lockerCount(profile, c.drop.powerUp) })}
               </span>
               <button ref={action} type="button" className="btn primary" onClick={() => finishCase()} data-testid="case-done">
-                On to kick-off
+                {t('onToKickOff')}
               </button>
             </div>
           )}
@@ -140,24 +144,24 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                 <TierChip tier="icons" />
               </div>
               <span className="help">
-                {clubName(u, icon.clubId)} {seasonLabel(icon.season)}, at his peak. Bring him in for one of your drafted starters in a slot he can cover: the man making way sits this season out, and the season counts as non-standard.
+                {t('iconHelp', { club: clubName(u, icon.clubId), season: seasonLabel(icon.season) })}
               </span>
               <div className="case-slots row wrap" style={{ gap: 6 }}>
                 {choices.map((x, i) => (
                   <button ref={i === 0 ? action : undefined} key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingLine(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingLine(x.outSlot, x.label)}` : ''}`}>
-                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · for {surname(x.outName)}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
+                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · {t('forName', { name: surname(x.outName) })}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
                   </button>
                 ))}
               </div>
               <button type="button" className="btn ghost" onClick={() => subCaseIcon(null)} data-testid="case-keep">
-                Keep my XI
+                {t('keepXi')}
               </button>
             </div>
           )}
         </div>
         <div className="panel col case-locker" data-testid="case-locker-panel">
           <h3 className="icon-title">
-            <LOCKER_ICON size={18} aria-hidden="true" /> Your locker
+            <LOCKER_ICON size={18} aria-hidden="true" /> {t('yourLocker')}
           </h3>
           <div className="case-locker-grid">
             {guide
@@ -170,11 +174,11 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                 </span>
               ))}
           </div>
-          <span className="help">Power-ups wait here between drafts: unpack one in a later Quick Draft played without the power-up tray, and it is gone once used. An Icon never goes in the locker: he plays this season or not at all.</span>
+          <span className="help">{t('lockerHelp')}</span>
         </div>
         </div>
         <div className="panel col case-odds" data-testid="case-odds">
-          <h3>What's inside</h3>
+          <h3>{t('whatsInside')}</h3>
           <div className="case-odds-bar" aria-hidden="true">
             {CASE_RARITIES.map((r) => (
               <span key={r} data-tier={CASE_TIER[r]} style={{ flexGrow: odds[r] }} />
@@ -203,8 +207,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               ))}
             </tbody>
           </table>
-          <span className="help">Exact odds: one roll of 100.</span>
-          <h3>What each one does</h3>
+          <span className="help">{t('exactOdds')}</span>
+          <h3>{t('whatEachDoes')}</h3>
           <ul className="case-guide" data-testid="case-guide">
             {guide.map((r) => (
               <li key={r.item} data-tier={CASE_TIER[r.rarity]}>

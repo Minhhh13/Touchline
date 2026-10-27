@@ -25,6 +25,10 @@ import { knockoutOutcome } from '../arenaText'
 import { MatchDashboard } from '../matchday/MatchDashboard'
 import { cardSeries, reportFigures } from '../matchday/model'
 import { XgStory } from '../matchday/panels/XgStory'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 /** The competition's flag before a match heading: the league's, or the EU flag on a European night; none for a friendly. */
 function CompetitionFlag({ ctx, leagueId }: { ctx: MatchContext; leagueId?: string }) {
@@ -114,7 +118,7 @@ export function MatchScreen() {
   const cupNext = !!game.live && holdLive
   // The arena: penalties first, then the run's summary or its next match
   const arena = game.arena
-  const continueLabel = arena ? arenaContinueLabel(game) : seasonOver ? 'Season summary →' : cupNext ? `Next: ${game.live!.ctx.roundLabel ?? 'cup tie'} →` : 'Continue →'
+  const continueLabel = arena ? arenaContinueLabel(game) : seasonOver ? t('seasonSummary') : cupNext ? t('nextTie', { round: game.live!.ctx.roundLabel ?? t('cupTie') }) : t('continue')
   const onContinue = () => {
     if (arena) {
       closeMatch()
@@ -135,7 +139,7 @@ export function MatchScreen() {
     closeMatch()
   }
 
-  const tabs = <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: 'Live' }, { id: 'report' as const, label: 'Report' }]} />
+  const tabs = <Tabs value={matchView} onChange={setMatchView} tabs={[{ id: 'ticker' as const, label: t('tabLive') }, { id: 'report' as const, label: t('tabReport') }]} />
   const replay = matchView === 'ticker'
   // An arena match level at the whistle: the shoot-out is the whole screen (a shell box that scrolls inside itself)
   if (arena?.pending) {
@@ -145,10 +149,10 @@ export function MatchScreen() {
           <div>
             <h2>
               <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
-              {ctx.roundLabel ?? 'Penalties'}
+              {ctx.roundLabel ?? t('penalties')}
             </h2>
             <div className="small muted">
-              {homeName} {res.homeGoals}-{res.awayGoals} {awayName} · level at 90
+              {t('levelAt90', { home: homeName, away: awayName, score: `${res.homeGoals}-${res.awayGoals}` })}
             </div>
           </div>
           <button className="btn primary shootout-wait" disabled data-testid="match-continue">
@@ -168,10 +172,10 @@ export function MatchScreen() {
       {game.lastCupMatch && !cupNext && (
         <div className="segmented">
           <button className={which === 'league' ? 'active' : ''} onClick={() => setWhich('league')}>
-            League
+            {t('league')}
           </button>
           <button className={which === 'cup' ? 'active' : ''} onClick={() => setWhich('cup')}>
-            Cup
+            {t('cup')}
           </button>
         </div>
       )}
@@ -189,11 +193,11 @@ export function MatchScreen() {
           <div className="match-title">
             <h2>
               <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
-              {ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`)}
+              {ctx.roundLabel ?? (ctx.competition === 'cup' ? t('cup') : t('matchweek', { n: ctx.matchweek }))}
               {ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}
             </h2>
             <div className="small muted">
-              {homeName} v {awayName}
+              {t('versus', { home: homeName, away: awayName })}
             </div>
           </div>
           {tabs}
@@ -240,24 +244,24 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
   const shareCard = async () => {
     try {
       const url = await renderMatchCard({
-        title: ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : `Matchweek ${ctx.matchweek}`),
-        subtitle: `${homeName} v ${awayName}`,
+        title: ctx.roundLabel ?? (ctx.competition === 'cup' ? t('cup') : t('matchweek', { n: ctx.matchweek })),
+        subtitle: t('versus', { home: homeName, away: awayName }),
         home: { name: names.homeShort, colour: colours.home, goals: res.homeGoals, xg: fig.home.xg },
         away: { name: names.awayShort, colour: colours.away, goals: res.awayGoals, xg: fig.away.xg },
         events: res.events,
         xgHome: cardSeries(story.perMinute.home),
         xgAway: cardSeries(story.perMinute.away),
-        footer: `HT ${res.halfTimeScore.home}-${res.halfTimeScore.away} · ${fig.home.shots}-${fig.away.shots} shots`,
+        footer: t('cardFooter', { ht: `${res.halfTimeScore.home}-${res.halfTimeScore.away}`, shots: `${fig.home.shots}-${fig.away.shots}` }),
       })
       downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
     } catch {
-      showToast('Could not make the match card. Try again.')
+      showToast(t('cardFailed'))
     }
   }
   const ratingBar = (s: PlayerMatchStats) => <Bar value={s.rating - 4.5} max={5.5} colour={s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : 'var(--text-3)'} />
   const hasFlow = (res.momentum?.length ?? 0) > 0
   const hasShape = withShape(sides.home) && withShape(sides.away)
-  const chartTabs: Array<{ id: ChartTab; label: string }> = [...(hasShots ? [{ id: 'shots' as const, label: 'Shot map' }] : []), ...(hasFlow ? [{ id: 'flow' as const, label: 'Momentum' }] : []), { id: 'possession', label: 'Possession' }, ...(hasShape ? [{ id: 'tactics' as const, label: 'Tactics' }] : [])]
+  const chartTabs: Array<{ id: ChartTab; label: string }> = [...(hasShots ? [{ id: 'shots' as const, label: t('shotMap') }] : []), ...(hasFlow ? [{ id: 'flow' as const, label: t('momentum') }] : []), { id: 'possession', label: t('possession') }, ...(hasShape ? [{ id: 'tactics' as const, label: t('tactics') }] : [])]
   const chartOn = chartTabs.some((t) => t.id === chart) ? chart : chartTabs[0].id
   const motm = [...res.homeStats, ...res.awayStats].find((s) => s.playerSeasonId === res.motmId)
   const motmSide = motm ? (res.homeStats.includes(motm) ? names.homeShort : names.awayShort) : ''
@@ -280,7 +284,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
             {res.homeGoals} - {res.awayGoals}
           </div>
           <div className="clock">
-            <span className={`outcome-word ${outcomeClass(verdict)}`} data-testid="report-outcome">{outcome.toUpperCase()}</span> <span className="clock-ht">HT {res.halfTimeScore.home}-{res.halfTimeScore.away}</span>
+            <span className={`outcome-word ${outcomeClass(verdict)}`} data-testid="report-outcome">{outcome.toUpperCase()}</span> <span className="clock-ht">{t('halfTime', { score: `${res.halfTimeScore.home}-${res.halfTimeScore.away}` })}</span>
           </div>
         </div>
         <div className="team away">
@@ -295,8 +299,8 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
         <div className="report-col">
           {boxes.on('goals') && (
           <div className="panel rp-goals">
-            <h3>Goals</h3>
-            {goals.length === 0 && <div className="muted small">No goals.</div>}
+            <h3>{t('goals')}</h3>
+            {goals.length === 0 && <div className="muted small">{t('noGoals')}</div>}
             {goals.length > 0 && (
               <ol className="goal-list">
                 {goals.map((g, i) => (
@@ -304,7 +308,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
                     <span className="goal-who">
                       <span className="goal-side mono" style={{ background: colours[g.side], color: textColourFor(colours[g.side]) }}>{g.side === 'home' ? codes.home : codes.away}</span>
                       <b>{g.playerName}</b>
-                      {g.type === 'penalty' ? <span className="goal-kind"> (pen)</span> : g.type === 'own_goal' ? <span className="goal-kind"> (og)</span> : ''}
+                      {g.type === 'penalty' ? <span className="goal-kind">{t('penMark')}</span> : g.type === 'own_goal' ? <span className="goal-kind">{t('ogMark')}</span> : ''}
                       {g.secondaryName ? (
                         <>
                           {' '}
@@ -321,43 +325,43 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
           )}
           {boxes.on('stats') && (
           <div className="panel rp-stats">
-            <h3>Match stats</h3>
+            <h3>{t('matchStats')}</h3>
             <table className="tbl match-stats">
               <tbody>
                 <tr>
                   <td className="num">{fig.home.xg.toFixed(2)}</td>
-                  <th style={{ textAlign: 'center' }}>Expected goals</th>
+                  <th style={{ textAlign: 'center' }}>{t('expectedGoals')}</th>
                   <td>{fig.away.xg.toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="num">{fig.home.possession}%</td>
-                  <th style={{ textAlign: 'center' }}>Possession</th>
+                  <th style={{ textAlign: 'center' }}>{t('possession')}</th>
                   <td>{fig.away.possession}%</td>
                 </tr>
                 <tr>
                   <td className="num">
                     {fig.home.shots} ({fig.home.onTarget})
                   </td>
-                  <th style={{ textAlign: 'center' }}>Shots (on target)</th>
+                  <th style={{ textAlign: 'center' }}>{t('shotsOnTarget')}</th>
                   <td>
                     {fig.away.shots} ({fig.away.onTarget})
                   </td>
                 </tr>
                 <tr>
                   <td className="num">{res.xg.home.toFixed(2)}</td>
-                  <th style={{ textAlign: 'center' }}>Expected before kick-off</th>
+                  <th style={{ textAlign: 'center' }}>{t('expectedBefore')}</th>
                   <td>{res.xg.away.toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="num">{res.homeReport.strength.overall.toFixed(1)}</td>
-                  <th style={{ textAlign: 'center' }}>Team rating</th>
+                  <th style={{ textAlign: 'center' }}>{t('teamRating')}</th>
                   <td>{res.awayReport.strength.overall.toFixed(1)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
           )}
-          <Tip id="report-first">xG is the chances each side created; the notes are the exact modifiers your instructions produced.</Tip>
+          <Tip id="report-first">{t('reportTip')}</Tip>
         </div>
         )}
 
@@ -366,32 +370,32 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
           <div className="rp-box-head">
             <Tabs<ChartTab> value={chartOn} onChange={setChart} tabs={chartTabs} className="rp-tabs" testId="report-tab" />
             <button className="btn sm" onClick={shareCard} data-testid="match-card">
-              <ImageDown size={14} aria-hidden="true" /> Match card
+              <ImageDown size={14} aria-hidden="true" /> {t('matchCard')}
             </button>
           </div>
           {hasShots && (
             <div className={`rp-pane rp-shots ${chartOn === 'shots' ? 'on' : ''}`}>
-              <h3 className="rp-pane-title">Shot map</h3>
+              <h3 className="rp-pane-title">{t('shotMap')}</h3>
               <ShotMap events={res.events} home={sides.home} away={sides.away} />
               <div className="small muted rp-foot">
-                {sides.home.shortName} {fig.home.shots} {fig.home.shots === 1 ? 'shot' : 'shots'} ({fig.home.onTarget} on target, {fig.home.xg.toFixed(2)} xG) · {sides.away.shortName} {fig.away.shots} ({fig.away.onTarget}, {fig.away.xg.toFixed(2)} xG)
+                {t('shotFoot', { home: sides.home.shortName, hs: fig.home.shots, ht: fig.home.onTarget, hx: fig.home.xg.toFixed(2), away: sides.away.shortName, as: fig.away.shots, at: fig.away.onTarget, ax: fig.away.xg.toFixed(2) })}
               </div>
             </div>
           )}
           {hasFlow && (
             <div className={`rp-pane rp-flow ${chartOn === 'flow' ? 'on' : ''}`} data-testid="report-charts">
-              <h3 className="rp-pane-title">Momentum and expected goals</h3>
+              <h3 className="rp-pane-title">{t('momentumXg')}</h3>
               <MomentumBar momentum={res.momentum!} clock={95} events={res.events} home={sides.home} away={sides.away} />
               <XgStory story={story} events={feed.events} minute={feed.lastMinute} span={Math.max(95, feed.lastMinute)} home={{ code: codes.home, colour: colours.home }} away={{ code: codes.away, colour: colours.away }} />
             </div>
           )}
           <div className={`rp-pane rp-possession ${chartOn === 'possession' ? 'on' : ''}`}>
-            <h3 className="rp-pane-title">Possession and territory</h3>
+            <h3 className="rp-pane-title">{t('possessionTerritory')}</h3>
             <PossessionTerritory res={res} home={sides.home} away={sides.away} possession={{ home: fig.home.possession, away: fig.away.possession }} />
           </div>
           {withShape(sides.home) && withShape(sides.away) && (
             <div className={`rp-pane rp-tactics ${chartOn === 'tactics' ? 'on' : ''}`}>
-              <h3 className="rp-pane-title">Tactics</h3>
+              <h3 className="rp-pane-title">{t('tactics')}</h3>
               <div className="rp-tactics-grid">
                 <TacticsOverlay side={userIsHome ? sides.home : sides.away} attack={userIsHome ? 'home' : 'away'} getPlayer={get} />
                 <TacticsOverlay side={userIsHome ? sides.away : sides.home} attack={userIsHome ? 'away' : 'home'} getPlayer={get} />
@@ -405,26 +409,26 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
         <div className="panel rp-box rp-people">
           {motm && (
             <div className="rp-motm" data-testid="report-motm">
-              <span className="chip gold">Player of the match</span>
+              <span className="chip gold">{t('playerOfMatch')}</span>
               <b>{get(motm.playerSeasonId)?.name ?? motm.playerSeasonId}</b>
               <span className="muted small">{motmSide}</span>
               <span className="mono num">{motm.rating.toFixed(1)}</span>
             </div>
           )}
           <div className="rp-box-head">
-            <Tabs<PeopleTab> value={people} onChange={setPeople} tabs={[{ id: 'ours', label: 'Our ratings' }, { id: 'theirs', label: 'Their ratings' }, { id: 'notes', label: 'Notes' }]} className="rp-tabs" testId="report-tab" />
+            <Tabs<PeopleTab> value={people} onChange={setPeople} tabs={[{ id: 'ours', label: t('ourRatings') }, { id: 'theirs', label: t('theirRatings') }, { id: 'notes', label: t('notes') }]} className="rp-tabs" testId="report-tab" />
           </div>
           <div className={`rp-pane rp-ours ${people === 'ours' ? 'on' : ''}`}>
-            <h3 className="rp-pane-title">Player ratings</h3>
+            <h3 className="rp-pane-title">{t('playerRatings')}</h3>
             <div className="tbl-wrap">
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th>Player</th>
-                    <th className="num hide-phone">Min</th>
-                    <th className="num">G</th>
-                    <th className="num">A</th>
-                    <th className="num">Rating</th>
+                    <th>{t('colPlayer')}</th>
+                    <th className="num hide-phone">{t('colMin')}</th>
+                    <th className="num">{t('colGoals')}</th>
+                    <th className="num">{t('colAssists')}</th>
+                    <th className="num">{t('colRating')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -438,10 +442,10 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
                           <td>
                             <span className="row" style={{ gap: 6 }}>
                               {p && <Rating value={p.overall} />} {p?.name ?? s.playerSeasonId}
-                              {s.yellow && <span title="Booked" role="img" aria-label="Booked"><YellowCard size={13} /></span>}
-                              {s.red && <span title="Sent off" role="img" aria-label="Sent off"><RedCard size={13} /></span>}
-                              {s.injured && <Bandage size={13} className="ic-injury" role="img" aria-label="Injured" />}
-                              {res.motmId === s.playerSeasonId && <span className="chip gold">MOTM</span>}
+                              {s.yellow && <span title={t('booked')} role="img" aria-label={t('booked')}><YellowCard size={13} /></span>}
+                              {s.red && <span title={t('sentOff')} role="img" aria-label={t('sentOff')}><RedCard size={13} /></span>}
+                              {s.injured && <Bandage size={13} className="ic-injury" role="img" aria-label={t('injured')} />}
+                              {res.motmId === s.playerSeasonId && <span className="chip gold">{t('motm')}</span>}
                             </span>
                           </td>
                           <td className="num hide-phone">{s.minutes}</td>
@@ -459,12 +463,12 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
             </div>
             {ours.substitutions.length > 0 && (
               <div className="small muted icon-title" style={{ marginTop: 8, alignItems: 'flex-start' }}>
-                <ArrowLeftRight size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> {ours.substitutions.map((s) => `${get(s.on)?.name} for ${get(s.off)?.name} (${minuteLabel(s.minute)}, ${s.reason})`).join('; ')}
+                <ArrowLeftRight size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> {ours.substitutions.map((s) => t('subLine', { on: get(s.on)?.name, off: get(s.off)?.name, minute: minuteLabel(s.minute), reason: s.reason })).join('; ')}
               </div>
             )}
           </div>
           <div className={`rp-pane rp-theirs ${people === 'theirs' ? 'on' : ''}`} data-testid="opponent-ratings">
-            <h3 className="rp-pane-title">Their ratings</h3>
+            <h3 className="rp-pane-title">{t('theirRatings')}</h3>
             <div className="col" style={{ gap: 4 }}>
               {(userIsHome ? res.awayStats : res.homeStats)
                 .slice()
@@ -473,7 +477,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
                   <div key={s.playerSeasonId} className="rating-row small">
                     <span className="name">
                       {get(s.playerSeasonId)?.name ?? s.playerSeasonId}
-                      {res.motmId === s.playerSeasonId && <span className="chip gold">MOTM</span>}
+                      {res.motmId === s.playerSeasonId && <span className="chip gold">{t('motm')}</span>}
                     </span>
                     {ratingBar(s)}
                     <span className="mono num">{s.rating.toFixed(1)}</span>
@@ -482,38 +486,38 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
             </div>
           </div>
           <div className={`rp-pane rp-notes ${people === 'notes' ? 'on' : ''}`}>
-            <h3 className="rp-pane-title">Tactical notes</h3>
+            <h3 className="rp-pane-title">{t('tacticalNotes')}</h3>
             <ul className="notes-list small">
               {ours.teamTalkEffect && <li>{ours.teamTalkEffect}</li>}
               {ours.lateEffect && <li>{ours.lateEffect}</li>}
               {ours.modifiers.notes.map((n, i) => (
                 <li key={i}>{n}</li>
               ))}
-              {theirs.modifiers.notes.length > 0 && <li className="muted">Opponent: {theirs.modifiers.notes.slice(0, 2).join('; ')}</li>}
+              {theirs.modifiers.notes.length > 0 && <li className="muted">{t('opponentNotes', { notes: theirs.modifiers.notes.slice(0, 2).join('; ') })}</li>}
             </ul>
             <div className="toolbar small" style={{ marginTop: 'var(--space-2)' }}>
-              <span className="chip">Attack ×{ours.modifiers.attack.toFixed(2)}</span>
-              <span className="chip">Their chances ×{ours.modifiers.defence.toFixed(2)}</span>
+              <span className="chip">{t('attackMod', { x: ours.modifiers.attack.toFixed(2) })}</span>
+              <span className="chip">{t('chancesMod', { x: ours.modifiers.defence.toFixed(2) })}</span>
               <span className="chip">
-                Fatigue {signedValue(ours.modifiers.fatigue)}
+                {t('fatigueMod', { x: signedValue(ours.modifiers.fatigue) })}
               </span>
             </div>
             {opponentBox && u && (
               <div className="rp-opponent">
-                <h3>Opponent</h3>
+                <h3>{t('opponent')}</h3>
                 <div className="club-head">
                   <ClubBadge clubId={ctx.opponentClubId} size={40} />
                   <div>
                     <div style={{ fontWeight: 600 }}>
                       {clubName(u, ctx.opponentClubId)} <span className="chip">{theirs.strength.overall.toFixed(1)}</span>
                     </div>
-                    <span className="unit-strip" role="group" aria-label="Their unit ratings">
+                    <span className="unit-strip" role="group" aria-label={t('unitRatings')}>
                       {(
                         [
-                          ['GK', theirs.strength.goalkeeping],
-                          ['DEF', theirs.strength.defence],
-                          ['MID', theirs.strength.midfield],
-                          ['ATT', theirs.strength.attack],
+                          [t('unitGk'), theirs.strength.goalkeeping],
+                          [t('unitDef'), theirs.strength.defence],
+                          [t('unitMid'), theirs.strength.midfield],
+                          [t('unitAtt'), theirs.strength.attack],
                         ] as const
                       ).map(([k, v]) => (
                         <span key={k}>

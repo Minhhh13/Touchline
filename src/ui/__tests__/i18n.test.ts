@@ -1,5 +1,5 @@
 /**
- * Localisation (docs/DESIGN_SYSTEM.md section 16): the ICU subset, the pseudo-locale, the language setting, and the
+ * Localisation (docs/DESIGN_SYSTEM.md section 17): the ICU subset, the pseudo-locale, the language setting, and the
  * catalogues themselves. The catalogue checks fail on a key a `t()` call names that its catalogue does not hold, a
  * catalogue key no file uses, a message that does not parse, and a translation whose keys, arguments or tags differ
  * from the English. `I18N_EXPORT=1` also writes every English message to `.i18n/en.json` for a translator.
@@ -261,6 +261,62 @@ describe('the catalogues', () => {
       }
     }
     expect(problems).toEqual([])
+  })
+
+  it('keep the English the game logic and the box sets hold, word for word', async () => {
+    const { ALL_SETS } = await import('../boxSets')
+    const { MATCHDAY_COMPACT } = await import('../matchday/widgetIds')
+    const { DAMAGED_LINK_TOAST } = await import('../gameHash')
+    const shell = all.shell.messages
+    for (const set of [...ALL_SETS, MATCHDAY_COMPACT]) {
+      expect(shell[`boxes_${set.screen}`], set.screen).toBe(set.title)
+      for (const b of set.boxes) expect(shell[`box_${set.screen}_${b.id}`], `${set.screen} ${b.id}`).toBe(b.label)
+    }
+    expect(shell.damagedLink).toBe(DAMAGED_LINK_TOAST)
+  })
+
+  it('give the modes the same English names as modes.ts', async () => {
+    const { MODE_TITLE, modeLabel, finishDraftLabel, arenaFormatLabel, yearLabel } = await import('@game/logic/modes')
+    const { modeText, modeTitle, finishDraftText, arenaFormatText, yearText } = await import('../i18n/modeText')
+    const arenas = [undefined, { format: 'cup' as const, size: 2 }, { format: 'cup' as const, size: 16 }, { format: 'gauntlet' as const }, { format: 'cup' as const, size: 2, daily: true }]
+    for (const mode of Object.keys(MODE_TITLE) as Array<keyof typeof MODE_TITLE>) {
+      expect(modeTitle(mode)).toBe(MODE_TITLE[mode])
+      for (const arena of arenas)
+        for (const year of [1, 3])
+          for (const step of [0, 2]) {
+            const game = { year, arena: { step } as never, settings: { mode, seed: mode === 'weekly' ? 'weekly-2026-W44' : 'daily-2026-10-27', arena: arena as never, weekly: { theme: 'golden-oldies' } as never } }
+            for (const style of ['short', 'heading'] as const) expect(modeText(game, style), `${mode} ${style}`).toBe(modeLabel(game, style))
+            expect(finishDraftText(game), mode).toBe(finishDraftLabel(game))
+            expect(finishDraftText(game, 15)).toBe(finishDraftLabel(game, 15))
+            expect(yearText(game)).toBe(yearLabel(game))
+          }
+    }
+    for (const a of arenas) expect(arenaFormatText(a)).toBe(arenaFormatLabel(a))
+  })
+
+  it('give the achievements, badges and milestones the engine English', async () => {
+    const { ACHIEVEMENTS } = await import('@engine/awards')
+    const { BADGES, badgeProgress } = await import('@engine/badges')
+    const { MILESTONE_BADGES, milestoneProgress } = await import('@game/logic/milestoneBadges')
+    const { countPhrase } = await import('../screenText')
+    const tt = await import('../i18n/trophyText')
+    const msgs = all.trophies.messages
+    for (const a of ACHIEVEMENTS) {
+      expect(msgs[`ach_${a.id}_title`], a.id).toBe(a.title)
+      expect(msgs[`ach_${a.id}_desc`], a.id).toBe(a.description)
+    }
+    for (const b of BADGES) {
+      expect(tt.badgeTitle(b)).toBe(b.title)
+      expect(msgs[`badge_${b.id}_count`], b.id).toBeDefined()
+      for (const n of [0, 1, 2, 12]) expect(tt.badgeCount(b, n)).toBe(countPhrase(n, b.counts))
+      for (const v of [0, ...b.tiers, b.tiers.at(-1)! + 5]) expect(tt.progressText(b.tiers, v)).toBe(badgeProgress(b, v))
+    }
+    for (const m of MILESTONE_BADGES) {
+      expect(tt.milestoneTitle(m)).toBe(m.title)
+      expect(msgs[`milestone_${m.id}_count`], m.id).toBeDefined()
+      for (const n of [0, 1, 2]) expect(tt.milestoneCount(m, n)).toBe(m.tiers.length === 1 ? m.counts : countPhrase(n, m.counts))
+      for (const v of [0, ...m.tiers, m.tiers.at(-1)! + 5]) expect(tt.progressText(m.tiers, v, m.tiers.length === 1)).toBe(milestoneProgress(m.tiers, v))
+    }
   })
 
   it.runIf(process.env.I18N_EXPORT === '1')('exports every English message for a translator', () => {

@@ -20,6 +20,10 @@ import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { Drawer } from './Drawer'
 import { SubBoard } from './SubBoard'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 export interface DrawerProps {
   hand: ManagerHand
@@ -35,7 +39,7 @@ export interface DrawerProps {
 }
 
 /** The chip again in the drawer, and the two buttons. */
-function Foot({ hand, onApply, canApply, label = 'Apply', testId }: { hand: ManagerHand; onApply: () => void; canApply: boolean; label?: string; testId?: string }) {
+function Foot({ hand, onApply, canApply, label = tx('apply'), testId }: { hand: ManagerHand; onApply: () => void; canApply: boolean; label?: string; testId?: string }) {
   return (
     <>
       <span className={`md-chip ${hand.landing.kind}`}>
@@ -43,7 +47,7 @@ function Foot({ hand, onApply, canApply, label = 'Apply', testId }: { hand: Mana
         {hand.landing.text}
       </span>
       <button type="button" className="btn sm ghost" onClick={hand.close}>
-        Cancel
+        {tx('cancel')}
       </button>
       <button type="button" className="btn sm primary" onClick={onApply} disabled={!canApply || !hand.editable} data-testid={testId}>
         {label}
@@ -69,13 +73,13 @@ export function TacticsDrawer({ hand, view, get }: DrawerProps) {
   const formation = getFormation(t.formationId)
   const onAt = new Set(hand.onPitch)
   return (
-    <Drawer title="Tactics" sub={`${view.name} · ${formation.name}`} onClose={hand.close} foot={<span className="small muted">Shape and roles are set before kick-off: the team sheet is keyed by position.</span>}>
+    <Drawer title={tx('tactics')} sub={`${view.name} · ${formation.name}`} onClose={hand.close} foot={<span className="small muted">{tx('tacticsFoot')}</span>}>
       <table className="md-tactics-table">
         <thead>
           <tr>
-            <th>Pos</th>
-            <th>Role</th>
-            <th>Player</th>
+            <th>{tx('colPos')}</th>
+            <th>{tx('colRole')}</th>
+            <th>{tx('colPlayer')}</th>
           </tr>
         </thead>
         <tbody>
@@ -88,13 +92,13 @@ export function TacticsDrawer({ hand, view, get }: DrawerProps) {
                 <td>
                   <span className="md-role">{roleCode(t, slot.id, slot.position)}</span> {role?.name ?? ''}
                 </td>
-                <td>{man ? surname(get(man)?.name) : <span className="muted">empty</span>}</td>
+                <td>{man ? surname(get(man)?.name) : <span className="muted">{tx('empty')}</span>}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
-      <p className="small muted">{hand.markTarget ? `Man-marking ${get(hand.markTarget)?.name ?? 'their danger man'}.` : 'No man-marking job this match.'}</p>
+      <p className="small muted">{hand.markTarget ? tx('manMarking', { name: get(hand.markTarget)?.name ?? tx('dangerMan') }) : tx('noManMarking')}</p>
     </Drawer>
   )
 }
@@ -104,23 +108,23 @@ export function InstructionsDrawer({ hand }: DrawerProps) {
   const changed = instructionDiff(hand.tactics, t).length > 0
   const set = (patch: Partial<Tactics>) => setT({ ...t, ...patch })
   return (
-    <Drawer title="Instructions" sub="Team instructions for the rest of the match" onClose={hand.close} foot={<Foot hand={hand} canApply={changed} onApply={() => hand.submit({ tactics: t }) && hand.close()} />}>
-      <div className="md-group">In possession</div>
-      <Field label="Tempo" help={TEMPO_HELP[t.tempo]}>
-        <Segmented value={t.tempo} onChange={(v) => set({ tempo: v })} options={[{ value: 'slow', label: 'Slow' }, { value: 'standard', label: 'Standard' }, { value: 'fast', label: 'Fast' }]} />
+    <Drawer title={tx('instructions')} sub={tx('instructionsSub')} onClose={hand.close} foot={<Foot hand={hand} canApply={changed} onApply={() => hand.submit({ tactics: t }) && hand.close()} />}>
+      <div className="md-group">{tx('inPossession')}</div>
+      <Field label={tx('tempo')} help={TEMPO_HELP[t.tempo]}>
+        <Segmented value={t.tempo} onChange={(v) => set({ tempo: v })} options={[{ value: 'slow', label: tx('slow') }, { value: 'standard', label: tx('standard') }, { value: 'fast', label: tx('fast') }]} />
       </Field>
-      <Field label="Width" help={WIDTH_HELP[t.width]}>
-        <Segmented value={t.width} onChange={(v) => set({ width: v })} options={[{ value: 'narrow', label: 'Narrow' }, { value: 'standard', label: 'Standard' }, { value: 'wide', label: 'Wide' }]} />
+      <Field label={tx('width')} help={WIDTH_HELP[t.width]}>
+        <Segmented value={t.width} onChange={(v) => set({ width: v })} options={[{ value: 'narrow', label: tx('narrow') }, { value: 'standard', label: tx('standard') }, { value: 'wide', label: tx('wide') }]} />
       </Field>
-      <Field label="Passing" help={PASSING_HELP[t.passing]}>
-        <Segmented value={t.passing} onChange={(v) => set({ passing: v })} options={[{ value: 'short', label: 'Short' }, { value: 'mixed', label: 'Mixed' }, { value: 'direct', label: 'Direct' }]} />
+      <Field label={tx('passing')} help={PASSING_HELP[t.passing]}>
+        <Segmented value={t.passing} onChange={(v) => set({ passing: v })} options={[{ value: 'short', label: tx('short') }, { value: 'mixed', label: tx('mixed') }, { value: 'direct', label: tx('direct') }]} />
       </Field>
-      <div className="md-group">Out of possession</div>
-      <Field label="Pressing" help={PRESSING_HELP[t.pressing]}>
-        <Segmented value={t.pressing} onChange={(v) => set({ pressing: v })} options={[{ value: 'low', label: 'Low' }, { value: 'mid', label: 'Mid' }, { value: 'high', label: 'High' }]} />
+      <div className="md-group">{tx('outOfPossession')}</div>
+      <Field label={tx('pressing')} help={PRESSING_HELP[t.pressing]}>
+        <Segmented value={t.pressing} onChange={(v) => set({ pressing: v })} options={[{ value: 'low', label: tx('low') }, { value: 'mid', label: tx('mid') }, { value: 'high', label: tx('high') }]} />
       </Field>
-      <Field label="Defensive line" help={LINE_HELP[t.defensiveLine]}>
-        <Segmented value={t.defensiveLine} onChange={(v) => set({ defensiveLine: v })} options={[{ value: 'deep', label: 'Deep' }, { value: 'standard', label: 'Standard' }, { value: 'high', label: 'High' }]} />
+      <Field label={tx('defensiveLine')} help={LINE_HELP[t.defensiveLine]}>
+        <Segmented value={t.defensiveLine} onChange={(v) => set({ defensiveLine: v })} options={[{ value: 'deep', label: tx('deep') }, { value: 'standard', label: tx('standard') }, { value: 'high', label: tx('high') }]} />
       </Field>
     </Drawer>
   )
@@ -130,13 +134,13 @@ export function ShoutsDrawer({ hand }: DrawerProps) {
   const current = hand.pendingShout ?? hand.shout
   const [s, setS] = useState<Shout>(current ?? 'keep-shape')
   return (
-    <Drawer title="Shouts" sub={hand.shoutsOpen ? 'One shout from the touchline for the last twenty minutes' : SHOUTS_CLOSED} onClose={hand.close} foot={<Foot hand={hand} canApply={hand.shoutsOpen && s !== current} onApply={() => hand.submit({ shout: s }) && hand.close()} />}>
-      <div className="md-options" role="radiogroup" aria-label="Touchline shout">
+    <Drawer title={tx('shouts')} sub={hand.shoutsOpen ? tx('shoutsSub') : SHOUTS_CLOSED} onClose={hand.close} foot={<Foot hand={hand} canApply={hand.shoutsOpen && s !== current} onApply={() => hand.submit({ shout: s }) && hand.close()} />}>
+      <div className="md-options" role="radiogroup" aria-label={tx('touchlineShout')}>
         {(Object.keys(SHOUTS) as Shout[]).map((k) => (
           <button key={k} type="button" role="radio" aria-checked={s === k} className={`md-option ${s === k ? 'active' : ''}`} onClick={() => setS(k)} disabled={!hand.shoutsOpen}>
             <b>{SHOUTS[k].label}</b>
             <span className="help">{SHOUTS[k].hint}</span>
-            {current === k && <span className="md-tag">{hand.pendingShout ? 'pending' : 'in force'}</span>}
+            {current === k && <span className="md-tag">{tx(hand.pendingShout ? 'pending' : 'inForce')}</span>}
           </button>
         ))}
       </div>
@@ -145,9 +149,9 @@ export function ShoutsDrawer({ hand }: DrawerProps) {
 }
 
 const SET_PIECES = [
-  { key: 'penalties', label: 'Penalties', attr: (p: PlayerSeason) => Math.round((p.attributes.shooting + p.attributes.mentality) / 2) },
-  { key: 'freeKicks', label: 'Free kicks', attr: (p: PlayerSeason) => p.attributes.shooting },
-  { key: 'corners', label: 'Corners', attr: (p: PlayerSeason) => p.attributes.passing },
+  { key: 'penalties', label: () => tx('penalties'), attr: (p: PlayerSeason) => Math.round((p.attributes.shooting + p.attributes.mentality) / 2) },
+  { key: 'freeKicks', label: () => tx('freeKicks'), attr: (p: PlayerSeason) => p.attributes.shooting },
+  { key: 'corners', label: () => tx('corners'), attr: (p: PlayerSeason) => p.attributes.passing },
 ] as const
 
 export function TweaksDrawer({ hand, get }: DrawerProps) {
@@ -155,14 +159,14 @@ export function TweaksDrawer({ hand, get }: DrawerProps) {
   const men = hand.onPitch.map(get).filter((p): p is PlayerSeason => !!p && p.positions[0] !== 'GK')
   const changed = setPiecesDiffer(hand.tactics.setPieces, sp)
   return (
-    <Drawer title="Tweaks" sub="Set-piece takers among the men on the pitch" onClose={hand.close} foot={<Foot hand={hand} canApply={changed} onApply={() => hand.submit({ tactics: { ...hand.tactics, setPieces: sp } }) && hand.close()} />}>
+    <Drawer title={tx('tweaks')} sub={tx('tweaksSub')} onClose={hand.close} foot={<Foot hand={hand} canApply={changed} onApply={() => hand.submit({ tactics: { ...hand.tactics, setPieces: sp } }) && hand.close()} />}>
       {SET_PIECES.map((k) => {
         const sorted = [...men].sort((a, b) => k.attr(b) - k.attr(a))
         const current = sp?.[k.key] ?? ''
         return (
-          <Field key={k.key} label={k.label}>
+          <Field key={k.key} label={k.label()}>
             <select className="md-select wide" value={sorted.some((p) => p.id === current) ? current : ''} onChange={(e) => setSp({ ...sp, [k.key]: e.target.value || undefined })}>
-              <option value="">Auto: best on the pitch</option>
+              <option value="">{tx('autoBest')}</option>
               {sorted.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} ({k.attr(p)})
@@ -179,40 +183,40 @@ export function TweaksDrawer({ hand, get }: DrawerProps) {
 export function SubsDrawer({ hand, view, get, squad, condition, selected, hideRatings = false }: DrawerProps) {
   const [queue, setQueue] = useState<Sub[]>([])
   const ballRolling = hand.landing.kind !== 'now' || hand.minute >= 1
-  const counters = `${hand.subsLeft}/${MAX_SUBS} subs left · ${hand.windowsLeft}/${MAX_WINDOWS} stoppages left`
+  const counters = tx('counters', { subs: hand.subsLeft, maxSubs: MAX_SUBS, windows: hand.windowsLeft, maxWindows: MAX_WINDOWS })
   // The subs this window can take, and none in play once the three stoppages are spent (as the engine counts them)
   const room = boardRoom({ subCap: hand.subCap, landing: hand.landing.kind, windowsLeft: hand.windowsLeft, windowOpen: hand.windowOpen })
   const next = countersAfter({ subsLeft: hand.subsLeft, windowsLeft: hand.windowsLeft, landing: hand.landing.kind, windowOpen: hand.windowOpen, staged: queue.length })
   const note =
     hand.landing.kind === 'stop' && hand.landing.stop === 45
-      ? 'Changes at the break spend no stoppage.'
+      ? tx('noteBreak')
       : hand.landing.kind === 'now' && hand.windowsLeft <= 0 && !hand.windowOpen
-        ? 'No stoppages left: the referee will not stop play for another change.'
+        ? tx('noteNoStoppages')
         : hand.landing.kind === 'now'
-          ? 'Every change made together uses one stoppage.'
+          ? tx('noteOneStoppage')
           : null
   return (
     <Drawer
       wide
       className="board"
-      title="Substitutions"
+      title={tx('substitutions')}
       sub={counters}
       onClose={hand.close}
       foot={
         <>
           {queue.length > 0 && (
             <span className="small muted sub-after" data-testid="sub-after">
-              After: {next.subsLeft}/{MAX_SUBS} subs left{hand.landing.kind === 'now' ? ` · ${next.windowsLeft}/${MAX_WINDOWS} stoppages left` : ''}
+              {tx(hand.landing.kind === 'now' ? 'afterNow' : 'after', { subs: next.subsLeft, maxSubs: MAX_SUBS, windows: next.windowsLeft, maxWindows: MAX_WINDOWS })}
             </span>
           )}
-          <Foot hand={hand} testId="sub-confirm" label={queue.length > 1 ? `Make ${queue.length} changes` : 'Make changes'} canApply={queue.length > 0 && ballRolling} onApply={() => hand.submit({ substitutions: queue }) && hand.close()} />
+          <Foot hand={hand} testId="sub-confirm" label={tx('makeChanges', { n: queue.length })} canApply={queue.length > 0 && ballRolling} onApply={() => hand.submit({ substitutions: queue }) && hand.close()} />
         </>
       }
     >
-      {!ballRolling && <p className="small muted">Substitutions wait until the ball is rolling.</p>}
+      {!ballRolling && <p className="small muted">{tx('waitBallRolling')}</p>}
       {note && ballRolling && <p className="small muted sub-note">{note}</p>}
       <SubBoard hand={hand} view={view} get={get} squad={squad} condition={condition} selected={selected} queue={queue} setQueue={setQueue} room={room} disabled={!ballRolling || !hand.editable} hideRatings={hideRatings} />
-      {room <= 0 && queue.length === 0 && ballRolling && <p className="small muted">{hand.subCap === 0 ? 'No more changes at this point.' : 'That is every change this window can take.'}</p>}
+      {room <= 0 && queue.length === 0 && ballRolling && <p className="small muted">{tx(hand.subCap === 0 ? 'noMoreAtPoint' : 'windowFull')}</p>}
     </Drawer>
   )
 }

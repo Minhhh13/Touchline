@@ -3,12 +3,15 @@ import type { DraftRecap as Recap } from '@game/logic/draftRecap'
 import type { Hindsight } from '@game/logic/hindsight'
 import type { PickGrade } from '@game/logic/pickGrades'
 import type { PlayerSeason } from '@engine/types'
-import { countPhrase } from '../screenText'
-import { seasonLabel } from '../format'
+import { fixed, seasonLabel } from '../format'
 import { Tip } from './bits'
 import { useEffect } from 'react'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
+import { translator } from '../i18n'
+import { draft } from '../i18n/en/draft'
+
+const t = translator(draft)
 
 const GRADE_CLASS: Record<PickGrade, string> = { A: 'good', B: 'info', C: 'warn', D: 'bad' }
 const GRADES: PickGrade[] = ['A', 'B', 'C', 'D']
@@ -24,7 +27,7 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
   const r = recap
   const best = r.best ? get(r.best.pickedId) : undefined
   const missed = r.miss ? get(r.miss.pickedId) : undefined
-  const span = r.seasons ? (r.seasons[0] === r.seasons[1] ? seasonLabel(r.seasons[0]) : `${seasonLabel(r.seasons[0])} to ${seasonLabel(r.seasons[1])}`) : null
+  const span = r.seasons ? (r.seasons[0] === r.seasons[1] ? seasonLabel(r.seasons[0]) : t('seasonRange', { from: seasonLabel(r.seasons[0]), to: seasonLabel(r.seasons[1]) })) : null
   // The grade lands with a stamp and its chord, on the pop's peak (the stagger and half the spring), once per visit
   const first = useFirstReveal(`draft-grade:${r.grade}:${r.picks}:${r.clubs}:${r.nations}:${r.xiRating}`, false)
   useEffect(() => {
@@ -36,12 +39,12 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
     <div className="draft-recap" data-testid="draft-recap">
       <div className="recap-head">
         {r.grade && (
-          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" role="img" aria-label={`Draft grade ${r.grade}`}>
+          <span className={`recap-grade ${GRADE_CLASS[r.grade]}`} data-testid="draft-grade" role="img" aria-label={t('recapGradeLabel', { grade: r.grade })}>
             {r.grade}
           </span>
         )}
         <div className="col" style={{ gap: 4, minWidth: 0 }}>
-          <span className="eyebrow">{r.grade ? 'Your draft' : 'All picks made'}</span>
+          <span className="eyebrow">{t(r.grade ? 'yourDraft' : 'allPicksMade')}</span>
           <h3 className="recap-verdict" data-testid="draft-verdict">
             {r.verdict}
           </h3>
@@ -56,7 +59,7 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
           )}
         </div>
       </div>
-      {r.grade && <Tip id="draft-recap">Each pick is graded by the number on his pitch disc, against the best play his spin held for your open slots, counting the spins that came after: A is the best play; B leaves up to 2 XI points on the wheel, C up to 4, D more. The Hindsight XI is the best XI your spins held; a tick is your pick where you put him, S5 the spin a man came from.</Tip>}
+      {r.grade && <Tip id="draft-recap">{t('recapTip')}</Tip>}
       <div className="recap-cards">
         {r.best && best && (
           <div className="recap-card" data-testid="recap-best">
@@ -64,10 +67,10 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
               <Trophy size={18} />
             </span>
             <div className="col" style={{ gap: 2, minWidth: 0 }}>
-              <span className="eyebrow">Best pick</span>
+              <span className="eyebrow">{t('bestPick')}</span>
               <b>{best.name}</b>
               <span className="small muted">
-                {r.best.rating} at {slotName(r.best.slotId)}, spin {r.best.spin + 1} · {seasonLabel(best.season)}
+                {t('bestLine', { rating: r.best.rating, slot: slotName(r.best.slotId), spin: r.best.spin + 1, season: seasonLabel(best.season) })}
               </span>
             </div>
           </div>
@@ -78,10 +81,10 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
               <Sparkles size={18} />
             </span>
             <div className="col" style={{ gap: 2, minWidth: 0 }}>
-              <span className="eyebrow">The one that got away</span>
+              <span className="eyebrow">{t('gotAway')}</span>
               <b>{r.miss.bestName}</b>
               <span className="small muted">
-                {r.miss.bestName === missed.name ? `${r.miss.best} at ${slotName(r.miss.bestSlotId)} on spin ${r.miss.spin + 1}; you put him at ${slotName(r.miss.slotId)} (${r.miss.rating})` : `${r.miss.best} at ${slotName(r.miss.bestSlotId)} on spin ${r.miss.spin + 1}; you took ${missed.name} (${r.miss.rating} at ${slotName(r.miss.slotId)})`}, {countPhrase(r.miss.left, 'XI points')} left
+                {t(r.miss.bestName === missed.name ? 'missSame' : 'missOther', { best: r.miss.best, bestSlot: slotName(r.miss.bestSlotId), spin: r.miss.spin + 1, slot: slotName(r.miss.slotId), rating: r.miss.rating, name: missed.name, left: r.miss.left })}
               </span>
             </div>
           </div>
@@ -91,14 +94,14 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
             <Compass size={18} />
           </span>
           <div className="col" style={{ gap: 2, minWidth: 0 }}>
-            <span className="eyebrow">Where the wheel went</span>
+            <span className="eyebrow">{t('wheelWent')}</span>
             <b>
-              {countPhrase(r.clubs, 'clubs')} · {countPhrase(r.nations, 'nations')}
+              {t('clubsNations', { clubs: r.clubs, nations: r.nations })}
             </b>
             <span className="small muted">
-              {countPhrase(r.picks, 'picks')}
+              {t('recapPicks', { n: r.picks })}
               {span ? `, ${span}` : ''}
-              {r.xiRating !== null ? ` · XI ${r.xiRating.toFixed(1)} in its slots` : ''}
+              {r.xiRating !== null ? t('xiInSlots', { r: fixed(r.xiRating, 1) }) : ''}
             </span>
           </div>
         </div>
@@ -120,22 +123,22 @@ function HindsightXI({ h, slotName, bestPlays }: { h: Hindsight; slotName: (slot
           <History size={18} />
         </span>
         <div className="col" style={{ gap: 2, minWidth: 0 }}>
-          <span className="eyebrow">Hindsight XI</span>
-          <b data-testid="hindsight-line">{perfect ? 'You made the most of every spin' : `${h.rating.toFixed(1)} with what the wheel gave you`}</b>
+          <span className="eyebrow">{t('hindsightXI')}</span>
+          <b data-testid="hindsight-line">{perfect ? t('mostOfEverySpin') : t('withWhatWheelGave', { r: fixed(h.rating, 1) })}</b>
           <span className="small muted">
-            {perfect ? `Your XI, ${h.yours.toFixed(1)} in its slots, is the best these spins held` : `Yours ${h.yours.toFixed(1)}, ${h.gap.toFixed(1)} short. Ticked: your pick where you put him (${h.kept} of ${h.xi.length}); S5: the spin he was on${marked.size ? '; the target: the best play a grade named' : ''}`}
+            {perfect ? t('hindsightPerfect', { yours: fixed(h.yours, 1) }) : t('hindsightGap', { yours: fixed(h.yours, 1), gap: fixed(h.gap, 1), kept: h.kept, n: h.xi.length, marked: marked.size ? 'yes' : 'no' })}
           </span>
         </div>
       </div>
       {!perfect && (
-        <ol className="hs-grid" aria-label="Hindsight XI">
+        <ol className="hs-grid" aria-label={t('hindsightXI')}>
           {h.xi.map((p) => (
-            <li key={p.slotId} className={`hs-man${p.yours ? ' yours' : ''}${marked.has(p.slotId) ? ' best-play' : ''}`} title={p.yours ? 'Your pick, in your slot' : marked.has(p.slotId) ? `From spin ${p.spin + 1}: the best play on that spin` : `From spin ${p.spin + 1}`}>
+            <li key={p.slotId} className={`hs-man${p.yours ? ' yours' : ''}${marked.has(p.slotId) ? ' best-play' : ''}`} title={p.yours ? t('yourPickInSlot') : t(marked.has(p.slotId) ? 'fromSpinBest' : 'fromSpin', { n: p.spin + 1 })}>
               <span className="hs-pos">{slotName(p.slotId)}</span>
               <span className="hs-name">{p.name}</span>
-              {marked.has(p.slotId) && <Crosshair size={12} className="hs-best" role="img" aria-label="the best play on that spin" data-testid="hs-best-play" />}
+              {marked.has(p.slotId) && <Crosshair size={12} className="hs-best" role="img" aria-label={t('bestPlayOnSpin')} data-testid="hs-best-play" />}
               <span className="hs-rating">{p.rating}</span>
-              {p.yours ? <Check size={13} className="hs-tick" role="img" aria-label="your pick" /> : <span className="hs-spin">S{p.spin + 1}</span>}
+              {p.yours ? <Check size={13} className="hs-tick" role="img" aria-label={t('yourPick')} /> : <span className="hs-spin">{t('spinShort', { n: p.spin + 1 })}</span>}
             </li>
           ))}
         </ol>
@@ -153,11 +156,11 @@ function Signings({ picks, get }: { picks: Recap['ungraded']; get: (id: string) 
           <UserPlus size={18} />
         </span>
         <div className="col" style={{ gap: 2, minWidth: 0 }}>
-          <span className="eyebrow">Your picks</span>
-          <b>{countPhrase(picks.length, 'players')} from the wheel</b>
+          <span className="eyebrow">{t('yourPicks')}</span>
+          <b>{t('playersFromWheel', { n: picks.length })}</b>
         </div>
       </div>
-      <ol className="hs-grid" aria-label="Your picks">
+      <ol className="hs-grid" aria-label={t('yourPicks')}>
         {picks.map((x) => {
           const p = get(x.id)
           if (!p) return null

@@ -818,3 +818,44 @@ What the game supports, the audit and what is left are in [ACCESSIBILITY.md](ACC
 - An empty state says what fills it ("Spin the wheel; your best seasons land here.").
 - Jargon (xG, Prime, chemistry, balance, the case tiers, Gamble) carries a tip or a title where it first appears on a screen; an `aria-label` contains the visible words (WCAG label in name).
 - Never print an id (`arsenal@2015`, `4-4-2-diamond`): resolve it through `clubName`, `seasonLabel`, `formationName`.
+
+## 17. Writing translatable copy
+
+Every user-facing string goes through `t()` (`src/ui/i18n`), so the owner only has to pick languages and hand over
+translations. English stays the source; nothing on screen changes in English.
+
+- **Catalogues.** A namespace of English messages per screen or group, in `src/ui/i18n/en/<ns>.ts`
+  (`catalog('home', { tagline: '…' })`), registered in `en/index.ts`. A file takes its `t` once at module level:
+  `const t = translator(home)`. Keys are camelCase and say what the text is (`playDaily`, `dailyRanked`), never the
+  English itself. TypeScript checks every key; `src/ui/__tests__/i18n.test.ts` fails on a key a call names that its
+  catalogue lacks, a key nothing uses, and a message that does not parse. A key built at run time is a template with a
+  fixed prefix (`` t(`tier_${tier}`) ``), so the test counts every key with that prefix as used.
+- **One sentence, one message.** Never glue fragments (`'You have ' + n + ' spins'`): word order differs between
+  languages. Put the values in as arguments: `'{n, plural, one {You have # spin} other {You have # spins}}'`. Bold or
+  emphasis inside a sentence is a tag the translator can move: `'<b>Retired:</b> {names}'`, rendered by
+  `rich(t('summerRetired', { names }), B)` (`src/ui/i18n/rich.tsx`); other elements get their own renderer
+  (`rich(text, { flag: () => <LeagueFlag … /> })` with `<flag></flag>` in the message).
+- **Plurals and variants in the message.** `{n, plural, one {…} other {…}}` (with `=0` for "none"), never an `s`
+  added in code: other languages have more forms (Polish has four) and `Intl.PluralRules` picks them.
+  `{venue, select, home {v} other {at}}` for a word that depends on a value; `{n, selectordinal, …}` for ordinal words.
+- **Numbers, money and dates through `format.ts`.** `{m, money}`, `{k, wage}`, `{n, number}`, `{n, ordinal}`,
+  `{d, date}` / `{d, date, long}`; in code, `fixed(n, 1)` instead of `n.toFixed(1)` where the figure is shown. English
+  prints exactly what it printed before (`toFixed`, no grouping, so 2024 stays 2024); another language gets its own
+  decimal mark and month names.
+- **What is not translated.** `data-testid`, class names, storage keys and ids; data (player, club, nation and league
+  names); the share text and the share card, which go to friends and stay English; and text the game logic or the
+  engine builds (tier names, news, verdicts, rule chips). Those files are pure and some are bundled into the edge
+  verifier (`src/engine/*`, the verifier's `src/game/logic` files), so their words stay put until a release moves them
+  into the UI (as `src/ui/i18n/modeText.ts` mirrors `modes.ts`, held equal in English by `i18n.test.ts`).
+- **Room to grow.** A translation runs about 30 % longer than English (German more). Buttons and chips wrap or
+  ellipsise rather than overflow; never size a box to its English text. The development pseudo-locale shows it: in a
+  dev build pick "Pseudo (en-XA)" under Profile, Settings, Language (or set `localStorage['touchline-language'] =
+  'en-XA'` in any build) and every string through `t()` reads accented, bracketed and padded
+  ("[!! Ŝéţûþ !!]"); plain English left on screen is a string that skipped `t()`.
+- **Choosing a language.** Per viewer, `touchline-language` (never in the save): Auto (the default) follows
+  `navigator.languages` to a language TouchLine has, else English. A translation is `src/ui/i18n/locales/<id>.ts`
+  (`locales/README.md`), its own chunk loaded only when chosen; a key it leaves out reads in English. `<html lang>`
+  follows the language on screen.
+- **Tests.** `i18n.test.ts` (the helper, the catalogues, translations against the English) and
+  `i18nScreens.test.ts` (every migrated screen server-rendered in English and in the pseudo-locale: no missing key,
+  sound markup, and a per-screen ceiling on English left over that may only go down; `I18N_REPORT=1` lists it).
