@@ -21,11 +21,25 @@ export interface PlayerSample {
 
 /** Where every man on the pitch stood, `perMinute` times in each minute from 1 to `upTo`. */
 export function samplePlayers(mpath: MatchPath, upTo: number, perMinute = 4): PlayerSample[] {
+  return samplePlayersIn(mpath, upTo, 1, sampledMinutes(mpath, upTo), perMinute)
+}
+
+/** The last minute `samplePlayers(mpath, upTo)` samples (0 for an empty path). */
+export function sampledMinutes(mpath: MatchPath, upTo: number): number {
+  if (!mpath.epochs.length) return 0
+  return Math.min(upTo, mpath.epochs[mpath.epochs.length - 1].to >= 90 ? 99 : mpath.epochs[mpath.epochs.length - 1].to)
+}
+
+/**
+ * Minutes `from` to `to` of `samplePlayers(mpath, upTo)`: the whole is these ranges' samples one after another, so
+ * it can be built a slice at a time (prepare.ts).
+ */
+export function samplePlayersIn(mpath: MatchPath, upTo: number, from: number, to: number, perMinute = 4): PlayerSample[] {
   const out: PlayerSample[] = []
   if (!mpath.epochs.length) return out
-  const last = Math.min(upTo, mpath.epochs[mpath.epochs.length - 1].to >= 90 ? 99 : mpath.epochs[mpath.epochs.length - 1].to)
+  const last = Math.min(to, sampledMinutes(mpath, upTo))
   const phases = new Map<string, number>()
-  for (let m = 1; m <= last; m++) {
+  for (let m = Math.max(1, from); m <= last; m++) {
     const epoch = epochAt(mpath, m)
     const men = [...onPitchAt(epoch.home, m), ...onPitchAt(epoch.away, m)]
     for (let i = 0; i < perMinute; i++) {

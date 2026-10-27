@@ -232,9 +232,11 @@ interface Store {
   /**
    * Play matchweek as the Dugout plays it: `playWeek` in three parts with a break for the page between them (the busy
    * state painted, the matchweek played, then the screen that shows it), so a slow phone stays responsive. The same
-   * game as `playWeek` from the same state; a tap while one runs is ignored.
+   * game as `playWeek` from the same state; a tap while one runs is ignored. `prepare` (the screen's, presentation
+   * only) runs on the played game before it is shown, in tasks of its own, to build what the next screen's first
+   * render would (the match day's ball path); it must not change the game, and an error in it is ignored.
    */
-  playWeekSoon: () => Promise<void>
+  playWeekSoon: (prepare?: (next: Game) => Promise<void>) => Promise<void>
   /** Transient: a `playWeekSoon` is under way (the Dugout's button shows it). Never saved. */
   playingWeek: boolean
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
@@ -996,7 +998,7 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
-        playWeekSoon: async () => {
+        playWeekSoon: async (prepare) => {
           const { game: g0, universe: u0, playingWeek } = get()
           if (!g0 || !u0 || playingWeek) return
           const mode = matchPlayOf(g0)
@@ -1018,6 +1020,14 @@ export const useStore = create<Store>()(
               return
             }
             await nextTask()
+            if (prepare) {
+              try {
+                await prepare(next)
+              } catch (e) {
+                console.error(e)
+              }
+              await nextTask()
+            }
             if (moved()) return get().playWeek()
             // One update for the game and the view: the screen that shows the week renders once
             set({ game: next, matchView: mode === 'sim' ? 'report' : 'ticker', liveAuto: mode === 'auto', playingWeek: false })
