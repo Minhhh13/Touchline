@@ -6,7 +6,9 @@
  * a change schedules one write a moment later, which carries the latest state
  * (so a steady stream of changes still writes every moment), and a waiting
  * write goes out at once when the page is hidden or closed. A write the browser refuses
- * (its storage is full) is reported and the game carries on in memory.
+ * (its storage is full) is reported and the game carries on in memory. A write that would store exactly what this
+ * page last stored is skipped (a toast or a screen change alters nothing saved), so an idle page never writes, and a
+ * second tab is never told about a change that is not one.
  */
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string'
 import type { PersistStorage, StorageValue } from 'zustand/middleware'
@@ -40,7 +42,13 @@ export function decodeSave(raw: string): string | null {
 export function parseSave<S>(raw: string): StorageValue<S> {
   const json = decodeSave(raw)
   if (json === null) throw new Error('not a Touchline save')
-  const parsed: unknown = JSON.parse(json.replace(/^\uFEFF/, ''))
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(json.replace(/^\uFEFF/, ''))
+  } catch {
+    // A file cut short in a download or a copy, or edited by hand: the parser's own words mean nothing to a player
+    throw new Error('the file is damaged or incomplete')
+  }
   if (!parsed || typeof parsed !== 'object' || !('state' in parsed) || !parsed.state || typeof parsed.state !== 'object') throw new Error('not a Touchline save')
   return parsed as StorageValue<S>
 }
@@ -70,10 +78,17 @@ export interface SaveStorage<S> extends PersistStorage<S, void> {
   freeze: () => void
   /** Whether a write is waiting. */
   pending: () => boolean
+  /**
+   * Whether the stored save under `name` is no longer the one this page last read or wrote: another page wrote it while
+   * this one could not hear about it (restored from the back-forward cache, or a frozen background tab).
+   */
+  changedElsewhere: (name: string) => boolean
 }
 
 export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
   let queued: { name: string; value: StorageValue<S> } | null = null
+  /** The JSON this page last read or stored under each name: a write of the same text is skipped. */
+  const stored = new Map<string, string>()
   let timer: ReturnType<typeof setTimeout> | null = null
   let frozen = false
   const backing = (): Storage | undefined => {
@@ -91,9 +106,12 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
     if (!job || frozen) return
     const store = backing()
     if (!store) return
+    let json: string
     let encoded: string
     try {
-      encoded = encodeSave(JSON.stringify(job.value))
+      json = JSON.stringify(job.value)
+      if (stored.get(job.name) === json) return
+      encoded = encodeSave(json)
     } catch (e) {
       opts.onError?.(e, false)
       return
@@ -104,6 +122,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       opts.onError?.(e, isQuotaError(e))
       return
     }
+    stored.set(job.name, json)
     opts.onWrite?.()
   }
   return {
@@ -113,7 +132,9 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       const raw = backing()?.getItem(name)
       if (!raw) return null
       try {
-        return parseSave<S>(raw)
+        const value = parseSave<S>(raw)
+        stored.set(name, decodeSave(raw)!)
+        return value
       } catch (e) {
         console.warn(`Could not read the save: ${e instanceof Error ? e.message : String(e)}`)
         return null
@@ -127,6 +148,7 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
     },
     removeItem: (name) => {
       if (queued?.name === name) queued = null
+      stored.delete(name)
       backing()?.removeItem(name)
     },
     flush,
@@ -137,5 +159,15 @@ export function createSaveStorage<S>(opts: SaveStorageOptions): SaveStorage<S> {
       timer = null
     },
     pending: () => queued !== null,
+    changedElsewhere: (name) => {
+      let raw: string | null | undefined
+      try {
+        raw = backing()?.getItem(name)
+      } catch {
+        return false
+      }
+      const now = raw ? decodeSave(raw) : null
+      return now !== (stored.get(name) ?? null)
+    },
   }
 }

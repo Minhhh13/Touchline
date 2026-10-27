@@ -9,7 +9,7 @@ import { useStore } from '../store'
 import { SQUAD_CAP } from '../logic/marketOps'
 import { lineupProblems } from '../logic/squad'
 import type { Game } from '../types'
-import { badValues, Chooser, count, crashToast, driveDraft, squadProblems, tableProblems } from './qaHarness'
+import { badValues, Chooser, count, crashToast, driveDraft, squadProblems, stepHook, tableProblems } from './qaHarness'
 
 const st = () => useStore.getState()
 const TALKS = ['calm', 'encourage', 'demand', 'fire-up', 'none'] as const
@@ -193,6 +193,7 @@ export function driveSeason(u: LoadedUniverse, ch: Chooser, opts: { years?: numb
   let guard = 0
   let lastMw = -1
   while (guard++ < 3000) {
+    stepHook.run?.()
     const g = st().game
     const crash = crashToast()
     if (crash) {
@@ -283,6 +284,7 @@ export function driveSeason(u: LoadedUniverse, ch: Chooser, opts: { years?: numb
 export function driveArena(u: LoadedUniverse, ch: Chooser): string[] {
   const problems: string[] = []
   for (let guard = 0; guard < 600; guard++) {
+    stepHook.run?.()
     const g = st().game
     if (crashToast()) return [...problems, `crash: ${crashToast()}`]
     if (st().toast) useStore.setState({ toast: null })

@@ -115,6 +115,12 @@ interface Store {
   h2h: H2HGame | null
   profile: Profile
   toast: string | null
+  /**
+   * Why this page is not saving (transient, never saved): `full` while the browser refuses every write (cleared by the
+   * next write that lands), `elsewhere` once another tab or window has saved over this page's save (this page then
+   * stops writing until it is reloaded, so it never overwrites that progress with its older game).
+   */
+  saveIssue: 'full' | 'elsewhere' | null
   offseason: OffseasonReport | null
   /** What happened over the matchweeks just simulated (Sim 5, Sim to end); transient, never saved. */
   digest: SimDigest | null
@@ -328,6 +334,7 @@ export const saveStorage = createSaveStorage<Store>({
   delayMs: SAVE_DELAY_MS,
   onWrite: () => {
     failedWrites = 0
+    if (useStore.getState().saveIssue === 'full') useStore.setState({ saveIssue: null })
   },
   onError: (e, quota) => {
     if (!quota) {
@@ -335,6 +342,8 @@ export const saveStorage = createSaveStorage<Store>({
       return
     }
     failedWrites++
+    // The banner stays while writes fail; the toast says why, on the first refusal and every twentieth
+    if (!useStore.getState().saveIssue) useStore.setState({ saveIssue: 'full' })
     if (failedWrites === 1 || failedWrites % 20 === 0) useStore.setState({ toast: SAVE_FULL_TOAST })
   },
 })
@@ -439,6 +448,7 @@ export const useStore = create<Store>()(
         h2h: null,
         profile: defaultProfile,
         toast: null,
+        saveIssue: null,
         offseason: null,
         digest: null,
         matchView: 'ticker',
@@ -1371,11 +1381,32 @@ export const useStore = create<Store>()(
   ),
 )
 
+/**
+ * Another tab or window wrote the save (it played on, imported a file or wiped the browser): this page's game is now
+ * older than the stored one, and its next write would put that older game back over the newer progress. It stops
+ * writing at once and asks to be reloaded. The browser fires the event only in the other pages, never in the writer.
+ */
+export function saveChangedElsewhere(key: string | null): void {
+  // A null key is localStorage.clear(), which takes the save with it
+  if (key !== null && key !== SAVE_KEY) return
+  saveStorage.freeze()
+  useStore.setState({ saveIssue: 'elsewhere' })
+}
+
 if (typeof window !== 'undefined') {
   // A write still waiting goes out before the page is hidden or closed
   window.addEventListener('pagehide', () => saveStorage.flush())
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') saveStorage.flush()
+    // Back from the background (a frozen tab may not have heard): the save is still this page's, or it stops
+    else if (saveStorage.changedElsewhere(SAVE_KEY)) saveChangedElsewhere(SAVE_KEY)
+  })
+  // Back or Forward to this page out of the back-forward cache: other pages may have saved while it slept, unheard
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted && saveStorage.changedElsewhere(SAVE_KEY)) saveChangedElsewhere(SAVE_KEY)
+  })
+  window.addEventListener('storage', (e) => {
+    if (e.storageArea === window.localStorage) saveChangedElsewhere(e.key)
   })
 }
 
@@ -1391,14 +1422,27 @@ export function exportSaveJson(): string {
  */
 export function readSaveFile(text: string): string {
   const value = parseSave<Record<string, unknown>>(text)
+  // A save written under another persist version would be thrown away on load (there is no migrate): refuse it here
+  if (typeof value.version === 'number' && value.version !== SAVE_VERSION) throw new Error(value.version > SAVE_VERSION ? 'the save was made by a newer version of TouchLine' : 'the save is from a version of TouchLine this one cannot read')
   const state = { ...value.state }
+  if (!state.game && !state.profile && !state.h2h && !state.parked) throw new Error('not a Touchline save')
+  // A game, parked game or profile that cannot be read would load as nothing and take this browser's own with it
   const compact = (g: unknown) => {
     const n = normaliseGame(g as Game)
-    return n ? compactGame(n) : g
+    if (!n) throw new Error('the saved game is damaged')
+    return compactGame(n)
   }
   if (state.game) state.game = compact(state.game)
-  if (state.parked && typeof state.parked === 'object') state.parked = Object.fromEntries(Object.entries(state.parked as Record<string, unknown>).map(([k, g]) => [k, compact(g)]))
-  return encodeSave(JSON.stringify({ ...value, state }))
+  if (state.parked !== undefined && state.parked !== null) {
+    if (typeof state.parked !== 'object' || Array.isArray(state.parked)) throw new Error('the saved games are damaged')
+    state.parked = Object.fromEntries(Object.entries(state.parked as Record<string, unknown>).map(([k, g]) => [k, compact(g)]))
+  }
+  if (state.profile !== undefined && state.profile !== null && (typeof state.profile !== 'object' || Array.isArray(state.profile))) throw new Error('the saved record is damaged')
+  const h2h = state.h2h as Partial<H2HGame> | null | undefined
+  if (h2h !== undefined && h2h !== null && (typeof h2h !== 'object' || !Array.isArray(h2h.managers) || h2h.managers.length !== 2 || !h2h.draft || typeof h2h.draft !== 'object' || typeof h2h.seed !== 'string')) throw new Error('the saved head-to-head is damaged')
+  // A file with games but no record keeps this browser's record rather than starting it again
+  if (!state.profile) state.profile = useStore.getState().profile
+  return encodeSave(JSON.stringify({ ...value, version: SAVE_VERSION, state }))
 }
 
 /**
