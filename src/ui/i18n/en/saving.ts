@@ -1,0 +1,40 @@
+import { catalog } from '../index'
+
+/**
+ * The save's own words that the first download carries (App's save pill and two-tab notice, Home's conflict cards),
+ * kept apart from the online screens' catalogue so it stays out of the entry chunk.
+ */
+export const saving = catalog('saving', {
+  exportFromSaveData: 'Export your save from Save data.',
+  openRecordToExport: 'Open Your record to export your save.',
+  notSaving: 'Not saving',
+  savedElsewhereTitle: 'Saved in another tab',
+  savedElsewhereBody: 'TouchLine was saved in another tab or window. This tab has stopped saving, so it cannot put its older game back over that progress.',
+  savedElsewhereReload: 'Reload to carry on from the latest save. Anything done in this tab since the other one saved is not kept.',
+  reloadTab: 'Reload this tab',
+  slotQuick: 'Quick Draft',
+  slotSeason: 'Season',
+  slotDynasty: 'Dynasty',
+  slotH2H: 'head-to-head',
+  aGame: 'a game',
+  drafting: 'drafting',
+  seasonComplete: 'season complete',
+  matchweekLower: 'matchweek {n}',
+  describeSave: '{team} ({where}{year}){device}',
+  yearSuffix: ', year {year}',
+  onDevice: ' on {device}',
+  newerProgress: 'Newer progress of this {label} from {from}.',
+  loadIt: 'Load it',
+  abandoned: 'This {label} was abandoned on another device.',
+  abandonedOn: 'This {label} was abandoned on another device on {date}.',
+  keepHere: 'Keep it here',
+  removeHere: 'Remove it here',
+  twoGames: 'Two different {label} games: this device has {local}; the cloud has {remote}. The one you do not keep stays in Cloud history.',
+  keepDevice: "Keep this device's",
+  useCloud: "Use the cloud's",
+  accountSwitch: 'Another account synced the games on this device before. What should happen to them?',
+  uploadThem: 'Upload them to this account',
+  keepThem: 'Keep them on this device only',
+  replaceConfirm: "Replace this device's games with this account's cloud saves?",
+  replaceThem: "Replace them with this account's",
+})

@@ -7,9 +7,9 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalSto
 import { ChevronDown, LayoutGrid } from 'lucide-react'
 import { canHide, gridTemplate, popPlacement, presentBoxes, readHidden, toggleBox, visibleIds, writeHidden, type BoxDef, type BoxSet, type GridCol } from '../boxes'
 import { translator } from '../i18n'
-import { shell } from '../i18n/en/shell'
+import { boxes as boxesText } from '../i18n/en/boxes'
 
-const t = translator(shell)
+const t = translator(boxesText)
 /** A box's or a set's words from its screen and id; a label built at run time (a match-day slot) shows as it comes. */
 const boxText = (key: string, english: string) => (t.has(key) ? t(key) : english)
 

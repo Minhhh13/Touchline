@@ -267,12 +267,12 @@ describe('the catalogues', () => {
     const { ALL_SETS } = await import('../boxSets')
     const { MATCHDAY_COMPACT } = await import('../matchday/widgetIds')
     const { DAMAGED_LINK_TOAST } = await import('../gameHash')
-    const shell = all.shell.messages
+    const boxes = all.boxes.messages
     for (const set of [...ALL_SETS, MATCHDAY_COMPACT]) {
-      expect(shell[`boxes_${set.screen}`], set.screen).toBe(set.title)
-      for (const b of set.boxes) expect(shell[`box_${set.screen}_${b.id}`], `${set.screen} ${b.id}`).toBe(b.label)
+      expect(boxes[`boxes_${set.screen}`], set.screen).toBe(set.title)
+      for (const b of set.boxes) expect(boxes[`box_${set.screen}_${b.id}`], `${set.screen} ${b.id}`).toBe(b.label)
     }
-    expect(shell.damagedLink).toBe(DAMAGED_LINK_TOAST)
+    expect(all.shell.messages.damagedLink).toBe(DAMAGED_LINK_TOAST)
   })
 
   it('give the modes the same English names as modes.ts', async () => {

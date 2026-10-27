@@ -2,9 +2,9 @@ import { RotateCcw } from 'lucide-react'
 import { useStore } from '@game/store'
 import { Modal } from './bits'
 import { translator } from '../i18n'
-import { online } from '../i18n/en/online'
+import { saving } from '../i18n/en/saving'
 
-const t = translator(online)
+const t = translator(saving)
 
 /**
  * A dialog once another tab or window has saved over this page's save: this page has stopped writing, so the only way

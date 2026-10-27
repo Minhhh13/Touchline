@@ -1,9 +1,9 @@
 import { HardDriveDownload } from 'lucide-react'
 import { SAVE_FAILING_LINE, useStore } from '@game/store'
 import { translator } from '../i18n'
-import { online } from '../i18n/en/online'
+import { saving } from '../i18n/en/saving'
 
-const t = translator(online)
+const t = translator(saving)
 
 /**
  * While the browser refuses every save write (its storage is full), a warning stays in the top bar so nobody plays on

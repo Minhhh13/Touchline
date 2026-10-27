@@ -2,9 +2,9 @@ import { useOnline, type SyncConflict } from '../../online/state'
 import type { SaveMeta } from '../../online/core/slots'
 import * as api from '../../online/api'
 import { translator } from '../i18n'
-import { online } from '../i18n/en/online'
+import { saving } from '../i18n/en/saving'
 
-const t = translator(online)
+const t = translator(saving)
 
 const SLOT_LABEL: Record<string, () => string> = { quick: () => t('slotQuick'), season: () => t('slotSeason'), dynasty: () => t('slotDynasty'), h2h: () => t('slotH2H') }
 

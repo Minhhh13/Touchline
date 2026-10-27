@@ -27,7 +27,8 @@ export function accent(text: string): string {
 export function wrapPseudo(formatted: string, englishLength: number): string {
   if (!formatted) return formatted
   const extra = Math.ceil(englishLength * 0.3) - PSEUDO_OPEN.length - PSEUDO_CLOSE.length
-  return `${PSEUDO_OPEN}${formatted}${extra > 0 ? ' ' + '~'.repeat(extra - 1) : ''}${PSEUDO_CLOSE}`
+  // The padding breaks like words do ("~~~~ ~~~~"): one unbroken run would overflow a narrow box no translation would
+  return `${PSEUDO_OPEN}${formatted}${extra > 0 ? ' ~~~~'.repeat(Math.ceil(extra / 5)).slice(0, extra) : ''}${PSEUDO_CLOSE}`
 }
 
 /** True when a string came out of the pseudo-locale (a test's check for text that skipped `t()`). */
