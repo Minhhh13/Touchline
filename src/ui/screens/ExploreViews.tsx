@@ -441,7 +441,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
           Quick nations
         </div>
         <div className="row wrap nation-chips" style={{ gap: 6 }}>
-          {nations.slice(0, 10).map((n) => (
+          {nations.filter((n) => nationName(u, n.nation) !== 'Unknown').slice(0, 10).map((n) => (
             <button key={n.nation} type="button" className={`chip-btn ${form.nation === n.nation ? 'active' : ''}`} aria-pressed={form.nation === n.nation} onClick={() => set('nation', form.nation === n.nation ? '' : n.nation)}>
               <NationFlag nation={n.nation} named /> {nationName(u, n.nation)}
             </button>

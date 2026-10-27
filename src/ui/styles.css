@@ -16101,3 +16101,22 @@ table.tbl td.strong {
   display: block;
   max-width: 100%;
 }
+/* The champions table: a long name gives way so the points stay in view */
+.explore-league td.club-cell {
+  max-width: 0;
+  width: 100%;
+}
+.explore-league td.club-cell .link-btn {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .compare-tbl .compare-group {
+    display: none;
+  }
+  .compare-th {
+    max-width: 72px;
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
-import { boundOf, filterActive, filterPlayers, nationCounts } from '../logic/exploreFilter'
+import { BLANK_SEARCH, boundOf, filterActive, formFilter, filterPlayers, nationCounts } from '../logic/exploreFilter'
 import { foldName } from '../logic/exploreSearch'
 
 const u = loadTestUniverse(['england', 'germany'])
@@ -65,5 +65,13 @@ describe("Explore's filtered search", () => {
     expect(boundOf('')).toBeUndefined()
     expect(boundOf(' 23 ')).toBe(23)
     expect(boundOf('x')).toBeUndefined()
+  })
+  it("turns the form into a filter: blanks filter nothing, and best match needs a name", () => {
+    expect(filterActive(formFilter(BLANK_SEARCH))).toBe(false)
+    expect(formFilter(BLANK_SEARCH).sort).toBe('rating')
+    expect(formFilter({ ...BLANK_SEARCH, query: 'kane' }).sort).toBe('relevance')
+    const f = formFilter({ ...BLANK_SEARCH, nation: 'BR', minAge: '21', maxRating: 'x', every: true })
+    expect(f).toMatchObject({ nation: 'BR', minAge: 21, onePerPlayer: false })
+    expect(f.maxRating).toBeUndefined()
   })
 })

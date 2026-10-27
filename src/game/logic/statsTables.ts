@@ -64,12 +64,18 @@ export function playerStatRows(squad: Record<string, SquadPlayer>, season: Pick<
   return out
 }
 
+/** Sorting by average rating ranks men with this many appearances first. */
+export const AVG_MIN_APPS = 3
+
 /** Text columns sort A to Z; numbers high first. `reverse` flips it. A missing figure (null) always sorts last. */
 export function sortPlayerStats(rows: PlayerStatRow[], key: PlayerStatKey, reverse = false, teamName: (id: string) => string = (id) => id): PlayerStatRow[] {
   const text = key === 'name' || key === 'team' || key === 'position'
   const dir = reverse ? -1 : 1
   const value = (r: PlayerStatRow): string | number | null => (key === 'team' ? teamName(r.teamId) : r[key])
+  // An average over a game or two is not a ranking: by average rating, men under AVG_MIN_APPS sort after the rest
+  const thin = (r: PlayerStatRow) => (key === 'avg' && r.apps < AVG_MIN_APPS ? 1 : 0)
   return [...rows].sort((a, b) => {
+    if (thin(a) !== thin(b)) return thin(a) - thin(b)
     const va = value(a)
     const vb = value(b)
     if (va === null || vb === null) return va === vb ? tie(a, b) : va === null ? 1 : -1

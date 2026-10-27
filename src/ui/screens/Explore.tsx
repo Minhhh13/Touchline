@@ -191,8 +191,11 @@ export function Explore() {
       <div className="segmented view-switch" role="group" aria-label="View">
         {views.map((x) => (
           <button key={x.id} className={view === x.id ? 'active' : ''} aria-pressed={view === x.id} onClick={() => setView(x.id)} data-testid={`explore-view-${x.id}`}>
-            <x.icon size={14} aria-hidden="true" /> {x.label}
-            {x.long && <span className="view-long">{x.long}</span>}
+            <x.icon size={14} aria-hidden="true" />
+            <span>
+              {x.label}
+              {x.long && <span className="view-long">{x.long}</span>}
+            </span>
             {x.id === 'compare' && compare.length > 0 && <span className="view-count">{compare.length}</span>}
           </button>
         ))}

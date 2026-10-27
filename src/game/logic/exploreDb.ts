@@ -319,7 +319,7 @@ export function compareRows(players: PlayerSeason[]): CompareRow[] {
   const rows: CompareRow[] = [
     { key: 'overall', label: 'Overall', group: 'Overview', values: players.map((p) => p.overall), leaders: [] },
     { key: 'age', label: 'Age', group: 'Overview', values: players.map((p) => p.age), leaders: [] },
-    { key: 'value', label: 'Value (£M)', group: 'Overview', values: players.map((p) => p.value), leaders: [] },
+    { key: 'value', label: 'Value', group: 'Overview', values: players.map((p) => p.value), leaders: [] },
   ]
   rows[0].leaders = lead(rows[0].values, true)
   rows[2].leaders = lead(rows[2].values, true)

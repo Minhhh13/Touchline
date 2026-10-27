@@ -3,7 +3,7 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { seasonTable, USER_TEAM } from '@engine/season'
 import { playerLookup } from '../logic/players'
 import { compactGame } from '../logic/compact'
-import { playerStatRows, sortPlayerStats, sortTeamStats, teamRank, teamStatRows, teamStatValue } from '../logic/statsTables'
+import { AVG_MIN_APPS, playerStatRows, sortPlayerStats, sortTeamStats, teamRank, teamStatRows, teamStatValue } from '../logic/statsTables'
 import { clone, seasonGame } from './seasonGame'
 
 const u = loadTestUniverse(['england'])
@@ -36,6 +36,9 @@ describe("the Stats tab's tables", () => {
     expect(firstNull).toBeGreaterThan(0)
     expect(cs.slice(firstNull).every((r) => r.cleanSheets === null)).toBe(true)
     expect(sortPlayerStats(rows, 'cleanSheets', true).slice(firstNull).every((r) => r.cleanSheets === null)).toBe(true)
+    const byAvg = sortPlayerStats(rows, 'avg')
+    const firstThin = byAvg.findIndex((r) => r.apps < AVG_MIN_APPS)
+    if (firstThin >= 0) expect(byAvg.slice(firstThin).every((r) => r.apps < AVG_MIN_APPS)).toBe(true)
     // Sorting never changes the rows themselves
     expect(sortPlayerStats(rows, 'avg').length).toBe(rows.length)
   })
