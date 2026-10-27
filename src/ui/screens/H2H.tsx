@@ -1,18 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useStore, type H2HGame } from '@game/store'
-import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
+import { LeagueRetry, LeagueWait, useLeagueGate } from '../components/LeagueRetry'
 import { APP_NAME } from '../brand'
 import { getFormation } from '@engine/formations'
 import { randomSeed } from '@engine/rng'
-import { poolClubSeasons } from '@engine/universe'
 import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine/h2h'
 import { isComplete, picksMade, fillingXI, suggestSlot, type DraftState } from '@engine/draft'
 import { H2H_IDS, type H2HManager, type H2HResult } from '@game/logic/h2h'
+import { h2hNeedsClassic, h2hSeasonChoices } from '@game/logic/h2hClassic'
+import { nextFirstPicker } from '@game/logic/h2hView'
+import { classicFromIndex, estimatedNote } from '@game/logic/era'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
-import { ClubBadge, Info, Segmented, Stat, TeamBadge } from '../components/bits'
+import { ClubBadge, EstimatedChip, Info, Segmented, Stat, TeamBadge } from '../components/bits'
 import { FormationPicker } from '../components/FormationPicker'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, ordinal, seasonLabel, tierName, formationName } from '../format'
@@ -31,7 +33,7 @@ import { RoomSetup } from '../online/Rooms'
 let rematchOf: H2HGame | null = null
 
 export function H2HSetup() {
-  const { universe: u, startH2H, go, ensureLeagues, loadingLeagues, loadedLeagues } = useStore()
+  const { universe: u, startH2H, go, ensureLeagues, ensureClassic, classicLoaded, loadingLeagues, loadedLeagues } = useStore()
   const [last] = useState(() => rematchOf)
   const [leagueId, setLeagueId] = useState(last?.leagueId ?? 'england')
   const [wheelScope, setWheelScope] = useState<'league' | 'europe'>((last?.wheelLeagues.length ?? 1) > 1 ? 'europe' : 'league')
@@ -41,6 +43,8 @@ export function H2HSetup() {
   const [hosts, setHosts] = useState(last ? last.managers.map((m) => m.hostClubId) : ['', ''])
   const [difficulty, setDifficulty] = useState<'calibrated' | 'realistic'>(last?.difficulty ?? 'calibrated')
   const [hardMode, setHardMode] = useState(last?.hardMode ?? false)
+  // Classic seasons (1992-93 to 2007-08, estimated ratings): off unless asked for, as in Setup; a Rematch keeps the choice
+  const [classicOn, setClassicOn] = useState(() => h2hNeedsClassic(last))
   const [seed, setSeed] = useState(() => randomSeed())
   // Two devices instead of one: only in a build with the online layer (an offline build shows exactly the hot-seat setup)
   const [where, setWhere] = useState<'device' | 'online'>('device')
@@ -70,11 +74,16 @@ export function H2HSetup() {
         <RoomSetup />
       </div>
     )
-  const seasons = [...new Set(poolClubSeasons(u, false).filter((cs) => cs.leagueId === leagueId).map((cs) => cs.season))].sort()
-  const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1]
-  const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort()
   const wheelLeagues = wheelScope === 'europe' ? u.available.map((l) => l.id) : [leagueId]
-  const ready = wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(leagueId)
+  // The toggle shows from the data index (England's classic seasons); the classic pack itself loads when it is switched on
+  const classicFrom = classicFromIndex(u.available, [...new Set([leagueId, ...wheelLeagues])])
+  const classic = classicOn && classicFrom !== undefined
+  const seasonChoices = h2hSeasonChoices(u, leagueId, classic)
+  const seasons = seasonChoices.map((c) => c.season)
+  const effectiveSeason = seasons.includes(leagueSeason) ? leagueSeason : seasons[seasons.length - 1]
+  const classicSeason = !!seasonChoices.find((c) => c.season === effectiveSeason)?.classic
+  const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === effectiveSeason).map((cs) => cs.clubId).sort()
+  const ready = wheelLeagues.every((l) => loadedLeagues.includes(l)) && loadedLeagues.includes(leagueId) && (!classic || classicLoaded)
   const host0 = clubs.includes(hosts[0]) ? hosts[0] : clubs[Math.floor(clubs.length / 3)]
   const host1 = clubs.includes(hosts[1]) && hosts[1] !== host0 ? hosts[1] : clubs.find((c) => c !== host0) ?? clubs[0]
   const short = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase() || 'MGR'
@@ -157,13 +166,34 @@ export function H2HSetup() {
           <label className="field">
             Season
             <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
-              {seasons.map((s) => (
+              {[...seasonChoices].reverse().map(({ season: s, classic: est }) => (
                 <option key={s} value={s}>
-                  {seasonLabel(s)}
+                  {seasonLabel(s)}{s === u.currentSeason ? ' (in progress)' : ''}{est ? ' (est.)' : ''}
                 </option>
               ))}
             </select>
+            {classicSeason && (
+              <span className="help">
+                <EstimatedChip compact /> A classic season: every side's ratings are estimated.
+              </span>
+            )}
           </label>
+          {classicFrom !== undefined && (
+            <label className="toggle" title="Real squads and tables; no official ratings exist, so these are TouchLine's estimates.">
+              <input
+                type="checkbox"
+                checked={classic}
+                data-testid="h2h-classic"
+                onChange={(e) => {
+                  const on = e.target.checked
+                  setClassicOn(on)
+                  // Its pack loads now (Start waits for it); one that cannot load switches the toggle back off
+                  if (on) void ensureClassic().then((ok) => void (ok || setClassicOn(false)))
+                }}
+              />
+              Classic {seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)} <EstimatedChip compact />
+            </label>
+          )}
           <div className="field">
             <span>
               Difficulty <Info label="About difficulty">Calibrated scales the real clubs so an average draft finishes mid-table; Realistic plays them as they were.</Info>
@@ -189,9 +219,9 @@ export function H2HSetup() {
           </div>
         </div>
         <div className="h2h-start">
-          <LeagueRetry needs={[leagueId, ...wheelLeagues]} />
-          <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues || !host0 || !host1} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed())}>
-            {ready ? 'Start the head-to-head' : <LeagueWait needs={[leagueId, ...wheelLeagues]} />}
+          <LeagueRetry needs={[leagueId, ...wheelLeagues]} classic={classic} />
+          <button className="btn primary big block" data-testid="h2h-start" disabled={!ready || loadingLeagues || !host0 || !host1} onClick={() => startH2H([{ name: nameOf(0), shortName: short(nameOf(0)), formationId: formations[0], hostClubId: host0 }, { name: nameOf(1), shortName: short(nameOf(1)), formationId: formations[1], hostClubId: host1 }], leagueId, wheelLeagues, effectiveSeason, difficulty, hardMode, seed.trim() || randomSeed(), classic)}>
+            {ready ? 'Start the head-to-head' : <LeagueWait needs={[leagueId, ...wheelLeagues]} classic={classic} />}
           </button>
         </div>
       </div>
@@ -201,7 +231,17 @@ export function H2HSetup() {
 }
 
 export function H2HScreen() {
-  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast } = useStore()
+  const { universe: u, h2h, h2hSpin, h2hPick, h2hAuto, h2hFinish, abandonH2H, go, showToast, ensureLeagues, loadingLeagues } = useStore()
+  // A head-to-head renders only against the packs it was drafted from: its leagues and, for a classic one, the classic
+  // seasons (a reload whose classic pack failed, or a head-to-head restored from the cloud); they load here, Retry when offline
+  const needs = h2h ? [...new Set([h2h.leagueId, ...(h2h.wheelLeagues ?? [])])] : []
+  const needsClassic = h2hNeedsClassic(h2h)
+  const gate = useLeagueGate(needs, needsClassic)
+  const needKey = needs.join()
+  useEffect(() => {
+    if (gate === 'loading' && !loadingLeagues) void ensureLeagues(needKey.split(','), needsClassic)
+  }, [gate, loadingLeagues, needKey, needsClassic, ensureLeagues])
+  const packsReady = gate === 'ready'
   // As in the Draft: the spin whose reel has landed, and a selection that belongs to its spin
   const [settled, setSettled] = useState<H2HDraft['current']>(null)
   const [picked, setPicked] = useState<{ id: string; spin: number } | null>(null)
@@ -211,20 +251,51 @@ export function H2HScreen() {
   const selectedPlayer = picked && picked.spin === d?.spins ? picked.id : null
   const setSelectedPlayer = (id: string | null) => setPicked(id && d ? { id, spin: d.spins } : null)
   const pool = useMemo(
-    () => (u && h2h ? h2hReelPool(u, h2h.draft) : []),
+    () => (u && h2h && packsReady ? h2hReelPool(u, h2h.draft) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [u, h2h?.draft.spins, h2h?.draft.log.length],
+    [u, packsReady, h2h?.draft.spins, h2h?.draft.log.length],
   )
   // The leagues the wheel draws from are the draft rules' (an older save may lack `wheelLeagues`)
   const rules = h2h?.draft.drafts[0].rules
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
   // The exact tier odds of the next spin, shown between spins
-  const odds = useMemo(() => (u && h2h && !h2h.draft.current && !h2hComplete(h2h.draft) ? h2hTierOdds(u, h2h.draft, leagues) : []), [u, h2h, leagues])
+  const odds = useMemo(() => (u && h2h && packsReady && !h2h.draft.current && !h2hComplete(h2h.draft) ? h2hTierOdds(u, h2h.draft, leagues) : []), [u, h2h, packsReady, leagues])
   if (!u || !h2h || !d) return <H2HSetup />
+  if (!packsReady)
+    return (
+      <div className="page">
+        <div className="screen-head">
+          <div className="screen-title">
+            <h1>Head-to-head draft</h1>
+            <div className="screen-meta">
+              <span>
+                {h2h.managers[0].name} v {h2h.managers[1].name}
+              </span>
+            </div>
+          </div>
+          <div className="toolbar">
+            <button className="btn ghost sm" onClick={() => go('home')}>
+              Home
+            </button>
+          </div>
+        </div>
+        <div className="empty-state" data-testid="h2h-waiting">
+          <span className="empty-icon" aria-hidden="true">
+            <Dices size={26} />
+          </span>
+          <h3>
+            <LeagueWait needs={needs} classic={needsClassic} />
+          </h3>
+          <LeagueRetry needs={needs} classic={needsClassic} />
+        </div>
+      </div>
+    )
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
   const tier = current ? tierTable(u, leagues)[`${current.clubId}@${current.season}`] : undefined
   const complete = h2hComplete(d)
+  // The next spin's first picker as the engine decides it: once one squad is complete the other always picks first
+  const firstName = h2h.managers[nextFirstPicker(d) ?? d.first].name
   const picking = d.picking
   const manager = picking !== null ? h2h.managers[picking] : null
   const usable = h2hUsable(u, d)
@@ -265,6 +336,11 @@ export function H2HScreen() {
               <LeagueFlag leagueId={h2h.leagueId} /> {u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? 'League'} {seasonLabel(h2h.leagueSeason)}
             </span>
             {h2h.hardMode && <span className="chip">Hard mode</span>}
+            {needsClassic && (
+              <span className="chip" data-testid="h2h-classic-chip">
+                Classic seasons <EstimatedChip compact />
+              </span>
+            )}
             <span className="mono">Seed {h2h.seed}</span>
           </div>
         </div>
@@ -285,7 +361,7 @@ export function H2HScreen() {
             {!d.current && !complete && <SpinOdds odds={odds} label="Next spin" />}
             {!complete && (
               <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
-                {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
+                {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${firstName} first)`}
               </button>
             )}
             {complete && (
@@ -316,7 +392,7 @@ export function H2HScreen() {
               <span className="empty-icon" aria-hidden="true">
                 {complete ? <CircleCheck size={26} /> : <Dices size={26} />}
               </span>
-              <h3>{complete ? 'Both squads complete' : `Spin: ${h2h.managers[d.first].name} picks first`}</h3>
+              <h3>{complete ? 'Both squads complete' : `Spin: ${firstName} picks first`}</h3>
               {!complete && <p className="muted small">One spin, one club-season, a pick each.</p>}
             </div>
           )}
@@ -349,6 +425,7 @@ export function H2HScreen() {
                       <span>no table on record</span>
                     )}
                     {tier && <TierChip tier={tier} />}
+                    {current.estimated && <EstimatedChip compact />}
                   </div>
                 </div>
               </div>
@@ -425,11 +502,15 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
   const { universe: u, showToast } = useStore()
   const [copied, setCopied] = useState(false)
   if (!u) return null
+  // A classic pick or a classic league season: the numbers are TouchLine's estimate, and the share says so (never in an online room)
+  const leagueName = u.leagues.find((l) => l.id === leagueId)?.name ?? ''
+  const estimated = estimatedNote(u, drafts.flatMap((d) => Object.values(d.lineup)), leagueId, leagueSeason)
   const text = [
-    `${APP_NAME} · ${label} · ${seasonLabel(leagueSeason)}`,
+    `${APP_NAME} · ${label} · ${`${leagueName} ${seasonLabel(leagueSeason)}`.trim()}`,
     ...([0, 1] as const).map((i) => `${m[i].name}: ${tierName(r.tiers[i], r.positions[i])} · ${r.rows[i].won}-${r.rows[i].drawn}-${r.rows[i].lost} · ${r.rows[i].points} pts · ${ordinal(r.positions[i])}`),
     `Derbies: ${r.derbies.map((dby) => `${m[dby.homeIdx].shortName} ${dby.homeGoals}-${dby.awayGoals} ${m[dby.homeIdx === 0 ? 1 : 0].shortName}`).join(', ')}`,
     r.winner === null ? 'Dead heat.' : `${m[r.winner].name} wins.`,
+    ...(estimated ? [estimated] : []),
     `Seed ${seed}`,
   ].join('\n')
   const copy = async () => {
@@ -445,14 +526,14 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
     try {
       const url = await renderShareCard({
         title: m[i].name,
-        subtitle: `Head-to-head v ${m[i === 0 ? 1 : 0].name} · ${u.leagues.find((l) => l.id === leagueId)?.name ?? ''} ${seasonLabel(leagueSeason)}`,
+        subtitle: `${label} v ${m[i === 0 ? 1 : 0].name} · ${leagueName} ${seasonLabel(leagueSeason)}`,
         tier: r.tiers[i],
         row: r.rows[i],
         position: r.positions[i],
         formation: getFormation(m[i].formationId),
         lineup: drafts[i].lineup,
         getPlayer: (id) => u.index[id],
-        footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${seed}`,
+        footer: `${r.winner === null ? 'Dead heat' : r.winner === i ? 'Winner' : 'Runner-up'} · Seed ${seed}${estimated ? ' · estimated ratings' : ''}`,
         hideRatings: ratingHidden(drafts[i].rules, 'squad'),
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
@@ -469,6 +550,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
           </span>
           <span className="bm-rest">
             <LeagueFlag leagueId={leagueId} label={u.leagues.find((l) => l.id === leagueId)?.name} /> {seasonLabel(leagueSeason)}
+            {estimated && <> <EstimatedChip compact /></>}
           </span>
         </div>
         <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`}>{r.winner === null ? 'Dead heat' : `${m[r.winner].name} wins`}</div>

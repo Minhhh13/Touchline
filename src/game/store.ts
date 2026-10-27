@@ -51,7 +51,8 @@ import { ACHIEVEMENTS } from '@engine/awards'
 import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
 import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
-import { h2hRules, runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
+import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
+import { h2hNeedsClassic, h2hRulesFor } from './logic/h2hClassic'
 import { getFormation } from '@engine/formations'
 import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
@@ -315,7 +316,7 @@ interface Store {
   acceptJob: (index: number | null) => void
   dismissOffseason: () => void
 
-  startH2H: (managers: [H2HManager, H2HManager], leagueId: string, wheelLeagues: string[], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string) => void
+  startH2H: (managers: [H2HManager, H2HManager], leagueId: string, wheelLeagues: string[], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string, classic?: boolean) => void
   h2hSpin: () => void
   h2hPick: (playerSeasonId: string, slotId: string | 'bench') => void
   h2hAuto: () => void
@@ -537,7 +538,7 @@ export const useStore = create<Store>()(
             const results = await Promise.allSettled(extra.map((id) => loadLeague(id, false)))
             const failed = extra.filter((_, i) => results[i].status === 'rejected')
             const ids = [DEFAULT_LEAGUE, ...extra.filter((id) => !failed.includes(id))]
-            const wantClassic = !!game && needsClassic(game)
+            const wantClassic = (!!game && needsClassic(game)) || h2hNeedsClassic(h2h)
             let u = base
             let classic = false
             if (wantClassic) {
@@ -555,11 +556,12 @@ export const useStore = create<Store>()(
               const names = [...failed.map((id) => base.available.find((l) => l.id === id)?.name ?? id), ...(classicFailed ? ['the classic seasons'] : [])].join(', ')
               next.toast = `Could not load ${names}. Check your connection and reload to get it back.`
               // Never render a game against a half-loaded universe: park it until its leagues load
-              if (game && (classicFailed || gameNeeds.some((id) => failed.includes(id)))) {
+              if (game && ((classicFailed && needsClassic(game)) || gameNeeds.some((id) => failed.includes(id)))) {
                 next.game = null
                 next.parked = { ...get().parked, [slotOf(game)]: game }
                 if (get().screen === 'game') next.screen = 'home'
               }
+              // A classic head-to-head whose classic pack did not load is kept: its screen waits for the pack with a Retry
               if (h2h && h2hNeeds.some((id) => failed.includes(id))) {
                 next.h2h = null
                 if (get().screen === 'h2h') next.screen = 'home'
@@ -1391,9 +1393,9 @@ export const useStore = create<Store>()(
           const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests
           set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies: trophiesOf(cabinet), cabinet, seasonsSimulated: profile.seasonsSimulated + 1, ...(weekly ? { weekly } : {}), ...(quickBests ? { quickBests } : {}) } })
         },
-        startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
+        startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed, classic) => {
           const rng = new Rng(seed)
-          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], h2hRules(wheelLeagues, hardMode))
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], h2hRulesFor(wheelLeagues, hardMode, !!classic))
           set({ h2h: { managers, leagueId, wheelLeagues, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
         },
         h2hSpin: () => {
