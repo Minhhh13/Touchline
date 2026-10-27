@@ -443,6 +443,11 @@ export function Dugout() {
                             C
                           </span>
                         )}
+                        {contract?.expired && (
+                          <span className="chip warn" data-testid="out-of-contract" title="Out of contract: offer terms from his card before the opener, or he may leave on a free">
+                            Out of contract
+                          </span>
+                        )}
                         {view === 'fitness' && (
                           <>
                             <span className="season-line" title="Condition now">
@@ -1765,6 +1770,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
                       </button>
                     </PlayerPeek>
                     {game.contracts[x.p.id]?.shopped && <span className="chip warn" title="His agent is finding a buyer">Shopped</span>}
+                    {game.contracts[x.p.id]?.expired && <span className="chip warn" title="Out of contract: in talks until the opener">Talks</span>}
                   </span>
                 </td>
                 <td className="num">{x.p.age}</td>

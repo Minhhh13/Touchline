@@ -11,6 +11,7 @@ import { newSquadPlayer } from '@engine/season'
 import { squadPlayers } from './players'
 import { postNews } from './news'
 import { SQUAD_CAP } from './marketOps'
+import { ageFloors, barredByAge } from './departures'
 
 export const INTAKE_SIZE = 3
 
@@ -24,7 +25,9 @@ export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): strin
   const { fromSeason, toSeason, onlyNation } = game.settings.rules
   const inEra = (p: PlayerSeason) => (fromSeason === undefined || p.season >= fromSeason) && (toSeason === undefined || p.season <= toSeason)
   // A one-nation academy only brings through that nation's youngsters
-  const young = (p: PlayerSeason) => p.age <= 20 && p.overall >= 58 && p.overall <= 76 && !owned.has(p.playerId) && inEra(p) && (!onlyNation || p.nationality === onlyNation)
+  // A man who left the club never comes back through the academy as his younger self (Dynasty)
+  const floors = ageFloors(game)
+  const young = (p: PlayerSeason) => p.age <= 20 && p.overall >= 58 && p.overall <= 76 && !owned.has(p.playerId) && inEra(p) && (!onlyNation || p.nationality === onlyNation) && !barredByAge(floors, p)
   const seen = new Set<string>()
   const pickFrom = (pool: PlayerSeason[], n: number): PlayerSeason[] => {
     const out: PlayerSeason[] = []

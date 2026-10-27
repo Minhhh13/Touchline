@@ -19,7 +19,7 @@ const BAND_LABEL = { low: 'Low', medium: 'Medium', high: 'High' } as const
  */
 /** `boxes` is the Dugout's Boxes control for this tab: an unticked box is left out and the others widen. */
 export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game, letContractGo, showToast } = useStore()
   if (!u || !game) return null
   const rows = squadPlanner(game, u)
   const contracts = contractsOverview(game, u)
@@ -78,12 +78,37 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
             <h3 className="icon-title">
               <FileSignature size={18} aria-hidden="true" /> Contracts
             </h3>
-            <Info label="About contracts">Years include this season. Expiring players leave in the summer unless they renew: open contract talks from a player's card any time, or answer the renewal decision in the Inbox; loans go back. Change a status on the Club tab.</Info>
+            <Info label="About contracts">Years include this season. A contract that runs out in the summer puts him on the renewal list for pre-season: offer terms from his card, or let him go. At the opener the assistant renews the willing ones worth keeping (the best 18, anyone 23 or under, the two best keepers) and the rest leave on a free. Loans go back. Change a status on the Club tab.</Info>
           </span>
           <span className="small muted">
             {contracts.expiring} expiring · {wage(contracts.wagesLeaving)} off
           </span>
         </div>
+        {contracts.rows.some((c) => c.outOfContract) && (
+          <div className="med-out" data-testid="renewal-list">
+            <div className="eyebrow">Out of contract · decide before the opener</div>
+            {contracts.rows
+              .filter((c) => c.outOfContract)
+              .map((c) => (
+                <div key={c.id} className="room-row" data-testid="renewal-row">
+                  <span className="who">
+                    <b>{c.name}</b>
+                    <span className="small muted">
+                      {c.age} · {c.position} · {wage(c.wage)}
+                    </span>
+                  </span>
+                  <span className="row" style={{ gap: 'var(--space-2)' }}>
+                    <button type="button" className="btn sm" data-testid="renewal-talk" onClick={() => onPlayer(c.id)}>
+                      Offer terms
+                    </button>
+                    <button type="button" className="btn sm ghost" data-testid="renewal-release" onClick={() => showToast(letContractGo(c.id).message)}>
+                      Let go
+                    </button>
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
         <div className="tbl-wrap">
           <table className="tbl contracts-overview">
             <thead>
@@ -104,7 +129,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                     </button>
                   </td>
                   <td className="num">{c.age}</td>
-                  <td className="num">{c.loan ? <span className="chip">Loan</span> : c.declined ? <span className="chip bad">Out</span> : c.renewed ? <span className="chip good">New</span> : c.expiring ? <span className="chip warn" title="Last season of his contract">Last</span> : c.years}</td>
+                  <td className="num">{c.outOfContract ? <span className="chip warn" title="Out of contract: in talks until the opener">Talks</span> : c.loan ? <span className="chip">Loan</span> : c.declined ? <span className="chip bad">Out</span> : c.renewed ? <span className="chip good">New</span> : c.expiring ? <span className="chip warn" title="Last season of his contract">Last</span> : c.years}</td>
                   <td className="num">{wage(c.wage)}</td>
                   <td className="one-line">{c.statusLabel}</td>
                 </tr>

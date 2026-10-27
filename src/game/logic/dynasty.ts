@@ -6,13 +6,19 @@ import { newDraft } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { playerLookup, squadPlayers } from './players'
 import { autoPickLineup } from '@engine/ratings'
-import { SQUAD_CAP, releasePlayer } from './marketOps'
+import { SQUAD_CAP, leaveAiSquads, ownedHumans, releasePlayer, withFloors } from './marketOps'
 import { openWindow } from '@engine/market'
 import { WAGE_MULT } from '@engine/status'
 import { logMorale } from './happiness'
 import { developedOverall } from './development'
 import { focusFilter } from './scouting'
 import type { Contract } from '../types'
+import { ageFloors, barredByAge, recordDeparture } from './departures'
+import { contractDemand, proposeContract, talksClosedUntil } from './contracts'
+import { postNews } from './news'
+import { hashUnit } from './scouting'
+import { newSquadPlayer } from '@engine/season'
+import { autoPick } from './squad'
 
 /**
  * Age a player-season by one year. Young players grow towards an estimated
@@ -66,7 +72,10 @@ function carried(c: Contract): Partial<Contract> {
 
 export interface OffseasonReport {
   retired: string[]
+  /** Walked at the summer: a renewal he had turned down. */
   expired: string[]
+  /** Out of contract: talks are open through pre-season, and he leaves on a free at the opener unless renewed. */
+  renewals: string[]
   /** Loan players who went back to their clubs. */
   returned: string[]
   improved: Array<{ name: string; from: number; to: number }>
@@ -75,7 +84,7 @@ export interface OffseasonReport {
 
 /** Move the game into the next season: ageing, contracts, retirements, summer window, new league environment. */
 export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonReport {
-  const report: OffseasonReport = { retired: [], expired: [], returned: [], improved: [], declined: [] }
+  const report: OffseasonReport = { retired: [], expired: [], renewals: [], returned: [], improved: [], declined: [] }
   // Only a finished season moves on; a second call (double tap, late league load) must not age the squad twice
   if (game.phase !== 'summary') return report
   const rng = Rng.fromState(game.rngState)
@@ -109,6 +118,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     const contract = game.contracts[id] ?? { years: 1 }
     if (contract.loan) {
       report.returned.push(p.name)
+      recordDeparture(game, p)
       continue
     }
     const aged = ageOneYear(p, rng, game.year)
@@ -121,12 +131,15 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     if (contract.renewed) {
       newContracts[aged.id] = { years: aged.age >= 32 ? 1 : 3, status: contract.status, ...carried(contract) }
     } else if (contract.years - 1 <= 0) {
-      // Contract up: a declined renewal, poor morale or plain bad luck means he walks
-      if (contract.declined || s.morale < 50 || rng.chance(0.25)) {
+      // Contract up: a renewal he turned down means he walks; anyone else is out of contract and in talks until the
+      // opener (`settleRenewals`), never renewed without a word (E6-8)
+      if (contract.declined) {
         report.expired.push(p.name)
+        recordDeparture(game, aged)
         continue
       }
-      newContracts[aged.id] = { years: aged.age >= 32 ? 1 : rng.int(2, 3), status: contract.status, ...carried(contract) }
+      report.renewals.push(p.name)
+      newContracts[aged.id] = { years: 0, expired: true, status: contract.status, ...carried(contract) }
     } else {
       newContracts[aged.id] = { years: contract.years - 1, listed: contract.listed, status: contract.status, ...carried(contract) }
     }
@@ -185,6 +198,9 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   for (const x of squadPlayers(game, u)) d.takenPlayers.push(x.p.playerId)
   // A man who retired never comes back as his younger self
   for (const id of game.retiredPlayers ?? []) if (!d.takenPlayers.includes(id)) d.takenPlayers.push(id)
+  // Nor a man who left: no season of him younger than he would be now
+  const floors = ageFloors(game)
+  if (floors) d.ageFloor = floors
   const pool = squadPlayers(game, u).map((x) => x.p)
   const picked = autoPickLineup(formation, pool, game.tactics)
   d.lineup = picked.lineup
@@ -192,8 +208,151 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   d.bench = pool.filter((p) => !inXI.has(p.id)).map((p) => p.id)
   game.draft = d
   game.phase = 'draft'
-  game.window = openWindow({ u, rng, ownedPlayerIds: new Set([...squadPlayers(game, u).map((x) => x.p.playerId), ...(game.retiredPlayers ?? [])]), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }, 'summer', 40)
+  game.window = openWindow({ u, rng, ownedPlayerIds: new Set([...squadPlayers(game, u).map((x) => x.p.playerId), ...(game.retiredPlayers ?? [])]), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game), ...withFloors(game) }, 'summer', 40)
   game.rngState = rng.getState()
-  void releasePlayer
   return report
+}
+
+/** The men whose contracts ran out this summer, still in talks (Dynasty). */
+export function renewalList(game: Game): string[] {
+  return Object.keys(game.squad).filter((id) => game.contracts[id]?.expired)
+}
+
+/** Pre-season's Inbox item: who is out of contract, and what happens at the opener. Posted once by the store after `beginSeason`. */
+export function postRenewals(game: Game, u: LoadedUniverse): void {
+  const ids = renewalList(game)
+  if (!ids.length || !game.season) return
+  const get = playerLookup(game, u)
+  const names = ids.map((id) => get(id)?.name ?? id)
+  postNews(game, { matchweek: 0, kind: 'board', title: `Contracts up: ${ids.length} to renew`, body: `Out of contract: ${names.join(', ')}. Offer terms on the Contracts tab, or let them go. At the opener the assistant renews the ones worth keeping who want to stay; the rest leave on a free.`, playerId: ids.length === 1 ? ids[0] : undefined })
+}
+
+/** Let an out-of-contract man go on a free now (pre-season), while the summer window is still open to replace him. */
+export function letContractGo(game: Game, u: LoadedUniverse, id: string): { ok: boolean; message: string } {
+  const p = playerLookup(game, u)(id)
+  if (!p || !game.contracts[id]?.expired) return { ok: false, message: 'He is not out of contract.' }
+  releasePlayer(game, u, id)
+  postNews(game, { matchweek: game.season?.matchweek ?? 0, kind: 'transfer', title: `${p.name} leaves on a free`, body: 'His contract ran out and he was not offered a new one.' })
+  return { ok: true, message: `${p.name} leaves on a free.` }
+}
+
+/** Squad places the assistant keeps among the men out of contract: anyone in the best 18 by overall. */
+export const RENEW_TOP = 18
+/** A man this young is always kept, if he is willing. */
+export const RENEW_YOUNG = 23
+/** Past this age the assistant lets him go. */
+export const RENEW_MAX_AGE = 34
+
+/**
+ * The opener: every man still out of contract is settled. The assistant renews
+ * him at his own ask (his status, two seasons, one from 32) when he is willing
+ * (morale 50 or more, talks open), not past 34 and worth keeping: in the best
+ * 18 by overall, 23 or under, or one of the two best keepers; and only when his
+ * ask fits the wage cap. Anyone else leaves on a free. No draws.
+ */
+export function settleRenewals(game: Game, u: LoadedUniverse): { renewed: string[]; left: string[] } {
+  const out = { renewed: [] as string[], left: [] as string[] }
+  const ids = renewalList(game)
+  if (!ids.length) return out
+  const get = playerLookup(game, u)
+  const all = squadPlayers(game, u)
+  const rank = all.map((x) => x.p).sort((a, b) => b.overall - a.overall || a.id.localeCompare(b.id))
+  const top = new Set(rank.slice(0, RENEW_TOP).map((p) => p.id))
+  const keepers = new Set(rank.filter((p) => p.positions[0] === 'GK').slice(0, 2).map((p) => p.id))
+  for (const id of ids) {
+    const p = get(id)
+    const s = game.squad[id]
+    const c = game.contracts[id]
+    if (!p || !s || !c) continue
+    const willing = s.morale >= 50 && talksClosedUntil(game, u, id) === null
+    const worth = top.has(id) || p.age <= RENEW_YOUNG || keepers.has(id)
+    let kept = false
+    if (willing && worth && p.age <= RENEW_MAX_AGE) {
+      const status = c.status ?? 'rotation'
+      const demand = contractDemand(game, u, id, status)
+      if (demand) kept = proposeContract(game, u, id, { wage: demand.wage, years: Math.min(demand.maxYears, p.age >= 32 ? 1 : 2), status, signingFee: 0, release: c.clauses?.release, appearance: c.clauses?.appearance ?? 0, goal: c.clauses?.goal ?? 0 }).accepted
+    }
+    if (kept) out.renewed.push(p.name)
+    else {
+      releasePlayer(game, u, id)
+      out.left.push(p.name)
+    }
+  }
+  const lines = [out.renewed.length ? `Renewed by the assistant: ${out.renewed.join(', ')}.` : '', out.left.length ? `Left on a free: ${out.left.join(', ')}.` : ''].filter(Boolean)
+  postNews(game, { matchweek: 0, kind: 'transfer', title: 'Contracts settled', body: lines.join(' ') })
+  return out
+}
+
+/** A Dynasty season never starts with fewer keepers or men than these. */
+export const MIN_SEASON_KEEPERS = 2
+export const MIN_SEASON_SQUAD = 16
+/** The free agents the assistant may sign as cover: a modest band, cheap. */
+const COVER_MIN = 55
+const COVER_MAX = 70
+const COVER_MAX_VALUE = 3
+
+/**
+ * The opener's cover: while the squad has fewer than two keepers or sixteen men,
+ * the assistant signs a free agent on a one-season backup deal: a real player of
+ * the wheel leagues (this season first), 55 to 70 overall, worth £3M at most,
+ * nobody we hold, a retired man or a younger season of a man who left; keepers
+ * first, then the outfield position with the fewest natural men against the
+ * formation's slots. The order is a pure hash of the seed, the year and the
+ * player-season: no draws. He leaves every AI squad holding him.
+ */
+export function coverSquad(game: Game, u: LoadedUniverse): string[] {
+  const signed: string[] = []
+  const rules = game.settings.rules
+  const classicOk = !!rules.classic || isClassicSeason(u, game.settings.leagueId, game.settings.leagueSeason)
+  const floors = ageFloors(game)
+  const keeperCount = () => squadPlayers(game, u).filter((x) => x.p.positions[0] === 'GK').length
+  const short = () => keeperCount() < MIN_SEASON_KEEPERS || Object.keys(game.squad).length < MIN_SEASON_SQUAD
+  if (!short()) return signed
+  const season = game.settings.leagueSeason
+  const pool = poolClubSeasons(u, classicOk)
+    .filter((cs) => game.settings.wheelLeagues.includes(cs.leagueId))
+    .flatMap((cs) => cs.squad)
+    .filter((p) => p.overall >= COVER_MIN && p.overall <= COVER_MAX && p.value <= COVER_MAX_VALUE && p.age >= 19 && p.age <= 33 && (!rules.onlyNation || p.nationality === rules.onlyNation) && !barredByAge(floors, p))
+  const key = (p: PlayerSeason) => (p.season === season ? 0 : 1) + hashUnit(`${game.settings.seed}|cover|${game.year}|${p.id}`)
+  const slots = getFormation(game.tactics.formationId).slots
+  for (let guard = 0; guard < MIN_SEASON_SQUAD && short(); guard++) {
+    const owned = ownedHumans(game, u)
+    let want: (p: PlayerSeason) => boolean
+    if (keeperCount() < MIN_SEASON_KEEPERS) want = (p) => p.positions[0] === 'GK'
+    else {
+      const naturals = squadPlayers(game, u).map((x) => x.p.positions[0])
+      const need = [...new Set(slots.map((sl) => sl.position).filter((pos) => pos !== 'GK'))]
+        .map((pos) => ({ pos, gap: naturals.filter((n) => n === pos).length - slots.filter((sl) => sl.position === pos).length }))
+        .sort((a, b) => a.gap - b.gap || a.pos.localeCompare(b.pos))[0]?.pos
+      want = (p) => p.positions[0] !== 'GK' && (!need || p.positions[0] === need)
+    }
+    let best: PlayerSeason | null = null
+    let bestKey = Infinity
+    for (const p of pool) {
+      if (owned.has(p.playerId) || !want(p)) continue
+      const k = key(p)
+      if (k < bestKey) {
+        best = p
+        bestKey = k
+      }
+    }
+    // An empty position band falls back to anyone outfield
+    if (!best && keeperCount() >= MIN_SEASON_KEEPERS) for (const p of pool) if (!owned.has(p.playerId) && p.positions[0] !== 'GK' && key(p) < bestKey) [best, bestKey] = [p, key(p)]
+    if (!best) break
+    game.squad[best.id] = newSquadPlayer(best.id, { familiarity: 30, sharpness: 60 })
+    game.contracts[best.id] = { years: 1, status: 'backup' }
+    if (!game.bench.includes(best.id)) game.bench.push(best.id)
+    leaveAiSquads(game, u, best.playerId)
+    signed.push(best.name)
+    postNews(game, { matchweek: 0, kind: 'transfer', title: `${best.name} signs as cover`, body: `The squad was short, so the assistant signed the ${best.age}-year-old ${best.positions[0]} on a free, a one-season backup deal (£${best.wage}k a week).`, playerId: best.id })
+  }
+  if (signed.length) autoPick(game, u, true)
+  return signed
+}
+
+/** The Dynasty opener (`startSeasonProper`): contracts settled, then the cover the squad needs. */
+export function dynastyOpener(game: Game, u: LoadedUniverse): void {
+  if (game.settings.mode !== 'dynasty') return
+  settleRenewals(game, u)
+  coverSquad(game, u)
 }

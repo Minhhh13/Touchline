@@ -16,6 +16,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { AttributeKey, Attributes, PlayerSeason, Position } from '@engine/types'
 import { Rng } from '@engine/rng'
 import { askingPrice, loanable, openWindow } from '@engine/market'
+import { ageFloors } from './departures'
 import { staffTier, traitTags } from '@engine/staff'
 import { canCover, ratingAt } from '@engine/positions'
 import { getFormation } from '@engine/formations'
@@ -283,7 +284,8 @@ export function fileReports(game: Game, u: LoadedUniverse, label: string, n = RE
   for (const r of game.scoutReports ?? []) owned.add(u.index[r.playerSeasonId]?.playerId ?? '')
   for (const l of game.window?.listings ?? []) owned.add(u.index[l.playerSeasonId]?.playerId ?? '')
   const rules = game.settings.rules
-  const found = openWindow({ u, rng, ownedPlayerIds: owned, leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel: 1.05, fromSeason: rules.fromSeason, toSeason: rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: rules.onlyNation, classic: rules.classic, focus }, 'january', n).listings
+  const floor = ageFloors(game)
+  const found = openWindow({ u, rng, ownedPlayerIds: owned, leagueSeason: game.season?.leagueSeason ?? game.settings.leagueSeason, priceLevel: 1.05, fromSeason: rules.fromSeason, toSeason: rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: rules.onlyNation, classic: rules.classic, focus, ...(floor ? { ageFloor: floor } : {}) }, 'january', n).listings
   const mw = game.season?.matchweek ?? 0
   const reports: ScoutReport[] = found.map((l) => {
     const p = u.index[l.playerSeasonId]!

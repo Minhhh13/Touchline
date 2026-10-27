@@ -340,7 +340,12 @@ export function App() {
             )}
             {offseason.expired.length > 0 && (
               <p>
-                <b>Left on expired contracts:</b> {offseason.expired.join(', ')}
+                <b>Left after turning down a renewal:</b> {offseason.expired.join(', ')}
+              </p>
+            )}
+            {(offseason.renewals ?? []).length > 0 && (
+              <p data-testid="offseason-renewals">
+                <b>Out of contract:</b> {offseason.renewals.join(', ')}. Offer terms in pre-season on the Contracts tab, or let them go; at the opener the assistant keeps the willing ones worth keeping and the rest leave on a free.
               </p>
             )}
             {offseason.returned.length > 0 && (

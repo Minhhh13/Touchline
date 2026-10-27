@@ -123,7 +123,7 @@ export function stopAfterWeek(game: Game, before: WeekMark): StopReason | null {
  * back to `week`. Returns the stop, or null when the run ended the season.
  */
 export function simToNextStop(game: Game, u: LoadedUniverse): StopReason | null {
-  if (game.phase === 'preseason') startSeasonProper(game)
+  if (game.phase === 'preseason') startSeasonProper(game, u)
   for (;;) {
     const season = game.season
     if (game.phase === 'summary' || !season || season.sacked || season.matchweek >= season.matchweeks) return null
