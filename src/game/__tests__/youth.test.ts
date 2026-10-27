@@ -70,4 +70,20 @@ describe('youth intake', () => {
     beginSeason(g4, u)
     for (const id of buildYouthIntake(g4, u, new Rng('era'))) expect(u.index[id].season).toBeGreaterThanOrEqual(2020)
   })
+
+  it('never brings a man who retired from the squad back as his younger self (Game.retiredPlayers)', () => {
+    const g = createGame(settings({ seed: 'youth-retired' }))
+    autoDraft(u, g.draft!, Rng.fromState(g.rngState))
+    beginSeason(g, u)
+    // Every academy prospect these seeds would offer, retired from the squad: none of them comes through again
+    const seeds = Array.from({ length: 40 }, (_, i) => `youth-retired-${i}`)
+    const offered = new Set(seeds.flatMap((s) => buildYouthIntake(g, u, new Rng(s)).map((id) => u.index[id].playerId)))
+    expect(offered.size).toBeGreaterThan(INTAKE_SIZE)
+    const retired = [...offered].slice(0, 6)
+    g.retiredPlayers = retired
+    for (const s of seeds) for (const id of buildYouthIntake(g, u, new Rng(s))) expect(retired, s).not.toContain(u.index[id].playerId)
+    // Nobody retired: the intake draws exactly as before
+    delete g.retiredPlayers
+    expect(buildYouthIntake(g, u, new Rng('youth-retired-0'))).toEqual(buildYouthIntake(g, u, new Rng('youth-retired-0')))
+  })
 })

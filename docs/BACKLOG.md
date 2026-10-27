@@ -96,7 +96,7 @@ The owner's other two answers stood as they were: Home's waiting games stay mode
 | 3 | Large screens: about 320 literal px font sizes do not follow the type tokens, so chips and small labels stay small at 1440p | Polish | Medium | M | Medium | Move the commonest literal sizes to `--fs-*` in small blocks; the accessibility agent's CSS area (done on `r6-ui`, above) |
 | 4 | Grades: show the best play on the pick's tooltip on a phone too (the log's `title` is hover only), and a "best play" mark on the Hindsight XI | Clarity | Low | S | Low | `Draft.tsx` (TL-02's modals are near), `DraftRecap.tsx` (done on `r6-ui`, above) |
 | 5 | The Weekly's record could show the week's world board rank once signed in | Feel | Low | S | Low | `src/online/api.ts` boards, offline fallback |
-| 6 | Squad complete and the hubs: the assistant plays a CB-capable midfielder at CB (D. Rice −12) | Bug | Medium | S | Low | Engine 5's TL-04 (PR #65) |
+| 6 | Squad complete and the hubs: the assistant plays a CB-capable midfielder at CB (D. Rice −12) | Bug | Medium | S | Low | Engine 5's TL-04 (PR #65) (done on `r6-engine`: `assistantLineup` in `src/engine/ratings.ts`) |
 | 7 | A reload resumes per tab only: another tab or the app after a cold start replays the segment | Feel | Low | S | Low | `resume.ts`; a save field would be a save-shape change |
 | 8 | 1100x700 pre-season with the coach mark and the intake still leaves the grid its 120 px floor | Polish | Low | S | Low | Short-window CSS |
 | 9 | Old Dynasty saves keep ",NN" in their aged copies (the playback's chip and names were done on `r6-ui`) | Polish | Low | S | Low | As in round 4's list |

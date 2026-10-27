@@ -376,7 +376,7 @@ export interface Game {
   jobOffers: JobOffer[]
   /** Accepted move for next season. */
   pendingMove: { leagueId: string; clubId: string } | null
-  /** Real player ids of the men who retired from the squad (Dynasty): never offered again, younger, by the summer wheel or the market. Absent until the first retirement. */
+  /** Real player ids of the men who retired from the squad (Dynasty): never offered again, younger, by the summer wheel, the market or the youth intake. Absent until the first retirement. */
   retiredPlayers?: string[]
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
