@@ -565,8 +565,10 @@ function pendingShootout(game: Game, u: LoadedUniverse, mp: MatchInProgress, use
   const made = (userIsHome ? mp.hSubs : mp.aSubs).length
   const benchKeepers = made < 5 ? game.bench.filter((id) => !appeared.has(id) && get(id)?.positions[0] === 'GK' && !game.squad[id]?.injury && (game.squad[id]?.suspension ?? 0) <= 0) : []
   const theirIds = theirs.map((p) => p.id)
-  const theirKeeper = theirs.find((p) => p.keeper)?.id ?? [...theirIds].sort((x, y) => (u.index[y]?.attributes.goalkeeping ?? 0) - (u.index[x]?.attributes.goalkeeping ?? 0))[0] ?? null
-  return { defaultOrder, keepers: [...(inGoal ? [inGoal] : []), ...outfield, ...benchKeepers], theirOrder: defaultTakers(theirIds, aiLookup(u)), theirKeeper }
+  // Their men through the AI lookup, so a reserve keeper (never in the index) is himself, not an unknown man
+  const theirMan = aiLookup(u)
+  const theirKeeper = theirs.find((p) => p.keeper)?.id ?? [...theirIds].sort((x, y) => (theirMan(y)?.attributes.goalkeeping ?? 0) - (theirMan(x)?.attributes.goalkeeping ?? 0))[0] ?? null
+  return { defaultOrder, keepers: [...(inGoal ? [inGoal] : []), ...outfield, ...benchKeepers], theirOrder: defaultTakers(theirIds, theirMan), theirKeeper }
 }
 
 /**
@@ -660,9 +662,11 @@ function kickPenalties(game: Game, u: LoadedUniverse, pending: PendingShootout, 
   // The toss decides who kicks first
   const usFirst = rng.chance(0.5)
   const ours = order.map((id) => takerOf(id, get))
-  const theirs = (pending.theirOrder.length ? pending.theirOrder : ['none']).map((id) => takerOf(id, (x) => u.index[x]))
+  // Their side through the AI lookup: a reserve keeper in goal (E6-5) saves and kicks as himself, not as an unknown man
+  const theirMan = aiLookup(u)
+  const theirs = (pending.theirOrder.length ? pending.theirOrder : ['none']).map((id) => takerOf(id, theirMan))
   const ourKeeper = keeperId ? (get(keeperId)?.attributes.goalkeeping ?? 30) : 30
-  const theirKeeper = pending.theirKeeper ? (u.index[pending.theirKeeper]?.attributes.goalkeeping ?? 30) : 30
+  const theirKeeper = pending.theirKeeper ? (theirMan(pending.theirKeeper)?.attributes.goalkeeping ?? 30) : 30
   const so = penaltyShootout(rng, usFirst ? { home: ours, away: theirs } : { home: theirs, away: ours }, usFirst ? { home: ourKeeper, away: theirKeeper } : { home: theirKeeper, away: ourKeeper })
   game.rngState = rng.getState()
   const us = usFirst ? so.home : so.away
