@@ -145,7 +145,8 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
-  --gutter: 16px;
+  /* At least 16 px, and clear of a landscape iPhone's notch (viewport-fit=cover): every page, bar and sheet pads by it */
+  --gutter: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
   --panel-pad: 16px;
   --radius-xs: 6px;
   --radius-s: 8px;
@@ -854,6 +855,44 @@ p {
 @media (max-width: 359px) {
   .topbar nav button {
     padding: 7px 9px;
+  }
+}
+/* A phone on its side (a short touch screen, 844x390): the bar is one row, the nav icons only (the label stays for
+   screen readers) and 44 px tall, so the screen keeps its height (two rows took 100 of 390 px) */
+@media (max-height: 500px) and (max-width: 1100px) and (pointer: coarse) {
+  .app > .topbar {
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    padding-top: calc(4px + env(safe-area-inset-top));
+  }
+  .topbar .brand {
+    margin-right: 0;
+  }
+  .topbar nav {
+    order: 0;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+  .topbar nav button {
+    min-height: 44px;
+    padding: 0 14px;
+  }
+  .topbar nav .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .theme-switch {
+    position: relative;
+  }
+  .theme-switch::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
   }
 }
 
@@ -8451,6 +8490,33 @@ table.tbl.match-stats th {
     animation: none;
   }
 }
+/* Notch safe areas (index.html's viewport-fit=cover: an installed web app and the iOS wrapper draw under the status
+   bar): the top bar, its restore pill and a page with the bar folded away start below the status bar; the toast
+   clears the home indicator. Every inset is 0 in a desktop browser, so nothing moves there */
+.topbar {
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+.topbar-restore {
+  top: calc(10px + env(safe-area-inset-top));
+}
+.app.bar-hidden {
+  padding-top: env(safe-area-inset-top);
+}
+.toast {
+  bottom: calc(22px + env(safe-area-inset-bottom));
+}
+@media (max-width: 720px) {
+  .topbar {
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+  .topbar-restore {
+    top: calc(8px + env(safe-area-inset-top));
+  }
+  /* A fixed bar that is also a panel (the arena hub's calls) took the panel's padding and lost the home indicator's */
+  .bottom-bar.panel {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+}
 /* A list that would push the page: it scrolls inside its panel instead */
 .scroll-y {
   overflow-y: auto;
@@ -8549,6 +8615,12 @@ table.tbl.match-stats th {
     flex: none;
     min-height: auto;
     overflow: visible;
+  }
+}
+/* An iPad's shell screen: the boxes' feet (the arena's calls) stop above the home indicator */
+@media (min-width: 1100px) {
+  .app.shell > .page {
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
   }
 }
 /* Screen by screen, on the desktop shell */
@@ -11834,6 +11906,13 @@ table.tbl.contracts-overview .link-btn.name {
     min-width: 44px;
   }
 }
+/* A 320 px phone: the opponent's table place gives its room to his name (it shrank to "B." beside "16th"); the place
+   stays in the row's tooltip and on the Table tab */
+@media (max-width: 359px) {
+  .fixture-list .fixture .fx-pos {
+    display: none;
+  }
+}
 
 /* ------------------------------------------------------------ casual modes */
 /* Home's casual row: five compact tiles (the Daily Arena, the Weekly, the Cup, the Gauntlet, the Run-in) above the four links */
@@ -12912,6 +12991,15 @@ table.tbl.hub td.name {
 @media (max-width: 999px) {
   .setup-modes-row .pu-setup .qmode.pu-card {
     flex-basis: 100%;
+  }
+}
+/* ...with its Info tip beside it on the same row (a 100% basis wrapped the "i" onto a line of its own) */
+@media (max-width: 999px) {
+  .setup-modes-row .pu-setup {
+    flex-wrap: nowrap;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card {
+    flex: 1 1 0;
   }
 }
 /* An arena shoot-out on the report: one slim box above the scoreboard, so the boxes below keep the height */
@@ -14845,8 +14933,9 @@ details.opposition {
 }
 /* Phones: Apple's 44 pt target for what is tapped most. Buttons, small buttons, the chip buttons, the segmented
    choices, tabs and form fields grow to 44 px tall (an icon-only small button to 44 wide); round icon buttons keep their
-   look and take the room from an invisible ::after, clear of their neighbours. Phone-only: the desktop fit is untouched */
-@media (max-width: 720px) {
+   look and take the room from an invisible ::after, clear of their neighbours. Phone-only (a phone on its side too, a
+   short touch screen): the desktop fit is untouched */
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
   .btn,
   .btn.sm,
   .cta-bar .btns .btn,
@@ -14956,7 +15045,7 @@ html {
 /* The Dugout on a phone: its own small controls reach 44 px too (the tables' selects, the roles' selects, the squad
    views, a small button's width), a player's name link grows an invisible target, and at 200 % text the squad's
    toolbar, the role pickers and the planner's need chips give way rather than run past the window */
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-height: 500px) and (pointer: coarse) {
   .input.sm,
   table.tbl select.input.sm,
   .role-pick select.input,
@@ -14973,6 +15062,20 @@ html {
     content: '';
     position: absolute;
     inset: -12px -2px;
+  }
+  /* A name cut with an ellipsis hides its overflow, which clipped that invisible target back to the 20 px line (the
+     Planner's and the Club tab's contract tables): padding grows the target instead, the negative margin keeps the row */
+  .link-btn.name {
+    padding-block: 12px;
+    margin-block: -12px;
+  }
+  .reel-skip {
+    position: relative;
+  }
+  .reel-skip::after {
+    content: '';
+    position: absolute;
+    inset: -9px -2px;
   }
   .skip-link {
     display: inline-flex;
