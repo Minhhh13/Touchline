@@ -7,20 +7,31 @@ import { maskEmail, type NameVerdict } from '../../online/auth'
 import { restorable } from '../../online/sync'
 import type { CloudRow } from '../../online/transport'
 import { savedLine } from '../../online/core/status'
+import { SLOT_IDS, slotContents } from '../../online/core/slots'
 import { AUTH_MODES, authCopy, authOutcomeNote, type AuthMode } from '../../online/core/authCopy'
 import { ClubBadge, Segmented } from '../components/bits'
 import { COUNTRY_OPTIONS, countryName } from './countries'
-import { ConflictCards } from './ConflictCard'
+import { ConflictCards, whereText } from './ConflictCard'
 import { OnlineRecord } from './OnlineRecord'
 import { onlineErrorText } from '../../online/postText'
 import { askConfirm } from '../confirm'
-import { translator } from '../i18n'
+import { activeLocale, translator } from '../i18n'
+import { PSEUDO_LOCALE } from '../i18n/pseudo'
 import { online } from '../i18n/en/online'
 import { B, rich } from '../i18n/rich'
 
 const tr = translator(online)
 
-const SLOT_LABEL: Record<string, () => string> = { quick: () => tr('historyQuick'), season: () => tr('slotSeason'), dynasty: () => tr('slotDynasty'), h2h: () => tr('historyH2H') }
+const SLOT_LABEL: Record<string, () => string> = { quick: () => tr('historyQuick'), season: () => tr('slotSeason'), dynasty: () => tr('slotDynasty'), h2h: () => tr('historyH2H'), arena: () => tr('slotArena'), runin: () => tr('slotRunIn') }
+
+/** "A, B and C" in the viewer's language (Intl.ListFormat, English joins as the fallback). */
+function listOf(items: string[]): string {
+  try {
+    return new Intl.ListFormat(activeLocale() === PSEUDO_LOCALE ? 'en' : activeLocale(), { style: 'long', type: 'conjunction' }).format(items)
+  } catch {
+    return items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
+  }
+}
 
 /** The account's promise, said the same way everywhere a guest is invited to sign in (`online.promise` in the viewer's language). */
 export const ACCOUNT_PROMISE = (): string => tr('promise')
@@ -393,7 +404,7 @@ function CloudHistory() {
       {rows.length === 0 && <span className="small muted">{tr('nothingInCloud')}</span>}
       {rows.map((r) => (
         <div key={r.slot} className="small">
-          <b>{SLOT_LABEL[r.slot]?.()}</b>: {r.deletedAt ? tr('removedOnDevice') : `${r.meta.teamName ?? ''} · ${r.meta.phase ?? ''}${r.meta.matchweek ? ` · ${tr('matchweekLower', { n: r.meta.matchweek })}` : ''} · ${r.meta.deviceLabel ?? ''}`}
+          <b>{SLOT_LABEL[r.slot]?.() ?? r.slot}</b>: {r.deletedAt ? tr('removedOnDevice') : `${r.meta.teamName ?? ''} · ${whereText({ phase: r.meta.phase ?? '', matchweek: r.meta.matchweek ?? 0, mode: r.meta.mode, arena: r.meta.arena })} · ${r.meta.deviceLabel ?? ''}`}
           {r.prevMeta && (
             <div className="row wrap" style={{ gap: 6 }}>
               <span className="muted">
@@ -424,9 +435,13 @@ function CloudHistory() {
 /** What is saved to the account: the status line, Sync now, questions waiting, history, and the two deletions. */
 function CloudPanel({ setup }: { setup: boolean }) {
   const status = useOnline((s) => s.syncStatus)
-  const parked = useStore((s) => Object.keys(s.parked).length)
-  const hasGame = useStore((s) => !!s.game)
+  const game = useStore((s) => s.game)
+  const parked = useStore((s) => s.parked)
+  const h2h = useStore((s) => s.h2h)
   const records = useStore((s) => s.profile.leaderboard.length)
+  // Which slots hold a game on this device, in slot order (`deviceSlotsLine` in core/slots.ts, in the viewer's language)
+  const contents = slotContents({ game, parked, h2h })
+  const heldSlots = SLOT_IDS.filter((id) => contents[id]).map((id) => SLOT_LABEL[id]?.() ?? id)
   return (
     <section className="panel fit-panel" data-testid="account-cloud">
       <div className="panel-head">
@@ -440,7 +455,7 @@ function CloudPanel({ setup }: { setup: boolean }) {
         <ConflictCards />
         <ul className="plain-list small" data-testid="account-saves">
           <li>
-            {rich(tr('yourGames', { n: (hasGame ? 1 : 0) + parked }), B)}
+            {rich(tr('yourGames', { list: heldSlots.length ? tr('onThisDevice', { list: listOf(heldSlots) }) : tr('noneOnDevice') }), { ...B, here: (x) => <span data-testid="account-saves-here">{x}</span> })}
           </li>
           <li>
             {rich(tr('yourRecords', { n: records }), B)}

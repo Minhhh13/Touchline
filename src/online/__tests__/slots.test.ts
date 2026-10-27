@@ -8,7 +8,7 @@ import type { Game, GameSettings } from '@game/types'
 import type { H2HGame } from '@game/store'
 import { beginSeason, createGame, dailyGameSettings } from '@game/logic/setup'
 import { runQuickSeason } from '@game/logic/quick'
-import { compareProgress, deviceLabel, gameSlot, progressKey, saveMeta, slotContents, slotIdentity, type SlotValue } from '../core/slots'
+import { compareProgress, deviceLabel, deviceSlotsLine, gameSlot, whereLabel, progressKey, saveMeta, slotContents, slotIdentity, type SlotValue } from '../core/slots'
 
 const u = loadTestUniverse()
 
@@ -119,5 +119,26 @@ describe('cloud-save slots', () => {
     expect(deviceLabel('Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/604.1')).toBe('Safari · iPad')
     expect(deviceLabel('Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36')).toBe('Chrome · ChromeOS')
     expect(deviceLabel('curl/8.0')).toBe('Browser · device')
+  })
+})
+
+describe('the Account screen\'s slot words', () => {
+  it('names where a row\'s game stands, an arena run by its matches', () => {
+    expect(whereLabel({ phase: 'draft', matchweek: 0 })).toBe('drafting')
+    expect(whereLabel({ phase: 'week', matchweek: 12, mode: 'season' })).toBe('matchweek 12')
+    expect(whereLabel({ phase: 'summary', matchweek: 38, mode: 'season' })).toBe('season complete')
+    expect(whereLabel({ phase: 'summary', matchweek: 38, mode: 'runin' })).toBe('run-in complete')
+    expect(whereLabel({ phase: 'week', matchweek: 0, mode: 'arena', arena: { format: 'cup', step: 1, over: false } })).toBe('1 match played')
+    expect(whereLabel({ phase: 'week', matchweek: 0, mode: 'arena', arena: { format: 'gauntlet', step: 3, over: false } })).toBe('3 matches played')
+    expect(whereLabel({ phase: 'week', matchweek: 0, mode: 'arena', arena: { format: 'cup', step: 3, over: true } })).toBe('run over')
+  })
+
+  it('lists the slots that hold a game on this device, in slot order', () => {
+    expect(deviceSlotsLine({ game: null, parked: {}, h2h: null })).toBe('none on this device yet')
+    const s = managedGame('season', 'words-1')
+    const arena = { ...s, id: 'words-arena', settings: { ...s.settings, mode: 'arena' as const } }
+    const runin = { ...s, id: 'words-runin', settings: { ...s.settings, mode: 'runin' as const } }
+    expect(deviceSlotsLine({ game: s, parked: {}, h2h: null })).toBe('Season on this device')
+    expect(deviceSlotsLine({ game: arena, parked: { runin, season: s }, h2h: null })).toBe('Season, Arena run and Run-in on this device')
   })
 })

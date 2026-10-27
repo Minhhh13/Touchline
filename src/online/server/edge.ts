@@ -11,7 +11,8 @@ import type { RoomView } from '@game/logic/h2hRoom'
 import { createServer, guestSubject, type DataPackRow, type RoomWrite, type ServerDeps, type StoredCasualPin, type StoredPin, type StoredRoom } from './service'
 import type { ChaseAttempt } from './chaseVerify'
 
-const SLOTS = ['quick', 'season', 'dynasty', 'h2h']
+// Every cloud-save slot's folder (the migration cloud_slots_arena_runin added arena and runin)
+const SLOTS = ['quick', 'season', 'dynasty', 'h2h', 'arena', 'runin']
 /** The most a request body may hold before it is refused (413). */
 export const EDGE_MAX_BODY = 32768
 
