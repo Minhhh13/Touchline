@@ -1,9 +1,15 @@
 name: CI
 
+# Push runs only on main (Render deploys main once this passes); every other branch is checked through its pull request,
+# so a branch with an open PR is not built twice. Concurrency cancels a superseded run of the same ref.
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:

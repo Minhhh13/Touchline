@@ -117,7 +117,7 @@ Each item lives on its own branch until a pull request into `main` (often throug
 | `docs/QA.md` | The pre-iOS QA hunt: what was tested, the 14 fixes and the open items (`qa-hunt`). |
 | `docs/PERFORMANCE.md` | Phone performance notes (coming on `perf-pass`). |
 | `docs/IOS_RELEASE.md` | The iOS build and App Store steps (coming on `ios-native`). |
-| `.github/workflows/` | `ci.yml` (typecheck, test, build, dist-key check, verifier build and check on every push and PR), `db-tests.yml` (SQL suite on SQL changes), `keepalive.yml`, `supabase-deploy.yml` (manual). |
+| `.github/workflows/` | `ci.yml` (typecheck, test, build, dist-key check, verifier build and check on every PR and every push to `main`), `db-tests.yml` (SQL suite on SQL changes), `keepalive.yml`, `supabase-deploy.yml` (manual). |
 
 ## 5. Run it
 
@@ -601,3 +601,4 @@ Newest at the bottom. Format: date (UTC) · who · what changed · link.
 - 2026-10-27 · polish agent (leftovers) · `polish-leftovers`: Setup's Job security toggle draws Lucide's `Armchair` instead of the chair emoji (`iconChoices.test.ts`); the fixed-rules chips' emoji stay (`describeRules` is verifier-bundled).
 - 2026-10-27 · polish agent (leftovers) · `polish-leftovers`: the phone shoot-out: Take the penalties rides at the foot of the window (`.shootout-foot`, sticky inside the safe area) while the eleven takers scroll under it, and the disabled "Penalties first" leaves the head under 721 px; the desktop keeps the button beside the keeper.
 - 2026-10-27 · polish agent (leftovers) · `polish-leftovers`: `src/ui/__tests__/cssGuards.test.ts` fails CI on a `font-size: Npx` in `src/ui/**/*.css` without a `/* px: why */` note (main had none left to convert: every one of the 62 carries its note) and on a transition of `left` or `top`.
+- 2026-10-27 · Claude (main session) · `ci-trim`: CI runs on pull requests and on pushes to `main` only, with concurrency cancelling a superseded PR run. Before this, a branch with an open PR (`claude/touchline-preview`) was built twice per push, which cost about 40 runner minutes per release. Render still deploys `main` only after CI passes on the commit. Released inside the combined engine 6 release.

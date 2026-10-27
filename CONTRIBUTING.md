@@ -45,7 +45,7 @@ Rules of thumb: put new code in new files, keep diffs surgical, never reflow lon
 
 ## 5. Checks before pushing
 
-Run all of these locally; CI runs them on every push and PR, then `npm run check:dist-keys`, `npm run build:verifier` and `npm run check:verifier`:
+Run all of these locally; CI runs them on every pull request and every push to `main`, then `npm run check:dist-keys`, `npm run build:verifier` and `npm run check:verifier`:
 
 ```bash
 npm ci                 # after pulling a lockfile change
