@@ -2245,12 +2245,6 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* The keeper's target reaches 6 px above and below his disc: on a short pitch (the Dugout at 1280x720) the centre-backs'
-   slots overlap its top, and it keeps 24 px of its own (WCAG 2.5.8); the disc stays centred in it */
-.pitch-wrap .slot.foot {
-  justify-content: center;
-  padding-block: 6px;
-}
 /* The keeper (Pitch.tsx's foot slot): the name and role beside the disc, so the goal line never cuts them off */
 .pitch-wrap .slot.foot .label,
 .pitch-wrap .slot.foot .sub {
@@ -5878,6 +5872,11 @@ dl.kv {
 .prow .name {
   flex-wrap: wrap;
 }
+/* A slot list ("fits LB/CB/RB/DM/CM") is one word to the browser: at 200 % text on a phone it may break, not spill */
+.prow .meta > .chip {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 720px) {
   table.tbl {
     display: block;
@@ -9400,7 +9399,8 @@ table.tbl.match-stats th {
 .sc-head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: calc(var(--fs-h1) - 2px);
+  /* Capped by the window's width, so "Pundits' prediction" stays whole on a phone at 200 % text (9vw is wider at 100 %) */
+  font-size: min(calc(var(--fs-h1) - 2px), 9vw);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   line-height: 1.05;
@@ -9489,7 +9489,8 @@ table.tbl.match-stats th {
 .sc-chance,
 .sc-unit {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) 52px;
+  /* rem: 112 px and 52 px at the default size, and the figure's column grows with larger text instead of spilling */
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(3.25rem, auto);
   align-items: center;
   gap: 10px;
   font-size: var(--fs-sm);
@@ -12527,7 +12528,8 @@ table.tbl.contracts-overview .link-btn.name {
     flex-wrap: wrap;
   }
   .setup-modes-row .pu-setup .qmode.pu-card {
-    flex: 1 1 140px;
+    /* rem, so larger text puts fewer cards on a row: 140 px at the default size, one card a row at 200 % */
+    flex: 1 1 8.75rem;
     min-width: 0;
   }
   .setup-modes-row .pu-setup .qmode.pu-card .cline {
@@ -15082,6 +15084,19 @@ table.tbl.tv-compact .tv-name {
   }
   .pitch-wrap .slot .disc .disc-cost {
     display: none;
+  }
+}
+/* Smaller still (the head-to-head's second pitch at 1280x720): 24 px discs, so a back four's discs keep clear of each
+   other and of the keeper's, each its own 24 px target (WCAG 2.5.8) */
+@container (max-width: 160px) {
+  .pitch-wrap .slot .disc {
+    width: 24px;
+    height: 24px;
+    font-size: 11px; /* px: drawn to the pitch disc */
+  }
+  /* The keeper 6 px nearer his line (his disc is smaller), clear of the centre-backs' discs on a short pitch */
+  .pitch-wrap .slot.foot {
+    --foot-room: 14px;
   }
 }
 

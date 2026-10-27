@@ -68,9 +68,12 @@ describe('focus rescue', () => {
 })
 
 describe('scroll boxes found in round 3', () => {
-  it('the manager guide and the case guide join the Tab order when they scroll', () => {
+  it('the manager guide, the case guide and locker, a bracket and the head-to-head log join the Tab order when they scroll', () => {
     expect(SCROLL_BOXES).toContain('.mspin-guide')
     expect(SCROLL_BOXES).toContain('.case-guide')
+    expect(SCROLL_BOXES).toContain('.bracket')
+    expect(SCROLL_BOXES).toContain('.h2h-log')
+    expect(SCROLL_BOXES).toContain('.case-locker')
   })
 })
 

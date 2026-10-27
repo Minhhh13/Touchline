@@ -269,35 +269,35 @@ export function App() {
         </div>
         <SaveBanner />
         <nav>
-          <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
+          <button className={screen === 'home' ? 'active' : ''} aria-current={screen === 'home' ? 'page' : undefined} onClick={() => nav('home')}>
             <House size={16} />
             <span className="nav-label">Home</span>
           </button>
           {game && (
-            <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
+            <button className={screen === 'game' ? 'active' : ''} aria-current={screen === 'game' ? 'page' : undefined} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <ClipboardCheck size={16} /> : <ClipboardList size={16} />}
               <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
             </button>
           )}
-          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
+          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')}>
             <Swords size={16} />
             <span className="nav-label">Head-to-head</span>
           </button>
-          <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
+          <button className={screen === 'explore' ? 'active' : ''} aria-current={screen === 'explore' ? 'page' : undefined} onClick={() => nav('explore')}>
             <Search size={16} />
             <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
           </button>
           {onlineAvailable() && (
-            <button className={screen === 'world' ? 'active' : ''} onClick={() => nav('world')} data-testid="nav-world">
+            <button className={screen === 'world' ? 'active' : ''} aria-current={screen === 'world' ? 'page' : undefined} onClick={() => nav('world')} data-testid="nav-world">
               <Globe size={16} />
               <span className="nav-label">World</span>
             </button>
           )}
-          <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
+          <button className={screen === 'profile' ? 'active' : ''} aria-current={screen === 'profile' ? 'page' : undefined} onClick={() => nav('profile')}>
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
           </button>
-          <button className={screen === 'howto' ? 'active' : ''} onClick={() => nav('howto')}>
+          <button className={screen === 'howto' ? 'active' : ''} aria-current={screen === 'howto' ? 'page' : undefined} onClick={() => nav('howto')}>
             <BookOpen size={16} />
             <span className="nav-label">How it works</span>
           </button>

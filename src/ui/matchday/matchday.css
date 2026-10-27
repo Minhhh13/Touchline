@@ -399,7 +399,8 @@
 .matchday .md-rating.bad {
   background: var(--danger);
   border-color: var(--danger);
-  color: var(--text);
+  /* The status ink, as on .good: --text on --danger was 2.5:1 in both themes */
+  color: var(--on-status);
 }
 .matchday .md-rating.none {
   color: var(--text-3);
