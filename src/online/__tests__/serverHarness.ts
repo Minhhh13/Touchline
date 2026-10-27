@@ -21,6 +21,7 @@ import type { H2HManager, H2HResult } from '@game/logic/h2h'
 import type { RoomEvent, RoomSettings, RoomStatus, RoomView } from '@game/logic/h2hRoom'
 import { createServer, type BoardKind, type Caller, type DataPackRow, type Guest, type RoomWrite, type ServerDeps, type StoredPin } from '../server/service'
 import type { ChaseAttempt } from '../server/chaseVerify'
+import type { ErrorReport } from '../core/errorReport'
 import { CHASE_ATTEMPTS_PER_DAY, CHASE_ATTEMPT_HOURS } from '../chase'
 
 export const DATA = path.resolve(__dirname, '..', '..', '..', 'public', 'data')
@@ -43,6 +44,8 @@ export interface Harness {
   limits: Map<string, number>
   logs: Array<Record<string, unknown>>
   rooms: Map<string, FakeRoom>
+  /** Rows `svc_error_report` filed (no account id: the reports as validated). */
+  errorReports: ErrorReport[]
   server: ReturnType<typeof createServer>
 }
 
@@ -120,6 +123,7 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
     limits: new Map<string, number>(),
     logs: [] as Array<Record<string, unknown>>,
     rooms: new Map<string, FakeRoom>(),
+    errorReports: [] as ErrorReport[],
   } as Harness
   let nextId = 1
   let nextRoom = 1
@@ -171,6 +175,10 @@ export function makeHarness(start = new Date('2026-10-25T12:00:00Z'), build: Bui
       },
     },
     db: {
+      errorReport: async (reports) => {
+        h.errorReports.push(...structuredClone(reports))
+        return reports.length
+      },
       rateLimit: async (bucket, uid, limit) => {
         const k = `${bucket}|${uid}`
         const n = (h.limits.get(k) ?? 0) + 1

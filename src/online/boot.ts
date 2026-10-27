@@ -3,7 +3,8 @@
  * offline-only build never loads it. It reads the sign-in redirect the page was opened with (before the App's own
  * hash handler runs), files every finished Daily and weekly challenge in the outbox (signed in or not), and starts
  * the Supabase runtime straight away only when there is a session or a redirect to finish; otherwise the runtime
- * starts when the player opens an online surface (`api.ts`).
+ * starts when the player opens an online surface (`api.ts`). It also starts the error reporter (`errors.ts`), which
+ * needs no session and no supabase-js.
  */
 import { cleanName } from '@engine/challenge'
 import { useStore } from '@game/store'
@@ -11,10 +12,12 @@ import { authRedirectAt } from './auth'
 import { hasStoredSession, loadRecord, updateRecord } from './localState'
 import { captureEntry, enqueue, rankedFinish } from './outbox'
 import { onlineStore } from './state'
+import { installErrorReporting } from './errors'
 
 const redirect = authRedirectAt(location.href)
 
 export function bootOnline(): void {
+  installErrorReporting()
   const rec = loadRecord()
   onlineStore.setState({ configured: true, syncStatus: 'idle', posts: rec.posts, outboxCount: rec.outbox.length })
   useStore.subscribe((s, prev) => {

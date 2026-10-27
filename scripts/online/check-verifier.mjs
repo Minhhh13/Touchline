@@ -66,7 +66,12 @@ const roomDb = {
   },
   roomLeave: async () => ({ status: 'bad' }),
   roomReseat: async () => ({ status: 'bad' }),
+  errorReport: async (reports) => {
+    errorRows.push(...reports)
+    return reports.length
+  },
 }
+const errorRows = []
 const attempts = new Map()
 const chaseEntries = new Map()
 const deps = {
@@ -233,4 +238,10 @@ while (!V.h2hComplete(hot)) {
 }
 const season = V.runH2HSeason(u, rng, room.managers, hot.drafts, room.settings.leagueId, room.settings.leagueSeason, room.settings.difficulty)
 expect(JSON.stringify(season) === JSON.stringify(room.result), 'the room\'s season differs from the same game played hot-seat')
-console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, 38-0 chase ranked ${cq.won}-${cq.drawn}-${cq.lost}, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game`)
+// A guest's error report goes in as sent; one holding an email is refused before the database
+const report = { kind: 'error', message: 'TypeError: x is undefined', stack: 'render /assets/Draft-abc.js:1:200', build: '2026-10-27T00:00:00.000Z', engine: V.ENGINE_VERSION, screen: 'game', phase: 'draft', viewport: '390x844', ua: 'safari/ios', device: '0f8e2d1c-3b4a-4c5d-8e6f-7a8b9c0d1e2f', count: 1, at: '2026-10-27T10:00:00.000Z' }
+const filed = await asGuest(0, { op: 'errors.report', reports: [report] })
+expect(filed.status === 200 && filed.body.taken === 1 && errorRows.length === 1, `errors.report answered ${filed.status} ${JSON.stringify(filed.body)}`)
+const leaky = await asGuest(0, { op: 'errors.report', reports: [{ ...report, message: 'failed for someone@example.com' }] })
+expect(leaky.status === 400 && errorRows.length === 1, `an error report with an email was filed (${leaky.status})`)
+console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, 38-0 chase ranked ${cq.won}-${cq.drawn}-${cq.lost}, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game; a guest's error report filed`)

@@ -49,6 +49,18 @@ let startFailed = false
 
 const unreachable: AuthResult = { ok: false, message: 'Could not reach the online service: check your connection, then try again.' }
 
+/** The Profile's Error reports setting changed: off empties the queue of reports still waiting on this device (the
+ * reporter also checks the setting itself before every capture and post). */
+export async function errorReportsChanged(on: boolean): Promise<void> {
+  if (on || !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY || !onlineConfig()) return
+  try {
+    const m = await import('./errors')
+    m.clearErrorReports()
+  } catch {
+    // the reporter's chunk did not load: it clears the queue itself on its next capture or post
+  }
+}
+
 /** Start the layer (an online surface opened). */
 export async function startOnline(): Promise<boolean> {
   const r = await rt()

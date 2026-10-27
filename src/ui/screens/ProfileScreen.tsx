@@ -28,6 +28,8 @@ import { clubName, fixed, ordinal, seasonLabel, tierName } from '../format'
 import { achievementText, achievementTitle, badgeCount, badgeTitle, milestoneCount, milestoneTitle, progressText } from '../i18n/trophyText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
+import { errorReportsChanged, onlineAvailable } from '../../online/api'
+import { errorReportsOn, setErrorReportsOn } from '../../online/core/errorPref'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
 import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
 import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoundOn } from '../sound/prefs'
@@ -118,6 +120,12 @@ export function ProfileScreen() {
   const [volume, setVolume] = useSoundVolume()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   const language = useLanguage()
+  const [reportsOn, setReportsOn] = useState(errorReportsOn)
+  const setReports = (on: boolean) => {
+    setErrorReportsOn(on)
+    setReportsOn(on)
+    void errorReportsChanged(on)
+  }
   // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
   const boxes = useBoxes(PROFILE)
   const on = boxes.on
@@ -601,6 +609,14 @@ export function ProfileScreen() {
               </span>
               <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: t('full'), testId: 'reel-full' }, { value: 'quick', label: t('quick'), testId: 'reel-quick' }]} />
             </div>
+            {onlineAvailable() && (
+              <div className="field">
+                <span>
+                  {t('errorReports')} <Info label={t('errorReportsAbout')}>{t('errorReportsInfo')}</Info>
+                </span>
+                <Segmented value={reportsOn ? 'on' : 'off'} onChange={(v) => setReports(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'error-reports-on' }, { value: 'off', label: t('off'), testId: 'error-reports-off' }]} />
+              </div>
+            )}
             </div>
             <div className="toolbar">
               <button
