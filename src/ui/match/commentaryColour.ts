@@ -25,6 +25,8 @@ export interface CommentaryContext {
   seasonGoals?: Record<string, number>
   /** Each man's recent match ratings average before kick-off, by player-season id. */
   form?: Record<string, number>
+  /** The user's side: his assistant's own changes (`assistantSubs.ts`) read as the assistant's. */
+  userSide?: Side
 }
 
 /** The match as it stands when an event's line is written: only what has happened so far. */

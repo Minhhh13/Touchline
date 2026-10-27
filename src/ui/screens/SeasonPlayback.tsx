@@ -27,6 +27,7 @@ import { JanuaryWindow } from '../components/JanuaryWindow'
 import { ordinal } from '../format'
 import { sideNamer } from '@game/logic/superLeague'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
+import { useMediaQuery } from '../components/LivePitch'
 import { PLAYBACK } from '../boxSets'
 
 /**
@@ -51,6 +52,8 @@ export function SeasonPlayback() {
   const rounds = j ? j.firstHalfRounds : game?.quickResult?.rounds
   const tables = useMemo(() => (rounds ? weeklyTables(rounds) : []), [rounds])
   const allBoxes = useBoxes(PLAYBACK)
+  // A phone keeps the head's controls to two short rows: the manager joins the team line
+  const phone = useMediaQuery('(max-width: 720px)')
   if (!u || !game) return null
   // Watching a game's highlights pauses the playback on the game shown
   const watch = canShowHighlights(game)
@@ -96,22 +99,24 @@ export function SeasonPlayback() {
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
           <h1>{j && pb.done ? 'January' : 'The season'}</h1>
-          <QuickTeamLine game={game} u={u} />
+          <QuickTeamLine game={game} u={u}>
+            {phone && game.manager && <ManagerChip manager={game.manager} />}
+          </QuickTeamLine>
         </div>
         <div className={`chase ${line.tone} ${line.justBroke ? 'broke' : ''}`} key={line.justBroke ? `b${pb.revealed}` : line.tone} data-testid="chase" data-tone={line.tone}>
           <b data-testid="chase-headline">{line.headline}</b>
           {line.detail && <span className="small" data-testid="chase-detail">{line.detail}</span>}
         </div>
         <div className="col fit-head-side" style={{ gap: 6 }}>
-          <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end' }}>
-            {game.manager && <ManagerChip manager={game.manager} />}
+          <div className="row wrap pb-head-row pb-head-meta">
+            {!phone && game.manager && <ManagerChip manager={game.manager} />}
             <BoxesMenu groups={[boxes]} />
             <span className="playback-mw" data-testid="playback-matchweek">
               Matchweek <b>{pb.revealed}</b> / {total}
             </span>
           </div>
           {!pb.done && (
-            <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end' }}>
+            <div className="row wrap pb-head-row pb-head-controls">
               <button className="btn sm" onClick={pb.toggle} data-testid="playback-pause">
                 {pb.playing ? 'Pause' : 'Play'}
               </button>

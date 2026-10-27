@@ -18,6 +18,7 @@ import type { MatchPath } from './epochs'
 import type { BallKeyframe, PlayTag, SetPieceKind } from './possession'
 import type { Side } from './pitchGeometry'
 import { flavourChance } from '@game/logic/flavour'
+import { assistantSubText, isAssistantSub } from './assistantSubs'
 import { cardColour, chanceColour, fullTimeColour, goalColour, halfTimeColour, injuryColour, moodLine, preMatchLine, subColour, type CommentaryContext, type MatchState } from './commentaryColour'
 
 export type { CommentaryContext } from './commentaryColour'
@@ -224,7 +225,8 @@ export function commentaryUpTo(feed: MatchFeed, mpath: MatchPath, minute: number
     if (e.minute > minute) continue
     const kind = kindOf(e.type)
     const before = { ...score }
-    let text = e.text
+    // The assistant's routine and injury changes for the user's side say so (display only)
+    let text = context.userSide && isAssistantSub(e, feed[context.userSide].subs, context.userSide) ? assistantSubText(e) : e.text
     let tally = 0
     if (kind === 'goal') {
       score[e.side]++

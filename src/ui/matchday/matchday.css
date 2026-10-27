@@ -36,6 +36,30 @@
   font-size: calc(var(--fs-base) + 1px);
   letter-spacing: 0.02em;
 }
+/* The replay: the Live and Report tabs and its buttons end the competition line, so the board keeps the row they took */
+.matchday .md-crumb.has-end {
+  align-items: center;
+  overflow: visible;
+}
+.matchday .md-crumb.has-end > b,
+.matchday .md-crumb.has-end > .muted {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matchday .md-crumb-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  flex: none;
+}
+.matchday .md-crumb-end > .tabs {
+  margin: 0;
+  border-bottom: 0;
+}
+.matchday .md-crumb-end > .row {
+  flex-wrap: nowrap;
+}
 
 /* ------------------------------------------------------------------ top bar */
 .matchday .md-topbar {

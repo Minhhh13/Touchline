@@ -6067,6 +6067,50 @@ dl.kv {
   color: var(--text);
   font-size: calc(var(--fs-h2) - 2px);
 }
+/* The season playback's head: the manager, Boxes and the matchweek, then the playback controls, at the right */
+.pb-head-row {
+  gap: 8px;
+  justify-content: flex-end;
+}
+/* A phone: two tight rows the width of the page (the matchweek and Boxes, then Pause, the speeds and Skip on one line) */
+@media (max-width: 720px) {
+  .pb-page .fit-head {
+    gap: 8px;
+  }
+  .pb-page .fit-head-side {
+    width: 100%;
+    align-items: stretch;
+  }
+  .pb-page .pb-head-row {
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px 6px;
+  }
+  /* Boxes and the matchweek share a line; a phone narrower than 390 px moves Skip under the speeds */
+  .pb-page .quick-team .manager-chip {
+    align-self: center;
+  }
+  .pb-page .playback-mw {
+    flex: none;
+    font-size: var(--fs-meta);
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .pb-page .playback-mw b {
+    font-size: calc(var(--fs-base) + 2px);
+  }
+  .pb-page .pb-head-controls .segmented {
+    flex-wrap: nowrap;
+  }
+  .pb-page .pb-head-controls .segmented button {
+    min-width: 0;
+    padding-inline: 6px;
+  }
+  .pb-page .pb-head-controls > .btn {
+    flex: none;
+    padding-inline: 8px;
+  }
+}
 @keyframes gbg-in {
   from {
     opacity: 0;
@@ -11996,16 +12040,6 @@ table.tbl.contracts-overview td:nth-child(5) {
 }
 table.tbl.contracts-overview .link-btn.name {
   max-width: 100%;
-}
-
-/* The match replay: the tabs and the buttons share one slim row above the dashboard */
-.replay-head {
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-}
-.replay-head > .tabs {
-  margin: 0;
-  border-bottom: 0;
 }
 
 /* The shot map's key: drawn markers, at the legend's own size */
