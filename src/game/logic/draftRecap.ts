@@ -34,6 +34,11 @@ export interface DraftRecap {
   /** The best XI the same spins could have given (`hindsightXI`); null without grades, under a cap or a chain. */
   hindsight: Hindsight | null
   /**
+   * The Hindsight XI's slots whose man is the best play a pick's grade named and the pick missed (`bestPlayMarks`): the
+   * men the log's grade notes point to. Empty without a Hindsight XI.
+   */
+  bestPlays: string[]
+  /**
    * The picks no grade covers (a run-in's reinforcements, bench picks, every pick with grades hidden), in spin order:
    * the recap lists them when the draft has no grade, so a draft of signings is not an empty box. `rating` is his
    * overall as the draft rated him, null with grades hidden.
@@ -62,6 +67,15 @@ export function recapVerdict(grade: PickGrade | null, tally: Record<PickGrade, n
   return 'A draft to forget, but the season is still to play'
 }
 
+/**
+ * The Hindsight XI's slots that hold the best play a spin's grade named when the pick fell short of it: the man the
+ * pick's note names, in the slot it names, from the same spin. Your own picks (ticked) never carry the mark.
+ */
+export function bestPlayMarks(h: Hindsight | null, graded: GradedPick[]): string[] {
+  if (!h) return []
+  return h.xi.filter((p) => !p.yours && graded.some((g) => g.left > 0 && g.spin === p.spin && g.bestSlotId === p.slotId && g.bestName === p.name)).map((p) => p.slotId)
+}
+
 export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'formation'> & { rules?: Pick<DraftRules, 'budget' | 'chain' | 'draftMode' | 'modes'> }, get: (id: string) => PlayerSeason | undefined, showGrades: boolean): DraftRecap {
   const graded = showGrades ? pickGrades(u, d, get) : []
   const tally: Record<PickGrade, number> = { A: 0, B: 0, C: 0, D: 0 }
@@ -74,6 +88,7 @@ export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'f
     return p ? [{ p, h }] : []
   })
   const seasons = picked.map((x) => x.h.season)
+  const hindsight = showGrades ? hindsightXI(u, d, get) : null
   return {
     grade,
     verdict: recapVerdict(grade, tally, graded.length),
@@ -85,7 +100,8 @@ export function draftRecap(u: LoadedUniverse, d: Pick<DraftState, 'history' | 'f
     nations: new Set(picked.map((x) => x.p.nationality).filter(Boolean)).size,
     seasons: seasons.length ? [Math.min(...seasons), Math.max(...seasons)] : null,
     picks: picked.length,
-    hindsight: showGrades ? hindsightXI(u, d, get) : null,
+    hindsight,
+    bestPlays: bestPlayMarks(hindsight, graded),
     ungraded: d.history.flatMap((h, spin) => {
       const p = h.pickedId ? get(h.pickedId) : undefined
       return p && !graded.some((g) => g.spin === spin) ? [{ spin, id: p.id, rating: showGrades ? p.overall : null }] : []

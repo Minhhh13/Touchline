@@ -7348,6 +7348,14 @@ dl.kv {
   max-height: 240px;
   overflow: auto;
 }
+/* The grade notes' tip wrapper (HoverTips) leaves the log a child of its panel's layout */
+.draft-log-tips {
+  display: contents;
+}
+/* A grade is a button for its note (hover, focus or a tap): it keeps the chip's look */
+.draft-log .chip.pick-grade {
+  cursor: help;
+}
 .draft-log li {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
@@ -14081,6 +14089,11 @@ table.tbl.tv-compact .tv-name {
 .hs-tick {
   flex: none;
   color: var(--good);
+}
+/* A man the log's grade named as the best play on his spin (the pick fell short of him) */
+.hs-best {
+  flex: none;
+  color: var(--accent);
 }
 .hs-spin {
   flex: none;

@@ -11,6 +11,7 @@ import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
 import { runInProjectedLineup } from '@game/logic/runin'
 import { PowerUpTray } from '../components/PowerUps'
+import { HoverTips } from '../components/PowerUpButton'
 import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
@@ -162,6 +163,7 @@ export function Draft() {
   // Pick grades once the squad is complete (nothing left to choose, so blind mode shows them too): each XI pick against the best on its spin
   const graded = ratingShown(d.rules, 'grades', { complete }) ? pickGrades(u, d, get) : []
   const grades = new Map(graded.map((g) => [g.spin, g]))
+  const slotPos = (id: string) => d.formation.slots.find((x) => x.id === id)?.position ?? id
   const top = bestPick(graded)
   const gradeLine = top ? `Best pick: spin ${top.spin + 1}, ${get(top.pickedId)?.name ?? ''} (${top.grade}) · ${graded.filter((g) => g.grade === 'A').length} of ${graded.length} picks graded A` : null
   // A Quick Draft bench: the XI's eleven picks, then up to `places` more, optional
@@ -434,6 +436,8 @@ export function Draft() {
                   {gradeLine}
                 </div>
               )}
+              {/* A grade's note (the best play on that spin) on hover, focus or a tap, so a phone sees it too */}
+              <HoverTips testId="grade-tip" className="draft-log-tips">
               <ol className="draft-log">
                 {[...d.history].reverse().map((h, i) => {
                   const p = h.pickedId ? get(h.pickedId) : undefined
@@ -451,9 +455,9 @@ export function Draft() {
                           {isIcons(h) ? <TierDot tier="icons" /> : tier && <TierDot tier={tier} />}
                           {isIcons(h) ? 'Icons' : seasonLabel(h.season)}
                           {grades.has(at) && (
-                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={gradeNote(grades.get(at)!, (id) => d.formation.slots.find((x) => x.id === id)?.position ?? id)}>
+                            <button type="button" className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" data-tip={gradeNote(grades.get(at)!, slotPos)} aria-label={`Grade ${grades.get(at)!.grade}: ${gradeNote(grades.get(at)!, slotPos)}`}>
                               {grades.get(at)!.grade}
-                            </span>
+                            </button>
                           )}
                           {h.twist && TwistIcon && (
                             <span className="log-twist" title={TWIST_INFO[h.twist].title} role="img" aria-label={TWIST_INFO[h.twist].title}>
@@ -469,6 +473,7 @@ export function Draft() {
                   )
                 })}
               </ol>
+              </HoverTips>
             </div>
           )}
         </div>
