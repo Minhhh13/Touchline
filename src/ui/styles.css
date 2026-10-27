@@ -853,7 +853,7 @@ p {
     max-width: 100%;
     overflow: hidden;
     white-space: nowrap;
-    font-size: var(--fs-xs);
+    font-size: min(var(--fs-xs), 11px); /* px: a caption in a fixed nav cell, capped so larger text never clips it (the full label is read aloud) */
     font-weight: 600;
     line-height: 1.1;
   }
