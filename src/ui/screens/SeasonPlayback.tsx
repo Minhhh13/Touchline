@@ -29,6 +29,9 @@ import { sideNamer } from '@game/logic/superLeague'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { useMediaQuery } from '../components/LivePitch'
 import { PLAYBACK } from '../boxSets'
+import { clinchMatchweeks } from '@engine/story'
+import { roundsFixtures } from '@game/logic/story'
+import { usePlaybackSounds } from '../sound/usePlaybackSounds'
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -54,6 +57,24 @@ export function SeasonPlayback() {
   const allBoxes = useBoxes(PLAYBACK)
   // A phone keeps the head's controls to two short rows: the manager joins the team line
   const phone = useMediaQuery('(max-width: 720px)')
+  // The season's sounds as each result lands (seasonCues.ts): the clinch weeks come from the whole season's rounds, so none in the first half
+  const q = game?.quickResult
+  const seasonGames = q?.results?.length ?? (u && game ? quickSeasonGames(u, game.settings) : results.length)
+  usePlaybackSounds({
+    results,
+    tables,
+    userId: USER_TEAM,
+    total: seasonGames,
+    stopAt: results.length,
+    january: !!j,
+    finalPosition: q?.position ?? results.at(-1)?.position ?? 0,
+    teams: tables[0]?.length || seasonGames / 2 + 1,
+    revealed: pb.revealed,
+    playing: pb.playing,
+    done: pb.done,
+    speed: pb.speed,
+    clinch: () => (j || !q ? null : q.clinchedAt !== undefined ? { clinchedAt: q.clinchedAt ?? null, doomedAt: q.doomedAt ?? null } : q.rounds ? clinchMatchweeks(roundsFixtures(q.rounds), q.rounds.ids, USER_TEAM) : null),
+  })
   if (!u || !game) return null
   // Watching a game's highlights pauses the playback on the game shown
   const watch = canShowHighlights(game)
