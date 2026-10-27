@@ -6,7 +6,7 @@ import { newDraft } from '@engine/draft'
 import { getFormation } from '@engine/formations'
 import { playerLookup, squadPlayers } from './players'
 import { autoPickLineup } from '@engine/ratings'
-import { releasePlayer } from './marketOps'
+import { SQUAD_CAP, releasePlayer } from './marketOps'
 import { openWindow } from '@engine/market'
 import { WAGE_MULT } from '@engine/status'
 import { logMorale } from './happiness'
@@ -173,6 +173,8 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   // Summer: bonus wheel spins scale with how many left, plus a summer market
   const lost = report.retired.length + report.expired.length + report.returned.length
   game.bonusSpins += Math.min(6, 2 + lost)
+  // Never past the squad cap the market and the youth intake keep (a full squad of 23 losing four took six spins to 25)
+  game.bonusSpins = Math.min(game.bonusSpins, Math.max(0, SQUAD_CAP - Object.keys(game.squad).length))
   const formation = getFormation(game.tactics.formationId)
   const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1, budget: undefined, chain: undefined })
   // Seed the draft with the existing squad: best eleven on the pitch, the rest on the bench,

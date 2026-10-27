@@ -488,10 +488,15 @@ export function Summary() {
           )}
           {continuing && (
             <button className="btn primary" onClick={() => nextSeason()} disabled={loadingLeagues}>
-              {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `Continue with ${clubName(u, game.settings.hostClubId)} →`}
+              {loadingLeagues ? 'Loading league data…' : game.pendingMove ? `Join ${clubName(u, game.pendingMove.clubId)} →` : `On to year ${game.year + 1} →`}
             </button>
           )}
-          <button className="btn ghost" onClick={() => { abandonGame(); go('home') }}>
+          {continuing && game.jobOffers.length > 0 && !game.pendingMove && (
+            <button className="btn ghost sm" onClick={() => document.getElementById('job-offers')?.scrollIntoView({ block: 'start' })} data-testid="job-offers-link">
+              <Briefcase size={14} aria-hidden="true" /> {game.jobOffers.length} job offer{game.jobOffers.length === 1 ? '' : 's'} below
+            </button>
+          )}
+          <button className="btn ghost" onClick={() => { if (continuing && !confirm(`End this Dynasty after year ${game.year}? It cannot be picked up again.`)) return; abandonGame(); go('home') }}>
             <Plus size={16} aria-hidden="true" /> New game
           </button>
         </div>
@@ -716,7 +721,7 @@ export function Summary() {
       )}
 
       {game.jobOffers.length > 0 && (
-        <div className="panel" style={{ borderColor: 'var(--gold)' }}>
+        <div className="panel" id="job-offers" style={{ borderColor: 'var(--gold)' }}>
           <div className="panel-head">
             <span className="head-title">
               <h3 className="icon-title" style={{ color: 'var(--gold-text)' }}>
@@ -880,7 +885,7 @@ export function Summary() {
                     <tr>
                       <th>Year</th>
                       <th>Season</th>
-                      <th>As</th>
+                      <th>Replaced</th>
                       <th className="num">Pos</th>
                       <th className="num">Pts</th>
                       <th>Result</th>

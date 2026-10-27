@@ -289,3 +289,10 @@ export function advanceDay(game: Game, u: LoadedUniverse): void {
   }
   game.rngState = rng.getState()
 }
+
+/** The Market tab's line while no window is open: January before the halfway point, then the summer (Dynasty) or nothing more this season. */
+export function closedWindowLine(game: Game): string {
+  const s = game.season
+  if (!s || s.matchweek < Math.floor(s.matchweeks / 2)) return 'Window closed: January opens at the halfway point.'
+  return game.settings.mode === 'dynasty' ? 'Window closed: the summer window opens after the last matchweek.' : 'Window closed: no more windows this season.'
+}

@@ -7,7 +7,7 @@ import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
-import { clubName, ordinal, outcomeClass } from './format'
+import { clubName, ordinal, outcomeClass, seasonLabel } from './format'
 import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
@@ -345,7 +345,12 @@ export function App() {
                 <b>Declined:</b> {offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}
               </p>
             )}
-            <p className="muted small">You have bonus spins to rebuild, and the summer market is open from the Dugout once the season begins. Finish the draft to carry on.</p>
+            {game && (game.history.at(-1)?.leagueSeason ?? 0) > game.settings.leagueSeason && (
+              <p className="small" data-testid="season-wrap">
+                <b>Back to the start:</b> after the last season on the wheel the league turns over to {seasonLabel(game.settings.leagueSeason)}, with that season's clubs.
+              </p>
+            )}
+            <p className="muted small">{game && game.bonusSpins > 0 ? `You have ${game.bonusSpins} bonus spin${game.bonusSpins === 1 ? '' : 's'} to rebuild` : 'Your squad is full, so there are no summer spins'}, and the summer market opens in the Dugout after the draft, before the first match. Finish the draft to carry on.</p>
             <button className="btn primary" onClick={dismissOffseason}>
               To the draft
             </button>
@@ -385,6 +390,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
             <b>
               {r.gf}-{r.ga}
             </b>
+            {r.penalties && <span className="small muted">{r.penalties.gf}-{r.penalties.ga} pens</span>}
             <span className="res-letter">{r.outcome}</span>
             <span className="small muted">{r.home ? 'H' : 'A'}</span>
             {r.comp !== 'league' && <span className="small muted">{r.comp === 'cup' ? 'Cup' : 'Eur'}</span>}
@@ -417,7 +423,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         <DigestGroup title="Decided for you" icon={<MessageSquare size={14} />} count={d.decisions.length}>
           {d.decisions.slice(0, DIGEST_GROUP_CAP).map((x, i) => (
             <li key={i}>
-              <b>{x.title}</b>: {x.choice}
+              <b>{x.title}</b>{x.count ? ` (${x.count} times)` : ''}: {x.choice}
               {x.outcome && <span className="muted"> · {x.outcome}</span>}
             </li>
           ))}
