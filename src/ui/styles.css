@@ -8151,9 +8151,44 @@ dl.kv {
 .room-notice {
   margin-bottom: var(--space-3);
 }
+.room-notice > .row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+/* The turn's and the waiting room's clocks: the figures in tabular digits, a thin bar of the idle limit used */
+.room-clock .mono {
+  font-variant-numeric: tabular-nums;
+}
+.room-clock > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-1);
+}
+.room-meter {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--raised);
+  overflow: hidden;
+}
+.room-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+}
+.room-clock[data-quiet='yes'] .room-meter > span {
+  background: var(--meter-mid);
+}
 @media (max-width: 520px) {
   .room-share {
     flex-direction: column;
+  }
+  .room-notice.row {
+    gap: var(--space-2);
+  }
+  .room-notice .btn {
+    width: 100%;
   }
 }
 /* Explore */
