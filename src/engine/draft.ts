@@ -402,7 +402,7 @@ export function benchRoom(d: DraftState): boolean {
 
 /** Whether this player could be sent to the bench from the current spin. */
 export function canBench(d: DraftState, p: PlayerSeason): boolean {
-  return benchRoom(d) && !d.takenPlayers.includes(p.playerId) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p)
+  return benchRoom(d) && !d.takenPlayers.includes(p.playerId) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p) && benchAffordable(d, p)
 }
 
 /** Quick bench: the XI is full and bench places are left, so the manager may stop drafting. */
@@ -463,12 +463,31 @@ export function capSpent(d: DraftState): number {
   return d.spent ?? 0
 }
 
+/**
+ * The picks the cap keeps `BUDGET_FLOOR` for after the next one. A squad draft owes it to every pick up to its size. A
+ * Quick Draft with a bench owes it to its open XI slots only (its bench may close once the XI is full), whatever the
+ * bench already holds: counting bench picks against the XI's eleven let an early bench pick spend the money the last
+ * XI slots needed, and the wheel ran dry with a keeper still to find (r7 QA; engine 6).
+ */
+function picksOwed(d: DraftState): number {
+  if (hasQuickBench(d)) return Math.max(0, openSlots(d).length - 1)
+  return Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+}
+
 /** The most the next pick may cost: what is left of the cap after keeping `BUDGET_FLOOR` for every pick still to make after it. Infinite without a cap. */
 export function capRoom(d: DraftState): number {
   const budget = d.rules.budget
   if (budget === undefined) return Infinity
-  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
-  return round1(budget - capSpent(d) - BUDGET_FLOOR * after)
+  return round1(budget - capSpent(d) - BUDGET_FLOOR * picksOwed(d))
+}
+
+/**
+ * A Quick Draft bench pick while XI slots are open fills none of them, so it keeps the floor for every one: one floor
+ * more than an XI pick. Always true without a cap.
+ */
+function benchAffordable(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions'>): boolean {
+  if (d.rules.budget === undefined) return true
+  return capPrice(p) <= capRoom(d) - (hasQuickBench(d) && fillingXI(d) ? BUDGET_FLOOR : 0) + 1e-9
 }
 
 /**
@@ -518,7 +537,7 @@ export function capMoney(m: number): string {
 export function capRefusal(d: DraftState, p: Pick<PlayerSeason, 'overall' | 'positions' | 'name'>): string | null {
   if (affordable(d, p)) return null
   const price = capPrice(p)
-  const after = Math.max(0, d.rules.squadSize - picksMade(d) - 1)
+  const after = picksOwed(d)
   // Within the cap itself, it is the money kept for the picks still to make that rules him out
   const reserve = d.rules.budget !== undefined && price <= d.rules.budget - capSpent(d) + 1e-9 && after > 0
   return `${p.name} (${capMoney(price)}) would take you ${capMoney(capOverBy(d, p))} over the cap${reserve ? `, keeping ${capMoney(BUDGET_FLOOR)} for each of the ${after} picks still to make` : ''}`
@@ -892,6 +911,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   if (slotId === 'bench') {
     if (isComplete(d)) throw new Error('Squad complete')
     if (!benchRoom(d)) throw new Error(!hasQuickBench(d) ? 'Fill your starting XI first' : positionFirst(d) ? 'This spin fills the slot you chose' : 'The bench is full: this pick goes into the XI')
+    if (!benchAffordable(d, p)) throw new Error(`${p.name} (${capMoney(capPrice(p))}) would leave too little for the ${openSlots(d).length} XI places still open: keep ${capMoney(BUDGET_FLOOR)} for each`)
     d.bench.push(p.id)
   } else {
     const slot = d.formation.slots.find((s) => s.id === slotId)
