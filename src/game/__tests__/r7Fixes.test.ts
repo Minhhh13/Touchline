@@ -1,0 +1,129 @@
+/**
+ * Regression tests for the bugs the second QA hunt (r7, on the engine 6 release candidate) fixed (docs/QA.md, round 2).
+ * Each names the bug it pins.
+ */
+import { describe, expect, it, vi } from 'vitest'
+// The store persists through localStorage; an in-memory stand-in keeps the persist middleware quiet in Node
+vi.hoisted(() => {
+  const mem = new Map<string, string>()
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) },
+    configurable: true,
+  })
+})
+vi.setConfig({ testTimeout: 60_000 })
+import { loadTestUniverse } from '../../engine/__tests__/helpers'
+import { QUICK_RULES } from '@engine/draft'
+import { wheelSeasons } from '@engine/era'
+import { useStore } from '../store'
+import { setupRules, shortNameFor } from '../logic/setup'
+import { kickoffStep } from '../logic/endCase'
+import { quickManagerOptions } from '../logic/managers'
+import { playbackResults, quickChangeProblem, quickSquadAt } from '../logic/quick'
+import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonStale } from '../logic/quickSeam'
+import type { GameSettings } from '../types'
+import { loadStore } from './qaHarness'
+
+const u = loadTestUniverse(['england'])
+const st = () => useStore.getState()
+
+/** A Quick Draft as Setup sends it, with a bench of three and the January window as asked; the assistant drafts. */
+function quickGame(seed: string, january: boolean): void {
+  loadStore(u, ['england'])
+  const stops = wheelSeasons(u, ['england'], false)
+  const rules = setupRules(QUICK_RULES, { difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season', eraFrom: stops[0], eraTo: stops[stops.length - 1], first: stops[0], last: stops[stops.length - 1], twists: true, leagues: ['england'], benchPicks: 3, modes: [], powerUps: false, classic: false, managers: false })
+  const clubs = u.clubSeasons.filter((cs) => cs.leagueId === 'england' && cs.season === 2025).map((cs) => cs.clubId)
+  const settings: GameSettings = { mode: 'quick', seed, formationId: '4-3-3', teamName: 'R7 XI', shortName: shortNameFor('R7 XI'), leagueId: 'england', wheelLeagues: ['england'], hostClubId: clubs[0], leagueSeason: 2025, rules, jobSecurity: false, difficulty: 'calibrated', continental: false, january }
+  st().startGame(settings)
+  st().autoDraftRest()
+  st().finishDraft()
+  for (let i = 0; i < 10 && st().game!.phase === 'kickoff'; i++) {
+    const g = st().game!
+    const k = kickoffStep(g)
+    if (k === 'managers') st().pickManager(quickManagerOptions(g)[0].id)
+    else if (k === 'case') {
+      if (!g.endCase?.opened) st().openCase()
+      else st().finishCase()
+    } else st().kickOff(false)
+  }
+}
+
+/** The games on show as an earlier engine would have played them: one score moved (what an engine release does to a save). */
+function playedByEarlierEngine(): void {
+  useStore.setState((s) => {
+    const g = JSON.parse(JSON.stringify(s.game))
+    const games = g.phase === 'january' ? g.quickJanuary.firstHalf : g.quickResult.results
+    games[0].gf += 1
+    return { game: g }
+  })
+}
+
+describe('R7-1: a quick season kicked off on an earlier engine', () => {
+  it('a window this engine drew reads as its own, and closes as before', () => {
+    quickGame('r7-seam-native', true)
+    const g = st().game!
+    expect(g.phase).toBe('january')
+    expect(januaryStale(g, u)).toBe(false)
+    st().closeJanuary(0)
+    expect(st().toast).toBeNull()
+    expect(st().game!.phase).toBe('summary')
+    expect(quickSeasonStale(st().game!, u)).toBe(false)
+  })
+
+  it('a January window an earlier engine drew is drawn again with the reason, before a deal or a pass replays it', () => {
+    for (const choice of [0, null] as const) {
+      quickGame('r7-seam-jan', true)
+      const fresh = st().game!.quickJanuary!.firstHalf
+      playedByEarlierEngine()
+      expect(januaryStale(st().game!, u)).toBe(true)
+      // The deal of the old window was "not on offer" and blamed on the league data; a pass rewrote the first half silently
+      st().closeJanuary(choice)
+      expect(st().toast).toBe(JANUARY_REDRAWN_NOTE)
+      expect(st().game!.phase).toBe('january')
+      expect(st().game!.quickJanuary!.firstHalf).toEqual(fresh)
+      // Drawn on this engine, it closes as any window does
+      useStore.setState({ toast: null })
+      st().closeJanuary(choice)
+      expect(st().toast).toBeNull()
+      expect(st().game!.phase).toBe('summary')
+    }
+  })
+
+  it('a bench change in January redraws an old window first', () => {
+    quickGame('r7-seam-jan-bench', true)
+    playedByEarlierEngine()
+    const g = st().game!
+    const results = playbackResults(g)
+    const revealed = results.length - 1
+    const view = quickSquadAt(g, u, results, revealed)
+    const slot = Object.keys(view.lineup).find((s) => view.bench.some((id) => !quickChangeProblem(g, u, results, revealed, { slotId: s, inId: id })))!
+    const inId = view.bench.find((id) => !quickChangeProblem(g, u, results, revealed, { slotId: slot, inId: id }))!
+    st().benchChange(revealed, slot, inId)
+    expect(st().toast).toBe(JANUARY_REDRAWN_NOTE)
+    expect(st().game!.quickChanges ?? []).toEqual([])
+    expect(januaryStale(st().game!, u)).toBe(false)
+  })
+
+  it('a bench change on a season an earlier engine played is refused, the games on show kept', () => {
+    quickGame('r7-seam-bench', false)
+    const g0 = st().game!
+    expect(g0.quickOpen).toBe(true)
+    playedByEarlierEngine()
+    const g = st().game!
+    const shown = JSON.stringify(g.quickResult!.results)
+    const results = playbackResults(g)
+    const revealed = 5
+    const view = quickSquadAt(g, u, results, revealed)
+    const slot = Object.keys(view.lineup).find((s) => view.bench.some((id) => !quickChangeProblem(g, u, results, revealed, { slotId: s, inId: id })))!
+    const inId = view.bench.find((id) => !quickChangeProblem(g, u, results, revealed, { slotId: slot, inId: id }))!
+    st().benchChange(revealed, slot, inId)
+    expect(st().toast).toBe(CHANGES_CLOSED_NOTE)
+    expect(JSON.stringify(st().game!.quickResult!.results)).toBe(shown)
+    expect(st().game!.quickChanges ?? []).toEqual([])
+    // The same change on the season as this engine played it goes through
+    quickGame('r7-seam-bench', false)
+    st().benchChange(revealed, slot, inId)
+    expect(st().toast).toBeNull()
+    expect(st().game!.quickChanges).toHaveLength(1)
+  })
+})

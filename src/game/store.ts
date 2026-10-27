@@ -31,6 +31,7 @@ import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
 import { januaryGambleMade } from './logic/januaryGamble'
+import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonStale } from './logic/quickSeam'
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { availableStopChanges } from './logic/stopChanges'
@@ -435,9 +436,21 @@ export const useStore = create<Store>()(
           }
         })
       /** Close the January window with `fn` and carry on as the store always has: the playback from the second half, the result recorded. */
+      /**
+       * A window drawn by an earlier engine (a season kicked off before a release): draw it again on this one, with the
+       * reason, before anything plays the season again. True when it did.
+       */
+      const redrawStaleJanuary = (): boolean => {
+        const { game, universe } = get()
+        if (!game || !universe || !januaryStale(game, universe)) return false
+        mutate((g, u) => reopenJanuary(g, u))
+        set({ toast: JANUARY_REDRAWN_NOTE })
+        return true
+      }
       const closeWindow = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const before = get().game
         if (before?.phase !== 'january' || !before.quickJanuary) return
+        if (redrawStaleJanuary()) return
         const from = before.quickJanuary.firstHalf.length
         mutate(fn)
         if (get().game?.phase === 'january') {
@@ -843,22 +856,26 @@ export const useStore = create<Store>()(
             if (!get().kickingOff) stopQuickWorker()
           }
         },
-        januarySpin: () =>
+        januarySpin: () => {
+          if (redrawStaleJanuary()) return
           mutate((g, u) => {
             try {
               rollJanuarySpin(g, u)
             } catch (e) {
               set({ toast: e instanceof Error ? e.message : String(e) })
             }
-          }),
-        januaryUpgrade: (id, boost) =>
+          })
+        },
+        januaryUpgrade: (id, boost) => {
+          if (redrawStaleJanuary()) return
           mutate((g, u) => {
             try {
               rollJanuaryUpgrade(g, u, id, boost)
             } catch (e) {
               set({ toast: e instanceof Error ? e.message : String(e) })
             }
-          }),
+          })
+        },
         closeJanuarySpin: (slotId) => {
           const { game, universe } = get()
           if (!game || !universe) return
@@ -887,6 +904,11 @@ export const useStore = create<Store>()(
           const problem = quickChangeProblem(game, universe, results, revealed, { slotId, inId })
           if (problem) {
             set({ toast: problem })
+            return
+          }
+          // A change plays the season again: on one an earlier engine played, that would rewrite the games already shown
+          if (game.phase === 'january' ? redrawStaleJanuary() : quickSeasonStale(game, universe)) {
+            if (game.phase !== 'january') set({ toast: CHANGES_CLOSED_NOTE })
             return
           }
           mutate((g, u) => makeQuickChange(g, u, results, revealed, slotId, inId))
