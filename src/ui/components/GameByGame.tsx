@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
 import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ChevronDown, Play, SkipForward } from 'lucide-react'
+import { runAfterPaint } from '../afterPaint'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
 import { scorersText } from '../scorers'
@@ -274,7 +275,12 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
     if (order === 'newest') {
       if (compact && listRef.current && !first) listRef.current.scrollTop = 0
     } else if (compact) {
-      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
+      const toBottom = () => {
+        if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
+      }
+      // A list just drawn goes to its bottom once the screen has painted, not by forcing the screen's first layout
+      if (first) runAfterPaint(toBottom)
+      else toBottom()
     } else if (playing && newestRef.current) newestRef.current.scrollIntoView({ block: 'nearest' })
   }, [playing, revealed, compact, order])
   const [expanded, setExpanded] = useState(false)

@@ -9,14 +9,15 @@ vi.hoisted(() => {
 })
 import { Rng } from '@engine/rng'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
-import { beginMatch } from '@engine/match'
-import { feedFromLive } from '@engine/matchFeed'
+import { beginMatch, simulateMatch } from '@engine/match'
+import { feedFromLive, feedFromResult } from '@engine/matchFeed'
 import { createGame, beginSeason } from '@game/logic/setup'
 import { useStore } from '@game/store'
-import type { Game } from '@game/types'
+import type { Game, MatchContext } from '@game/types'
 import { matchPath } from '../match/epochs'
 import { sampledMinutes, samplePlayers, samplePlayersIn } from '../match/heat'
-import { liveFeed, liveFeedKey, pathOf, prepareMatchDay, samplesOf, SAMPLE_SLICE } from '../match/prepare'
+import { liveFeed, liveFeedKey, pathOf, prepareMatchDay, prepareMatchScreen, replayCodes, replayKey, resultFeed, samplesOf, SAMPLE_SLICE } from '../match/prepare'
+import { teamCode } from '../match/shirts'
 import { changedLive, sides, u } from './feeds'
 
 const now = async () => {}
@@ -106,5 +107,26 @@ describe("the match day's first build ahead of its render (prepare.ts)", () => {
       throw new Error('no')
     })
     expect(failed).toEqual(plain)
+  }, 300_000)
+
+  it("builds a finished match's replay (the arena's match screen) exactly as the dashboard would", async () => {
+    for (let i = 0; i < 4; i++) {
+      const res = simulateMatch({ rng: new Rng(`prep-replay-${i}`), ...sides(i), detail: 'full' })
+      const ctx = { competition: 'league', matchweek: 2 + i } as MatchContext
+      const g = { live: null, lastMatch: res, lastMatchContext: ctx, settings: { shortName: 'PRP' } } as unknown as Game
+      const slices: number[] = []
+      await prepareMatchScreen(g, u, async () => void slices.push(1))
+      const codes = replayCodes(u, res, 'PRP')
+      expect(codes).toEqual({ home: teamCode(u, res.homeTeamId, res.homeName, 'PRP'), away: teamCode(u, res.awayTeamId, res.awayName, 'PRP') })
+      const key = replayKey(res, ctx)
+      expect(key).toBe(`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}`)
+      const feed = resultFeed(res, key, codes)
+      expect(resultFeed(res, key, codes)).toBe(feed)
+      expect(feed).toEqual(feedFromResult(res, key, codes))
+      const mpath = pathOf(feed)
+      expect(mpath).toEqual(matchPath(feed))
+      expect(slices.length).toBeGreaterThan(1)
+      expect(samplesOf(mpath, feed.lastMinute)).toEqual(samplePlayers(matchPath(feed), feed.lastMinute))
+    }
   }, 300_000)
 })

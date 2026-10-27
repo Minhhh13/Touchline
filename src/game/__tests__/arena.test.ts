@@ -290,4 +290,18 @@ describe('arena: saves and the store', () => {
     useStore.getState().advanceLive({})
     expect(useStore.getState().game!.live?.mp.clock).toBe(70)
   })
+
+  it('plays an arena step paint-first (playArenaStepSoon) to the same game as playArenaStep', async () => {
+    for (let i = 0; i < 6; i++) {
+      const start = finalGame(`arena-soon-${i}`)
+      const live = i % 2 === 0
+      useStore.setState({ universe: u, loadedLeagues: ['england'], game: start, screen: 'game', playingWeek: false })
+      useStore.getState().playArenaStep(live)
+      const plain = JSON.stringify({ game: useStore.getState().game, view: useStore.getState().matchView })
+      useStore.setState({ game: start, matchView: 'report' })
+      await useStore.getState().playArenaStepSoon(live)
+      expect(JSON.stringify({ game: useStore.getState().game, view: useStore.getState().matchView }), `arena-soon-${i}`).toBe(plain)
+      expect(useStore.getState().playingWeek).toBe(false)
+    }
+  }, 120_000)
 })

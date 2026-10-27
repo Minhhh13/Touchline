@@ -292,13 +292,28 @@ export function runSteps<T>(steps: Iterator<unknown, T>): T {
   }
 }
 
+/**
+ * A game changed in steps over several weeks. At each `WEEK_END` the steps hold the game only through the box, so a
+ * runner may put a fresh draft of it there (the store's sliced runner finishes each week's Immer draft in its own
+ * task rather than a whole season's at the end); a runner that does not leaves the same game in it.
+ */
+export interface GameBox {
+  g: Game
+}
+
+/** What a stepped run over several weeks yields at the end of each week (every other step yields nothing). */
+export const WEEK_END = 'week-end'
+export type WeekStep = void | typeof WEEK_END
+
 /** Sim `n` matchweeks with the assistant managing (Sim 5, Sim to end), in steps: each week's `playMatchweekSteps`. */
-export function* simWeeksSteps(game: Game, u: LoadedUniverse, n: number): Generator<void, void, undefined> {
-  if (game.phase === 'preseason') startSeasonProper(game)
+export function* simWeeksSteps(box: GameBox, u: LoadedUniverse, n: number): Generator<WeekStep, void, undefined> {
+  if (box.g.phase === 'preseason') startSeasonProper(box.g)
   for (let i = 0; i < n; i++) {
+    const game = box.g
     if (game.phase === 'summary' || !game.season || game.season.sacked) break
     yield* playMatchweekSteps(game, u, true)
     if (game.phase === 'match') game.phase = 'week'
+    yield WEEK_END
   }
 }
 

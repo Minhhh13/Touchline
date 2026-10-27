@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { canChangeInPlay, managerWindowsUsed, MAX_SUBS, MAX_WINDOWS, subsMade, type FullMatchResult, type LiveChanges } from '@engine/match'
-import { feedFromResult, scoreAt, type MatchFeed } from '@engine/matchFeed'
+import { scoreAt, type MatchFeed } from '@engine/matchFeed'
 import { statsSeries, xgStory } from '@engine/matchStats'
 import { liveCondition, ratingsAt } from '@engine/liveRatings'
 import { getFormation } from '@engine/formations'
@@ -27,7 +27,7 @@ import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
 import { assistantSubsBetween, assistantSubToast } from '../match/assistantSubs'
 import { commentaryContextFor } from '../match/commentaryColour'
-import { liveFeed, liveFeedKey, pathOf, samplesOf } from '../match/prepare'
+import { liveFeed, liveFeedKey, pathOf, replayCodes, replayKey, resultFeed, samplesOf } from '../match/prepare'
 import { cuePending, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
 import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
@@ -73,9 +73,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   const ctx = live ? live.ctx : (source as { ctx: MatchContext }).ctx
   const homeId = live ? live.mp.home.teamId : res!.homeTeamId
   const awayId = live ? live.mp.away.teamId : res!.awayTeamId
-  const codes = useMemo(() => ({ home: teamCode(u, homeId, live?.mp.home.shortName ?? res!.homeName, game.settings.shortName), away: teamCode(u, awayId, live?.mp.away.shortName ?? res!.awayName, game.settings.shortName) }), [u, homeId, awayId, live, res, game.settings.shortName])
-  // A live segment's feed, ball path and samples may already be built (prepare.ts, between playing the week and this render)
-  const feed: MatchFeed = useMemo(() => (live ? liveFeed(live.mp, liveFeedKey(live)) : feedFromResult(res!, `${res!.homeTeamId}-${res!.awayTeamId}-${ctx.matchweek}`, codes)), [live, res, ctx.matchweek, codes])
+  const codes = useMemo(() => (live ? { home: teamCode(u, homeId, live.mp.home.shortName, game.settings.shortName), away: teamCode(u, awayId, live.mp.away.shortName, game.settings.shortName) } : replayCodes(u, res!, game.settings.shortName)), [u, homeId, awayId, live, res, game.settings.shortName])
+  // A segment's or a replay's feed, ball path and samples may already be built (prepare.ts, between playing the step and this render)
+  const feed: MatchFeed = useMemo(() => (live ? liveFeed(live.mp, liveFeedKey(live)) : resultFeed(res!, replayKey(res!, ctx), codes)), [live, res, ctx, codes])
   const userSide: 'home' | 'away' | null = live ? (live.userIsHome ? 'home' : 'away') : homeId === USER_TEAM ? 'home' : awayId === USER_TEAM ? 'away' : null
 
   // Kits, keepers and numbers

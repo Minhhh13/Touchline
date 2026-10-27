@@ -35,7 +35,7 @@ import { januaryGambleMade } from './logic/januaryGamble'
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { availableStopChanges } from './logic/stopChanges'
-import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, runSteps, simWeeksSteps, startSeasonProper } from './logic/week'
+import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, runSteps, simWeeksSteps, startSeasonProper, WEEK_END, type GameBox, type WeekStep } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import { playerLookup } from './logic/players'
 import { assignmentNote } from './logic/slotSheet'
@@ -261,7 +261,7 @@ interface Store {
    * itself runs in slices of about `WEEK_SLICE_MS` (`opts.sliceMs`, tests), a task for the page between them.
    */
   playWeekSoon: (prepare?: (next: Game) => Promise<void>, opts?: { sliceMs?: number }) => Promise<void>
-  /** Transient: a `playWeekSoon` is under way (the Dugout's button shows it). Never saved. */
+  /** Transient: a `playWeekSoon` (or the arena's `playArenaStepSoon`) is under way (the button shows it). Never saved. */
   playingWeek: boolean
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
   advanceLive: (opts: LiveChanges, hold?: boolean) => void
@@ -293,6 +293,11 @@ interface Store {
   closeMatch: () => void
   /** Arena: kick off the next match, managed live (the two stops) or played by the assistant. */
   playArenaStep: (live: boolean) => void
+  /**
+   * `playArenaStep` as the arena's hub plays it: the busy state painted, the step played, `prepare` (the screen's, as
+   * for `playWeekSoon`) in tasks of its own, then the match screen (`playingWeek` while it runs). The same game.
+   */
+  playArenaStepSoon: (live: boolean, prepare?: (next: Game) => Promise<void>) => Promise<void>
   /** Arena: the shoot-out of a level live match, in the manager's order with his keeper. */
   takePenalties: (order: string[], keeperId: string) => { ok: boolean; message: string }
   /** The Gauntlet's lifeline: once a run, swap the next rung's club for its alternate. */
@@ -460,14 +465,16 @@ export const useStore = create<Store>()(
        * slice passes `sliceMs`. The same steps in the same order as running them in one produce, so the same game.
        * 'moved' when the game or the universe changed meanwhile (the draft is let go), 'failed' on an error (toasted).
        */
-      const sliced = async <T,>(g0: Game, u0: LoadedUniverse, fn: (g: Game) => Generator<void, T, undefined>, sliceMs: number): Promise<{ next: Game; value: T } | 'moved' | 'failed'> => {
+      const sliced = async <T,>(g0: Game, u0: LoadedUniverse, fn: (box: GameBox) => Generator<WeekStep, T, undefined>, sliceMs: number): Promise<{ next: Game; value: T } | 'moved' | 'failed'> => {
         try {
-          const draft = createDraft(g0)
-          const steps = fn(draft)
+          const box: GameBox = { g: createDraft(g0) }
+          const steps = fn(box)
           let slice = performance.now()
           for (;;) {
             const r = steps.next()
-            if (r.done) return { next: finishDraft(draft), value: r.value }
+            if (r.done) return { next: finishDraft(box.g), value: r.value }
+            // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
+            if (r.value === WEEK_END) box.g = createDraft(finishDraft(box.g))
             if (performance.now() - slice < sliceMs) continue
             await nextTask()
             if (get().game !== g0 || get().universe !== u0) return 'moved'
@@ -1131,7 +1138,7 @@ export const useStore = create<Store>()(
             // The same recipe as playWeek's produce, on a draft held across tasks: a step at a time (the week's set-up,
             // each fixture, each stop of a Sim result); the draft is let go for playWeek on the game as it is now
             // if anything moved it meanwhile
-            const out = await sliced(g0, u0, (g) => playWeekSteps(g, u0, mode), opts?.sliceMs ?? WEEK_SLICE_MS)
+            const out = await sliced(g0, u0, (box) => playWeekSteps(box.g, u0, mode), opts?.sliceMs ?? WEEK_SLICE_MS)
             if (out === 'moved') return get().playWeek()
             if (out === 'failed') return
             const next = out.next
@@ -1158,13 +1165,13 @@ export const useStore = create<Store>()(
         simWeeks: (n) => {
           // Plain numbers from the saved game, read before the mutation so the digest compares before with after
           const before = digestSnapshot(get().game)
-          mutate((g, u) => runSteps(simWeeksSteps(g, u, n)))
+          mutate((g, u) => runSteps(simWeeksSteps({ g }, u, n)))
           afterSimWeeks(before)
         },
         simWeeksSoon: async (n, opts) => {
           const { game: g0, universe: u0 } = get()
           if (!g0 || !u0) return
-          const out = await sliced(g0, u0, (g) => simWeeksSteps(g, u0, n), opts?.sliceMs ?? WEEK_SLICE_MS)
+          const out = await sliced(g0, u0, (box) => simWeeksSteps(box, u0, n), opts?.sliceMs ?? WEEK_SLICE_MS)
           if (out === 'moved') return get().simWeeks(n)
           if (out === 'failed') return
           afterSimWeeks(digestSnapshot(g0), { game: out.next })
@@ -1180,7 +1187,7 @@ export const useStore = create<Store>()(
         simToNextBigMatchSoon: async (opts) => {
           const { game: g0, universe: u0 } = get()
           if (!g0 || !u0) return
-          const out = await sliced(g0, u0, (g) => simToNextStopSteps(g, u0), opts?.sliceMs ?? WEEK_SLICE_MS)
+          const out = await sliced(g0, u0, (box) => simToNextStopSteps(box, u0), opts?.sliceMs ?? WEEK_SLICE_MS)
           if (out === 'moved') return get().simToNextBigMatch()
           if (out === 'failed') return
           afterSimToStop(out.value, { game: out.next })
@@ -1200,6 +1207,41 @@ export const useStore = create<Store>()(
           })
           // Either way the match opens on its replay dashboard (one screen); the report is a tab away
           set({ matchView: 'ticker' })
+        },
+        playArenaStepSoon: async (live, prepare) => {
+          const { game: g0, universe: u0, playingWeek } = get()
+          if (!g0 || !u0 || playingWeek) return
+          set({ playingWeek: true })
+          try {
+            await afterNextPaint()
+            const moved = () => get().game !== g0 || get().universe !== u0
+            if (moved()) return get().playArenaStep(live)
+            let next: Game
+            try {
+              next = produce(g0, (g) => {
+                playArenaStep(g, u0, live)
+                if (live && g.live) byHand(g)
+              })
+            } catch (e) {
+              console.error(e)
+              set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
+              return
+            }
+            // The match screen's first render in a task of its own, after what it would build first
+            await nextTask()
+            if (prepare) {
+              try {
+                await prepare(next)
+              } catch (e) {
+                console.error(e)
+              }
+              await nextTask()
+            }
+            if (moved()) return get().playArenaStep(live)
+            set({ game: next, matchView: 'ticker', playingWeek: false })
+          } finally {
+            if (get().playingWeek) set({ playingWeek: false })
+          }
         },
         takePenalties: (order, keeperId) => {
           let out = { ok: false, message: 'No game' }

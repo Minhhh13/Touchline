@@ -9,7 +9,7 @@
 import { ordinal, type LoadedUniverse } from '@engine/universe'
 import { describeImportance, positionOf, seasonTable, USER_TEAM, type Competition } from '@engine/season'
 import type { Game } from '../types'
-import { nextOpponent, playMatchweekSteps, runSteps, startSeasonProper, upcomingCupTie } from './week'
+import { nextOpponent, playMatchweekSteps, runSteps, startSeasonProper, upcomingCupTie, WEEK_END, type GameBox, type WeekStep } from './week'
 import { briefOpen, briefStanding, gapLine, RUN_IN_LAST_STOPS } from './runin'
 
 /** Why the sim stopped, most important first among the before-the-week reasons. */
@@ -123,13 +123,14 @@ export function stopAfterWeek(game: Game, before: WeekMark): StopReason | null {
  * back to `week`. Returns the stop, or null when the run ended the season.
  */
 export function simToNextStop(game: Game, u: LoadedUniverse): StopReason | null {
-  return runSteps(simToNextStopSteps(game, u))
+  return runSteps(simToNextStopSteps({ g: game }, u))
 }
 
-/** `simToNextStop` in steps (each week's `playMatchweekSteps`), for a caller that gives the page a task between them. */
-export function* simToNextStopSteps(game: Game, u: LoadedUniverse): Generator<void, StopReason | null, undefined> {
-  if (game.phase === 'preseason') startSeasonProper(game)
+/** `simToNextStop` in steps (each week's `playMatchweekSteps`, then `WEEK_END`), for a caller that gives the page a task between them. */
+export function* simToNextStopSteps(box: GameBox, u: LoadedUniverse): Generator<WeekStep, StopReason | null, undefined> {
+  if (box.g.phase === 'preseason') startSeasonProper(box.g)
   for (;;) {
+    const game = box.g
     const season = game.season
     if (game.phase === 'summary' || !season || season.sacked || season.matchweek >= season.matchweeks) return null
     const before = nextStop(game, u)
@@ -139,6 +140,7 @@ export function* simToNextStopSteps(game: Game, u: LoadedUniverse): Generator<vo
     if (game.phase === 'match') game.phase = 'week'
     const after = stopAfterWeek(game, m)
     if (after) return after
+    yield WEEK_END
   }
 }
 
