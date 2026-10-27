@@ -230,13 +230,18 @@ export interface CasualBody {
   shortName: string
 }
 
-/** The board key a posted body is for (read from its seed), without replaying it; null when it names no puzzle of the board. */
-export function casualKeyOfBody(board: CasualBoard, encoded: string): string | null {
+/** The board key and data a posted body is for (read from its seed and stamp), without replaying it; null when it names no puzzle of the board. */
+export function casualPostOf(board: CasualBoard, encoded: string): { key: string; data: string } | null {
   try {
     const text = encoded.trim().replace(/^#?c=/, '')
-    if (board === 'runin') return runInWeekKeyOfSeed(decodeRunIn(text).seed)
+    if (board === 'runin') {
+      const r = decodeRunIn(text)
+      const key = runInWeekKeyOfSeed(r.seed)
+      return key ? { key, data: r.data } : null
+    }
     const c = decodeChallenge(text)
-    return casualKeyOfSeed(board, c.s.seed)
+    const key = casualKeyOfSeed(board, c.s.seed)
+    return key ? { key, data: c.data } : null
   } catch {
     return null
   }

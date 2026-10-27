@@ -14,7 +14,7 @@ import { kickOff, toKickoff } from '@game/logic/quick'
 import { beginRunIn, seedRunInDraft } from '@game/logic/runin'
 import { decodeRunIn, encodeRunIn, runInPayloadFromGame, simRunIn, weeklyRunInPlan, weeklyRunInSettings } from '@game/logic/runinWeekly'
 import { puzzleOf, settingsHash } from '../server/dailyVerify'
-import { casualClosesAt, casualIsOpen, casualKeyOfBody, casualKeyOfSeed, casualLeagues, casualSettings, verifyCasual, type CasualBoard, type CasualPin, type CasualVerdict } from '../server/casualVerify'
+import { casualClosesAt, casualIsOpen, casualPostOf, casualKeyOfSeed, casualLeagues, casualSettings, verifyCasual, type CasualBoard, type CasualPin, type CasualVerdict } from '../server/casualVerify'
 import { buildCasualSubmission, casualBoardOf, casualUnrankedReason } from '../casual'
 
 const ALL = ['england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'portugal']
@@ -92,7 +92,7 @@ describe('the Daily Arena board', { timeout: 120_000 }, () => {
       expect(e.goals_for).toBe(a.log.reduce((t, s) => t + s.gf, 0))
       expect(e.claim_matched).toBe(true)
       expect(e.league_position).toBeNull()
-      expect(casualKeyOfBody('arena', arenaBody(g).encoded)).toBe(seed.slice(6))
+      expect(casualPostOf('arena', arenaBody(g).encoded)).toEqual({ key: seed.slice(6), data: u.generatedAt })
       // The submission the device files is the same body
       expect(buildCasualSubmission(g, u, 'Minh')).toMatchObject({ op: 'casual.submit', board: 'arena', encoded: arenaBody(g).encoded })
     }
@@ -216,7 +216,7 @@ describe('the Run-in of the week board', { timeout: 120_000 }, () => {
     const pin = pinOf('runin', casualSettings(sub, 'runin', SEED)!)
     const sub2 = buildCasualSubmission(g, u, 'Minh')!
     expect(sub2.board).toBe('runin')
-    expect(casualKeyOfBody('runin', sub2.encoded)).toBe('2026-W44')
+    expect(casualPostOf('runin', sub2.encoded)).toEqual({ key: '2026-W44', data: u.generatedAt })
     const e = ok(verifyCasual(sub, pin, { encoded: sub2.encoded, teamName: sub2.teamName, shortName: sub2.shortName }, NOW, never))
     const p = runInPayloadFromGame(g, u, 'Minh')!
     expect(e).toMatchObject({ score: p.c.pts, won: p.c.w, drawn: p.c.d, lost: p.c.l, league_position: p.c.pos, claim_matched: true })
@@ -247,8 +247,8 @@ describe('the Run-in of the week board', { timeout: 120_000 }, () => {
 
   it('reads every board key back from its own payload only', () => {
     const g = runIn()
-    expect(casualKeyOfBody('arena', encodeRunIn(runInPayloadFromGame(g, u, 'x')!))).toBeNull()
-    expect(casualKeyOfBody('runin', 'nonsense')).toBeNull()
+    expect(casualPostOf('arena', encodeRunIn(runInPayloadFromGame(g, u, 'x')!))).toBeNull()
+    expect(casualPostOf('runin', 'nonsense')).toBeNull()
     expect(decodeChallenge).toBeTypeOf('function')
   })
 })

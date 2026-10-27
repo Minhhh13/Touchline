@@ -8,7 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ENGINE_VERSION } from '@engine/version'
 import type { RoomView } from '@game/logic/h2hRoom'
-import { createServer, guestSubject, type DataPackRow, type RoomWrite, type ServerDeps, type StoredPin, type StoredRoom } from './service'
+import { createServer, guestSubject, type DataPackRow, type RoomWrite, type ServerDeps, type StoredCasualPin, type StoredPin, type StoredRoom } from './service'
 import type { ChaseAttempt } from './chaseVerify'
 
 const SLOTS = ['quick', 'season', 'dynasty', 'h2h']
@@ -90,6 +90,14 @@ export function attemptFromJson(j: unknown): ChaseAttempt | null {
     expiresAt: String(r.expiresAt),
     submittedAt: typeof r.submittedAt === 'string' ? r.submittedAt : null,
   }
+}
+
+/** A casual board's pin as `private.casual_pin_json` writes it (our own SQL), or null. */
+export function casualPinFromJson(j: unknown): StoredCasualPin | null {
+  if (!j || typeof j !== 'object') return null
+  const r = j as Json
+  if ((r.board !== 'arena' && r.board !== 'themed' && r.board !== 'runin') || typeof r.key !== 'string' || typeof r.seed !== 'string' || !r.settings || typeof r.settings !== 'object') return null
+  return { board: r.board, key: r.key, seed: r.seed, settings: r.settings as StoredCasualPin['settings'], settingsHash: String(r.settingsHash), engineVersion: String(r.engineVersion), dataVersion: String(r.dataVersion), createdAt: String(r.createdAt) }
 }
 
 /** Lower-case hex SHA-256 of some bytes (Web Crypto, as in Deno). */
@@ -178,6 +186,13 @@ function makeDeps(admin: SupabaseClient, site: string): ServerDeps {
       },
       chaseAttempt: async (userId, code) => attemptFromJson(await rpc(admin, 'svc_chase_attempt', { p_user: userId, p_code: code })),
       chaseSubmit: async (userId, code, entry) => (await rpc(admin, 'svc_chase_submit', { p_user: userId, p_code: code, p_entry: entry as unknown as Json })) as { status: string } & Json,
+      casualGetPin: async (board, key) => casualPinFromJson(await rpc(admin, 'svc_casual_get_pin', { p_board: board, p_key: key })),
+      casualPin: async (board, key, settings, hash, engine, data) => {
+        const pin = casualPinFromJson(await rpc(admin, 'svc_casual_pin', { p_board: board, p_key: key, p_settings: settings as unknown as Json, p_settings_hash: hash, p_engine: engine, p_data: data }))
+        if (!pin) throw new DbError('the casual pin came back empty')
+        return pin
+      },
+      casualSubmit: async (board, userId, key, entry) => (await rpc(admin, 'svc_casual_submit', { p_user: userId, p_board: board, p_key: key, p_entry: entry as unknown as Json })) as { status: string } & Json,
       dataPack: async (version: string) => packFromJson(await rpc(admin, 'svc_data_pack', { p_version: version })),
       registerDataPack: async (version, leagues, files) => {
         const r = (await rpc(admin, 'svc_register_data_pack', { p_version: version, p_leagues: leagues, p_files: files })) as Json
