@@ -56,7 +56,9 @@ export function ArenaSummary() {
     .filter(([, s]) => s.seasonStats.goals > 0)
     .sort(([x, sx], [y, sy]) => sy.seasonStats.goals - sx.seasonStats.goals || (x < y ? -1 : 1))
   const goals = (res?.events ?? []).filter((e) => (e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal') && (e.side === 'home') === userHome)
-  const motm = gauntlet || !inFinal ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
+  // The final's man of the match can be theirs (a lost final): the summary names his side then
+  const motmName = gauntlet || !inFinal ? null : last?.motmId ? (get(last.motmId)?.name ?? last.motmId) : null
+  const motm = motmName && last?.motmId && !game.squad[last.motmId] ? `${motmName} (${u.clubById[clubIdOfKey(last.opponent)]?.shortName ?? arenaClubShortName(u, last.opponent)})` : motmName
   const formation = getFormation(game.tactics.formationId)
   const stepLine = (i: number) => {
     const s = a.log[i]
