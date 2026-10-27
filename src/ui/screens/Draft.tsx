@@ -26,6 +26,7 @@ import { MODE_ICON, PowerUpIcon, TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
+import { useFinishDraft } from '../useArenaWarmup'
 import { finishDraftLabel } from '@game/logic/modes'
 import { challengeHeadline } from '@game/logic/arenaClaim'
 import { CapChip, CapChips } from '../components/CapControl'
@@ -57,6 +58,8 @@ export function Draft() {
   const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
   // A manager's first draft ever (nothing finished yet): one plain line under the first spin
   const firstDraft = useStore((s) => resultsFinished(s.profile) === 0)
+  // An arena run's first field pass is finished in slices with the busy state painted (useArenaWarmup.ts)
+  const finishing = useFinishDraft(finishDraft)
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -346,8 +349,8 @@ export function Draft() {
               </div>
             )}
             {!complete && dry && !fillingStarters && (
-              <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {finishDraftLabel(game, made)}
+              <button className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined}>
+                {finishing.busy ? 'Getting the field ready…' : finishDraftLabel(game, made)}
               </button>
             )}
             {surprise && !complete && (
@@ -392,8 +395,8 @@ export function Draft() {
               </>
             )}
             {complete && (
-              <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {finishDraftLabel(game)}
+              <button className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined} data-testid="finish-draft-go">
+                {finishing.busy ? 'Getting the field ready…' : finishDraftLabel(game)}
               </button>
             )}
           </div>
