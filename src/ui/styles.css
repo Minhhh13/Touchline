@@ -5417,6 +5417,15 @@ dl.kv {
     flex: 1 1 auto;
     min-height: 0;
   }
+  /* The tiles never run under step 2: in a window too short for all eight they scroll inside step 1 (the padding keeps
+     the chosen tile's ring and the focus outline inside the scrolling box) */
+  .setup-page .setup-formation-body > .formations {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-1);
+    margin: calc(-1 * var(--space-1));
+  }
   .setup-page .setup-box > .setup-step:has(.setup-rules) {
     flex: 0 1 auto;
     min-height: 0;
@@ -5451,6 +5460,15 @@ dl.kv {
     width: 24px;
     height: 24px;
     font-size: 9px; /* px: drawn to the pitch disc */
+  }
+}
+/* A short desktop window (1100 x 700, 1280 x 720): slimmer tiles, so all eight fit beside the pitch with no scroll */
+@media (min-width: 1000px) and (min-height: 600px) and (max-height: 760px) {
+  .setup-page .setup-formation .formations button {
+    padding: 3px 6px;
+  }
+  .setup-page .setup-formation .fthumb {
+    width: 22px;
   }
 }
 /* A large window (2560 x 1440): the pitch was width-bound at 420 px tall in a third of the box. The tiles take less
@@ -7741,6 +7759,47 @@ dl.kv {
   align-items: center;
   gap: var(--space-1);
   color: var(--text-2);
+}
+/* A Dynasty summer's pre-season (Dugout.tsx): the headline goes under the title, never beside it. Beside it, it ran
+   under the match-play chips on a short desktop window and squeezed "Pre-season" onto two lines on a phone. The
+   headline adds nothing to the title cell's own width (width 0, min-width 100%): it wraps in whatever the cell has */
+.cta-fixture:has(> .summer-headline) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.cta-fixture > .summer-headline {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  width: 0;
+  min-width: 100%;
+  margin-top: 0;
+}
+.cta-fixture > .summer-headline > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.cta-fixture > .summer-headline > span {
+  min-width: 0;
+}
+/* A short desktop window's pre-season row (title | chips | buttons, above): the title cell takes the free room and the
+   chips and the buttons keep their own width, so nothing in the title cell can run under them; the headline takes two
+   lines at most there, its whole text in the tooltip and the Inbox's story card */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) {
+    grid-template-columns: minmax(min-content, 1fr) auto auto;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-title {
+    white-space: nowrap;
+  }
+  .panel.cta:has(.briefing.checklist) .summer-headline > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.3;
+  }
 }
 .story-chip {
   display: inline-flex;
@@ -11407,6 +11466,34 @@ table.tbl.sticky-head thead th {
   display: flex;
   flex: none;
   gap: var(--space-2);
+}
+/* On Setup the line sits in the head's row (Setup.tsx). Under 1000 px it takes a full line under the title and Back, as
+   before; on a desktop it fills the room between them, so it costs the two boxes below no height (1280 x 720: the
+   formation grid ran under step 2 when the line took a row of its own) */
+.setup-top > .signin-prompt {
+  order: 3;
+  flex: 1 1 100%;
+  margin-bottom: 0;
+}
+@media (min-width: 1000px) {
+  .setup-top {
+    flex-wrap: nowrap;
+  }
+  .setup-top > .setup-title {
+    flex: none;
+  }
+  .setup-top > .signin-prompt {
+    order: 0;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 900px;
+    margin-inline-start: auto;
+    align-self: center;
+    padding-block: var(--space-1);
+  }
+  .setup-top > .setup-back {
+    flex: none;
+  }
 }
 @media (max-width: 720px) {
   .signin-prompt {

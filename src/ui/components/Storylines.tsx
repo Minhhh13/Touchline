@@ -120,7 +120,7 @@ export function SummerHeadline({ game, u }: { game: Game; u: LoadedUniverse }) {
   if (!r) return null
   const t = summerText(r, u, game.id)
   return (
-    <div className="club-sub summer-headline" data-testid="summer-headline">
+    <div className="club-sub summer-headline" title={t.headline} data-testid="summer-headline">
       <SUMMER_ICON size={14} aria-hidden="true" />
       <span>{t.headline}</span>
     </div>
