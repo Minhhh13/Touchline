@@ -41,7 +41,7 @@ export function SeasonChart({ points, u }: { points: SeasonPoint[]; u: LoadedUni
       {points.map((p, i) =>
         p.clubChange ? (
           <line key={`c${p.season}`} x1={(x(i - 1) + x(i)) / 2} x2={(x(i - 1) + x(i)) / 2} y1={T - 6} y2={SH - B} className="pc-club-tick">
-            <title>Moved to {clubName(u, p.clubId)}</title>
+            <title>{`Moved to ${clubName(u, p.clubId)}`}</title>
           </line>
         ) : null,
       )}
