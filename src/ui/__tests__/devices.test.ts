@@ -8,27 +8,22 @@ const phoneCss = readFileSync(join(__dirname, '..', 'matchday', 'matchday-phone.
 const html = readFileSync(join(__dirname, '..', '..', '..', 'index.html'), 'utf8')
 
 describe('the device pass', () => {
-  it('draws under the notch (viewport-fit=cover) and pads everything clear of it', () => {
+  it('draws under the notch (viewport-fit=cover) and pads the bars clear of it through the safe-area tokens', () => {
     expect(html).toContain('viewport-fit=cover')
-    // The gutter every page, bar and sheet pads by clears a landscape notch
-    expect(css).toContain('--gutter: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));')
-    // The top bar and its restore pill start below the status bar, after the base rules so they win
-    const base = css.indexOf('.topbar {\n  display: flex;')
-    const inset = css.indexOf('.topbar {\n  padding-top: calc(10px + env(safe-area-inset-top));\n}')
-    expect(base).toBeGreaterThan(0)
-    expect(inset).toBeGreaterThan(base)
-    expect(css).toContain('top: calc(10px + env(safe-area-inset-top));')
-    expect(css).toContain('.app.bar-hidden {\n  padding-top: env(safe-area-inset-top);\n}')
-    // The toast and a fixed bar that is also a panel clear the home indicator
-    expect(css).toContain('bottom: calc(22px + env(safe-area-inset-bottom));')
-    expect(css).toMatch(/\.bottom-bar\.panel \{\n {4}padding-bottom: calc\(10px \+ env\(safe-area-inset-bottom\)\);/)
+    // The top bar, its restore pill, the folded bar's page and the toast: main's safe-area tokens (safeArea.test.ts)
+    expect(css).toContain('top: calc(10px + var(--safe-top));')
+    expect(css).toContain('bottom: calc(22px + var(--safe-bottom));')
+    // A fixed bar that is also a panel clears the home indicator
+    expect(css).toMatch(/\.bottom-bar\.panel \{\n {4}padding-bottom: calc\(10px \+ var\(--safe-bottom\)\);/)
+    // A phone on its side keeps its one-row bar below the status bar
+    expect(css).toContain('padding-top: calc(4px + var(--safe-top));')
     // The match day's full-height substitution board starts below the status bar
-    expect(phoneCss).toMatch(/\.matchday \.md-drawer\.board \{\n {4}padding-top: env\(safe-area-inset-top\);/)
+    expect(phoneCss).toMatch(/\.matchday \.md-drawer\.board \{[^}]*padding-top: var\(--safe-top\)/)
   })
 
   it("puts the iPad shell's inset after the shell's own padding, so it wins", () => {
     const shell = css.indexOf('  .app.shell > .page {\n    max-width: 1600px;')
-    const ipad = css.indexOf('  .app.shell > .page {\n    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));')
+    const ipad = css.indexOf('  .app.shell > .page {\n    padding-bottom: max(var(--space-4), var(--safe-bottom));')
     expect(shell).toBeGreaterThan(0)
     expect(ipad).toBeGreaterThan(shell)
   })
