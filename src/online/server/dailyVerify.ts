@@ -117,7 +117,7 @@ export function maxDraftRows(d: DraftState): number {
  * landed on, in a slot `pick` accepts. Throws with the spin number. The bench rules only apply when the rules give
  * bench places, which the Daily and weekly never do.
  */
-export function strictReplayDraft(u: LoadedUniverse, game: Game, c: ChallengePayload): void {
+export function strictReplayDraft(u: LoadedUniverse, game: Game, c: Pick<ChallengePayload, 'p' | 'k'>): void {
   let d = game.draft
   if (!d) throw new Error('The game has no draft')
   let rng = Rng.fromState(game.rngState)
@@ -235,6 +235,11 @@ export function parseRankedBody(body: RankedBody): ParsedBody {
   }
 }
 
+/** Whether a payload's settings block (`s`) is exactly the puzzle `s`: shape, leagues, host, season, difficulty and rules. */
+export function samePuzzle(cs: ChallengePayload['s'], s: PuzzleSettings): boolean {
+  return cs.seed === s.seed && cs.f === s.formationId && cs.l === s.leagueId && canonicalJson(cs.wl) === canonicalJson(s.wheelLeagues) && cs.h === s.hostClubId && cs.ls === s.leagueSeason && cs.d === (s.difficulty ?? 'calibrated') && canonicalJson(cs.r) === canonicalJson(rulesDiff(s.rules))
+}
+
 /**
  * The checks every ranked board shares once its window, engine and data are settled, then the replay: the run is
  * the puzzle `s` (shape, leagues, host, season, difficulty, rules), uses nothing outside it, the host exists in this
@@ -242,8 +247,7 @@ export function parseRankedBody(body: RankedBody): ParsedBody {
  * filed under.
  */
 export function replayVerdict(u: LoadedUniverse, s: PuzzleSettings, c: QuickChallengePayload, rawTeam: string, rawShort: string, key: string): Verdict {
-  const samePuzzle = c.s.f === s.formationId && c.s.l === s.leagueId && canonicalJson(c.s.wl) === canonicalJson(s.wheelLeagues) && c.s.h === s.hostClubId && c.s.ls === s.leagueSeason && c.s.d === (s.difficulty ?? 'calibrated') && canonicalJson(c.s.r) === canonicalJson(rulesDiff(s.rules))
-  if (!samePuzzle) return fail(409, 'puzzle_mismatch', 'This run was played on a different puzzle from the ranked one')
+  if (!samePuzzle(c.s, s)) return fail(409, 'puzzle_mismatch', 'This run was played on a different puzzle from the ranked one')
   const extra = nonStandardRun(c, s.rules)
   if (extra) return fail(409, 'puzzle_mismatch', extra)
   const host = u.clubSeasonByKey[`${s.hostClubId}@${s.leagueSeason}`]

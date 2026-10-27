@@ -55,6 +55,7 @@ import { changesLine, coveredGames, QUICK_CHANGES, quickBenchRule } from '@game/
 import { shareLink } from '../../online/api'
 import { RankedStatus } from '../online/RankedStatus'
 import { ChaseStatus } from '../online/ChaseStatus'
+import { CasualStatus } from '../online/CasualStatus'
 import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
@@ -552,6 +553,7 @@ export function Summary() {
       <div className="summary-body fill" data-testid="summary-body">
       {!replay.playing && <RankedStatus game={game} />}
       {!replay.playing && <ChaseStatus game={game} />}
+      {!replay.playing && <CasualStatus game={game} />}
       {q && !replay.playing && <CupRuns game={game} u={u} onReveal={onCupReveal} />}
       {firstNext && !replay.playing && <FirstNext steps={firstNext} onDaily={() => go('setup', 'daily')} onSetup={() => go('setup', 'quick')} />}
       {q && results.length > 0 && on('games') && (

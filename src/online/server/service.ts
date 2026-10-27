@@ -33,6 +33,7 @@ import { weekKeyOf, weekKeyOfSeed, weekStartOf, weeklyGameSettings, weeklyIsOpen
 import { CHASE_FORMATIONS, chaseCodeOfSeed } from '../chase'
 import { puzzleOf, settingsHash, verifyRanked, type PuzzlePin, type PuzzleSettings, type RankedEntry } from './dailyVerify'
 import { attemptOpen, verifyChase, type ChaseAttempt } from './chaseVerify'
+import { casualIsOpen, casualLeagues, casualPostOf, casualSeedOf, casualSettings, verifyCasual, type CasualBoard, type CasualEntry, type CasualPin } from './casualVerify'
 import { archivePath, classicFile, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from './packs'
 import { logId, parseBuildInfo, parseLeaguesIndex, parseRequest, ROOM_OPS, type ServerRequest } from './validate'
 import type { ErrorReport } from '../core/errorReport'
@@ -41,6 +42,11 @@ export type BoardKind = PuzzlePin['kind']
 
 /** A pin as the database stores it. */
 export interface StoredPin extends PuzzlePin {
+  createdAt: string
+}
+
+/** A casual board's pin as the database stores it (`private.casual_puzzles`). */
+export interface StoredCasualPin extends CasualPin {
   createdAt: string
 }
 
@@ -82,6 +88,11 @@ export interface ServerDb {
   chaseAttempt(userId: string, code: string): Promise<ChaseAttempt | null>
   /** `svc_chase_submit`: `ranked` / `duplicate` / `already_submitted` with positions, or `closed` / `no_attempt`. */
   chaseSubmit(userId: string, code: string, entry: RankedEntry): Promise<{ status: string } & Record<string, unknown>>
+  // the casual boards (svc_casual_*): the Daily Arena, the Weekly Challenge, the Run-in of the week
+  casualGetPin(board: CasualBoard, key: string): Promise<StoredCasualPin | null>
+  casualPin(board: CasualBoard, key: string, settings: PuzzleSettings, hash: string, engine: string, data: string): Promise<StoredCasualPin>
+  /** `ranked` / `duplicate` / `already_submitted` with positions, or `closed` / `no_puzzle`. */
+  casualSubmit(board: CasualBoard, userId: string, key: string, entry: CasualEntry): Promise<{ status: string } & Record<string, unknown>>
   dataPack(version: string): Promise<DataPackRow | null>
   registerDataPack(version: string, leagues: string[], files: Record<string, string>): Promise<{ status: 'ok' | 'mismatch'; pack: DataPackRow }>
   // online head-to-head rooms (svc_h2h_room_*)
@@ -181,6 +192,7 @@ export type ErrorCode =
   | 'invalid_manager'
   | 'invalid_pick'
   | 'rooms_busy'
+  | 'hand_managed'
 
 /** A failure with its HTTP status, as section 4.8 of the plan lists them. */
 export class Refusal extends Error {
@@ -204,6 +216,7 @@ export const LIMITS = {
   'weekly.pin': 30,
   'chase.start': 12,
   'chase.submit': 20,
+  'casual.submit': 30,
   'account.delete': 5,
   'room.create': 30,
   'room.join': 60,
@@ -392,6 +405,56 @@ export function createServer(deps: ServerDeps): Server {
     const stored = await deps.db.pin(kind, date, settings, settingsHash(settings), ENGINE_VERSION, live.data)
     pinCache.set(cacheKey, stored)
     return stored
+  }
+
+  const casualPins = new Map<string, StoredCasualPin>()
+
+  /**
+   * A casual board's pin, made by the first ranked post of the period as the Daily's is: only by the live engine, on
+   * the data the live site serves, from the mode's own mapping (`casualSettings`).
+   */
+  async function casualPinFor(board: CasualBoard, key: string, now: Date): Promise<StoredCasualPin> {
+    const cacheKey = `${board}|${key}`
+    const cached = casualPins.get(cacheKey)
+    if (cached) return cached
+    const existing = await deps.db.casualGetPin(board, key)
+    if (existing) {
+      casualPins.set(cacheKey, existing)
+      return existing
+    }
+    if (!casualIsOpen(board, key, now)) throw refuse(409, 'closed', 'That board has closed')
+    const live = await liveBuild()
+    if (!live) throw refuse(503, 'live_build_unavailable', 'The live site does not say which engine and data it serves')
+    if (live.engine !== ENGINE_VERSION) throw refuse(409, 'engine_mismatch', `The live site runs engine ${live.engine}; this function runs ${ENGINE_VERSION}`, { liveEngine: live.engine })
+    const reg = await ensurePacks(live.data)
+    if (!reg) throw refuse(503, 'packs_unavailable', `Data ${live.data} could not be archived`)
+    const seed = casualSeedOf(board, key)
+    const leagues = casualLeagues(board, seed, reg.leagues)
+    if (!leagues.length) throw refuse(503, 'unavailable', 'The puzzle names no league this data has')
+    const u = await universe(reg, leagues)
+    const full = casualSettings(u, board, seed)
+    if (!full) throw refuse(503, 'unavailable', `Data ${live.data} has no puzzle for ${key}`)
+    const settings = puzzleOf(full)
+    const stored = await deps.db.casualPin(board, key, settings, settingsHash(settings), ENGINE_VERSION, live.data)
+    casualPins.set(cacheKey, stored)
+    return stored
+  }
+
+  async function submitCasual(caller: Caller, req: Extract<ServerRequest, { op: 'casual.submit' }>, now: Date): Promise<Reply> {
+    const post = casualPostOf(req.board, req.encoded)
+    if (!post) throw refuse(422, 'invalid_payload', req.board === 'arena' ? 'Not a Daily Arena run' : req.board === 'themed' ? 'Not a Weekly Challenge run' : 'Not a Run-in of the week')
+    const { key } = post
+    if (!casualIsOpen(req.board, key, now)) throw refuse(409, 'closed', 'That board has closed')
+    const pin = await casualPinFor(req.board, key, now)
+    const { reg, allowed } = await dataFor(pin.dataVersion, pin.createdAt, post.data)
+    const u = await universe(reg, casualLeagues(req.board, pin.seed, reg.leagues))
+    const verdict = verifyCasual(u, pin, { encoded: req.encoded, teamName: req.teamName, shortName: req.shortName }, now, () => allowed)
+    if (!verdict.ok) throw refuse(verdict.status, verdict.code, verdict.reason, verdict.context)
+    const e = verdict.entry
+    const result = await deps.db.casualSubmit(req.board, caller.userId, key, e)
+    if (result.status === 'closed') throw refuse(409, 'closed', 'That board has closed')
+    if (result.status === 'no_puzzle') throw refuse(409, 'no_puzzle', 'There is no ranked puzzle for that period')
+    return { status: 200, body: { ...result, board: req.board, key, official: { points: e.score, score: e.score, won: e.won, drawn: e.drawn, lost: e.lost, goalsFor: e.goals_for, goalsAgainst: e.goals_against, leaguePosition: e.league_position, trophy: e.trophy, detail: e.detail, claimMatched: e.claim_matched } } }
   }
 
   /** The board key a posted seed belongs to, or a refusal. */
@@ -660,6 +723,8 @@ export function createServer(deps: ServerDeps): Server {
         return startChase(caller, req)
       case 'chase.submit':
         return submitChase(caller, req, now)
+      case 'casual.submit':
+        return submitCasual(caller, req, now)
       case 'account.delete':
         return deleteAccount(caller)
       default:

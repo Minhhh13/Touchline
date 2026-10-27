@@ -5,6 +5,7 @@ import { RUN_IN_LEAGUES, runInCatalogue, suggestRunIns, type RunInJob, type RunI
 import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
 import { randomSeed } from '@engine/rng'
+import { runInWeekSeed } from '@game/logic/runinWeekly'
 import { jobLine, RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, RUN_IN_TEMPLATE_LABEL, runInGameSettings, summariseRunIn } from '@game/logic/runin'
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
@@ -19,7 +20,7 @@ const keyOf = (j: RunInJob) => `${j.clubId}@${j.season}`
 
 /** Setup for a run-in: the brief, the league, three jobs drawn by the seed and the whole catalogue. Its own screen, so Setup.tsx stays untouched. */
 export function RunInSetup() {
-  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked } = useStore()
+  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, startRunInWeek, showToast } = useStore()
   const [template, setTemplate] = useState<RunInTemplate>('survival')
   const [leagueId, setLeagueId] = useState<string>('england')
   const [seed, setSeed] = useState(() => randomSeed())
@@ -63,6 +64,11 @@ export function RunInSetup() {
     if (unfinished && !(await askConfirm(t('newJobConfirm', { team: unfinished.settings.teamName }), { ok: t('takeJobOk'), danger: true }))) return
     startGame(runInGameSettings(u, job, { seed: seedValue, formationId }))
   }
+  // The Run-in of the week: one job for everyone, ranked on the World leaderboard when the assistant plays it from the draft
+  const playWeek = async () => {
+    if (unfinished && !(await askConfirm(t('weekConfirm', { team: unfinished.settings.teamName }), { ok: t('takeJobOk'), danger: true }))) return
+    if (!(await startRunInWeek(runInWeekSeed()))) showToast(t('weekLoadFailed'))
+  }
   const row = (j: RunInJob, testid?: string) => (
     <button key={keyOf(j)} type="button" className={`prow ${job && keyOf(j) === keyOf(job) ? 'selected' : ''}`} onClick={() => setPicked(keyOf(j))} data-testid={testid}>
       <ClubBadge clubId={j.clubId} size={30} />
@@ -88,9 +94,14 @@ export function RunInSetup() {
               <Info label={t('aboutRunIn')}>{t('runInInfo')}</Info>
             </p>
           </div>
-          <button className="btn ghost" onClick={() => go('home')}>
-            {t('back')}
-          </button>
+          <div className="row">
+            <button className="btn" onClick={() => void playWeek()} data-testid="runin-week" title={t('weekTip')}>
+              {t('weekButton')}
+            </button>
+            <button className="btn ghost" onClick={() => go('home')}>
+              {t('back')}
+            </button>
+          </div>
         </div>
 
         <div className="setup-grid">

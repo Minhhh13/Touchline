@@ -74,7 +74,7 @@ export const home = catalog('home', {
   h2hTitle: 'Head-to-head',
   h2hMeta: 'Two managers, one device',
   worldTitle: 'World leaderboard',
-  worldMeta: 'Daily, weekly and all-time, by country',
+  worldMeta: 'Daily, weekly, arena and run-in, by country',
   exploreTitle: 'Explore database',
   exploreMeta: '{n} leagues of real squads',
   exploreFallback: 'Real squads since 2008-09',

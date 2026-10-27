@@ -35,11 +35,11 @@ export type SyncConflict =
   /** Newer progress of the game on screen exists on another device (row 10 while it is being played). */
   | { kind: 'newer'; slot: SlotId; remote: SaveMeta | null }
 
-/** What happened to a ranked post (a Daily, the week's challenge or a 38-0 chase run), keyed `daily:2026-10-25`,
- * `weekly:2026-W43` or `chase:K7Q2MX9A3B`. A chase post also carries its week's place and whether it was flawless. */
+/** What happened to a ranked post (a Daily, the week's challenge, a 38-0 chase run or a casual board's run), keyed
+ * `daily:2026-10-25`, `weekly:2026-W43`, `chase:K7Q2MX9A3B`, `arena:2026-10-27`, `themed:2026-W44` or `runin:2026-W44`. A chase post also carries its week's place and whether it was flawless. */
 export type PostState =
   | { state: 'waiting'; reason: 'sign_in' | 'retry' | 'sending'; points?: number }
-  | { state: 'posted'; position: number; total: number; countryPosition?: number | null; countryTotal?: number | null; country?: string | null; points: number; claimMatched: boolean; already: boolean; weekPosition?: number | null; weekTotal?: number | null; perfect?: boolean }
+  | { state: 'posted'; position: number; total: number; countryPosition?: number | null; countryTotal?: number | null; country?: string | null; points: number; claimMatched: boolean; already: boolean; weekPosition?: number | null; weekTotal?: number | null; perfect?: boolean; detail?: string; trophy?: boolean }
   | { state: 'unranked'; code: string; reason: string }
   | { state: 'rejected'; code: string; reason: string }
   | { state: 'closed' }
@@ -103,4 +103,10 @@ export function useOnline<T>(selector: (s: OnlineState) => T): T {
 }
 
 /** The key a ranked post is filed under. */
-export const postKey = (kind: 'daily' | 'weekly' | 'chase', key: string) => `${kind}:${key}`
+export const postKey = (kind: PostKind, key: string) => `${kind}:${key}`
+
+/** Every board a ranked post can go to: the Daily, the online weekly, the 38-0 chase and the casual boards. */
+export type PostKind = 'daily' | 'weekly' | 'chase' | 'arena' | 'themed' | 'runin'
+
+/** The casual boards' post kinds (each posts as `casual.submit` with `board` = the kind). */
+export const CASUAL_POST_KINDS: readonly PostKind[] = ['arena', 'themed', 'runin']
