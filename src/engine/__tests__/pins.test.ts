@@ -27,7 +27,7 @@ const row = (h: DraftState['history'][number]) => `${h.clubId}@${h.season}${h.tw
 describe('pins', () => {
   it('pins the stamps the literals below were computed on', () => {
     const u = loadTestUniverse()
-    expect(ENGINE_VERSION).toBe('6')
+    expect(ENGINE_VERSION).toBe('7')
     expect(u.generatedAt).toBe('2026-10-25')
   })
 

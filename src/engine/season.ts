@@ -108,6 +108,12 @@ export interface SeasonState {
   carryIn?: Record<string, CarryRow>
   /** Run-in: the matchweek the manager took over after; fixtures up to it carry no result ("before you arrived"). */
   takeoverAt?: number
+  /**
+   * Run-in in a play-off league (engine 7): the relegation play-off a 16th-placed finish leads to, two legs after the
+   * last matchweek against `scenario.ts`'s `playOffOpponent` (`opponent`, a club-season key `clubId@season`): the
+   * user at home first. Absent unless it was played.
+   */
+  playOff?: { opponent: string; tie: CupTie }
   /** Requests made to the board this season (`src/game/logic/board.ts`); absent until the first. */
   requests?: Array<{ kind: 'budget' | 'staff' | 'youth'; mw: number; accepted: boolean }>
 }

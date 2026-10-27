@@ -8,6 +8,7 @@ import { Rng } from '@engine/rng'
 import { buildContinentalClubs, continentalRounds, cupRounds, drawFirstRound, USER_TEAM } from '@engine/season'
 import { continentalPlan, groupTable, throughGroups, tieScore } from '@engine/continental'
 import { normaliseGame } from '../logic/save'
+import { compactGame } from '../logic/compact'
 import type { GameSettings } from '../types'
 
 function settings(partial: Partial<GameSettings> = {}): GameSettings {
@@ -84,8 +85,13 @@ describe('Continental Cup', () => {
     expect(g.live?.comp).toBe('continental')
     expect(g.live?.group).toBeGreaterThanOrEqual(0)
     expect(g.live?.ctx.roundLabel).toMatch(/^Continental Cup, Group [A-D], matchday 1$/)
+    // Saved and reloaded mid-match, it finishes the same way as the game in memory
+    const reloaded = normaliseGame(JSON.parse(JSON.stringify(compactGame(g))))!
     finishLiveMatch(g, u, { talk: 'fire-up' })
     expect(g.live).toBeNull()
+    finishLiveMatch(reloaded, u, { talk: 'fire-up' })
+    expect(reloaded.season!.continental!.groups!.map((x) => x.matches.map((m) => (m.result ? `${m.result.homeGoals}-${m.result.awayGoals}` : '')))).toEqual(c.groups!.map((x) => x.matches.map((m) => (m.result ? `${m.result.homeGoals}-${m.result.awayGoals}` : ''))))
+    expect(reloaded.rngState).toEqual(g.rngState)
     // Every match of matchday 1 is in, nothing of matchday 2
     const md1 = c.groups!.flatMap((x) => x.matches.filter((m) => m.matchday === 1))
     expect(md1.every((m) => !!m.result)).toBe(true)
@@ -152,7 +158,18 @@ describe('Continental Cup', () => {
     const r16 = continentalRounds(saved.season!.matchweeks)[0].afterMatchweek
     while (saved.season!.matchweek < r16 - 1) playMatchweek(saved, u, true)
     expect(upcomingCupTie(saved)?.label).toBe('Continental round of 16')
-    while (saved.phase !== 'summary') playMatchweek(saved, u, true)
+    // The round of 16 tie live, saved at half time and played on from the save
+    playMatchweek(saved, u, false)
+    finishLiveMatch(saved, u, {})
+    expect(saved.live?.comp).toBe('continental')
+    expect(saved.live?.group).toBeUndefined()
+    const mid = normaliseGame(JSON.parse(JSON.stringify(saved)))!
+    finishLiveMatch(mid, u, {})
+    expect(mid.live).toBeNull()
+    expect(mid.season!.continental!.ties.filter((t) => t.round === 'R16' && t.winnerId)).toHaveLength(8)
+    expect(mid.season!.continental!.ties.filter((t) => t.round === 'QF')).toHaveLength(4)
+    while (mid.phase !== 'summary') playMatchweek(mid, u, true)
+    Object.assign(saved, mid)
     const ties = saved.season!.continental!.ties
     expect(ties.filter((t) => t.round === 'R16' && t.winnerId)).toHaveLength(8)
     expect(ties.filter((t) => t.round === 'F' && t.winnerId)).toHaveLength(1)

@@ -3,8 +3,9 @@ import { isClassicSeason, poolClubSeasons, type LoadedUniverse } from '@engine/u
 import { Rng } from '@engine/rng'
 import { advanceMatch, beginMatch, changeInPlay, finishMatch, simulateMatch, type FullMatchResult, type InPlayChange, type InPlayOutcome, type LiveChanges, type MatchTeamInput, type SecondHalfOptions } from '@engine/match'
 import { aiLookup } from '@engine/reserve'
-import { aiFixtureInputs, aiTeamInput, applyMatchToAiState, humansOf, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
+import { aiClubOf, aiFixtureInputs, aiTeamInput, applyMatchToAiState, humansOf, applyMatchToState, describeImportance, drawNextRound, positionOf, recoverWeek, roundsFor, seasonTable, seasonTier, shootout, updateConfidence, USER_TEAM, userTeamInput, type AiClub, type Competition, type CupTie, type NewsItem, type SeasonState } from '@engine/season'
 import { TRAINING } from '@engine/training'
+import { playOffOpponent } from '@engine/scenario'
 import { continentalPlan, continentalReach, drawContinentalRound, groupTable, groupsComplete, legAt, quarterFinals, settleTie, throughGroups, tieScore, type ContinentalGroup, type GroupMatch } from '@engine/continental'
 import { rollEvent, resolveEvent, type EventContext } from '@engine/events'
 import { afterSeasonMoney, CONTINENTAL_PRIZE, openWindow, prizeMoney, weeklyCashFlow } from '@engine/market'
@@ -1085,7 +1086,40 @@ export function startSeasonProper(game: Game): void {
   }
 }
 
+/**
+ * A run-in that finishes 16th in a play-off league (the Bundesliga) plays the relegation play-off before the season
+ * closes (engine 7): two legs against `playOffOpponent`, the user at home first, the XI and tactics the season ended
+ * with (the assistant fills any gap), then extra time and penalties after the second leg if level (`settleTie`). Drawn
+ * from the game's stream after the last matchweek. The legs count for nothing else: no league statistics, no morale.
+ */
+function playRunInPlayOff(game: Game, u: LoadedUniverse): void {
+  const season = game.season!
+  if (!season.carryIn || season.sacked || season.playOff || game.settings.mode !== 'runin') return
+  const table = seasonTable(season)
+  if (positionOf(table, USER_TEAM) !== table.length - 2) return
+  const cs = playOffOpponent(u, season.leagueId, season.leagueSeason)
+  if (!cs) return
+  const rng = Rng.fromState(game.rngState)
+  if (lineupProblems(game, u).length) autoPick(game, u, false)
+  const taken = squadHumans(game, u)
+  const opp = aiTeamInput(u, aiClubOf(u, cs, taken), 0, taken)
+  const user = userInput(game, u)
+  const tie: CupTie = { round: 'F', afterMatchweek: season.matchweeks, homeTeamId: USER_TEAM, awayTeamId: cs.clubId, firstLeg: { afterMatchweek: season.matchweeks } }
+  const label = 'Relegation play-off'
+  tie.firstLeg!.result = simulateMatch({ rng, home: user, away: opp, importance: 1.4, importanceLabel: label, detail: 'summary' })
+  const second = simulateMatch({ rng, home: opp, away: user, importance: 1.4, importanceLabel: label, detail: 'summary' })
+  tie.result = second
+  settleTie(tie, rng, { home: second.homeReport.strength.overall, away: second.awayReport.strength.overall })
+  season.playOff = { opponent: `${cs.clubId}@${cs.season}`, tie }
+  game.rngState = rng.getState()
+  const s = tieScore(tie)!
+  const name = u.clubById[cs.clubId]?.name ?? cs.clubId
+  const won = tie.winnerId === USER_TEAM
+  news(game, { kind: 'board', title: `Relegation play-off: ${won ? 'stayed up' : 'relegated'}`, body: `${s.legs!.map((l) => `${l.home}-${l.away}`).join(' and ')} against ${name}, ${s.home}-${s.away} on aggregate${s.et ? ' after extra time' : ''}${s.pens ? `, ${s.pens.home}-${s.pens.away} on penalties` : ''}.` })
+}
+
 export function finishSeason(game: Game, u: LoadedUniverse): void {
+  playRunInPlayOff(game, u)
   const season = game.season!
   const table = seasonTable(season)
   const row = table.find((r) => r.teamId === USER_TEAM)!

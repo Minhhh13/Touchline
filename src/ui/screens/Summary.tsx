@@ -56,6 +56,10 @@ import { ChaseStatus } from '../online/ChaseStatus'
 import { cupLine, quickCupStatus, wonCup, type QuickCupComp } from '@game/logic/quickCups'
 import { honourDetail, honourLabel, honourLine, honourOf, isTitle } from '@game/logic/cabinet'
 import { CupRuns } from '../components/CupRuns'
+import { GroupTables } from '../components/GroupTables'
+import { Bracket } from '../components/Bracket'
+import { seasonCupBracket, seasonGroupViews } from '@game/logic/bracket'
+import { continentalPlan } from '@engine/continental'
 import { summaryMainCall } from '@game/logic/summaryCall'
 import { ManagerChip } from '../components/ManagerPick'
 import { caseIconIn, caseLine } from '@game/logic/endCase'
@@ -605,6 +609,19 @@ export function Summary() {
               </span>
             ))}
             {!q.changes?.length && <span className="muted">No changes: the XI you drafted saw it through, the bench covering injuries.</span>}
+          </div>
+        </div>
+      )}
+
+      {season?.continental?.groups && !replay.playing && on('europe') && (
+        <div className="panel" data-testid="season-europe">
+          <div className="panel-head">
+            <h3>Continental Cup</h3>
+            <span className={`chip ${season.continental.won ? 'gold' : ''}`}>{season.continental.won ? 'Winners' : `Out in the ${{ G: 'group stage', R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'G']}`}</span>
+          </div>
+          <GroupTables groups={seasonGroupViews(season.continental.groups)} nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))} badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={16} /> : <ClubBadge clubId={id} size={16} />)} userId={USER_TEAM} testId="season-europe-groups" />
+          <div style={{ marginTop: 10 }}>
+            <Bracket view={seasonCupBracket(season.continental.ties, continentalPlan(season.matchweeks).rounds)} nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))} badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={id} size={18} />)} userId={USER_TEAM} trophy="continental" testId="season-europe-bracket" />
           </div>
         </div>
       )}

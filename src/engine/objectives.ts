@@ -97,6 +97,9 @@ export function evaluateObjective(o: Objective, ctx: ObjectiveContext): { met: b
       // A run-in's brief: judged on the final position of the table it carried in
       const pos = positionOf(seasonTable(season), USER_TEAM)
       const target = o.target ?? 1
+      // A Bundesliga run-in's 16th stays up by winning the relegation play-off (engine 7)
+      const playOff = o.id === 'survive' && season.playOff?.tie.winnerId !== undefined ? season.playOff.tie.winnerId === USER_TEAM : null
+      if (playOff !== null) return { met: playOff, progress: playOff ? 'Survived through the relegation play-off' : 'Lost the relegation play-off' }
       return { met: pos <= target, progress: `${ordinal(pos)} now, ${ordinal(target)} or better needed` }
     }
   }

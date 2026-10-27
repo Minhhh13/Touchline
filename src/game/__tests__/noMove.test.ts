@@ -73,8 +73,10 @@ function quickPin(s: GameSettings): string {
 // the Season's finances follow the new economy and its squads the keeper limits), and again inside engine 6 for round 6
 // item 6 (`assistantLineup`): the three Seasons open with the greedy's XI, but the assistant re-picks every matchweek
 // with the squad's condition and some of those weeks now put a natural man where the greedy played a cover. The Quick
-// Draft and the Daily field the draft's XI and hold
-const SEASON_BASELINE = '70a974c2478dcaf7af93648182b81cb08ef5f88b74c045d12686b56b8d7c1d72'
+// Draft and the Daily field the draft's XI and hold. Re-baselined on '7': a cup tie the assistant plays settles on its
+// week's stream (it rebuilt a stale one before), which moves these Seasons from their first drawn tie; the Quick Draft
+// and the Daily hold
+const SEASON_BASELINE = '56f1efcc7dd821e158279aac5df9e9dc205df06082d6de83153c90bd165053b1'
 const QUICK_BASELINE = '4e07e3cec479ea921e46c0f8026e70fde73381812bf31118bb6bb6ed61dc5e6f'
 const DAILY_BASELINE = '7a1c2fc4be66cb66acb142dd66c60def02c9df91e6c0f0b77746e301694b4c53'
 

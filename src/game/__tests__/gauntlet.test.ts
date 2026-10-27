@@ -94,6 +94,32 @@ describe('the Gauntlet: the ladder', () => {
     }
   }, 30_000)
 
+  it('over 200 seeds in each era: fifteen different clubs, each main from its band or, once the band has no new club, the nearest bands (engine 7)', () => {
+    for (const [from, to] of [
+      [2020, 2026],
+      [2014, 2019],
+      [2008, 2013],
+    ]) {
+      const era = arenaPool(u, { leagues: ['england'], fromSeason: from, toSeason: to })
+      expect(new Set(era.map((cs) => cs.clubId)).size).toBeGreaterThanOrEqual(GAUNTLET_RUNGS)
+      const b = gauntletBands(u, era)
+      const bandOf = new Map(b.bands.flatMap((band, k) => band.map((cs) => [keyOf(cs), k + 1] as const)))
+      let widened = 0
+      for (let i = 0; i < 200; i++) {
+        const l = buildLadder(u, new Rng(`era-ladder-${from}-${i}`), era)
+        expect(new Set(l.mains.map(clubIdOfKey)).size, `${from} ${i}`).toBe(GAUNTLET_RUNGS)
+        for (let r = 1; r <= 10; r++) {
+          const k = bandOf.get(l.mains[r - 1])!
+          if (k !== r) widened++
+          // The nearest band with a new club: never further than it has to be (every ladder, every rung)
+          expect(Math.abs(k - r)).toBeLessThanOrEqual(4)
+        }
+      }
+      // Most rungs still come from their own band
+      expect(widened / (200 * 10)).toBeLessThan(0.25)
+    }
+  }, 120_000)
+
   it('gives two players on one seed the same ladder and the same opponents, whatever they drafted', () => {
     for (let i = 0; i < 6; i++) {
       const a = climbed(`same-ladder-${i}`)
