@@ -16,6 +16,8 @@ export const INTAKE_SIZE = 3
 
 export function buildYouthIntake(game: Game, u: LoadedUniverse, rng: Rng): string[] {
   const owned = new Set(squadPlayers(game, u).map((x) => x.p.playerId))
+  // A man who retired from the squad never comes back as his younger self (`Game.retiredPlayers`)
+  for (const id of game.retiredPlayers ?? []) owned.add(id)
   // Anyone on the summer market is not also in the academy
   for (const l of game.window?.listings ?? []) {
     const pid = u.index[l.playerSeasonId]?.playerId
