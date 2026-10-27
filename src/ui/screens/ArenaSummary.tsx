@@ -16,6 +16,9 @@ import { Pitch } from '../components/Pitch'
 import { ClubBadge, Info, Stat, TeamBadge } from '../components/bits'
 import { Check, Copy, Dices, ImageDown, Plus, RotateCcw, Send } from 'lucide-react'
 import { GauntletLadder } from '../components/GauntletLadder'
+import { Celebrate } from '../components/Celebrate'
+import { TrophyArt } from '../components/TrophyArt'
+import '../visuals.css'
 import { minuteLabel } from '../format'
 import { downloadDataUrl, renderShareCard } from '../shareCard'
 import { arenaChallengeFromGame, arenaVerifiedLine, challengeLink, runItBackArena } from '@game/logic/challenge'
@@ -128,7 +131,14 @@ export function ArenaSummary() {
           </span>
           <span className="bm-rest">{modeLabel(game, 'short')}</span>
         </div>
+        {/* A run won lifts its trophy: the Cup's for the Cup and the final, the league's shape for the top of the Gauntlet */}
+        {a.won && (
+          <div className="arena-trophy" data-testid="arena-trophy">
+            <TrophyArt kind={gauntlet ? 'league' : 'cup'} size={92} />
+          </div>
+        )}
         <div className="tier-wrap">
+          {a.won && <Celebrate tier="CHAMPIONS" resultKey={`${game.id}:arena`} replayed={false} />}
           <div className={`tier ${a.won ? 'CHAMPIONS' : ''}`} data-testid="tier">
             {banner}
           </div>

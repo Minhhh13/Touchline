@@ -5,6 +5,7 @@ import { persistLine, usePersistState } from '../persistStorage'
 import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
+import { TrophyShelf, type ShelfTrophy } from '../components/TrophyShelf'
 import { BadgeCheck, BrickWall, CalendarCheck, CalendarClock, Footprints, Heart, Hourglass, Layers, Link as LinkIcon, Moon, Mountain, PiggyBank, Route, ScrollText, Users, Zap } from 'lucide-react'
 import { milestonesEarned, milestoneStates } from '@game/logic/milestoneBadges'
 import { fetchClubLeagues } from '@engine/universe'
@@ -212,12 +213,15 @@ export function ProfileScreen() {
     location.reload()
   }
   // The cabinet's season shelf, then the arena's and the run-in's own (never counted as league titles or cups)
+  // The four big ones stand drawn on the shelf; every other count is a plaque beneath it
+  const shelf: ShelfTrophy[] = [
+    { kind: 'league', label: 'League titles', n: cabinet.league },
+    { kind: 'cup', label: 'Cups', n: cabinet.cup },
+    { kind: 'continental', label: 'Continental Cups', n: cabinet.continental },
+    { kind: 'treble', label: 'Trebles', n: cabinet.trebles },
+  ]
   const trophies: Array<[ReactNode, string, number]> = [
-    [<Trophy size={26} />, 'League titles', cabinet.league],
-    [<Medal size={26} />, 'Cups', cabinet.cup],
-    [<Globe size={26} />, 'Continental Cups', cabinet.continental],
     [<><Trophy size={22} /><Trophy size={22} /></>, 'Doubles', cabinet.doubles],
-    [<Crown size={26} />, 'Trebles', cabinet.trebles],
     [<Gem size={26} />, '38-0s', cabinet.perfect],
     [<Shield size={26} />, 'Invincibles', cabinet.invincible],
     [<Target size={26} />, 'Centurions', cabinet.centurions],
@@ -323,7 +327,8 @@ export function ProfileScreen() {
           {on('cabinet') && (
           <div className="panel" data-testid="trophy-cabinet">
             <h3>Trophy cabinet</h3>
-            <div className="cabinet">
+            <TrophyShelf items={shelf} />
+            <div className="cabinet plaques">
               {trophies.map(([icon, label, n]) => (
                 <div key={label} className={`cabinet-slot ${n ? '' : 'empty'}`}>
                   <span className="cabinet-icon">{icon}</span>

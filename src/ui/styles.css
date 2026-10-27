@@ -3099,6 +3099,7 @@ table.tbl {
   width: 100%;
   border-collapse: collapse;
   font-size: calc(var(--fs-sm) + 0.5px);
+  font-variant-numeric: tabular-nums;
 }
 table.tbl th,
 table.tbl td {
@@ -4140,7 +4141,9 @@ table.tbl.contracts .btn.sm {
   .pitch-wrap .slot .disc.reveal,
   .draft-recap > *,
   .recap-grade,
-  .recap-hindsight {
+  .recap-hindsight,
+  .shelf-item,
+  .arena-trophy > svg {
     animation: none;
   }
   .celebrate {
@@ -7442,14 +7445,41 @@ dl.kv {
 .empty-state h3 {
   margin: var(--space-2) 0 0;
 }
+/* An empty state's picture: the icon in a lit disc, a cyan-to-magenta neon ring round it and a pitch arc under it */
 .empty-icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
+  margin-bottom: var(--space-2);
   border-radius: 50%;
-  background: var(--primary-soft);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--cyan) 22%, var(--panel-2)), var(--panel-2) 72%);
   color: var(--accent);
+  box-shadow: 0 0 26px -6px color-mix(in srgb, var(--cyan) 55%, transparent);
+}
+.empty-icon::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  padding: 2px;
+  background: conic-gradient(from 210deg, var(--cyan), var(--magenta) 45%, transparent 70%, var(--cyan));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0.8;
+}
+.empty-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -16px;
+  width: 128px;
+  height: 26px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border-top: 2px solid color-mix(in srgb, var(--accent) 32%, transparent);
 }
 .draft-list {
   max-height: 560px;
