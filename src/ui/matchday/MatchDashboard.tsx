@@ -28,10 +28,11 @@ import { commentaryUpTo } from '../match/commentary'
 import { assistantSubsBetween, assistantSubToast } from '../match/assistantSubs'
 import { commentaryContextFor } from '../match/commentaryColour'
 import { liveFeed, liveFeedKey, pathOf, replayCodes, replayKey, resultFeed, samplesOf } from '../match/prepare'
-import { cuePending, useLiveClock } from '../match/clockStore'
+import { cuePending, panelMinute, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
 import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
 import { cueTimes, goalHolds } from '../match/possession'
+import { matchPace } from '../match/timing'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
 import { emptyDraft, highlightedMan, nextSelection, type StopDraft } from './controls'
@@ -113,7 +114,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   // A reload picks the clock up where this tab left the segment (resume.ts), not from its first minute again
   const resumeKey = live ? segmentKey(game.id, feed.key, feed.decidedTo, start, feed.events.length) : null
   const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(resumeKey), resumeKey, start, stopAt) : start))
-  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  // A crowded minute plays longer on screen (the same pace the ball path is laid out in)
+  const pace = useMemo(() => matchPace(feed.events), [feed.events])
+  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, pace, reduced, onFinish: final ? onWhistle : undefined })
   useEffect(() => {
     if (!resumeKey) return
     return useLiveClock.subscribe((s, prev) => {
@@ -131,8 +134,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
   const revealed = useLiveClock((s) => s.revealed)
   const cued = useLiveClock((s) => s.cued ?? 0)
-  const pending = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock.clock && h.t >= start) || (!clock.finished && cuePending(cues, cued, clock.clock, start))
-  const minute = pending ? Math.max(start, clock.clock - 1) : clock.clock
+  const minute = panelMinute(holds, revealed, clock.clock, start, !clock.finished && cuePending(cues, cued, clock.clock, start))
   const whistle = clock.finished && final
   // The assistant's routine and injury changes for our side come up as a toast when the clock reaches them (display only)
   const subsSeen = useRef(minute)
@@ -202,7 +204,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
     ? {
         minute: clock.clock,
         stop: clock.atStop ? (stopAt === 45 ? 45 : 70) : null,
-        can: canChangeInPlay(live.mp, minute, userSide ?? 'home'),
+        can: canChangeInPlay(live.mp, Math.max(start, minute), userSide ?? 'home'),
         userSide: userSide ?? 'home',
         tactics: (live.userIsHome ? live.mp.home : live.mp.away).tactics,
         shout: (live.userIsHome ? live.mp.home : live.mp.away).shout,

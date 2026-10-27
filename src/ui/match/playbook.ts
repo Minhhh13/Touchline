@@ -41,7 +41,7 @@ import { binOf, type PitchPoint } from '@engine/matchDetail'
 import { Rng, hashString } from '@engine/rng'
 import { metres, onPitchAt, other, toShared, type PlacedPlayer, type Side } from './pitchGeometry'
 import type { BallKeyframe, BallKind, Phase, PlayStyle, PlayTag, PossessionInput, SetPieceKind } from './possession'
-import { FOUL_STOP, foulTimes, MAX_HOP, MAX_SQUEEZE, SECOND, SPEED, strikeTimes } from './timing'
+import { FOUL_STOP, foulTimes, matchPace, MAX_HOP, MAX_SQUEEZE, SECOND, SPEED, strikeTimes, toMatch, toPicture } from './timing'
 import { shapePoint, type Scene } from './shape'
 import { swayPhase } from './movement'
 
@@ -113,13 +113,23 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
     k.y = clamp(k.y, 0, 100)
     out.push(k)
   }
+  // The path is laid out in picture time (timing.ts `matchPace`: a crowded minute plays longer on screen), so every
+  // speed and wait below is what the viewer sees; its keyframes go back to match time at the end
+  const pace = matchPace(input.events)
+  const P = (t: number) => toPicture(pace, t)
   const strikes = strikeTimes(input.events, from, to)
-  const shots = [...strikes.entries()].map(([idx, t]) => ({ ev: input.events[idx], t, idx })).sort((a, b) => a.t - b.t)
-  const fouls = [...foulTimes(input.events, from, to).entries()].filter(([, f]) => f.staged)
+  const strikeAt = new Map<number, number>()
+  const shots = [...strikes.entries()].map(([idx, t]) => ({ ev: input.events[idx], t: P(t), idx })).sort((a, b) => a.t - b.t)
+  for (const [, t] of strikes) strikeAt.set(P(t), t)
+  const fouls = [...foulTimes(input.events, from, to).entries()].filter(([, f]) => f.staged).map(([idx, f]) => {
+    strikeAt.set(P(f.t), f.t)
+    return [idx, { ...f, t: P(f.t) }] as const
+  })
   // A stretch that stops (at 45 or 70) ends a moment before the next one starts, so the restart is the next keyframe
-  const end = to >= 90 ? Math.max(90, ...shots.map((s) => s.ev.minute)) + 1 : to + 0.98
+  const end = P(to >= 90 ? Math.max(90, ...shots.map((s) => s.ev.minute)) + 1 : to + 0.98)
   const styleOf = (s: Side): PlayStyle => input.styles?.[s] ?? STANDARD_STYLE
-  const squad = (s: Side, minute: number) => onPitchAt(s === 'home' ? home : away, Math.min(Math.floor(minute), 89))
+  /** The men on the pitch at picture time `p`. */
+  const squad = (s: Side, p: number) => onPitchAt(s === 'home' ? home : away, Math.min(Math.floor(toMatch(pace, p) + 1e-9), 89))
   const outfield = (s: Side, minute: number) => {
     const all = squad(s, minute)
     const men = all.filter((p) => p.position !== 'GK')
@@ -140,7 +150,7 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
   let pos: PitchPoint = { x: 50, y: 50 }
   let side: Side = from >= 46 && from < 71 ? 'away' : 'home'
   let holder: string | undefined
-  let now = Math.max(0, from)
+  let now = P(Math.max(0, from))
   /** No hop may land after this: the next moment's run-up, or the end of the range. */
   let deadline = end
   /** When the side on the ball won it, for a counter. */
@@ -159,7 +169,7 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
   }
   const phaseNow = (s: Side, p: PitchPoint): Phase => (now - regainAt < 0.9 && regainAlong < 55 && s === side && along(s, p) < 85 ? 'counter' : zoneOf(s, p))
   const share = (s: Side, t: number) => {
-    const pHome = momentum[binOf(Math.max(1, Math.floor(t)))] ?? 0.5
+    const pHome = momentum[binOf(Math.max(1, Math.floor(toMatch(pace, t) + 1e-9)))] ?? 0.5
     return s === 'home' ? pHome : 1 - pHome
   }
   const isKeeper = (id: string | undefined, s: Side) => !!id && keeper(s, now)?.psId === id
@@ -864,8 +874,8 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
   }
   else {
     // A stretch picked up mid-match (a highlight's build-up): the keeper of the side on top rolls it out
-    const s: Side = share('home', from) >= 0.5 ? 'home' : 'away'
-    const gk = keeper(s, from)
+    const s: Side = share('home', now) >= 0.5 ? 'home' : 'away'
+    const gk = keeper(s, now)
     side = s
     holder = gk?.psId
     pos = gk ? spot(gk, at(s, 8, 50), s) : at(s, 6, 50)
@@ -935,7 +945,7 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
     const target = toShared(ev.position ?? { x: 88, y: 50 }, s)
     const h = hashString(`${input.seed}-${idx}-${ev.minute}`) >>> 0
     const pattern = patternFor(ev, h)
-    const shooters = outfield(s, ev.minute)
+    const shooters = outfield(s, P(ev.minute))
     const shooter = shooters.find((p) => p.psId === ev.playerId) ?? (shooters.length ? shooters.reduce((a, b) => (metres(a, target) < metres(b, target) ? a : b)) : undefined)
     // Open play up to the attack, sized to what the attack needs from where the ball has got to
     const want = PATTERN_WINDOW[pattern]
@@ -990,7 +1000,7 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
       const far = metres(pos, toShared(n.ev.position ?? { x: 88, y: 50 }, n.ev.side)) + (n.ev.side !== side ? 30 : 0)
       return Math.max(now, n.t - Math.min(1.5, 0.3 + far / (SPEED.pass * 1.2)))
     }
-    const gk = keeper(other(s), ev.minute)
+    const gk = keeper(other(s), P(ev.minute))
     const text = ev.text.toLowerCase()
     if (GOAL_TYPES.has(ev.type)) {
       // In the net (the flight is drawn while the clock holds), then a kick-off from the centre spot once both sides are back in their halves
@@ -1041,6 +1051,13 @@ export function buildBallPath(input: PossessionInput): BallKeyframe[] {
   }
   deadline = end
   play()
+  // Back to match time: a strike or a foul lands exactly on its moment (the clock's goal holds and cues are keyed to it)
+  if (!pace.length) return out
+  const T = (p: number) => strikeAt.get(p) ?? toMatch(pace, p)
+  for (const k of out) {
+    k.t = T(k.t)
+    if (k.setPiece) k.setPiece = { ...k.setPiece, until: T(k.setPiece.until) }
+  }
   return out
 
 }

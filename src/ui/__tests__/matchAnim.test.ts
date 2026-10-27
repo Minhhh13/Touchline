@@ -271,7 +271,7 @@ describe('key moments', () => {
       const chances = feeds[i].events.filter((e) => (e.type === 'chance' || e.type === 'save') && shotXg(e) >= FOCUS_XG).length
       expect(ms.length).toBe(goals + chances)
     }
-    expect(focusAt([{ t: 30, at: { x: 90, y: 50 }, goal: true }], 20, 0.3, 0.3)).toEqual({ w: 0, at: null })
+    expect(focusAt([{ t: 30, at: { x: 90, y: 50 }, goal: true, side: 'home' }], 20, 0.3, 0.3)).toEqual({ w: 0, at: null })
   })
 
   it('keeps the camera inside the pitch and centres on the moment when it can', () => {

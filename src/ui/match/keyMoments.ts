@@ -18,7 +18,7 @@ import type { PitchPoint } from '@engine/matchDetail'
 import { shotXg } from '@engine/matchStats'
 import type { GoalHold } from './clockStore'
 import { strikeTimes } from './timing'
-import { toShared } from './pitchGeometry'
+import { toShared, type Side } from './pitchGeometry'
 
 /**
  * The goal replay: `ms` added to the goal's hold, of which `cut` at each end is the cut to and from the
@@ -85,6 +85,9 @@ export interface FocusMoment {
   t: number
   at: PitchPoint
   goal: boolean
+  /** The side shooting, and the man who shoots (his player-season id), when the event names him. */
+  side: Side
+  shooter?: string
 }
 
 /** A chance at least this good gets the camera. */
@@ -98,7 +101,7 @@ export function focusMoments(events: MatchEvent[], ranges: Array<{ from: number;
       const e = events[idx]
       const goal = e.type === 'goal' || e.type === 'penalty' || e.type === 'own_goal'
       if (!goal && shotXg(e) < FOCUS_XG) continue
-      out.push({ t, at: toShared(e.position ?? { x: 88, y: 50 }, e.side), goal })
+      out.push({ t, at: toShared(e.position ?? { x: 88, y: 50 }, e.side), goal, side: e.side, ...(e.playerId ? { shooter: e.playerId } : {}) })
     }
   }
   return out.sort((a, b) => a.t - b.t)
@@ -122,6 +125,31 @@ export function focusAt(moments: FocusMoment[], T: number, lead: number, tail: n
     }
   }
   return { w, at }
+}
+
+/**
+ * The build-up to a big moment, at every speed (the camera only leans in up to 2x): how strongly the picture
+ * marks it (0..1), rising over `lead` minutes before the strike and gone `tail` minutes after, and which moment.
+ * The pitch brightens the goal mouth under attack and closes a ring on the shooter as it rises.
+ */
+export function buildUpAt(moments: FocusMoment[], T: number, lead: number, tail: number): { w: number; moment: FocusMoment } | null {
+  let best: { w: number; moment: FocusMoment } | null = null
+  for (const m of moments) {
+    if (m.t - lead > T) break
+    if (T > m.t + tail) continue
+    const w = T <= m.t ? smooth((T - (m.t - lead)) / Math.max(1e-6, lead)) : 1 - smooth((T - m.t) / Math.max(1e-6, tail))
+    if (w > 0 && (!best || w > best.w)) best = { w, moment: m }
+  }
+  return best
+}
+
+/** The build-up's timing (ms of picture at the speed played): how long before the strike it starts rising, and how quickly it goes after. */
+export const BUILD_UP = { leadMs: 1800, tailMs: 450, glow: 0.3 } as const
+
+/** The shooter's ring as the strike nears (w 0..1): wide and faint at first, closing to his dot as it is struck. */
+export function shooterRing(w: number): { scale: number; opacity: number } {
+  const x = Math.min(1, Math.max(0, w))
+  return { scale: 1 + 1.4 * (1 - x), opacity: 0.85 * x }
 }
 
 /** The camera's scale at full lean: a big chance in play, and the replay. */

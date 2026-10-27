@@ -82,9 +82,13 @@ export const STRIKE_KICKOFF = 0.3
  * leaving their minute (between m + 0.05 and m + 0.95), so that consecutive
  * strikes leave the ball the time it needs to get from one to the next
  * wherever the minutes allow: it never has to cross the pitch in a few
- * frames because two shots, at either end, came close together.
+ * frames because two shots, at either end, came close together. The spacing
+ * is in picture time (`matchPace`), so a minute too crowded for that is
+ * played longer on screen rather than squeezed.
  */
 export function strikeTimes(events: MatchEvent[], from: number, to: number): Map<number, number> {
+  const pace = matchPace(events)
+  const P = (t: number) => toPicture(pace, t)
   const byMinute = new Map<number, number[]>()
   events.forEach((e, i) => {
     if (!SHOT_TYPES.has(e.type) || !inRange(e, from, to)) return
@@ -92,23 +96,22 @@ export function strikeTimes(events: MatchEvent[], from: number, to: number): Map
     list.push(i)
     byMinute.set(e.minute, list)
   })
+  // Worked out in picture time (see `matchPace`), where a crowded minute is longer than one minute
   const shots: Array<{ idx: number; t: number; lo: number; hi: number; goal: boolean; at: PitchPoint }> = []
   for (const [m, list] of [...byMinute].sort((a, b) => a[0] - b[0])) {
     list.forEach((idx, i) => {
       const e = events[idx]
-      shots.push({ idx, t: m + (i + 0.55) / list.length, lo: m + 0.05, hi: m + 0.95, goal: GOAL_TYPES.has(e.type), at: toShared(e.position ?? { x: 88, y: 50 }, e.side) })
+      shots.push({ idx, t: P(m + (i + 0.55) / list.length), lo: P(m + 0.05), hi: P(m + 0.95), goal: GOAL_TYPES.has(e.type), at: toShared(e.position ?? { x: 88, y: 50 }, e.side) })
     })
   }
   // The first strike leaves time to get there from the kick-off that starts the range
   if (shots.length) {
     const f = shots[0]
-    f.t = Math.min(f.hi, Math.max(f.t, from + STRIKE_KICKOFF + dist({ x: 50, y: 50 }, f.at) / STRIKE_TRAVEL))
-    f.lo = Math.max(f.lo, Math.min(f.hi, from + STRIKE_KICKOFF + dist({ x: 50, y: 50 }, f.at) / STRIKE_TRAVEL))
+    const reach = P(from) + STRIKE_KICKOFF + dist({ x: 50, y: 50 }, f.at) / STRIKE_TRAVEL
+    f.t = Math.min(f.hi, Math.max(f.t, reach))
+    f.lo = Math.max(f.lo, Math.min(f.hi, reach))
   }
-  const gap = (i: number) => {
-    const prev = shots[i - 1]
-    return prev.goal ? STRIKE_KICKOFF + dist({ x: 50, y: 50 }, shots[i].at) / STRIKE_TRAVEL : STRIKE_RESTART + dist(prev.at, shots[i].at) / STRIKE_TRAVEL
-  }
+  const gap = (i: number) => strikeGap(shots[i - 1], shots[i].at)
   // Push later strikes on, then earlier ones back, each within its own minute (twice, to settle a crowded run)
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 1; i < shots.length; i++) shots[i].t = Math.min(shots[i].hi, Math.max(shots[i].t, shots[i - 1].t + gap(i)))
@@ -116,7 +119,106 @@ export function strikeTimes(events: MatchEvent[], from: number, to: number): Map
   }
   // Never out of order, whatever the squeeze
   for (let i = 1; i < shots.length; i++) shots[i].t = Math.max(shots[i].t, shots[i - 1].t + 0.01)
-  return new Map(shots.map((s) => [s.idx, s.t]))
+  return new Map(shots.map((s) => [s.idx, toMatch(pace, s.t)]))
+}
+
+/** The least time between a strike (`prev`, where it ended up and whether it went in) and the next one, struck at `at`. */
+function strikeGap(prev: { goal: boolean; at: PitchPoint }, at: PitchPoint): number {
+  return prev.goal ? STRIKE_KICKOFF + dist({ x: 50, y: 50 }, at) / STRIKE_TRAVEL : STRIKE_RESTART + dist(prev.at, at) / STRIKE_TRAVEL
+}
+
+/**
+ * A stretch of match time the picture plays at another pace: `w` minutes of picture (minutes of the
+ * clock at 1x) for each match minute, over [from, to). Everywhere else one match minute is one
+ * minute of picture.
+ */
+export interface PaceSpan {
+  from: number
+  to: number
+  w: number
+}
+
+/** A crowded minute lasts at most this many minutes of picture. */
+export const MAX_STRETCH = 3
+/** Each quiet minute after it gives back at most this share of itself, over at most `BORROW_MINUTES` minutes. */
+export const BORROW = 0.25
+export const BORROW_MINUTES = 3
+/** The room a minute has for its strikes (they sit between m + 0.05 and m + 0.95). */
+const MINUTE_ROOM = 0.9
+
+const paces = new WeakMap<MatchEvent[], PaceSpan[]>()
+
+/**
+ * The picture's pace over a match. A minute whose strikes cannot follow one another at a walking
+ * pace inside it (a goal and two more shots in the same minute: the kick-off and the run to the
+ * next strike alone take most of a minute) is played longer, just long enough, and the quiet
+ * minutes after it (no shot, no card, in the same stretch) are played a little quicker to pay the
+ * time back. The ball moves at its own speed throughout: the clock on screen runs slower through
+ * the crowded minute and quicker through the quiet ones. Every strike stays inside its own minute,
+ * in the order the events were logged. Pure; the same for every caller of the same events.
+ */
+export function matchPace(events: MatchEvent[]): PaceSpan[] {
+  const known = paces.get(events)
+  if (known) return known
+  const byMinute = new Map<number, MatchEvent[]>()
+  const busy = new Set<number>()
+  for (const e of events) {
+    if (CARD_TYPES.has(e.type)) busy.add(e.minute)
+    if (!SHOT_TYPES.has(e.type)) continue
+    busy.add(e.minute)
+    const list = byMinute.get(e.minute) ?? []
+    list.push(e)
+    byMinute.set(e.minute, list)
+  }
+  const spans: PaceSpan[] = []
+  const taken = new Set<number>()
+  for (const [m, list] of [...byMinute].sort((a, b) => a[0] - b[0])) {
+    let need = 0.02 * list.length
+    for (let i = 1; i < list.length; i++) {
+      const prev = list[i - 1]
+      need += strikeGap({ goal: GOAL_TYPES.has(prev.type), at: toShared(prev.position ?? { x: 88, y: 50 }, prev.side) }, toShared(list[i].position ?? { x: 88, y: 50 }, list[i].side))
+    }
+    if (need <= MINUTE_ROOM) continue
+    const w = Math.min(MAX_STRETCH, need / MINUTE_ROOM)
+    spans.push({ from: m, to: m + 1, w })
+    taken.add(m)
+    // Paid back by the quiet minutes that follow, never across a stop (45, 70) or past the whistle
+    const last = m <= 45 ? 45 : m <= 70 ? 70 : 94
+    let owe = w - 1
+    for (let j = m + 1; j <= Math.min(last, m + BORROW_MINUTES) && owe > 1e-9; j++) {
+      if (busy.has(j) || taken.has(j)) break
+      const give = Math.min(BORROW, owe)
+      spans.push({ from: j, to: j + 1, w: 1 - give })
+      taken.add(j)
+      owe -= give
+    }
+  }
+  spans.sort((a, b) => a.from - b.from)
+  paces.set(events, spans)
+  return spans
+}
+
+/** Match time T as picture time (the minutes of picture from kick-off at 1x). The identity with no spans. */
+export function toPicture(pace: readonly PaceSpan[], T: number): number {
+  let p = T
+  for (const s of pace) {
+    if (T <= s.from) break
+    p += (s.w - 1) * (Math.min(T, s.to) - s.from)
+  }
+  return p
+}
+
+/** Picture time back to match time (the inverse of `toPicture`). */
+export function toMatch(pace: readonly PaceSpan[], P: number): number {
+  let offset = 0
+  for (const s of pace) {
+    const start = s.from + offset
+    if (P <= start) break
+    const len = s.w * (s.to - s.from)
+    if (P < start + len) return s.from + (P - start) / s.w
+    offset += len - (s.to - s.from)
+  }
+  return P - offset
 }
 
 /** One booking's foul: when it is committed, and whether the pitch stages it (a stop and a free kick) or there is no room for it between the shots. */
@@ -140,7 +242,10 @@ export const FOUL_STOP = 0.75
  * and its cue is the start of the minute. The cards of one minute share it.
  */
 export function foulTimes(events: MatchEvent[], from: number, to: number): Map<number, FoulTime> {
-  const strikes = [...strikeTimes(events, from, to).values()]
+  const pace = matchPace(events)
+  const P = (t: number) => toPicture(pace, t)
+  // In picture time, like the strikes
+  const strikes = [...strikeTimes(events, from, to).values()].map(P)
   const out = new Map<number, FoulTime>()
   const byMinute = new Map<number, number[]>()
   events.forEach((e, i) => {
@@ -149,20 +254,21 @@ export function foulTimes(events: MatchEvent[], from: number, to: number): Map<n
     list.push(i)
     byMinute.set(e.minute, list)
   })
-  const end = to >= 90 ? Infinity : to + 1
+  const end = to >= 90 ? Infinity : P(to + 1)
+  const start = P(from)
   const taken: number[] = []
   for (const [m, list] of [...byMinute].sort((a, b) => a[0] - b[0])) {
     const first = events[list[0]]
     const h = hashString(`foul-${m}-${first.side}`) >>> 0
-    const want = m + 0.2 + ((h % 1000) / 1000) * 0.6
-    const clear = (t: number) => t + 0.3 < end && t > from + 0.3 && strikes.every((s) => t < s - FOUL_CLEAR_BEFORE - FOUL_STOP || t > s + FOUL_CLEAR_AFTER) && taken.every((f) => Math.abs(f - t) > FOUL_STOP + 0.5)
+    const want = P(m + 0.2 + ((h % 1000) / 1000) * 0.6)
+    const clear = (t: number) => t + 0.3 < end && t > start + 0.3 && strikes.every((s) => t < s - FOUL_CLEAR_BEFORE - FOUL_STOP || t > s + FOUL_CLEAR_AFTER) && taken.every((f) => Math.abs(f - t) > FOUL_STOP + 0.5)
     let best: number | null = null
     for (let k = 0; k <= 18; k++) {
-      const t = m + 0.05 + k * 0.05
+      const t = P(m + 0.05 + k * 0.05)
       if (clear(t) && (best === null || Math.abs(t - want) < Math.abs(best - want))) best = t
     }
-    const f: FoulTime = best === null ? { t: m + 0.02, staged: false } : { t: best, staged: true }
-    if (f.staged) taken.push(f.t)
+    const f: FoulTime = best === null ? { t: m + 0.02, staged: false } : { t: toMatch(pace, best), staged: true }
+    if (best !== null) taken.push(best)
     for (const idx of list) out.set(idx, f)
   }
   return out

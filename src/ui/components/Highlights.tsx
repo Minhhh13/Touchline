@@ -14,6 +14,7 @@ import { playerLookup } from '@game/logic/players'
 import { LivePitch } from './LivePitch'
 import { Modal } from './bits'
 import { publishClock } from '../match/clockStore'
+import { matchPace, toPicture } from '../match/timing'
 import { kitColours } from '../match/shirts'
 import { minuteLabel } from '../format'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
@@ -68,6 +69,8 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
   const moments = useMemo(() => hl?.moments ?? [], [hl])
   // Full time is after the last event: a goal in stoppage time (90+) must still be on the pitch at the end
   const end = useMemo(() => Math.max(90, ...(hl?.events ?? []).map((e) => e.minute)), [hl])
+  // A crowded minute plays longer, as on the live pitch (the ball path is laid out the same way)
+  const pace = useMemo(() => (hl ? matchPace(hl.events) : undefined), [hl])
   const [index, setIndex] = useState(0)
   // The camera leans in on each moment (Key moments, the viewer's setting); the reel's clock never holds, so it has no replays
   const [keyMoments] = usePref(keyMomentsPref)
@@ -87,7 +90,8 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
     }
     const building = tick <= m.minute
     const period = highlightMinuteMs(tick, m.minute)
-    publishClock({ clock: tick, running: building && !paused, speed: 1, period })
+    const length = pace?.length ? period * (toPicture(pace, tick + 1) - toPicture(pace, tick)) : period
+    publishClock({ clock: tick, running: building && !paused, speed: 1, period, pace })
     if (paused) return
     const t = setTimeout(() => {
       if (building) setTick(tick + 1)
@@ -95,9 +99,9 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
         setIndex(index + 1)
         setTick(buildUpFrom(moments, index + 1))
       }
-    }, building ? period : HIGHLIGHT_HOLD_MS)
+    }, building ? length : HIGHLIGHT_HOLD_MS)
     return () => clearTimeout(t)
-  }, [m, tick, paused, index, moments, end])
+  }, [m, tick, paused, index, moments, end, pace])
   // The live match screen starts its own clock; leave this one stopped
   useEffect(() => () => publishClock({ clock: 0, running: false, speed: 1, period: 110 }), [])
 
