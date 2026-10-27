@@ -458,6 +458,44 @@ Then:
 - **The soft ceiling** (engine 6, E6-4; `softCeiling`): λ is untouched up to `XG_KNEE` = 3.5, then bends towards `XG_CEILING` = 4.6 (`3.5 + 1.1 × tanh((λ − 3.5) / 1.1)`: 4.0 stays 3.97, 5.0 becomes 4.46, 5.8 becomes 4.57), floored at 0.12; each segment's λ is capped at its share of `XG_CEILING × 1.3` (the 1.3 leaves room for a man advantage). Engine 5 clamped λ at 5.8 and each segment at 3.5, which let sides reach 14-0 and 2-17. The knee sits above what the elite XI of the 38-0 chase makes against a calibrated league, so the chase keeps its odds; a plain `4.2 × tanh(λ / 4.2)` (the to-do list's proposal) also trimmed ordinary matches and took the elite XI's 38-0 from 1.8% to none in 400 seasons. Goals are `poisson(λ)`. Shots are `max(goals, poisson(7.5 λ))`, on target `max(goals, min(shots, poisson(3 λ)))`.
 - Possession: `50 + 1.1 × (home midfield − away midfield) ± 4 per short or direct passing side + 2 for home + N(0, 3)`, clamped 28 to 72.
 
+### Calibration
+
+Engine 6 aimed at real football: 2.6 to 2.9 goals a game, the best side on 80 to 100 goals a season, a Golden Boot of 20 to 35, home advantage about 0.3, with the upsets, the xG story and the 38-0 chase kept. Measured on the England, Spain, Italy and Germany packs of 2026-10-25, engine `'5'` at ec520f3 against engine `'6'` on `engine-e6` (the measurement harness is not committed). All-AI leagues: every league-season with a table from 2008-09, played as an untouched league of AI sides. Managed Seasons: England 2012, 2015, 2018 and 2021, the assistant drafting and managing, 56 seasons on engine 5 and 28 on engine 6 per difficulty. Quick: 2025-26 Calibrated, the assistant's draft at each draft difficulty, 600 seasons on engine 5 and 300 on engine 6. The elite XI: `perfectChase.test.ts`'s lineup, 1,000 seeds. Real figures for the same seasons: the Premier League 2.78, La Liga 2.68, Serie A 2.74, the Bundesliga 3.07 goals a game.
+
+| Measure | Engine 5 | Engine 6 |
+| --- | --- | --- |
+| All-AI goals a game, England (Calibrated / Realistic) | 2.71 / 2.84 | 2.66 / 2.71 |
+| All-AI goals a game, Spain / Italy / Germany (Calibrated) | 2.30 / 2.29 / 2.58 | 2.69 / 2.71 / 3.05 |
+| All-AI best side's goals, England (Calibrated / Realistic) | 88.0 / 103.5 | 87.5 / 98.1 |
+| All-AI Golden Boot, England (Calibrated / Realistic) | 30.0 / 36.9 | 31.2 / 35.1 |
+| Home advantage (goals), home / draw / away | 0.30, 44.0 / 23.1 / 32.9% | 0.28, 43.6 / 23.9 / 32.5% |
+| Managed Season, goals a game (Calibrated / Realistic) | 3.65 / 3.88 | 2.84 / 2.97 |
+| Managed Season, draws | 16.3% | 22.7% |
+| Managed Season, matches with 7 or more goals | 13.0% | 4.5% |
+| Managed Season, the best AI side's goals | 152.9 (max 201) | 92.1 (max 128) |
+| Managed Season, the drafted side's goals | 121.4 (max 225) | 99.9 (max 159) |
+| Managed Season, Golden Boot (league) | 54.1 (max 86) | 34.5 (max 51) |
+| Managed Season, champions' points | 101.1 | 92.2 |
+| Managed Season, most goals by one side in a match | 16 | 12 |
+| Quick season, goals a game / champions' points | 2.83 / 79.0 | 2.74 / 78.9 |
+| Quick season, the drafted side's goals / points / titles | 67.4 / 68.4 / 27.8% | 65.8 / 69.3 / 28.3% |
+| Elite XI: 38-0 / unbeaten | 1.8% / 29.2% | 1.5% / 31.9% |
+| Elite XI: goals / top scorer | 141.7 / 50.9 | 132.4 / 47.2 |
+| Cards a match: yellows / reds | 2.46 / 0.21 | 3.58 / 0.15 |
+
+Win rate by the strength gap between two AI sides (England, any venue, about 29,000 matches each):
+
+| Gap | Engine 5: stronger / draw / weaker | Engine 6: stronger / draw / weaker |
+| --- | --- | --- |
+| 0 to 2 | 41.2 / 25.6 / 33.1% | 40.7 / 26.5 / 32.8% |
+| 2 to 4 | 49.1 / 25.2 / 25.7% | 49.4 / 25.3 / 25.3% |
+| 4 to 6 | 58.7 / 22.5 / 18.8% | 58.3 / 23.2 / 18.6% |
+| 6 to 8 | 67.7 / 18.7 / 13.6% | 66.9 / 20.0 / 13.1% |
+| 8 to 12 | 76.7 / 15.3 / 8.1% | 74.6 / 17.2 / 8.2% |
+| 12 and more | 82.5 / 13.8 / 3.8% | 79.2 / 18.1 / 2.8% |
+
+A fresh league barely moves, and the upset rate stands. What moved is the managed league, where engine 5's feedback (section 6, live modifiers) inflated every AI side's ratings over a season. The drafted side still wins most managed Calibrated titles (27 of 28) with fewer goals. The best AI side on Realistic (98.7) and the Spanish champions (103 to 114) sit at or a little over the 100 target, as Barcelona's and Real Madrid's real seasons did. The Gauntlet's Realistic climb (guard under 2) is 1.93 rungs, against 1.73 on engine 5. Its Calibrated climb is 4.44 rungs (11.3% reach ten), against 5.13 (22.3%).
+
 ### Team talks
 
 Chosen before each match (default Encourage). Effects are a multiplier on your own λ with a line in the report:
@@ -855,7 +893,7 @@ Rolled from a weighted deck when conditions are met (`src/engine/events.ts`). Th
 - Wage cap is the larger of the club's natural bill, `clamp(5 × squad value, 900, 4500)` GBP thousands a week, and your drafted squad's wages with 15 per cent headroom, so the board always underwrites the squad you drafted. In Dynasty the cap is recomputed each summer; the budget carries over and the season's income, spending and wages-paid counters reset.
 - Weekly cash flow (`weeklyCashFlow`): match-day and broadcast income is assumed to cover the wage cap; a tenth of what the wages leave under it (`HEADROOM_SHARE`, the rest runs the club) drips into the budget every matchweek, and a bill over the cap drains the whole overspend.
 - League money at season end, net of running costs (`prizeMoney`): `20 × (1 − 2 × (position − 1) / (clubs − 1))` GBP millions, so +20 for the champions, 0 at mid-table and −20 for last place, plus 10 for the cup; the Continental Cup adds 2 (round of 16), 4, 7, 11 or 18 (winners). A season's loss takes the budget to nothing at worst (`afterSeasonMoney`); only wages over the cap run a club into debt. Nothing if sacked.
-- Engine 6 (item 2): the whole headroom dripped before and a title paid £100M (last place £39M, the Continental Cup up to £45M), so a Dynasty that signed nobody grew about £125M to £150M a season whatever its finish (£94M to £756M in five seasons for a champion, to £623M for a side that started 13th). Measured over 36 five-season Dynasties (seeds `e6-dyn-0` to `-35`, England 2012, 2015, 2018 and 2021 hosts, no signings, the assistant managing; strong: an unrestricted draft on Calibrated, champions every season; middling: Scotland's internationals only on Calibrated, 13.6th then 6.7th; weak: Northern Ireland's only on Realistic, 19th to 17th), the mean budget at each season's end: strong 94.0 → 124.5 → 156.8 → 182.5 → 216.0 → 246.5; middling 94.0 → 94.9 → 99.7 → 109.0 → 125.7 → 140.1; weak 94.0 → 81.6 → 70.6 → 61.6 → 53.3 → 43.2.
+- Engine 6 (item 2): the whole headroom dripped before and a title paid £100M (last place £39M, the Continental Cup up to £45M), so a Dynasty that signed nobody grew about £125M to £150M a season whatever its finish (£94M to £756M in five seasons for a champion, to £623M for a side that started 13th). Measured over 36 five-season Dynasties (seeds `e6-dyn-0` to `-35`, England 2012, 2015, 2018 and 2021 hosts, no signings, the assistant managing; strong: an unrestricted draft on Calibrated, champions every season; middling: Scotland's internationals only on Calibrated, 10.8th in the first season, then 6.4th, 4.3rd, 4.3rd and 4.5th; weak: Northern Ireland's only on Realistic, 19th to 20th every season), the mean budget at each season's end: strong 94.0 → 127.1 → 159.2 → 190.2 → 222.5 → 255.5; middling 94.0 → 102.3 → 119.1 → 140.3 → 162.0 → 179.8; weak 94.0 → 82.5 → 71.0 → 60.3 → 51.9 → 44.4 (three of the twelve end at nothing or a little under: wages paid in a season can still overspend a budget at zero). On engine 5 the same seeds went to 756.0, 699.4 and 623.0, and its weak sides finished 5th by the fifth season. A weak side with no money also cannot refill its squad: by the fourth summer some Realistic squads were down to 14 or 15 men with one keeper, since the assistant has nothing to sign with.
 - Squad cap 23. Releasing a player is free and returns nothing.
 - The wage-to-transfer slider (Club tab, `src/game/logic/board.ts` `shiftWages`): each step right turns £10k a week of wage cap into £2M of budget, each step left the reverse; only within the wage room under the cap (or the budget), at most 25 steps either way, net steps kept in `finances.wageShift` and reset with the cap each summer. Cutting the cap costs the weekly surplus too (£10k a week less drips in), so the trade is a choice, not free money.
 - Appearance and goal bonuses from contract talks are earned per match (`accrueBonuses`, `game.bonusDue`) and paid with the next weekly wages (`takeBonuses`): they count in `finances.wagesPaid` and the weekly flow like wages, and `finances.bonusesPaid` keeps the season's total. None due: the sums are exactly as before.
