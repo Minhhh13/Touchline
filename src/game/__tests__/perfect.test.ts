@@ -18,9 +18,9 @@ describe('the 38-0 chase', () => {
     const r = [...Array.from({ length: 12 }, () => g(2, 0)), g(1, 1), g(2, 0), g(1, 0), g(0, 2)]
     expect(chaseLine(chaseAt(r, 0), 38).headline).toBe('Chasing 38-0')
     expect(chaseLine(chaseAt(r, 12), 38)).toMatchObject({ tone: 'perfect', headline: 'Still perfect: 12-0', justBroke: false })
-    expect(chaseLine(chaseAt(r, 13), 38)).toMatchObject({ tone: 'unbeaten', headline: 'Perfect run over at 12-0', detail: 'Unbeaten: 13', justBroke: true })
+    expect(chaseLine(chaseAt(r, 13), 38)).toMatchObject({ tone: 'unbeaten', headline: 'Perfect run over in game 13', detail: 'Unbeaten: 13', justBroke: true })
     expect(chaseLine(chaseAt(r, 15), 38)).toMatchObject({ tone: 'unbeaten', detail: 'Unbeaten: 15', justBroke: false })
-    expect(chaseLine(chaseAt(r, 16), 38)).toMatchObject({ tone: 'over', headline: 'Perfect run over at 12-0', detail: 'Unbeaten run ended at 15', justBroke: true })
+    expect(chaseLine(chaseAt(r, 16), 38)).toMatchObject({ tone: 'over', headline: 'Perfect run over in game 13', detail: 'Unbeaten run ended at 15', justBroke: true })
     const all = Array.from({ length: 38 }, () => g(1, 0))
     expect(chaseLine(chaseAt(all), 38).headline).toBe('38-0. The perfect season')
     expect(chaseLine(chaseAt(all.slice(0, 36)), 36).headline).toBe('36-0. The perfect season')

@@ -149,7 +149,7 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
     <ol className="gbg-list cup-ties" data-testid={`cup-${comp}-ties`}>
       {ties.map((t, i) => {
         const o = t.won ? 'W' : 'L'
-        const scorers = scorersText(t.scorers)
+        const scorers = scorersText(t.scorers, { extraTime: !!t.et })
         return (
           <li key={t.round} className={`gbg-game cup-tie ${o} ${i === 0 ? 'newest' : ''}`} data-testid="cup-tie" data-outcome={o}>
             <span className={`gbg-badge ${o}`} role="img" aria-label={t.won ? 'Through' : 'Out'}>

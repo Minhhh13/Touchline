@@ -21,6 +21,7 @@ import { LeagueFlag } from '../components/Flag'
 import { HeroArt, ModeArt as ModeScene, type ModeArtKind } from '../components/Art'
 import { withViewTransition } from '../motion'
 import { countPhrase } from '../screenText'
+import { askConfirm } from '../confirm'
 
 /** "69,155" becomes "69k": the hero shows three figures, not a sentence. */
 function compact(n: number): string {
@@ -121,7 +122,8 @@ export function Home() {
   const openArenaSetup = (format: 'cup' | 'gauntlet') => withViewTransition(() => openArenaNow(format))
   const playerSeasons = u ? u.available.reduce((s, l) => s + l.playerSeasons, 0) : 0
   const today = new Date().toISOString().slice(0, 10)
-  const dailyDone = !!profile.dailyResults[`daily-${today}`]
+  const dailyResult = profile.dailyResults[`daily-${today}`]
+  const dailyDone = !!dailyResult
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
   // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
@@ -148,14 +150,14 @@ export function Home() {
   const arenaDone = profile.arenaDaily?.results[arenaSeed]
   const isTodaysArena = (g: typeof game) => !!g && !!g.settings.arena?.daily && g.settings.seed === arenaSeed && g.phase !== 'summary'
   const arenaUnderWay = isTodaysArena(game) ? 'active' : isTodaysArena(parked.arena) ? 'parked' : null
-  const playArenaDaily = () => {
+  const playArenaDaily = async () => {
     if (!u || !dailyReady) return
     if (arenaUnderWay === 'active') return go('game')
     if (arenaUnderWay === 'parked') return resumeGame('arena')
     const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
-    if (open && !confirm(`Start today's arena? Your current ${modeLabel(open, 'short')} run (${open.settings.teamName}) will be abandoned.`)) return
+    if (open && !(await askConfirm(`Start today's arena? Your current ${modeLabel(open, 'short')} run (${open.settings.teamName}) will be abandoned.`, { ok: 'Start', danger: true }))) return
     // Played already: a second go is practice, and says so before it replaces today's summary
-    if (!open && arenaDone && !confirm(`You have played today's Daily Arena (${arenaDone.label}). Play it again? Your result and streak stay as they are.`)) return
+    if (!open && arenaDone && !(await askConfirm(`You have played today's Daily Arena (${arenaDone.label}). Play it again? Your result and streak stay as they are.`, { ok: 'Play again' }))) return
     startGame(dailyArenaGameSettings(u, arenaSeed))
   }
   // The Weekly Challenge: its setup names the team and loads the week's packs; this week's run under way continues
@@ -170,6 +172,8 @@ export function Home() {
   }
   // A manager with nothing finished and nothing waiting gets the game in three steps and one button into a Quick Draft
   const newcomer = isNewcomer(profile, !!game || Object.keys(parked).length > 0)
+  // A finished game on the resume strip (a Dynasty's summary goes on to next year, so it is never finished here)
+  const finishedHere = !!game && game.phase === 'summary' && game.settings.mode !== 'dynasty'
   const playFirstDraft = () => {
     const settings = u && dailyReady ? firstDraftSettings(u, randomSeed()) : null
     if (settings) withViewTransition(() => startGame(settings))
@@ -243,12 +247,19 @@ export function Home() {
                 </div>
               </div>
               <div className="row resume-actions">
-                <button className="btn primary" onClick={() => go('game')}>
-                  Continue
+                <button className="btn primary" onClick={() => go('game')} data-testid="resume-continue">
+                  {finishedHere ? 'See the result' : 'Continue'}
                 </button>
-                <button className="btn danger ghost" onClick={() => confirm('Abandon the current game? This cannot be undone.') && abandonGame()}>
-                  Abandon
-                </button>
+                {/* A finished result is already in the record: clearing it from Home loses nothing, so it asks nothing */}
+                {finishedHere ? (
+                  <button className="btn ghost" onClick={() => abandonGame()} data-testid="resume-clear" title="Its result stays in your Profile and Trophy Room">
+                    Clear
+                  </button>
+                ) : (
+                  <button className="btn danger ghost" onClick={() => void askConfirm('Abandon the current game? This cannot be undone.', { ok: 'Abandon', danger: true }).then((ok) => { if (ok) abandonGame() })} data-testid="resume-abandon">
+                    Abandon
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -267,7 +278,7 @@ export function Home() {
                 <button className="btn" onClick={() => resumeGame(slot)}>
                   Resume
                 </button>
-                <button className="btn danger ghost" onClick={() => confirm('Discard this parked game?') && discardParked(slot)}>
+                <button className="btn danger ghost" onClick={() => void askConfirm('Discard this parked game?', { ok: 'Discard', danger: true }).then((ok) => { if (ok) discardParked(slot) })}>
                   Discard
                 </button>
               </div>
@@ -296,7 +307,8 @@ export function Home() {
               <p>Same spins for everyone, every day.</p>
               <span className="foot">
                 <TimeTag>5 min</TimeTag>
-                {daily && u && (
+                {/* Played today: the result takes the puzzle's place on the line */}
+                {daily && u && !dailyResult && (
                   <span className="daily-today" title={`Today: a ${formationName(daily.formationId)}, ${u.leagues.find((l) => l.id === u.clubById[daily.host]?.leagueId)?.name ?? ''} ${seasonLabel(daily.season)}`}>
                     <LeagueFlag leagueId={u.clubById[daily.host]?.leagueId ?? 'england'} />
                     {formationName(daily.formationId)} · {seasonLabel(daily.season)}
@@ -307,17 +319,22 @@ export function Home() {
                     {PIN_TAG[dailyStart.ranked ? 'ranked' : pinStanding(pin, dailyStart.source)]}
                   </span>
                 )}
+                {dailyResult && (
+                  <span className="chip good daily-done" data-testid="daily-done">
+                    Today: {countPhrase(dailyResult.points, 'pts')}
+                  </span>
+                )}
                 {profile.dailyStreak > 0 && (
-                  <span className="streak" title={dailyDone ? 'Played today' : 'Daily streak'}>
-                    <Flame size={13} />
+                  <span className="streak" title={`Daily streak: ${countPhrase(profile.dailyStreak, 'days')} in a row`} aria-label={`Daily streak ${countPhrase(profile.dailyStreak, 'days')}`}>
+                    <Flame size={13} aria-hidden="true" />
                     {profile.dailyStreak}
                   </span>
                 )}
               </span>
             </span>
           </button>
-          <button type="button" className={`btn block${newcomer ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
-            {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again' : "Play today's puzzle"}
+          <button type="button" className={`btn block${newcomer || (dailyDone && !dailyUnderWay) ? '' : ' primary'}`} disabled={!dailyReady} onClick={playDaily} data-testid="daily-play">
+            {!dailyReady ? 'Loading…' : dailyUnderWay ? "Continue today's puzzle" : dailyDone ? 'Play it again for fun' : "Play today's puzzle"}
           </button>
         </div>
         <button className="mode-card" onClick={() => go('setup', 'season')}>

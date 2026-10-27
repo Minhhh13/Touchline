@@ -46,27 +46,28 @@ export function CaptainAndPenalties({ xi, captainId, penalties, onCaptain, onPen
   // With ratings hidden (Hard, blind) the lists keep the XI's order: sorting by the attributes would give them away
   const takers = xi.filter((p) => p.positions[0] !== 'GK').sort((a, b) => (hideRatings ? 0 : b.attributes.shooting + b.attributes.mentality - (a.attributes.shooting + a.attributes.mentality)))
   const leaders = [...xi].sort((a, b) => (hideRatings ? 0 : b.attributes.mentality - a.attributes.mentality))
-  const score = (n: number) => (hideRatings ? '' : ` (${n})`)
+  // Each number says what it measures: beside a name a bare figure read as his overall rating
+  const score = (n: number, what: string) => (hideRatings ? '' : ` (${what} ${n})`)
   return (
     <div className="col">
-      <Instruction label="Captain" help="A leader on the pitch steadies the side in big games.">
+      <Instruction label="Captain" help="A leader on the pitch steadies the side in big games. The number is his mentality.">
         <select className="input" style={{ width: 'auto' }} value={captainId && xi.some((p) => p.id === captainId) ? captainId : ''} onChange={(e) => onCaptain(e.target.value || undefined)} data-testid="captain-select" aria-label="Captain">
           <option value="">Auto: no armband</option>
           {leaders.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
-              {score(p.attributes.mentality)}
+              {score(p.attributes.mentality, 'mentality')}
             </option>
           ))}
         </select>
       </Instruction>
-      <Instruction label="Penalties" help="Takes every penalty while he is on the pitch.">
+      <Instruction label="Penalties" help="Takes every penalty while he is on the pitch. The number is his penalty skill, from his shooting and mentality.">
         <select className="input" style={{ width: 'auto' }} value={penalties && xi.some((p) => p.id === penalties) ? penalties : ''} onChange={(e) => onPenalties(e.target.value || undefined)} data-testid="penalty-select" aria-label="Penalty taker">
           <option value="">Auto: best on the pitch</option>
           {takers.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
-              {score(Math.round((p.attributes.shooting + p.attributes.mentality) / 2))}
+              {score(Math.round((p.attributes.shooting + p.attributes.mentality) / 2), 'pens')}
             </option>
           ))}
         </select>

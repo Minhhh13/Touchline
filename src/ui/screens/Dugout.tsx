@@ -62,6 +62,7 @@ import type { Game } from '@game/types'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { countPhrase } from '../screenText'
 import { newsBody } from '@game/logic/newsFlavour'
+import { askConfirm } from '../confirm'
 
 type Tab = DugoutTab
 
@@ -339,7 +340,7 @@ export function Dugout() {
               <button className="btn" onClick={() => afterPaint(() => store.simWeeks(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
                 {simming ? 'Simulating…' : 'Sim 5'}
               </button>
-              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && afterPaint(() => store.simToEnd())} disabled={!!game.pendingEvent || simming} data-testid="sim-end">
+              <button className="btn ghost" onClick={() => void askConfirm('Simulate the rest of the season with the assistant managing?', { ok: 'Sim to end' }).then((ok) => { if (ok) afterPaint(() => store.simToEnd()) })} disabled={!!game.pendingEvent || simming} data-testid="sim-end">
                 Sim to end
               </button>
             </div>
@@ -1783,7 +1784,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
                 </td>
                 <td>{moraleWord(x.s.morale)}</td>
                 <td className="end">
-                  <button className="btn sm ghost danger icon-only" aria-label={`Release ${x.p.name}`} title="Release: no fee is received" onClick={() => confirm(`Release ${x.p.name}? No fee is received.`) && store.release(x.p.id)}>
+                  <button className="btn sm ghost danger icon-only" aria-label={`Release ${x.p.name}`} title="Release: no fee is received" onClick={() => void askConfirm(`Release ${x.p.name}? No fee is received.`, { ok: 'Release', danger: true }).then((ok) => { if (ok) store.release(x.p.id) })}>
                     <UserMinus size={14} aria-hidden="true" />
                   </button>
                 </td>

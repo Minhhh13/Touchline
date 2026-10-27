@@ -92,7 +92,7 @@ export function runsSummary(runs: string | null, longestPerfectRun: number | und
 
 /**
  * The playback's moment chip when the perfect run ends: the game that ended it ("Lost 0-1 to Brentford", "Drew 2-2
- * with Everton"), since the chase banner above already says "Perfect run over at 4-0".
+ * with Everton"), since the chase banner above already says "Perfect run over in game 5".
  */
 export function brokeMoment(gf: number, ga: number, opponent: string): string {
   return gf < ga ? `Lost ${gf}-${ga} to ${opponent}` : `Drew ${gf}-${ga} with ${opponent}`

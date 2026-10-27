@@ -26,6 +26,7 @@ import { GameByGame } from '../components/GameByGame'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { onlineAvailable } from '../../online/api'
 import { RoomSetup } from '../online/Rooms'
+import { askConfirm } from '../confirm'
 
 /** The head-to-head a Rematch came from: the setup opens with its managers, clubs, league and rules (on a new wheel). */
 let rematchOf: H2HGame | null = null
@@ -273,7 +274,7 @@ export function H2HScreen() {
           <button className="btn ghost sm" onClick={() => go('home')}>
             Home
           </button>
-          <button className="btn ghost sm danger" onClick={() => confirm('Abandon this head-to-head?') && abandonH2H()}>
+          <button className="btn ghost sm danger" onClick={() => void askConfirm('Abandon this head-to-head?', { ok: 'Abandon', danger: true }).then((ok) => { if (ok) abandonH2H() })}>
             Abandon
           </button>
         </div>

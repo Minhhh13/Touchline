@@ -138,7 +138,7 @@ export function KickOff() {
               <TeamInstructions t={t} onChange={setTactics} />
               <div className="row wrap" style={{ gap: 10 }}>
                 <button className="btn primary" onClick={() => void kickOffSoon()} disabled={kicking} aria-busy={kicking || undefined} data-testid="kickoff-go-tactics">
-                  {kicking ? 'Simulating…' : 'Simulate season'}
+                  {kicking ? 'Simulating…' : 'Simulate with these tactics'}
                 </button>
                 <button className="btn ghost" onClick={() => void kickOffSoon(true)} disabled={kicking} data-testid="kickoff-skip" title="Play with the default tactics, no captain and the best penalty taker on the pitch">
                   Simulate with the default tactics

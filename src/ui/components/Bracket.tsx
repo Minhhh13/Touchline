@@ -46,7 +46,7 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
         {show ? badge(id) : <span className="br-blank-badge" aria-hidden="true" />}
         <span className="br-name" title={show ? nameOf(id) : undefined}>
           {show ? nameOf(id) : '?'}
-          {show && seeded.has(id) && <span className="muted small" title="Seeded"> (s)</span>}
+          {show && seeded.has(id) && <span className="muted small" title="Seeded: kept apart from the other seeds until the later rounds"> (s)</span>}
         </span>
         <span className="br-goals">{done && goals !== undefined ? goals : ''}</span>
         {done && pens !== undefined && <span className="br-pens" title="Penalties">{pens}</span>}

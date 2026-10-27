@@ -836,9 +836,26 @@ p {
   .topbar .tl-lockup {
     --h: 32px;
   }
-  /* On a phone the nav's row is icons only (the label stays for screen readers) */
+  /* On a phone the nav's row is icons over a one-word caption (`.nav-tiny`, hidden from screen readers, which hear
+     the full label): five bare icons left a new player guessing */
   .topbar nav button {
-    padding: 7px 14px;
+    padding: 5px 6px 4px;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+  .topbar nav {
+    width: 100%;
+  }
+  .topbar nav button .nav-tiny {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.1;
   }
   .topbar nav button svg {
     width: 18px;
@@ -881,7 +898,7 @@ p {
 /* The smallest phones (320 px, or a mini with Display Zoom): seven nav icons fit the row without widening the page */
 @media (max-width: 359px) {
   .topbar nav button {
-    padding: 7px 9px;
+    padding: 5px 2px 4px;
   }
 }
 /* A phone on its side (a short touch screen, 844x390): the bar is one row, the nav icons only (the label stays for
@@ -920,6 +937,23 @@ p {
     content: '';
     position: absolute;
     inset: -4px;
+  }
+}
+
+/* The phone nav's one-word captions (App.tsx): shown only in the phone block above */
+.topbar nav .nav-tiny {
+  display: none;
+}
+@media (max-height: 500px) and (max-width: 1100px) and (pointer: coarse) {
+  .topbar nav button .nav-tiny {
+    display: none;
+  }
+  .topbar nav button {
+    flex-direction: row;
+    flex: none;
+  }
+  .topbar nav {
+    width: auto;
   }
 }
 
@@ -2647,6 +2681,17 @@ kbd {
   vertical-align: middle;
   background: var(--tier);
   color: var(--tier-ink);
+}
+/* A fixed rules chip with a note (Setup's Daily and Weekly rules, ruleNotes.ts): its tip on hover, tap or focus */
+.chip.has-tip {
+  cursor: help;
+}
+/* The end case's rarity, worn in the colour the case gives it (EndCase.tsx): the only scale on the card */
+.chip.case-rarity[data-tier] {
+  background: var(--tier);
+  color: var(--tier-ink);
+  border-color: transparent;
+  font-weight: 700;
 }
 .tier-dot {
   display: inline-block;
@@ -4390,6 +4435,27 @@ table.tbl.contracts .btn.sm {
   border-radius: var(--radius);
   padding: 20px;
   box-shadow: var(--shadow);
+}
+/* The game's yes-or-no question (components/ConfirmDialog.tsx): above any other dialog, short and centred */
+.modal-back.confirm-back {
+  z-index: 90;
+}
+.modal.confirm-dialog {
+  width: min(440px, 100%);
+}
+.confirm-text {
+  margin: 0 0 var(--space-4);
+  line-height: 1.5;
+}
+.confirm-actions {
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+@media (max-width: 720px) {
+  .confirm-actions > .btn {
+    flex: 1 1 0;
+  }
 }
 @media (max-width: 720px) {
   /* On a phone a modal is a bottom sheet: full width, anchored to the bottom, thumb-reachable */

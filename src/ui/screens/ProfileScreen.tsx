@@ -33,6 +33,7 @@ import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
+import { askConfirm } from '../confirm'
 
 const FILTER_KEY = 'touchline-record-filter'
 const RUNS_VIEW_KEY = 'touchline-runs-view'
@@ -199,15 +200,15 @@ export function ProfileScreen() {
     try {
       // Plain JSON from any build, or a compressed save; a file that is neither, or does not fit, leaves this save alone
       const save = readSaveFile(await file.text())
-      if (!confirm('Replace everything in this browser with the imported save? This cannot be undone.')) return
+      if (!(await askConfirm('Replace everything in this browser with the imported save? This cannot be undone.', { ok: 'Replace', danger: true }))) return
       storeImportedSave(save)
       location.reload()
     } catch (e) {
       showToast(`Could not import: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
-  const wipe = () => {
-    if (!confirm('Delete every saved game, your record and achievements from this browser? This cannot be undone.')) return
+  const wipe = async () => {
+    if (!(await askConfirm('Delete every saved game, your record and achievements from this browser? This cannot be undone.', { ok: 'Delete everything', danger: true }))) return
     wipeSave()
     location.reload()
   }

@@ -155,7 +155,7 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
       testId={atBreak ? 'half-time-panel' : 'late-panel'}
       actions={
         <>
-          <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus>
+          <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus title="Play on with the talk and changes chosen above">
             {atBreak ? 'Play on to 70 minutes' : 'Play to the whistle'}
           </button>
           <button
@@ -165,6 +165,7 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
               onPlay(atBreak ? { talk: 'none' } : {})
             }}
             data-testid="no-changes"
+            title={atBreak ? 'Play on as you are: no team talk, no changes' : 'Play on as you are: no changes'}
           >
             No changes
           </button>

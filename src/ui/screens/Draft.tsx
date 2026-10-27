@@ -15,7 +15,7 @@ import { HoverTips } from '../components/PowerUpButton'
 import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
-import { bestFit, describeFit } from '@engine/positions'
+import { fitGroups } from '../draftFit'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
 import { MODE_INFO, SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
@@ -28,7 +28,8 @@ import { clubName, nationName, ordinal, seasonLabel, formationName } from '../fo
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
 import { useFinishDraft } from '../useArenaWarmup'
-import { finishDraftLabel } from '@game/logic/modes'
+import { finishDraftLabel, modeLabel } from '@game/logic/modes'
+import { RUN_IN_SPINS } from '@game/logic/runin'
 import { challengeHeadline } from '@game/logic/arenaClaim'
 import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
@@ -47,6 +48,7 @@ import { ManagerPick } from '../components/ManagerPick'
 import { DraftRecap } from '../components/DraftRecap'
 import { draftRecap } from '@game/logic/draftRecap'
 import { playSound } from '../sound/synth'
+import { askConfirm } from '../confirm'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -173,6 +175,8 @@ export function Draft() {
   const canClose = canCloseBench(d)
   const roomOnBench = benchRoom(d)
   const fillingStarters = fillingXI(d)
+  // A run-in's draft starts with the club's own squad in it: the count is of the signings the brief gives, not the squad
+  const signings = game.settings.mode === 'runin' ? { base: Math.max(0, total - RUN_IN_SPINS) } : null
   const needs = neededPositions(d)
   const selected = selectedPlayer ? get(selectedPlayer) : undefined
   const selectedEligible = selected ? eligibleSlots(d, selected).map((s) => s.id) : []
@@ -242,6 +246,12 @@ export function Draft() {
         <div className="screen-title">
           <h1>{isDynastySummer ? `Summer draft · Year ${game.year}` : game.settings.mode === 'runin' ? 'Reinforcements' : 'The draft'}</h1>
           <div className="screen-meta">
+            {/* What this draft is for, where its title does not say: the Daily, the Weekly, an arena format */}
+            {(game.settings.mode === 'daily' || game.settings.mode === 'weekly' || game.settings.mode === 'arena') && (
+              <span className="chip info" data-testid="draft-mode-chip">
+                {modeLabel(game, 'short')}
+              </span>
+            )}
             <span>
               {game.settings.teamName} · {formationName(game.settings.formationId)}
             </span>
@@ -283,8 +293,12 @@ export function Draft() {
         </div>
         <div className="draft-progress">
           <div className="row between" style={{ gap: 'var(--space-2)' }}>
-            <span className="draft-count" data-testid="pick-count" role="img" aria-label={places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
-              {places && !fillingStarters ? (
+            <span className="draft-count" data-testid="pick-count" role="img" aria-label={signings ? `Signing ${Math.min(made - signings.base + 1, RUN_IN_SPINS)} of ${RUN_IN_SPINS}` : places && !fillingStarters ? `Bench ${d.bench.length} of ${places}` : `Pick ${Math.min(made + 1, total)} of ${total}`}>
+              {signings ? (
+                <>
+                  <span className="eyebrow">Signing</span> <b>{Math.min(made - signings.base + 1, RUN_IN_SPINS)}</b> / {RUN_IN_SPINS}
+                </>
+              ) : places && !fillingStarters ? (
                 <>
                   <span className="eyebrow">Bench</span> <b>{d.bench.length}</b> / {places}
                 </>
@@ -309,9 +323,10 @@ export function Draft() {
             </span>
           </div>
           <div className="pick-track" aria-hidden="true">
-            {Array.from({ length: total }, (_, i) => (
-              <span key={i} className={i < made ? 'done' : i === made && !complete ? 'now' : ''} />
-            ))}
+            {Array.from({ length: signings ? RUN_IN_SPINS : total }, (_, k) => {
+              const i = k + (signings?.base ?? 0)
+              return <span key={i} className={i < made ? 'done' : i === made && !complete ? 'now' : ''} />
+            })}
           </div>
         </div>
       </div>
@@ -390,7 +405,7 @@ export function Draft() {
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
                     Re-spin ({d.respinsLeft})
                   </button>
-                  <button className="btn sm ghost" disabled={spinning} onClick={() => confirm('Let the assistant finish the draft automatically?') && autoDraftRest()}>
+                  <button className="btn sm ghost" disabled={spinning} onClick={() => void askConfirm('Let the assistant finish the draft? It makes every pick that is left.', { ok: 'Auto-complete' }).then((ok) => { if (ok) autoDraftRest() })}>
                     Auto-complete
                   </button>
                 </div>
@@ -607,7 +622,7 @@ export function Draft() {
                     const taken = d.takenPlayers.includes(p.playerId)
                     const foreign = !nationAllows(d, p)
                     const slots = eligibleSlots(d, p)
-                    const best = fillingStarters ? bestFit(slots.map((s) => describeFit(p, s.position))) : undefined
+                    const groups = fillingStarters ? fitGroups(p, slots.map((s) => s.position)) : null
                     return (
                       <PlayerRow
                         key={p.id}
@@ -619,7 +634,7 @@ export function Draft() {
                         showClub={iconsSpin}
                         hideChampion={current.champions}
                         onClick={() => onPick(p)}
-                        extra={<><ChainChip u={u} d={d} p={p} show={!taken && !foreign} /><CapChips d={d} p={p} show={!taken && !foreign && chainAllows(d, p)} />{taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : fillingStarters && slots.length ? <span className={`chip ${best === 'natural' ? 'good' : 'warn'}`}>{best === 'natural' ? 'fits' : 'can cover'} {[...new Set(slots.map((s) => s.position))].join('/')}</span> : null}</>}
+                        extra={<><ChainChip u={u} d={d} p={p} show={!taken && !foreign} /><CapChips d={d} p={p} show={!taken && !foreign && chainAllows(d, p)} />{taken ? <span className="chip">already drafted</span> : foreign ? <span className="chip">not {nationName(u, nation ?? '')}</span> : groups && slots.length ? <>{groups.fits.length > 0 && <span className="chip good">fits {groups.fits.join('/')}</span>}{groups.covers.length > 0 && <span className="chip warn">can cover {groups.covers.join('/')}</span>}</> : null}</>}
                         right={ok ? <span className={`btn sm ${selectedPlayer === p.id ? 'primary' : ''}`}>{fillingStarters && slots.length ? 'Draft' : 'Bench'}</span> : null}
                       />
                     )

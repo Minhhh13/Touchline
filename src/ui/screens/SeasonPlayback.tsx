@@ -263,8 +263,31 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
             )
           })}
           <span className="help" data-testid="bench-help">
-            {choosing ? (targets.length ? `Tap the starter ${nameOf(inId!)} replaces, from matchweek ${view.next} on.` : `${nameOf(inId!)} cannot play any slot in this shape.`) : problem ? (view.next === null ? `${used} change${used === 1 ? '' : 's'} made.` : problem + '.') : 'Bring a bench player on between games: the change sticks until you change it again. Injured starters are covered from the bench without using a change.'}
+            {choosing ? (targets.length ? `Pick the starter ${nameOf(inId!)} replaces, on the pitch or below, from matchweek ${view.next} on.` : `${nameOf(inId!)} cannot play any slot in this shape.`) : problem ? (view.next === null ? `${used} change${used === 1 ? '' : 's'} made.` : problem + '.') : 'Bring a bench player on between games: the change sticks until you change it again. Injured starters are covered from the bench without using a change.'}
           </span>
+          {/* The starters he may replace, by name: on a small pitch the discs show ratings only */}
+          {choosing && targets.length > 0 && (
+            <div className="pill-list" role="group" aria-label={`Starters ${nameOf(inId!)} can replace`} data-testid="bench-targets">
+              {targets.map((slotId) => {
+                const slot = formation.slots.find((s) => s.id === slotId)
+                const outId = view.lineup[slotId]
+                return (
+                  <button
+                    key={slotId}
+                    type="button"
+                    className="chip-btn"
+                    onClick={() => {
+                      benchChange(revealed, slotId, inId!)
+                      setInId(null)
+                    }}
+                    data-testid="bench-target"
+                  >
+                    {slot?.position ?? slotId} · {outId ? nameOf(outId) : 'empty'}
+                  </button>
+                )
+              })}
+            </div>
+          )}
           {(game.quickChanges ?? []).filter((c) => view.next === null || c.from <= view.next).map((c, i) => (
             <span key={i} className="small muted">
               Change {i + 1}: {nameOf(c.inId)} on from matchweek {c.from}

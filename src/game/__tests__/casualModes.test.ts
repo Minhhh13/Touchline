@@ -40,6 +40,10 @@ describe('mode labels', () => {
 
   it('words the Draft finish buttons as before: the quick season, a dynasty summer, pre-season', () => {
     expect(finishDraftLabel(game('quick'))).toBe('On to kick-off')
+    // The manager spin's reels come before the kick-off step, so the button names them
+    const withRules = (managerSpin: boolean): LabelledGame => ({ year: 1, settings: { mode: 'quick', seed: 'K7Q2-MX9A', rules: { ...QUICK_RULES, managers: true, managerSpin } } })
+    expect(finishDraftLabel(withRules(true))).toBe('On to your manager')
+    expect(finishDraftLabel(withRules(false))).toBe('On to kick-off')
     expect(finishDraftLabel(game('daily', 1, 'daily-2026-10-25'), 9)).toBe('On to kick-off')
     expect(finishDraftLabel(game('season'))).toBe('Go to pre-season')
     expect(finishDraftLabel(game('season'), 15)).toBe('Go to pre-season with 15')

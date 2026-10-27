@@ -24,6 +24,7 @@ import { OppositionReport } from './OppositionReport'
 import { distinctLabels } from '../screenText'
 import { gauntletBandText, splitSeason } from '../arenaText'
 import { TacticsTab } from './Dugout'
+import { askConfirm } from '../confirm'
 
 type ArenaTab = 'team' | 'tactics' | 'draw'
 
@@ -32,8 +33,8 @@ const ORDER: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW',
 /**
  * The arena hub (phase `week` with `game.arena`): the next opponent, the
  * opposition report, the team sheet and tactics (and the Cup's draw), then
- * "Manage this one" (live, the two stops) or "Assistant plays it" ("Sim this
- * tie" in the Cup).
+ * "Manage this one" (live, the two stops) or the assistant plays it: "Sim this
+ * tie" in the Cup, "Sim this rung" on the Gauntlet, "Sim the final".
  */
 export function Arena() {
   const store = useStore()
@@ -63,8 +64,8 @@ export function Arena() {
   const oppName = opp ? splitSeason(opp.club.name) : null
   // A challenge's ghost: the challenger's result on this step, and on every rung or round
   const ghost = game.settings.challenge?.arena ? game.settings.challenge : undefined
-  const changeDraw = () => {
-    if (opp && confirm(`Change the draw? ${opp.club.name} makes way for another side from the same band. Once a run.`)) store.changeTheDraw()
+  const changeDraw = async () => {
+    if (opp && (await askConfirm(`Change the draw? ${opp.club.name} makes way for another side from the same band. Once a run.`, { ok: 'Change the draw' }))) store.changeTheDraw()
   }
   const get = playerLookup(game, u)
   const formation = getFormation(game.tactics.formationId)
@@ -143,8 +144,8 @@ export function Arena() {
                   </button>
                 )}
               </div>
-              <div className="small muted" data-testid="arena-rating">
-                {opp.offset > 0 ? `Plays at ${(opp.real - opp.offset).toFixed(1)} (real ${opp.real.toFixed(1)})` : `Plays at full strength, ${opp.real.toFixed(1)}`} · you {strength.overall.toFixed(1)}
+              <div className="small muted" data-testid="arena-rating" title={opp.offset > 0 ? 'Team ratings. On Calibrated difficulty an opponent plays a few points below its real rating, so a drafted XI has a chance' : 'Team ratings: theirs at full strength'}>
+                {opp.offset > 0 ? `Their rating ${(opp.real - opp.offset).toFixed(1)} here (real ${opp.real.toFixed(1)}, calibrated)` : `Their rating ${opp.real.toFixed(1)}, at full strength`} · yours {strength.overall.toFixed(1)}
               </div>
               {ghost && (
                 <div className="small" style={{ color: 'var(--accent)' }} data-testid="ghost-here">
@@ -296,7 +297,7 @@ export function Arena() {
             </button>
             <div className="row wrap arena-more-calls" style={{ gap: 8 }}>
               <button className="btn" onClick={() => store.playArenaStep(false)} disabled={!opp} data-testid="arena-sim" title="The assistant picks the side and plays the match, penalties included">
-                {cup ? 'Sim this tie' : 'Assistant plays it'}
+                {cup ? 'Sim this tie' : gauntlet ? 'Sim this rung' : 'Sim the final'}
               </button>
               {(gauntlet || cup) && (
                 <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp} data-testid="arena-sim-end" title={cup ? 'The assistant plays every tie left' : 'The assistant plays every rung left and drafts the bonus spins'}>
