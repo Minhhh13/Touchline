@@ -14,6 +14,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import { computeTable, USER_TEAM, type CupTie } from '@engine/season'
 import type { Fixture, MatchResult, TableRow } from '@engine/types'
 import { clubOf, tiesOf } from './week'
+import { legAt } from '@engine/continental'
 
 export interface RoundRef {
   competition: 'league' | 'cup' | 'continental'
@@ -76,6 +77,19 @@ function otherMatches(game: Game, ref: RoundRef): Array<{ homeTeamId: string; aw
   if (!season || ref.friendly) return []
   const isUser = (m: { homeTeamId: string; awayTeamId: string }) => m.homeTeamId === USER_TEAM || m.awayTeamId === USER_TEAM
   if (ref.competition === 'league') return season.fixtures.filter((f) => f.matchweek === ref.matchweek && !isUser(f))
+  const c = season.continental
+  if (ref.competition === 'continental' && c?.groups) {
+    // Engine 7: the other group matches of the matchday, or the other legs of the midweek (each from its own sides)
+    const groupMatches = c.groups.flatMap((g) => g.matches.filter((m) => m.matchweek === ref.matchweek && !isUser(m)))
+    if (groupMatches.length) return groupMatches
+    return c.ties.flatMap((t) => {
+      const leg = legAt(t, ref.matchweek)
+      if (!leg || isUser(t)) return []
+      const result = leg.leg === 1 ? t.firstLeg?.result : t.result
+      const pens = leg.leg === 2 && t.agg?.pens ? { home: t.agg.pens.away, away: t.agg.pens.home } : t.agg?.pens
+      return [{ homeTeamId: leg.homeTeamId, awayTeamId: leg.awayTeamId, ...(result ? { result: leg.leg !== 1 && pens ? { ...result, penalties: pens } : result } : {}) }]
+    })
+  }
   const ties: CupTie[] = tiesOf(season, ref.competition)
   const own = ref.cupTieIndex !== undefined ? ties[ref.cupTieIndex] : undefined
   const round = own?.round ?? ties.find((t) => t.afterMatchweek === ref.matchweek && isUser(t))?.round

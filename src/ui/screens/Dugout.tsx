@@ -31,7 +31,9 @@ import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, TeamBadge, Tip, useViewerFlag } from '../components/bits'
 import { Bracket } from '../components/Bracket'
-import { seasonCupBracket } from '@game/logic/bracket'
+import { seasonCupBracket, seasonGroupViews } from '@game/logic/bracket'
+import { continentalPlan } from '@engine/continental'
+import { GroupTables } from '../components/GroupTables'
 import { BriefingIcon, NewsIcon } from '../components/icons'
 import { SQUAD_COLUMNS } from '../components/AttributePanel'
 import { PlayerCardModal } from '../components/PlayerCard'
@@ -280,7 +282,7 @@ export function Dugout() {
                         ⏸ {stopped.label}
                       </span>
                     )}
-                    {cupTie && <span>{t('thenCup', { round: cupTie.label, home: cupTie.tie.homeTeamId === USER_TEAM ? 'home' : 'away', club: clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId) })}</span>}
+                    {cupTie && <span>{t('thenCup', { round: cupTie.label, home: cupTie.homeTeamId === USER_TEAM ? 'home' : 'away', club: clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId) })}</span>}
                   </div>
                 </div>
               </div>
@@ -301,7 +303,7 @@ export function Dugout() {
                   {cupTie && (
                     <div className="club-sub">
                       <span>
-                        {t('thenCup', { round: cupTie.label, home: cupTie.tie.homeTeamId === USER_TEAM ? 'home' : 'away', club: clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId) })}
+                        {t('thenCup', { round: cupTie.label, home: cupTie.homeTeamId === USER_TEAM ? 'home' : 'away', club: clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId) })}
                       </span>
                     </div>
                   )}
@@ -894,7 +896,7 @@ function SeasonStrip({ table }: { table: TableRow[] }) {
     <div className="season-strip" data-testid="season-strip">
       {cells.map((c) => {
         const opp = c.opp ? clubName(u, c.opp) : null
-        const tieLine = c.ties.map((x) => t('stripTie', { comp: x.comp === 'cup' ? 'cup' : 'continental', round: x.round, home: x.home ? 'home' : 'away', club: clubName(u, x.opp), score: x.score ? ` ${x.score}` : '' })).join('; ')
+        const tieLine = c.ties.map((x) => t('stripTie', { label: x.label ?? t('stripTieRound', { comp: x.comp === 'cup' ? 'cup' : 'continental', round: x.round }), home: x.home ? 'home' : 'away', club: clubName(u, x.opp), score: x.score ? ` ${x.score}` : '' })).join('; ')
         const title = t('stripTitle', { week: c.matchweek, fixture: opp ? t('stripFixture', { home: c.home ? 'home' : 'away', club: opp, score: c.score ? ` ${c.score}` : '' }) : t('stripFree'), ties: tieLine ? t('stripThen', { ties: tieLine }) : '' })
         return (
           <div key={c.matchweek} className={`ss-cell ${c.outcome ? 'played' : c.band ? `band-${c.band}` : 'free'} ${c.matchweek === nextMw ? 'next' : ''}`} title={title} data-testid="strip-cell">
@@ -1172,7 +1174,10 @@ function CupTab({ comp }: { comp: Competition }) {
   const { universe: u, game } = useStore()
   if (!u || !game?.season) return null
   const season = game.season
-  const rounds = roundsFor(comp, season.matchweeks)
+  // Engine 7's Continental Cup: groups, then two-legged knockouts from the quarter-finals; an engine 6 one plays on as drawn
+  const groups = comp === 'continental' ? season.continental?.groups : undefined
+  const plan = groups ? continentalPlan(season.matchweeks) : null
+  const rounds = plan ? plan.rounds : roundsFor(comp, season.matchweeks)
   const allTies = comp === 'cup' ? season.cup : season.continental?.ties ?? []
   const eliminated = comp === 'cup' ? season.cupEliminated : !!season.continental?.eliminated
   const won = comp === 'cup' ? season.cupWon : !!season.continental?.won
@@ -1183,11 +1188,13 @@ function CupTab({ comp }: { comp: Competition }) {
         <span className="head-title">
           <h3>{t(comp === 'cup' ? 'theCup' : 'continentalCup')}</h3>
           <Info label={t('aboutComp')}>
-            {t('compInfo', { comp: comp === 'cup' ? 'cup' : 'continental', weeks: rounds.map((r) => r.afterMatchweek).join(', ') })}
+            {plan
+              ? t('compInfoGroups', { groupWeeks: plan.groupWeeks.join(', '), qf1: plan.rounds[0].firstLeg, qf2: plan.rounds[0].afterMatchweek, sf1: plan.rounds[1].firstLeg, sf2: plan.rounds[1].afterMatchweek, final: plan.rounds[2].afterMatchweek })
+              : t('compInfo', { comp: comp === 'cup' ? 'cup' : 'continental', weeks: rounds.map((r) => r.afterMatchweek).join(', ') })}
             {comp === 'continental' ? t('compAgain') : ''}
           </Info>
         </span>
-        <span className="small muted">{t('clubsRounds')}</span>
+        <span className="small muted">{t(plan ? 'clubsGroups' : 'clubsRounds')}</span>
       </div>
       {field.length > 0 && (
         <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
@@ -1198,8 +1205,13 @@ function CupTab({ comp }: { comp: Competition }) {
           ))}
         </div>
       )}
+      {groups && (
+        <div style={{ marginBottom: 12 }}>
+          <GroupTables groups={seasonGroupViews(groups)} nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))} badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={16} /> : <ClubBadge clubId={id} size={16} />)} userId={USER_TEAM} testId="season-groups" />
+        </div>
+      )}
       <Bracket
-        view={seasonCupBracket(allTies, rounds)}
+        view={seasonCupBracket(allTies, rounds, plan?.groupWeeks.at(-1))}
         nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))}
         badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={id} size={18} />)}
         userId={USER_TEAM}

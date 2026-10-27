@@ -3,7 +3,8 @@ import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { Rng } from '@engine/rng'
 import { autoDraft, SEASON_RULES } from '@engine/draft'
 import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
-import { RUN_IN_TEMPLATES, runInCatalogue, runInJob, type RunInJob, type RunInTemplate } from '@engine/scenario'
+import { playOffOpponent, RUN_IN_TEMPLATES, runInCatalogue, runInJob, type RunInJob, type RunInTemplate } from '@engine/scenario'
+import { tieScore } from '@engine/continental'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { createGame } from '../logic/setup'
 import { playMatchweek } from '../logic/week'
@@ -223,20 +224,45 @@ describe('Run-in: the Bundesliga play-off', () => {
     playOut(a, de)
     const club = de.clubById[sixteenth.clubId].shortName
     expect(runInVerdict(a, de)!.realLine).toBe(`📊 The real ${club} finished 16th on ${sixteenth.real.points}, in the relegation play-off place`)
-    // The game relegates the bottom three, so a 16th misses the brief, but its line says where it stood
-    let sawSixteenth = false
-    for (let i = 0; i < 40 && !sawSixteenth; i++) {
+    // Engine 7: a 16th plays the relegation play-off, two legs against the weakest club promoted for the next season,
+    // and meets the survival brief by winning it; no play-off for any other place
+    let sixteenths = 0
+    let survived = 0
+    for (let i = 0; i < 60; i++) {
       const g = takenOver(sixteenth, `runin-playoff-16-${i}`, de)
       playOut(g, de)
       const v = runInVerdict(g, de)!
-      if (v.sacked) continue
-      if (v.position === 16) {
-        sawSixteenth = true
-        expect(v.met).toBe(false)
-        expect(v.line).toBe(`${club} finished 16th on ${v.points} under you, in the relegation play-off place; the real ${club} finished 16th on ${sixteenth.real.points}, in the relegation play-off place`)
-      } else if (v.position > 16) expect(v.line.startsWith(`${club} went down on ${v.points} under you;`)).toBe(true)
+      if (v.sacked) {
+        expect(g.season!.playOff).toBeUndefined()
+        continue
+      }
+      if (v.position !== 16) {
+        expect(g.season!.playOff).toBeUndefined()
+        if (v.position > 16) expect(v.line.startsWith(`${club} went down on ${v.points} under you;`)).toBe(true)
+        continue
+      }
+      sixteenths++
+      const po = g.season!.playOff!
+      const opp = playOffOpponent(de, 'germany', sixteenth.season)!
+      expect(po.opponent).toBe(`${opp.clubId}@${opp.season}`)
+      expect(po.tie.homeTeamId).toBe(USER_TEAM)
+      expect(de.clubSeasons.some((cs) => cs.leagueId === 'germany' && cs.season === sixteenth.season && cs.clubId === opp.clubId)).toBe(false)
+      const s = tieScore(po.tie)!
+      expect(s.legs).toHaveLength(2)
+      const won = po.tie.winnerId === USER_TEAM
+      if (won) survived++
+      expect(v.met).toBe(won)
+      expect(v.chip).toBe(won ? 'SURVIVED' : 'MISSED')
+      expect(v.line.startsWith(`${club} finished 16th on ${v.points} under you and ${won ? 'stayed up through' : 'went down in'} the relegation play-off, ${s.legs![0].home}-${s.legs![0].away} and ${s.legs![1].home}-${s.legs![1].away} against ${de.clubById[opp.clubId].name}, ${s.home}-${s.away} on aggregate`)).toBe(true)
+      expect(g.season!.objectives!.find((o) => o.id === 'survive')!.met).toBe(won)
+      expect(runInUnlocks(g, de, 16).includes('great-escape')).toBe(false)
+      // Replayed alike
+      const again = takenOver(sixteenth, `runin-playoff-16-${i}`, de)
+      playOut(again, de)
+      expect(again.season!.playOff).toEqual(po)
     }
-    expect(sawSixteenth).toBe(true)
+    expect(sixteenths).toBeGreaterThan(0)
+    expect(survived).toBeLessThanOrEqual(sixteenths)
     const b = takenOver(below, 'runin-playoff-17', de)
     playOut(b, de)
     expect(runInVerdict(b, de)!.realLine).toBe(`📊 The real ${de.clubById[below.clubId].shortName} went down on ${below.real.points}`)

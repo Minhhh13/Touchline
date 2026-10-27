@@ -6,8 +6,9 @@
  */
 import { USER_TEAM, type CupRoundInfo, type CupTie as SeasonCupTie } from '@engine/season'
 import { cupRoundCount, cupRoundName } from '@engine/cup'
-import type { QuickCupRun } from '../types'
-import { cupRoundLabel, quickCupRounds, type QuickCupComp } from './quickCups'
+import type { QuickCupRun, QuickGroup } from '../types'
+import { cupRoundLabel, quickCupRounds, quickRunRounds, type QuickCupComp } from './quickCups'
+import { groupTable, tieScore, type ContinentalGroup } from '@engine/continental'
 
 /** One tie as the bracket draws it. Sides are ids (`USER_TEAM` for the user); goals are absent until it is played. */
 export interface BracketTie {
@@ -19,6 +20,8 @@ export interface BracketTie {
   et?: boolean
   pens?: { home: number; away: number }
   winner?: string
+  /** A two-legged tie's legs, each from the tie's sides (`home`'s goals first); `hg`/`ag` are then the aggregate. */
+  legs?: Array<{ hg: number; ag: number }>
 }
 
 export interface BracketRound {
@@ -88,7 +91,7 @@ export function buildBracket(names: string[], rounds: ReadonlyArray<ReadonlyArra
 
 /** The bracket of a Quick Draft post-season cup run; a run from before the bracket shows the user's own ties alone. */
 export function quickCupBracket(run: QuickCupRun, comp: QuickCupComp): BracketView {
-  const names = quickCupRounds(comp).map((r) => cupRoundLabel(comp, r.round))
+  const names = quickRunRounds(comp, run).map((r) => cupRoundLabel(comp, r.round))
   if (run.bracket?.length) return buildBracket(names, run.bracket)
   const rounds = quickCupRounds(comp).map((info) =>
     run.ties
@@ -109,21 +112,28 @@ export function quickCupBracket(run: QuickCupRun, comp: QuickCupComp): BracketVi
  * The bracket of a Season's Cup or Continental Cup from its ties so far (a compacted save keeps every score, the
  * penalties and the winner). A round not drawn yet says after which matchweek it will be.
  */
-export function seasonCupBracket(ties: SeasonCupTie[], rounds: CupRoundInfo[]): BracketView {
+export function seasonCupBracket(ties: SeasonCupTie[], rounds: CupRoundInfo[], groupsEnd?: number): BracketView {
+  const first = groupsEnd
   return buildBracket(
     rounds.map((r) => r.label.replace(/^Continental /, '').replace(/^./, (c) => c.toUpperCase())),
     rounds.map((info) =>
       ties
         .filter((t) => t.round === info.round)
-        .map((t): BracketTie => ({
-          home: t.homeTeamId,
-          away: t.awayTeamId,
-          ...(t.result ? { hg: t.result.homeGoals, ag: t.result.awayGoals } : {}),
-          ...(t.result?.penalties ? { pens: { home: t.result.penalties.home, away: t.result.penalties.away } } : {}),
-          ...(t.winnerId ? { winner: t.winnerId } : {}),
-        })),
+        .map((t): BracketTie => {
+          // A two-legged tie shows its aggregate and its legs (engine 7); a first leg alone shows as it stands
+          const sc = tieScore(t)
+          return {
+            home: t.homeTeamId,
+            away: t.awayTeamId,
+            ...(sc ? { hg: sc.home, ag: sc.away } : {}),
+            ...(sc?.et ? { et: true } : {}),
+            ...(sc?.pens ? { pens: { home: sc.pens.home, away: sc.pens.away } } : {}),
+            ...(sc?.legs ? { legs: sc.legs.map((l) => ({ hg: l.home, ag: l.away })) } : {}),
+            ...(t.winnerId ? { winner: t.winnerId } : {}),
+          }
+        }),
     ),
-    (r) => (r > 0 ? `Drawn after matchweek ${rounds[r - 1].afterMatchweek}` : undefined),
+    (r) => (r > 0 ? `Drawn after matchweek ${rounds[r - 1].afterMatchweek}` : first ? `After the groups, matchweek ${first}` : undefined),
   )
 }
 
@@ -170,10 +180,42 @@ export function tieAtStep(steps: number[][], step: number): { round: number; tie
   return null
 }
 
+/** A two-legged tie's legs as the bracket prints them, home side of the tie first: "1-0, 2-2". */
+export function bracketLegs(t: BracketTie): string | null {
+  return t.legs?.length ? t.legs.map((l) => `${l.hg}-${l.ag}`).join(', ') : null
+}
+
 /** A tie's score as the bracket prints it from one side: "2-1", "1-1 (4-3 pens)", "3-2 aet". */
 export function bracketScore(t: BracketTie): string {
   if (t.hg === undefined || t.ag === undefined) return 'v'
   const base = `${t.hg}-${t.ag}`
   if (t.pens) return `${base} (${t.pens.home}-${t.pens.away} pens)`
   return t.et ? `${base} aet` : base
+}
+
+/** One group of a Continental Cup as the screens draw it (engine 7). */
+export interface GroupView {
+  name: string
+  rows: Array<{ teamId: string; played: number; won: number; drawn: number; lost: number; goalsFor: number; goalsAgainst: number; points: number; place: number; through: boolean }>
+  /** Every match by matchday, scored once played. */
+  matches: Array<{ matchday: number; matchweek: number; home: string; away: string; hg?: number; ag?: number }>
+  /** Every match is played. */
+  complete: boolean
+}
+
+function viewOf(name: string, teams: string[], matches: GroupView['matches']): GroupView {
+  const played = matches.filter((m) => m.hg !== undefined)
+  const rows = groupTable({ teams, matches: played.map((m) => ({ matchday: m.matchday, matchweek: m.matchweek, homeTeamId: m.home, awayTeamId: m.away, result: { homeTeamId: m.home, awayTeamId: m.away, homeGoals: m.hg!, awayGoals: m.ag!, events: [], homeStats: [], awayStats: [], xg: { home: 0, away: 0 } } })) })
+  const complete = played.length === matches.length
+  return { name, rows: rows.map((r, i) => ({ teamId: r.teamId, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost, goalsFor: r.goalsFor, goalsAgainst: r.goalsAgainst, points: r.points, place: i + 1, through: complete && i < 2 })), matches, complete }
+}
+
+/** A Season's groups as they stand (a compacted save keeps every score). */
+export function seasonGroupViews(groups: ContinentalGroup[]): GroupView[] {
+  return groups.map((g) => viewOf(g.name, g.teams, g.matches.map((m) => ({ matchday: m.matchday, matchweek: m.matchweek, home: m.homeTeamId, away: m.awayTeamId, ...(m.result ? { hg: m.result.homeGoals, ag: m.result.awayGoals } : {}) }))))
+}
+
+/** A post-season run's groups, as they stood after `matchdays` matchdays (all six by default: the cup night reveals them one at a time). */
+export function quickGroupViews(groups: QuickGroup[], matchdays = 6): GroupView[] {
+  return groups.map((g) => viewOf(g.name, g.teams, g.matches.map(([matchday, home, away, hg, ag]) => ({ matchday, matchweek: matchday, home, away, ...(matchday <= matchdays ? { hg, ag } : {}) }))))
 }

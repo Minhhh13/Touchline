@@ -274,7 +274,7 @@ export interface SeasonRecord {
   tier: SeasonTier
   cupWon: boolean
   continentalWon?: boolean
-  /** Furthest Continental Cup round reached: R16, QF, SF, F or W (winners). */
+  /** Furthest Continental Cup stage reached: G (out in the groups, from engine 7), R16 (before it), QF, SF, F or W (winners). */
   continentalRun?: string
   potsName?: string
   bootName?: string
@@ -300,6 +300,10 @@ export interface LiveMatch {
   cupTieIndex?: number
   /** Which knockout the tie belongs to (domestic cup when missing). */
   comp?: Competition
+  /** Engine 7's Continental Cup group stage: the group's index in `continental.groups`; `cupTieIndex` is then the match's index in that group's matches. */
+  group?: number
+  /** A two-legged Continental Cup tie's leg (engine 7). */
+  leg?: 1 | 2
 }
 
 export interface Game {
@@ -635,8 +639,8 @@ export interface QuickEuropeTie {
 
 /** A knockout round of the post-season cups: round of 16, quarter-final, semi-final, final. */
 export type QuickCupRound = 'R16' | 'QF' | 'SF' | 'F'
-/** How far a cup run went: the round it ended in, W for winners. */
-export type QuickCupReach = QuickCupRound | 'W'
+/** How far a cup run went: the round it ended in, G for out in the Continental Cup's groups (engine 7), W for winners. */
+export type QuickCupReach = QuickCupRound | 'G' | 'W'
 
 /** One tie of a post-season cup run, from the user's side. */
 export interface QuickCupTie {
@@ -652,9 +656,11 @@ export interface QuickCupTie {
   et?: { for: number; against: number }
   /** Shoot-out score from the user's side, after a draw over 120 minutes. */
   pens?: { for: number; against: number }
-  /** The user's goalscorers, ordered by minute (91 to 120 in extra time). */
+  /** The user's goalscorers, ordered by minute (91 to 120 in extra time); both legs of a two-legged tie, first leg first. */
   scorers: QuickScorer[]
   won: boolean
+  /** A two-legged tie (the Continental Cup's quarter- and semi-finals from engine 7): each leg's venue and score from the user's side, extra time not included; `gf`/`ga` are then the aggregate. */
+  legs?: Array<{ home: boolean; gf: number; ga: number }>
 }
 
 /** A post-season cup run: the user's ties in order, and how far it went. */
@@ -664,9 +670,20 @@ export interface QuickCupRun {
   /**
    * Every tie of every round, first round to final, in the order drawn: the whole bracket for the summary. The rounds
    * after the user went out are played on from the same fork, after every draw the run itself took, so no result moves.
-   * Absent on runs played before the bracket (the summary then shows the user's path alone).
+   * Absent on runs played before the bracket (the summary then shows the user's path alone). From engine 7 the
+   * Continental Cup's bracket starts at the quarter-finals, after its groups.
    */
   bracket?: QuickBracketTie[][]
+  /** The Continental Cup's group stage (engine 7): four groups of four, home and away. Absent on the domestic cup and on older runs. */
+  groups?: QuickGroup[]
+}
+
+/** One group of a post-season Continental Cup: its four sides in draw order and every match by matchday. */
+export interface QuickGroup {
+  name: string
+  teams: string[]
+  /** `[matchday, home, away, homeGoals, awayGoals]`. */
+  matches: Array<[number, string, string, number, number]>
 }
 
 /** One tie of a post-season cup's bracket. Sides are club ids, or `USER_TEAM` for the user. */
@@ -682,6 +699,8 @@ export interface QuickBracketTie {
   pens?: { home: number; away: number }
   /** The side that went through. */
   winner: string
+  /** A two-legged tie's legs, each from the tie's sides (`home`'s goals first), extra time not included. */
+  legs?: Array<{ hg: number; ag: number }>
 }
 
 export interface QuickEuropeRun {
