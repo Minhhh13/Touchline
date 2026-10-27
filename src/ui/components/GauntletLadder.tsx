@@ -10,6 +10,10 @@ import { playSound } from '../sound/synth'
 
 /** The rungs climbed already heard in this visit, by run (its ladder, built once), so a revisit rings nothing. */
 const climbHeard = new Map<string, number>()
+import { translator } from '../i18n'
+import { arena } from '../i18n/en/arena'
+
+const t = translator(arena)
 
 /**
  * The Gauntlet's fifteen rungs in a row: the rungs climbed as club codes in
@@ -31,24 +35,24 @@ export function GauntletLadder({ u, a, ghost }: { u: LoadedUniverse; a: ArenaSta
   const mark = (i: number) => (i === fell ? ' 👻' : '')
   const note = (i: number) => (ghost?.arena ? ` · ${ghostStepLine(ghost, i)}` : '')
   return (
-    <div className="row wrap" style={{ gap: 6 }} role="list" aria-label="The Gauntlet's rungs" data-testid="gauntlet-ladder">
+    <div className="row wrap" style={{ gap: 6 }} role="list" aria-label={t('rungsLabel')} data-testid="gauntlet-ladder">
       {Array.from({ length: GAUNTLET_RUNGS }, (_, i) => {
         const played = a.log[i]
         if (played) {
           const won = stepWon(played)
           return (
-            <span key={i} role="listitem" className={`chip ${won ? 'good' : 'bad'}`} title={`Rung ${i + 1}: ${played.gf}-${played.ga}${played.pens ? ` (${played.pens.us}-${played.pens.them} pens)` : ''} v ${arenaClubName(u, played.opponent)}${note(i)}`} data-testid={won ? 'rung-won' : 'rung-lost'}>
-              <span className="sr-only">Rung {i + 1}, {won ? 'won' : 'lost'} {played.gf}-{played.ga}{played.pens ? `, ${played.pens.us}-${played.pens.them} on penalties,` : ''} v {arenaClubName(u, played.opponent)}{note(i)}: </span>
+            <span key={i} role="listitem" className={`chip ${won ? 'good' : 'bad'}`} title={t('rungTip', { n: i + 1, score: `${played.gf}-${played.ga}`, pens: played.pens ? t('rungPens', { score: `${played.pens.us}-${played.pens.them}` }) : '', club: arenaClubName(u, played.opponent), note: note(i) })} data-testid={won ? 'rung-won' : 'rung-lost'}>
+              <span className="sr-only">{t('rungSr', { n: i + 1, won: won ? 'yes' : 'no', score: `${played.gf}-${played.ga}`, pens: played.pens ? t('rungSrPens', { score: `${played.pens.us}-${played.pens.them}` }) : '', club: arenaClubName(u, played.opponent), note: note(i) })}</span>
               <span aria-hidden="true">{code(played.opponent)}</span>
-              <span className="res-letter" aria-hidden="true">{won ? 'W' : 'L'}</span>
+              <span className="res-letter" aria-hidden="true">{t(won ? 'resW' : 'resL')}</span>
               {mark(i)}
             </span>
           )
         }
         if (i === a.step && !a.over && a.next) {
           return (
-            <span key={i} role="listitem" className="chip gold" title={`Rung ${i + 1}: ${arenaClubName(u, a.next)}${note(i)}`} data-testid="rung-next">
-              <span className="sr-only">Up next, rung {i + 1} v {arenaClubName(u, a.next)}{note(i)}: </span>
+            <span key={i} role="listitem" className="chip gold" title={t('rungNextTip', { n: i + 1, club: arenaClubName(u, a.next), note: note(i) })} data-testid="rung-next">
+              <span className="sr-only">{t('rungNextSr', { n: i + 1, club: arenaClubName(u, a.next), note: note(i) })}</span>
               <span aria-hidden="true" className="row" style={{ gap: 4 }}>
                 <ClubBadge clubId={clubIdOfKey(a.next)} size={18} /> {i + 1}
               </span>
@@ -57,7 +61,7 @@ export function GauntletLadder({ u, a, ghost }: { u: LoadedUniverse; a: ArenaSta
           )
         }
         return (
-          <span key={i} role="listitem" className="chip rung-ahead" title={ghost?.arena ? `Rung ${i + 1}${note(i)}` : undefined}>
+          <span key={i} role="listitem" className="chip rung-ahead" title={ghost?.arena ? t('rungAheadTip', { n: i + 1, note: note(i) }) : undefined}>
             {i + 1}
             {mark(i)}
           </span>

@@ -18,6 +18,10 @@ import { matchPace, toPicture } from '../match/timing'
 import { kitColours } from '../match/shirts'
 import { minuteLabel } from '../format'
 import { keyMomentsPref, usePref } from '../viewerPrefs'
+import { translator } from '../i18n'
+import { summary } from '../i18n/en/summary'
+
+const t = translator(summary)
 
 /** Milliseconds per match minute of a moment's build-up. */
 export const HIGHLIGHT_MINUTE_MS = 300
@@ -32,7 +36,6 @@ export function highlightMinuteMs(tick: number, minute: number): number {
 /** Milliseconds a moment stays on screen once it has happened. */
 export const HIGHLIGHT_HOLD_MS = 1700
 
-const LABEL: Record<HighlightKind, string> = { goal: 'Goal', penalty: 'Penalty', own_goal: 'Own goal', chance: 'Chance', save: 'Save', yellow: 'Booked', red: 'Sent off' }
 const CHIP: Record<HighlightKind, string> = { goal: 'chip good', penalty: 'chip good', own_goal: 'chip good', chance: 'chip', save: 'chip', yellow: 'chip warn', red: 'chip bad' }
 
 type HighlightsProps = { game: Game; u: LoadedUniverse; matchweek: number; onClose: () => void }
@@ -44,20 +47,20 @@ type HighlightsProps = { game: Game; u: LoadedUniverse; matchweek: number; onClo
 export function HighlightsModal(props: HighlightsProps) {
   const [ready, setReady] = useState(false)
   useEffect(() => {
-    let t: ReturnType<typeof setTimeout> | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
     const f = requestAnimationFrame(() => {
-      t = setTimeout(() => setReady(true), 0)
+      timer = setTimeout(() => setReady(true), 0)
     })
     return () => {
       cancelAnimationFrame(f)
-      if (t) clearTimeout(t)
+      if (timer) clearTimeout(timer)
     }
   }, [])
   if (ready) return <HighlightsReel {...props} />
   return (
-    <Modal open onClose={props.onClose} title={`Highlights · matchweek ${props.matchweek}`} sheet testId="highlights">
+    <Modal open onClose={props.onClose} title={t('highlightsTitle', { week: props.matchweek })} sheet testId="highlights">
       <p className="muted" data-testid="highlights-loading">
-        Rebuilding the game…
+        {t('rebuilding')}
       </p>
     </Modal>
   )
@@ -93,32 +96,33 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
     const length = pace?.length ? period * (toPicture(pace, tick + 1) - toPicture(pace, tick)) : period
     publishClock({ clock: tick, running: building && !paused, speed: 1, period, pace })
     if (paused) return
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       if (building) setTick(tick + 1)
       else {
         setIndex(index + 1)
         setTick(buildUpFrom(moments, index + 1))
       }
     }, building ? length : HIGHLIGHT_HOLD_MS)
-    return () => clearTimeout(t)
+    return () => clearTimeout(timer)
   }, [m, tick, paused, index, moments, end, pace])
   // The live match screen starts its own clock; leave this one stopped
   useEffect(() => () => publishClock({ clock: 0, running: false, speed: 1, period: 110 }), [])
 
-  const title = `Highlights · matchweek ${matchweek}`
+  const title = t('highlightsTitle', { week: matchweek })
   if (!hl) {
     return (
       <Modal open onClose={onClose} title={title} sheet testId="highlights">
         <p className="muted" data-testid="highlights-unavailable">
-          This game cannot be replayed on this save: it was played before highlights were kept, or the league data has changed since.
+          {t('cannotReplay')}
         </p>
         <button className="btn" onClick={onClose} data-testid="highlights-close">
-          Close
+          {t('close')}
         </button>
       </Modal>
     )
   }
   const kit = kitColours(u, game.settings.hostClubId, hl.homeTeamId, hl.awayTeamId)
+  const ourSide = hl.userHome ? 'home' : 'away'
   const done = !m
   const happened = !!m && tick > m.minute
   const shown = done ? { home: hl.homeGoals, away: hl.awayGoals } : happened ? m.score : moments[index - 1]?.score ?? { home: 0, away: 0 }
@@ -146,26 +150,26 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
         {m ? (
           <div className="hl-line" data-testid="highlights-line" data-kind={happened ? m.kind : 'build-up'} aria-live="polite">
             <span className="small muted">
-              Moment {index + 1} of {moments.length} · {minuteLabel(happened ? m.minute : Math.min(tick, m.minute))}
+              {t('momentOf', { i: index + 1, n: moments.length, minute: minuteLabel(happened ? m.minute : Math.min(tick, m.minute)) })}
             </span>
             {happened ? (
               <span>
-                <span className={CHIP[m.kind]}>{LABEL[m.kind]}</span> {m.text}
+                <span className={CHIP[m.kind]}>{t(`hl_${m.kind}`)}</span> {m.text}
               </span>
             ) : (
-              <span className="muted">{m.kind === 'yellow' || m.kind === 'red' ? 'A challenge flies in…' : m.side === (hl.userHome ? 'home' : 'away') ? 'Your side on the ball…' : 'They come forward…'}</span>
+              <span className="muted">{t(m.kind === 'yellow' || m.kind === 'red' ? 'challengeFlies' : m.side === ourSide ? 'yourSideOnBall' : 'theyComeForward')}</span>
             )}
           </div>
         ) : (
           <div className="col" data-testid="highlights-end" style={{ gap: 6 }}>
-            <b>Full time: {hl.homeName} {hl.homeGoals}-{hl.awayGoals} {hl.awayName}</b>
+            <b>{t('fullTime', { home: hl.homeName, score: `${hl.homeGoals}-${hl.awayGoals}`, away: hl.awayName })}</b>
             {moments.length ? (
               <ol className="hl-list">
                 {moments.map((x, i) => (
                   <li key={i}>
                     <button className="hl-moment" onClick={() => go(i)} data-testid="highlights-moment">
                       <span className="mono small muted">{minuteLabel(x.minute)}</span>
-                      <span className={CHIP[x.kind]}>{LABEL[x.kind]}</span>
+                      <span className={CHIP[x.kind]}>{t(`hl_${x.kind}`)}</span>
                       <span className="hl-moment-text">{x.text}</span>
                       <span className="mono small">
                         {x.score.home}-{x.score.away}
@@ -175,7 +179,7 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
                 ))}
               </ol>
             ) : (
-              <span className="muted small">A quiet afternoon: nothing worth a replay.</span>
+              <span className="muted small">{t('quietAfternoon')}</span>
             )}
           </div>
         )}
@@ -183,23 +187,23 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
           {!done && (
             <>
               <button className="btn sm" onClick={() => setPaused((p) => !p)} data-testid="highlights-pause">
-                {paused ? 'Play' : 'Pause'}
+                {t(paused ? 'play' : 'pause')}
               </button>
               <button className="btn sm" onClick={() => go(index + 1)} data-testid="highlights-next">
-                Next moment
+                {t('nextMoment')}
               </button>
               <button className="btn sm ghost" onClick={() => go(moments.length)} data-testid="highlights-skip">
-                Skip to full time
+                {t('skipToFullTime')}
               </button>
             </>
           )}
           {done && moments.length > 0 && (
             <button className="btn sm" onClick={() => go(0)} data-testid="highlights-again">
-              Watch again
+              {t('watchAgain')}
             </button>
           )}
           <button className="btn sm primary" onClick={onClose} data-testid="highlights-close" style={{ marginLeft: 'auto' }}>
-            Close
+            {t('close')}
           </button>
         </div>
       </div>

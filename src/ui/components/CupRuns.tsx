@@ -6,17 +6,19 @@ import type { LoadedUniverse } from '@engine/universe'
 import { cupReachLabel, cupRoundLabel, cupScoreLabel, QUICK_CONTINENTAL_PLACES, QUICK_CUP_ENTRANTS, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
 import { ClubBadge } from './bits'
 import { CupNight } from './CupNight'
-import { ordinal } from '../format'
 import { scorersText } from '../scorers'
 import { isSuperLeague, sideNamer } from '@game/logic/superLeague'
 import { summaryMainCall } from '@game/logic/summaryCall'
+import { translator } from '../i18n'
+import { summary } from '../i18n/en/summary'
+
+const t = translator(summary)
 
 function CupIcon({ comp, size }: { comp: QuickCupComp; size: number }) {
   const Icon = ICON[comp]
   return <Icon size={size} aria-hidden="true" />
 }
 
-const TITLE: Record<QuickCupComp, string> = { cup: 'The Cup', continental: 'Continental Cup' }
 /** The cups' pictures, Lucide's meanings (DESIGN_SYSTEM.md section 7): Medal the cup, Globe the Continental Cup. */
 const ICON: Record<QuickCupComp, LucideIcon> = { cup: Medal, continental: Globe }
 
@@ -38,8 +40,8 @@ export function CupRuns({ game, u, onReveal }: { game: Game; u: LoadedUniverse; 
   return (
     <div className="panel col cup-nights" data-testid="cup-nights">
       <div className="sc-head">
-        <span className="sc-kicker">After the league</span>
-        <h2>Cup nights</h2>
+        <span className="sc-kicker">{t('afterTheLeague')}</span>
+        <h2>{t('cupNights')}</h2>
       </div>
       <div className="cup-cards">
         {/* The Super League has no domestic cup: only its Continental Cup follows the league */}
@@ -99,42 +101,42 @@ function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: 
     <div className={`cup-card ${comp}`} data-testid={`cup-${comp}`}>
       <div className="row between wrap" style={{ gap: 8 }}>
         <h3 className="cup-title" style={{ margin: 0 }}>
-          <CupIcon comp={comp} size={18} /> {TITLE[comp]}
+          <CupIcon comp={comp} size={18} /> {t(`cupTitle_${comp}`)}
         </h3>
-        {run && !revealing && <span className={`chip ${run.reached === 'W' ? 'gold' : ''}`} data-testid={`cup-${comp}-reached`}>{run.reached === 'W' ? 'Winners' : `Out in the ${cupReachLabel(run.reached, comp)}`}</span>}
+        {run && !revealing && <span className={`chip ${run.reached === 'W' ? 'gold' : ''}`} data-testid={`cup-${comp}-reached`}>{run.reached === 'W' ? t('winners') : t('outInThe', { round: cupReachLabel(run.reached, comp) })}</span>}
       </div>
       {status.state === 'open' && (
         <>
           <p className="small muted" style={{ margin: 0 }}>
-            {comp === 'cup' ? 'Sixteen of the league’s clubs, one-off ties, extra time and penalties if level, a final at a neutral ground.' : isSuperLeague(game.settings) ? `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place against the next ${QUICK_CUP_ENTRANTS - 1} greatest sides in the data: four knockout rounds to a final.` : `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place among the best sides of the other leagues that season: four knockout rounds to a final.`}
+            {comp === 'cup' ? t('cupBlurb') : isSuperLeague(game.settings) ? t('superContinentalBlurb', { pos: game.quickResult?.position ?? 0, n: QUICK_CUP_ENTRANTS - 1 }) : t('continentalBlurb', { pos: game.quickResult?.position ?? 0 })}
           </p>
           <div className="cup-choice">
             <button className={`btn ${main ? 'primary' : ''}`} onClick={() => void play()} disabled={busy || loadingLeagues} data-testid={`cup-${comp}-play`}>
-              {busy ? 'Drawing the ties…' : comp === 'cup' ? 'Play the Cup' : 'Play the Continental Cup'}
+              {t(busy ? 'drawingTies' : comp === 'cup' ? 'playCup' : 'playContinental')}
             </button>
             <button className="btn ghost" onClick={() => skipCup(comp)} disabled={busy} data-testid={`cup-${comp}-pass`}>
-              Skip it
+              {t('skipIt')}
             </button>
           </div>
         </>
       )}
-      {status.state === 'skipped' && <p className="small muted" style={{ margin: 0 }}>Skipped: the league was enough this time.</p>}
+      {status.state === 'skipped' && <p className="small muted" style={{ margin: 0 }}>{t('skipped')}</p>}
       {status.state === 'none' && (
         <p className="small muted" style={{ margin: 0 }} data-testid={`cup-${comp}-none`}>
-          {comp === 'continental' ? `Finish in the top ${QUICK_CONTINENTAL_PLACES} to play it.` : status.reason + '.'}
+          {comp === 'continental' ? t('finishTopToPlay', { n: QUICK_CONTINENTAL_PLACES }) : status.reason + '.'}
         </p>
       )}
-      {run && revealing && <p className="small muted" style={{ margin: 0 }}>The ties are being played…</p>}
+      {run && revealing && <p className="small muted" style={{ margin: 0 }}>{t('tiesBeingPlayed')}</p>}
       {run && !revealing && <TieList comp={comp} run={run} shown={run.ties.length} nameOf={sideNamer(game, u)} />}
       {run && !revealing && (
         <div className="cup-foot">
           {run.reached === 'W' && (
             <span className="cup-trophy" data-testid={`cup-${comp}-trophy`}>
-              <CupIcon comp={comp} size={16} /> {comp === 'cup' ? 'Cup winners' : 'Champions of the continent'}
+              <CupIcon comp={comp} size={16} /> {t(comp === 'cup' ? 'cupWinners' : 'continentChampions')}
             </span>
           )}
           <button className="btn sm" onClick={() => setNight('view')} data-testid={`cup-${comp}-bracket-open`}>
-            <Network size={14} aria-hidden="true" /> See the bracket
+            <Network size={14} aria-hidden="true" /> {t('seeBracket')}
           </button>
         </div>
       )}
@@ -147,23 +149,23 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
   const ties = run.ties.slice(0, shown).reverse()
   return (
     <ol className="gbg-list cup-ties" data-testid={`cup-${comp}-ties`}>
-      {ties.map((t, i) => {
-        const o = t.won ? 'W' : 'L'
-        const scorers = scorersText(t.scorers, { extraTime: !!t.et })
+      {ties.map((tie, i) => {
+        const o = tie.won ? 'W' : 'L'
+        const scorers = scorersText(tie.scorers, { extraTime: !!tie.et })
         return (
-          <li key={t.round} className={`gbg-game cup-tie ${o} ${i === 0 ? 'newest' : ''}`} data-testid="cup-tie" data-outcome={o}>
-            <span className={`gbg-badge ${o}`} role="img" aria-label={t.won ? 'Through' : 'Out'}>
+          <li key={tie.round} className={`gbg-game cup-tie ${o} ${i === 0 ? 'newest' : ''}`} data-testid="cup-tie" data-outcome={o}>
+            <span className={`gbg-badge ${o}`} role="img" aria-label={t(tie.won ? 'through' : 'out')}>
               {o}
             </span>
-            <ClubBadge clubId={t.opponentId} size={22} />
+            <ClubBadge clubId={tie.opponentId} size={22} />
             <span className="gbg-fix">
-              <span className="gbg-name">{nameOf(t.opponentId)}</span> <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
+              <span className="gbg-name">{nameOf(tie.opponentId)}</span> <span className="gbg-ha">{t(tie.neutral ? 'venueN' : tie.home ? 'venueH' : 'venueA')}</span>
             </span>
             <span className="gbg-score">
-              {t.gf}-{t.ga}
+              {tie.gf}-{tie.ga}
             </span>
-            <span className="gbg-mw">{cupRoundLabel(comp, t.round)}</span>
-            {(t.et || t.pens) && <span className="cup-extra small">{cupScoreLabel(t).replace(/^\d+-\d+ /, '')}{t.et && !t.pens ? ` (${t.et.for}-${t.et.against} in extra time)` : ''}</span>}
+            <span className="gbg-mw">{cupRoundLabel(comp, tie.round)}</span>
+            {(tie.et || tie.pens) && <span className="cup-extra small">{cupScoreLabel(tie).replace(/^\d+-\d+ /, '')}{tie.et && !tie.pens ? t('inExtraTime', { score: `${tie.et.for}-${tie.et.against}` }) : ''}</span>}
             {scorers && <span className="gbg-scorers small">⚽ {scorers}</span>}
           </li>
         )

@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { movement, zoneOf, type LiveRow } from '@game/logic/liveTable'
 import { ClubBadge } from './bits'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+
+const t = translator(season)
 
 /** Height of one live-table row in px: rows slide between places by this much (FLIP by transform). The stylesheet can
  * make the rows shorter (`--lt-row`, the season playback's compact rows on a short window); the default is this. */
@@ -41,10 +45,10 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
       <div className="lt-head small muted">
         <span>#</span>
         <span />
-        <span>Club</span>
-        <span className="num">P</span>
-        <span className="num">GD</span>
-        <span className="num">Pts</span>
+        <span>{t('club')}</span>
+        <span className="num">{t('stripP')}</span>
+        <span className="num">{t('stripGD')}</span>
+        <span className="num">{t('stripPts')}</span>
       </div>
       <div className="lt-body" ref={bodyRef} style={{ height: rows(teams) }}>
         {zones.map((z) => (
@@ -58,7 +62,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
           return (
             <div key={r.teamId} className={`lt-row ${me ? 'me' : ''} ${zoneOf(i + 1, teams) ?? ''}`} style={{ transform: `translateY(${rows(i)})` }} data-testid={me ? 'live-table-me' : 'live-table-row'} data-place={i + 1}>
               <span className="lt-pos">{i + 1}</span>
-              <span className="lt-move" role={move ? 'img' : undefined} aria-label={move > 0 ? `Up ${move}` : move < 0 ? `Down ${-move}` : undefined}>
+              <span className="lt-move" role={move ? 'img' : undefined} aria-label={move > 0 ? t('up', { n: move }) : move < 0 ? t('down', { n: -move }) : undefined}>
                 {move > 0 ? <ArrowUp size={12} className="up" /> : move < 0 ? <ArrowDown size={12} className="down" /> : null}
               </span>
               <span className="lt-club">
@@ -84,7 +88,7 @@ export function LiveTable({ table, before, userId, teamName, nameOf, slide = tru
  * `fill` draws it to the proportions of the box the stylesheet gives it (the season playback, where it gives way to the
  * bench), so a short wide box gets a short wide chart rather than a small one with empty sides.
  */
-export function PositionChart({ series, rivals, teams, games, unit = 'Game', target, first = 1, title = 'League position by game', fill = false }: { series: number[]; rivals: Array<{ teamId: string; name: string; series: number[] }>; teams: number; games: number; unit?: string; target?: number; first?: number; title?: string; fill?: boolean }) {
+export function PositionChart({ series, rivals, teams, games, unit = t('unitGame'), target, first = 1, title = t('positionByGame'), fill = false }: { series: number[]; rivals: Array<{ teamId: string; name: string; series: number[] }>; teams: number; games: number; unit?: string; target?: number; first?: number; title?: string; fill?: boolean }) {
   const W = 360
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [fillH, setFillH] = useState(220)
@@ -132,7 +136,7 @@ export function PositionChart({ series, rivals, teams, games, unit = 'Game', tar
           ))}
         </span>
       </div>
-      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={last >= 0 ? `Position after ${unit.toLowerCase()} ${last + first}: ${series[last]}` : title}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={last >= 0 ? t('positionAfter', { unit: unit.toLowerCase(), n: last + first, pos: series[last] }) : title}>
         {bands.map((b) => {
           const r = band(b.from, b.to)
           return <rect key={b.key} className={`pc-band ${b.key}`} x={x0} y={r.y} width={x1 - x0} height={r.h} />
@@ -146,7 +150,7 @@ export function PositionChart({ series, rivals, teams, games, unit = 'Game', tar
           <g className="pc-target" data-testid="position-target">
             <line x1={x0} x2={x1} y1={y(target)} y2={y(target)} />
             <text x={x1} y={y(target) - 3} fontSize="8" textAnchor="end">
-              Target {target}
+              {t('target', { n: target })}
             </text>
           </g>
         )}
@@ -154,7 +158,7 @@ export function PositionChart({ series, rivals, teams, games, unit = 'Game', tar
         {series.length > 1 && <path key={series.length} d={path(series)} className="pc-user" fill="none" pathLength={1} style={{ ['--pc-from' as string]: String(1 / (series.length - 1)) }} />}
         {last >= 0 && <circle cx={x(last)} cy={y(series[last])} r="4" className="pc-dot" />}
         <text x={x0} y={H - 4} fontSize="8" fill="var(--text-3)">
-          {unit} {first}
+          {t('unitFirst', { unit, n: first })}
         </text>
         <text x={x1} y={H - 4} fontSize="8" textAnchor="end" fill="var(--text-3)">
           {games + first - 1}

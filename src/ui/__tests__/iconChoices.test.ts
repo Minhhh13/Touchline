@@ -7,8 +7,8 @@ const read = (p: string) => readFileSync(join(__dirname, '..', p), 'utf8')
 describe('one icon per meaning', () => {
   it('Setup’s Job security toggle draws a Lucide icon, not an emoji', () => {
     const setup = read('screens/Setup.tsx')
-    expect(setup).toContain('<Armchair size={14} aria-hidden="true" /> Job security')
-    expect(setup).not.toMatch(/\p{Extended_Pictographic}\s*Job security/u)
+    expect(setup).toContain(`<Armchair size={14} aria-hidden="true" /> {t('jobSecurity')}`)
+    expect(setup).not.toMatch(/\p{Extended_Pictographic}\s*\{t\('jobSecurity'\)\}/u)
   })
 
   it('every Copy button says Copied with Check, the online room’s too', () => {

@@ -3,6 +3,10 @@ import { CircleUserRound, LogIn } from 'lucide-react'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
 import { CountryFlag, SavedStatus } from './AccountPanel'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+
+const t = translator(online)
 
 /**
  * The top bar's account entry, shown only in an online build, beside the theme switch and the hide-bar toggle.
@@ -31,14 +35,14 @@ export function AccountChip({ onOpen, active }: { onOpen: () => void; active: bo
   }, [open])
   if (!session)
     return (
-      <button type="button" className={`theme-switch account-chip${active ? ' active' : ''}`} onClick={onOpen} aria-label="Sign in or create an account" aria-current={active ? 'page' : undefined} title="Sign in or create an account" data-testid="account-chip">
+      <button type="button" className={`theme-switch account-chip${active ? ' active' : ''}`} onClick={onOpen} aria-label={t('signInOrCreate')} aria-current={active ? 'page' : undefined} title={t('signInOrCreate')} data-testid="account-chip">
         <LogIn size={18} />
       </button>
     )
-  const name = account?.displayName ?? session.maskedEmail ?? 'Your account'
+  const name = account?.displayName ?? session.maskedEmail ?? t('yourAccount')
   return (
     <div className="account-menu-wrap" ref={ref}>
-      <button type="button" className={`account-chip signed-in${syncing ? ' syncing' : ''}${active || open ? ' active' : ''}`} onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} aria-label={`Account: ${name}`} title={name} data-testid="account-chip">
+      <button type="button" className={`account-chip signed-in${syncing ? ' syncing' : ''}${active || open ? ' active' : ''}`} onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} aria-label={t('accountOf', { name })} title={name} data-testid="account-chip">
         {account?.country ? <CountryFlag code={account.country} size={18} /> : <CircleUserRound size={18} />}
         <span className="account-chip-name">{name}</span>
       </button>
@@ -57,7 +61,7 @@ export function AccountChip({ onOpen, active }: { onOpen: () => void; active: bo
               onOpen()
             }}
           >
-            Your account
+            {t('yourAccount')}
           </button>
           <button
             type="button"
@@ -68,7 +72,7 @@ export function AccountChip({ onOpen, active }: { onOpen: () => void; active: bo
               void api.syncNow()
             }}
           >
-            Sync now
+            {t('syncNow')}
           </button>
           <button
             type="button"
@@ -80,7 +84,7 @@ export function AccountChip({ onOpen, active }: { onOpen: () => void; active: bo
             }}
             data-testid="account-menu-signout"
           >
-            Sign out
+            {t('signOut')}
           </button>
         </div>
       )}

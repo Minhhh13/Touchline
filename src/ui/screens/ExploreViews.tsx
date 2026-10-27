@@ -14,6 +14,10 @@ import { PositionMap, SeasonChart } from '../components/PlayerCharts'
 import { clubName, clubShort, money, nationName, ordinal, seasonLabel } from '../format'
 import { countPhrase } from '../screenText'
 import { pressable } from '../a11y'
+import { translator } from '../i18n'
+import { explore } from '../i18n/en/explore'
+
+const tx = translator(explore)
 
 /**
  * Explore's deeper views (display only: everything shown comes from the pure helpers in `exploreDb.ts` and
@@ -25,10 +29,10 @@ const POSITIONS: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', '
 
 /** "On the wheel" for one club-season: the first spin's chance and its share of its season. */
 export function WheelLine({ chance, leagueName }: { chance: WheelChance | null; leagueName: string }) {
-  if (!chance) return <span className="small muted" data-testid="wheel-line">Never on the wheel: nobody in the squad fits a Quick Draft's XI.</span>
+  if (!chance) return <span className="small muted" data-testid="wheel-line">{tx('wheelNever')}</span>
   return (
-    <span className="small muted" data-testid="wheel-line" title={`The first spin of a Quick Draft on the ${leagueName} wheel, every season: ${(chance.p * 100).toFixed(3)}%. The wheel picks one of ${chance.seasons} seasons, then a club, stronger and deeper squads a little more often.`}>
-      On the wheel: {oneIn(chance.p)} first spins · {shareLabel(chance.seasonShare)} of the spins that land on its season
+    <span className="small muted" data-testid="wheel-line" title={tx('wheelTip', { league: leagueName, pct: (chance.p * 100).toFixed(3), n: chance.seasons })}>
+      {tx('wheelLine', { oneIn: oneIn(chance.p), share: shareLabel(chance.seasonShare) })}
     </span>
   )
 }
@@ -44,8 +48,8 @@ export function CompareButton({ on, onClick, full }: { on: boolean; onClick: () 
         onClick()
       }}
       aria-pressed={on}
-      title={on ? 'Remove from compare' : full ? `Compare holds ${COMPARE_MAX}: adding drops the first` : 'Add to compare'}
-      aria-label={on ? 'Remove from compare' : 'Add to compare'}
+      title={on ? tx('removeCompare') : full ? tx('compareFull', { n: COMPARE_MAX }) : tx('addCompare')}
+      aria-label={tx(on ? 'removeCompare' : 'addCompare')}
       data-testid="compare-toggle"
     >
       <Columns3 size={15} aria-hidden="true" />

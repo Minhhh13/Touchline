@@ -4,7 +4,12 @@ import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
 import { shortNameFor } from '@game/logic/setup'
 import { ARENA_FIELDS, arenaNeedsAllLeagues, colourClubs, CUP_SQUAD, cupGameSettings, DEFAULT_CUP_SIZE, DEFAULT_DECADE, GAUNTLET_SQUAD, GAUNTLET_SQUAD_CAP, gauntletGameSettings, latestCompleteSeason, summariseArena } from '@game/logic/arena'
-import { arenaFormatLabel } from '@game/logic/modes'
+import { arenaFormatText } from '../i18n/modeText'
+import { rich, B } from '../i18n/rich'
+import { translator } from '../i18n'
+import { arena } from '../i18n/en/arena'
+
+const t = translator(arena)
 import { getFormation } from '@engine/formations'
 import type { ArenaField } from '@engine/knockout'
 import { CUP_FIELD_TARGET, cupDecades, type CupSize } from '@engine/cup'
@@ -89,7 +94,7 @@ export function ArenaSetup() {
   const season = useMemo(() => (u && loadedLeagues.includes(leagueId) ? latestCompleteSeason(u, leagueId) : 0), [u, leagueId, loadedLeagues])
   const clubs = useMemo(() => (u && season ? colourClubs(u, leagueId, season) : []), [u, leagueId, season])
 
-  if (!u) return <div className="page">Loading…</div>
+  if (!u) return <div className="page">{t('loading')}</div>
   const toggleAdvanced = (open: boolean) => {
     setAdvanced(open)
     writeAdvanced(open)
@@ -97,7 +102,7 @@ export function ArenaSetup() {
   const buildSettings = (preview: boolean): GameSettings | null => {
     if (!ready || !season) return null
     const name = teamName.trim() || 'Touchline XI'
-    const c = { teamName: name, formationId, field, wheelLeagues, ...eraRange(era, u.firstSeason), difficulty, seed: seed.trim() || (preview ? 'drawn when you start' : randomSeed()), hardMode, twists, hostClubId: hostClubId || undefined, size, decade, capXI: capXI(cap) }
+    const c = { teamName: name, formationId, field, wheelLeagues, ...eraRange(era, u.firstSeason), difficulty, seed: seed.trim() || (preview ? t('seedLater') : randomSeed()), hardMode, twists, hostClubId: hostClubId || undefined, size, decade, capXI: capXI(cap) }
     return gauntlet ? gauntletGameSettings(u, c, shortNameFor(name)) : cupGameSettings(u, c, shortNameFor(name))
   }
   const preview = buildSettings(true)
@@ -106,7 +111,7 @@ export function ArenaSetup() {
   const start = async () => {
     const s = buildSettings(false)
     if (!s) return
-    if (unfinished && !(await askConfirm(`Start a new arena run? Your unfinished ${arenaFormatLabel(unfinished.settings.arena)} (${unfinished.settings.teamName}) will be abandoned.`, { ok: 'Start', danger: true }))) return
+    if (unfinished && !(await askConfirm(t('newRunConfirm', { format: arenaFormatText(unfinished.settings.arena), team: unfinished.settings.teamName }), { ok: t('startOk'), danger: true }))) return
     startGame(s)
   }
 
@@ -117,25 +122,25 @@ export function ArenaSetup() {
       <div className="setup-flow setup-wide">
         <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
           <div>
-            <h1>{gauntlet ? 'The Gauntlet' : final ? 'Cup Final' : 'The Cup'}</h1>
+            <h1>{t(gauntlet ? 'theGauntlet' : final ? 'cupFinal' : 'theCup')}</h1>
             <p className="muted setup-sub" data-testid="arena-format-help">
-              {gauntlet ? `Draft ${GAUNTLET_SQUAD}, climb fifteen rungs, lose once and it is over.` : final ? `Draft ${CUP_SQUAD}, then one final.` : `Draft ${CUP_SQUAD}, then a knockout of ${size} in one sitting.`}{' '}
-              <Info label="About the format">{gauntlet
-                    ? `Draft ${GAUNTLET_SQUAD}, then climb a ladder of fifteen real club-seasons from the wheel, each from a stronger slice than the last, home and away in turn. Lose once and the run is over; a level match goes to penalties. One lifeline changes a rung's draw, and surviving rungs 2, 4, 6 and 8 earns a bonus spin (up to ${GAUNTLET_SQUAD_CAP}).`
+              {gauntlet ? t('helpGauntlet', { n: GAUNTLET_SQUAD }) : final ? t('helpFinal', { n: CUP_SQUAD }) : t('helpCup', { n: CUP_SQUAD, size })}{' '}
+              <Info label={t('aboutFormat')}>{gauntlet
+                    ? t('infoGauntlet', { n: GAUNTLET_SQUAD, cap: GAUNTLET_SQUAD_CAP })
                     : final
-                      ? `Draft ${CUP_SQUAD}, then one final against a real club-season, managed through half time, the 70th minute and a shoot-out if it is level.`
-                      : `Draft ${CUP_SQUAD}, then a knockout of ${size} real club-seasons in one sitting: seeded draws, four days between ties, bans that carry and a training focus each round. Level at 90 goes to penalties; the final is on neutral ground.`}</Info>
+                      ? t('infoFinal', { n: CUP_SQUAD })
+                      : t('infoCup', { n: CUP_SQUAD, size })}</Info>
             </p>
           </div>
           <button className="btn ghost" onClick={() => go('home')}>
-            ← Back
+            {t('back')}
           </button>
         </div>
 
         <div className="setup-grid">
           <div className="panel setup-box">
             <section className="setup-step setup-formation">
-              <StepHead n={1} title="Pick your formation" />
+              <StepHead n={1} title={t('stepFormation')} />
               <div className="setup-formation-body">
                 <FormationPicker value={formationId} onChange={setFormationId} />
                 <div className="setup-preview">
@@ -143,13 +148,13 @@ export function ArenaSetup() {
                     <Pitch formation={shown} lineup={{}} getPlayer={() => undefined} />
                   </div>
                   <p className="help setup-line">
-                    <b>{shown.name}</b>: {gauntlet ? GAUNTLET_SQUAD - 11 : CUP_SQUAD - 11} more go on the bench.
+                    {rich(t('benchLine', { name: shown.name, n: gauntlet ? GAUNTLET_SQUAD - 11 : CUP_SQUAD - 11 }), B)}
                   </p>
                 </div>
               </div>
             </section>
             <section className="setup-step setup-team">
-              <StepHead n={2} title="Name your team" />
+              <StepHead n={2} title={t('stepName')} />
               <div className="setup-name">
                 <TeamNameField value={teamName} onChange={setTeamName} fallback="Touchline XI" />
               </div>
@@ -158,30 +163,30 @@ export function ArenaSetup() {
 
           <div className="panel setup-box">
             <section className="setup-step">
-              <StepHead n={3} title={gauntlet ? 'The ladder' : final ? 'The final' : 'The cup'} />
+              <StepHead n={3} title={t(gauntlet ? 'stepLadder' : final ? 'stepFinal' : 'stepCup')} />
               <div className="setup-rules arena-rules">
                 <div className="setup-opt setup-wide-opt">
-                  <h3>Format</h3>
+                  <h3>{t('format')}</h3>
                   <Segmented
                     value={format}
                     onChange={setFormat}
                     options={[
-                      { value: 'cup', label: 'The Cup', hint: `Draft ${CUP_SQUAD}, then a knockout in one sitting, or one final` },
-                      { value: 'gauntlet', label: 'The Gauntlet', hint: `Draft ${GAUNTLET_SQUAD}, then climb fifteen rungs until the first defeat` },
+                      { value: 'cup', label: t('theCup'), hint: t('cupHint', { n: CUP_SQUAD }) },
+                      { value: 'gauntlet', label: t('theGauntlet'), hint: t('gauntletHint', { n: GAUNTLET_SQUAD }) },
                     ]}
                   />
                 </div>
                 {!gauntlet && (
                   <div className="setup-opt setup-wide-opt" data-testid="arena-size">
-                    <h3>Size</h3>
+                    <h3>{t('size')}</h3>
                     <Segmented
                       value={String(size)}
                       onChange={(v) => setSize(Number(v) as CupSize)}
                       options={[
-                        { value: '2', label: 'Final', hint: 'One match, one trophy' },
-                        { value: '8', label: '8 clubs', hint: 'Three rounds' },
-                        { value: '16', label: '16 clubs', hint: 'Four rounds, about ten minutes' },
-                        { value: '32', label: '32 clubs', hint: 'Five rounds: the long road' },
+                        { value: '2', label: t('sizeFinal'), hint: t('sizeFinalHint') },
+                        { value: '8', label: t('sizeClubs', { n: 8 }), hint: t('size8Hint') },
+                        { value: '16', label: t('sizeClubs', { n: 16 }), hint: t('size16Hint') },
+                        { value: '32', label: t('sizeClubs', { n: 32 }), hint: t('size32Hint') },
                       ]}
                     />
                   </div>
@@ -189,9 +194,9 @@ export function ArenaSetup() {
                 {!gauntlet && (
                   <div className="setup-opt setup-wide-opt" data-testid="arena-field">
                     <h3>
-                      {final ? 'Opponent' : 'Field'}{' '}
-                      <Info label="About the field">
-                        {ARENA_FIELDS.find((f) => f.value === field)?.hint}. Everyone on the same seed {final ? 'meets the same opponent' : 'gets the same field and the same first-round draw'}, whatever they draft.
+                      {t(final ? 'opponent' : 'field')}{' '}
+                      <Info label={t('aboutField')}>
+                        {t('fieldInfo', { hint: ARENA_FIELDS.find((f) => f.value === field)?.hint, final: final ? 'yes' : 'no' })}
                       </Info>
                     </h3>
                     <Segmented value={field} onChange={setField} options={ARENA_FIELDS.map((f) => ({ value: f.value, label: f.label, hint: f.hint }))} />
@@ -199,7 +204,7 @@ export function ArenaSetup() {
                       <select className="input" value={decade} onChange={(e) => setDecade(Number(e.target.value))} data-testid="arena-decade">
                         {cupDecades(u.firstSeason, u.lastSeason).map((d) => (
                           <option key={d} value={d}>
-                            The {d}s ({seasonLabel(Math.max(d, u.firstSeason))} to {seasonLabel(Math.min(d + 9, u.lastSeason))})
+                            {t('decadeOption', { d, from: seasonLabel(Math.max(d, u.firstSeason)), to: seasonLabel(Math.min(d + 9, u.lastSeason)) })}
                           </option>
                         ))}
                       </select>
@@ -208,18 +213,18 @@ export function ArenaSetup() {
                 )}
                 <div className="setup-opt setup-wide-opt setup-more" ref={moreRef} data-testid="arena-more">
                   <button type="button" className="fold-head" onClick={() => toggleAdvanced(!advanced)} aria-expanded={advanced}>
-                    <h3>More options</h3>
-                    <span className="small muted">{advanced ? 'Hide ▴' : 'Show ▾'}</span>
+                    <h3>{t('moreOptions')}</h3>
+                    <span className="small muted">{t(advanced ? 'hide' : 'show')}</span>
                   </button>
                   {advanced && (
                     <>
                       <div className="field">
-                        Draft from
-                        <Segmented value={wheelScope} onChange={setWheelScope} options={[{ value: 'league', label: 'One league' }, { value: 'europe', label: `European Nights: all ${u.available.length} leagues` }]} />
+                        {t('draftFrom')}
+                        <Segmented value={wheelScope} onChange={setWheelScope} options={[{ value: 'league', label: t('oneLeague') }, { value: 'europe', label: t('europeanNights', { n: u.available.length }) }]} />
                       </div>
                       {wheelScope === 'league' && (
                         <div className="field">
-                          League
+                          {t('league')}
                           <Segmented
                             value={leagueId}
                             onChange={(id) => {
@@ -232,59 +237,59 @@ export function ArenaSetup() {
                       )}
                       <div className="field">
                         <span>
-                          Era <Info label="About the era">{gauntlet ? 'The wheel and the ladder both come from the era.' : field === 'decade' ? 'The wheel comes from the era; the field from its decade.' : field === 'europe' ? 'The wheel comes from the era; Europe from each league’s latest complete season.' : `The wheel and the ${final ? 'opponent' : 'field'} both come from the era.`}</Info>
+                          {t('era')} <Info label={t('aboutEra')}>{gauntlet ? t('eraGauntlet') : field === 'decade' ? t('eraDecade') : field === 'europe' ? t('eraEurope') : t('eraOther', { final: final ? 'yes' : 'no' })}</Info>
                         </span>
                         <Segmented
                           value={era}
                           onChange={setEra}
                           options={[
-                            { value: 'all', label: 'All eras' },
-                            { value: 'early', label: `${seasonLabel(u.firstSeason)} to 2013-14` },
-                            { value: 'mid', label: '2014-15 to 2019-20' },
-                            { value: 'modern', label: '2020-21 onwards' },
+                            { value: 'all', label: t('allEras') },
+                            { value: 'early', label: t('eraEarly', { from: seasonLabel(u.firstSeason) }) },
+                            { value: 'mid', label: t('eraMid') },
+                            { value: 'modern', label: t('eraModern') },
                           ]}
                         />
                       </div>
                       <div className="field">
                         <span>
-                          Difficulty{' '}
-                          <Info label="About the difficulty">{difficulty === 'calibrated' ? (gauntlet ? `Rung 1 plays at no more than ${GAUNTLET_CEILING.start}, each rung ${GAUNTLET_CEILING.step} higher, never above its real self.` : final ? 'A giant plays at about 78, a champion 76, a wheel side 72, never above its real self.' : `The field's average is brought to ${CUP_FIELD_TARGET[field]} (every side loses the same points), never above anyone's real self.`) : 'The real squad at full strength. A giant killing counts for the Giant Killer badge.'}</Info>
+                          {t('difficulty')}{' '}
+                          <Info label={t('aboutDifficulty')}>{difficulty === 'calibrated' ? (gauntlet ? t('diffGauntlet', { start: GAUNTLET_CEILING.start, step: GAUNTLET_CEILING.step }) : final ? t('diffFinal') : t('diffCup', { n: CUP_FIELD_TARGET[field] })) : t('diffRealistic')}</Info>
                         </span>
                         <Segmented
                           value={difficulty}
                           onChange={setDifficulty}
                           options={[
-                            { value: 'calibrated', label: 'Calibrated', hint: gauntlet ? 'Each rung is capped a little higher than the last' : final ? 'The opponent is pulled towards what a good draft can beat' : 'The field is pulled towards what a good draft can beat' },
-                            { value: 'realistic', label: 'Realistic', hint: 'The real side at full strength' },
+                            { value: 'calibrated', label: t('calibrated'), hint: t(gauntlet ? 'calGauntletHint' : final ? 'calFinalHint' : 'calCupHint') },
+                            { value: 'realistic', label: t('realistic'), hint: t('realisticHint') },
                           ]}
                         />
                       </div>
                       <label className="field">
                         <span>
-                          Seed <Info label="About the seed">{gauntlet ? 'Share a seed and a friend gets the same wheel and climbs the same ladder.' : final ? 'Share a seed and a friend gets the same wheel and the same opponent.' : 'Share a seed and a friend gets the same wheel, the same field and the same first-round draw.'}</Info>
+                          {t('seed')} <Info label={t('aboutSeed')}>{t(gauntlet ? 'seedGauntlet' : final ? 'seedFinal' : 'seedCup')}</Info>
                         </span>
                         <div className="row">
                           <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
                           <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                            New
+                            {t('newSeed')}
                           </button>
                         </div>
                       </label>
                       <div className="toggle-grid">
                         <label className="toggle">
                           <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />
-                          Hard mode
+                          {t('hardMode')}
                         </label>
-                        <label className="toggle" title="Every third spin is golden, basement, blind or decade">
+                        <label className="toggle" title={t('twistsTip')}>
                           <input type="checkbox" checked={twists} onChange={(e) => setTwists(e.target.checked)} />
-                          Twists
+                          {t('twists')}
                         </label>
                       </div>
                       <CapControl value={cap} onChange={setCap} squadSize={gauntlet ? GAUNTLET_SQUAD : CUP_SQUAD} />
                       {clubs.length > 0 && (
                         <label className="field">
                           <span>
-                            Colours <Info label="About the colours">Only the colours and the badge on the scoreboard.</Info>
+                            {t('colours')} <Info label={t('aboutColours')}>{t('coloursInfo')}</Info>
                           </span>
                           <div className="row" style={{ gap: 8 }}>
                             {preview && <ClubBadge clubId={preview.hostClubId} size={22} />}
@@ -305,7 +310,7 @@ export function ArenaSetup() {
             </section>
 
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
-              <StepHead n={4} title="Spin" />
+              <StepHead n={4} title={t('stepSpin')} />
               <div className="small muted" data-testid="arena-summary">
                 {preview ? summariseArena(u, preview) : <LeagueWait needs={needs} />}
                 {' · '}
@@ -317,12 +322,12 @@ export function ArenaSetup() {
                     moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }}
                 >
-                  change
+                  {t('change')}
                 </button>
               </div>
               <LeagueRetry needs={needs} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !preview} data-testid="arena-start">
-                {!ready ? <LeagueWait needs={needs} /> : gauntlet ? 'Draft for the Gauntlet' : final ? 'Draft for the final' : 'Draft for the Cup'}
+                {!ready ? <LeagueWait needs={needs} /> : t(gauntlet ? 'draftGauntlet' : final ? 'draftFinal' : 'draftCup')}
               </button>
             </section>
           </div>
@@ -339,7 +344,7 @@ function StepHead({ n, title }: { n: number; title: string }) {
       <span className="step-num" aria-hidden="true">
         {n}
       </span>
-      <span className="sr-only">Step {n}: </span>
+      <span className="sr-only">{t('stepN', { n })}</span>
       {title}
     </h3>
   )

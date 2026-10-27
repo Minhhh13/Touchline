@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { placeTip, tipWidth, type TipPlace } from '../tipPlacement'
+import { translator } from '../i18n'
+import { draft } from '../i18n/en/draft'
+
+const t = translator(draft)
 
 const viewport = () => ({ vw: document.documentElement.clientWidth || window.innerWidth, vh: document.documentElement.clientHeight || window.innerHeight })
 const placed = (p: TipPlace | null, width?: number): CSSProperties => (p ? { left: p.left, top: p.top, maxHeight: p.maxHeight, width } : { left: 0, top: 0, width, visibility: 'hidden' })
@@ -70,7 +74,7 @@ export function InfoTip({ text, label, testId }: { text: string; label: string; 
         ref={btn}
         type="button"
         className="qinfo-btn"
-        aria-label={`About ${label}`}
+        aria-label={t('about', { label })}
         aria-expanded={open !== null}
         aria-describedby={open ? id : undefined}
         onClick={(e) => {

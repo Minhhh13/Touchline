@@ -15,6 +15,10 @@ import { CardIcon, OnArrow } from '../icons'
 import { labelRoom, panelPoints, slotViews } from '../model'
 import type { PanelProps } from '../types'
 import { RatingPill, TeamCode } from './bits'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away' }) {
   const fs = side === 'home' ? d.feed.home : d.feed.away
@@ -27,13 +31,13 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
   const points = panelPoints(formation, tactics)
   const room = labelRoom(points)
   return (
-    <section className="md-panel md-formation" aria-label={`${view.name} formation`}>
+    <section className="md-panel md-formation" aria-label={tx('formationOf', { name: view.name })}>
       <header className="md-panel-head">
         <TeamCode view={view} />
         <b>{formation.name}</b>
-        <span className="muted">in possession</span>
+        <span className="muted">{tx('inPossessionLower')}</span>
       </header>
-      <VerticalPitch label={`${view.name} in a ${formation.name}`}>
+      <VerticalPitch label={tx('inA', { name: view.name, formation: formation.name })}>
         {slots.map((s, i) => {
           const { left, top } = points[i]
           const gap = room[s.slotId]
@@ -53,7 +57,7 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}
               aria-pressed={selected}
-              title={`${name ?? 'Empty'} · ${getRole(tactics.roles[s.slotId] ?? DEFAULT_ROLE[s.position]).name}${rating === undefined ? '' : ` · ${rating.toFixed(1)}`}${s.subbedOn ? `, on ${s.onAt}'` : ''}`}
+              title={`${name ?? tx('emptySlot')} · ${getRole(tactics.roles[s.slotId] ?? DEFAULT_ROLE[s.position]).name}${rating === undefined ? '' : ` · ${rating.toFixed(1)}`}${s.subbedOn ? tx('cardOn', { m: s.onAt }) : ''}`}
             >
               <span className="md-man-shirt">
                 <Shirt colour={s.position === 'GK' ? view.keeper : view.colour} number={s.psId ? view.numbers[s.psId] : undefined} size={24} dim={s.out} />

@@ -13,6 +13,10 @@ import { armAudio, unlockAudio } from '../sound/synth'
 import { useSoundOn } from '../sound/prefs'
 import { FULL_TIMING, OVERSHOOT, QUICK_TIMING, reelKeyframes, reelPosition, type ReelTiming } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
+import { translator } from '../i18n'
+import { draft } from '../i18n/en/draft'
+
+const t = translator(draft)
 
 /**
  * The timing lives in src/ui/reelCurve.ts: the season drum (DRUM_MS), the strip's start (SEASON_MS), its
@@ -57,7 +61,7 @@ function prefersReducedMotion(): boolean {
 export function SoundToggle() {
   const [on, setOn] = useSoundOn()
   return (
-    <button type="button" className="reel-sound" data-testid="sound-toggle" aria-pressed={on} aria-label={on ? 'Sound on: mute the reel' : 'Sound off: turn the reel sound on'} title={on ? 'Mute' : 'Sound on'} onClick={(e) => { e.stopPropagation(); setOn(!on); if (!on) unlockAudio() }}>
+    <button type="button" className="reel-sound" data-testid="sound-toggle" aria-pressed={on} aria-label={t(on ? 'soundOnLabel' : 'soundOffLabel')} title={t(on ? 'mute' : 'soundOn')} onClick={(e) => { e.stopPropagation(); setOn(!on); if (!on) unlockAudio() }}>
       {on ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
     </button>
   )
@@ -79,7 +83,7 @@ export function TierDot({ tier }: { tier: DisplayTier }) {
 
 /** A season on the drum: "2017-18", or "Icons" for Gamble mode's Icons spin. */
 function drumLabel(season: number): string {
-  return season === ICONS_SEASON ? 'Icons' : seasonLabel(season)
+  return season === ICONS_SEASON ? t('icons') : seasonLabel(season)
 }
 
 function Card({ c, landed }: { c: ReelCard; landed?: boolean }) {
@@ -137,10 +141,10 @@ function IdleReel({ u, leagues, pool }: { u: LoadedUniverse; leagues: readonly s
   return (
     <div className="reel-run idle" data-stage="idle">
       <div className="reel-season out">
-        <span className="lbl">Ready</span>
+        <span className="lbl">{t('ready')}</span>
         <div className="reel-drum-window">
           <div className="reel-drum">
-            <div className="reel-drum-label">Spin</div>
+            <div className="reel-drum-label">{t('spin')}</div>
           </div>
         </div>
       </div>
@@ -287,9 +291,9 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
   const seasonOut = reduced || stage !== 'season'
   const tier = deal.target.tier
   const iconsSpin = tier === 'icons'
-  const club = iconsSpin ? 'Icons collection' : clubName(u, deal.target.clubId)
-  const seasonText = iconsSpin ? 'Icons spin' : `Season ${seasonLabel(deal.season)}${twist ? `, ${twist}` : ''}`
-  const landedText = iconsSpin ? 'Icons collection: the rarest spin, an all-time great' : `${club} ${seasonLabel(deal.season)}: ${DISPLAY_TIER_INFO[tier].colour}, ${DISPLAY_TIER_INFO[tier].label}`
+  const club = iconsSpin ? t('iconsCollection') : clubName(u, deal.target.clubId)
+  const seasonText = iconsSpin ? t('iconsSpin') : t('seasonAnnounce', { season: seasonLabel(deal.season), twist: twist ? `, ${twist}` : '' })
+  const landedText = iconsSpin ? t('iconsLanded') : `${club} ${seasonLabel(deal.season)}: ${DISPLAY_TIER_INFO[tier].colour}, ${DISPLAY_TIER_INFO[tier].label}`
   useLayoutEffect(() => {
     announce(stage === 'landed' ? landedText : seasonOut ? seasonText : '')
   }, [announce, stage, seasonOut, seasonText, landedText])
@@ -312,7 +316,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
   return (
     <div ref={rootRef} className={`reel-run stage-${stage}${reduced ? ' reduced' : ''}`} data-stage={stage} data-tier={stage === 'landed' ? tier : undefined} onClick={() => running && skipRef.current()}>
       <div className={`reel-season${seasonOut ? ' out' : ''}`}>
-        <span className={`lbl${twist ? ' twist' : ''}`}>{iconsSpin ? 'Rare spin' : twist ?? 'Season'}</span>
+        <span className={`lbl${twist ? ' twist' : ''}`}>{iconsSpin ? t('rareSpin') : twist ?? t('season')}</span>
         <div className="reel-drum-window" aria-hidden="true">
           <div className="reel-drum" ref={drumRef}>
             {deal.drum.map((s, i) => (
@@ -350,7 +354,7 @@ function ReelRun({ u, leagues, pool, target, spinKey, twist, onSettled, announce
           </>
         ) : (
           <button type="button" className="reel-skip" data-testid="reel-skip" onClick={(e) => { e.stopPropagation(); skipRef.current() }}>
-            Tap to skip
+            {t('tapToSkip')}
           </button>
         )}
       </div>

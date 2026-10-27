@@ -2,6 +2,10 @@ import type { TableRow } from '@engine/types'
 import { USER_TEAM } from '@engine/season'
 import { ClubBadge, FormDots, TeamBadge } from './bits'
 import { useStore } from '@game/store'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 export function TableView({ rows, teamName, teamCode, compact, highlightTop, nameOf }: { rows: TableRow[]; teamName: string; teamCode?: string; compact?: boolean; highlightTop?: boolean; nameOf?: (clubId: string) => string }) {
   const u = useStore((s) => s.universe)
@@ -13,14 +17,14 @@ export function TableView({ rows, teamName, teamCode, compact, highlightTop, nam
       <thead>
         <tr>
           <th>#</th>
-          <th>Club</th>
-          <th className="num">P</th>
-          {!compact && <th className="num">W</th>}
-          {!compact && <th className="num">D</th>}
-          {!compact && <th className="num">L</th>}
-          <th className="num">GD</th>
-          <th className="num">Pts</th>
-          {!compact && <th>Form</th>}
+          <th>{t('club')}</th>
+          <th className="num">{t('colP')}</th>
+          {!compact && <th className="num">{t('colW')}</th>}
+          {!compact && <th className="num">{t('colD')}</th>}
+          {!compact && <th className="num">{t('colL')}</th>}
+          <th className="num">{t('colGD')}</th>
+          <th className="num">{t('colPts')}</th>
+          {!compact && <th>{t('form')}</th>}
         </tr>
       </thead>
       <tbody>

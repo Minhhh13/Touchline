@@ -4,6 +4,10 @@ import { seasonStop } from '@engine/era'
 import { randomTeamName } from '@game/logic/teamNames'
 import { seasonLabel } from '../format'
 import { InfoTip } from './PowerUpButton'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+
+const t = translator(setup)
 
 export interface ChoiceOption<T extends string> {
   value: T
@@ -49,7 +53,7 @@ export function SectionHead({ title, info, right, testId }: { title: string; inf
  * The dice is UI randomness only: a name never touches the seed. An empty field starts as `fallback`; the dice never
  * lands on a name in `taken`.
  */
-export function TeamNameField({ label = 'Team name', value, onChange, fallback, maxLength = 28, testId = 'team-name', taken }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string; taken?: readonly string[] }) {
+export function TeamNameField({ label = t('teamName'), value, onChange, fallback, maxLength = 28, testId = 'team-name', taken }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string; taken?: readonly string[] }) {
   const ref = useRef<HTMLInputElement>(null)
   return (
     <div className="field team-field">
@@ -63,16 +67,16 @@ export function TeamNameField({ label = 'Team name', value, onChange, fallback, 
             onChange('')
             ref.current?.focus()
           }}
-          aria-label={`Clear ${label.toLowerCase()}`}
-          title="Clear"
+          aria-label={t('clearField', { label: label.toLowerCase() })}
+          title={t('clear')}
           data-testid={`${testId}-clear`}
         >
           <X size="1em" aria-hidden="true" />
-          <span className="name-btn-label">Clear</span>
+          <span className="name-btn-label">{t('clear')}</span>
         </button>
-        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={`Randomise ${label.toLowerCase()}`} title="Randomise" data-testid={`${testId}-random`}>
+        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={t('randomiseField', { label: label.toLowerCase() })} title={t('randomise')} data-testid={`${testId}-random`}>
           <Dice5 size="1em" aria-hidden="true" />
-          <span className="name-btn-label">Randomise</span>
+          <span className="name-btn-label">{t('randomise')}</span>
         </button>
       </div>
     </div>
@@ -93,8 +97,8 @@ export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]
     <div className="season-range" data-testid="era-slider">
       <div className="track" />
       <div className="fill" style={{ left: `${(a / span) * 100}%`, right: `${((top - b) / span) * 100}%` }} />
-      <input type="range" min={0} max={top} step={1} value={a} aria-label="First season" aria-valuetext={seasonLabel(seasons[a])} onChange={(e) => onChange(seasons[Math.min(Number(e.target.value), b)], seasons[b])} />
-      <input type="range" min={0} max={top} step={1} value={b} aria-label="Last season" aria-valuetext={seasonLabel(seasons[b])} onChange={(e) => onChange(seasons[a], seasons[Math.max(Number(e.target.value), a)])} />
+      <input type="range" min={0} max={top} step={1} value={a} aria-label={t('firstSeason')} aria-valuetext={seasonLabel(seasons[a])} onChange={(e) => onChange(seasons[Math.min(Number(e.target.value), b)], seasons[b])} />
+      <input type="range" min={0} max={top} step={1} value={b} aria-label={t('lastSeason')} aria-valuetext={seasonLabel(seasons[b])} onChange={(e) => onChange(seasons[a], seasons[Math.max(Number(e.target.value), a)])} />
     </div>
   )
 }
@@ -106,7 +110,7 @@ export function SeasonRange({ seasons, from, to, onChange }: { seasons: number[]
  */
 export function ModeCards<T extends string>({ cards, on, info, icons, onToggle }: { cards: readonly T[]; on: readonly T[]; info: Record<T, { icon: string; title: string; line: string }>; icons?: Record<T, LucideIcon>; onToggle: (card: T) => void }) {
   return (
-    <div className="qmode-row" role="group" aria-label="Modes" data-testid="modes">
+    <div className="qmode-row" role="group" aria-label={t('modes')} data-testid="modes">
       {cards.map((c) => {
         const active = on.includes(c)
         const Icon: LucideIcon | undefined = icons?.[c]

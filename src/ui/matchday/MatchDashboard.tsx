@@ -55,6 +55,10 @@ import { useMatchSounds } from '../sound/useMatchSounds'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 export type DashboardSource = { mode: 'live'; live: LiveMatch } | { mode: 'replay'; res: FullMatchResult; ctx: MatchContext }
 
@@ -252,7 +256,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
       watch?.disconnect()
     }
   }, [compact])
-  const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : ctx.competition === 'league' ? `Matchweek ${ctx.matchweek}` : 'Continental Cup')}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
+  const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? tx('cup') : ctx.competition === 'league' ? tx('matchweek', { n: ctx.matchweek }) : tx('continentalCup'))}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
   const crumb = (
     <div className={`md-crumb ${crumbEnd ? 'has-end' : ''}`}>
       <b>
@@ -325,7 +329,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
     live && clock.atStop && stopActions ? (
       autoAtStop ? (
         <div className="panel assistant-note small" role="status" data-testid="assistant-note">
-          The assistant is making the {stopAt === 45 ? 'half-time' : '70th-minute'} calls…
+          {tx(stopAt === 45 ? 'assistantMakingHt' : 'assistantMaking70')}
         </div>
       ) : (
         <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingHidden(game.settings.rules, 'squad') }} />

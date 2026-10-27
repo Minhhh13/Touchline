@@ -10,6 +10,10 @@ import { readTab, tabAfter, tabKey, writeTab, type PhoneTab } from './controls'
 import type { MatchdayData } from './types'
 import { WIDGET_COMPONENT } from './widgets'
 import { runAfterPaint } from '../afterPaint'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 export function PhoneTabs({ d, tabs, twoUp }: { d: MatchdayData; tabs: PhoneTab[]; twoUp: boolean }) {
   const [active, setActive] = useState(() => readTab(tabs))
@@ -40,7 +44,7 @@ export function PhoneTabs({ d, tabs, twoUp }: { d: MatchdayData; tabs: PhoneTab[
   }, [current.id])
   return (
     <section className="md-tabbed">
-      <div ref={strip} className="md-tabs" role="tablist" aria-label="Match panels">
+      <div ref={strip} className="md-tabs" role="tablist" aria-label={tx('matchPanels')}>
         {tabs.map((t) => (
           <button
             key={t.id}

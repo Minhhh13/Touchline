@@ -3,6 +3,10 @@ import { CloudUpload } from 'lucide-react'
 import { useStore } from '@game/store'
 import { useOnline } from '../../online/state'
 import { dismissPrompt, promptDismissed } from '../../online/localState'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+
+const t = translator(online)
 
 /**
  * A soft, dismissible line, never a wall: "Sign in to keep this season on every device". Shown at the start of a
@@ -20,7 +24,7 @@ export function SignInPrompt({ id, text }: { id: string; text: string }) {
       <span className="signin-prompt-text">{text}</span>
       <span className="signin-prompt-actions">
         <button className="btn sm primary" onClick={() => go('account')} data-testid={`signin-prompt-${id}-go`}>
-          Sign in
+          {t('signIn')}
         </button>
         <button
           className="btn sm ghost"
@@ -30,7 +34,7 @@ export function SignInPrompt({ id, text }: { id: string; text: string }) {
           }}
           data-testid={`signin-prompt-${id}-dismiss`}
         >
-          Not now
+          {t('notNow')}
         </button>
       </span>
     </div>

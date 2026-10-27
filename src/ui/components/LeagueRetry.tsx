@@ -2,6 +2,10 @@ import { useEffect } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { useStore } from '@game/store'
 import { LEAGUE_MISSING_LINE, gateLabel, leagueGate, type LeagueGate } from '@game/logic/leagueLoad'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+
+const t = translator(setup)
 
 /**
  * Beside a start button: when a league it needs could not be fetched (offline, O-10 in docs/QA.md), a line saying so
@@ -22,7 +26,7 @@ export function LeagueRetry({ needs, classic = false }: { needs: string[]; class
     <div className="league-retry" role="status" data-testid="league-retry">
       <span className="small muted">{LEAGUE_MISSING_LINE}</span>
       <button type="button" className="btn sm" onClick={() => void ensureLeagues(needs, classic)} data-testid="league-retry-btn">
-        <RefreshCw size={14} aria-hidden="true" /> Retry
+        <RefreshCw size={14} aria-hidden="true" /> {t('retry')}
       </button>
     </div>
   )

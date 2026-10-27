@@ -7,7 +7,9 @@ import { ClubBadge, EstimatedChip, Info, Rating, Pos, Segmented } from '../compo
 import { LeagueFlag } from '../components/Flag'
 import { PlayerCardModal } from '../components/PlayerCard'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, ordinal, seasonLabel } from '../format'
+import { clubName, fixed, seasonLabel } from '../format'
+import { translator } from '../i18n'
+import { explore } from '../i18n/en/explore'
 import type { Position } from '@engine/types'
 import { classicFromFor, isEstimated } from '@game/logic/era'
 import { careerSeasons } from '@game/logic/playerCard'
@@ -39,15 +41,17 @@ function writeCompare(ids: string[]): void {
   }
 }
 
+const t = translator(explore)
+
 const POS_FILTERS = ['all', 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const
 
 /** The position chips of Highest rated and the search (a player's first position). */
 function PosFilter({ value, onChange }: { value: 'all' | Position; onChange: (p: 'all' | Position) => void }) {
   return (
-    <div className="segmented scroll-x" role="group" aria-label="Position">
+    <div className="segmented scroll-x" role="group" aria-label={t('position')}>
       {POS_FILTERS.map((p) => (
         <button key={p} className={value === p ? 'active' : ''} aria-pressed={value === p} onClick={() => onChange(p)}>
-          {p === 'all' ? 'All' : p}
+          {p === 'all' ? t('allPositions') : p}
         </button>
       ))}
     </div>
@@ -58,9 +62,9 @@ function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
   return (
     <span
       className={on ? 'star on' : 'star'}
-      title={on ? 'On your shortlist' : 'Add to shortlist'}
+      title={t(on ? 'onShortlist' : 'addShortlist')}
       role={onClick ? 'button' : undefined}
-      aria-label={onClick ? (on ? 'Remove from shortlist' : 'Add to shortlist') : undefined}
+      aria-label={onClick ? t(on ? 'removeShortlist' : 'addShortlist') : undefined}
       aria-pressed={onClick ? on : undefined}
       onClick={(e) => {
         if (!onClick) return
@@ -88,10 +92,10 @@ function CareerModal({ playerId, onClose, compare, onCompare }: { playerId: stri
   const on = compare.includes(playerId)
   const actions = (
     <button type="button" className={`btn sm ${on ? 'primary' : 'ghost'}`} onClick={() => onCompare(playerId)} aria-pressed={on} data-testid="card-compare">
-      <Columns3 size={14} aria-hidden="true" /> {on ? 'In Compare' : 'Add to compare'}
+      <Columns3 size={14} aria-hidden="true" /> {t(on ? 'inCompare' : 'addCompare')}
     </button>
   )
-  return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} actions={actions} attrCaption={<>at his peak, {clubName(u, best.clubId)} {seasonLabel(best.season)}</>} />
+  return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} actions={actions} attrCaption={t('atPeak', { club: clubName(u, best.clubId), season: seasonLabel(best.season) })} />
 }
 
 export function Explore() {
@@ -149,46 +153,46 @@ export function Explore() {
     setView('clubs')
   }
   const views: Array<{ id: ExploreView; label: string; long?: string; icon: typeof Trophy }> = [
-    { id: 'browse', label: 'Seasons', icon: Trophy },
-    { id: 'clubs', label: 'Clubs', icon: Shield },
-    { id: 'league', label: 'League', icon: Landmark },
-    { id: 'legends', label: 'Top', long: ' rated', icon: ListOrdered },
-    { id: 'search', label: 'Search', icon: Search },
-    { id: 'compare', label: 'Compare', icon: Columns3 },
+    { id: 'browse', label: t('seasons'), icon: Trophy },
+    { id: 'clubs', label: t('viewClubs'), icon: Shield },
+    { id: 'league', label: t('viewLeague'), icon: Landmark },
+    { id: 'legends', label: t('viewTop'), long: t('viewTopLong'), icon: ListOrdered },
+    { id: 'search', label: t('viewSearch'), icon: Search },
+    { id: 'compare', label: t('viewCompare'), icon: Columns3 },
   ]
 
   return (
     <div className="page">
       <div className="screen-head">
         <div className="screen-title">
-          <h1>Explore database</h1>
+          <h1>{t('title')}</h1>
           <div className="screen-meta">
-            <span>Every club-season on the wheel</span>
-            <Info label="About Explore">Each club-season has its real squad and the ratings the engine uses. Clubs and League hold every season of a club and a league; Search filters every player; Compare lines up to three side by side. Tap a player for his whole career; the star shortlists that season for the market.</Info>
+            <span>{t('meta')}</span>
+            <Info label={t('aboutLabel')}>{t('about')}</Info>
           </div>
         </div>
         <div className="head-actions">
           {view === 'browse' && <BoxesMenu groups={[boxes]} />}
           <button className="btn ghost" onClick={() => go('home')}>
-            ← Home
+            {t('home')}
           </button>
         </div>
       </div>
       <div className="screen-body fill">
       <div className={`explore-bar ${view === 'search' || view === 'compare' ? 'all-leagues' : ''}`}>
-        <div className="segmented" role="group" aria-label="League">
+        <div className="segmented" role="group" aria-label={t('league')}>
           {u.available.map((l) => (
             <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { setLeagueId(l.id); setClubId(''); setClubPage(''); void ensureLeagues([l.id]) }} disabled={loadingLeagues}>
               <LeagueFlag leagueId={l.id} /> {l.name}
             </button>
           ))}
         </div>
-        {view === 'search' && <span className="chip info" data-testid="search-all-leagues">Search covers every league</span>}
-        {view === 'compare' && <span className="chip info">Compare covers every league</span>}
-        {loadingLeagues && <span className="chip">Loading league…</span>}
-        {!loadedLeagues.includes(leagueId) && !loadingLeagues && <span className="chip warn">Loading…</span>}
+        {view === 'search' && <span className="chip info" data-testid="search-all-leagues">{t('searchAll')}</span>}
+        {view === 'compare' && <span className="chip info">{t('compareAll')}</span>}
+        {loadingLeagues && <span className="chip">{t('loadingLeague')}</span>}
+        {!loadedLeagues.includes(leagueId) && !loadingLeagues && <span className="chip warn">{t('loading')}</span>}
       </div>
-      <div className="segmented view-switch" role="group" aria-label="View">
+      <div className="segmented view-switch" role="group" aria-label={t('view')}>
         {views.map((x) => (
           <button key={x.id} className={view === x.id ? 'active' : ''} aria-pressed={view === x.id} onClick={() => setView(x.id)} data-testid={`explore-view-${x.id}`}>
             <x.icon size={14} aria-hidden="true" />
@@ -206,24 +210,23 @@ export function Explore() {
           {boxes.on('table') && (
           <div className="panel">
             <div className="panel-head">
-              <h3>League table</h3>
-              <select className="input" style={{ width: 'auto' }} aria-label="Season" value={season} onChange={(e) => { setSeason(Number(e.target.value)); setClubId('') }}>
+              <h3>{t('leagueTable')}</h3>
+              <select className="input" style={{ width: 'auto' }} aria-label={t('season')} value={season} onChange={(e) => { setSeason(Number(e.target.value)); setClubId('') }}>
                 {seasons.map((s) => (
                   <option key={s} value={s}>
-                    {seasonLabel(s)}
-                    {s < u.firstSeason ? ' (est.)' : ''}
+                    {t('seasonOption', { season: seasonLabel(s), estimated: s < u.firstSeason ? 'yes' : 'no' })}
                   </option>
                 ))}
               </select>
             </div>
             {seasonEstimated && (
               <p className="help" style={{ marginTop: 0 }} data-testid="explore-estimated">
-                <EstimatedChip compact /> Real squads and table; ratings are TouchLine's estimate.
+                <EstimatedChip compact />{t('tableEstimated')}
               </p>
             )}
             {table.length === 0 && clubsInSeason.length > 0 && (
               <p className="help" style={{ marginTop: 0 }} data-testid="explore-no-table">
-                No final table in the data for this league, so the clubs are not ranked.
+                {t('noTable')}
               </p>
             )}
             <div className="tbl-wrap">
@@ -231,15 +234,15 @@ export function Explore() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Club</th>
-                  <th className="num">Pts</th>
-                  <th className="num">Best</th>
-                  <th className="num">XI avg</th>
+                  <th>{t('colClub')}</th>
+                  <th className="num">{t('colPts')}</th>
+                  <th className="num">{t('colBest')}</th>
+                  <th className="num">{t('colAvg')}</th>
                 </tr>
               </thead>
               <tbody>
                 {clubsInSeason.map((cs) => {
-                  const t = table.find((r) => r.clubId === cs.clubId)
+                  const row = table.find((r) => r.clubId === cs.clubId)
                   const top11 = cs.squad.slice(0, 11)
                   const avg = top11.length ? top11.reduce((s, p) => s + p.overall, 0) / top11.length : 0
                   return (
@@ -248,12 +251,12 @@ export function Explore() {
                       <td className="club-cell">
                         <span className="row" style={{ gap: 8 }} title={clubName(u, cs.clubId)}>
                           <ClubBadge clubId={cs.clubId} size={22} /> <span className="ellipsis club-nm">{clubName(u, cs.clubId)}</span>
-                          {cs.champions && <Trophy size={14} className="gold-ic" role="img" aria-label="Champions" />}
+                          {cs.champions && <Trophy size={14} className="gold-ic" role="img" aria-label={t('champions')} />}
                         </span>
                       </td>
-                      <td className="num">{t?.points ?? '–'}</td>
+                      <td className="num">{row?.points ?? '–'}</td>
                       <td className="num">{cs.squad[0]?.overall ?? '–'}</td>
-                      <td className="num">{avg.toFixed(1)}</td>
+                      <td className="num">{fixed(avg, 1)}</td>
                     </tr>
                   )
                 })}
@@ -269,8 +272,8 @@ export function Explore() {
                 <span className="empty-icon" aria-hidden="true">
                   <Search size={26} />
                 </span>
-                <h3>Pick a club</h3>
-                <p className="muted small">Its squad that season appears here.</p>
+                <h3>{t('pickClub')}</h3>
+                <p className="muted small">{t('pickClubHelp')}</p>
               </div>
             )}
             {selected && (
@@ -282,30 +285,28 @@ export function Explore() {
                     <div className="club-sub">
                       <span>{seasonLabel(selected.season)}</span>
                       {!selected.complete ? (
-                        <span>season in progress</span>
+                        <span>{t('inProgress')}</span>
                       ) : selected.champions ? (
                         <span className="chip gold icon-chip">
-                          <Trophy size={12} aria-hidden="true" /> Champions
+                          <Trophy size={12} aria-hidden="true" /> {t('champions')}
                         </span>
                       ) : selected.position > 0 ? (
-                        <span>
-                          {ordinal(selected.position)} · {selected.points} pts
-                        </span>
+                        <span>{t('placedPoints', { pos: selected.position, points: selected.points })}</span>
                       ) : (
-                        <span>no final table</span>
+                        <span>{t('noFinalTable')}</span>
                       )}
                       {selected.complete && selected.position > 0 && (
                         <span className="mono">
                           {selected.won}-{selected.drawn}-{selected.lost}
                         </span>
                       )}
-                      <span>{selected.squad.length} players</span>
+                      <span>{t('players', { n: selected.squad.length })}</span>
                       {selected.estimated && <EstimatedChip compact />}
                     </div>
                     <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 4 }}>
                       <WheelLine chance={wheelChanceOf(u, selected)} leagueName={leagueName} />
                       <button type="button" className="btn sm ghost" onClick={() => openClub(selected.clubId)} data-testid="open-club-page">
-                        <Shield size={14} aria-hidden="true" /> Club page
+                        <Shield size={14} aria-hidden="true" /> {t('clubPage')}
                       </button>
                     </div>
                   </div>
@@ -325,33 +326,32 @@ export function Explore() {
       {view === 'legends' && (
         <div className="panel">
           <div className="panel-head">
-            <h3>{onePerPlayer ? 'Highest rated players' : 'Highest rated player-seasons'}</h3>
+            <h3>{t(onePerPlayer ? 'topPlayers' : 'topSeasons')}</h3>
             <PosFilter value={posFilter} onChange={setPosFilter} />
           </div>
           <div className="row wrap explore-filters" style={{ gap: 'var(--space-2)' }}>
-            <Segmented value={onePerPlayer ? 'player' : 'season'} onChange={(v) => setOnePerPlayer(v === 'player')} options={[{ value: 'season', label: 'Every season', testId: 'legends-every' }, { value: 'player', label: 'Best season each', hint: "Each player once, at his best season in this league", testId: 'legends-one' }]} />
-            <select className="input" style={{ width: 'auto' }} aria-label="Season" data-testid="legends-season" value={legendSeason} onChange={(e) => setLegendSeason(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-              <option value="all">All seasons</option>
+            <Segmented value={onePerPlayer ? 'player' : 'season'} onChange={(v) => setOnePerPlayer(v === 'player')} options={[{ value: 'season', label: t('everySeason'), testId: 'legends-every' }, { value: 'player', label: t('bestEach'), hint: t('bestEachHint'), testId: 'legends-one' }]} />
+            <select className="input" style={{ width: 'auto' }} aria-label={t('season')} data-testid="legends-season" value={legendSeason} onChange={(e) => setLegendSeason(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+              <option value="all">{t('allSeasons')}</option>
               {[...seasons].reverse().map((s) => (
                 <option key={s} value={s}>
-                  {seasonLabel(s)}
-                  {s < u.firstSeason ? ' (est.)' : ''}
+                  {t('seasonOption', { season: seasonLabel(s), estimated: s < u.firstSeason ? 'yes' : 'no' })}
                 </option>
               ))}
             </select>
             <span className="small muted" data-testid="legends-count">
-              {legends.length ? `Top ${legends.length}` : 'No players match'}
+              {legends.length ? t('topN', { n: legends.length }) : t('noMatch')}
             </span>
           </div>
           <div className="legend-row legend-head" aria-hidden="true">
             <span>#</span>
-            <span>Rtg</span>
-            <span className="lg-name">Player</span>
-            <span className="lg-age">Age</span>
-            <span className="lg-pos">Pos</span>
-            <span className="lg-club">Club</span>
-            <span className="lg-season">Season</span>
-            <span className="lg-star" title="Shortlist">
+            <span>{t('colRtg')}</span>
+            <span className="lg-name">{t('colPlayer')}</span>
+            <span className="lg-age">{t('colAge')}</span>
+            <span className="lg-pos">{t('colPos')}</span>
+            <span className="lg-club">{t('colClub')}</span>
+            <span className="lg-season">{t('season')}</span>
+            <span className="lg-star" title={t('shortlist')}>
               <StarIcon size={14} aria-hidden="true" />
             </span>
           </div>
@@ -360,7 +360,7 @@ export function Explore() {
               <span className="muted">{i + 1}</span>
               <Rating value={p.overall} />
               <span className="lg-name">
-                <button type="button" className="link-btn" onClick={() => setCareerId(p.playerId)} title="Career">
+                <button type="button" className="link-btn" onClick={() => setCareerId(p.playerId)} title={t('career')}>
                   {p.name}
                 </button>
               </span>
@@ -377,7 +377,7 @@ export function Explore() {
                 {seasonLabel(p.season)}
                 {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
               </span>
-              <button type="button" className="lg-star btn sm ghost" onClick={() => toggleShortlist(p.id)} title={shortlist.includes(p.id) ? 'On your shortlist' : 'Shortlist'} aria-label={shortlist.includes(p.id) ? 'Remove from shortlist' : 'Shortlist'} aria-pressed={shortlist.includes(p.id)}>
+              <button type="button" className="lg-star btn sm ghost" onClick={() => toggleShortlist(p.id)} title={t(shortlist.includes(p.id) ? 'onShortlist' : 'shortlist')} aria-label={t(shortlist.includes(p.id) ? 'removeShortlist' : 'shortlist')} aria-pressed={shortlist.includes(p.id)}>
                 <Star on={shortlist.includes(p.id)} />
               </button>
             </div>
