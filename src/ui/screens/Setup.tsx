@@ -762,7 +762,7 @@ export function Setup() {
                 )}
               </div>
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
-                {!ready ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
+                {!ready ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start draft'}
               </button>
             </section>
           </div>

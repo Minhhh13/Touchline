@@ -256,7 +256,7 @@ export function Draft() {
             {d.rules.classic && <span className="chip">Classic seasons</span>}
             {d.rules.twists && <span className="chip">Twists</span>}
             {d.rules.chain && <span className="chip">Teammate chain</span>}
-            <span className="mono">seed {game.settings.seed}</span>
+            <span className="mono">Seed {game.settings.seed}</span>
           </div>
           {((modeCards.length > 0 && (modeCards.length > 1 || modeCards[0] !== 'hard')) || powerUpsOn(d)) && (
             <div className="pill-list" data-testid="draft-modes" style={{ marginTop: 6 }}>

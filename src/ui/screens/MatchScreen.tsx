@@ -10,7 +10,7 @@ import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../co
 import { RedCard, YellowCard } from '../components/icons'
 import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { clubName, clubShort, minuteLabel, outcomeClass, outcomeOf } from '../format'
+import { clubName, clubShort, minuteLabel, outcomeClass, outcomeOf, signedValue } from '../format'
 import { playerLookup } from '@game/logic/players'
 import type { Appearance, FullMatchResult } from '@engine/match'
 import { feedFromResult } from '@engine/matchFeed'
@@ -448,7 +448,7 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
             </div>
             {ours.substitutions.length > 0 && (
               <div className="small muted icon-title" style={{ marginTop: 8, alignItems: 'flex-start' }}>
-                <ArrowLeftRight size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> {ours.substitutions.map((s) => `${get(s.on)?.name} for ${get(s.off)?.name} (${s.minute}', ${s.reason})`).join('; ')}
+                <ArrowLeftRight size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> {ours.substitutions.map((s) => `${get(s.on)?.name} for ${get(s.off)?.name} (${minuteLabel(s.minute)}, ${s.reason})`).join('; ')}
               </div>
             )}
           </div>
@@ -484,8 +484,7 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
               <span className="chip">Attack ×{ours.modifiers.attack.toFixed(2)}</span>
               <span className="chip">Their chances ×{ours.modifiers.defence.toFixed(2)}</span>
               <span className="chip">
-                Fatigue {ours.modifiers.fatigue > 0 ? '+' : ''}
-                {ours.modifiers.fatigue}
+                Fatigue {signedValue(ours.modifiers.fatigue)}
               </span>
             </div>
             {opponentBox && u && (

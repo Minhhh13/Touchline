@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
-import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, scorersLabel, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
+import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ChevronDown, Play, SkipForward } from 'lucide-react'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
+import { scorersText } from '../scorers'
 import { shownGames } from '../screenText'
 
 /** Milliseconds between two games revealed by the season replay. */
@@ -311,7 +312,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
         {shown.map((r) => {
           const opp = opponent(r.opponentId)
           const o = outcomeOf(r)
-          const scorers = scorersLabel(r.scorers)
+          const scorers = scorersText(r.scorers)
           const isNewest = r.matchweek === newestWeek
           return (
             <li key={r.matchweek} className={`gbg-game ${o} ${isNewest && order === 'newest' ? 'newest' : ''}`} data-testid="gbg-game" data-outcome={o} data-matchweek={r.matchweek} ref={isNewest ? newestRef : undefined}>

@@ -57,7 +57,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                 {r.depth.slice(0, 5).map((d) => (
                   <button key={d.id} type="button" className={`chip ${d.inXI ? 'info' : ''} ${d.available ? '' : 'dim'}`} title={`${d.name}, ${d.age}${d.natural ? '' : ', can cover'}${d.available ? '' : ', unavailable'}`} onClick={() => onPlayer(d.id)}>
                     {surname(d.name)} {d.rating}
-                    {d.age >= 30 ? <span className="muted"> · {d.age}</span> : null}
+                    {d.age >= 30 ? <span className="muted"> · {d.age}y</span> : null}
                   </button>
                 ))}
               </div>

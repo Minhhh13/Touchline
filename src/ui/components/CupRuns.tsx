@@ -4,10 +4,10 @@ import { useStore } from '@game/store'
 import type { Game, QuickCupRun } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { cupReachLabel, cupRoundLabel, cupScoreLabel, QUICK_CONTINENTAL_PLACES, QUICK_CUP_ENTRANTS, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
-import { scorersLabel } from '@game/logic/gameByGame'
 import { ClubBadge } from './bits'
 import { CupNight } from './CupNight'
 import { ordinal } from '../format'
+import { scorersText } from '../scorers'
 import { isSuperLeague, sideNamer } from '@game/logic/superLeague'
 import { summaryMainCall } from '@game/logic/summaryCall'
 
@@ -133,7 +133,7 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
     <ol className="gbg-list cup-ties" data-testid={`cup-${comp}-ties`}>
       {ties.map((t, i) => {
         const o = t.won ? 'W' : 'L'
-        const scorers = scorersLabel(t.scorers)
+        const scorers = scorersText(t.scorers)
         return (
           <li key={t.round} className={`gbg-game cup-tie ${o} ${i === 0 ? 'newest' : ''}`} data-testid="cup-tie" data-outcome={o}>
             <span className={`gbg-badge ${o}`} role="img" aria-label={t.won ? 'Through' : 'Out'}>

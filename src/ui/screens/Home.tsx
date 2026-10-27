@@ -320,7 +320,7 @@ export function Home() {
           <ModeArt kind="season" icon={ClipboardList} />
           <span className="mode-text">
             <h3>Season</h3>
-            <p>Draft eighteen, then manage every week.</p>
+            <p>Draft 18, then manage every week.</p>
             <span className="foot">
               <TimeTag>45 min</TimeTag>
             </span>

@@ -14,7 +14,7 @@ const SH = 122
 
 /** Rating by season: one colour, direct labels, the peak in `--meter-mid`, estimated seasons dashed with hollow dots, a faint tick at each club change. */
 export function SeasonChart({ points, u }: { points: SeasonPoint[]; u: LoadedUniverse }) {
-  if (!points.length) return <p className="small muted pc-empty">No database seasons.</p>
+  if (!points.length) return <p className="small muted pc-empty">No seasons in the data for this player.</p>
   const { min, max } = seasonScale(points)
   const L = 22
   const R = 12

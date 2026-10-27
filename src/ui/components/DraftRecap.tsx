@@ -56,7 +56,7 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
           )}
         </div>
       </div>
-      {r.grade && <Tip id="draft-recap">Each pick is graded by the number on his pitch disc, against the best play his spin held for your open slots, counting the spins that came after: A is the best play, B to D left up to 2, 4 or more XI points. The Hindsight XI is the best XI your spins held; a tick is your pick where you put him, S5 the spin a man came from.</Tip>}
+      {r.grade && <Tip id="draft-recap">Each pick is graded by the number on his pitch disc, against the best play his spin held for your open slots, counting the spins that came after: A is the best play; B leaves up to 2 XI points on the wheel, C up to 4, D more. The Hindsight XI is the best XI your spins held; a tick is your pick where you put him, S5 the spin a man came from.</Tip>}
       <div className="recap-cards">
         {r.best && best && (
           <div className="recap-card" data-testid="recap-best">
@@ -81,7 +81,7 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
               <span className="eyebrow">The one that got away</span>
               <b>{r.miss.bestName}</b>
               <span className="small muted">
-                {r.miss.best} at {slotName(r.miss.bestSlotId)} on spin {r.miss.spin + 1}; you took {missed.name} ({r.miss.rating} at {slotName(r.miss.slotId)}), {countPhrase(r.miss.left, 'XI points')} left
+                {r.miss.bestName === missed.name ? `${r.miss.best} at ${slotName(r.miss.bestSlotId)} on spin ${r.miss.spin + 1}; you put him at ${slotName(r.miss.slotId)} (${r.miss.rating})` : `${r.miss.best} at ${slotName(r.miss.bestSlotId)} on spin ${r.miss.spin + 1}; you took ${missed.name} (${r.miss.rating} at ${slotName(r.miss.slotId)})`}, {countPhrase(r.miss.left, 'XI points')} left
               </span>
             </div>
           </div>

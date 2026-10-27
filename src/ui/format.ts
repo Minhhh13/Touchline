@@ -29,6 +29,7 @@ export function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 export function money(m: number): string {
+  if (m === 0) return '£0'
   if (Math.abs(m) >= 1000) return `£${(m / 1000).toFixed(2)}bn`
   if (Math.abs(m) >= 100) return `£${Math.round(m)}M`
   if (Math.abs(m) >= 10) return `£${m.toFixed(1)}M`
@@ -83,6 +84,10 @@ export function clubName(u: LoadedUniverse | null, clubId: string): string {
 export function chemistryLinkLabel(u: LoadedUniverse | null, line: string): string {
   const m = line.match(/^(.* from )([^@\s]+)@(\d{4})$/)
   return m ? `${m[1]}${clubName(u, m[2])} ${seasonLabel(Number(m[3]))}` : line
+}
+/** A signed figure with a true minus sign: "+0.4", "−0.31", "0". */
+export function signedValue(v: number): string {
+  return v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '0'
 }
 export function clubShort(u: LoadedUniverse | null, clubId: string): string {
   return u?.clubById[clubId]?.shortName ?? clubId

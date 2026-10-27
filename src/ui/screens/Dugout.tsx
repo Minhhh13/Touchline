@@ -22,7 +22,7 @@ import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
 import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingItem, type DugoutTab } from '@game/logic/briefing'
 import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
-import { slotSheet, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
+import { slotSheet, surname, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
 import { slotRating, slotRatingLine } from '@game/logic/slotRating'
 import { Pitch, PitchLegend } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
@@ -37,7 +37,7 @@ import { PlayerCardModal } from '../components/PlayerCard'
 import { careerSeasons } from '@game/logic/playerCard'
 import { LeagueFlag } from '../components/Flag'
 import { roleCode } from '../match/shirts'
-import { chemistryLinkLabel, clubName, clubShort, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
+import { chemistryLinkLabel, clubName, clubShort, signedValue, meterValue, money, moraleWord, ordinal, outcomeClass, outcomeOf, seasonLabel, wage } from '../format'
 import type { PlayerSeason, Position, TableRow } from '@engine/types'
 import type { TeamTalk } from '@engine/match'
 import { isClassic } from '@engine/universe'
@@ -452,7 +452,7 @@ export function Dugout() {
                             </span>
                             {mins !== null && (
                               <span className="season-line" title="Minutes over the last three matchweeks, league and cup">
-                                {mins}′ last 3 wks
+                                {mins} min in 3 weeks
                               </span>
                             )}
                           </>
@@ -504,7 +504,7 @@ export function Dugout() {
               </div>
               <Pitch formation={formation} lineup={game.lineup} getPlayer={get} getState={(id) => game.squad[id]} onSlotClick={onSlotClick} selectedSlot={sheetSlot} showRoles={Object.fromEntries(formation.slots.map((s) => [s.id, getRole(game.tactics.roles[s.id] ?? DEFAULT_ROLE[s.position]).name]))} roleCodes={Object.fromEntries(formation.slots.map((s) => [s.id, roleCode(game.tactics, s.id, s.position)]))} />
               {showKey && <PitchLegend />}
-              {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {strength.chemistry >= 0 ? '+' : ''}{strength.chemistry}: {strength.chemistryBreakdown.map((l) => chemistryLinkLabel(u, l)).join(', ')}</div>}
+              {strength.chemistryBreakdown.length > 0 && <div className="small muted" style={{ marginTop: 'var(--space-2)' }}>Chemistry {signedValue(strength.chemistry)}: {strength.chemistryBreakdown.map((l) => chemistryLinkLabel(u, l)).join(', ')}</div>}
             </div>
             )}
             {tabBoxes.on('depth') && (
@@ -530,7 +530,7 @@ export function Dugout() {
                         {cover.map((x) => (
                           <PlayerPeek key={x.p.id} p={x.p} s={x.s}>
                             <button type="button" className={`chip ${inXI.has(x.p.id) ? 'info' : ''} ${!isAvailable(x.s) ? 'dim' : ''}`} onClick={() => onPlayerClick(x.p.id)} title={!isAvailable(x.s) ? 'Unavailable' : inXI.has(x.p.id) ? 'Starting' : 'Available'}>
-                              {x.p.name.split(' ').slice(-1)[0]} {x.r}
+                              {surname(x.p.name)} {x.r}
                             </button>
                           </PlayerPeek>
                         ))}
@@ -1817,7 +1817,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
       {on('achievements') && (
       <div className="panel">
         <h3>Achievements this game</h3>
-        {game.unlocked.filter((x) => x !== 'survivor-pending').length === 0 && <div className="muted small">Nothing yet. Win something.</div>}
+        {game.unlocked.filter((x) => x !== 'survivor-pending').length === 0 && <div className="muted small">None yet this game: win the league or a cup to earn one.</div>}
         <div className="pill-list">
           {game.unlocked
             .filter((x) => x !== 'survivor-pending')

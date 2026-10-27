@@ -24,6 +24,7 @@ import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { money, ordinal } from '../format'
 import { useFocusOnLanding } from '../a11y'
+import { surname } from '@game/logic/slotSheet'
 
 type Stage = 'halfway' | 'market' | 'spin' | 'upgrade'
 
@@ -327,7 +328,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
           </div>
           <div className="row wrap" style={{ gap: 10 }}>
             <button type="button" className="btn primary" disabled={!chosen} onClick={() => chosen && closeJanuarySpin(chosen.slotId)} data-testid="january-spin-sign">
-              {chosen ? `Bring ${p.name.split(/\s+/).slice(-1)[0]} in for ${chosen.outName.split(/\s+/).slice(-1)[0]}` : 'Choose a slot'}
+              {chosen ? `Bring ${surname(p.name)} in for ${surname(chosen.outName)}` : 'Choose a slot'}
             </button>
             <button ref={choices.length ? undefined : action} type="button" className="btn" onClick={() => closeJanuarySpin(null)} data-testid="january-spin-keep">
               Keep my XI

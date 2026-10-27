@@ -12,6 +12,7 @@ import { STATUS_LABEL, type SquadStatus } from '@engine/status'
 import { squadPlayers } from './players'
 import { teamStrength } from './squad'
 import { statusOf } from './week'
+import { surname } from './slotSheet'
 
 export type HierarchyTier = 'leader' | 'high' | 'influential' | 'other'
 
@@ -172,8 +173,8 @@ export function atmosphereOf(game: Game, u: LoadedUniverse): Atmosphere {
   const leaders = leaderRows.length ? Math.round(leaderRows.reduce((a, r) => a + (game.squad[r.id]?.morale ?? 70), 0) / leaderRows.length) : 0
   const lines: string[] = []
   if (leaderRows.length) lines.push(`Leaders' morale ${leaders}`)
-  lines.push(`Chemistry ${chemistry >= 0 ? '+' : ''}${chemistry} in the XI`)
+  lines.push(`Chemistry ${chemistry > 0 ? '+' : chemistry < 0 ? '−' : ''}${Math.abs(chemistry)} in the XI`)
   const unhappy = rows.filter((r) => (game.squad[r.id]?.morale ?? 70) < 40)
-  if (unhappy.length) lines.push(`Unhappy: ${unhappy.slice(0, 3).map((r) => r.name.split(' ').slice(-1)[0]).join(', ')}${unhappy.length > 3 ? ` and ${unhappy.length - 3} more` : ''}`)
+  if (unhappy.length) lines.push(`Unhappy: ${unhappy.slice(0, 3).map((r) => surname(r.name)).join(', ')}${unhappy.length > 3 ? ` and ${unhappy.length - 3} more` : ''}`)
   return { value, label, weightedMorale: Math.round(weightedMorale), chemistry, leaders, lines }
 }

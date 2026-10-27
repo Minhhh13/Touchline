@@ -173,7 +173,7 @@ export function ProfileScreen() {
     }
   }
   const wipe = () => {
-    if (!confirm('Delete every saved game, your record and achievements from this browser?')) return
+    if (!confirm('Delete every saved game, your record and achievements from this browser? This cannot be undone.')) return
     wipeSave()
     location.reload()
   }

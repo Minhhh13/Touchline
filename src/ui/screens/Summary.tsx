@@ -28,7 +28,7 @@ import { LeagueAwards } from '../components/LeagueAwards'
 import { countPhrase, runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
+import { clubName, money, nationName, ordinal, seasonLabel, signedValue, tierName } from '../format'
 import { LeagueFlag, NationFlag, QuickLeagueFlag } from '../components/Flag'
 import { isSuperLeague, quickLeagueName, sideNamer, superTierBlurb } from '@game/logic/superLeague'
 import { playerLookup, squadPlayers } from '@game/logic/players'
@@ -695,7 +695,7 @@ export function Summary() {
                           iconChip(ScrollText, 'League record', 'gold')
                         ) : (
                           <span>
-                            {m.rank === 1 ? 'Joint best' : `${ordinal(m.rank)} best`} <span className="muted small">of {m.of + 1}{m.equal > 0 && m.rank > 1 ? ` · level with ${m.equal}` : ''}</span>
+                            {m.rank === 1 ? 'Joint best' : `${ordinal(m.rank)} best`} <span className="muted small">of {m.of + 1} club-seasons{m.equal > 0 && m.rank > 1 ? ` · level with ${m.equal}` : ''}</span>
                           </span>
                         )}
                         {m.better.length > 0 && <div className="ahead">Ahead: {m.better.map((b) => `${clubName(u, b.clubId)} ${b.value} (${seasonLabel(b.season)})`).join(', ')}</div>}
@@ -708,7 +708,7 @@ export function Summary() {
           </div>
           {game.settings.difficulty !== 'realistic' && (
             <div className="help row" style={{ gap: 'var(--space-1)' }}>
-              Benchmarks, not records, on Calibrated
+              On Calibrated difficulty these are benchmarks, not records
               <Info label="Why benchmarks">Calibrated difficulty handicaps the AI clubs. The Record Books achievement needs a points record on Realistic.</Info>
             </div>
           )}
@@ -782,8 +782,7 @@ export function Summary() {
               <div className="toolbar" style={{ marginTop: 'var(--space-3)' }}>
                 <span className="chip" title="How even your four units are: a lopsided XI loses up to 4% of its strength">Balance {Math.round(q.strength.balance * 100)}%</span>
                 <span className={`chip ${q.strength.chemistry > 0 ? 'good' : q.strength.chemistry < 0 ? 'bad' : ''}`} title="Team-mates from the same club and season, nearby seasons and one nation, plus how well they know the system; added to every unit's rating">
-                  Chemistry {q.strength.chemistry >= 0 ? '+' : ''}
-                  {q.strength.chemistry}
+                  Chemistry {signedValue(q.strength.chemistry)}
                 </span>
               </div>
             )}

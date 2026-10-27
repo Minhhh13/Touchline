@@ -259,7 +259,7 @@ export function H2HScreen() {
               <LeagueFlag leagueId={h2h.leagueId} /> {u.leagues.find((l) => l.id === h2h.leagueId)?.name ?? 'League'} {seasonLabel(h2h.leagueSeason)}
             </span>
             {h2h.hardMode && <span className="chip">Hard mode</span>}
-            <span className="mono">seed {h2h.seed}</span>
+            <span className="mono">Seed {h2h.seed}</span>
           </div>
         </div>
         <div className="toolbar">
@@ -432,7 +432,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      showToast('Could not copy the result. Try again.')
+      showToast('Could not copy. Select the text manually.')
     }
   }
   const card = async (i: 0 | 1) => {

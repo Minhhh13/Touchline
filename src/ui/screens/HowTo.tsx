@@ -161,7 +161,7 @@ export function HowTo() {
               46–70<small>Changes any minute</small>
             </span>
             <span style={{ flex: 20 }}>
-              71–90<small>Shouts from 70′</small>
+              71–90<small>Shouts from 70'</small>
             </span>
           </div>
           <p className="help">A perfect 38-0 is possible with an elite, balanced side and good management. It is meant to be rare.</p>
