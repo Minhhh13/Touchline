@@ -2,7 +2,7 @@
 
 What a mid-range phone pays for TouchLine, measured before the iOS App Store release, what the perf pass of
 2026-10-26 (`perf-pass`, from `claude/touchline-preview` 32ace40) changed, what round 2 (`perf-r2`, from 9aaa6c0, the
-same evening) changed, and what to look at next. Every number is from the production build.
+same evening) changed, round 6's UI work, round 3 (`r7-perf`, 2026-10-27, on engine 6), and what to look at next. Every number is from the production build.
 
 ## How it was measured
 
@@ -234,6 +234,83 @@ Left: the week's own task (`produce` over `playMatchweekAs`: the AI fixtures' `s
 the match screen's mount; both in BACKLOG's Next. No seeded outcome moved; ENGINE_VERSION `'6'`, the edge bundles
 `verifier-0fee2b6b3c0bbd80.js`, `verifier-603b905d0570f641.js` and `verifier-37d256f009b3b3e9.js` unchanged.
 
+## Round 3 (`r7-perf`)
+
+The third phone round, on `release-e6` (engine 6, 4899025). Measured as above (iPhone 13 viewport, DPR 3, touch, 4x CPU,
+network unthrottled), `vite preview` of the build before (`release-e6`) and after, interleaved, two to six runs each.
+The machine was quiet (load average 1 to 3). Saves made by the store (a Season and a Dynasty at pre-season, Everton
+2023-24, England) were loaded into the page, which waits 9 s after load before the 4x throttle so the lockup's
+flutter and the screen prefetch are done. "Longest task" is from the tap until the screen is up and 1.5 s after.
+
+| Phone, 4x CPU | Before | After |
+| --- | --- | --- |
+| Season: Play matchweek (Sim result), longest task, weeks 2 to 6 | 148 to 429 ms | 93 to 194 ms |
+| Season: Kick off (Watch) to the live pitch, longest task | 309 to 414 ms (the week 206 to 362, the render 300 to 414) | 135 to 251 ms (week slices under 100, the render 123 to 251) |
+| Live match at 1x: main thread a second (fps) | 571 to 618 ms (59 to 60 fps) | 467 to 493 ms (59 to 60 fps) |
+| Sim 5 / Sim to the next big match / Sim to end, longest task | 987 / 2,906 / 3,699 ms | 155 / 160 / 229 ms |
+| Dynasty: the same three (the run to the next big match is shorter here) | 1,019 / 1,280 / 4,804 ms | 155 to 223 / 160 to 177 / 229 to 583 ms |
+| Dynasty: on to next season (a new league built) | 702 ms | 598 to 742 ms (left, below) |
+| Quick Draft: Auto-complete | 2,037 to 2,816 ms | 296 to 457 ms |
+| Quick Draft: close the January window (stick) | 1,657 ms | 84 to 105 ms |
+| Quick Draft: the summary | 349 ms | 286 to 337 ms |
+| Arena (Cup, Gauntlet): Auto-complete / the first tie simmed | 1,963 to 2,535 / 667 to 850 ms | 375 to 503 / 95 to 226 ms |
+| Desktop 1280x720: page overflow on every screen of these flows | 0 | 0 |
+| Edge verifier | `verifier-d0ebd30afcbcd00b.js` (engine 6) | unchanged (no bundled file touched) |
+
+What changed:
+
+1. **The matchweek in slices.** `playMatchweek` and `playMatchweekAs` (`week.ts`, `assistant.ts`, neither in the
+   edge bundle) are stepped generators: a pause after the week's set-up (an event answered, the XI picked), after every
+   fixture and after every stop the assistant answers in a Sim result. `runSteps` runs them whole, so `playWeek` and
+   every other caller are unchanged. The store's `playWeekSoon` runs the same steps on an Immer draft held across tasks
+   (`createDraft` ... `finishDraft`, the shared `sliced` runner) and gives the page a task whenever a slice passes 16 ms
+   (`WEEK_SLICE_MS`); a game that moves meanwhile lets the draft go and plays as before. Nothing runs between two steps
+   but the wait, so the draws and the game are `playWeek`'s: `playWeekSoon.test.ts` plays 12 seeded seasons a step a
+   task. The profile showed why the week was 226 to 326 ms: the plain week is about 15 ms on a desktop, through Immer's
+   proxies about 40. The bookkeeping after the user's match (`afterLeagueMatch`: the AI cup ties, `afterMatchweek`) is
+   still one step inside the last stop of a Sim result (about 30 ms on a desktop in a cup week): splitting it would
+   mean a stepped `advanceLiveMatch` chain; nothing in `src/engine` had to change.
+2. **Sim 5, Sim to end, Sim to the next big match** use the same runner (`simWeeksSoon`, `simToNextBigMatchSoon`,
+   over `simWeeksSteps` and `simToNextStopSteps`), and at each week's end the runner finishes that week's draft and
+   starts a fresh one (`GameBox`, `WEEK_END`), so a whole season is never frozen in one task (it was 270 ms at 4x).
+   Tested equal to the plain actions, digest and stop included, over 8 seeds.
+3. **Auto-complete off the proxies.** The engine's `autoDraft` scans the pool thousands of times; on the Immer draft
+   most of its 2 s at 4x was the proxies (`get`, `isDraftable`). The store now runs it on a plain copy of the draft
+   (`plainCopy`: `structuredClone(current(...))`) and puts the copy back. The same functions on the same data:
+   `autoDraftPlain.test.ts`, 48 drafts in four rule sets, byte for byte.
+4. **The January window in the worker.** `closeJanuary` and `closeJanuarySpin` replay the whole quick season (round 2's
+   Next, item 3); the panel now sends them to the quick-season worker as jobs (`quickJob.ts`), as the kick-off is, and
+   the page plays them where the worker cannot. `quickWorker.test.ts` checks both closes byte for byte.
+5. **The live pitch.** A trace of the live match (5 s at 1x) put the main thread's time in the paint pipeline, not the
+   script: Paint about 200 ms a second and Layerize 120, against about 120 for the loop. Experiments by elimination:
+   with the pitch hidden the page drops to about 350 ms a second; CSS transforms instead of `transform` attributes and
+   a canvas for the moving parts measured no better on this rasteriser (the canvas's commit cost 500 ms a second). What
+   did: the squad strip alone was re-recorded with the pitch every frame (90 ms a second of Paint); every box beside the
+   pitch is now a stacking context (`isolation: isolate` in `matchday.css`) and keeps its cached paint, and the loop
+   keeps its own record of the attributes it wrote rather than reading each back. Paint fell from about 200 to 90 ms a
+   second. What is drawn is the same, and `frameCap.ts` is untouched. On a desktop (1280x720) the per-frame Layout of
+   the pitch (about 200 ms a second at 4x, every SVG child laid out again) is left: a fixed-size SVG halves it but adds
+   Layerize, measured about even.
+6. **The lockup's flutter** on a touch screen: its three loops were counted per mount, and the top bar's lockup mounts
+   again whenever the bar comes back (every match day), repainting the whole page every frame for 7.8 s each time; now
+   once per page load (`touchWaveOn`).
+7. **The match screen's mount (about 300 ms).** Its profile: React's render about 150 ms, a forced layout of the new
+   board inside the commit (CompactLayout's sticky offset, then the tab strip's scroll, about 100 to 130 ms each time
+   the first was moved), the sound bank filled on the first tap (60 ms). Now the phone board mounts in two frames (the
+   pulse row, the tabs and the strip after the first paint), the measurements wait for the paint (the layout is then
+   the frame's own), the noise buffers fill when first read, and a dialog takes the focus after its first paint (the
+   digest's focus forced 160 ms of layout).
+8. **The rest of the flows** (every task over 200 ms in the Quick Draft, Season, Dynasty and arena flows): Setup's
+   nation scan after the first paint, the Draft's odds panel through `useDeferredValue`, the title fanfare's score after
+   the summary paints, the summary's game list no longer forcing its first layout, and the arena's Manage live and Sim
+   the match paint-first with the replay prepared before its render (`playArenaStepSoon`, `prepareMatchScreen`).
+
+Left, each over 200 ms at 4x: a Dynasty summer's new league built in one task (`buildLeague`, 600 to 740 ms here;
+France is the slowest pack to build, table above; the column-index build is parked on `perf-r2-with-buildleague` for an engine release, since `buildLeague` is in
+the edge bundle); Auto-complete's own loop (180 ms, the engine's `autoDraft` in one call) and the Draft's render after
+it; the first render of the quick summary (about 290 ms) and the match report (about 230 to 290 ms). No seeded outcome
+moved: the pins, `noMove`, `dailyPin` and `marketPin` pass untouched, ENGINE_VERSION is `'6'`.
+
 ## Next
 
 In order of what a phone would gain:
@@ -243,14 +320,13 @@ In order of what a phone would gain:
    England's `buildLeague` is only 100 to 120 ms of the start now that the classic pack is lazy (round 1's 500 ms
    counted it); a column-index build was tried in round 2 and measures the same on the phone. It did not ship: it
    renames the edge verifier, so it is parked on the branch `perf-r2-with-buildleague` for a future engine bump, when
-   the function is redeployed anyway.
-2. **The match screen's first render**: its heaviest memos are built before it since round 6; what is left (about 300
-   ms at 4x) is React's mount of the dashboard and its first layout, which mounting the panels a frame later
-   would split.
-3. **Close the January window and bench changes in the worker**: `closeJanuary` and `makeQuickChange` replay the
-   whole quick season on the page (about the kick-off's 0.9 s); `quickJob.ts` can take them as further ops.
-4. **Sim 5 and Sim to end** run their weeks in one produce (0.6 + 0.3 s at 4x); `playWeekSoon`'s pattern (a week a
-   task, the same produce per week) would keep the page answering.
+   the function is redeployed anyway. A Dynasty summer that loads a new league pays 600 to 740 ms for its build (round 3).
+2. **The match report's and the quick summary's first render** (about 230 to 340 ms): the same two-frame mount as the
+   match day, or their heaviest memos built before (as `prepare.ts` does for the match day).
+3. **Bench changes in the worker**: `makeQuickChange` replays the whole quick season on the page (about 1 s at 4x);
+   `quickJob.ts` can take it as the January closes now are.
+4. **Auto-complete one pick a task**: the engine's `autoDraft` in one call is about 180 ms at 4x on a plain draft; a
+   game-side loop over `spin`, `assistantChoice` and `pick` (tested equal to `autoDraft`) could slice it.
 5. **The in-memory game**: compact finished results in memory as the save does (invariant 5 already limits what
    may read them), about 0.7 MB a matchweek. Test: seeded seasons with and without it give identical games.
 6. **`src/engine/data/managers.json`** (60 KB, 20 KB gzip) is in the entry chunk (round 2, item 7).

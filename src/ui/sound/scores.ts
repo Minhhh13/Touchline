@@ -170,12 +170,15 @@ export function peakOf(voices: readonly Voice[]): number {
   const times: number[] = []
   for (let t = 0; t <= end; t += 0.002) times.push(t)
   for (const v of voices) times.push(v.at + v.attack, v.at + v.attack + (v.hold ?? 0))
+  // Each voice's bound once, not at every sample (the same numbers)
+  const bounds = voices.map(sourceBound)
   let peak = 0
   for (const t of times) {
     let tones = 0
     let noise2 = 0
-    for (const v of voices) {
-      const e = envAt(v, t) * sourceBound(v)
+    for (let i = 0; i < voices.length; i++) {
+      const v = voices[i]
+      const e = envAt(v, t) * bounds[i]
       if (v.kind === 'noise') noise2 += e * e
       else tones += e
     }

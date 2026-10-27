@@ -37,7 +37,9 @@ type Stage = 'halfway' | 'market' | 'spin' | 'upgrade'
  * fold sits under every step. Every draw and every check is the store's; this only shows them.
  */
 export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j: QuickJanuary }) {
-  const { closeJanuary, setTactics, setCaptain } = useStore()
+  const { closeJanuarySoon: closeJanuary, closingJanuary: busy, setTactics, setCaptain, warmKickOff } = useStore()
+  // The second half is played in the quick-season worker: it loads the packs while the window is up
+  useEffect(() => warmKickOff(), [warmKickOff])
   const gamble = januaryGambleOn(game)
   // A reload after the case was opened or the dial rolled comes back to that step
   const [stage, setStage] = useState<Stage>(j.spin ? 'spin' : j.upgrade ? 'upgrade' : 'halfway')
@@ -100,7 +102,7 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
                   {money(j.budget)} budget, {j.listings.length} offer{j.listings.length === 1 ? '' : 's'}.
                 </span>
               </button>
-              <button type="button" className="jw-option skip" onClick={() => closeJanuary(null)} data-testid="january-stick">
+              <button type="button" className="jw-option skip" onClick={() => void closeJanuary(null)} disabled={busy} aria-busy={busy || undefined} data-testid="january-stick">
                 <SkipForward size={22} aria-hidden="true" />
                 <b>Skip</b>
                 <span>Keep your XI and play on.</span>
@@ -111,7 +113,7 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
               <button className="btn primary big" onClick={() => setStage('market')} data-testid="january-enter">
                 Enter the transfer market
               </button>
-              <button className="btn big" onClick={() => closeJanuary(null)} data-testid="january-stick">
+              <button className="btn big" onClick={() => void closeJanuary(null)} disabled={busy} aria-busy={busy || undefined} data-testid="january-stick">
                 Stick with your XI
               </button>
             </div>
@@ -137,7 +139,7 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
 
 /** The market: the budget and three to five deals, one of which can be done, or the XI kept after all. */
 function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
-  const { closeJanuary } = useStore()
+  const { closeJanuarySoon: closeJanuary, closingJanuary: busy } = useStore()
   const [chosen, setChosen] = useState<number | null>(null)
   const get = playerLookup(game, u)
   // The deals are players from outside the squad: hidden in blind mode, as every offer is
@@ -173,10 +175,10 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
         })}
       </div>
       <div className="row wrap" style={{ gap: 10 }}>
-        <button className="btn primary" disabled={!pick} onClick={() => chosen !== null && closeJanuary(chosen)} data-testid="january-deal">
+        <button className="btn primary" disabled={!pick || busy} aria-busy={busy || undefined} onClick={() => chosen !== null && void closeJanuary(chosen)} data-testid="january-deal">
           {pick ? (pick.kind === 'sign' ? `Sign ${get(pick.playerSeasonId)?.name ?? ''} and play on` : `Do the swap and play on`) : 'Choose a deal'}
         </button>
-        <button className="btn" onClick={() => closeJanuary(null)} data-testid="january-pass">
+        <button className="btn" onClick={() => void closeJanuary(null)} disabled={busy} data-testid="january-pass">
           Stick with your XI
         </button>
         <button className="btn ghost" onClick={onBack} data-testid="january-back">
@@ -193,7 +195,7 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
  * the slide; Quick spin (Profile) runs the short one; a reload after opening shows him landed.
  */
 function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
-  const { januarySpin, closeJanuarySpin } = useStore()
+  const { januarySpin, closeJanuarySpinSoon: closeJanuarySpin, closingJanuary: busy } = useStore()
   const [quick] = usePref(quickSpinPref)
   const get = playerLookup(game, u)
   // The player the case lands on is still being chosen until he is brought in: hidden in blind mode, as any offer;
@@ -334,10 +336,10 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
             })}
           </div>
           <div className="row wrap" style={{ gap: 10 }}>
-            <button type="button" className="btn primary" disabled={!chosen} onClick={() => chosen && closeJanuarySpin(chosen.slotId)} data-testid="january-spin-sign">
+            <button type="button" className="btn primary" disabled={!chosen || busy} aria-busy={busy || undefined} onClick={() => chosen && void closeJanuarySpin(chosen.slotId)} data-testid="january-spin-sign">
               {chosen ? `Bring ${surname(p.name)} in for ${surname(chosen.outName)}` : 'Choose a slot'}
             </button>
-            <button ref={choices.length ? undefined : action} type="button" className="btn" onClick={() => closeJanuarySpin(null)} data-testid="january-spin-keep">
+            <button ref={choices.length ? undefined : action} type="button" className="btn" onClick={() => void closeJanuarySpin(null)} disabled={busy} data-testid="january-spin-keep">
               Keep my XI
             </button>
           </div>
@@ -349,7 +351,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
 
 /** The January Upgrader: the Upgrader's stage on the XI; once the dial lands, the second half is played with the result. */
 function JanuaryUpgrade({ j, xi, hide, onBack }: { j: QuickJanuary; xi: PlayerSeason[]; hide: boolean; onBack: () => void }) {
-  const { januaryUpgrade, closeJanuary } = useStore()
+  const { januaryUpgrade, closeJanuarySoon: closeJanuary } = useStore()
   const ratingOf = (id: string) => xi.find((p) => p.id === id)?.overall ?? 0
   return (
     <div className="jw-upgrade" data-testid="january-upgrade">
@@ -360,7 +362,7 @@ function JanuaryUpgrade({ j, xi, hide, onBack }: { j: QuickJanuary; xi: PlayerSe
         result={j.upgrade}
         onConfirm={(id, boost) => januaryUpgrade(id, boost)}
         doneLabel="Play the second half"
-        onDone={() => closeJanuary(null)}
+        onDone={() => void closeJanuary(null)}
         back={
           <button type="button" className="btn ghost" onClick={onBack} data-testid="january-back">
             Back

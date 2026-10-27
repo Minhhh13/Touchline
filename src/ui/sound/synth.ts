@@ -67,7 +67,10 @@ export function unlockAudio(): void {
       master.connect(safetyNet(ctx))
       tickNoise = noise(ctx, TICK_NOISE_S)
       whooshNoise = noise(ctx, WHOOSH_NOISE_S)
-      bank = makeBank(ctx)
+      const made = (bank = makeBank(ctx))
+      // The buffers a sound has not asked for yet, each in a task of its own once the tap is over
+      setTimeout(() => void made.white, 400)
+      setTimeout(() => void made.pink, 800)
     }
     if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined)
   } catch {

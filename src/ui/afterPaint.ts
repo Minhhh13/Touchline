@@ -44,11 +44,12 @@ export function runAfterPaint(fn: () => void, raf: Raf | undefined = browserRaf(
 }
 
 /**
- * A busy flag and a runner: `run(fn)` sets the flag, paints, runs `fn` (`runAfterPaint`) and clears the flag. A second
+ * A busy flag and a runner: `run(fn)` sets the flag, paints, runs `fn` (`runAfterPaint`) and clears the flag (once its
+ * promise settles, for an action that runs in slices, as Sim 5 does). A second
  * run while one is waiting is dropped, so a double click (or Space held down) plays one matchweek; the flag is not set
  * on a button that has gone meanwhile.
  */
-export function useAfterPaint(): [boolean, (fn: () => void) => void] {
+export function useAfterPaint(): [boolean, (fn: () => void | Promise<void>) => void] {
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
   const alive = useRef(true)
@@ -58,16 +59,22 @@ export function useAfterPaint(): [boolean, (fn: () => void) => void] {
       alive.current = false
     }
   }, [])
-  const run = useCallback((fn: () => void) => {
+  const run = useCallback((fn: () => void | Promise<void>) => {
     if (busyRef.current) return
     busyRef.current = true
     setBusy(true)
+    const done = () => {
+      busyRef.current = false
+      if (alive.current) setBusy(false)
+    }
     runAfterPaint(() => {
+      let out: void | Promise<void> = undefined
       try {
-        fn()
+        out = fn()
       } finally {
-        busyRef.current = false
-        if (alive.current) setBusy(false)
+        // An action that runs in slices (a promise) keeps the flag until it has finished
+        if (out instanceof Promise) void out.finally(done)
+        else done()
       }
     })
   }, [])

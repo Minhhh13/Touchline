@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QuickGameResult } from '@game/types'
 import { countUpValue, foldResults, gamesInOrder, goalDifferenceLabel, nextReveal, outcomeOf, parsePlaybackSpeed, playbackDelay, type GameOrder, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { ChevronDown, Play, SkipForward } from 'lucide-react'
+import { runAfterPaint } from '../afterPaint'
 import { ClubBadge } from './bits'
 import { ordinal } from '../format'
 import { scorersText } from '../scorers'
@@ -264,14 +265,26 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
   }
   const newestRef = useRef<HTMLLIElement | null>(null)
   const listRef = useRef<HTMLOListElement | null>(null)
+  const drawn = useRef(false)
   useEffect(() => {
-    // Newest first, the new game lands at the top: a compact list scrolls back up to it, a full list never moves.
+    const first = !drawn.current
+    drawn.current = true
+    // Newest first, the new game lands at the top: a compact list scrolls back up to it, a full list never moves (a
+    // list just drawn is at its top already; setting it would force the screen's first layout inside its mount).
     // Oldest first, while games are still arriving a compact list scrolls inside itself to the bottom and a full list
     // brings the new game into view; a finished season's list (the summary's) opens at matchweek 1
     if (order === 'newest') {
-      if (compact && listRef.current) listRef.current.scrollTop = 0
+      if (compact && listRef.current && !first) listRef.current.scrollTop = 0
     } else if (compact) {
-      if (playing && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
+      // Only while games are still arriving (a finished season's list opens at matchweek 1)
+      if (playing) {
+        const toBottom = () => {
+          if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
+        }
+        // A list just drawn goes to its bottom once the screen has painted, not by forcing the screen's first layout
+        if (first) runAfterPaint(toBottom)
+        else toBottom()
+      }
     } else if (playing && newestRef.current) newestRef.current.scrollIntoView({ block: 'nearest' })
   }, [playing, revealed, compact, order])
   const [expanded, setExpanded] = useState(false)

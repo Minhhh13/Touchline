@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Dices, Ghost, Package, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
@@ -90,7 +90,10 @@ export function Draft() {
   )
 
   // The exact odds of each rarity tier on the next spin (a re-spin while one is showing), from the engine's own draw
-  const odds = useMemo(() => (u && d && !isComplete(d) ? tierOdds(u, d, leagues) : []), [u, d, leagues])
+  // The odds panel follows the draft a moment later, in a render of its own (about 90 ms on a 4x-throttled phone), so
+  // the screen's first render and each pick's are not held up by it; it starts empty
+  const oddsDraft = useDeferredValue(d, null)
+  const odds = useMemo(() => (u && oddsDraft && !isComplete(oddsDraft) ? tierOdds(u, oddsDraft, leagues) : []), [u, oddsDraft, leagues])
 
   // A one-nation wheel can run out of eligible players; checked after every pick, not only on a spin
   const dry = useMemo(() => !!u && !!d && !d.current && !isComplete(d) && !canSpin(u, d), [u, d])

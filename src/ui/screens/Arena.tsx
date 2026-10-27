@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '@game/store'
+import type { Game } from '@game/types'
 import { getFormation } from '@engine/formations'
 import { DEFAULT_ROLE, getRole } from '@engine/roles'
 import { clubIdOfKey } from '@engine/knockout'
@@ -29,6 +30,11 @@ import { askConfirm } from '../confirm'
 type ArenaTab = 'team' | 'tactics' | 'draw'
 
 const ORDER: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']
+/** The match screen's ball path and samples built between playing a step and showing it (presentation only). */
+const prepareStep = (next: Game): Promise<void> => {
+  const u = useStore.getState().universe
+  return u ? import('../match/prepare').then((m) => m.prepareMatchScreen(next, u)) : Promise.resolve()
+}
 
 /**
  * The arena hub (phase `week` with `game.arena`): the next opponent, the
@@ -292,15 +298,15 @@ export function Arena() {
           <div className="panel col bottom-bar arena-actions" ref={barRef} data-testid="arena-actions">
             {problems.length > 0 && <div className="small" style={{ color: 'var(--warn)' }}>{problems[0]}: the assistant fills the gap at kick-off.</div>}
             <div className="small muted arena-vs">{opp ? `${info.label} v ${opp.club.name}.` : 'No opponent drawn.'}</div>
-            <button className="btn primary big block" onClick={() => store.playArenaStep(true)} disabled={!opp} data-testid="arena-live" title="Manage it through half time, the 70th minute and any shoot-out">
+            <button className="btn primary big block" onClick={() => void store.playArenaStepSoon(true, prepareStep)} disabled={!opp || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="arena-live" title="Manage it through half time, the 70th minute and any shoot-out">
               Manage this one
             </button>
             <div className="row wrap arena-more-calls" style={{ gap: 8 }}>
-              <button className="btn" onClick={() => store.playArenaStep(false)} disabled={!opp} data-testid="arena-sim" title="The assistant picks the side and plays the match, penalties included">
+              <button className="btn" onClick={() => void store.playArenaStepSoon(false, prepareStep)} disabled={!opp || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="arena-sim" title="The assistant picks the side and plays the match, penalties included">
                 {cup ? 'Sim this tie' : gauntlet ? 'Sim this rung' : 'Sim the final'}
               </button>
               {(gauntlet || cup) && (
-                <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp} data-testid="arena-sim-end" title={cup ? 'The assistant plays every tie left' : 'The assistant plays every rung left and drafts the bonus spins'}>
+                <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp || store.playingWeek} data-testid="arena-sim-end" title={cup ? 'The assistant plays every tie left' : 'The assistant plays every rung left and drafts the bonus spins'}>
                   Sim to the end
                 </button>
               )}

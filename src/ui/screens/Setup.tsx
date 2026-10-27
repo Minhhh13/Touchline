@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { runAfterPaint } from '../afterPaint'
 import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
@@ -203,8 +204,18 @@ export function Setup() {
     return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
   }, [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, first, last])
   // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era.
-  // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
-  const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, formationId])
+  // The scan over every player-season runs once per shape; the squad-size slider only re-filters it. The first scan
+  // waits for the screen's first paint (about 190 ms on a 4x-throttled phone): the one-nation list is the only thing
+  // that reads it, and a nation can be chosen only from that list
+  const [scanOn, setScanOn] = useState(false)
+  useEffect(() => {
+    let live = true
+    runAfterPaint(() => live && setScanOn(true))
+    return () => {
+      live = false
+    }
+  }, [])
+  const nationScan = useMemo(() => (u && !isDaily && scanOn ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, scanOn, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, formationId])
   const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!(isManage && continental) || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   // The club handed over by default sits nearest tenth in that season's real table, so the board's ask is reachable

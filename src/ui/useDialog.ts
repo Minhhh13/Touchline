@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
+import { runAfterPaint } from './afterPaint'
 import { FOCUSABLE, closeLayer, isTopLayer, openLayer, trapIndex } from './dialogLayers'
 
 /**
@@ -18,7 +19,7 @@ if (typeof document !== 'undefined') {
 
 /**
  * A modal dialog's behaviour, shared by `Modal`, the match day's `DecisionSheet` and its `Drawer`s: while `open`, the
- * dialog is the top layer (`dialogLayers.ts`: the page behind is `inert`), the focus moves in (to `initialFocus` when
+ * dialog is the top layer (`dialogLayers.ts`: the page behind is `inert`), the focus moves in once it has painted (to `initialFocus` when
  * it matches, else the dialog itself, so its title is read first), Tab and Shift+Tab stay inside, Escape calls
  * `onClose`, and on closing the focus goes back to the control that had it when the dialog opened (the Sim 5 button
  * under the digest). `back` is the dialog's outermost element (the backdrop); `dialog` is the `role="dialog"` box.
@@ -38,7 +39,13 @@ export function useDialog(back: RefObject<HTMLElement | null>, dialog: RefObject
     const openerId = opener?.getAttribute('data-testid') ?? null
     openLayer(backEl, document.body)
     const first = (initialFocus ? box.querySelector<HTMLElement>(initialFocus) : null) ?? box
-    first.focus({ preventScroll: true })
+    // The focus moves in once the dialog has painted: focusing now would force the page's whole style and layout
+    // (the dialog just drawn, the page behind made inert) inside the commit that opened it, about 160 ms on a
+    // 4x-throttled phone for the Sim 5 digest; after the paint it costs nothing. Not if it has moved in meanwhile
+    let live = true
+    runAfterPaint(() => {
+      if (live && first.isConnected && !box.contains(document.activeElement)) first.focus({ preventScroll: true })
+    })
     const onKey = (e: KeyboardEvent) => {
       if (!isTopLayer(backEl)) return
       if (e.key === 'Escape') {
@@ -66,6 +73,7 @@ export function useDialog(back: RefObject<HTMLElement | null>, dialog: RefObject
     // Capture, so the top dialog answers before any page shortcut below it
     window.addEventListener('keydown', onKey, true)
     return () => {
+      live = false
       window.removeEventListener('keydown', onKey, true)
       closeLayer(backEl, document.body)
       // Back to the opener, unless the focus has already gone somewhere on purpose (another dialog, a new screen)

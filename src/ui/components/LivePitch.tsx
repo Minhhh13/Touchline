@@ -280,9 +280,20 @@ export function liteMode(perf: { mean: number; frames: number; lite: boolean }, 
   else if (perf.lite && perf.mean < LITE.off) perf.lite = false
 }
 
+/**
+ * What the loop last wrote to each element's attributes, so an unchanged value costs neither a read nor a write. React
+ * writes these attributes only on mount (they are fixed in the JSX, or the dots' starting place), so the loop's own
+ * record is what the element holds.
+ */
+const written = new WeakMap<Element, Map<string, string>>()
+
 /** Set an attribute only when it changes: the overlays mostly sit hidden, and an unchanged write still costs the browser a style pass. */
 function put(el: Element, name: string, value: string): void {
-  if (el.getAttribute(name) !== value) el.setAttribute(name, value)
+  let attrs = written.get(el)
+  if (!attrs) written.set(el, (attrs = new Map()))
+  if (attrs.get(name) === value) return
+  attrs.set(name, value)
+  el.setAttribute(name, value)
 }
 
 /** Where the ball flies on a goal: from the strike into the net, `fp` of the way (eased), with its height. */
