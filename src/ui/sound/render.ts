@@ -154,7 +154,7 @@ function renderNoise(c: BaseAudioContext, out: AudioNode, t: number, v: NoiseVoi
 }
 
 /** Schedules every voice of `score` to start `at` s on the context's clock, into `out`; returns the sources (to stop early). */
-export function renderScore(c: BaseAudioContext, out: AudioNode, at: number, score: Score, bank: NoiseBank): AudioScheduledSourceNode[] {
+export function renderScore(c: BaseAudioContext, out: AudioNode, at: number, score: Pick<Score, 'voices'>, bank: NoiseBank): AudioScheduledSourceNode[] {
   const nodes: AudioScheduledSourceNode[] = []
   for (const v of score.voices) {
     const t = at + v.at

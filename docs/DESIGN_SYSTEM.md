@@ -751,7 +751,8 @@ TouchLine's sounds are synthesised in the browser with the Web Audio API: oscill
 - `noise.ts` (pure): seeded white and pink noise, each buffer scaled to a peak of exactly 1, and the small `seeded` generator.
 - `render.ts`: a score into Web Audio nodes on any context (the live one, or an `OfflineAudioContext` to render a file), the looped noise bank and the safety net.
 - `match.ts` (pure): when the match-day dashboard sounds (`matchSoundCues`, `goalMoments`, `dueMatchSounds`); `useMatchSounds.ts` the dashboard's one hook.
-- `synth.ts`: the context, `MASTER_GAIN`, the gesture unlock, `playSound(request, delay)`, and the reel's own tick, whoosh and pop; `reel.ts` one reel run; `schedule.ts` (pure) the reel's tick times; `prefs.ts` the two switches; `boot.ts` arms it all once from `App.tsx`.
+- `seasonScores.ts` (pure): the season's cues as scores, in the palette's voices (`scaleTo` normalises them as `normalise` does); `seasonCues.ts` (pure) when they play (`playbackCues`, `seasonStepCues`); `usePlaybackSounds.ts` the quick playback's hook; `seasonWatch.ts` Season and Dynasty's store watcher. All four load with the playback and the Dugout, never in the first download.
+- `synth.ts`: the context, `MASTER_GAIN`, the gesture unlock, `playSound(request, delay)`, `playScore(score, delay)` for a score built elsewhere, and the reel's own tick, whoosh and pop; `reel.ts` one reel run; `schedule.ts` (pure) the reel's tick times; `prefs.ts` the two switches; `boot.ts` arms it all once from `App.tsx`.
 
 ### The palette
 
@@ -774,7 +775,37 @@ TouchLine's sounds are synthesised in the browser with the Web Audio API: oscill
 
 The reel's own sounds: a tick each time a card crosses the marker (40 ms of white noise band-passed at about 3.2 kHz, pitch varied by about 8 %, timed from the strip's position function and the measured card boundaries, both ways, capped at one per 15 ms and stopped on a skip; on the Upgrader's dial, one per mark), a whoosh as the season drum rolls (noise swept 320 Hz to 2.4 kHz) and a pop as it stops (a sine 540 to 190 Hz).
 
+### The season's cues
+
+While a season simulates, quiet cues in the same voices (`seasonScores.ts`, levels 0.09 to 0.45, every one at most half a goal's roar; the 38 result blips at a click's level). `seasonCues.ts` decides them from what the screen already shows; `prefers-reduced-motion` drops their sparkles only.
+
+| Cue | When | How |
+|---|---|---|
+| A result | Each game revealed in the quick playback; Play matchweek on Sim result | A win a rising fourth (E5, A5), a draw one mellow A4, a loss a falling pair (E4, C♯4), all under 0.6 s |
+| The goals | Under a result with two goals or more, never under a defeat | A short lift of the crowd (pink noise), a little bigger and longer per goal up to five; never a roar |
+| A stinger | The game that brings it, the heaviest one only: the title sealed, the drop certain (`clinchMatchweeks`), the perfect run over, top of the table, into the top four, still perfect every fifth win (`momentAt`) | Title a brass "ta-daa" on a timpani stroke; relegation a dark low chord sinking; the run over a soft falling minor third; top a C major arpeggio; top four three rising notes; still perfect a bright arpeggio |
+| The crowd bed | The last five games of a perfect run, at 2x and slower | A low rumble with a faint A2, swelling over the gap to the next result and louder nearer the end; the next result or a pause cuts it |
+| The season's end | The last game of the playback | A short fanfare by the final place: champions brass into a held chord (a perfect season adds a timpani roll), the top four an arpeggio, mid-table a soft F to C cadence, the drop a low minor one. Shorter and quieter than the Cup's |
+| January | The first half shown (the window opens) | A soft rising fourth, G5 then C6 |
+| A run of results | Skip in the playback; Sim 5, Sim to end and Sim to the next big match (the digest) | One riffle of up to six pips in the run's proportions, then a closing interval by points a game; the title or relegation stinger after it when the run settled it |
+
+Pace: at 4x (375 ms a game, under `FAST_BELOW_MS`) a result is a shorter, quieter blip, never closer than 700 ms to the last unless the outcome changed, a stinger takes its place, and there is no cheer and no bed. Skip plays one riffle and the closing cue, never the skipped games. Pausing (or opening a game's highlights) stops whatever is still sounding; the playback reaching its stop does not, so the fanfare rings out. A Season week watched or auto-played is the match day's (its whistles): only a week played without the dashboard sounds here, and a season that ends with the title leaves it to the summary's fanfare.
+
 ### Loudness
+
+1. **One master, normalised scores.** The master gain is 0.35 (`MASTER_GAIN`). Each score is normalised so its bound, the most its voices can add up to at any moment, is exactly its level, and no level is above `MAX_LEVEL` (0.9). In the bound an oscillator counts in full; a noise band counts by `sourceBound`, the most its filter lets through of noise peaking at 1 (measured over the very buffers the game uses, and checked against the Web Audio biquads by `soundPalette.test.ts`); independent noise bands add in quadrature, as their peaks do. Levels set the balance: the goal's roar is the loudest match sound, the whistle well under it, the landings rise from blue to gold, a click is barely there.
+2. **Never clips.** The loudest sound peaks near −14 dBFS in the offline renders; even two at full level stay under the safety net's knee. The net (`safetyNet`, a waveshaper after the master: the identity up to 0.8, then a soft bend that never reaches 0.98) only acts on a pile of sounds at once. No compressor: its make-up gain would move every sound.
+3. **No clicks.** Every envelope starts and ends on silence (0.0001), and its gain is silent before its first event too.
+
+### Rules
+
+1. **After a gesture.** The context is created or resumed only inside a real (trusted) pointer, key or touch gesture, and only once the page has had one (`navigator.userActivation`); `boot.ts` listens for them app-wide in the capture phase, so the Spin click, the Play button before a live match and a primary button all unlock it. Nothing plays before; a script's synthetic clicks never do.
+2. **On by default, the viewer's choice.** Sound (the speaker beside the reel, `sound-toggle`, and Sound in Profile, `sound-on` / `sound-off`) is the master switch, per device under `touchline-sound`: off creates no context and plays nothing. Match sounds (Profile, `match-sound-on` / `match-sound-off`, shown while Sound is on) is the one category switch, under `touchline-match-sound`: off silences the whistle, the crowd, the net, cards and substitutions and keeps the rest. Neither is in the save.
+3. **In time with the picture.** The match's sounds read the same clock as the live pitch (`timeline` over `useLiveClock`) every frame: a cue sounds when the clock passes it, a goal when its hold passes the ball crossing the line. A clock that goes back (a change in play) plays nothing, a skip plays only the last whistle it passes, the crowd never comes closer than 350 ms in a fast-forward, and the stretch since the last frame is still heard when the whistle closes the dashboard.
+4. **Reduced motion keeps sound.** It drops the shimmers and the reel's ticks (there is no slide), and a goal's net sounds the moment its still frame shows (there is no flight and no replay). `prefers-reduced-data` changes nothing: no sound is downloaded.
+5. **Silent without Web Audio.** No `AudioContext` (tests, headless runs without one, old browsers) makes every call a no-op that returns nothing.
+6. **Presentation only.** Nothing reads or writes the game's RNG or state; the match's sounds only read the clock and the events the dashboard already shows. `Math.random` only varies a reel tick's pitch and fills its noise.
+7. **Hear them.** The offline renders (one WAV per sound) come from a small harness that bundles `scores.ts` and `render.ts` and runs them in an `OfflineAudioContext` through the same master and safety net.
 
 ## 15. Accessibility
 
@@ -793,20 +824,6 @@ What the game supports, the audit and what is left are in [ACCESSIBILITY.md](ACC
 10. **Larger text.** New type sizes use the `--fs-*` tokens (rem). A phone row with text must wrap or give way (`minmax(0, 1fr)`, `flex-wrap`, `overflow-wrap: anywhere` for a long capitalised label) at 200 % text (`html { font-size: 200% }`, how Dynamic Type arrives: `src/ui/textScale.ts`), and an absolutely placed `<svg>` gets an explicit width, since it takes its width from its height. A logotype or drawing with its own geometry (the lockup) stays in px. None of this may change the desktop fit at 100 %.
 11. **Motion.** As section 12: every new animation is added to a reduced-motion block. Never fade text to show age or state (`opacity` under 1 takes it under AA): the playback's moment chip settles at full strength.
 12. **One main landmark.** A screen's root is a `.page` placed directly in `.app`: `watchMainLandmark` (`src/ui/landmarks.ts`) gives it `role="main"` and the skip link's `id="main"`. Never add a `<main>` or another `role="main"` inside a screen; a screen panel is marked by its heading.
-
-1. **One master, normalised scores.** The master gain is 0.35 (`MASTER_GAIN`). Each score is normalised so its bound, the most its voices can add up to at any moment, is exactly its level, and no level is above `MAX_LEVEL` (0.9). In the bound an oscillator counts in full; a noise band counts by `sourceBound`, the most its filter lets through of noise peaking at 1 (measured over the very buffers the game uses, and checked against the Web Audio biquads by `soundPalette.test.ts`); independent noise bands add in quadrature, as their peaks do. Levels set the balance: the goal's roar is the loudest match sound, the whistle well under it, the landings rise from blue to gold, a click is barely there.
-2. **Never clips.** The loudest sound peaks near −14 dBFS in the offline renders; even two at full level stay under the safety net's knee. The net (`safetyNet`, a waveshaper after the master: the identity up to 0.8, then a soft bend that never reaches 0.98) only acts on a pile of sounds at once. No compressor: its make-up gain would move every sound.
-3. **No clicks.** Every envelope starts and ends on silence (0.0001), and its gain is silent before its first event too.
-
-### Rules
-
-1. **After a gesture.** The context is created or resumed only inside a real (trusted) pointer, key or touch gesture, and only once the page has had one (`navigator.userActivation`); `boot.ts` listens for them app-wide in the capture phase, so the Spin click, the Play button before a live match and a primary button all unlock it. Nothing plays before; a script's synthetic clicks never do.
-2. **On by default, the viewer's choice.** Sound (the speaker beside the reel, `sound-toggle`, and Sound in Profile, `sound-on` / `sound-off`) is the master switch, per device under `touchline-sound`: off creates no context and plays nothing. Match sounds (Profile, `match-sound-on` / `match-sound-off`, shown while Sound is on) is the one category switch, under `touchline-match-sound`: off silences the whistle, the crowd, the net, cards and substitutions and keeps the rest. Neither is in the save.
-3. **In time with the picture.** The match's sounds read the same clock as the live pitch (`timeline` over `useLiveClock`) every frame: a cue sounds when the clock passes it, a goal when its hold passes the ball crossing the line. A clock that goes back (a change in play) plays nothing, a skip plays only the last whistle it passes, the crowd never comes closer than 350 ms in a fast-forward, and the stretch since the last frame is still heard when the whistle closes the dashboard.
-4. **Reduced motion keeps sound.** It drops the shimmers and the reel's ticks (there is no slide), and a goal's net sounds the moment its still frame shows (there is no flight and no replay). `prefers-reduced-data` changes nothing: no sound is downloaded.
-5. **Silent without Web Audio.** No `AudioContext` (tests, headless runs without one, old browsers) makes every call a no-op that returns nothing.
-6. **Presentation only.** Nothing reads or writes the game's RNG or state; the match's sounds only read the clock and the events the dashboard already shows. `Math.random` only varies a reel tick's pitch and fills its noise.
-7. **Hear them.** The offline renders (one WAV per sound) come from a small harness that bundles `scores.ts` and `render.ts` and runs them in an `OfflineAudioContext` through the same master and safety net.
 
 ## 16. Voice and wording
 

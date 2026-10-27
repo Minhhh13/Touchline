@@ -62,8 +62,12 @@ import type { Game } from '@game/types'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { countPhrase } from '../screenText'
 import { newsBody } from '@game/logic/newsFlavour'
+import { watchSeasonSounds } from '../sound/seasonWatch'
 
 type Tab = DugoutTab
+
+// The season's sounds after Play matchweek on Sim result, Sim 5 and Sim to end (presentation only; it reads the store)
+watchSeasonSounds()
 
 /** Between playing the week and showing it, the match day's ball path is built in its own tasks (presentation only). */
 const prepareWeek = (next: Game): Promise<void> => import('../match/prepare').then((m) => m.prepareMatchDay(next))

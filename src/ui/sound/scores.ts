@@ -190,42 +190,47 @@ export function peakOf(voices: readonly Voice[]): number {
  */
 export function normalise(id: SoundId, level: number, voices: Voice[]): Score {
   const target = Math.min(MAX_LEVEL, level)
+  return { id, category: CATEGORY[id], level: target, voices: scaleTo(target, voices) }
+}
+
+/** The voices scaled so their bound (`peakOf`) is `level`: what `normalise` does, for a score built elsewhere (seasonScores.ts). */
+export function scaleTo(level: number, voices: Voice[]): Voice[] {
   let out = voices
   for (let pass = 0; pass < 6; pass++) {
     const p = peakOf(out)
     if (!(p > 0)) break
-    if (Math.abs(p - target) < 1e-7) break
-    const k = target / p
+    if (Math.abs(p - level) < 1e-7) break
+    const k = level / p
     out = out.map((v) => ({ ...v, peak: v.peak * k }))
   }
-  return { id, category: CATEGORY[id], level: target, voices: out }
+  return out
 }
 
 // ---- Building blocks -------------------------------------------------------------------------------------
 
-function tone(at: number, freq: number, o: Partial<Omit<ToneVoice, 'kind' | 'at' | 'freq'>> = {}): ToneVoice {
+export function tone(at: number, freq: number, o: Partial<Omit<ToneVoice, 'kind' | 'at' | 'freq'>> = {}): ToneVoice {
   const dur = o.dur ?? 0.5
   return { kind: 'tone', at, freq, wave: o.wave ?? 'sine', attack: o.attack ?? 0.005, hold: o.hold ?? 0, dur, peak: o.peak ?? 0.3, ...(o.glideTo ? { glideTo: o.glideTo, glideTime: o.glideTime ?? dur * 0.7 } : {}), ...(o.lowpass ? { lowpass: o.lowpass } : {}) }
 }
 
 /** A bell-ish note: the fundamental and a quiet, slightly inharmonic overtone. */
-function chime(at: number, freq: number, o: { wave?: Wave; peak?: number; dur?: number } = {}): ToneVoice[] {
+export function chime(at: number, freq: number, o: { wave?: Wave; peak?: number; dur?: number } = {}): ToneVoice[] {
   const peak = o.peak ?? 0.3
   const dur = o.dur ?? 0.7
   return [tone(at, freq, { wave: o.wave ?? 'sine', peak, dur }), tone(at, freq * 2.76, { peak: peak * 0.12, dur: dur * 0.45 })]
 }
 
-function noise(at: number, o: Omit<NoiseVoice, 'kind' | 'at' | 'colour' | 'attack' | 'peak'> & { colour?: NoiseColour; attack?: number; peak?: number }): NoiseVoice {
+export function noise(at: number, o: Omit<NoiseVoice, 'kind' | 'at' | 'colour' | 'attack' | 'peak'> & { colour?: NoiseColour; attack?: number; peak?: number }): NoiseVoice {
   return { kind: 'noise', at, colour: o.colour ?? 'white', attack: o.attack ?? 0.002, peak: o.peak ?? 1, ...o } as NoiseVoice
 }
 
 /** A brass note: a sawtooth through a low-pass with a soft attack, doubled an octave down. */
-function brass(at: number, freq: number, dur: number, peak = 0.3, hold = 0): ToneVoice[] {
+export function brass(at: number, freq: number, dur: number, peak = 0.3, hold = 0): ToneVoice[] {
   return [tone(at, freq, { wave: 'sawtooth', attack: 0.03, hold, dur, peak, lowpass: Math.min(3200, freq * 4.5) }), tone(at, freq / 2, { wave: 'triangle', attack: 0.03, hold, dur, peak: peak * 0.45 })]
 }
 
 /** High pings over a reward, scattered by the seed; none with reduced motion. */
-function shimmer(at: number, freqs: number[], step: number, r: () => number, peak = 0.07): ToneVoice[] {
+export function shimmer(at: number, freqs: number[], step: number, r: () => number, peak = 0.07): ToneVoice[] {
   return freqs.map((f, i) => tone(at + i * step + r() * 0.03, f * (0.99 + r() * 0.02), { peak, dur: 0.25 }))
 }
 
@@ -419,12 +424,12 @@ function upgradeScore(won: boolean, reduced: boolean, seed = ''): Score {
 }
 
 /** A timpani stroke: a low sine dropping a little, and a thud of low noise. */
-function timpani(at: number, freq: number, peak = 0.6): Voice[] {
+export function timpani(at: number, freq: number, peak = 0.6): Voice[] {
   return [tone(at, freq, { glideTo: freq * 0.8, glideTime: 0.3, attack: 0.004, dur: 0.6, peak }), noise(at, { filter: 'lowpass', freq: 220, q: 0, dur: 0.22, peak: peak * 0.9 })]
 }
 
 /** A cymbal: bright noise, crashing in or swelling up. */
-function cymbal(at: number, dur: number, swell = false, peak = 0.35): NoiseVoice {
+export function cymbal(at: number, dur: number, swell = false, peak = 0.35): NoiseVoice {
   return noise(at, { filter: 'highpass', freq: 5200, q: 0, attack: swell ? dur * 0.85 : 0.004, dur, peak, offset: 0.7 })
 }
 

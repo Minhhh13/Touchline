@@ -1,7 +1,7 @@
 import type { DisplayTier } from '@game/logic/rarity'
 import { matchSoundOn, soundOn, subscribeSound } from './prefs'
 import { makeBank, renderScore, safetyNet, type NoiseBank } from './render'
-import { scoreFor, type SoundRequest } from './scores'
+import { scoreFor, type Score, type SoundRequest } from './scores'
 
 /*
  * TouchLine's sounds, synthesised in the browser with the Web Audio API: no
@@ -216,6 +216,21 @@ export function playSound(req: SoundRequest, delay = 0): AudioScheduledSourceNod
   if (!a || !bank) return []
   const score = scoreFor(req)
   if (score.category === 'match' && !matchSoundOn()) return []
+  try {
+    return renderScore(a.c, a.out, a.c.currentTime + 0.01 + Math.max(0, delay), score, bank)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Plays a score built outside the palette (seasonScores.ts: the season's cues, loaded with the screens that use them)
+ * `delay` s from now, on the same master and under the same rules as `playSound`: nothing without a gesture, with
+ * sound off, or without Web Audio. Returns the sources it scheduled (to stop on a pause).
+ */
+export function playScore(score: Pick<Score, 'voices'>, delay = 0): AudioScheduledSourceNode[] {
+  const a = liveAudio()
+  if (!a || !bank) return []
   try {
     return renderScore(a.c, a.out, a.c.currentTime + 0.01 + Math.max(0, delay), score, bank)
   } catch {
