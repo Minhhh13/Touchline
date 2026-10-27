@@ -10,7 +10,7 @@ import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../co
 import { RedCard, YellowCard } from '../components/icons'
 import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { clubName, clubShort, minuteLabel, outcomeClass, outcomeOf } from '../format'
+import { clubName, clubShort, minuteLabel, outcomeClass, outcomeOf, textColourFor } from '../format'
 import { playerLookup } from '@game/logic/players'
 import type { Appearance, FullMatchResult } from '@engine/match'
 import { feedFromResult } from '@engine/matchFeed'
@@ -292,8 +292,9 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
                 {goals.map((g, i) => (
                   <li key={i} className={g.side}>
                     <span className="goal-who">
+                      <span className="goal-side mono" style={{ background: colours[g.side], color: textColourFor(colours[g.side]) }}>{g.side === 'home' ? codes.home : codes.away}</span>
                       <b>{g.playerName}</b>
-                      {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
+                      {g.type === 'penalty' ? <span className="goal-kind"> (pen)</span> : g.type === 'own_goal' ? <span className="goal-kind"> (og)</span> : ''}
                       {g.secondaryName ? (
                         <>
                           {' '}

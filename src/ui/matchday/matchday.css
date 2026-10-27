@@ -1251,6 +1251,15 @@
   .page.matchday-page {
     padding-bottom: 8px;
   }
+}
+/* From 2200 px wide the board takes the large screens' page cap (styles.css, round 5) like every other page: at 1680 px
+   it sat in a column a third of a 2560 window wide, and the pitch, sized by the centre column's width, stayed small */
+@media (min-width: 2200px) {
+  .page.matchday-page {
+    max-width: var(--page-max-lg, 2160px);
+  }
+}
+@media (min-width: 1200px) {
   .matchday.fit {
     height: var(--md-fit, auto);
     min-height: 0;
@@ -1346,6 +1355,13 @@
   }
   .matchday.fit {
     gap: 6px;
+  }
+}
+/* 800 px high and less (1280x720, 1366x768): the widget row's 140 px floor left the live pitch about 200 px high and a
+   replay's (under the Live and Report tabs) under 150; the row gives 30 px more to the pitch, its pictures sized by the slot */
+@media (min-width: 1200px) and (max-height: 800px) {
+  .matchday.fit .md-widgets {
+    --md-widget-h: clamp(118px, 18vh, 150px);
   }
 }
 /* The app's top bar folded away: the restore pill sits in the top-right corner, in the competition line's row, clear of the board's controls */

@@ -179,7 +179,7 @@ export function TweaksDrawer({ hand, get }: DrawerProps) {
 export function SubsDrawer({ hand, view, get, squad, condition, selected, hideRatings = false }: DrawerProps) {
   const [queue, setQueue] = useState<Sub[]>([])
   const ballRolling = hand.landing.kind !== 'now' || hand.minute >= 1
-  const counters = `${hand.subsLeft}/${MAX_SUBS} subs · ${hand.windowsLeft}/${MAX_WINDOWS} stoppages`
+  const counters = `${hand.subsLeft}/${MAX_SUBS} subs left · ${hand.windowsLeft}/${MAX_WINDOWS} stoppages left`
   // The subs this window can take, and none in play once the three stoppages are spent (as the engine counts them)
   const room = boardRoom({ subCap: hand.subCap, landing: hand.landing.kind, windowsLeft: hand.windowsLeft, windowOpen: hand.windowOpen })
   const next = countersAfter({ subsLeft: hand.subsLeft, windowsLeft: hand.windowsLeft, landing: hand.landing.kind, windowOpen: hand.windowOpen, staged: queue.length })
@@ -202,7 +202,7 @@ export function SubsDrawer({ hand, view, get, squad, condition, selected, hideRa
         <>
           {queue.length > 0 && (
             <span className="small muted sub-after" data-testid="sub-after">
-              After: {next.subsLeft}/{MAX_SUBS} subs{hand.landing.kind === 'now' ? ` · ${next.windowsLeft}/${MAX_WINDOWS} stoppages` : ''}
+              After: {next.subsLeft}/{MAX_SUBS} subs left{hand.landing.kind === 'now' ? ` · ${next.windowsLeft}/${MAX_WINDOWS} stoppages left` : ''}
             </span>
           )}
           <Foot hand={hand} testId="sub-confirm" label={queue.length > 1 ? `Make ${queue.length} changes` : 'Make changes'} canApply={queue.length > 0 && ballRolling} onApply={() => hand.submit({ substitutions: queue }) && hand.close()} />

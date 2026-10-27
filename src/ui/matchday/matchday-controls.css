@@ -290,6 +290,10 @@
   padding: 4px;
   border-bottom: 1px solid var(--line);
 }
+/* The role code is drawn for the grass (a pale ink); on the drawer's panel it all but vanished in both themes */
+.matchday .md-tactics-table .md-role {
+  color: var(--accent);
+}
 .matchday .md-queue {
   list-style: none;
   margin: 0;
@@ -684,6 +688,13 @@
   flex: 1 1 auto;
   padding-inline: 4px;
   white-space: nowrap;
+}
+/* The three shouts ("All-out attack", "Shut up shop", "Keep shape") are wider than that column at 1280x720: they ran
+   out of their box under the next column; there a label breaks between its words instead */
+.matchday .md-stop-grid > .col [data-testid='shout'] .segmented button {
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.15;
 }
 
 @media (prefers-reduced-motion: reduce) {
