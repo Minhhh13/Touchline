@@ -15823,3 +15823,281 @@ html {
   vertical-align: -2px;
   color: var(--accent);
 }
+/* Explore's deeper views (round 7): club pages, league pages, the filtered search, compare; and the Stats tab's tables */
+.view-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+.compare-btn {
+  color: var(--text-3);
+}
+.compare-btn.on {
+  color: var(--primary);
+}
+.prow.ever-row {
+  grid-template-columns: 34px 34px minmax(0, 1fr);
+}
+.prow.club-pick .name {
+  font-weight: 700;
+}
+.season-tops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.season-top {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.top-line {
+  display: grid;
+  grid-template-columns: 34px auto minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: calc(var(--fs-sm) + 0.5px);
+  text-align: left;
+  cursor: pointer;
+}
+.top-line:hover {
+  background: var(--raised);
+}
+.top-name {
+  font-weight: 600;
+}
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.records-kv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.records-kv .record-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.records-kv dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.records-kv .holders {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-weight: 400;
+}
+.link-btn.holder {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  font-size: var(--fs-sm);
+}
+.sub-head {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--fs-sm);
+}
+.rank-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: calc(var(--fs-sm) + 0.5px);
+}
+.rank-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.filter-field select.input {
+  min-width: 0;
+  width: 100%;
+}
+.filter-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: end;
+  font-size: var(--fs-sm);
+  min-height: 36px;
+}
+.range-pair {
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.range-pair .input {
+  min-width: 0;
+  width: 100%;
+}
+.nation-chips .chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.compare-add {
+  margin-bottom: var(--space-3);
+}
+.compare-hits {
+  margin-top: var(--space-2);
+}
+.compare-cols {
+  display: grid;
+  gap: var(--space-3);
+}
+.compare-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: var(--border);
+  border-radius: var(--radius-m);
+  background: var(--panel-2);
+}
+.compare-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+.compare-tbl .compare-label {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.compare-tbl .compare-group {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+.compare-tbl tr.group-start > * {
+  border-top: 2px solid var(--line-2);
+}
+.compare-tbl td.lead {
+  font-weight: 800;
+  color: var(--good);
+}
+.compare-th {
+  display: inline-block;
+  max-width: 100px;
+  vertical-align: bottom;
+}
+.stats-switch {
+  flex: none;
+  margin-bottom: var(--space-3);
+}
+.sort-head {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sort-head:hover,
+.sort-head.on {
+  color: var(--accent);
+}
+table.tbl td.strong {
+  font-weight: 700;
+}
+.stats-tbl td {
+  white-space: nowrap;
+}
+.team-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.team-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius-m);
+  background: var(--panel-2);
+}
+.team-card.top {
+  border-color: var(--good);
+}
+.team-card-val {
+  font-size: var(--fs-h2);
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 1100px) {
+  .grid.three.explore-club {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+  .grid.three.explore-league {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .grid.two.explore-search {
+    grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1.3fr);
+  }
+  .grid.two.explore-compare {
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
+  }
+  .grid.stats-one {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grid.two.stats-team {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+}
+@media (max-width: 720px) {
+  .filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .compare-cols {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .stats-tbl {
+    display: block;
+    overflow-x: auto;
+  }
+}
+.compare-head .link-btn {
+  display: block;
+  max-width: 100%;
+}

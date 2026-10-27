@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ListOrdered, Search, Star as StarIcon, Trophy } from 'lucide-react'
+import { Columns3, Landmark, ListOrdered, Search, Shield, Star as StarIcon, Trophy } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { EXPLORE } from '../boxSets'
 import { useStore } from '@game/store'
@@ -7,13 +7,37 @@ import { ClubBadge, EstimatedChip, Info, Rating, Pos, Segmented } from '../compo
 import { LeagueFlag } from '../components/Flag'
 import { PlayerCardModal } from '../components/PlayerCard'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, clubShort, ordinal, seasonLabel } from '../format'
-import { countPhrase } from '../screenText'
+import { clubName, ordinal, seasonLabel } from '../format'
 import type { Position } from '@engine/types'
 import { classicFromFor, isEstimated } from '@game/logic/era'
 import { careerSeasons } from '@game/logic/playerCard'
-import { searchPlayers, SEARCH_LIMIT, topPlayerSeasons } from '@game/logic/exploreSearch'
+import { topPlayerSeasons } from '@game/logic/exploreSearch'
+import { BLANK_SEARCH, type SearchForm } from '@game/logic/exploreFilter'
+import { COMPARE_MAX, toggleCompare, wheelChanceOf } from '@game/logic/exploreDb'
 import { pressable } from '../a11y'
+import { ClubView, CompareButton, CompareView, LeagueView, SearchView, WheelLine } from './ExploreViews'
+
+type ExploreView = 'browse' | 'clubs' | 'league' | 'legends' | 'search' | 'compare'
+
+/** The compare list is a per-viewer convenience: its own key, read and written inside try/catch. */
+const COMPARE_KEY = 'touchline-explore-compare'
+
+function readCompare(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(COMPARE_KEY) ?? '[]') as unknown
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(-COMPARE_MAX) : []
+  } catch {
+    return []
+  }
+}
+
+function writeCompare(ids: string[]): void {
+  try {
+    localStorage.setItem(COMPARE_KEY, JSON.stringify(ids))
+  } catch {
+    // A private window or a full storage: the list lives for this visit only
+  }
+}
 
 const POS_FILTERS = ['all', 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const
 
@@ -50,7 +74,7 @@ function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
 }
 
 /** Every season of one real player across all loaded leagues, on the shared player card at his peak season. */
-function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: () => void }) {
+function CareerModal({ playerId, onClose, compare, onCompare }: { playerId: string | null; onClose: () => void; compare: string[]; onCompare: (playerId: string) => void }) {
   const u = useStore((s) => s.universe)
   const ensureLeagues = useStore((s) => s.ensureLeagues)
   // His whole career: the leagues not loaded yet load behind the card, and it fills in when they arrive
@@ -61,7 +85,13 @@ function CareerModal({ playerId, onClose }: { playerId: string | null; onClose: 
   if (!u || !playerId || !seasons.length) return null
   const best = [...seasons].sort((a, b) => b.overall - a.overall)[0]
   const latest = seasons[seasons.length - 1]
-  return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} attrCaption={<>at his peak, {clubName(u, best.clubId)} {seasonLabel(best.season)}</>} />
+  const on = compare.includes(playerId)
+  const actions = (
+    <button type="button" className={`btn sm ${on ? 'primary' : 'ghost'}`} onClick={() => onCompare(playerId)} aria-pressed={on} data-testid="card-compare">
+      <Columns3 size={14} aria-hidden="true" /> {on ? 'In Compare' : 'Add to compare'}
+    </button>
+  )
+  return <PlayerCardModal title={latest.name} onClose={onClose} p={best} seasons={seasons} actions={actions} attrCaption={<>at his peak, {clubName(u, best.clubId)} {seasonLabel(best.season)}</>} />
 }
 
 export function Explore() {
@@ -73,13 +103,19 @@ export function Explore() {
   const [leagueId, setLeagueId] = useState('england')
   const [pickedSeason, setSeason] = useState<number>(u?.lastSeason ?? 2026)
   const [clubId, setClubId] = useState<string>('')
-  const [query, setQuery] = useState('')
   const [careerId, setCareerId] = useState<string | null>(null)
-  const [view, setView] = useState<'browse' | 'legends' | 'search'>('browse')
+  const [view, setView] = useState<ExploreView>('browse')
+  const [clubPage, setClubPage] = useState('')
+  const [form, setForm] = useState<SearchForm>(BLANK_SEARCH)
+  const [compare, setCompareState] = useState<string[]>(readCompare)
+  const setCompare = (ids: string[]) => {
+    setCompareState(ids)
+    writeCompare(ids)
+  }
+  const flipCompare = (playerId: string) => setCompare(toggleCompare(compare, playerId))
   const [posFilter, setPosFilter] = useState<'all' | Position>('all')
   const [onePerPlayer, setOnePerPlayer] = useState(false)
   const [legendSeason, setLegendSeason] = useState<'all' | number>('all')
-  const [searchPos, setSearchPos] = useState<'all' | Position>('all')
   // On a phone the squad sits under the whole table: bring it into view when a club is picked
   const squadRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -88,12 +124,6 @@ export function Explore() {
   }, [clubId])
   // Every hook runs before the early return below
   const legends = useMemo(() => (u ? topPlayerSeasons(u, { leagueId, position: posFilter === 'all' ? undefined : posFilter, onePerPlayer, season: legendSeason === 'all' ? undefined : legendSeason }) : []), [u, posFilter, leagueId, onePerPlayer, legendSeason])
-  const searching = query.trim().length >= 2
-  // The search covers every league: the ones not loaded yet load on the first search
-  useEffect(() => {
-    if (view === 'search' && searching && u) void ensureLeagues(u.available.map((l) => l.id))
-  }, [view, searching, u, ensureLeagues])
-  const results = useMemo(() => (u && searching ? searchPlayers(u, query, { position: searchPos === 'all' ? undefined : searchPos }) : []), [u, query, searching, searchPos])
   const boxes = useBoxes(EXPLORE)
   if (!u) return null
   // Classic seasons (estimated ratings) come first for a league that has them
@@ -108,6 +138,24 @@ export function Explore() {
   const selected = shownClubId ? u.clubSeasonByKey[`${shownClubId}@${season}`] : undefined
   const seasonEstimated = clubsInSeason.some((cs) => cs.estimated)
   const browseGrid = boxes.grid([{ track: '1fr', ids: ['table'] }, { track: '1fr', ids: ['squad'] }])
+  const leagueName = u.available.find((l) => l.id === leagueId)?.name ?? leagueId
+  const openClub = (id: string) => {
+    const club = u.clubById[id]
+    if (club && club.leagueId !== leagueId) {
+      setLeagueId(club.leagueId)
+      void ensureLeagues([club.leagueId])
+    }
+    setClubPage(id)
+    setView('clubs')
+  }
+  const views: Array<{ id: ExploreView; label: string; long?: string; icon: typeof Trophy }> = [
+    { id: 'browse', label: 'Seasons', icon: Trophy },
+    { id: 'clubs', label: 'Clubs', icon: Shield },
+    { id: 'league', label: 'League', icon: Landmark },
+    { id: 'legends', label: 'Top', long: ' rated', icon: ListOrdered },
+    { id: 'search', label: 'Search', icon: Search },
+    { id: 'compare', label: 'Compare', icon: Columns3 },
+  ]
 
   return (
     <div className="page">
@@ -116,7 +164,7 @@ export function Explore() {
           <h1>Explore database</h1>
           <div className="screen-meta">
             <span>Every club-season on the wheel</span>
-            <Info label="About Explore">Each club-season has its real squad and the ratings the engine uses. Tap a player for his whole career; the star shortlists that season for the market.</Info>
+            <Info label="About Explore">Each club-season has its real squad and the ratings the engine uses. Clubs and League hold every season of a club and a league; Search filters every player; Compare lines up to three side by side. Tap a player for his whole career; the star shortlists that season for the market.</Info>
           </div>
         </div>
         <div className="head-actions">
@@ -127,28 +175,27 @@ export function Explore() {
         </div>
       </div>
       <div className="screen-body fill">
-      <div className={`explore-bar ${view === 'search' ? 'all-leagues' : ''}`}>
+      <div className={`explore-bar ${view === 'search' || view === 'compare' ? 'all-leagues' : ''}`}>
         <div className="segmented" role="group" aria-label="League">
           {u.available.map((l) => (
-            <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { setLeagueId(l.id); setClubId(''); void ensureLeagues([l.id]) }} disabled={loadingLeagues}>
+            <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { setLeagueId(l.id); setClubId(''); setClubPage(''); void ensureLeagues([l.id]) }} disabled={loadingLeagues}>
               <LeagueFlag leagueId={l.id} /> {l.name}
             </button>
           ))}
         </div>
         {view === 'search' && <span className="chip info" data-testid="search-all-leagues">Search covers every league</span>}
+        {view === 'compare' && <span className="chip info">Compare covers every league</span>}
         {loadingLeagues && <span className="chip">Loading league…</span>}
         {!loadedLeagues.includes(leagueId) && !loadingLeagues && <span className="chip warn">Loading…</span>}
       </div>
       <div className="segmented view-switch" role="group" aria-label="View">
-        <button className={view === 'browse' ? 'active' : ''} onClick={() => setView('browse')}>
-          <Trophy size={14} aria-hidden="true" /> Seasons
-        </button>
-        <button className={view === 'legends' ? 'active' : ''} onClick={() => setView('legends')}>
-          <ListOrdered size={14} aria-hidden="true" /> Highest rated
-        </button>
-        <button className={view === 'search' ? 'active' : ''} onClick={() => setView('search')}>
-          <Search size={14} aria-hidden="true" /> Search<span className="view-long"> players</span>
-        </button>
+        {views.map((x) => (
+          <button key={x.id} className={view === x.id ? 'active' : ''} aria-pressed={view === x.id} onClick={() => setView(x.id)} data-testid={`explore-view-${x.id}`}>
+            <x.icon size={14} aria-hidden="true" /> {x.label}
+            {x.long && <span className="view-long">{x.long}</span>}
+            {x.id === 'compare' && compare.length > 0 && <span className="view-count">{compare.length}</span>}
+          </button>
+        ))}
       </div>
 
       {view === 'browse' && (
@@ -252,11 +299,17 @@ export function Explore() {
                       <span>{selected.squad.length} players</span>
                       {selected.estimated && <EstimatedChip compact />}
                     </div>
+                    <div className="row wrap" style={{ gap: 'var(--space-2)', marginTop: 4 }}>
+                      <WheelLine chance={wheelChanceOf(u, selected)} leagueName={leagueName} />
+                      <button type="button" className="btn sm ghost" onClick={() => openClub(selected.clubId)} data-testid="open-club-page">
+                        <Shield size={14} aria-hidden="true" /> Club page
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="plist lined explore-list">
                   {selected.squad.map((p) => (
-                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} right={<Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} />} />
+                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} right={<span className="row" style={{ gap: 2 }}><CompareButton on={compare.includes(p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => flipCompare(p.playerId)} /><Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} /></span>} />
                   ))}
                 </div>
               </>
@@ -329,42 +382,12 @@ export function Explore() {
         </div>
       )}
 
-      {view === 'search' && (
-        <div className="panel">
-          <label className="search-field">
-            <Search size={16} aria-hidden="true" />
-            <input className="input" type="search" placeholder="Search a player name…" aria-label="Search a player name" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
-          </label>
-          <div className="row wrap explore-filters" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
-            <PosFilter value={searchPos} onChange={setSearchPos} />
-            {searching && (
-              <span className="small muted" data-testid="search-count" aria-live="polite">
-                {loadingLeagues ? 'Loading every league…' : results.length >= SEARCH_LIMIT ? `First ${SEARCH_LIMIT} players: add more of the name` : countPhrase(results.length, 'players')}
-              </span>
-            )}
-          </div>
-          <div className="plist lined" style={{ marginTop: 'var(--space-3)' }} data-testid="search-results">
-            {results.map((h) => (
-              <PlayerRow
-                key={h.playerId}
-                p={h.name === h.best.name ? h.best : { ...h.best, name: h.name }}
-                onClick={() => setCareerId(h.playerId)}
-                extra={
-                  <span className="search-career">
-                    {h.from === h.to ? seasonLabel(h.from) : `${seasonLabel(h.from)} to ${seasonLabel(h.to)}`} · {countPhrase(h.seasons, 'seasons')} · {h.clubs.slice(0, 3).map((c) => clubShort(u, c)).join(', ')}
-                    {h.clubs.length > 3 ? ` +${h.clubs.length - 3}` : ''}
-                  </span>
-                }
-                right={<Star on={shortlist.includes(h.best.id)} onClick={() => toggleShortlist(h.best.id)} />}
-              />
-            ))}
-            {searching && !loadingLeagues && results.length === 0 && <div className="muted small">No players match{searchPos === 'all' ? '' : ` at ${searchPos}`}.</div>}
-          </div>
-          {!searching && <p className="help">Every league, with or without accents. Each player shows at his best season; tap him for his whole career, and the star shortlists that season.</p>}
-        </div>
-      )}
+      {view === 'clubs' && <ClubView leagueId={leagueId} clubId={clubPage} onClub={openClub} onPlayer={setCareerId} />}
+      {view === 'league' && <LeagueView leagueId={leagueId} onClub={openClub} onPlayer={setCareerId} />}
+      {view === 'search' && <SearchView form={form} setForm={setForm} onPlayer={setCareerId} compare={compare} toggleCompare={flipCompare} />}
+      {view === 'compare' && <CompareView ids={compare} setIds={setCompare} onPlayer={setCareerId} />}
       </div>
-      <CareerModal playerId={careerId} onClose={() => setCareerId(null)} />
+      <CareerModal playerId={careerId} onClose={() => setCareerId(null)} compare={compare} onCompare={flipCompare} />
     </div>
   )
 }

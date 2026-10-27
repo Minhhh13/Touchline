@@ -10,6 +10,8 @@ import { LeagueFlag } from '../components/Flag'
 import type { SquadPlayer } from '@engine/types'
 import { PlayerPeek } from '../components/PlayerPeek'
 import type { Boxes } from '../components/Boxes'
+import { Segmented } from '../components/bits'
+import { PlayerStatsTable, TeamStats } from './StatsTables'
 
 /** A signed figure to one decimal: "+1.4", "−0.8", "0.0". */
 function signedOne(v: number): string {
@@ -25,6 +27,7 @@ type Stat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
 /** `boxes` is the Dugout's Boxes control for this tab. */
 export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const { universe: u, game } = useStore()
+  const [view, setView] = useState<'overview' | 'players' | 'team'>('overview')
   const [stat, setStat] = useState<Stat>('goals')
   const rows = useMemo(() => {
     if (!u || !game?.season) return []
@@ -58,8 +61,31 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const totals = dataHubTotals(hub)
   const picks = analystPicks(hub)
   const on = (id: string) => boxes?.on(id) ?? true
+  const switcher = (
+    <div className="stats-switch">
+      <Segmented value={view} onChange={setView} options={[{ value: 'overview', label: 'Overview', testId: 'stats-view-overview' }, { value: 'players', label: 'Players', testId: 'stats-view-players', hint: 'Every player in the league, sorted by any column' }, { value: 'team', label: 'Team', testId: 'stats-view-team', hint: 'Our numbers ranked against every side' }]} />
+    </div>
+  )
+  if (view === 'players')
+    return (
+      <>
+        {switcher}
+        <div className="grid fill stats-one" data-testid="stats-tab">
+          <PlayerStatsTable />
+        </div>
+      </>
+    )
+  if (view === 'team')
+    return (
+      <>
+        {switcher}
+        <TeamStats />
+      </>
+    )
   const grid = boxes?.grid([{ track: 'minmax(0, 0.8fr)', ids: ['records'] }, { track: 'minmax(0, 1.1fr)', ids: ['league-stats'] }, { track: 'minmax(0, 1.2fr)', ids: ['data-hub'] }]) ?? { className: '', style: undefined }
   return (
+    <>
+    {switcher}
     <div className={`grid three fill squad-views stats-grid ${grid.className}`} style={grid.style} data-testid="stats-tab">
       {!on('records') ? null : records ? (
         <div className="panel">
@@ -224,5 +250,6 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
     </div>
     )}
     </div>
+    </>
   )
 }
