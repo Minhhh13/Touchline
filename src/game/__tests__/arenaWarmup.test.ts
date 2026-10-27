@@ -6,7 +6,7 @@ import { Rng } from '@engine/rng'
 import type { LoadedUniverse } from '@engine/universe'
 import { createGame } from '../logic/setup'
 import { beginArena, cupGameSettings, finalGameSettings, gauntletGameSettings, simArenaToEnd, type ArenaChoices } from '../logic/arena'
-import { arenaNeedsWarmup, arenaWarmPool, warmStrengths } from '../logic/arenaWarmup'
+import { arenaNeedsWarmup, arenaSetupPool, arenaWarmPool, warmStrengths } from '../logic/arenaWarmup'
 import type { Game, GameSettings } from '../types'
 
 const LEAGUES = ['england', 'spain']
@@ -74,5 +74,25 @@ describe('the arena warm-up', { timeout: 240_000 }, () => {
       const warmed = loadTestUniverse(LEAGUES)
       expect(run(warmed, make(warmed), true)).toBe(run(cold, make(cold), false))
     }
+  })
+
+  it("the setup's pool holds every run's pool, so warming it on the setup moves nothing either", () => {
+    const u = loadTestUniverse(LEAGUES)
+    const setup = arenaSetupPool(u, LEAGUES)
+    const keys = new Set(setup.map(clubSeasonKey))
+    const eras: Array<Partial<ArenaChoices>> = [{}, { fromSeason: 2015, toSeason: 2019 }, { field: 'giants' }, { field: 'champions', size: 8 }, { field: 'decade', decade: 2010 }, { wheelLeagues: ['spain'] }]
+    for (const [i, extra] of eras.entries()) {
+      for (const g of [createGame(gauntletGameSettings(u, choices(`setup-${i}`, extra), 'WXI')), createGame(cupGameSettings(u, choices(`setup-c${i}`, { size: 16, ...extra }), 'WXI')), createGame(finalGameSettings(u, choices(`setup-f${i}`, { field: 'giants', ...extra }), 'WXI'))]) {
+        const pool = arenaWarmPool(g, u)
+        expect(pool.length).toBeGreaterThan(0)
+        for (const cs of pool) expect(keys.has(clubSeasonKey(cs))).toBe(true)
+      }
+    }
+    // Warmed from the setup's pool on one universe, cold on another: the same run
+    const cold = loadTestUniverse(LEAGUES)
+    const warmed = loadTestUniverse(LEAGUES)
+    const pool = arenaSetupPool(warmed, LEAGUES)
+    expect(warmStrengths(warmed, pool, 0, () => true)).toBe(pool.length)
+    expect(run(warmed, finalGameSettings(warmed, choices('setup-run', { field: 'giants' }), 'WXI'), false)).toBe(run(cold, finalGameSettings(cold, choices('setup-run', { field: 'giants' }), 'WXI'), false))
   })
 })

@@ -11,6 +11,7 @@ import { SpinOdds } from '../components/SpinOdds'
 import { Upgrader } from '../components/Upgrader'
 import { runInProjectedLineup } from '@game/logic/runin'
 import { PowerUpTray } from '../components/PowerUps'
+import { HoverTips } from '../components/PowerUpButton'
 import { powerUpsOn, trayKinds } from '@engine/powerups'
 import { LockerBar } from '../components/Locker'
 import { powerUpLog } from '@game/logic/powerups'
@@ -26,6 +27,7 @@ import { MODE_ICON, PowerUpIcon, TWIST_ICON } from '../components/icons'
 import { clubName, nationName, ordinal, seasonLabel, formationName } from '../format'
 import { NationFlag } from '../components/Flag'
 import { playerLookup } from '@game/logic/players'
+import { useFinishDraft } from '../useArenaWarmup'
 import { finishDraftLabel } from '@game/logic/modes'
 import { challengeHeadline } from '@game/logic/arenaClaim'
 import { CapChip, CapChips } from '../components/CapControl'
@@ -57,6 +59,8 @@ export function Draft() {
   const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
   // A manager's first draft ever (nothing finished yet): one plain line under the first spin
   const firstDraft = useStore((s) => resultsFinished(s.profile) === 0)
+  // An arena run's first field pass is finished in slices with the busy state painted (useArenaWarmup.ts)
+  const finishing = useFinishDraft(finishDraft)
   // The spin whose reel has landed. A new spin or re-spin is a new `current` object, so it reads as spinning in
   // the same render the store hands it over: no stale squad, no stale landed state, no second re-spin mid-reel
   const [settled, setSettled] = useState<DraftState['current']>(null)
@@ -159,6 +163,7 @@ export function Draft() {
   // Pick grades once the squad is complete (nothing left to choose, so blind mode shows them too): each XI pick against the best on its spin
   const graded = ratingShown(d.rules, 'grades', { complete }) ? pickGrades(u, d, get) : []
   const grades = new Map(graded.map((g) => [g.spin, g]))
+  const slotPos = (id: string) => d.formation.slots.find((x) => x.id === id)?.position ?? id
   const top = bestPick(graded)
   const gradeLine = top ? `Best pick: spin ${top.spin + 1}, ${get(top.pickedId)?.name ?? ''} (${top.grade}) · ${graded.filter((g) => g.grade === 'A').length} of ${graded.length} picks graded A` : null
   // A Quick Draft bench: the XI's eleven picks, then up to `places` more, optional
@@ -346,8 +351,8 @@ export function Draft() {
               </div>
             )}
             {!complete && dry && !fillingStarters && (
-              <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {finishDraftLabel(game, made)}
+              <button className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined}>
+                {finishing.busy ? 'Getting the field ready…' : finishDraftLabel(game, made)}
               </button>
             )}
             {surprise && !complete && (
@@ -392,8 +397,8 @@ export function Draft() {
               </>
             )}
             {complete && (
-              <button className="btn primary spin-btn display" onClick={() => finishDraft()}>
-                {finishDraftLabel(game)}
+              <button className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined} data-testid="finish-draft-go">
+                {finishing.busy ? 'Getting the field ready…' : finishDraftLabel(game)}
               </button>
             )}
           </div>
@@ -431,6 +436,8 @@ export function Draft() {
                   {gradeLine}
                 </div>
               )}
+              {/* A grade's note (the best play on that spin) on hover, focus or a tap, so a phone sees it too */}
+              <HoverTips testId="grade-tip" className="draft-log-tips">
               <ol className="draft-log">
                 {[...d.history].reverse().map((h, i) => {
                   const p = h.pickedId ? get(h.pickedId) : undefined
@@ -448,9 +455,9 @@ export function Draft() {
                           {isIcons(h) ? <TierDot tier="icons" /> : tier && <TierDot tier={tier} />}
                           {isIcons(h) ? 'Icons' : seasonLabel(h.season)}
                           {grades.has(at) && (
-                            <span className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" title={gradeNote(grades.get(at)!, (id) => d.formation.slots.find((x) => x.id === id)?.position ?? id)}>
+                            <button type="button" className={`chip pick-grade ${GRADE_CLASS[grades.get(at)!.grade]}`} data-testid="pick-grade" data-tip={gradeNote(grades.get(at)!, slotPos)} aria-label={`Grade ${grades.get(at)!.grade}: ${gradeNote(grades.get(at)!, slotPos)}`}>
                               {grades.get(at)!.grade}
-                            </span>
+                            </button>
                           )}
                           {h.twist && TwistIcon && (
                             <span className="log-twist" title={TWIST_INFO[h.twist].title} role="img" aria-label={TWIST_INFO[h.twist].title}>
@@ -466,6 +473,7 @@ export function Draft() {
                   )
                 })}
               </ol>
+              </HoverTips>
             </div>
           )}
         </div>

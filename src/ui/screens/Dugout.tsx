@@ -65,6 +65,9 @@ import { newsBody } from '@game/logic/newsFlavour'
 
 type Tab = DugoutTab
 
+/** Between playing the week and showing it, the match day's ball path is built in its own tasks (presentation only). */
+const prepareWeek = (next: Game): Promise<void> => import('../match/prepare').then((m) => m.prepareMatchDay(next))
+
 /** A tab with one box (the Cup, the Continental Cup, the Inbox) lists nothing in the Boxes checklist. */
 const NO_BOXES: BoxSet = { screen: 'dugout-none', title: '', boxes: [] }
 /** The Table tab's columns as its CSS writes them (`.grid.table-grid`). */
@@ -185,7 +188,7 @@ export function Dugout() {
     { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: 'Club' },
   ]
-  keys.current = { play: done || game.pendingEvent ? null : () => void store.playWeekSoon(), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id) }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)
@@ -324,7 +327,7 @@ export function Dugout() {
                   <span className="lbl-short">Friendly</span>
                 </button>
               )}
-              <button className="btn primary big" onClick={() => void store.playWeekSoon()} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
+              <button className="btn primary big" onClick={() => void store.playWeekSoon(prepareWeek)} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
                 <span className="lbl-long">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
                 <span className="lbl-short">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
@@ -586,7 +589,7 @@ export function Dugout() {
                     <span className="h row" style={{ justifyContent: 'flex-end', gap: 6 }}>
                       {home ? null : oppPos} {home ? <span className="fx-name">{game.settings.teamName}</span> : <FxName full={clubName(u, opp)} short={clubShort(u, opp)} />} {home ? null : <ClubBadge clubId={opp} size={18} />}
                     </span>
-                    <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                    <span className={`sc chip ${cls}`} style={{ fontFamily: 'var(--font-display)', fontSize: 'calc(var(--fs-base) + 2px)' }}>
                       {r ? `${r.homeGoals} - ${r.awayGoals}` : 'v'}
                       {gf !== null && ga !== null && <span className="res-letter">{outcomeOf(gf, ga)}</span>}
                     </span>
@@ -928,7 +931,7 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
   const line = (item: BriefingItem, toggle?: ReactNode) => (
-    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
+    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`} data-brief={item.id}>
       <span className="icon" aria-hidden="true">
         <BriefingIcon item={item} size={15} />
       </span>
@@ -1198,6 +1201,9 @@ function CupTab({ comp }: { comp: Competition }) {
   )
 }
 
+/** Listings a phone shows before "Show all" (styles.css hides the rest under 720 px; a desktop's box scrolls them all). */
+export const PHONE_LISTINGS = 8
+
 function MarketTab({ boxes }: { boxes: Boxes }) {
   const store = useStore()
   const { universe: u, game } = store
@@ -1206,7 +1212,13 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
   const [statuses, setStatuses] = useState<Record<string, SquadStatus>>({})
   const [exchange, setExchange] = useState<Record<string, string>>({})
   const [sellOn, setSellOn] = useState<Record<string, number>>({})
-  const [filter, setFilter] = useState<'all' | Position>('all')
+  const [filter, setFilterState] = useState<'all' | Position>('all')
+  // On a phone the window lists its first few men until "Show all" (40 stacked listings ran to 18,000 px in January)
+  const [allListed, setAllListed] = useState(false)
+  const setFilter = (f: 'all' | Position) => {
+    setFilterState(f)
+    setAllListed(false)
+  }
   const [msg, setMsg] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [scoutId, setScoutId] = useState<string | null>(null)
@@ -1361,7 +1373,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
             </button>
           ))}
         </div>
-        <div className="col listings" style={{ gap: 'var(--space-2)' }}>
+        <div className={`col listings ${!allListed && listings.length > PHONE_LISTINGS ? 'capped' : ''}`} style={{ gap: 'var(--space-2)' }} data-testid="listings">
           {listings.map((l) => {
             const p = get(l.playerSeasonId)
             if (!p) return null
@@ -1457,6 +1469,11 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
           })}
           {listings.length === 0 && <div className="muted">Nothing listed for that position right now. Advance a day for new listings.</div>}
         </div>
+        {!allListed && listings.length > PHONE_LISTINGS && (
+          <button type="button" className="btn block listings-more" onClick={() => setAllListed(true)} data-testid="listings-more">
+            Show all {listings.length} listed{filter === 'all' ? '' : ` at ${filter}`}
+          </button>
+        )}
       </div>
       <div className="col">
         {boxes.on('recruitment') && <RecruitmentPanel onMessage={setMsg} />}

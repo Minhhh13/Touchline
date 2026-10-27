@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { canChangeInPlay, managerWindowsUsed, MAX_SUBS, MAX_WINDOWS, subsMade, type FullMatchResult, type LiveChanges } from '@engine/match'
-import { feedFromLive, feedFromResult, scoreAt, type MatchFeed } from '@engine/matchFeed'
+import { feedFromResult, scoreAt, type MatchFeed } from '@engine/matchFeed'
 import { statsSeries, xgStory } from '@engine/matchStats'
 import { liveCondition, ratingsAt } from '@engine/liveRatings'
 import { getFormation } from '@engine/formations'
@@ -27,12 +27,11 @@ import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
 import { assistantSubsBetween, assistantSubToast } from '../match/assistantSubs'
 import { commentaryContextFor } from '../match/commentaryColour'
-import { matchPath } from '../match/epochs'
+import { liveFeed, liveFeedKey, pathOf, samplesOf } from '../match/prepare'
 import { cuePending, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
 import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
 import { cueTimes, goalHolds } from '../match/possession'
-import { samplePlayers } from '../match/heat'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
 import { emptyDraft, highlightedMan, nextSelection, type StopDraft } from './controls'
@@ -75,7 +74,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   const homeId = live ? live.mp.home.teamId : res!.homeTeamId
   const awayId = live ? live.mp.away.teamId : res!.awayTeamId
   const codes = useMemo(() => ({ home: teamCode(u, homeId, live?.mp.home.shortName ?? res!.homeName, game.settings.shortName), away: teamCode(u, awayId, live?.mp.away.shortName ?? res!.awayName, game.settings.shortName) }), [u, homeId, awayId, live, res, game.settings.shortName])
-  const feed: MatchFeed = useMemo(() => (live ? feedFromLive(live.mp, `${live.opponentId}-${live.ctx.matchweek}-${live.kind}`) : feedFromResult(res!, `${res!.homeTeamId}-${res!.awayTeamId}-${ctx.matchweek}`, codes)), [live, res, ctx.matchweek, codes])
+  // A live segment's feed, ball path and samples may already be built (prepare.ts, between playing the week and this render)
+  const feed: MatchFeed = useMemo(() => (live ? liveFeed(live.mp, liveFeedKey(live)) : feedFromResult(res!, `${res!.homeTeamId}-${res!.awayTeamId}-${ctx.matchweek}`, codes)), [live, res, ctx.matchweek, codes])
   const userSide: 'home' | 'away' | null = live ? (live.userIsHome ? 'home' : 'away') : homeId === USER_TEAM ? 'home' : awayId === USER_TEAM ? 'away' : null
 
   // Kits, keepers and numbers
@@ -86,9 +86,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   const away: SideView = { code: codes.away, name: feed.away.name, colour: kit.away, keeper, numbers: numbers.away }
 
   // Everything derived from the decided match: once per decision, never per tick
-  const mpath = useMemo(() => matchPath(feed), [feed])
+  const mpath = useMemo(() => pathOf(feed), [feed])
   const series = useMemo(() => statsSeries(feed, get), [feed, get])
-  const samples = useMemo(() => samplePlayers(mpath, feed.lastMinute), [mpath, feed.lastMinute])
+  const samples = useMemo(() => samplesOf(mpath, feed.lastMinute), [mpath, feed.lastMinute])
   const story = useMemo(() => xgStory(feed), [feed])
   const ref = useMemo(() => roundRefOf(ctx, live?.cupTieIndex), [ctx, live?.cupTieIndex])
   const elsewhere = useMemo(() => elsewhereLines(latestScores(game, u, ref, feed.lastMinute, true)), [game, u, ref, feed.lastMinute])

@@ -940,7 +940,7 @@
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 15%, transparent), var(--gold), var(--danger));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--heat-warm) 15%, transparent), var(--heat-warm), var(--heat-hot));
 }
 
 /* ------------------------------------------------------------------ latest scores, live table, info */

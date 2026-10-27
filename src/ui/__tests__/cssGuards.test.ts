@@ -33,6 +33,25 @@ describe('the stylesheets', () => {
     expect(offenders(/font-size:\s*[0-9.]+px/, /\/\*\s*px:/)).toEqual([])
   })
 
+  it('inline styles size type on the tokens too: a literal fontSize only on a badge box (its size is the geometry)', () => {
+    const out: string[] = []
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name)
+        if (statSync(p).isDirectory()) walk(p)
+        else if (name.endsWith('.tsx'))
+          readFileSync(p, 'utf8')
+            .split('\n')
+            .forEach((line, i) => {
+              if (/fontSize:\s*[0-9]/.test(line) && !/badge/.test(line)) out.push(`${relative(UI, p)}:${i + 1}`)
+            })
+      }
+    }
+    walk(UI)
+    // The arena hub's two headings stay with the agent that owns Arena.tsx
+    expect(out.filter((l) => !l.startsWith('screens/Arena.tsx:'))).toEqual([])
+  })
+
   it('never animate left or top (DESIGN_SYSTEM section 12, rule 2: transform and opacity only)', () => {
     expect(offenders(/transition(-property)?:[^;]*\b(left|top)\b/)).toEqual([])
   })

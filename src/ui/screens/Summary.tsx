@@ -31,7 +31,7 @@ import { LeagueAwards } from '../components/LeagueAwards'
 import { countPhrase, cupWinsLine, runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
-import { clubName, money, nationName, ordinal, seasonLabel, signedValue, tierName } from '../format'
+import { clubName, clubShort, money, nationName, ordinal, seasonLabel, signedValue, tierName } from '../format'
 import { LeagueFlag, NationFlag, QuickLeagueFlag } from '../components/Flag'
 import { isSuperLeague, quickLeagueName, sideNamer, superTierBlurb } from '@game/logic/superLeague'
 import { playerLookup, squadPlayers } from '@game/logic/players'
@@ -542,7 +542,7 @@ export function Summary() {
       {q && results.length > 0 && on('games') && (
         <GameByGame
           results={results}
-          opponent={(id) => ({ clubId: id, name: sideName(id) })}
+          opponent={(id) => ({ clubId: id, name: sideName(id), ...(sideName(id) === clubName(u, id) ? { short: clubShort(u, id) } : {}) })}
           replay={replay}
           orderToggle
           strip={false}
@@ -560,7 +560,7 @@ export function Summary() {
       )}
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
       {story && !replay.playing && on('story') && <SeasonStoryPanel story={story} opponentName={(id) => sideName(id)} />}
-      {!q && story && on('games') && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id) })} compact fold={8} />}
+      {!q && story && on('games') && <GameByGame results={story.results} opponent={(id) => ({ clubId: id, name: clubName(u, id), short: clubShort(u, id) })} compact fold={8} />}
 
       {q?.january && on('january') && (
         <div className="panel" data-testid="january-summary">
