@@ -284,9 +284,21 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
 }
 
 /** Run a stepped action to its end in one go: the same work, in the same order, as its steps one task each. */
-export function runSteps(steps: Iterator<unknown>): void {
-  while (!steps.next().done) {
+export function runSteps<T>(steps: Iterator<unknown, T>): T {
+  for (;;) {
     // every step runs; the pauses between them are the caller's
+    const r = steps.next()
+    if (r.done) return r.value
+  }
+}
+
+/** Sim `n` matchweeks with the assistant managing (Sim 5, Sim to end), in steps: each week's `playMatchweekSteps`. */
+export function* simWeeksSteps(game: Game, u: LoadedUniverse, n: number): Generator<void, void, undefined> {
+  if (game.phase === 'preseason') startSeasonProper(game)
+  for (let i = 0; i < n; i++) {
+    if (game.phase === 'summary' || !game.season || game.season.sacked) break
+    yield* playMatchweekSteps(game, u, true)
+    if (game.phase === 'match') game.phase = 'week'
   }
 }
 

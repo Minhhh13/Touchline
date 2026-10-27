@@ -188,7 +188,7 @@ export function Dugout() {
     { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: 'Club' },
   ]
-  keys.current = { play: done || game.pendingEvent ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent || simming ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id) }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)
@@ -327,19 +327,19 @@ export function Dugout() {
                   <span className="lbl-short">Friendly</span>
                 </button>
               )}
-              <button className="btn primary big" onClick={() => void store.playWeekSoon(prepareWeek)} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
+              <button className="btn primary big" onClick={() => void store.playWeekSoon(prepareWeek)} disabled={!!game.pendingEvent || store.playingWeek || simming} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
                 <span className="lbl-long">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
                 <span className="lbl-short">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
-              <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatch())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
+              <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatchSoon())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
                 <span className="lbl-long">{bigNext ? `${bigNext.label} next` : simToLabel(game, u)}</span>
                 <span className="lbl-short">{bigNext ? 'Big match next' : 'To big match'}</span>
               </button>
-              <button className="btn" onClick={() => afterPaint(() => store.simWeeks(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
+              <button className="btn" onClick={() => afterPaint(() => store.simWeeksSoon(5))} disabled={!!game.pendingEvent || simming} aria-busy={simming || undefined} title="Assistant picks the team and resolves decisions" data-testid="sim-5">
                 {simming ? 'Simulating…' : 'Sim 5'}
               </button>
-              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && afterPaint(() => store.simToEnd())} disabled={!!game.pendingEvent || simming} data-testid="sim-end">
+              <button className="btn ghost" onClick={() => confirm('Simulate the rest of the season with the assistant managing?') && afterPaint(() => store.simWeeksSoon(40))} disabled={!!game.pendingEvent || simming} data-testid="sim-end">
                 Sim to end
               </button>
             </div>

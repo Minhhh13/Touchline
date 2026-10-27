@@ -264,11 +264,15 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
   }
   const newestRef = useRef<HTMLLIElement | null>(null)
   const listRef = useRef<HTMLOListElement | null>(null)
+  const drawn = useRef(false)
   useEffect(() => {
-    // Newest first, the new game lands at the top: a compact list scrolls back up to it, a full list never moves.
+    const first = !drawn.current
+    drawn.current = true
+    // Newest first, the new game lands at the top: a compact list scrolls back up to it, a full list never moves (a
+    // list just drawn is at its top already; setting it would force the screen's first layout inside its mount).
     // Oldest first, a compact list scrolls inside itself to the bottom and a full list brings the new game into view.
     if (order === 'newest') {
-      if (compact && listRef.current) listRef.current.scrollTop = 0
+      if (compact && listRef.current && !first) listRef.current.scrollTop = 0
     } else if (compact) {
       if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
     } else if (playing && newestRef.current) newestRef.current.scrollIntoView({ block: 'nearest' })

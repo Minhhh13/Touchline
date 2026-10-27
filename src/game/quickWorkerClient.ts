@@ -1,6 +1,6 @@
 import type { LoadedUniverse } from '@engine/universe'
 import type { Game } from './types'
-import { universeMark, type KickOffJob, type QuickWorkerAnswer, type QuickWorkerAsk } from './quickJob'
+import { universeMark, type QuickJob, type QuickWorkerAnswer, type QuickWorkerAsk } from './quickJob'
 
 /** How long a job may take in the worker (its universe build included) before the page plays the season itself. */
 const PATIENCE_MS = 20_000
@@ -58,9 +58,9 @@ export function warmQuickWorker(leagues: string[], classic: boolean): void {
 /**
  * The job played in the worker on the universe the page has loaded (`leagues`, `classic`, checked by `u`'s mark):
  * the game after it, or null when it cannot be (no Worker, an error, a universe that differs, too slow), and the page
- * then plays it itself. Presentation only: the game is the one `kickOff` gives on the page.
+ * then plays it itself. Presentation only: the game is the one the action gives on the page.
  */
-export function runQuickInWorker(job: KickOffJob, leagues: string[], classic: boolean, u: LoadedUniverse): Promise<Game | null> {
+export function runQuickInWorker(job: QuickJob, leagues: string[], classic: boolean, u: LoadedUniverse): Promise<Game | null> {
   const w = started()
   if (!w) return Promise.resolve(null)
   const id = ++next
