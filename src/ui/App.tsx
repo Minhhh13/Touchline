@@ -22,6 +22,7 @@ import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dic
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
 import { DAMAGED_LINK_TOAST, readGameHash } from './gameHash'
 import { onlineAvailable, openRoom, resolveShort } from '../online/api'
+import { newsBody } from '@game/logic/newsFlavour'
 
 // Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
 // after Home fetches them in this order, the Quick Draft path first
@@ -463,7 +464,7 @@ function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNod
         if (!dev) {
           return (
             <li key={i}>
-              <b>{n.title}</b> <span className="muted">{n.body}</span>
+              <b>{n.title}</b> <span className="muted">{newsBody(n)}</span>
             </li>
           )
         }

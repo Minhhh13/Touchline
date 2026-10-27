@@ -37,6 +37,7 @@ import { phaseCaption, sceneAt } from '../match/shape'
 import { epochAt, type MatchPath } from '../match/epochs'
 import { celebrationEnvelope, confetti, flightProgress, netBulge, netPoint, scorerRun } from '../match/celebration'
 import { ballSprite, ballView } from '../match/flight'
+import { capFrame, frameCap, wakeCap } from '../match/frameCap'
 import { cornerDelivery, dotName, passFlash, shotMarks, shotTrailAt, xgBand, type ShotMark } from '../match/overlays'
 import { CAMERA, REPLAY, cameraTransform, celebrationMs, focusAt, focusMoments, replayFrame, type FocusMoment, type ReplayFrame, type ViewBox } from '../match/keyMoments'
 import { shotXg } from '@engine/matchStats'
@@ -438,6 +439,8 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     let leftReplay = -1
     // A device that cannot keep up drops the camera and the pass lines while it struggles (liteMode: a running mean of the frame time, with hysteresis)
     const perf = { mean: 16.7, frames: 0, lite: false }
+    // One that keeps missing 60 fps draws every other frame (frameCap.ts): the same picture at fewer moments
+    const cap = frameCap()
     const at = (x: number, y: number) => {
       const [sx, sy] = map(x, y)
       return `translate(${sx.toFixed(2)} ${sy.toFixed(2)})`
@@ -446,10 +449,15 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       id = 0
       const s = useLiveClock.getState()
       if (s.running) id = requestAnimationFrame(frame)
+      const wasCapped = cap.capped
+      const slot = capFrame(cap, now)
+      if (cap.capped !== wasCapped && stageRef.current) stageRef.current.setAttribute('data-capped', String(cap.capped))
+      if (s.running && !slot.draw) return
       // Time moves things only while the clock runs; stood at a stop or paused, a wake-up redraws without moving anyone
       const dt = s.running && ball.last ? Math.min(80, Math.max(0, now - ball.last)) : 0
       ball.last = now
-      liteMode(perf, dt)
+      // Capped, the step between drawn frames is the cap's own: the frame's cost is the interval since the one before
+      liteMode(perf, cap.capped ? Math.min(80, slot.interval) : dt)
       const lite = perf.lite
       const tl = timeline(s, now)
       const holdAny = tl.hold ? s.holds[tl.hold.index] : undefined
@@ -662,6 +670,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       if (id) return
       // Waking from a sleep: the first frame back takes no time step, so nothing leaps by the time it slept
       ball.last = 0
+      wakeCap(cap)
       id = requestAnimationFrame(frame)
     }
     wake()

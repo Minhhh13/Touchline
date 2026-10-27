@@ -3,6 +3,8 @@ import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Do
 import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
 import { ACHIEVEMENTS } from '@engine/awards'
 import { badgeStates, topBadges } from '@engine/badges'
+import { BadgeCheck, BrickWall, CalendarCheck, CalendarClock, Footprints, Heart, Hourglass, Layers, Link as LinkIcon, Moon, Mountain, PiggyBank, Route, ScrollText, Users, Zap } from 'lucide-react'
+import { milestonesEarned, milestoneStates } from '@game/logic/milestoneBadges'
 import { fetchClubLeagues } from '@engine/universe'
 import type { ArenaRunEntry, LeaderboardEntry } from '@game/types'
 import { MODE_TITLE, arenaFormatLabel, isQuickLike } from '@game/logic/modes'
@@ -64,6 +66,29 @@ const BADGE_ICON: Record<string, LucideIcon> = {
   'survival-artist': LifeBuoy,
 }
 
+/** The Trophy Room's milestones (`milestoneBadges.ts`), one Lucide icon each. */
+const MILESTONE_ICON: Record<string, LucideIcon> = {
+  invincibles: Shield,
+  'treble-winners': Crown,
+  'double-act': Layers,
+  'continental-kings': Globe,
+  'winning-machine': Zap,
+  decade: Hourglass,
+  'old-school': ScrollText,
+  moneyball: PiggyBank,
+  'perfect-day': CalendarCheck,
+  summit: Mountain,
+  'long-road': Route,
+  'under-the-lights': Moon,
+  'hot-seat': Users,
+  'old-hand': CalendarClock,
+  completist: BadgeCheck,
+  'golden-boot': Footprints,
+  'the-wall': BrickWall,
+  'chain-gang': LinkIcon,
+  loyalty: Heart,
+}
+
 function exportSave(): void {
   // The game in memory, as plain JSON: it exports even when the browser's storage is full
   const blob = new Blob([exportSaveJson()], { type: 'application/json' })
@@ -109,6 +134,7 @@ export function ProfileScreen() {
     }
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
+  const milestones = milestoneStates({ cabinet, profile })
   const [filter, setFilterState] = useState<BoardFilter>(readFilter)
   const setFilter = (f: BoardFilter) => {
     setFilterState(f)
@@ -356,6 +382,33 @@ export function ProfileScreen() {
                         {countPhrase(b.value, b.badge.counts)}
                       </div>
                       <div className="small muted">{b.tier ? `${b.tier[0].toUpperCase()}${b.tier.slice(1)} · ${b.progress}` : b.progress}</div>
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Milestones: more badges read from the same cabinet and records, with a bar to the next tier */}
+            <h4 className="milestones-head" data-testid="milestones-head">
+              <BadgeCheck size={16} aria-hidden="true" /> Milestones <span className="small muted">{milestonesEarned(milestones)} of {milestones.length} earned</span>
+            </h4>
+            <div className="badges milestones">
+              {milestones.map((m) => {
+                const Icon = MILESTONE_ICON[m.badge.id] ?? Award
+                const label = m.stamp ? m.badge.counts : countPhrase(m.value, m.badge.counts)
+                return (
+                  <div key={m.badge.id} className={`badge-tile ${m.tier ? '' : 'locked'}`} data-testid="milestone" data-tier={m.tier ?? 'none'} title={`${m.badge.title}: ${label}${m.badge.fromBoard ? ' (from your 50 best seasons)' : ''}`}>
+                    <span className={`badge-ring ${m.tier ?? ''}`}>
+                      <Icon size={20} aria-hidden="true" />
+                    </span>
+                    <span className="milestone-text">
+                      <div className="title">{m.badge.title}</div>
+                      <div className="desc">{label}</div>
+                      <div className="small muted">{m.tier && !m.stamp ? `${m.tier[0].toUpperCase()}${m.tier.slice(1)} · ${m.progress}` : m.stamp ? (m.tier ? 'Earned' : m.progress) : m.progress}</div>
+                      {!m.stamp && m.tier !== 'gold' && (
+                        <span className="milestone-meter" role="img" aria-label={m.progress}>
+                          <span style={{ width: `${Math.round(m.toward * 100)}%` }} />
+                        </span>
+                      )}
                     </span>
                   </div>
                 )

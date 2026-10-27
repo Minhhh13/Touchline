@@ -1,8 +1,8 @@
 # Performance on phones
 
 What a mid-range phone pays for TouchLine, measured before the iOS App Store release, what the perf pass of
-2026-10-26 (`perf-pass`, from `claude/touchline-preview` 32ace40) changed, and what to look at next. Every number is
-from the production build.
+2026-10-26 (`perf-pass`, from `claude/touchline-preview` 32ace40) changed, what round 2 (`perf-r2`, from 9aaa6c0, the
+same evening) changed, and what to look at next. Every number is from the production build.
 
 ## How it was measured
 
@@ -129,26 +129,102 @@ software rasteriser. A phone's GPU takes much of that off the main thread.
 
 No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pass untouched, ENGINE_VERSION is `'4'`.
 
+## Round 2 (`perf-r2`)
+
+Measured as above (iPhone 13 viewport, 4x CPU, the live match at 6x where noted), before (9aaa6c0) and after
+interleaved, median of three. The machine was quieter than in round 1 (load average 2 to 8), so the "before" column
+is faster than round 1's "after" for the same code. "Max task" is the longest task on the main thread from the tap
+until the screen is up (and its save written); "worst frame" the longest gap between two frames in that time.
+
+| Phone, 4x CPU | Before | After |
+| --- | --- | --- |
+| Season: Kick off (Watch) to the live pitch: max task, worst frame, all long tasks | 611 ms, 589 ms, 941 ms | 388 ms, 407 ms, 727 ms |
+| Season: Play matchweek (Watch) | 395 ms, 400 ms, 720 ms | 172 ms, 186 ms, 272 ms |
+| Season: Play matchweek (Sim result) | 275 to 344 ms, 294 to 352 ms, 520 to 532 ms | 160 to 175 ms, 165 to 180 ms, 272 to 278 ms |
+| Dynasty: Kick off, Play matchweek (Watch), (Sim result) max task | 575, 291, 320 to 371 ms | 354, 194, 162 to 167 ms |
+| The save after a matchweek (its own task, a quarter second later) | 230 to 340 ms (1.1 s seen under load) | none: compressed in a worker |
+| Quick season kick-off to the playback: max task, worst frame, to the playback | 920 ms, 930 ms, 1.11 s | 92 ms, 110 ms, 0.48 s |
+| Cold start, Fast 3G (no service worker): loading screen, Home rendered, "TTI" | 3.38 s, 7.48 s, 7.54 s | 4.41 s, 6.60 s, 6.67 s |
+| Live match at 1x, 6x CPU: main thread per second, fps (p95 frame) | 936 to 953 ms, 50 fps (31 to 33 ms) | 889 to 893 ms, 52 fps (30 to 31 ms); capped within seconds |
+| Entry chunk with its static imports (gzip) | 290 KB | 292 KB (+ `saveWorker` 5 KB and `quickWorker` 82 KB raw, both lazy) |
+| Edge verifier | `verifier-37d256f009b3b3e9.js` | unchanged by these six changes (measured on engine 4; merged onto engine 5 the e5 bundle stays `verifier-603b905d0570f641.js`) |
+
+What changed:
+
+1. **The save compresses in a worker** (`src/game/saveWorker.ts`, lz-string only, started by `saveEncoder.ts` on the
+   first write). `compressToUTF16` was the whole of the "save write": 0.4 to 1.1 s of one task a quarter second
+   after every matchweek on the phone (the profile: 708 of 762 ms). The page now only stringifies (about 40 ms) and
+   stores the bytes the worker returns, which are the bytes `encodeSave` gives. One write is in flight at a time and a
+   newer one waits for it; `flush` (page hidden or closed) still writes synchronously and drops the worker's late
+   bytes; a worker that fails, errors or takes 8 s hands the write back to the page. Where there is no Worker (the
+   tests) nothing changed. `persistedState` returns the same object while nothing persisted changed, and the storage
+   skips a state it was just given, so a toast or a view change no longer rewrites the whole save.
+2. **Play matchweek in three parts** (`playWeekSoon` in the store, the Dugout's button and Space): the busy button
+   painted first, the matchweek played with the same `produce` as `playWeek`, a task for the page, then the game and
+   the view set in one update (one render of the match screen instead of two). `playWeekSoon.test.ts` plays seeded
+   Season and Dynasty seasons through the store with Watch, Auto-play and Sim result and finds every week's game,
+   events included, equal to `playWeek`'s. What is left in the tap is the match screen's first render (about 370 ms
+   on the first match of a session, 170 after).
+3. **The quick season's kick-off plays in a worker** (`src/game/quickWorker.ts`): the tactics step warms it (it loads
+   the packs itself, as the store does), and `kickOffSoon` sends it a structured copy of the game; it runs the same
+   `kickOff` (`quickJob.ts`) and the store sets the frozen result. It runs a job only on a universe whose mark (the
+   data stamp, the leagues, the counts, a rating checksum) is the page's, and anything else (no Worker, an error, a
+   different universe, 20 s, a game that moved) plays the season on the page as before. `quickWorker.test.ts`: 50
+   seeded kick-offs, with and without January and a bench, byte for byte the page's on two separately built
+   universes. The worker bundle has no store and no React. The worker's copy of the packs costs memory (about 10 MB
+   on the phone while the tactics step is up); it is let go when the kick-off ends or the screen closes.
+4. **The service worker precaches every built asset** (the stamp plugin replaces `'__ASSETS__'` in `sw.js` with the
+   `./assets/` list; `addAll([...SHELL, ...ASSETS])`), so offline no longer depends on the idle prefetch having
+   reached every chunk (the workers and the online chunks were never prefetched). So the install never competes with
+   the first load, `main.tsx` registers the worker once the screen prefetch is done (`whenScreensFetched`), 30 s at
+   most. Checked offline at 1280 and 390 with a real worker: 68 of 68 assets cached, Quick Draft to the playback and
+   a Season live match offline, no page error. (Flags not yet seen stay uncached, as before.)
+   A cached asset is matched by its name alone (`ignoreVary`): the precache's requests carry no `Origin` header and a
+   module import does, so on a host that answers `Vary: Origin` (vite preview; the live site sends only
+   `Vary: Accept-Encoding`) every chunk missed offline until this was added on the engine 5 merge.
+5. **The data starts with the JavaScript on a first visit**: `index.html` preloads `data/leagues.json`, England's
+   `meta.json` and (low priority) `players.json`, with `crossorigin`, which matches `fetch`'s default mode and
+   credentials in `packs.ts` and `universe.ts` (one request per pack, checked). Only on a page no service worker
+   controls: Chromium never matches a preload on a controlled page ("cross-world service worker resource mismatch"),
+   which requested every pack twice and refreshed each twice in the background. On the preview's HTTP/1.1 the script
+   now shares the line with the data, so the loading screen comes about 1 s later and Home 0.9 s sooner; a host that
+   honours priorities (HTTP/2) should send the low-priority pack after the script, and in the iOS app the files are
+   local.
+6. **The live pitch caps itself at 30 fps** while a device keeps missing 60 (`src/ui/match/frameCap.ts`: over half of
+   the frames after a drawn one over 22 ms, after 20 frames; lifted once nine in ten drawn frames are again followed
+   by a 60 fps frame). A skipped frame returns before touching anything, so every drawn frame shows exactly what it
+   would have. The stage carries `data-capped`. Modest on the emulator (about 5 % less main thread): the paint of the
+   rest of the page continues.
+7. **Not done: the managers data out of the first download.** `src/engine/managers.ts` reads `data/managers.json`
+   with a static import and `src/game/logic/managers.ts` calls it synchronously at kick-off; both are in the edge
+   verifier's bundle, and a lazy load would need an async step in one of them (or a build-time swap that an early
+   call could read empty, which would move seeds). Left for an engine release.
+
+No seeded outcome moved: the pins, `noMove`, `dailyPin` and `marketPin` tests pass untouched (ENGINE_VERSION was `'4'`
+when this was measured; merged onto engine 5 at ec520f3, `quickWorker.test.ts` still finds the worker's 50 seasons
+byte for byte the page's).
+
 ## Next
 
 In order of what a phone would gain:
 
-1. **Build England faster** (`src/engine/universe.ts`, `buildLeague`): resolve the column indices once per file
-   instead of a keyed lookup per field, and reuse one closure per file for the depth and trait readers. It is about
-   500 ms of the phone's start. Test plan: deep-equal the old and new builds of all seven packs and the classic pack,
-   and keep `stamps.test.ts`, the pins and `classicGate.test.ts` green.
-2. **Precache every hashed asset when the service worker installs** (`public/sw.js` with the stamp plugin in
-   `vite.config.ts` writing the list), so offline does not depend on the page's prefetch; and preload
-   `data/leagues.json`, `data/england/players.json` and `meta.json` from `index.html` so the data starts with the
-   JavaScript (one Fast 3G round trip, about 0.6 s). Proposed patches are in the pass's report.
-3. **The quick season's kick-off off the main thread**: `runQuickSeason` in a worker that loads the packs itself
-   from the cache (about 10 MB more), the same code and seed, the result posted back. Test: a quick season played
-   in the worker equals the one in the page for 50 seeds.
-4. **The live pitch at 30 fps when it cannot keep up** (its lite mode already drops the camera and pass lines), or
-   its dots as composited HTML layers instead of SVG transforms.
+1. **Home's first render** is the start's longest task (about 375 ms at 4x: React's render and commit of Home, and a
+   forced layout for `--topbar-h` in App.tsx that costs about 100 ms of style and layout in the first frame).
+   England's `buildLeague` is only 100 to 120 ms of the start now that the classic pack is lazy (round 1's 500 ms
+   counted it); a column-index build was tried in round 2 and measures the same on the phone. It did not ship: it
+   renames the edge verifier, so it is parked on the branch `perf-r2-with-buildleague` for a future engine bump, when
+   the function is redeployed anyway.
+2. **The match screen's first render** (about 370 ms at 4x on a session's first match, 170 after): `MatchDashboard`'s
+   memos (`samplePlayers`, the feed, the commentary) run in the render that opens it; they could start a frame
+   later, or the dashboard could mount its panels over two frames.
+3. **Close the January window and bench changes in the worker**: `closeJanuary` and `makeQuickChange` replay the
+   whole quick season on the page (about the kick-off's 0.9 s); `quickJob.ts` can take them as further ops.
+4. **Sim 5 and Sim to end** run their weeks in one produce (0.6 + 0.3 s at 4x); `playWeekSoon`'s pattern (a week a
+   task, the same produce per week) would keep the page answering.
 5. **The in-memory game**: compact finished results in memory as the save does (invariant 5 already limits what
    may read them), about 0.7 MB a matchweek. Test: seeded seasons with and without it give identical games.
-6. **`src/engine/data/managers.json`** (60 KB, 20 KB gzip) is in the entry chunk; it is only needed at a Quick
-   Draft's kick-off.
+6. **`src/engine/data/managers.json`** (60 KB, 20 KB gzip) is in the entry chunk (round 2, item 7).
 7. **The global stylesheet** (222 KB) costs a 230 ms style recalculation on Home's first frame; screen-only rules
    could move into the screens' chunks.
+8. **Flags for offline**: the drawn flags are cached only once seen; the precache list could take the ones the packs
+   name.

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './ui/App'
 import './ui/styles.css'
 import { onlineConfig } from './online/config'
+import { whenScreensFetched } from './ui/lazyScreens'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -10,10 +11,14 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Offline support: register the service worker on production builds only, relative to the deploy path.
+// Offline support: register the service worker on production builds only, relative to the deploy path. It caches
+// every built asset as it installs (public/sw.js), so it waits for the screens' chunks first (`prefetchScreens`, 30 s
+// at most): on a slow first visit the install then finds them in the HTTP cache and never competes with the
+// download that puts Home on screen or the first tap's chunk.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL }).catch(() => undefined)
+    const register = () => void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL }).catch(() => undefined)
+    void Promise.race([whenScreensFetched(), new Promise((resolve) => setTimeout(resolve, 30_000))]).then(register)
   })
 }
 
