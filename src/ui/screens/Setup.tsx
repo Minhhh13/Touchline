@@ -350,8 +350,8 @@ export function Setup() {
   return (
     <div className="page setup-page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">
-        <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
-          <div>
+        <div className="row between wrap setup-top" style={{ alignItems: 'flex-start' }}>
+          <div className="setup-title">
             <h1>{challenge ? t('challenge') : modeTitle(mode)}</h1>
             <p className="muted setup-sub">
               {challenge ? t('beatScore', { name: challenge.name }) : t(`modeLine_${mode}`)}
@@ -363,11 +363,12 @@ export function Setup() {
               )}
             </p>
           </div>
-          <button className="btn ghost" onClick={() => go('home')}>
+          {/* The online build's sign-in line sits in the head's row on a desktop (between the title and Back), so the two boxes keep their height; under 1000 px it takes a line of its own */}
+          {isManage && !challenge && <SignInPrompt id={mode} text={t('backUp', { mode })} />}
+          <button className="btn ghost setup-back" onClick={() => go('home')}>
             {t('back')}
           </button>
         </div>
-        {isManage && !challenge && <SignInPrompt id={mode} text={t('backUp', { mode })} />}
 
         {/* Numbered steps in two boxes, as 38-0 reads: formation, name and league on the left; the rules and Spin on the right */}
         <div className="setup-grid">
