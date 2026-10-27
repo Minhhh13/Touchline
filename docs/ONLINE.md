@@ -299,7 +299,9 @@ The pg_cron job `touchline-error-reports` deletes reports last seen over 30 days
 
 ### Apply the cloud_slots_arena_runin migration (arena and Run-in cloud saves): not applied yet
 For the owner, with the release that carries `claude/r7-cloud-slots`. The order does not matter for safety: a site released before the migration keeps arena runs and Run-ins on the device (the refused slots are set aside for the session, nothing else is affected), and the migration changes nothing for older clients. Applying it first means the new slots work from the release's first load.
+
 1. In the dashboard's SQL editor for project `yvqpmyqomkwtudxmkeou` (never any other project): paste the whole of `supabase/migrations/20261028000300_cloud_slots_arena_runin.sql` and run it (or `supabase db push` from a checkout of the release). It re-runs safely. Then record it (skip with `db push`):
+
    ```sql
    insert into supabase_migrations.schema_migrations (version, name)
    values ('20261028000300', 'cloud_slots_arena_runin')
@@ -309,6 +311,7 @@ For the owner, with the release that carries `claude/r7-cloud-slots`. The order 
 3. Both advisors: nothing new (no table, no function, no grant changes).
 4. The edge bundle: `src/online/server/edge.ts` now lists the two slot folders when `account.delete` removes a user's saves, so this release renames `dist/edge/verifier-<hash16>.js`; rebuild and redeploy the loader `touchline-e{V}` after the site is live (Verify JWT off), as for any bundle change. Until then the old loader's account deletion misses only arena and Run-in objects, which the database no longer points at once the account's rows cascade; remove such leftovers by hand from Storage > `saves` > `<uid>/arena` and `<uid>/runin` if a deletion lands in that window.
 5. Smoke with a test account on two browsers: play one tie of a Cup of 8 in one, wait for "Saved to your account", open the Account screen in the other and press Sync now: "Your games" lists "Arena run", and Home resumes the run at the same tie. Then a `docs/HANDOVER.md` change-log line.
+
 ### Release order (Phase 1): done 2026-10-26
 The loader `touchline-e4` is deployed (version 5, now with Verify JWT off for Phase 2) and the live site carries the variables. Kept as reference.
 
@@ -366,11 +369,13 @@ What changes: ENGINE_VERSION `'6'` to `'7'` (`docs/GAME_DESIGN.md` section 15): 
 
 ### Release the casual boards (`casual_boards`, branch `claude/r7-online-boards`)
 Additive: one migration, one new op (`casual.submit`) in the function, new client tabs. Nothing existing changes, so old clients keep working throughout. Until the loader carries the op (it must go out after the site, which serves its bundle) a casual post answers 400 `bad_request` "Unknown operation", which the outbox retries (backing off to 10 minutes) rather than filing, so posts made in that window rank once the loader is deployed. Without the migration the function answers 503 (the `svc_casual_*` functions are missing), also retried: apply the migration first.
+
 1. **Apply the migration** in the SQL editor: paste `supabase/migrations/20261028000200_casual_boards.sql` as one batch and run it (it only adds two tables in `private`, the `svc_casual_*` writers and three readers; it re-runs safely). Record it: `insert into supabase_migrations.schema_migrations (version, name) values ('20261028000200', 'casual_boards') on conflict (version) do nothing;` (skip with `supabase db push`, which records it itself). Check: `select * from public.casual_summary('arena', to_char(now() at time zone 'UTC', 'YYYY-MM-DD'));` answers one row with `played = 0`; both advisors (security: nothing new; performance: the two new indexes read as unused until runs are posted).
 2. **Merge the release** carrying this branch into `main` and let Render deploy it. `build.json` names a new `edge/verifier-<hash16>.js`: `src/online/server/*` and the game modules the verifier reaches changed (the casual verifier, `runinWeekly.ts`, `runin.ts`'s `runInDraft`, `dailyVerify.ts`'s `samePuzzle`).
 3. **Rebuild and deploy the loader** of the live engine (`touchline-e6`) from exactly the deployed commit: `npm ci && node scripts/online/build-loader.mjs` (its printed SHA-256 must equal `build.json`'s `verifier.sha256`), Verify JWT **off**. Outgoing engines' functions need nothing: they never see a casual post.
 4. **Smoke** with a test account: play today's Daily Arena with the assistant (Sim to the end), and on its summary the line reads "On the Daily Arena: 1st of 1"; `select played from public.casual_summary('arena', '<today>')` answers 1. A guest's `casual.submit` answers 401.
 5. A `docs/HANDOVER.md` change-log line naming the deployed commit, the loader's hash and the migration's state.
+
 ### Data rebuild
 A rebuild needs a new `generatedAt` (the stamp guard fails CI otherwise): rebuild, run `UPDATE_PACK_HASHES=1 npx vitest run src/online/__tests__/stamps.test.ts`, commit `public/data/**` with `packHashes.json`. Deploy right after 00:00 UTC.
 
