@@ -353,3 +353,9 @@
     opacity: 1;
   }
 }
+/* The substitution board's full-height sheet on a phone starts below the status bar and the notch (viewport-fit=cover) */
+@media (max-width: 720px) {
+  .matchday .md-drawer.board {
+    padding-top: env(safe-area-inset-top);
+  }
+}

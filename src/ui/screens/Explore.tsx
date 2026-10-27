@@ -197,7 +197,7 @@ export function Explore() {
                       <td>{cs.position || '–'}</td>
                       <td className="club-cell">
                         <span className="row" style={{ gap: 8 }} title={clubName(u, cs.clubId)}>
-                          <ClubBadge clubId={cs.clubId} size={22} /> <span className="ellipsis">{clubName(u, cs.clubId)}</span>
+                          <ClubBadge clubId={cs.clubId} size={22} /> <span className="ellipsis club-nm">{clubName(u, cs.clubId)}</span>
                           {cs.champions && <Trophy size={14} className="gold-ic" role="img" aria-label="Champions" />}
                         </span>
                       </td>
