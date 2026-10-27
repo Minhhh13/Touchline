@@ -8,11 +8,12 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { Game } from '@game/types'
 import { buildRankedSubmission, rankedBoardOf } from './daily'
 import { buildChaseSubmission, chaseCodeOfSeed, CHASE_ATTEMPT_HOURS } from './chase'
+import { buildCasualSubmission, casualBoardOf, casualClosesAt, casualScoreOf, type CasualBoard } from './casual'
 import type { OnlineRecord, OutboxEntry } from './localState'
 import type { OnlineTransport } from './transport'
 import { isTransient } from './transport'
 import type { PostState } from './state'
-import { postKey } from './state'
+import { CASUAL_POST_KINDS, postKey } from './state'
 import { weekStartOf } from './weekly'
 import { ENGINE_VERSION } from '@engine/version'
 import { engineMismatchReason, entryEngine, olderEngine, retiredReason } from './engineRoute'
@@ -30,6 +31,7 @@ export function backoffMs(attempts: number, random: number): number {
 /** When nothing can be posted for an entry any more: 00:00 UTC two days after a Daily; the Tuesday after a week; a
  * chase run's attempt window (48 hours from when the game started, unless the entry says otherwise). */
 export function closesAt(e: Pick<OutboxEntry, 'kind' | 'key'> & Partial<Pick<OutboxEntry, 'closes' | 'at'>>): number {
+  if (isCasualKind(e.kind)) return casualClosesAt(e.kind, e.key)
   if (e.kind === 'chase') return e.closes ?? (Date.parse(e.at ?? '') || 0) + CHASE_ATTEMPT_HOURS * 3600000
   if (e.kind === 'daily') {
     const d = Date.parse(`${e.key}T00:00:00Z`)
@@ -76,6 +78,9 @@ export function classify(status: number, body: Record<string, unknown>, points: 
           // A 38-0 chase answer: the week's place and whether the season was flawless
           ...(num(body.weekPosition) !== null ? { weekPosition: num(body.weekPosition), weekTotal: num(body.weekTotal) } : {}),
           ...(typeof body.perfect === 'boolean' ? { perfect: body.perfect } : {}),
+          // A casual board's answer: the result in words and whether it took the trophy
+          ...(typeof entry.detail === 'string' ? { detail: entry.detail } : {}),
+          ...(typeof entry.trophy === 'boolean' ? { trophy: entry.trophy } : {}),
         },
       }
     }
@@ -90,6 +95,8 @@ export function classify(status: number, body: Record<string, unknown>, points: 
   }
   if (status === 404 && olderEngine(engine)) return { kind: 'done', post: { state: 'unranked', code: 'engine_retired', reason: retiredReason(engine) } }
   if (status === 409) return { kind: 'done', post: { state: 'unranked', code: code || 'unranked', reason: reason || 'This run cannot rank on today’s board' } }
+  // A function older than this build (deployed just after the site, as a loader must be) does not know the op yet: later
+  if (status === 400 && reason === 'Unknown operation') return { kind: 'retry' }
   if (status === 400 || status === 413 || status === 422) return { kind: 'done', post: { state: 'rejected', code: code || String(status), reason: reason || 'The server refused this run' } }
   // 404 (the function for this engine is not deployed yet), 429, 5xx: later
   return { kind: 'retry' }
@@ -103,6 +110,21 @@ export function captureEntry(game: Game, u: LoadedUniverse, name: string, now: D
   if (!board) return null
   const { kind, key } = board
   return { id: `${kind}:${key}:${game.id}`, kind, key, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: game.quickResult?.points ?? 0, at: now.toISOString(), attempts: 0, nextAt: 0, owner, engine: ENGINE_VERSION }
+}
+
+/** Whether a post kind is one of the casual boards (posted as `casual.submit`). */
+export const isCasualKind = (kind: OutboxEntry['kind']): kind is CasualBoard => CASUAL_POST_KINDS.includes(kind)
+
+/**
+ * File a finished casual run (the Daily Arena, the Weekly Challenge of mode weekly, the Run-in of the week), signed in
+ * or not, the moment it ends. Null when it is not one of those boards' puzzles or cannot rank (the device runs the
+ * verifier's own checks first, the run-in's replay included).
+ */
+export function captureCasualEntry(game: Game, u: LoadedUniverse, name: string, now: Date, owner: string | null = null): OutboxEntry | null {
+  const board = casualBoardOf(game.settings)
+  const sub = board ? buildCasualSubmission(game, u, name) : null
+  if (!board || !sub) return null
+  return { id: `${board.board}:${board.key}:${game.id}`, kind: board.board, key: board.key, encoded: sub.encoded, teamName: sub.teamName, shortName: sub.shortName, points: casualScoreOf(game), at: now.toISOString(), attempts: 0, nextAt: 0, owner, engine: ENGINE_VERSION }
 }
 
 /**
@@ -161,7 +183,8 @@ export async function flushOutbox(r: OnlineRecord, deps: FlushDeps): Promise<Onl
     // function verifies only its own engine and would refuse it
     const engine = entryEngine(e)
     try {
-      const reply = await deps.transport.invoke({ op: e.kind === 'daily' ? 'daily.submit' : e.kind === 'weekly' ? 'weekly.submit' : 'chase.submit', encoded: e.encoded, teamName: e.teamName, shortName: e.shortName }, engine === ENGINE_VERSION ? undefined : { engine })
+      const body = isCasualKind(e.kind) ? { op: 'casual.submit', board: e.kind } : { op: e.kind === 'daily' ? 'daily.submit' : e.kind === 'weekly' ? 'weekly.submit' : 'chase.submit' }
+      const reply = await deps.transport.invoke({ ...body, encoded: e.encoded, teamName: e.teamName, shortName: e.shortName }, engine === ENGINE_VERSION ? undefined : { engine })
       outcome = classify(reply.status, reply.body, e.points, engine)
     } catch (err) {
       outcome = isTransient(err) ? { kind: 'retry' } : { kind: 'done', post: { state: 'rejected', code: 'error', reason: err instanceof Error ? err.message : String(err) } }
@@ -197,4 +220,16 @@ export function rankedFinish(prev: { game: Game | null }, next: { game: Game | n
   // Only a game this device was playing: a finished copy arriving from the cloud was filed by the device that played it
   if (!prev.game || prev.game.id !== g.id || prev.game.phase === 'summary') return null
   return rankedBoardOf(g.settings) ? g : null
+}
+
+/**
+ * The casual game that has just finished, comparing two store states: the game this device was playing moved into
+ * the summary, and it is the Daily Arena, the Weekly Challenge or the Run-in of the week played as itself (a raced
+ * link or a Daily Arena practised again is not). A run-in keeps no draft at the summary, so none is needed here.
+ */
+export function casualFinish(prev: { game: Game | null }, next: { game: Game | null }): Game | null {
+  const g = next.game
+  if (!g || g.phase !== 'summary' || g.settings.challenge) return null
+  if (!prev.game || prev.game.id !== g.id || prev.game.phase === 'summary') return null
+  return casualBoardOf(g.settings) ? g : null
 }

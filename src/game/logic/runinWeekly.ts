@@ -250,6 +250,8 @@ export function replayRunIn(u: LoadedUniverse, settings: GameSettings, rows: Cha
  * same draft must end on the same table row. A run-in managed by hand plays a different season, so it does not rank.
  */
 export function runInReplayProblem(game: Game, u: LoadedUniverse): string | null {
+  // A run-in begun on a build before `runInDraft` (an older save) has no draft rows to replay
+  if (game.phase === 'summary' && !game.runInDraft) return 'This run-in began before the game kept its draft for the board'
   const payload = runInPayloadFromGame(game, u, 'check')
   if (!payload) return 'The run-in has not finished'
   const expected = weeklyRunInSettings(u, game.settings.seed)

@@ -120,7 +120,20 @@ describe('the Run-in of the week', { timeout: 120_000 }, () => {
     expect(() => replayRunIn(u, s, [[null, null], [null, null], ...payload.p], payload.k)).toThrow()
   })
 
-  it('refuses a malformed payload', () => {
+  it('a run-in saved before the draft rows were kept loads and says why it is not on the board', () => {
+    const g = finish((() => {
+      const x = started('runin-2026-W44')
+      draftAuto(x)
+      return x
+    })())
+    const old = structuredClone(g)
+    delete old.runInDraft
+    expect(runInPayloadFromGame(old, u, 'x')).toBeNull()
+    expect(runInReplayProblem(old, u)).toMatch(/before the game kept its draft/)
+    expect(runInClaimOf(old)).toEqual(runInClaimOf(g))
+  })
+
+    it('refuses a malformed payload', () => {
     expect(() => decodeRunIn('eyJ2IjoyfQ')).toThrow()
     expect(() => decodeRunIn('!!!')).toThrow()
   })

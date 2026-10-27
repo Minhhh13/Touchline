@@ -355,7 +355,7 @@ export function Home() {
 
       <div className="home-tiles">
         <Tile icon={Swords} title="Head-to-head" meta="Two managers, one device" onClick={() => go('h2h')} />
-        {onlineAvailable() && <Tile icon={Globe} title="World leaderboard" meta="Daily, weekly and all-time, by country" onClick={() => go('world')} testId="world-card" />}
+        {onlineAvailable() && <Tile icon={Globe} title="World leaderboard" meta="Daily, weekly, arena and run-in, by country" onClick={() => go('world')} testId="world-card" />}
         <Tile icon={Search} title="Explore database" meta={u ? `${u.available.length} leagues of real squads` : 'Real squads since 2008-09'} onClick={() => go('explore')} />
         <Tile icon={Trophy} title="Profile" meta={`${countPhrase(profile.seasonsSimulated, 'seasons')} · ${countPhrase(achievements, 'achievements')}`} onClick={() => go('profile')} />
         <Tile icon={BookOpen} title="How it works" meta="The wheel, matches, the board" onClick={() => go('howto')} />

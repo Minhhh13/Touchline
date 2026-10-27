@@ -7,7 +7,7 @@
 import type { BaseSlot } from './core/syncPlan'
 import type { ProfileDoc } from './core/merge'
 import type { SlotId } from './core/slots'
-import type { PostState } from './state'
+import type { PostKind, PostState } from './state'
 
 export const ONLINE_KEY = 'touchline-online-v1'
 /** Dismissed sign-in prompts ("Sign in to keep this season on every device"), per device. */
@@ -17,8 +17,10 @@ export const AUTH_KEY = 'touchline-auth-v1'
 
 export interface OutboxEntry {
   id: string
-  kind: 'daily' | 'weekly' | 'chase'
-  /** `YYYY-MM-DD`, `YYYY-Www` or a 38-0 chase attempt's code. */
+  /** The board: the Daily, the online weekly challenge, a 38-0 chase attempt, or a casual mode's board (the Daily
+   * Arena, the Weekly Challenge of mode weekly, the Run-in of the week; all three post as `casual.submit`). */
+  kind: PostKind
+  /** `YYYY-MM-DD` (the Daily, the Daily Arena), `YYYY-Www` (the weeks) or a 38-0 chase attempt's code. */
   key: string
   encoded: string
   teamName: string

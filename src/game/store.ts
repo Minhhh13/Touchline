@@ -58,6 +58,7 @@ import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
 import { simToNextStop, type StopReason } from './logic/seasonHighlights'
 import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
+import { weeklyRunInPlan, weeklyRunInSettings } from './logic/runinWeekly'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
 import { newsTotal } from './logic/news'
@@ -165,6 +166,8 @@ interface Store {
   startGame: (settings: GameSettings) => void
   /** The week's challenge: load its packs, then start it with this team name. Resolves false when the packs could not load. */
   startWeekly: (seed: string, teamName?: string) => Promise<boolean>
+  /** The Run-in of the week (`runin-YYYY-Www`): its league loaded, then the week's job; false when it cannot start. */
+  startRunInWeek: (seed: string) => Promise<boolean>
   abandonGame: () => void
   /** Swap a parked game back in, parking the current one. */
   resumeGame: (slot: string) => void
@@ -676,6 +679,15 @@ export const useStore = create<Store>()(
           if (!(await get().ensureLeagues([...new Set([plan.leagueId, ...plan.wheelLeagues])]))) return false
           const u = get().universe
           const settings = u ? weeklyGameSettings(u, seed, teamName) : null
+          if (!settings) return false
+          get().startGame(settings)
+          return true
+        },
+        startRunInWeek: async (seed) => {
+          const plan = weeklyRunInPlan(seed)
+          if (!plan || !(await get().ensureLeagues([plan.leagueId]))) return false
+          const u = get().universe
+          const settings = u ? weeklyRunInSettings(u, seed) : null
           if (!settings) return false
           get().startGame(settings)
           return true

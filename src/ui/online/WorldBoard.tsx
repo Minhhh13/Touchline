@@ -4,7 +4,7 @@ import { TIER_LABEL } from '@engine/season'
 import type { SeasonTier } from '@engine/types'
 import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
-import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
+import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, CasualKind, CasualRow, CasualSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
 import { PAGE } from '../../online/boards'
 import { countryFlag } from '../../online/core/country'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
@@ -12,14 +12,16 @@ import { weeklyStartSettings } from '../../online/daily'
 import { PIN_NOTE, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHASE_FORMATIONS, isChaseGame } from '../../online/chase'
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
+import { RUN_IN_TEMPLATE_LABEL } from '@game/logic/runin'
+import { isWeeklyRunIn, runInWeekSeed, weeklyRunInJob, weeklyRunInPlan } from '@game/logic/runinWeekly'
 import { Info, Segmented } from '../components/bits'
 import { ordinal, seasonLabel } from '../format'
 import { CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
 import { onlineErrorText } from '../../online/postText'
 
-type Tab = 'daily' | 'weekly' | 'alltime' | 'chase'
-const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase']
+type Tab = 'daily' | 'weekly' | 'alltime' | 'chase' | CasualKind
+const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase', 'arena', 'themed', 'runin']
 
 /** The World screen's last board, per viewer (a convenience only: a blocked storage opens Today's Daily). */
 const TAB_KEY = 'touchline-world-tab'
@@ -536,16 +538,182 @@ function ChasePlay() {
   )
 }
 
+const CASUAL_TITLE: Record<CasualKind, string> = { arena: 'Daily Arena', themed: 'Weekly Challenge', runin: 'Run-in of the week' }
+
+/** A casual board (the Daily Arena, the Weekly Challenge, the Run-in of the week): its rows, your place pinned at the foot. */
+function CasualTable({ board, boardKey, country, title }: { board: CasualKind; boardKey: string; country: string | null; title: string }) {
+  const openChallenge = useStore((s) => s.openChallenge)
+  const session = useOnline((s) => s.session)
+  const [rows, setRows] = useState<CasualRow[] | null>(null)
+  const [summary, setSummary] = useState<CasualSummary | null>(null)
+  const [more, setMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    setRows(null)
+    setError(null)
+    Promise.all([api.casualBoard(board, boardKey, country), api.casualSummary(board, boardKey, country)]).then(
+      ([r, s]) => {
+        if (!live) return
+        setRows(r)
+        setSummary(s)
+        setMore(r.length === PAGE)
+      },
+      (e: unknown) => live && setError(onlineErrorText(e)),
+    )
+    return () => {
+      live = false
+    }
+  }, [board, boardKey, country, session])
+  const loadMore = async () => {
+    if (!rows) return
+    let next: typeof rows
+    try {
+      next = await api.casualBoard(board, boardKey, country, rows.length)
+    } catch (e) {
+      // A dropped connection keeps the rows shown and says why the next page did not come
+      setError(onlineErrorText(e))
+      return
+    }
+    setRows([...rows, ...next])
+    setMore(next.length === PAGE)
+  }
+  const arena = board === 'arena'
+  const meShown = !!rows?.some((r) => r.isMe)
+  // An arena or Weekly run is a link anyone can race once posting has closed; a run-in has no link
+  const race = board !== 'runin' && !!rows?.some((r) => r.revealed && r.payload)
+  return (
+    <section className="panel fit-panel" data-testid={`board-${board}`}>
+      <div className="panel-head">
+        <h3>{title}</h3>
+        <span className="small muted" data-testid="board-summary">
+          {summary ? `${summary.played.toLocaleString()} played${summary.trophies ? ` · ${summary.trophies} ${arena ? 'won it all' : board === 'runin' ? 'met the brief' : 'champions'}` : ''}${summary.open ? ' · posts open' : ' · closed'}${summary.revealed && board !== 'runin' ? ' · picks revealed' : ''}` : ''}
+        </span>
+      </div>
+      <div className="fit-scroll">
+        {error && <div className="notice warn" data-testid="board-error">Could not load the board. {error}</div>}
+        {!rows && !error && <div className="muted small">Loading…</div>}
+        {rows && rows.length === 0 && <div className="muted small">Nobody has posted here yet{country ? ` from ${countryName(country)}` : ''}.</div>}
+        {rows && rows.length > 0 && (
+          <table className="tbl sticky-head">
+            <thead>
+              <tr>
+                <th className="num">#</th>
+                <th>Manager</th>
+                {board !== 'runin' && <th>Team</th>}
+                <th className="num">{arena ? 'Won' : 'Pts'}</th>
+                <th className="num">{arena ? 'Goals' : 'W-D-L'}</th>
+                <th className="num">GD</th>
+                <th>Result</th>
+                {race && <th />}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={`${r.position}-${r.name}`} className={r.isMe ? 'me' : ''}>
+                  <td className="num">{r.position}</td>
+                  <td>
+                    <Flag code={r.country} />
+                    {r.name}
+                    {r.isMe && <span className="chip info" style={{ marginLeft: 6 }}>You</span>}
+                  </td>
+                  {board !== 'runin' && <td>{r.team}</td>}
+                  <td className="num" style={{ fontWeight: 700 }}>
+                    {r.score}
+                  </td>
+                  <td className="num">{arena ? `${r.goalsFor}-${r.goalsAgainst}` : <Wdl won={r.won} drawn={r.drawn} lost={r.lost} />}</td>
+                  <td className="num">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
+                  <td className="small">
+                    {r.trophy && <span className="chip good" style={{ marginRight: 4 }}>{arena ? 'Won' : board === 'runin' ? 'Brief met' : 'Champions'}</span>}
+                    {arena ? r.detail : board === 'runin' ? `${ordinal(r.leaguePosition ?? 0)}${r.trophy ? '' : ` · ${r.detail === 'SACKED' ? 'sacked' : 'missed'}`}` : `${tierText(r.detail)} · ${ordinal(r.leaguePosition ?? 0)}`}
+                  </td>
+                  {race && (
+                    <td className="end">
+                      {r.revealed && r.payload && (
+                        <button className="btn sm" onClick={() => void openChallenge(r.payload!)}>
+                          Race this run
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {more && (
+          <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={() => void loadMore()}>
+            Show more
+          </button>
+        )}
+      </div>
+      {!meShown && summary?.myPosition && (
+        <div className="fit-foot notice row between" data-testid="board-mine">
+          <b>You: {ordinal(summary.myPosition)}</b>
+          <span>
+            {summary.myScore} {arena ? 'won' : 'pts'}
+          </span>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** The side panel's card for the Run-in of the week: the week's job, and Play (its league loads first). */
+function RunInWeekPlay() {
+  const { universe: u, game, go, startRunInWeek, loadedLeagues, ensureLeagues, parked } = useStore()
+  const seed = runInWeekSeed()
+  const plan = weeklyRunInPlan(seed)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (plan) void ensureLeagues([plan.leagueId])
+  }, [ensureLeagues, plan?.leagueId])
+  if (!u || !plan) return null
+  const job = loadedLeagues.includes(plan.leagueId) ? weeklyRunInJob(u, seed) : null
+  const open = [game, parked.runin].find((g) => g && slotOf(g) === 'runin' && g.phase !== 'summary')
+  const underWay = !!open && isWeeklyRunIn(open.settings) && open.settings.seed === seed
+  const play = async () => {
+    if (underWay) return open === game ? go('game') : useStore.getState().resumeGame('runin')
+    if (open && !confirm(`Take this week's run-in? Your unfinished run-in (${open.settings.teamName}) will be abandoned.`)) return
+    setBusy(true)
+    await startRunInWeek(seed)
+    setBusy(false)
+  }
+  return (
+    <div className="col world-weekly" data-testid="runin-week-card">
+      <div>
+        <b>Play this week's run-in</b>
+        <div className="small muted">
+          {job ? (
+            <>
+              {RUN_IN_TEMPLATE_LABEL[job.template]}: <b>{u.clubById[job.clubId]?.name ?? job.clubId}</b>, {seasonLabel(job.season)}, {ordinal(job.projected.position)} after matchweek {job.takeover}.{' '}
+            </>
+          ) : (
+            'Loading the week’s job… '
+          )}
+          Draft your four, then Sim to end: the assistant plays the run-in, and that run ranks. Your first posted run counts.
+        </div>
+      </div>
+      <button className="btn primary block" onClick={() => void play()} disabled={busy || !job} data-testid="runin-week-play">
+        {underWay ? "Continue this week's run-in" : busy ? 'Loading…' : "Play this week's run-in"}
+      </button>
+    </div>
+  )
+}
+
 const BOARDS: Array<{ id: Tab; label: string; meta: string }> = [
   { id: 'daily', label: "Today's Daily", meta: 'Any of the last 60 days' },
   { id: 'weekly', label: "This week's challenge", meta: 'One fixed wheel all week' },
   { id: 'alltime', label: 'All-time Daily totals', meta: 'Points or best streak' },
   { id: 'chase', label: '38-0 chase', meta: 'Quick Draft: the flawless season' },
+  { id: 'arena', label: 'Daily Arena', meta: 'The Gauntlet or the Cup, played by the assistant' },
+  { id: 'themed', label: 'Weekly Challenge', meta: 'This week’s themed wheel' },
+  { id: 'runin', label: 'Run-in of the week', meta: 'One job, four picks, the assistant to the end' },
 ]
 
 /**
- * The world leaderboard (screen `world`): today's Daily, this week's challenge, all-time Daily totals, a country
- * filter on each. A shell screen: two boxed panels side by side with no page scroll on a desktop (the board scrolls
+ * The world leaderboard (screen `world`): today's Daily, this week's challenge, all-time Daily totals, the 38-0 chase
+ * and the casual boards (the Daily Arena, the Weekly Challenge, the Run-in of the week), a country filter on each. A shell screen: two boxed panels side by side with no page scroll on a desktop (the board scrolls
  * inside its panel under a sticky header, your own row pinned at its foot); stacked on a phone.
  */
 export function WorldBoard() {
@@ -566,11 +734,17 @@ export function WorldBoard() {
   const thisWeek = weekKeyOf(new Date())
   const lastWeek = weekKeyOf(new Date((weekStartOf(thisWeek)?.getTime() ?? Date.now()) - DAY))
   const [week, setWeek] = useState(thisWeek)
+  const [arenaDay, setArenaDay] = useState(today)
+  const [casualWeek, setCasualWeek] = useState(thisWeek)
   useEffect(() => {
     if (configured) void api.startOnline()
   }, [configured])
   const help =
-    tab === 'chase'
+    tab === 'arena'
+      ? 'Ranked by rounds won, then goal difference, then fewer conceded. Every run was replayed by the server from the picks: only a run the assistant played (no live match, no changed training or penalty order) can be replayed, so only those rank. One post per account a day; the picks show once posting closes.'
+      : tab === 'themed' || tab === 'runin'
+        ? `Ranked by points, then fewer defeats and goal difference. Every run was replayed by the server from the picks${tab === 'runin' ? ', then the assistant played the run-in to the end exactly as Sim to end does: a run-in managed by hand plays another season, so it does not rank' : ''}. One post per account a week; picks show once posting closes on the Tuesday after.`
+        : tab === 'chase'
       ? "Ranked by points (as points short of the league's maximum, so a 34-game season stands beside a 38-game one), then goal difference; your best run counts. Quick Draft seeds are your own, so only a wheel the server deals counts here: no grinding seeds offline. The replay is the official result."
       : "Every score here was replayed by the server from the picks, with the game's own engine: the replay is the official result. The seed is public, so a run can be rehearsed; each account posts once per day and per week, and the picks stay hidden until posting closes."
   return (
@@ -630,6 +804,14 @@ export function WorldBoard() {
               {tab === 'alltime' && <Segmented value={order} onChange={setOrder} options={[{ value: 'points', label: 'Total points' }, { value: 'streak', label: 'Best streak' }]} />}
               {tab === 'chase' && <Segmented value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: 'This week', testId: 'chase-scope-week' }, { value: 'alltime', label: 'All time', testId: 'chase-scope-alltime' }]} />}
               {tab === 'chase' && <ChasePlay />}
+              {tab === 'arena' && (
+                <label className="field">
+                  Day
+                  <input className="input" type="date" value={arenaDay} max={today} min={new Date(Date.now() - 60 * DAY).toISOString().slice(0, 10)} onChange={(e) => setArenaDay(e.target.value || today)} aria-label="Day" data-testid="arena-day" />
+                </label>
+              )}
+              {(tab === 'themed' || tab === 'runin') && <Segmented value={casualWeek} onChange={setCasualWeek} options={[{ value: thisWeek, label: 'This week' }, { value: lastWeek, label: 'Last week' }]} />}
+              {tab === 'runin' && casualWeek === thisWeek && <RunInWeekPlay />}
               <p className="help world-help">{help}</p>
             </div>
             {!session && (
@@ -644,6 +826,8 @@ export function WorldBoard() {
           {tab === 'weekly' && <RankedTable kind="weekly" boardKey={week} country={country} title={week === thisWeek ? "This week's challenge" : `Week ${week}`} />}
           {tab === 'alltime' && <AlltimeTable country={country} order={order} />}
           {tab === 'chase' && <ChaseTable scope={chaseScope} country={country} week={thisWeek} />}
+          {tab === 'arena' && <CasualTable board="arena" boardKey={arenaDay} country={country} title={arenaDay === today ? "Today's Daily Arena" : `Daily Arena of ${arenaDay}`} />}
+          {(tab === 'themed' || tab === 'runin') && <CasualTable board={tab} boardKey={casualWeek} country={country} title={`${CASUAL_TITLE[tab]}${casualWeek === thisWeek ? ', this week' : `, ${casualWeek}`}`} />}
         </div>
         </div>
       )}

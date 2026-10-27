@@ -18,7 +18,7 @@ import { OnlineError } from './transport'
 import { checkDisplayName, nameVerdictFrom, sendEmailCode, signInWithGoogle, verifyEmailCode, type AuthResult, type NameVerdict } from './auth'
 import { normaliseCountry } from './core/country'
 import { googleEnabledIn, googleForced } from './core/providers'
-import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchChaseBoard, fetchChaseStatus, fetchChaseSummary, fetchSummary, myEntries, rankOf, type AlltimeOrder, type ChaseScope, type RankedKind } from './boards'
+import { fetchAlltime, fetchAlltimeMine, fetchBoard, fetchCasualBoard, fetchCasualSummary, fetchChaseBoard, fetchChaseStatus, fetchChaseSummary, fetchSummary, myCasualEntries, myEntries, rankOf, type AlltimeOrder, type CasualKind, type ChaseScope, type RankedKind } from './boards'
 import { chaseGameSettings, chaseLeagues, chaseUnrankedReason, type ChaseOptions } from './chase'
 import { updateRecord } from './localState'
 import { captureChaseEntry, enqueue } from './outbox'
@@ -361,4 +361,24 @@ export async function submitChase(game: Game): Promise<{ ok: boolean; message?: 
     await r.flushOutbox()
   }
   return { ok: true }
+}
+
+// ------------------------------------------------------------------ the casual boards
+
+export async function casualBoard(board: CasualKind, key: string, country: string | null, offset = 0) {
+  const r = await rt()
+  return r ? fetchCasualBoard(r.transport, board, key, country, offset) : []
+}
+
+export async function casualSummary(board: CasualKind, key: string, country: string | null) {
+  const r = await rt()
+  return r ? fetchCasualSummary(r.transport, board, key, country) : null
+}
+
+/** The caller's own posts on the casual boards (one board, or all three); empty signed out. */
+export async function casualMine(board: CasualKind | null = null) {
+  const r = await rt()
+  if (!r) return []
+  await r.ready
+  return r.signedIn ? myCasualEntries(r.transport, board) : []
 }

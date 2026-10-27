@@ -23,6 +23,7 @@ import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
+import { CasualStatus } from '../online/CasualStatus'
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
@@ -179,6 +180,7 @@ export function ArenaSummary() {
       </div>
 
       <div className="summary-body fill" data-testid="summary-body">
+        <CasualStatus game={game} />
         {link && (
           <div className="panel" data-testid="arena-challenge-link">
             <div className="panel-head">

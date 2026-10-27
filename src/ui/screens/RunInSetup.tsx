@@ -5,6 +5,7 @@ import { RUN_IN_LEAGUES, runInCatalogue, suggestRunIns, type RunInJob, type RunI
 import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
 import { randomSeed } from '@engine/rng'
+import { runInWeekSeed } from '@game/logic/runinWeekly'
 import { jobLine, RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, RUN_IN_TEMPLATE_LABEL, runInGameSettings, summariseRunIn } from '@game/logic/runin'
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
@@ -14,7 +15,7 @@ const keyOf = (j: RunInJob) => `${j.clubId}@${j.season}`
 
 /** Setup for a run-in: the brief, the league, three jobs drawn by the seed and the whole catalogue. Its own screen, so Setup.tsx stays untouched. */
 export function RunInSetup() {
-  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked } = useStore()
+  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, startRunInWeek, showToast } = useStore()
   const [template, setTemplate] = useState<RunInTemplate>('survival')
   const [leagueId, setLeagueId] = useState<string>('england')
   const [seed, setSeed] = useState(() => randomSeed())
@@ -58,6 +59,11 @@ export function RunInSetup() {
     if (unfinished && !confirm(`Take a new job? Your unfinished run-in (${unfinished.settings.teamName}) will be abandoned.`)) return
     startGame(runInGameSettings(u, job, { seed: seedValue, formationId }))
   }
+  // The Run-in of the week: one job for everyone, ranked on the World leaderboard when the assistant plays it from the draft
+  const playWeek = async () => {
+    if (unfinished && !confirm(`Take this week's run-in? Your unfinished run-in (${unfinished.settings.teamName}) will be abandoned.`)) return
+    if (!(await startRunInWeek(runInWeekSeed()))) showToast("This week's run-in could not load: check the connection and try again.")
+  }
   const row = (j: RunInJob, testid?: string) => (
     <button key={keyOf(j)} type="button" className={`prow ${job && keyOf(j) === keyOf(job) ? 'selected' : ''}`} onClick={() => setPicked(keyOf(j))} data-testid={testid}>
       <ClubBadge clubId={j.clubId} size={30} />
@@ -83,9 +89,14 @@ export function RunInSetup() {
               <Info label="About the run-in">Only leagues with real final tables offer run-ins. The table you take over is projected from the final one, scaled back to matchweek 28. The real squad lines up in your shape; Realistic, and the board can sack you from the first week.</Info>
             </p>
           </div>
-          <button className="btn ghost" onClick={() => go('home')}>
-            ← Back
-          </button>
+          <div className="row">
+            <button className="btn" onClick={() => void playWeek()} data-testid="runin-week" title="One job for everyone this week: draft your four, then Sim to end. The assistant's run ranks on the World leaderboard.">
+              Run-in of the week
+            </button>
+            <button className="btn ghost" onClick={() => go('home')}>
+              ← Back
+            </button>
+          </div>
         </div>
 
         <div className="setup-grid">
