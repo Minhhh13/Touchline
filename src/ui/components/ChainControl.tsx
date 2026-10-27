@@ -65,13 +65,13 @@ export function ChainChip({ u, d, p, show }: { u: LoadedUniverse; d: DraftState;
 export function ChainLogNote({ u, h, prevName, name }: { u: LoadedUniverse; h: DraftState['history'][number]; prevName?: string; name: string }) {
   if (h.chainBroken)
     return (
-      <span className="muted" data-testid="chain-log-broken">
+      <span className="muted log-chain" data-testid="chain-log-broken">
         🔗 chain broken{prevName ? `: no teammate of ${prevName} left` : ''}
       </span>
     )
   if (!h.chainLink || !prevName) return null
   return (
-    <span className="muted" data-testid="chain-log-link">
+    <span className="muted log-chain" data-testid="chain-log-link">
       🔗 {prevName} → {name}, {clubSeasonName(u, h.chainLink)}
     </span>
   )

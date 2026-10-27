@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Medal, Minus, Plus, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
+import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Link, Medal, Minus, Plus, PoundSterling, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
 import { useStore } from '@game/store'
@@ -13,6 +13,7 @@ import { isSharedPuzzle, modeLabel, shareCardFooter } from '@game/logic/modes'
 import { realityLine, storyForGame } from '@game/logic/story'
 import { SeasonStoryPanel } from '../components/SeasonStory'
 import { capLine } from '@game/logic/cap'
+import { casualChips } from '@game/logic/casualChips'
 import { inRecordBooks } from '@game/logic/records'
 import { chainCodes, chainLine } from '@game/logic/chain'
 import { shareText } from '@engine/awards'
@@ -27,7 +28,7 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
-import { runsSummary, versusReal } from '../screenText'
+import { cupWinsLine, runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
@@ -80,6 +81,14 @@ export function Summary() {
   // A challenge link made before a cup was played would leave the cup out: make it again on the next click
   const cupClaim = `${game?.quickResult?.cup?.reached ?? ''}|${game?.quickResult?.continentalCup?.reached ?? ''}`
   useEffect(() => setLink(null), [cupClaim])
+  // When the clipboard refuses the link, the toast says it is below: bring its box into view, the link selected
+  const [linkShown, setLinkShown] = useState(0)
+  useEffect(() => {
+    if (!linkShown) return
+    const el = document.querySelector<HTMLInputElement>('[data-testid="challenge-link-url"]')
+    el?.scrollIntoView({ block: 'center' })
+    el?.focus({ preventScroll: true })
+  }, [linkShown])
   // Every hook runs before the early return below
   const q = game?.quickResult
   const season = game?.season
@@ -242,7 +251,8 @@ export function Summary() {
       await navigator.clipboard.writeText(url)
       showToast(share.code ? `Short link ${share.code} copied. Send it to a friend.` : `Challenge link copied (${url.length} characters). Send it to a friend.`)
     } catch {
-      showToast('Could not copy. The link is below.')
+      showToast('Could not copy. The link is below, selected.')
+      setLinkShown((n) => n + 1)
     }
   }
   const runItBack = () => {
@@ -263,6 +273,7 @@ export function Summary() {
   }
   const makeCard = async () => {
     const codes = chainCodes(u, game)
+    const cupWins = cupWinsLine(honourCups)
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
@@ -275,7 +286,7 @@ export function Summary() {
         getPlayer: get,
         footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
         // The Treble or a Double in gold under the record
-        ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : {}),
+        ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : cupWins ? { honour: cupWins } : {}),
         ...(gradeLine ? { grade: gradeLine } : {}),
         strip: story?.strip,
         moment: story?.moment,
@@ -290,6 +301,8 @@ export function Summary() {
   }
 
   const modeName = modeLabel(game, 'heading')
+  // A meta line too long for one row wraps with its dot first: such a line puts the season and mode on a row of their own
+  const metaChars = game.settings.teamName.length + (game.settings.mode === 'quick' ? (superOn ? leagueName.length + 1 : 0) : seasonLabel(game.settings.leagueSeason).length + modeName.length + 3) + (modeLine ? modeLine.length + 3 : 0)
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
@@ -336,7 +349,7 @@ export function Summary() {
     <div className="page summary" data-testid="summary">
       <div className="tier-banner result-banner">
         {!replay.playing && <ResultArt kind={resultArtKind(tier)} />}
-        <div className="banner-meta">
+        <div className={`banner-meta${metaChars > 42 ? ' long' : ''}`}>
           <span className="bm-team">
             <TeamBadge code={game.settings.shortName} size={22} />
             {game.settings.teamName}
@@ -362,9 +375,9 @@ export function Summary() {
               <span className="vp-sep" aria-hidden="true">·</span>
               <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
             </span>
-            {runsSummary(runs, bests.longestPerfectRun) ? (
+            {runsSummary(runs, bests.longestPerfectRun, chase.perfectRun) ? (
               <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-                {runsSummary(runs, bests.longestPerfectRun)}
+                {runsSummary(runs, bests.longestPerfectRun, chase.perfectRun)}
               </span>
             ) : null}
           </div>
@@ -447,6 +460,11 @@ export function Summary() {
           )}
           {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
           {season?.sacked && <span className="chip bad">Sacked</span>}
+          {casualChips(game).map((c) => (
+            <span key={c.key} className="chip icon-chip" title={c.title} data-testid={`summary-${c.key}`}>
+              {c.key === 'cap' ? <PoundSterling size={12} aria-hidden="true" /> : <Link size={12} aria-hidden="true" />} {c.text}
+            </span>
+          ))}
           {tags.map((t) => (
             <span key={t} className="chip">
               {t}

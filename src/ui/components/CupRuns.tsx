@@ -157,7 +157,7 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
             </span>
             <ClubBadge clubId={t.opponentId} size={22} />
             <span className="gbg-fix">
-              {nameOf(t.opponentId)} <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
+              <span className="gbg-name">{nameOf(t.opponentId)}</span> <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
             </span>
             <span className="gbg-score">
               {t.gf}-{t.ga}

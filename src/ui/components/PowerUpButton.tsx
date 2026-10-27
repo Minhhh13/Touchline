@@ -192,14 +192,21 @@ export function HoverTips({ children, testId = 'hover-tip', ...rest }: { childre
 }
 
 /** One power-up in the draft's tray: its icon, name, state line and an Info tip; dimmed once used. */
-export function PowerUpButton({ icon, title, line, status, used, disabled, onClick, testId }: { icon: ReactNode; title: string; line: string; status: string; used: boolean; disabled: boolean; onClick: () => void; testId: string }) {
+export function PowerUpButton({ icon, title, short, line, status, used, disabled, onClick, testId }: { icon: ReactNode; title: string; /** A shorter name for the tray's narrow button ("Re-roll"); the full one stays for screen readers. */ short?: string; line: string; status: string; used: boolean; disabled: boolean; onClick: () => void; testId: string }) {
   return (
     <div className={`pu-item${used ? ' used' : ''}`} data-testid={testId} data-used={used ? 'yes' : 'no'}>
       <button type="button" className="pu-btn" disabled={disabled || used} onClick={onClick} data-testid={`${testId}-use`}>
         <span className="pu-icon" aria-hidden="true">
           {icon}
         </span>
-        <span className="pu-title">{title}</span>
+        {short ? (
+          <span className="pu-title" title={title}>
+            <span aria-hidden="true">{short}</span>
+            <span className="sr-only">{title}</span>
+          </span>
+        ) : (
+          <span className="pu-title">{title}</span>
+        )}
         <span className="pu-status">{status}</span>
       </button>
       <InfoTip text={line} label={title} testId={`${testId}-info`} />
