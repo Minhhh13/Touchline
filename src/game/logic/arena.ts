@@ -961,8 +961,9 @@ function arenaShareBody(game: Game, u: LoadedUniverse): ArenaShareInput | null {
   const get = playerLookup(game, u)
   const last = a.log[a.log.length - 1]
   const motmId = last?.motmId
-  // A man of the match from the other side is named with his club (he is not one of ours)
-  const motmClub = motmId && !game.squad[motmId] && last ? u.clubById[clubIdOfKey(last.opponent)]?.shortName : undefined
+  // A man of the match from the other side is named with his club (he is not one of ours), as the summary names him:
+  // the club's short name, or the club-season's short name when its league is not loaded
+  const motmClub = motmId && !game.squad[motmId] && last ? (u.clubById[clubIdOfKey(last.opponent)]?.shortName ?? arenaClubShortName(u, last.opponent)) : undefined
   const motmOf = (label?: string) => (motmId ? { motm: get(motmId)?.name ?? motmId, ...(label ? { motmLabel: label } : {}), ...(motmClub ? { motmClub } : {}) } : {})
   const s = game.settings
   // The Daily Arena names its day in the mode line, so it prints no seed line (the day is the seed), as the Daily does
