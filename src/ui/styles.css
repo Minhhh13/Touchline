@@ -15842,6 +15842,20 @@ html {
   background: var(--panel-2);
   padding: 8px 10px;
   min-width: 0;
+  overflow: hidden;
+}
+.group-card table.tbl {
+  /* A fixed-width table even on a phone, where tables scroll sideways: four columns of numbers fit */
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+.group-card table.tbl th:first-child,
+.group-card table.tbl td:first-child {
+  width: 1.8em;
+}
+.group-card table.tbl .num {
+  width: 2.6em;
 }
 .group-card.mine {
   border-color: var(--primary);
@@ -15849,8 +15863,8 @@ html {
 .group-card h4 {
   margin: 0 0 4px;
 }
-.group-card .tbl td,
-.group-card .tbl th {
+.group-card table.tbl td,
+.group-card table.tbl th {
   padding: 3px 4px;
 }
 .group-card tr.through td:first-child {
@@ -15860,7 +15874,11 @@ html {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 14ch;
+  min-width: 0;
+}
+.group-card td .row {
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 .group-fixtures {
   margin: 6px 0 0;

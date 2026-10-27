@@ -323,7 +323,7 @@ export function Summary() {
     ...(story && !replay.playing ? ['story'] : []),
     ...(q?.january || q?.januaryGamble ? ['january'] : []),
     ...(q && quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0 ? ['bench'] : []),
-    ...(q?.europe ? ['europe'] : []),
+    ...(q?.europe || season?.continental?.groups ? ['europe'] : []),
     ...(bench && inBooks ? ['records'] : []),
     'xi',
     'awards',

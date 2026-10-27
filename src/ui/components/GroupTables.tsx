@@ -1,6 +1,14 @@
 import type { ReactNode } from 'react'
 import type { GroupView } from '@game/logic/bracket'
 
+/** A played group match from your side, its result first: "W 3-0", "L 1-2". */
+function ourScore(m: GroupView['matches'][number], userId: string): string {
+  const home = m.home === userId
+  const gf = home ? m.hg! : m.ag!
+  const ga = home ? m.ag! : m.hg!
+  return `${gf > ga ? 'W' : gf < ga ? 'L' : 'D'} ${gf}-${ga}`
+}
+
 /**
  * The Continental Cup's group stage (engine 7): a small table per group, the top two marked through once the group is
  * complete, your group outlined and its fixtures listed under it (`fixtures`; `weeks` names the matchweek each follows
@@ -58,7 +66,7 @@ export function GroupTables({ groups, nameOf, badge, userId, fixtures = true, we
                     <span className="gt-name">
                       {m.home === userId ? 'v' : 'at'} {nameOf(m.home === userId ? m.away : m.home)}
                     </span>
-                    <span>{m.hg !== undefined ? `${m.hg}-${m.ag}` : weeks ? `after MW ${m.matchweek}` : '–'}</span>
+                    <span>{m.hg !== undefined ? ourScore(m, userId) : weeks ? `after MW ${m.matchweek}` : '–'}</span>
                   </li>
                 ))}
               </ol>
