@@ -8271,6 +8271,10 @@ table.tbl.match-stats th {
     overflow-x: auto;
     scrollbar-width: none;
   }
+  /* "Search players" reads "Search" on a phone, so the three views fit without a scroll */
+  .view-switch .view-long {
+    display: none;
+  }
   .explore-bar .segmented button,
   .view-switch button {
     flex: none;
@@ -14176,6 +14180,12 @@ table.tbl.tv-compact .tv-name {
 .honour-meta {
   display: block;
   margin-top: 2px;
+}
+.honour-meta .nowrap {
+  white-space: nowrap;
+}
+.honours > .btn {
+  align-self: flex-start;
 }
 /* Reduced motion for the cup nights: after the rules above, which it must follow to win (equal specificity) */
 @media (prefers-reduced-motion: reduce) {

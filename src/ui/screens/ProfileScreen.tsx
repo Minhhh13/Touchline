@@ -23,7 +23,7 @@ import { countPhrase } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
-import { careerOverview } from '@game/logic/careerOverview'
+import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
 import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
@@ -111,6 +111,12 @@ export function ProfileScreen() {
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
   const career = careerOverview(profile, cabinet)
+  const [achView, setAchView] = useState<AchievementView>('all')
+  const achievements = orderAchievements(ACHIEVEMENTS, profile.achievements, achView)
+  // The honours board shows the latest few; the rest open on a tap
+  const [allHonours, setAllHonours] = useState(false)
+  const honours = cabinet.honours ?? []
+  const HONOURS_SHOWN = 5
   const [filter, setFilterState] = useState<BoardFilter>(readFilter)
   const setFilter = (f: BoardFilter) => {
     setFilterState(f)
@@ -305,23 +311,28 @@ export function ProfileScreen() {
               <h4 className="honours-head">
                 <Crown size={16} aria-hidden="true" /> Honours board
               </h4>
-              {(cabinet.honours ?? []).length === 0 ? (
+              {honours.length === 0 ? (
                 <p className="small muted" style={{ margin: 0 }}>Win the league and a cup in the same season for a Double; add the Continental Cup for the Treble.</p>
               ) : (
                 <ol className="honours-list">
-                  {(cabinet.honours ?? []).map((h) => (
+                  {(allHonours ? honours : honours.slice(0, HONOURS_SHOWN)).map((h) => (
                     <li key={h.id} className={`honour-row ${h.kind}`} data-testid="honour-row" data-kind={h.kind}>
                       <span className={`honour-icon ${h.kind}`}>{h.kind === 'treble' ? <Crown size={18} aria-hidden="true" /> : <Trophy size={16} aria-hidden="true" />}</span>
                       <span className="honour-main">
                         <b>{honourLabel(h.kind, h.cups)}</b> <span className="small muted">{honourDetail(h.cups)}</span>
                         <span className="honour-meta small muted">
                           {h.teamName} · {h.superLeague ? <><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</> : <><LeagueFlag leagueId={h.leagueId} label={u?.available.find((l) => l.id === h.leagueId)?.name} /> {seasonLabel(h.leagueSeason)}</>} · {MODE_TITLE[h.mode] ?? h.mode}
-                          {h.date ? ` · ${h.date}` : ''}
+                          {h.date && <> · <span className="nowrap">{h.date}</span></>}
                         </span>
                       </span>
                     </li>
                   ))}
                 </ol>
+              )}
+              {honours.length > HONOURS_SHOWN && (
+                <button type="button" className="btn sm ghost" data-testid="honours-more" aria-expanded={allHonours} onClick={() => setAllHonours((v) => !v)}>
+                  {allHonours ? 'Show the latest only' : `Show all ${honours.length}`}
+                </button>
               )}
             </div>
           </div>
@@ -382,8 +393,13 @@ export function ProfileScreen() {
                 {unlocked}/{ACHIEVEMENTS.length}
               </span>
             </div>
+            {unlocked > 0 && unlocked < ACHIEVEMENTS.length && (
+              <div style={{ marginBottom: 'var(--space-3)' }} data-testid="achievement-view">
+                <Segmented value={achView} onChange={setAchView} options={[{ value: 'all', label: 'All' }, { value: 'unlocked', label: `Unlocked ${unlocked}` }, { value: 'locked', label: `Locked ${ACHIEVEMENTS.length - unlocked}` }]} />
+              </div>
+            )}
             <div className="achievements">
-              {ACHIEVEMENTS.map((a) => {
+              {achievements.map((a) => {
                 const date = profile.achievements[a.id]
                 return (
                   <div key={a.id} className={`ach ${date ? '' : 'locked'}`}>

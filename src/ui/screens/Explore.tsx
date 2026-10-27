@@ -147,7 +147,7 @@ export function Explore() {
           <ListOrdered size={14} aria-hidden="true" /> Highest rated
         </button>
         <button className={view === 'search' ? 'active' : ''} onClick={() => setView('search')}>
-          <Search size={14} aria-hidden="true" /> Search players
+          <Search size={14} aria-hidden="true" /> Search<span className="view-long"> players</span>
         </button>
       </div>
 

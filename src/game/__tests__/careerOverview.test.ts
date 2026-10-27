@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { careerOverview } from '../logic/careerOverview'
+import { careerOverview, orderAchievements } from '../logic/careerOverview'
 import type { LeaderboardEntry } from '../types'
 
 function entry(id: string, over: Partial<LeaderboardEntry>): LeaderboardEntry {
@@ -32,5 +32,16 @@ describe('the Profile career overview', () => {
     expect(c.titleRate).toBe(29)
     // Arsenal and Chelsea twice each, Chelsea the later; the Super League's host is no real club place
     expect(c.regulars).toEqual([{ clubId: 'chelsea', seasons: 2 }, { clubId: 'arsenal', seasons: 2 }])
+  })
+})
+
+describe('the Profile achievements list', () => {
+  const all = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }]
+  it('puts the unlocked first, newest first, and keeps the catalogue order otherwise', () => {
+    const unlocked = { c: '2026-10-01', d: '2026-10-05', b: '2026-10-01' }
+    expect(orderAchievements(all, unlocked).map((x) => x.id)).toEqual(['d', 'b', 'c', 'a'])
+    expect(orderAchievements(all, unlocked, 'unlocked').map((x) => x.id)).toEqual(['d', 'b', 'c'])
+    expect(orderAchievements(all, unlocked, 'locked').map((x) => x.id)).toEqual(['a'])
+    expect(orderAchievements(all, {}).map((x) => x.id)).toEqual(['a', 'b', 'c', 'd'])
   })
 })

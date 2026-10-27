@@ -63,3 +63,16 @@ export function careerOverview(profile: Pick<Profile, 'leaderboard'>, cabinet: P
     regulars,
   }
 }
+
+export type AchievementView = 'all' | 'unlocked' | 'locked'
+
+/**
+ * The achievements as the Profile lists them: unlocked first (the newest first, then catalogue order), then the
+ * locked in catalogue order; `view` keeps one half.
+ */
+export function orderAchievements<A extends { id: string }>(all: readonly A[], unlocked: Record<string, string>, view: AchievementView = 'all'): A[] {
+  const at = new Map(all.map((a, i) => [a.id, i]))
+  const won = all.filter((a) => unlocked[a.id]).sort((a, b) => unlocked[b.id].localeCompare(unlocked[a.id]) || at.get(a.id)! - at.get(b.id)!)
+  const locked = all.filter((a) => !unlocked[a.id])
+  return view === 'unlocked' ? won : view === 'locked' ? locked : [...won, ...locked]
+}
