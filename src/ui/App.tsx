@@ -10,7 +10,7 @@ import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
-import { clubName, ordinal, outcomeClass, seasonLabel } from './format'
+import { clubName, outcomeClass, seasonLabel } from './format'
 import { developmentLists } from './screenText'
 import { Lockup, Logo } from './components/Logo'
 import { rememberThemePreference, toggledTheme, useResolvedTheme } from './theme'
@@ -26,6 +26,12 @@ export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
 import { DAMAGED_LINK_TOAST, readGameHash } from './gameHash'
 import { onlineAvailable, openRoom, resolveShort } from '../online/api'
 import { newsBody } from '@game/logic/newsFlavour'
+import { translator } from './i18n'
+import { app } from './i18n/en/app'
+import { useLanguage } from './i18n/language'
+import { B, rich } from './i18n/rich'
+
+const t = translator(app)
 
 // Every screen but Home is its own chunk (lazyScreens.tsx), listed in the order a player meets them: the idle prefetch
 // after Home fetches them in this order, the Quick Draft path first
@@ -64,6 +70,8 @@ export function App() {
   // After the first finished game, ask the browser to keep the save through storage pressure (persistStorage.ts)
   usePersistAfterFirstResult(profile)
   const hashHandled = useRef(false)
+  // A language change remounts the screen below (its key), so every string on it is read again
+  const { locale } = useLanguage()
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
   const nav = (s: Parameters<typeof go>[0]) => withViewTransition(() => go(s))
@@ -144,7 +152,7 @@ export function App() {
           void openRoom(h.code)
         } else {
           history.replaceState(null, '', location.pathname + location.search)
-          useStore.getState().showToast('Online rooms need the online version of TouchLine.')
+          useStore.getState().showToast(t('roomsOffline'))
         }
         return
       }
@@ -189,15 +197,15 @@ export function App() {
     return (
       <div className="page">
         <div className="panel">
-          <h2>Could not load the player database</h2>
+          <h2>{t('loadFailed')}</h2>
           <p className="muted">{loadError}</p>
           <div className="row wrap">
             <button className="btn primary" onClick={() => loadData()}>
-              Retry
+              {t('retry')}
             </button>
             {game && (
               <button className="btn" onClick={() => { abandonGame(); void loadData() }}>
-                Discard the saved game and retry
+                {t('discardAndRetry')}
               </button>
             )}
           </div>
@@ -212,7 +220,7 @@ export function App() {
           <div className="skeleton loading-hero">
             <Logo size="lg" />
             <div className="muted small" role="status">
-              Loading the player database…
+              {t('loading')}
             </div>
           </div>
           <div className="loading-cards" aria-hidden="true">
@@ -258,7 +266,7 @@ export function App() {
   return (
     <div className={`app ${shell ? 'shell' : ''} ${barHidden ? 'bar-hidden' : ''}`} ref={watchMainLandmark}>
       <a className="skip-link" href="#main" onClick={skipToMain} data-testid="skip-link">
-        Skip to content
+        {t('skipToContent')}
       </a>
       <header className="topbar" ref={setTopbar} inert={barHidden} aria-hidden={barHidden || undefined}>
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
@@ -268,35 +276,35 @@ export function App() {
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
             <House size={16} />
-            <span className="nav-label">Home</span>
+            <span className="nav-label">{t('navHome')}</span>
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <ClipboardCheck size={16} /> : <ClipboardList size={16} />}
-              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
+              <span className="nav-label">{t(game.phase === 'draft' ? 'navDraft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'navSeason' : game.phase === 'summary' ? 'navSummary' : game.arena ? 'navArena' : 'navDugout')}</span>
             </button>
           )}
           <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
             <Swords size={16} />
-            <span className="nav-label">Head-to-head</span>
+            <span className="nav-label">{t('navH2H')}</span>
           </button>
           <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
             <Search size={16} />
-            <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
+            <span className="nav-label"><span className="nav-long">{t('navExplore')}</span><span className="nav-short">{t('navExploreShort')}</span></span>
           </button>
           {onlineAvailable() && (
             <button className={screen === 'world' ? 'active' : ''} onClick={() => nav('world')} data-testid="nav-world">
               <Globe size={16} />
-              <span className="nav-label">World</span>
+              <span className="nav-label">{t('navWorld')}</span>
             </button>
           )}
           <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
             <Trophy size={16} />
-            <span className="nav-label">Profile</span>
+            <span className="nav-label">{t('navProfile')}</span>
           </button>
           <button className={screen === 'howto' ? 'active' : ''} onClick={() => nav('howto')}>
             <BookOpen size={16} />
-            <span className="nav-label">How it works</span>
+            <span className="nav-label">{t('navHowTo')}</span>
           </button>
         </nav>
         {onlineAvailable() && (
@@ -308,64 +316,54 @@ export function App() {
           type="button"
           className="theme-switch"
           onClick={flipTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          aria-label={t(theme === 'dark' ? 'toLight' : 'toDark')}
+          title={t(theme === 'dark' ? 'lightMode' : 'darkMode')}
           data-testid="theme-switch"
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <button type="button" className="theme-switch topbar-toggle" onClick={flipBar} aria-label="Hide top bar" aria-keyshortcuts={'\\'} title={'Hide top bar (\\)'} data-testid="topbar-toggle" ref={toggleRef}>
+        <button type="button" className="theme-switch topbar-toggle" onClick={flipBar} aria-label={t('hideBar')} aria-keyshortcuts={'\\'} title={t('hideBarKey')} data-testid="topbar-toggle" ref={toggleRef}>
           <ChevronUp size={18} />
         </button>
       </header>
       {barHidden && (
-        <button type="button" className="topbar-restore" onClick={flipBar} aria-label="Show top bar" aria-keyshortcuts={'\\'} title={'Show top bar (\\)'} data-testid="topbar-restore" ref={restoreRef}>
+        <button type="button" className="topbar-restore" onClick={flipBar} aria-label={t('showBar')} aria-keyshortcuts={'\\'} title={t('showBarKey')} data-testid="topbar-restore" ref={restoreRef}>
           <ChevronDown size={16} aria-hidden="true" />
-          <span>Show top bar</span>
+          <span>{t('showBar')}</span>
         </button>
       )}
-      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')} atHome={screen === 'home'}>
+      <ScreenBoundary key={locale} resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')} atHome={screen === 'home'}>
         {body}
       </ScreenBoundary>
       <Toast />
       {barHidden && <SaveBanner floating />}
       <SaveIssue />
-      <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
+      <Modal open={!!offseason} onClose={dismissOffseason} title={t('summerTitle')}>
         {offseason && (
           <div className="col">
             {offseason.retired.length > 0 && (
-              <p>
-                <b>Retired:</b> {offseason.retired.join(', ')}
-              </p>
+              <p>{rich(t('summerRetired', { names: offseason.retired.join(', ') }), B)}</p>
             )}
             {offseason.expired.length > 0 && (
-              <p>
-                <b>Left on expired contracts:</b> {offseason.expired.join(', ')}
-              </p>
+              <p>{rich(t('summerExpired', { names: offseason.expired.join(', ') }), B)}</p>
             )}
             {offseason.returned.length > 0 && (
-              <p>
-                <b>Back to their clubs after loans:</b> {offseason.returned.join(', ')}
-              </p>
+              <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
             )}
             {offseason.improved.length > 0 && (
-              <p>
-                <b>Improved:</b> {offseason.improved.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}
-              </p>
+              <p>{rich(t('summerImproved', { names: offseason.improved.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ') }), B)}</p>
             )}
             {offseason.declined.length > 0 && (
-              <p>
-                <b>Declined:</b> {offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ')}
-              </p>
+              <p>{rich(t('summerDeclined', { names: offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ') }), B)}</p>
             )}
             {game && (game.history.at(-1)?.leagueSeason ?? 0) > game.settings.leagueSeason && (
               <p className="small" data-testid="season-wrap">
-                <b>Back to the start:</b> after the last season on the wheel the league turns over to {seasonLabel(game.settings.leagueSeason)}, with that season's clubs.
+                {rich(t('summerWrap', { season: seasonLabel(game.settings.leagueSeason) }), B)}
               </p>
             )}
-            <p className="muted small">{game && game.bonusSpins > 0 ? `You have ${game.bonusSpins} bonus spin${game.bonusSpins === 1 ? '' : 's'} to rebuild` : 'Your squad is full, so there are no summer spins'}, and the summer market opens in the Dugout after the draft, before the first match. Finish the draft to carry on.</p>
+            <p className="muted small">{t('summerSpins', { n: game ? game.bonusSpins : 0 })}</p>
             <button className="btn primary" onClick={dismissOffseason}>
-              To the draft
+              {t('toTheDraft')}
             </button>
           </div>
         )}
@@ -397,28 +395,28 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
           <span
             key={i}
             className={`chip ${outcomeClass(r.outcome)} ${r.comp !== 'league' ? 'cup' : ''}`}
-            title={`${r.comp === 'league' ? `Matchweek ${r.matchweek}` : `${r.roundLabel ?? 'Cup tie'} after matchweek ${r.matchweek}`}: ${r.home ? 'v' : 'at'} ${clubName(u, r.opponentId)} ${r.gf}-${r.ga}${r.penalties ? ` (${r.penalties.gf}-${r.penalties.ga} on penalties)` : ''}`}
+            title={t(r.comp === 'league' ? 'digestLeagueTip' : 'digestCupTip', { week: r.matchweek, round: r.roundLabel ?? t('digestCupTie'), venue: r.home ? 'home' : 'away', club: clubName(u, r.opponentId), score: `${r.gf}-${r.ga}`, pens: r.penalties ? t('digestPensTip', { score: `${r.penalties.gf}-${r.penalties.ga}` }) : '' })}
           >
             <ClubBadge clubId={r.opponentId} size={18} />
             <b>
               {r.gf}-{r.ga}
             </b>
-            {r.penalties && <span className="small muted">{r.penalties.gf}-{r.penalties.ga} pens</span>}
+            {r.penalties && <span className="small muted">{t('digestPens', { score: `${r.penalties.gf}-${r.penalties.ga}` })}</span>}
             <span className="res-letter">{r.outcome}</span>
-            <span className="small muted">{r.home ? 'H' : 'A'}</span>
-            {r.comp !== 'league' && <span className="small muted">{r.comp === 'cup' ? 'Cup' : 'Eur'}</span>}
+            <span className="small muted">{t(r.home ? 'digestHome' : 'digestAway')}</span>
+            {r.comp !== 'league' && <span className="small muted">{t(r.comp === 'cup' ? 'digestCup' : 'digestEurope')}</span>}
           </span>
         ))}
       </div>
       <div data-testid="digest-table">
         <b>
-          {league.length ? <><span className="res-w">{tally.W}W</span> <span className="res-d">{tally.D}D</span> <span className="res-l">{tally.L}L</span> · </> : ''}
-          {d.fromMatchweek === 0 ? `${ordinal(d.positionTo)} in the table` : move === 'level' ? `Still ${ordinal(d.positionTo)}` : `${ordinal(d.positionFrom)} to ${ordinal(d.positionTo)}`}, {d.points} point{d.points === 1 ? '' : 's'}
+          {league.length ? <><span className="res-w">{t('tallyW', { n: tally.W })}</span> <span className="res-d">{t('tallyD', { n: tally.D })}</span> <span className="res-l">{t('tallyL', { n: tally.L })}</span> · </> : ''}
+          {t('digestPoints', { n: d.points, place: d.fromMatchweek === 0 ? t('digestPlaced', { pos: d.positionTo }) : move === 'level' ? t('digestStill', { pos: d.positionTo }) : t('digestMoved', { from: d.positionFrom, to: d.positionTo }) })}
         </b>
-        <span className="muted"> from {league.length} league match{league.length === 1 ? '' : 'es'}</span>
+        <span className="muted">{t('digestFrom', { n: league.length })}</span>
       </div>
       <div className="digest-conf" data-testid="digest-confidence">
-        <span className="small muted">Board confidence</span>
+        <span className="small muted">{t('boardConfidence')}</span>
         <div className="row" style={{ gap: 8 }}>
           <span className="small" style={{ minWidth: 22, textAlign: 'right' }}>
             {Math.round(d.confidenceFrom)}
@@ -433,27 +431,27 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
         </div>
       </div>
       {d.decisions.length > 0 && (
-        <DigestGroup title="Decided for you" icon={<MessageSquare size={14} />} count={d.decisions.length}>
+        <DigestGroup title={t('decidedForYou')} icon={<MessageSquare size={14} />} count={d.decisions.length}>
           {d.decisions.slice(0, DIGEST_GROUP_CAP).map((x, i) => (
             <li key={i}>
-              <b>{x.title}</b>{x.count ? ` (${x.count} times)` : ''}: {x.choice}
+              <b>{x.title}</b>{x.count ? t('decidedTimes', { n: x.count }) : ''}: {x.choice}
               {x.outcome && <span className="muted"> · {x.outcome}</span>}
             </li>
           ))}
         </DigestGroup>
       )}
-      <NewsGroup title="Injuries" icon={<Bandage size={14} />} items={d.injuries} />
-      <NewsGroup title="Suspensions" icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
-      <NewsGroup title="Transfers" icon={<Banknote size={14} />} items={d.transfers} />
-      <NewsGroup title="Development" icon={<TrendingUp size={14} />} items={d.development} />
-      {quiet && <p className="muted small">Nothing else to report: no injuries, bans, transfers or decisions taken in your name.</p>}
-      {d.truncated && <p className="muted small">The inbox keeps the latest 120 items, so the earliest of these weeks have already dropped off it.</p>}
+      <NewsGroup title={t('injuries')} icon={<Bandage size={14} />} items={d.injuries} />
+      <NewsGroup title={t('suspensions')} icon={<RectangleVertical size={14} className="ic-red-card" />} items={d.suspensions} />
+      <NewsGroup title={t('transfers')} icon={<Banknote size={14} />} items={d.transfers} />
+      <NewsGroup title={t('development')} icon={<TrendingUp size={14} />} items={d.development} />
+      {quiet && <p className="muted small">{t('digestQuiet')}</p>}
+      {d.truncated && <p className="muted small">{t('digestTruncated')}</p>}
       <div className="row between wrap">
         <span className="small muted" data-testid="digest-unread">
-          {unread ? `${unread} unread in the Inbox` : 'Nothing unread in the Inbox'}
+          {t('unread', { n: unread })}
         </span>
         <button className="btn primary" onClick={onClose} data-testid="digest-close">
-          To the dugout
+          {t('toTheDugout')}
         </button>
       </div>
     </div>
@@ -467,7 +465,7 @@ function DigestGroup({ title, icon, count, children }: { title: string; icon: Re
         {icon} {title}
       </div>
       <ul>{children}</ul>
-      {count > DIGEST_GROUP_CAP && <div className="small muted">and {count - DIGEST_GROUP_CAP} more in the Inbox</div>}
+      {count > DIGEST_GROUP_CAP && <div className="small muted">{t('andMore', { n: count - DIGEST_GROUP_CAP })}</div>}
     </div>
   )
 }
@@ -491,13 +489,13 @@ function NewsGroup({ title, icon, items }: { title: string; icon: React.ReactNod
             <b>{n.title}</b>
             {(
               [
-                ['Improving', dev.improving, 'res-w'],
-                ['Fading', dev.fading, 'res-l'],
+                [t('improving'), dev.improving, 'res-w'],
+                [t('fading'), dev.fading, 'res-l'],
               ] as const
             ).map(([label, list, cls]) =>
               list.length ? (
                 <div key={label} className="dev-line small">
-                  <span className={cls}>{label}</span> <span className="muted">{list.slice(0, 5).join(' · ')}{list.length > 5 ? ` · +${list.length - 5} more` : ''}</span>
+                  <span className={cls}>{label}</span> <span className="muted">{list.slice(0, 5).join(' · ')}{list.length > 5 ? t('plusMore', { n: list.length - 5 }) : ''}</span>
                 </div>
               ) : null,
             )}

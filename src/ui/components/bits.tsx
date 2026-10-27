@@ -10,6 +10,10 @@ import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
 import { resultsLabel } from '../a11y'
+import { translator } from '../i18n'
+import { common } from '../i18n/en/common'
+
+const t = translator(common)
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -62,8 +66,8 @@ export function Rating({ value, size, hidden, range, reveal, label }: { value: n
 /** The marker of a classic season's numbers: TouchLine's estimate, not an EA rating. `compact` fits a player row. */
 export function EstimatedChip({ compact }: { compact?: boolean }) {
   return (
-    <span className="chip estimated" data-testid="estimated-chip" title="Estimated ratings: no official ratings exist for this season, so TouchLine estimates them from real appearances, goals and results. Squads and tables are real.">
-      {compact ? 'est.' : 'Estimated ratings'}
+    <span className="chip estimated" data-testid="estimated-chip" title={t('estimatedTip')}>
+      {t(compact ? 'estimatedShort' : 'estimated')}
     </span>
   )
 }
@@ -116,7 +120,7 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId, cla
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
             {onClose && (
-              <button className="btn sm ghost" onClick={onClose} aria-label="Close">
+              <button className="btn sm ghost" onClick={onClose} aria-label={t('close')}>
                 ✕
               </button>
             )}
@@ -179,7 +183,7 @@ export function CountUp({ value }: { value: number }) {
  * clipped by a scrolling list and never widens the page. Keep the text short
  * and plain; no links or buttons inside.
  */
-export function Info({ children, label = 'More information' }: { children: ReactNode; label?: string }) {
+export function Info({ children, label = t('moreInfo') }: { children: ReactNode; label?: string }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ left: number; top: number; below: boolean } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -346,7 +350,7 @@ export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
     <div className="tip" role="note" data-testid={`tip-${id}`}>
       <span className="tip-text">{children}</span>
       <button type="button" className="btn sm" onClick={() => dismiss(id)}>
-        Got it
+        {t('gotIt')}
       </button>
     </div>
   )
