@@ -265,6 +265,16 @@
 * {
   box-sizing: border-box;
 }
+/* Safe areas: the notch and status bar on top, the home indicator below. 0 in a browser tab; non-zero in an installed
+   home-screen web app (index.html: viewport-fit=cover and a black-translucent status bar). Every inset in these sheets reads
+   these four, never a raw env() (src/ui/__tests__/safeArea.test.ts checks), so a preview can emulate a device by overriding
+   them (src/ui/safeArea.ts) */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
 html,
 body,
 #root {
@@ -365,7 +375,7 @@ p {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: 10px var(--gutter);
+  padding: calc(10px + var(--safe-top)) calc(var(--gutter) + var(--safe-right)) 10px calc(var(--gutter) + var(--safe-left));
   border-bottom: var(--border);
   background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(10px);
@@ -811,7 +821,7 @@ p {
     padding: var(--space-3) var(--gutter) 80px;
   }
   .topbar {
-    padding: 8px var(--gutter);
+    padding: calc(8px + var(--safe-top)) calc(var(--gutter) + var(--safe-right)) 8px calc(var(--gutter) + var(--safe-left));
     gap: var(--space-2);
   }
   .topbar .tl-lockup {
@@ -853,7 +863,7 @@ p {
     right: 0;
     bottom: 0;
     z-index: 30;
-    padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
+    padding: 10px calc(var(--gutter) + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(var(--gutter) + var(--safe-left));
     background: var(--panel);
     border-top: var(--border-strong);
     box-shadow: var(--shadow);
@@ -4210,7 +4220,7 @@ table.tbl.contracts .btn.sm {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 22px;
+  bottom: calc(22px + var(--safe-bottom));
   transform: translateX(-50%);
   background: var(--float-bg);
   color: var(--float-text);
@@ -4233,8 +4243,8 @@ table.tbl.contracts .btn.sm {
 }
 .save-banner.floating {
   position: fixed;
-  top: 10px;
-  left: var(--gutter);
+  top: calc(10px + var(--safe-top));
+  left: calc(var(--gutter) + var(--safe-left));
   z-index: 40;
 }
 .save-banner-btn {
@@ -4289,7 +4299,7 @@ table.tbl.contracts .btn.sm {
   display: grid;
   place-items: center;
   z-index: 40;
-  padding: var(--space-4);
+  padding: max(var(--space-4), var(--safe-top)) max(var(--space-4), var(--safe-right)) max(var(--space-4), var(--safe-bottom)) max(var(--space-4), var(--safe-left));
 }
 /* The scrim fades in on its own layer, so the sheet or dialog above it is never see-through while it arrives */
 .modal-back::before {
@@ -4333,7 +4343,7 @@ table.tbl.contracts .btn.sm {
     max-height: 88vh;
     border-bottom: 0;
     border-radius: var(--radius) var(--radius) 0 0;
-    padding: var(--space-3) var(--gutter) calc(var(--space-5) + env(safe-area-inset-bottom));
+    padding: var(--space-3) var(--gutter) calc(var(--space-5) + var(--safe-bottom));
   }
   .modal::before {
     content: '';
@@ -4914,7 +4924,7 @@ dl.kv {
     right: 0;
     bottom: 0;
     z-index: 30;
-    padding: var(--space-2) var(--gutter) calc(10px + env(safe-area-inset-bottom));
+    padding: var(--space-2) calc(var(--gutter) + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(var(--gutter) + var(--safe-left));
     background: var(--panel);
     border-top: var(--border-strong);
     box-shadow: var(--shadow);
@@ -6837,7 +6847,7 @@ dl.kv {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: max(16px, var(--safe-top)) max(16px, var(--safe-right)) max(16px, var(--safe-bottom)) max(16px, var(--safe-left));
 }
 .decision-sheet {
   width: min(900px, 100%);
@@ -6898,11 +6908,11 @@ dl.kv {
 }
 @media (max-width: 720px) {
   .decision-back {
-    padding: 12px;
+    padding: max(12px, var(--safe-top)) max(12px, var(--safe-right)) max(12px, var(--safe-bottom)) max(12px, var(--safe-left));
   }
   .decision-sheet {
     max-height: calc(100vh - 24px);
-    max-height: calc(100dvh - 24px);
+    max-height: calc(100dvh - max(12px, var(--safe-top)) - max(12px, var(--safe-bottom)));
   }
   .decision-head {
     padding: 10px 14px 4px;
@@ -6912,7 +6922,7 @@ dl.kv {
   }
   .decision-actions {
     gap: 6px;
-    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+    padding: 8px 12px 10px;
   }
   .decision-actions .btn {
     flex: 1 1 40%;
@@ -6925,8 +6935,8 @@ dl.kv {
 }
 .decisions-pill {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: calc(16px + var(--safe-right));
+  bottom: calc(16px + var(--safe-bottom));
   z-index: 40;
   box-shadow: var(--shadow);
 }
@@ -6955,7 +6965,7 @@ dl.kv {
 .assistant-note {
   position: fixed;
   left: 50%;
-  bottom: 16px;
+  bottom: calc(16px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 40;
   border-color: var(--primary);
@@ -7085,9 +7095,9 @@ dl.kv {
 /* On a phone the modal is main's bottom sheet (see .modal); the controls stick to its bottom edge */
 @media (max-width: 720px) {
   .modal.sheet .hl-controls {
-    bottom: calc(-1 * (var(--space-5) + env(safe-area-inset-bottom)));
-    margin: 0 calc(-1 * var(--gutter)) calc(-1 * (var(--space-5) + env(safe-area-inset-bottom)));
-    padding: 10px var(--gutter) calc(var(--space-5) + env(safe-area-inset-bottom));
+    bottom: calc(-1 * (var(--space-5) + var(--safe-bottom)));
+    margin: 0 calc(-1 * var(--gutter)) calc(-1 * (var(--space-5) + var(--safe-bottom)));
+    padding: 10px var(--gutter) calc(var(--space-5) + var(--safe-bottom));
   }
   .modal.sheet .pitch-svg.portrait {
     max-height: 50vh;
@@ -8694,6 +8704,22 @@ table.tbl.match-stats th {
 .topbar-toggle svg {
   animation: none;
 }
+.app.bar-hidden {
+  /* With the bar folded away the page itself keeps clear of the status bar, and a strip of the page's colour covers
+     what scrolls under it (0 px tall in a browser tab) */
+  padding-top: var(--safe-top);
+}
+.app.bar-hidden::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 35;
+  height: var(--safe-top);
+  background: var(--bg);
+  pointer-events: none;
+}
 .app.bar-hidden > .topbar {
   position: fixed;
   left: 0;
@@ -8721,8 +8747,8 @@ table.tbl.match-stats th {
 }
 .topbar-restore {
   position: fixed;
-  top: 10px;
-  right: var(--gutter);
+  top: calc(10px + var(--safe-top));
+  right: calc(var(--gutter) + var(--safe-right));
   z-index: 40;
   display: inline-flex;
   align-items: center;
@@ -8756,7 +8782,7 @@ table.tbl.match-stats th {
 }
 @media (max-width: 720px) {
   .topbar-restore {
-    top: 8px;
+    top: calc(8px + var(--safe-top));
     height: 34px;
   }
 }
@@ -11805,11 +11831,11 @@ table.tbl tr.chase-perfect td:first-child {
 /* Whatever scrolls into view (the Advanced fold, a landed squad) stops below the top bar's measured height, one row or
    two (--topbar-h, set by App from a ResizeObserver); the shell itself can never be scrolled by a script (Safari) */
 html {
-  scroll-padding-top: calc(var(--topbar-h, 64px) + var(--space-2));
+  scroll-padding-top: calc(max(var(--topbar-h, 64px), var(--safe-top)) + var(--space-2));
 }
 [data-testid='more-options'],
 .draft-squad {
-  scroll-margin-top: calc(var(--topbar-h, 64px) + var(--space-2));
+  scroll-margin-top: calc(max(var(--topbar-h, 64px), var(--safe-top)) + var(--space-2));
 }
 @media (min-width: 1100px) {
   .app.shell {
@@ -12896,7 +12922,7 @@ table.tbl.hub td.name {
     height: 100dvh;
     max-height: 100dvh;
     border-radius: 0;
-    padding: var(--space-3) var(--gutter) calc(var(--space-5) + env(safe-area-inset-bottom));
+    padding: calc(var(--space-3) + var(--safe-top)) var(--gutter) calc(var(--space-5) + var(--safe-bottom));
   }
   .attr-panel,
   .player-card .attr-panel {
@@ -13294,7 +13320,7 @@ table.tbl.hub td.name {
    window while the eleven takers scroll under it (ShootoutPanel renders it there under 721 px) */
 .shootout-foot {
   position: sticky;
-  bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+  bottom: max(var(--space-2), var(--safe-bottom));
   z-index: 2;
   margin-top: var(--space-3);
 }
@@ -15144,7 +15170,7 @@ details.opposition {
     z-index: 2;
     margin-inline: calc(-1 * var(--panel-pad));
     margin-bottom: calc(-1 * var(--panel-pad));
-    padding: var(--space-2) var(--panel-pad) max(var(--panel-pad), env(safe-area-inset-bottom));
+    padding: var(--space-2) var(--panel-pad) max(var(--panel-pad), var(--safe-bottom));
     background: var(--panel);
     border-top: var(--border);
   }

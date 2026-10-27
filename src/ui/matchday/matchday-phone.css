@@ -216,11 +216,12 @@
   }
   /* The scoreboard is the top bar's last row, just over the pitch, and stays in view while the page scrolls: the
      bar sticks under the app's own sticky bar (`--topbar-h`) with its tool and playback rows tucked under that
-     (`--md-stick`, measured by CompactLayout) */
+     (`--md-stick`, measured by CompactLayout); with the app's bar folded away (`--topbar-h` 0) it stops under the
+     status bar instead (`--safe-top`, which the visible bar's measured height already includes) */
   .matchday.compact.phone .md-topbar {
     grid-template-areas: 'tools' 'play' 'board';
     position: sticky;
-    top: calc(var(--topbar-h, 0px) + var(--md-stick, 0px));
+    top: calc(max(var(--topbar-h, 0px), var(--safe-top)) + var(--md-stick, 0px));
     z-index: 5;
   }
   .matchday .md-tool {
@@ -271,7 +272,7 @@
   }
   .matchday .md-drawer-foot {
     flex-wrap: wrap;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-bottom: max(8px, var(--safe-bottom));
   }
   .matchday .md-drawer-foot .md-chip {
     flex: 1 0 100%;
@@ -282,6 +283,7 @@
     height: 100dvh;
     max-height: 100dvh;
     border-radius: 0;
+    padding-top: var(--safe-top);
   }
   .matchday .md-drawer.board .md-drawer-body {
     flex: 1 1 auto;
@@ -308,6 +310,8 @@
     max-height: 100dvh;
     border-radius: 0;
     border: 0;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
   }
   .matchday .md-stop-board .sub-board {
     --sb-pitch-h: min(46dvh, calc((100vw - 24px) * 80.2 / 68));
