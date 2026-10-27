@@ -1,10 +1,52 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
- * For a button whose store action runs long on the main thread (a whole quick season at kick-off, five simulated
- * matchweeks): `run(fn)` shows the busy state first and calls `fn` only once the browser has painted it, so the tap
- * answers within a frame on a slow phone instead of freezing with no sign it was taken. The action itself is unchanged
- * and runs exactly once; a second tap while busy is ignored. Presentation only.
+ * Paint first, then do the heavy work: a click whose store action runs long on the main thread (a whole quick season
+ * at kick-off, a matchweek with its match day and save, five simulated matchweeks) shows its busy state on the next
+ * frame, and the action runs in a task after that paint, so the tap answers within a frame on a slow phone instead of
+ * freezing with no sign it was taken. The action itself is unchanged and runs exactly once. Presentation only.
+ *
+ * The one implementation: `paintFirst.ts` re-exports it (the Dugout's Play button and the tests import it from there).
+ */
+
+type Raf = (cb: () => void) => unknown
+type Later = (cb: () => void, ms: number) => unknown
+
+const browserRaf = (): Raf | undefined => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : undefined)
+
+/** Run `fn` after the next paint: a frame callback (just before the paint), then a task (just after it). */
+export function afterNextPaint(fn: () => void, raf: Raf | undefined = browserRaf(), later: Later = setTimeout): void {
+  if (!raf) {
+    later(fn, 0)
+    return
+  }
+  raf(() => {
+    later(fn, 0)
+  })
+}
+
+/** How long a run waits for a frame before it goes anyway: a hidden tab paints no frames. */
+export const PAINT_FALLBACK_MS = 150
+
+/**
+ * Run `fn` once, after the next paint, or after `PAINT_FALLBACK_MS` when no frame comes (a hidden tab), whichever is
+ * first; the other one does nothing. Pure scheduling, tested with fake timers in `paintFirst.test.ts`.
+ */
+export function runAfterPaint(fn: () => void, raf: Raf | undefined = browserRaf(), later: Later = setTimeout): void {
+  let done = false
+  const go = () => {
+    if (done) return
+    done = true
+    fn()
+  }
+  afterNextPaint(go, raf, later)
+  later(go, PAINT_FALLBACK_MS)
+}
+
+/**
+ * A busy flag and a runner: `run(fn)` sets the flag, paints, runs `fn` (`runAfterPaint`) and clears the flag. A second
+ * run while one is waiting is dropped, so a double click (or Space held down) plays one matchweek; the flag is not set
+ * on a button that has gone meanwhile.
  */
 export function useAfterPaint(): [boolean, (fn: () => void) => void] {
   const [busy, setBusy] = useState(false)
@@ -20,20 +62,14 @@ export function useAfterPaint(): [boolean, (fn: () => void) => void] {
     if (busyRef.current) return
     busyRef.current = true
     setBusy(true)
-    let done = false
-    const go = () => {
-      if (done) return
-      done = true
+    runAfterPaint(() => {
       try {
         fn()
       } finally {
         busyRef.current = false
         if (alive.current) setBusy(false)
       }
-    }
-    // After the next frame is painted; a hidden tab (no frames) still runs it
-    requestAnimationFrame(() => window.setTimeout(go, 0))
-    window.setTimeout(go, 150)
+    })
   }, [])
   return [busy, run]
 }
