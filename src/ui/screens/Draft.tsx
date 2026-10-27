@@ -598,7 +598,7 @@ export function Draft() {
                 </div>
               )}
               {revealed && fillingStarters && (
-                <Tip id="draft-first-reveal">Tap a player to draft him. The number is his overall rating; a green slot chip is his own position, an amber one a position he can cover for a few points less. Your re-spins last the whole draft.</Tip>
+                <Tip id="draft-first-reveal">Tap a player to draft him. The number is his overall rating (his career best with Prime ratings); a green slot chip is his own position, an amber one a position he can cover for a few points less. Your re-spins last the whole draft.</Tip>
               )}
               {revealed && (
                 <div className="plist lined draft-list">

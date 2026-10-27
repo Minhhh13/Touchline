@@ -357,7 +357,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
             </table>
           </div>
           )}
-          <Tip id="report-first">xG is the chances each side created; the notes are the exact modifiers your instructions produced.</Tip>
+          <Tip id="report-first">xG is the chances each side created; the Notes tab lists the exact modifiers your instructions produced.</Tip>
         </div>
         )}
 

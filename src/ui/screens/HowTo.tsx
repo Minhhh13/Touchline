@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Activity, ArrowLeftRight, Armchair, Banknote, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Landmark, Layers, Lock, MessageSquare, Mountain, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, type LucideIcon } from 'lucide-react'
+import { Activity, ArrowLeftRight, Armchair, Award, Banknote, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Landmark, Layers, Lock, MessageSquare, Mountain, Package, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, Zap, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
@@ -46,14 +46,14 @@ function Facts({ items, tiles }: { items: Array<[LucideIcon, string, string]>; t
 const TWISTS: Twist[] = ['golden', 'basement', 'blind', 'decade']
 
 const SEASON_FACTS: Array<[LucideIcon, string, string]> = [
-  [CalendarDays, 'The calendar', 'Three friendlies, then 38 matchweeks (34 with 18 clubs) and a 16-team cup in midweek.'],
+  [CalendarDays, 'The calendar', 'Up to three friendlies, then 38 matchweeks (34 with 18 clubs, 42 with 22) and a 16-team cup in midweek.'],
   [Globe, 'Continental Cup', 'Optional: a knockout against the 15 strongest clubs from the other leagues.'],
   [Gauge, 'Condition', 'Minutes tire players; tired players play worse and get hurt. Rotate.'],
-  [RectangleVertical, 'Cards and injuries', 'Five yellows is a one-match ban, a red a longer one; injuries last a week to a season.'],
+  [RectangleVertical, 'Cards and injuries', 'Five yellows is a one-match ban, a red two or three; injuries last from a week to about half a season.'],
   [MessageSquare, 'Morale', 'Results, playing time, talks and dressing-room events move it.'],
   [Dumbbell, 'Training', 'A weekly focus and a pre-match team talk, each a small, clear effect.'],
-  [Banknote, 'January window', 'Bids, loans and part-exchange; prices rise under competition and fall on deadline day.'],
-  [ArrowLeftRight, 'Live changes', 'Instructions, takers and subs at any minute from the top bar or the squad strip: five changes in three stoppages, half time free; a shout from the 70th.'],
+  [Banknote, 'January window', 'Bids, loans and part-exchange; prices rise under competition and fall near deadline day.'],
+  [ArrowLeftRight, 'Live changes', 'Instructions, takers and subs at any minute from the top bar or the squad strip: five changes in three windows, half time free (up to three there); a shout at the 70th.'],
   [Users, 'Captain and set pieces', 'A strong leader lifts the side; a good taker adds chances.'],
   [Armchair, 'Backroom staff', 'Hire an assistant, coach, physio and scout at one of two levels, paid from the wage cap.'],
   [Target, 'Man-marking', 'Mark their danger man from the opposition report.'],
@@ -62,13 +62,18 @@ const SEASON_FACTS: Array<[LucideIcon, string, string]> = [
 ]
 
 const MODE_FACTS: Array<[LucideIcon, string, string]> = [
+  [Zap, 'Quick Draft', 'Draft an XI and a one-place bench (up to five), spin three reels for a manager, then watch the season game by game.'],
+  [Banknote, 'Quick January', 'At halfway: sign or swap from a short list, or gamble on a January spin or the Upgrader. A bench gives three changes a season.'],
+  [Package, 'End case', 'After a Quick Draft: a power-up for your locker (common 54%, rare 28%, epic 13%) or an Icon (5%).'],
   [CalendarCheck, 'Daily Challenge', 'The same wheel for everyone each day (UTC), with two re-spins and a streak.'],
-  [CalendarDays, 'Weekly Challenge', 'One themed wheel a week across every league, with its own streak.'],
-  [Layers, 'Super League', 'A Quick Draft option: 38 games against the 19 greatest club-seasons in the data.'],
-  [Trophy, 'Arena: The Cup', 'Draft 16, then a knockout of real club-seasons in one sitting.'],
-  [Mountain, 'Arena: The Gauntlet', 'Draft 14, then climb 15 ever stronger club-seasons until your first defeat.'],
-  [Flag, 'Run-in', 'Take over a real club at matchweek 28 with a brief, four spins and ten games to play.'],
-  [Swords, 'Head-to-head', 'Two managers draft from the same spins and play the same season.'],
+  [CalendarDays, 'Weekly Challenge', 'The same wheel for everyone each week (UTC, from Monday) with a theme, and its own streak.'],
+  [Layers, 'Super League', 'A Quick Draft option: 38 games against the 19 greatest clubs in the data, each at its best season.'],
+  [Trophy, 'Arena: The Cup', 'Draft 16, then a final or a knockout of 8, 16 or 32 real club-seasons in one sitting.'],
+  [Mountain, 'Arena: The Gauntlet', 'Draft 14, then climb 15 ever stronger club-seasons until your first defeat, with bonus spins on the way.'],
+  [CalendarCheck, 'Daily Arena', 'The same arena run for everyone each day: the Gauntlet one day, a 16-club Cup the next.'],
+  [Flag, 'Run-in', 'Take over a real club at matchweek 28 (25 of 34) with a brief and four spins, then play the run-in.'],
+  [Swords, 'Head-to-head', 'Two managers draft in turn from the same spins, on one device or in an online room, then play the same season.'],
+  [Award, 'Trophy Room', 'Every finished result files its titles, cups, Trebles and badges in your cabinet.'],
 ]
 
 const DYNASTY_FACTS: Array<[LucideIcon, string, string]> = [
@@ -114,12 +119,12 @@ export function HowTo() {
             items={[
               [Repeat, 'No dead spins', 'The wheel only stops on squads with someone for a slot you still need.'],
               [Lock, 'Once each', 'A player can be drafted once, whichever season you catch him in.'],
-              [Users, 'Squad size', 'A Quick Draft builds an XI and, if you like, a bench of up to five; a Season builds 16 to 22.'],
+              [Users, 'Squad size', 'A Quick Draft builds an XI and an optional bench (one place by default, up to five); a Season builds 16 to 22.'],
             ]}
           />
         </Section>
 
-        <Section Icon={Shuffle} title="Wheel twists" lead="With twists on, every third spin changes the rules for one pick.">
+        <Section Icon={Shuffle} title="Wheel twists" lead="With twists on (the Quick Draft default), every third spin changes the rules for one pick.">
           <ul className="howto-twists">
             {TWISTS.map((t) => {
               const Icon = TWIST_ICON[t]
@@ -144,7 +149,7 @@ export function HowTo() {
               <Rating key={v} value={v} />
             ))}
           </div>
-          <p className="help">Out of position costs rating: a little for a related role, a lot for a stretch. Values and wages are our own estimates.</p>
+          <p className="help">A Quick Draft uses Prime ratings by default: every player at his career best. Pick Season ratings in Setup to take him as he was that season. Out of position costs rating: a little for a related role, a lot for a stretch. Values and wages are our own estimates.</p>
           {classicFrom !== undefined && u && (
             <p className="help" data-testid="howto-estimated">
               <EstimatedChip compact /> Classic seasons ({seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)}) have no official ratings: TouchLine estimates them from real starts, goals, age, caps and club results. Squads and tables are real. Opt-in in Setup, never in the Daily.
@@ -178,7 +183,7 @@ export function HowTo() {
           <Facts tiles items={MODE_FACTS} />
         </Section>
 
-        <Section wide Icon={Crown} title="Dynasty" lead="Season mode that never ends. A top-four finish earns a Continental Cup place.">
+        <Section wide Icon={Crown} title="Dynasty" lead="Season mode that never ends. A top-four finish, or winning the Continental Cup, earns a place in the next one.">
           <Facts tiles items={DYNASTY_FACTS} />
         </Section>
       </div>
