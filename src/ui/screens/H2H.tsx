@@ -483,8 +483,10 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
               <div className="club-head">
                 <TeamBadge code={m[i].shortName} size={36} />
                 <div style={{ textAlign: 'left' }}>
-                  <h3 style={{ margin: 0 }}>{m[i].name}</h3>
-                  {you === i && <span className="chip info">You</span>}
+                  <h3 style={{ margin: 0 }}>
+                    {m[i].name}
+                    {you === i && <span className="chip info h2h-you">You</span>}
+                  </h3>
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label="Winner" />}
               </div>

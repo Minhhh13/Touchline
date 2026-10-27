@@ -5,7 +5,7 @@ import { perfectTarget, recordLabel } from '@game/logic/perfect'
 import { postKey, useOnline } from '../../online/state'
 import { rankedBoardOf } from '../../online/daily'
 import { chaseCodeOfSeed, chaseUnrankedReason, isChaseGame } from '../../online/chase'
-import { countryFlag } from '../../online/core/country'
+import { countryName } from './countries'
 import * as api from '../../online/api'
 import { ordinal } from '../format'
 import { APP_NAME } from '../brand'
@@ -65,7 +65,7 @@ export function ChaseStatus({ game }: { game: Game }) {
   else if (post.state === 'posted') {
     const flawless = post.perfect ? `${perfectTarget(games)}, flawless! ` : ''
     const week = post.weekPosition ? ` · ${ordinal(post.weekPosition)} of ${(post.weekTotal ?? 0).toLocaleString()} this week` : ''
-    const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} in ${countryFlag(post.country)}` : ''
+    const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} in ${countryName(post.country)}` : ''
     share = `${recordLabel(q?.won ?? 0, q?.drawn ?? 0, q?.lost ?? 0)}: ${ordinal(post.position)} of ${post.total.toLocaleString()} on the 38-0 chase in ${APP_NAME}`
     line = (
       <>

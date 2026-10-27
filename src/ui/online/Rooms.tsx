@@ -285,7 +285,7 @@ export function RoomScreen() {
   else if (view.status === 'finished' && view.result && view.managers[1]) return <RoomResult view={view} seat={ui.seat} />
   else body = <RoomEnded view={view} seat={ui.seat} />
   return (
-    <div className="page" data-testid="room-screen" data-status={view?.status ?? 'none'}>
+    <div className={`page room-page ${view?.status === 'drafting' && !versionNote && !missingLeagues.length ? 'has-turn-pill' : ''}`} data-testid="room-screen" data-status={view?.status ?? 'none'}>
       {head}
       {ui && view && !versionNote && <RoomStatusLine ui={ui} />}
       {body}
@@ -330,7 +330,8 @@ function RoomStatusLine({ ui }: { ui: RoomUi }) {
         </button>
       </div>
     )
-  if (ui.error)
+  // Refused a full room: the watching note says the same where it matters
+  if (ui.error && !(ui.errorCode === 'room_full' && ui.view && ui.view.status !== 'waiting'))
     return (
       <div className="notice warn room-notice" role="alert" data-testid="room-error">
         {ui.error}
@@ -372,23 +373,23 @@ function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
 /** Share the room's link: the share sheet on a phone, the clipboard elsewhere. */
 function ShareRoom({ view, primary }: { view: RoomView; primary?: boolean }) {
   const showToast = useStore((s) => s.showToast)
-  const [done, setDone] = useState(false)
+  const [copied, setCopied] = useState(false)
   const sheet = hasShareSheet()
   const link = roomLink(view.code, location.origin, location.pathname)
   const go = async () => {
     const out = await shareOrCopy({ title: 'TouchLine head-to-head', text: roomInviteText(view.managers[0]?.name ?? null, view.code), url: link })
     if (out === 'failed') showToast('Could not share or copy: select the link and copy it, or read the code out.')
     else if (out !== 'dismissed') {
-      setDone(true)
-      setTimeout(() => setDone(false), 1500)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
     }
   }
   const copy = async () => {
     const out = await copyText(link)
     if (out === 'failed') showToast('Could not copy: select the link and copy it, or read the code out.')
     else {
-      setDone(true)
-      setTimeout(() => setDone(false), 1500)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
     }
   }
   return (
@@ -396,11 +397,11 @@ function ShareRoom({ view, primary }: { view: RoomView; primary?: boolean }) {
       <input className="input mono" readOnly value={link} aria-label="Room link" data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
       {sheet ? (
         <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void go()} data-testid="room-share">
-          {done ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />} {done ? 'Sent' : 'Share invite'}
+          {copied ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />} {copied ? 'Sent' : 'Share invite'}
         </button>
       ) : (
         <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void copy()} data-testid="room-copy">
-          {done ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {done ? 'Copied' : 'Copy link'}
+          {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy link'}
         </button>
       )}
     </div>
@@ -606,6 +607,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
             {mine ? <CircleCheck size={18} aria-hidden="true" /> : <Hourglass size={18} aria-hidden="true" />} {busy && mine ? 'Sending your pick…' : turnLine}
           </div>
           <TurnTimer view={view} mine={mine} name={picking === null ? null : managers[picking].name} watching={seat === null} />
+          <TurnPill view={view} mine={mine} line={busy && mine ? 'Sending your pick…' : turnLine} />
           {seat === null && (
             <div className="notice col" style={{ gap: 'var(--space-2)' }} data-testid="room-watching">
               <span>Two managers are in this room, so you are watching. {signedIn ? 'If one seat is yours, take it back on this device.' : 'Sign in on the account that took a seat to play it here.'}</span>
@@ -732,7 +734,7 @@ function TurnTimer({ view, mine, name, watching }: { view: RoomView; mine: boole
     <div className="col room-clock" style={{ gap: 'var(--space-1)' }} data-testid="room-turn-clock" data-quiet={clock.quiet && !mine ? 'yes' : 'no'}>
       <div className="row between small">
         <span>
-          {mine ? 'Your pick' : `${name}'s pick`} · <span className="mono" data-testid="room-turn-elapsed">{clockText(clock.elapsed)}</span>
+          {mine ? 'Your clock' : `${name}'s clock`} <span className="mono" data-testid="room-turn-elapsed">{clockText(clock.elapsed)}</span>
         </span>
         <span className={late ? 'bad-text' : 'muted'}>
           Times out in <span className="mono">{clockText(clock.left)}</span>
@@ -747,6 +749,19 @@ function TurnTimer({ view, mine, name, watching }: { view: RoomView; mine: boole
           {name} has not picked for {Math.floor(clock.elapsed / 60000)} min: they may have stepped away. Wait, or leave and make a new room; the room times out by itself after {ROOM_IDLE_MINUTES} min.
         </div>
       )}
+    </div>
+  )
+}
+
+/** On a phone the turn scrolls out of sight under the squad list: a pill fixed at the foot keeps whose turn it is and the clock in view. */
+function TurnPill({ view, mine, line }: { view: RoomView; mine: boolean; line: string }) {
+  const now = useNow(1000)
+  const clock = turnClock(view, now)
+  return (
+    <div className={`room-turn-pill ${mine ? 'mine' : ''}`} aria-hidden="true" data-testid="room-turn-pill">
+      {mine ? <CircleCheck size={16} /> : <Hourglass size={16} />}
+      <span className="grow">{line}</span>
+      {clock && <span className="mono">{clockText(clock.elapsed)}</span>}
     </div>
   )
 }

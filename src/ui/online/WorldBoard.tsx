@@ -6,7 +6,6 @@ import { useOnline } from '../../online/state'
 import * as api from '../../online/api'
 import type { AlltimeMine, AlltimeOrder, AlltimeRow, BoardRow, BoardSummary, ChaseRow, ChaseScope, ChaseStatus, ChaseSummary, RankedKind } from '../../online/boards'
 import { PAGE } from '../../online/boards'
-import { countryFlag } from '../../online/core/country'
 import { weekKeyOf, weekStartOf, weeklyIsOpen } from '../../online/weekly'
 import { weeklyStartSettings } from '../../online/daily'
 import { PIN_NOTE, pinStanding, type PinStanding } from '../../online/engineRoute'
@@ -14,7 +13,7 @@ import { CHASE_ATTEMPT_HOURS, CHASE_ATTEMPTS_PER_DAY, CHASE_DEFAULT_OPTIONS, CHA
 import { perfectTarget, recordLabel } from '@game/logic/perfect'
 import { Info, Segmented } from '../components/bits'
 import { ordinal, seasonLabel } from '../format'
-import { CountrySelect } from './AccountPanel'
+import { CountryFlag, CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
 import { onlineErrorText } from '../../online/postText'
 
@@ -46,7 +45,7 @@ function Flag({ code }: { code: string | null }) {
   if (!code) return null
   return (
     <span title={countryName(code)} style={{ marginRight: 4 }}>
-      {countryFlag(code)}
+      <CountryFlag code={code} size={18} />
     </span>
   )
 }
@@ -616,7 +615,7 @@ export function WorldBoard() {
               </div>
               {account?.country && account.country !== country && (
                 <button className="btn sm ghost" onClick={() => setCountry(account.country)}>
-                  {countryFlag(account.country)} My country
+                  <CountryFlag code={account.country} size={16} /> My country
                 </button>
               )}
               {tab === 'daily' && (
