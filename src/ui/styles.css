@@ -1701,13 +1701,25 @@ label.field,
   border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
   box-shadow: inset 3px 0 0 var(--accent);
 }
+/* A man who cannot be picked or brought on now: no opacity, which took his name to 2.6:1 and his rating to 1.4:1 (U20);
+   a dashed edge, no fill, the name in --text-2 and the rating, positions, flag and bars in grey, every text at AA */
 .prow.dim {
-  opacity: 0.55;
   cursor: default;
+  background: transparent;
+  border-style: dashed;
+}
+.prow.dim .name {
+  color: var(--text-2);
+}
+.prow.dim > .rating,
+.prow.dim .pos,
+.prow.dim .flag,
+.prow.dim .state-bars {
+  filter: grayscale(1);
 }
 .prow.dim:hover {
   border-color: var(--line);
-  background: var(--panel-2);
+  background: transparent;
 }
 .prow .name {
   font-weight: 600;
