@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, Repeat, Swords, Trophy, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
+import { Check, CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, RefreshCw, Repeat, RotateCcw, Share2, Swords, Trophy, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { ENGINE_VERSION } from '@engine/version'
 import { getFormation } from '@engine/formations'
 import { fillingXI, isComplete, picksMade, suggestSlot } from '@engine/draft'
 import { h2hComplete, h2hEligibleSlots, h2hUsable, type H2HDraft } from '@engine/h2h'
 import type { H2HManager } from '@game/logic/h2h'
+import type { LoadedUniverse } from '@engine/universe'
 import { draftFromEvents, roomClubs, roomEndLine, roomLeagues, roomLogLine, roomSeasons, roomWheel, ROOM_IDLE_MINUTES, ROOM_KEEP_HOURS, ROOM_WAIT_MINUTES, type RoomSettings, type RoomView } from '@game/logic/h2hRoom'
+import { clockText, pollDelay, roomInviteText, turnClock, waitClock, type RoomUi } from '../../online/rooms'
 import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { useOnline } from '../../online/state'
 import { useTurnSound } from '../sound/useTurnSound'
-import { closeRoom, createRoom, joinRoom, leaveRoom, openRoom, pickInRoom, resumeRoom, roomSeats } from '../../online/api'
+import { closeRoom, createRoom, joinRoom, leaveRoom, openRoom, pickInRoom, refreshRoom, resumeRoom, roomSeats } from '../../online/api'
 import { formatCode, normaliseCode, roomLink } from '../../online/core/codes'
 import { CaseReel, TierChip } from '../components/CaseReel'
 import { Pitch } from '../components/Pitch'
@@ -25,6 +27,7 @@ import { clubName, formationName, ordinal, seasonLabel } from '../format'
 import { H2HResultView } from '../screens/H2H'
 import { roomVersionNote } from '../../online/engineRoute'
 import { askConfirm } from '../confirm'
+import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
 
 /** The four rules of an online room, as pictures with a line each (the hot-seat's, for two devices). */
 const ROOM_STEPS: Array<{ Icon: LucideIcon; title: string; line: string }> = [
@@ -37,14 +40,31 @@ const ROOM_STEPS: Array<{ Icon: LucideIcon; title: string; line: string }> = [
 /** Whole minutes to a deadline, never more than the rule's own limit (this device's clock may run behind the server's). */
 const minutesLeft = (iso: string | null, now: number, cap: number) => (iso ? Math.min(cap, Math.max(0, Math.ceil((Date.parse(iso) - now) / 60000))) : 0)
 
-/** A clock that ticks every 15 seconds, for the "closes in" lines. */
-function useNow(): number {
+/** A clock that ticks every `ms` (15 seconds for the "closes in" lines, a second for a turn's timer). */
+function useNow(ms = 15000): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 15000)
+    const t = setInterval(() => setNow(Date.now()), ms)
     return () => clearInterval(t)
-  }, [])
+  }, [ms])
   return now
+}
+
+/** The rematch this device just made: the new room's code and the manager to send it to (the waiting room's line). */
+let rematchFor: { code: string; opponent: string } | null = null
+
+/** A new room with a finished or ended room's settings and this seat's manager (name, shape, club). */
+async function rematch(u: LoadedUniverse, view: RoomView, seat: 0 | 1, showToast: (t: string) => void): Promise<void> {
+  const me = view.managers[seat]
+  const other = view.managers[seat === 0 ? 1 : 0]
+  if (!me) return
+  const r = await createRoom(view.settings, { name: me.name, formationId: me.formationId, hostClubId: me.hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')
+  if (!r.ok) {
+    showToast(r.message)
+    return
+  }
+  rematchFor = other ? { code: r.code, opponent: other.name } : null
+  showToast(`Rematch room ${formatCode(r.code)} is open: send ${other?.name ?? 'them'} the link`)
 }
 
 /** Head-to-head setup's online half: make a room, or open one by its code. */
@@ -258,22 +278,18 @@ export function RoomScreen() {
   )
   let body: React.ReactNode
   if (!ui) body = <RoomMessage icon={<Wifi size={26} />} title="No room open" line="Make a room or open one with its code from Head-to-head." />
-  else if (ui.missing) body = <RoomMessage icon={<DoorOpen size={26} />} title="No room has that code" line={`Check the code, or ask for a new link: rooms are deleted ${ROOM_KEEP_HOURS} hours after they end.`} testId="room-missing" />
-  else if (!view) body = ui.errorCode === 'network' ? <RoomMessage icon={<WifiOff size={26} />} title="No connection to the room" line="The room opens by itself when this device is back online." testId="room-loading" /> : <RoomMessage icon={<Hourglass size={26} />} title="Opening the room…" line={ui.error ?? 'Reading the room from the server.'} testId="room-loading" />
+  else if (ui.missing) body = <RoomMessage icon={<DoorOpen size={26} />} title="No room has that code" line={`Check the code you typed, or ask the other manager for a new link: rooms are deleted ${ROOM_KEEP_HOURS} hours after they end.`} testId="room-missing" action={<button className="btn primary" onClick={() => go('h2h')}>Make or join a room</button>} />
+  else if (!view) body = ui.errorCode === 'network' || ui.errorCode === 'timeout' ? <RoomMessage icon={<WifiOff size={26} />} title="No connection to the room" line="This device keeps trying and opens the room as soon as it is back online." testId="room-loading" action={<button className="btn primary" onClick={() => void refreshRoom()} data-testid="room-retry"><RefreshCw size={16} aria-hidden="true" /> Try again</button>} /> : <RoomMessage icon={<Hourglass size={26} />} title="Opening the room…" line={ui.error ?? 'Reading the room from the server.'} testId="room-loading" />
   else if (versionNote) body = <RoomMessage icon={<Lock size={26} />} title={versionNote.title} line={versionNote.line} testId="room-version" action={versionNote.older ? <button className="btn primary" onClick={() => go('h2h')}>Make a new room</button> : <button className="btn primary" onClick={() => location.reload()}>Reload</button>} />
   else if (missingLeagues.length) body = <RoomMessage icon={<Hourglass size={26} />} title="Loading league data…" line="The room's wheel needs these leagues on this device." />
   else if (view.status === 'waiting') body = ui.seat === null ? <RoomJoin view={view} /> : <RoomWaiting view={view} />
   else if (view.status === 'drafting') body = <RoomDraft view={view} seat={ui.seat} />
-  else if (view.status === 'finished' && view.result && view.managers[1]) return <RoomResult view={view} />
-  else body = <RoomMessage icon={<DoorOpen size={26} />} title="This room has ended" line={roomEndLine(view.status)} testId="room-ended" action={<button className="btn primary" onClick={() => go('h2h')}>Make a new room</button>} />
+  else if (view.status === 'finished' && view.result && view.managers[1]) return <RoomResult view={view} seat={ui.seat} />
+  else body = <RoomEnded view={view} seat={ui.seat} />
   return (
-    <div className="page" data-testid="room-screen" data-status={view?.status ?? 'none'}>
+    <div className={`page room-page ${view?.status === 'drafting' && !versionNote && !missingLeagues.length ? 'has-turn-pill' : ''}`} data-testid="room-screen" data-status={view?.status ?? 'none'}>
       {head}
-      {ui?.error && view && (
-        <div className="notice warn room-notice" role="alert" data-testid="room-error">
-          {ui.error}
-        </div>
-      )}
+      {ui && view && !versionNote && <RoomStatusLine ui={ui} />}
       {body}
     </div>
   )
@@ -296,6 +312,104 @@ function RoomMessage({ icon, title, line, action, testId }: { icon: React.ReactN
   )
 }
 
+/** The room's connection and the last refusal, each with what to do next: a dropped connection counts down to its next try. */
+function RoomStatusLine({ ui }: { ui: RoomUi }) {
+  const now = useNow(1000)
+  const offline = ui.errorCode === 'network' || ui.errorCode === 'timeout'
+  const synced = ui.syncedAt ?? null
+  // The next try, as the session plans it (a dropped connection backs off to 30 s)
+  const wait = offline ? (pollDelay(ui.view, ui.seat, true, ui.failures ?? 0) ?? 0) : 0
+  const ago = synced !== null ? now - synced : 0
+  if (offline)
+    return (
+      <div className="notice warn room-notice row between wrap" role="status" data-testid="room-offline">
+        <span className="row">
+          <WifiOff size={16} aria-hidden="true" /> {ui.error}
+          {synced !== null && <span className="muted small">Last in touch {clockText(ago)} ago; next try within {Math.ceil(wait / 1000)} s.</span>}
+        </span>
+        <button className="btn sm" onClick={() => void refreshRoom()} data-testid="room-retry">
+          <RefreshCw size={14} aria-hidden="true" /> Try again
+        </button>
+      </div>
+    )
+  // Refused a full room: the watching note says the same where it matters
+  if (ui.error && !(ui.errorCode === 'room_full' && ui.view && ui.view.status !== 'waiting'))
+    return (
+      <div className="notice warn room-notice" role="alert" data-testid="room-error">
+        {ui.error}
+      </div>
+    )
+  return null
+}
+
+/** A room that ended without a result: why, and a way on (the same room again for a manager who held a seat). */
+function RoomEnded({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
+  const { universe: u, go, showToast } = useStore()
+  const [busy, setBusy] = useState(false)
+  if (!u) return null
+  const other = seat === null ? null : view.managers[seat === 0 ? 1 : 0]
+  // A seat still held on this device means this device did not leave: the other manager did
+  const line = view.status === 'left' && other ? `${other.name} left the room, so the draft ended. Make the same room again and send them the link, or start a new one.` : `${roomEndLine(view.status)} ${seat === null ? 'Make a room of your own to play.' : 'Make the same room again and send the link, or start a new one.'}`
+  return (
+    <RoomMessage
+      icon={<DoorOpen size={26} />}
+      title={view.status === 'left' && other ? `${other.name} left` : 'This room has ended'}
+      line={line}
+      testId="room-ended"
+      action={
+        <div className="row wrap" style={{ justifyContent: 'center' }}>
+          {seat !== null && (
+            <button className="btn primary" disabled={busy} onClick={() => { setBusy(true); void rematch(u, view, seat, showToast).finally(() => setBusy(false)) }} data-testid="room-rematch">
+              <RotateCcw size={16} aria-hidden="true" /> {busy ? 'Making the room…' : 'Same room again'}
+            </button>
+          )}
+          <button className={`btn ${seat === null ? 'primary' : ''}`} onClick={() => go('h2h')}>
+            New room
+          </button>
+        </div>
+      }
+    />
+  )
+}
+
+/** Share the room's link: the share sheet on a phone, the clipboard elsewhere. */
+function ShareRoom({ view, primary }: { view: RoomView; primary?: boolean }) {
+  const showToast = useStore((s) => s.showToast)
+  const [copied, setCopied] = useState(false)
+  const sheet = hasShareSheet()
+  const link = roomLink(view.code, location.origin, location.pathname)
+  const go = async () => {
+    const out = await shareOrCopy({ title: 'TouchLine head-to-head', text: roomInviteText(view.managers[0]?.name ?? null, view.code), url: link })
+    if (out === 'failed') showToast('Could not share or copy: select the link and copy it, or read the code out.')
+    else if (out !== 'dismissed') {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+  }
+  const copy = async () => {
+    const out = await copyText(link)
+    if (out === 'failed') showToast('Could not copy: select the link and copy it, or read the code out.')
+    else {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+  }
+  return (
+    <div className="room-share">
+      <input className="input mono" readOnly value={link} aria-label="Room link" data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
+      {sheet ? (
+        <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void go()} data-testid="room-share">
+          {copied ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />} {copied ? 'Sent' : 'Share invite'}
+        </button>
+      ) : (
+        <button className={`btn ${primary ? 'primary' : ''}`} onClick={() => void copy()} data-testid="room-copy">
+          {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy link'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 /** A line naming the room's league season and wheel. */
 function settingsLine(u: NonNullable<ReturnType<typeof useStore.getState>['universe']>, s: RoomSettings): string {
   const league = u.available.find((l) => l.id === s.leagueId)?.name ?? s.leagueId
@@ -304,20 +418,11 @@ function settingsLine(u: NonNullable<ReturnType<typeof useStore.getState>['unive
 
 /** Seat 0, waiting: the code, the link to share and the deadline. */
 function RoomWaiting({ view }: { view: RoomView }) {
-  const { universe: u, showToast } = useStore()
-  const now = useNow()
-  const [copied, setCopied] = useState(false)
+  const { universe: u } = useStore()
+  const now = useNow(1000)
   if (!u) return null
-  const link = roomLink(view.code, location.origin, location.pathname)
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(link)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      showToast('Could not copy. Select the link and copy it.')
-    }
-  }
+  const clock = waitClock(view, now)
+  const again = rematchFor?.code === view.code ? rematchFor.opponent : null
   return (
     <div className="screen-body fill">
       <div className="grid two">
@@ -327,24 +432,27 @@ function RoomWaiting({ view }: { view: RoomView }) {
             {formatCode(view.code)}
           </div>
           <p className="muted small" style={{ margin: 0 }}>
-            Send the link, or read the code out: whoever opens it first takes the other seat.
+            {again ? `Rematch: send ${again} this new link, or read the code out.` : 'Send the link, or read the code out: whoever opens it first takes the other seat.'}
           </p>
-          <div className="room-share">
-            <input className="input mono" readOnly value={link} aria-label="Room link" data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
-            <button className="btn primary" onClick={() => void copy()} data-testid="room-copy">
-              {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy link'}
-            </button>
+          <ShareRoom view={view} primary />
+          <div className="notice icon-notice room-clock" data-testid="room-wait-clock">
+            <Hourglass size={16} aria-hidden="true" />
+            <span>
+              Waiting for the other manager · <span className="mono">{clockText(clock?.elapsed ?? 0)}</span>
+              <span className="muted small"> · closes in {minutesLeft(view.expiresAt, now, ROOM_WAIT_MINUTES)} min if nobody joins</span>
+            </span>
           </div>
-          <div className="notice icon-notice">
-            <Hourglass size={16} aria-hidden="true" /> Waiting for the other manager · closes in {minutesLeft(view.expiresAt, now, ROOM_WAIT_MINUTES)} min
-          </div>
-          <button className="btn ghost danger" onClick={() => void askConfirm('Close this room?', { ok: 'Close it', danger: true }).then((ok) => { if (ok) void leaveRoom() })} data-testid="room-leave">
+          <p className="muted small" style={{ margin: 0 }}>
+            You can leave this screen: the room stays open, and Head-to-head lists it under your rooms on this device.
+          </p>
+          <button className="btn ghost danger" onClick={() => void askConfirm('Close this room? The link stops working.', { ok: 'Close it', danger: true }).then((ok) => { if (ok) void leaveRoom() })} data-testid="room-leave">
             Close the room
           </button>
         </div>
         <div className="panel col">
           <h3 style={{ margin: 0 }}>The room</h3>
           <ManagerCard m={view.managers[0]} you />
+          <ManagerCard m={null} />
           <div className="muted small">{settingsLine(u, view.settings)}</div>
         </div>
       </div>
@@ -413,6 +521,9 @@ function RoomJoin({ view }: { view: RoomView }) {
           <button className="btn primary big block" disabled={busy} onClick={() => void joinRoom({ name: name.trim() || 'Manager 2', formationId, hostClubId }, ENGINE_VERSION, u.generatedAt ?? '')} data-testid="room-join-btn">
             {busy ? 'Joining…' : 'Join and start the draft'}
           </button>
+          <p className="muted small" style={{ margin: 0 }} data-testid="room-join-as">
+            {signedIn ? 'You join under your account: sign in on another device to take this seat there.' : 'You join as a guest, no account needed: your seat is kept on this device.'}
+          </p>
           {signedIn && (
             <button className="btn ghost sm" onClick={() => void resumeRoom()} data-testid="room-resume">
               This is my room: take my seat back on this device
@@ -437,7 +548,6 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
   const { universe: u, showToast } = useStore()
   const busy = useOnline((s) => s.room?.busy ?? false)
   const signedIn = useOnline((s) => !!s.session)
-  const now = useNow()
   const managers = view.managers as [H2HManager, H2HManager]
   const d = useMemo<H2HDraft | null>(() => {
     if (!u) return null
@@ -499,19 +609,23 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
         <div className="panel col">
           <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(currentKey)} />
           <div className={`room-turn ${mine ? 'mine' : ''}`} data-testid="room-turn" aria-live="polite">
-            {mine ? <CircleCheck size={18} aria-hidden="true" /> : <Hourglass size={18} aria-hidden="true" />} {turnLine}
+            {mine ? <CircleCheck size={18} aria-hidden="true" /> : <Hourglass size={18} aria-hidden="true" />} {busy && mine ? 'Sending your pick…' : turnLine}
           </div>
-          <div className="muted small">
-            Times out after {ROOM_IDLE_MINUTES} minutes with no pick · {minutesLeft(view.idleAt, now, ROOM_IDLE_MINUTES)} min left
-          </div>
+          <TurnTimer view={view} mine={mine} name={picking === null ? null : managers[picking].name} watching={seat === null} />
+          <TurnPill view={view} mine={mine} line={busy && mine ? 'Sending your pick…' : turnLine} />
           {seat === null && (
-            <div className="notice">
-              Two managers are in this room: you are watching.
-              {signedIn && (
-                <button className="btn sm" style={{ marginLeft: 8 }} onClick={() => void resumeRoom()}>
-                  Take my seat back
+            <div className="notice col" style={{ gap: 'var(--space-2)' }} data-testid="room-watching">
+              <span>Two managers are in this room, so you are watching. {signedIn ? 'If one seat is yours, take it back on this device.' : 'Sign in on the account that took a seat to play it here.'}</span>
+              <span className="row wrap">
+                {signedIn && (
+                  <button className="btn sm" onClick={() => void resumeRoom()} data-testid="room-resume">
+                    Take my seat back
+                  </button>
+                )}
+                <button className="btn sm ghost" onClick={() => useStore.getState().go('h2h')}>
+                  Make a room of your own
                 </button>
-              )}
+              </span>
             </div>
           )}
           {seat !== null && (
@@ -615,11 +729,57 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
   )
 }
 
-/** The room's season, as the server played it (the hot-seat's result screen). */
-function RoomResult({ view }: { view: RoomView }) {
-  const { universe: u, go } = useStore()
+/** Whose turn and for how long, ticking each second, and the idle deadline; a long quiet turn says the other manager may have gone. */
+function TurnTimer({ view, mine, name, watching }: { view: RoomView; mine: boolean; name: string | null; watching: boolean }) {
+  const now = useNow(1000)
+  const clock = turnClock(view, now)
+  if (!clock || name === null) return null
+  const late = clock.left <= 3 * 60000
+  return (
+    <div className="col room-clock" style={{ gap: 'var(--space-1)' }} data-testid="room-turn-clock" data-quiet={clock.quiet && !mine ? 'yes' : 'no'}>
+      <div className="row between small">
+        <span>
+          {mine ? 'Your clock' : `${name}'s clock`} <span className="mono" data-testid="room-turn-elapsed">{clockText(clock.elapsed)}</span>
+        </span>
+        <span className={late ? 'bad-text' : 'muted'}>
+          Times out in <span className="mono">{clockText(clock.left)}</span>
+        </span>
+      </div>
+      <div className="meter room-meter" aria-hidden="true">
+        <span style={{ transform: `scaleX(${Math.min(1, clock.elapsed / (ROOM_IDLE_MINUTES * 60000))})` }} />
+      </div>
+      {mine && late && <div className="notice warn small">Pick within {Math.max(1, Math.ceil(clock.left / 60000))} min, or the room times out for both of you.</div>}
+      {!mine && !watching && clock.quiet && (
+        <div className="notice small" data-testid="room-quiet">
+          {name} has not picked for {Math.floor(clock.elapsed / 60000)} min: they may have stepped away. Wait, or leave and make a new room; the room times out by itself after {ROOM_IDLE_MINUTES} min.
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** On a phone the turn scrolls out of sight under the squad list: a pill fixed at the foot keeps whose turn it is and the clock in view. */
+function TurnPill({ view, mine, line }: { view: RoomView; mine: boolean; line: string }) {
+  const now = useNow(1000)
+  const clock = turnClock(view, now)
+  return (
+    <div className={`room-turn-pill ${mine ? 'mine' : ''}`} aria-hidden="true" data-testid="room-turn-pill">
+      {mine ? <CircleCheck size={16} /> : <Hourglass size={16} />}
+      <span className="grow">{line}</span>
+      {clock && <span className="mono">{clockText(clock.elapsed)}</span>}
+    </div>
+  )
+}
+
+/** The room's season, as the server played it (the hot-seat's result screen), with a rematch for a manager who held a seat. */
+function RoomResult({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
+  const { universe: u, go, showToast } = useStore()
   const managers = view.managers as [H2HManager, H2HManager]
   const d = useMemo(() => (u ? draftFromEvents(u, view.settings, managers, view.events) : null), [u, view.code, view.version]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!u || !d || !view.result) return null
-  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label="Online head-to-head" rematchLabel="New room" onRematch={() => go('h2h')} onHome={() => go('home')} testId="room-result" />
+  const onRematch = () => {
+    if (seat === null) go('h2h')
+    else void rematch(u, view, seat, showToast)
+  }
+  return <H2HResultView managers={managers} result={view.result} drafts={d.drafts} leagueId={view.settings.leagueId} leagueSeason={view.settings.leagueSeason} seed={view.seed ?? view.code} label="Online head-to-head" rematchLabel={seat === null ? 'New room' : 'Rematch'} onRematch={onRematch} onHome={() => go('home')} you={seat ?? undefined} testId="room-result" />
 }

@@ -96,6 +96,7 @@ export class Runtime {
       // A finished room leaves one mark on this device's Trophy Room online shelf (apart from the hot-seat's)
       onFinished: (room, seat) => useStore.getState().creditH2HRoom(room.result?.winner === seat),
       signedIn: () => this.signedIn,
+      engine: ENGINE_VERSION,
     })
     report({ configured: true, started: true })
     this.sb.auth.onAuthStateChange((_event, session) => {
@@ -168,10 +169,14 @@ export class Runtime {
       if (s.profile !== prev.profile || s.shortlist !== prev.shortlist) this.schedule(10000)
     })
     window.addEventListener('online', () => {
+      this.rooms.connectionChanged(true)
       void this.syncNow()
       void this.flushOutbox()
       if (this.session && !onlineStore.getState().accountLoaded) void this.loadAccount()
     })
+    window.addEventListener('offline', () => this.rooms.connectionChanged(false))
+    // Back from the back-forward cache (iOS Safari restores a put-away tab this way): read the room again at once
+    window.addEventListener('pageshow', (e) => e.persisted && this.rooms.visibilityChanged())
     window.addEventListener('offline', () => report({ syncStatus: 'offline', syncMessage: 'Offline: your games sync when the connection is back.' }))
     document.addEventListener('visibilitychange', () => {
       this.rooms.visibilityChanged()

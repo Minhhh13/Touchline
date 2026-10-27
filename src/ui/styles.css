@@ -8305,6 +8305,10 @@ dl.kv {
   color: var(--gold-text);
   flex: none;
 }
+.h2h-you {
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
 /* The winner's trophy sits in the card's corner, so both managers' names get the same room and the cards line up */
 .h2h-side {
   position: relative;
@@ -8370,9 +8374,86 @@ dl.kv {
 .room-notice {
   margin-bottom: var(--space-3);
 }
+.room-notice > .row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+/* The turn's and the waiting room's clocks: the figures in tabular digits, a thin bar of the idle limit used */
+.room-clock .mono {
+  font-variant-numeric: tabular-nums;
+}
+.room-clock > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-1);
+}
+.room-meter {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+/* The phone's turn pill (Rooms.tsx TurnPill): hidden on wider screens, where the turn stays in view */
+.room-turn-pill {
+  display: none;
+}
+.room-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+}
+.room-clock[data-quiet='yes'] .room-meter > span {
+  background: var(--meter-mid);
+}
 @media (max-width: 520px) {
   .room-share {
     flex-direction: column;
+  }
+  .room-notice.row {
+    gap: var(--space-2);
+  }
+  .room-notice .btn {
+    width: 100%;
+  }
+}
+@media (max-width: 720px) {
+  .page.has-turn-pill {
+    padding-bottom: calc(72px + var(--safe-bottom));
+  }
+  .room-turn-pill {
+    position: fixed;
+    left: calc(var(--gutter) + var(--safe-left));
+    right: calc(var(--gutter) + var(--safe-right));
+    bottom: calc(12px + var(--safe-bottom));
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    min-height: 44px;
+    border-radius: var(--radius-pill);
+    border: var(--border-strong);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    font-weight: 700;
+  }
+  .room-turn-pill.mine {
+    border-color: var(--primary);
+    /* Opaque: the squad list scrolls under it */
+    background: color-mix(in srgb, var(--primary) 14%, var(--panel));
+  }
+  .room-turn-pill .grow {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .room-turn-pill .mono {
+    font-variant-numeric: tabular-nums;
   }
 }
 /* Explore */
@@ -11244,6 +11325,27 @@ table.tbl.match-stats th {
     display: none;
   }
 }
+/* A phone: the four boards as a two-column grid of names (their lines and the long help go to the head's tip), so the
+   board itself starts within the first screen */
+@media (max-width: 720px) {
+  .world-boards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .world-board-pick {
+    min-height: 44px;
+    justify-content: center;
+  }
+  .world-board-pick span {
+    display: none;
+  }
+  .world-grid .world-help {
+    display: none;
+  }
+  .world-grid .world-help-tip {
+    display: inline-flex;
+  }
+}
 @media (max-width: 1099px) {
   .grid.world-grid,
   .grid.account-grid {
@@ -11261,6 +11363,65 @@ table.tbl.sticky-head thead th {
   background: var(--panel);
 }
 
+/* A country with no drawn flag (public/flags holds the packs' nations only): its code in a flag-sized box */
+.flag-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  background: var(--panel-2);
+  color: var(--text-2);
+  font-size: 8px; /* px: the letters fit the 4:3 box the flag would fill */
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+/* The profile's Save stays in view at the foot of its box while the flag list scrolls above it */
+.account-save-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: var(--space-2) 0;
+  background: var(--panel);
+}
+/* The soft sign-in line at the start of a Season or a Dynasty (SignInPrompt.tsx): icon, words, two buttons; on a phone
+   the buttons take a row of their own, each a full target */
+.signin-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.signin-prompt-icon {
+  flex: none;
+  color: var(--accent);
+}
+.signin-prompt-text {
+  flex: 1;
+  min-width: 0;
+}
+.signin-prompt-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+}
+@media (max-width: 720px) {
+  .signin-prompt {
+    flex-wrap: wrap;
+  }
+  .signin-prompt-text {
+    flex-basis: calc(100% - 30px);
+  }
+  .signin-prompt-actions {
+    flex-basis: 100%;
+  }
+  .signin-prompt-actions .btn {
+    flex: 1;
+  }
+}
 /* World leaderboard: the board picker in the side panel */
 .world-boards {
   display: flex;

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CloudUpload } from 'lucide-react'
 import { useStore } from '@game/store'
 import { useOnline } from '../../online/state'
 import { dismissPrompt, promptDismissed } from '../../online/localState'
@@ -14,10 +15,11 @@ export function SignInPrompt({ id, text }: { id: string; text: string }) {
   const [hidden, setHidden] = useState(() => promptDismissed(id))
   if (!configured || session || hidden) return null
   return (
-    <div className="notice row between wrap" style={{ marginBottom: 12 }} data-testid={`signin-prompt-${id}`}>
-      <span>{text}</span>
-      <span className="row">
-        <button className="btn sm primary" onClick={() => go('account')}>
+    <div className="notice signin-prompt" role="note" data-testid={`signin-prompt-${id}`}>
+      <CloudUpload size={18} aria-hidden="true" className="signin-prompt-icon" />
+      <span className="signin-prompt-text">{text}</span>
+      <span className="signin-prompt-actions">
+        <button className="btn sm primary" onClick={() => go('account')} data-testid={`signin-prompt-${id}-go`}>
           Sign in
         </button>
         <button
@@ -26,6 +28,7 @@ export function SignInPrompt({ id, text }: { id: string; text: string }) {
             dismissPrompt(id)
             setHidden(true)
           }}
+          data-testid={`signin-prompt-${id}-dismiss`}
         >
           Not now
         </button>

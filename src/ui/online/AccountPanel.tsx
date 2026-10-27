@@ -6,7 +6,6 @@ import * as api from '../../online/api'
 import { maskEmail, type NameVerdict } from '../../online/auth'
 import { restorable } from '../../online/sync'
 import type { CloudRow } from '../../online/transport'
-import { countryFlag } from '../../online/core/country'
 import { savedLine } from '../../online/core/status'
 import { AUTH_MODES, authCopy, authOutcomeNote, type AuthMode } from '../../online/core/authCopy'
 import { ClubBadge, Segmented } from '../components/bits'
@@ -39,11 +38,17 @@ export function CountrySelect({ value, onChange, emptyLabel = 'No flag', testId 
   )
 }
 
-/** A country's drawn flag (public/flags) where there is one, its emoji otherwise. */
+/** A country's drawn flag (public/flags) where there is one; otherwise its two letters in a flag-sized box, never an
+ * emoji (Windows shows an emoji flag as two bare letters, and public/flags holds only the packs' nations). */
 export function CountryFlag({ code, size = 20 }: { code: string; size?: number }) {
   const [drawn, setDrawn] = useState(true)
-  if (!drawn) return <span aria-hidden="true">{countryFlag(code)}</span>
   const height = Math.round((size * 3) / 4)
+  if (!drawn)
+    return (
+      <span className="flag-code" aria-hidden="true" style={{ width: size, height }}>
+        {code.toUpperCase()}
+      </span>
+    )
   return <img className="flag" src={`${import.meta.env.BASE_URL}flags/${code.toLowerCase()}.svg`} alt="" aria-hidden="true" width={size} height={height} loading="lazy" onError={() => setDrawn(false)} style={{ width: size, height, objectFit: 'cover', borderRadius: 2, boxShadow: '0 0 0 1px rgba(128, 128, 128, 0.45)', verticalAlign: 'middle' }} />
 }
 
@@ -52,8 +57,10 @@ function FlagPicker({ value, onChange }: { value: string | null; onChange: (c: s
   const [q, setQ] = useState('')
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase()
-    return COUNTRY_OPTIONS.filter((c) => !t || countryName(c.code).toLowerCase().includes(t) || c.code.toLowerCase() === t)
-  }, [q])
+    const all = COUNTRY_OPTIONS.filter((c) => !t || countryName(c.code).toLowerCase().includes(t) || c.code.toLowerCase() === t)
+    // The chosen country heads the list, so it is in view without scrolling to it
+    return t || !value ? all : [...all.filter((c) => c.code === value), ...all.filter((c) => c.code !== value)]
+  }, [q, value])
   return (
     <div className="field" data-testid="account-country">
       <span>
@@ -327,7 +334,7 @@ function ProfileForm({ setup }: { setup: boolean }) {
       </span>
       <FlagPicker value={country} onChange={setCountry} />
       <ClubPicker />
-      <div className="row wrap">
+      <div className="row wrap account-save-row">
         <button className="btn primary" disabled={saving || blocked || !name.trim()} onClick={() => void save()} data-testid="account-save">
           {saving ? 'Saving…' : setup ? 'Continue' : 'Save'}
         </button>

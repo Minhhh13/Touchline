@@ -2,7 +2,7 @@ import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import { postKey, useOnline } from '../../online/state'
 import { rankedBoardOf, unrankedReason } from '../../online/daily'
-import { countryFlag } from '../../online/core/country'
+import { countryName } from './countries'
 import { ordinal } from '../format'
 import { APP_NAME } from '../brand'
 import { sentence } from '../../online/postText'
@@ -36,7 +36,7 @@ export function RankedStatus({ game }: { game: Game }) {
   else if (post.state === 'waiting' && post.reason === 'retry') line = <>Waiting to post {post.points ?? points} pts: the server did not answer, so this device tries again shortly.</>
   else if (post.state === 'waiting') line = <>Posting to the world leaderboard…</>
   else if (post.state === 'posted') {
-    const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} of ${post.countryTotal ?? 0} in ${countryFlag(post.country)}` : ''
+    const country = post.country && post.countryPosition ? ` · ${ordinal(post.countryPosition)} of ${post.countryTotal ?? 0} in ${countryName(post.country)}` : ''
     share = `${ordinal(post.position)} of ${post.total.toLocaleString()} on ${where} in ${APP_NAME}`
     line = post.already ? (
       <>

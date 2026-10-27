@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
+import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Share2, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useFocusOnLanding } from '../a11y'
 import { useStore, type H2HGame } from '@game/store'
 import { useTurnSound } from '../sound/useTurnSound'
@@ -29,6 +29,7 @@ import { ratingHidden } from '@game/logic/ratingVisibility'
 import { onlineAvailable } from '../../online/api'
 import { RoomSetup } from '../online/Rooms'
 import { askConfirm } from '../confirm'
+import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
 
 /** The head-to-head a Rematch came from: the setup opens with its managers, clubs, league and rules (on a new wheel). */
 let rematchOf: H2HGame | null = null
@@ -431,11 +432,13 @@ export interface H2HResultViewProps {
   /** The banner's mode line: "Head-to-head" (hot-seat) or "Online head-to-head". */
   label?: string
   rematchLabel?: string
+  /** An online room: this device's seat (its card first, a "You" chip, the banner from its side). */
+  you?: 0 | 1
   testId?: string
 }
 
 /** A head-to-head's result, hot-seat or online: the banner with both sides, the derbies, the XIs and the table. */
-export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label = 'Head-to-head', rematchLabel = 'Rematch', testId }: H2HResultViewProps) {
+export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label = 'Head-to-head', rematchLabel = 'Rematch', you, testId }: H2HResultViewProps) {
   const { universe: u, showToast } = useStore()
   const [copied, setCopied] = useState(false)
   if (!u) return null
@@ -446,20 +449,22 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
     r.winner === null ? 'Dead heat.' : `${m[r.winner].name} wins.`,
     `Seed ${seed}`,
   ].join('\n')
+  const sheet = hasShareSheet()
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text)
+    // The share sheet on a phone (Messages, WhatsApp...), the clipboard elsewhere
+    const out = sheet ? await shareOrCopy({ title: `${APP_NAME} ${label}`, text, url: location.origin + location.pathname }) : await copyText(text)
+    if (out === 'failed') showToast('Could not share or copy the result: try again, or take a screenshot.')
+    else if (out !== 'dismissed') {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-    } catch {
-      showToast('Could not copy. Select the text manually.')
     }
   }
+  const order: Array<0 | 1> = you === 1 ? [1, 0] : [0, 1]
   const card = async (i: 0 | 1) => {
     try {
       const url = await renderShareCard({
         title: m[i].name,
-        subtitle: `Head-to-head v ${m[i === 0 ? 1 : 0].name} · ${u.leagues.find((l) => l.id === leagueId)?.name ?? ''} ${seasonLabel(leagueSeason)}`,
+        subtitle: `${label} v ${m[i === 0 ? 1 : 0].name} · ${u.leagues.find((l) => l.id === leagueId)?.name ?? ''} ${seasonLabel(leagueSeason)}`,
         tier: r.tiers[i],
         row: r.rows[i],
         position: r.positions[i],
@@ -471,7 +476,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
       })
       downloadDataUrl(url, `touchline-h2h-${m[i].name.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not make the share card. Try again.')
+      showToast('Could not make the share card: try again, or copy the result instead.')
     }
   }
   return (
@@ -485,14 +490,17 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
             <LeagueFlag leagueId={leagueId} label={u.leagues.find((l) => l.id === leagueId)?.name} /> {seasonLabel(leagueSeason)}
           </span>
         </div>
-        <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`}>{r.winner === null ? 'Dead heat' : `${m[r.winner].name} wins`}</div>
+        <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`} data-testid="h2h-verdict">{r.winner === null ? 'Dead heat' : you === undefined ? `${m[r.winner].name} wins` : r.winner === you ? 'You win' : `${m[r.winner].name} wins`}</div>
         <div className="h2h-sides">
           {([0, 1] as const).map((i) => (
             <div key={i} className={`h2h-side ${r.winner === i ? 'won' : ''}`}>
               <div className="club-head">
                 <TeamBadge code={m[i].shortName} size={36} />
                 <div style={{ textAlign: 'left' }}>
-                  <h3 style={{ margin: 0 }}>{m[i].name}</h3>
+                  <h3 style={{ margin: 0 }}>
+                    {m[i].name}
+                    {you === i && <span className="chip info h2h-you">You</span>}
+                  </h3>
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label="Winner" />}
               </div>
@@ -512,11 +520,11 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
         </div>
         <div className="banner-actions">
           <button className="btn primary" onClick={copy}>
-            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy result'}
+            {copied ? <Check size={16} aria-hidden="true" /> : sheet ? <Share2 size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? (sheet ? 'Shared' : 'Copied') : sheet ? 'Share result' : 'Copy result'}
           </button>
-          {([0, 1] as const).map((i) => (
-            <button key={i} className="btn" onClick={() => void card(i)}>
-              <ImageDown size={16} aria-hidden="true" /> Card · {m[i].shortName}
+          {order.map((i) => (
+            <button key={i} className="btn" onClick={() => void card(i)} data-testid={`h2h-card-${i}`}>
+              <ImageDown size={16} aria-hidden="true" /> {you === i ? 'Your card' : `Card · ${m[i].shortName}`}
             </button>
           ))}
           <button className="btn" onClick={onRematch} data-testid="h2h-rematch">
