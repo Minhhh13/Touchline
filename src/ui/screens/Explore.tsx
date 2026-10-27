@@ -158,7 +158,7 @@ export function Explore() {
               </p>
             )}
             <div className="tbl-wrap">
-            <table className="tbl">
+            <table className="tbl explore-table">
               <thead>
                 <tr>
                   <th>#</th>
@@ -178,7 +178,7 @@ export function Explore() {
                       <td>{cs.position || '–'}</td>
                       <td>
                         <span className="row" style={{ gap: 8 }}>
-                          <ClubBadge clubId={cs.clubId} size={22} /> {clubName(u, cs.clubId)}
+                          <ClubBadge clubId={cs.clubId} size={22} /> <span className="club-nm">{clubName(u, cs.clubId)}</span>
                           {cs.champions && <Trophy size={14} className="gold-ic" role="img" aria-label="Champions" />}
                         </span>
                       </td>

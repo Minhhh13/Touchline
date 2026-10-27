@@ -11930,6 +11930,44 @@ table.tbl.contracts-overview .link-btn.name {
     min-height: 32px;
   }
 }
+/* Explore's league table on a phone: the club column takes the room the numbers leave and its name ends in an
+   ellipsis, so Pts, Best and XI avg stay in view (at 320 px the table was 384 px wide and Pts scrolled out of its box) */
+@media (max-width: 520px) {
+  .explore-table td:nth-child(2) {
+    width: 100%;
+    max-width: 0;
+  }
+  .explore-table td:nth-child(2) > .row {
+    min-width: 0;
+  }
+  .explore-table .club-nm {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .explore-table td:nth-child(2) .badge {
+    flex: none;
+  }
+}
+/* ...and under 400 px the squad's best rating (the squad box beside it lists him) gives its column to the names */
+@media (max-width: 400px) {
+  .explore-table th:nth-child(4),
+  .explore-table td:nth-child(4) {
+    display: none;
+  }
+  .explore-table th,
+  .explore-table td {
+    padding-inline: 5px;
+  }
+}
+/* Short lines that wrap on a phone balance their two lines rather than leave one word alone ("Perfect run over in
+   game / 1", "Title sealed at MW 37 with 1 to / play") */
+.chase > b,
+.chase > span,
+.tier-blurb {
+  text-wrap: balance;
+}
 /* A 320 px phone: the opponent's table place gives its room to his name (it shrank to "B." beside "16th"); the place
    stays in the row's tooltip and on the Table tab */
 @media (max-width: 359px) {
