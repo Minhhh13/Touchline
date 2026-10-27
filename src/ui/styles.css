@@ -11906,6 +11906,30 @@ table.tbl.contracts-overview .link-btn.name {
     min-width: 44px;
   }
 }
+/* A phone on its side keeps the portrait phone's targets where the accessibility pass's phone block (layout rules
+   too) does not reach it: the fold heads at 44 px, the "i" buttons at 32 px, the match day's tools and pickers at 32 px */
+@media (max-height: 500px) and (pointer: coarse) {
+  .fold-head {
+    position: relative;
+    min-height: 44px;
+  }
+  .qinfo-btn {
+    position: relative;
+  }
+  .qinfo-btn::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+  .info-btn::after {
+    inset: -13px;
+  }
+  .matchday .md-tool,
+  .matchday .md-ment .md-select,
+  .matchday select.md-highlights {
+    min-height: 32px;
+  }
+}
 /* A 320 px phone: the opponent's table place gives its room to his name (it shrank to "B." beside "16th"); the place
    stays in the row's tooltip and on the Table tab */
 @media (max-width: 359px) {
@@ -13250,6 +13274,14 @@ table.tbl.hub td.name {
   container-type: normal;
   /* A formation picture has no names under its discs: its keeper keeps his exact spot */
   --foot-room: 0px;
+}
+/* Below the desktop shell a pitch took its column's whole width: about 1000 x 1330 px on an iPad Pro held upright and
+   700 px tall in a phone on its side. It stops at 520 px wide and at three quarters of the window's height, centred */
+@media (max-width: 1099.98px) {
+  .pitch-wrap:not(.pitch-mini .pitch-wrap) {
+    max-width: min(100%, 520px, calc((100dvh - 40px) * 0.75));
+    margin-inline: auto;
+  }
 }
 @container (max-width: 300px) {
   .pitch-wrap .slot .disc {
