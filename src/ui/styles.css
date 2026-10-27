@@ -7688,6 +7688,20 @@ dl.kv {
 .segmented.scroll button {
   flex: none;
 }
+/* The window's listings on a phone: the first eight until "Show all" (PHONE_LISTINGS in Dugout.tsx); a desktop's box
+   scrolls them all, so the button is a phone's only */
+.listings-more {
+  display: none;
+}
+@media (max-width: 720px) {
+  .listings.capped > .listing:nth-child(n + 9) {
+    display: none;
+  }
+  .listings-more {
+    display: block;
+    margin-top: var(--space-2);
+  }
+}
 .listings {
   max-height: 640px;
   overflow: auto;

@@ -1201,6 +1201,9 @@ function CupTab({ comp }: { comp: Competition }) {
   )
 }
 
+/** Listings a phone shows before "Show all" (styles.css hides the rest under 720 px; a desktop's box scrolls them all). */
+export const PHONE_LISTINGS = 8
+
 function MarketTab({ boxes }: { boxes: Boxes }) {
   const store = useStore()
   const { universe: u, game } = store
@@ -1209,7 +1212,13 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
   const [statuses, setStatuses] = useState<Record<string, SquadStatus>>({})
   const [exchange, setExchange] = useState<Record<string, string>>({})
   const [sellOn, setSellOn] = useState<Record<string, number>>({})
-  const [filter, setFilter] = useState<'all' | Position>('all')
+  const [filter, setFilterState] = useState<'all' | Position>('all')
+  // On a phone the window lists its first few men until "Show all" (40 stacked listings ran to 18,000 px in January)
+  const [allListed, setAllListed] = useState(false)
+  const setFilter = (f: 'all' | Position) => {
+    setFilterState(f)
+    setAllListed(false)
+  }
   const [msg, setMsg] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [scoutId, setScoutId] = useState<string | null>(null)
@@ -1364,7 +1373,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
             </button>
           ))}
         </div>
-        <div className="col listings" style={{ gap: 'var(--space-2)' }}>
+        <div className={`col listings ${!allListed && listings.length > PHONE_LISTINGS ? 'capped' : ''}`} style={{ gap: 'var(--space-2)' }} data-testid="listings">
           {listings.map((l) => {
             const p = get(l.playerSeasonId)
             if (!p) return null
@@ -1460,6 +1469,11 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
           })}
           {listings.length === 0 && <div className="muted">Nothing listed for that position right now. Advance a day for new listings.</div>}
         </div>
+        {!allListed && listings.length > PHONE_LISTINGS && (
+          <button type="button" className="btn block listings-more" onClick={() => setAllListed(true)} data-testid="listings-more">
+            Show all {listings.length} listed{filter === 'all' ? '' : ` at ${filter}`}
+          </button>
+        )}
       </div>
       <div className="col">
         {boxes.on('recruitment') && <RecruitmentPanel onMessage={setMsg} />}
