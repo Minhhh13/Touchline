@@ -280,6 +280,22 @@ export function upcomingCupTie(game: Game): UpcomingTie | null {
  * decisions.
  */
 export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false): void {
+  runSteps(playMatchweekSteps(game, u, autoManage))
+}
+
+/** Run a stepped action to its end in one go: the same work, in the same order, as its steps one task each. */
+export function runSteps(steps: Iterator<unknown>): void {
+  while (!steps.next().done) {
+    // every step runs; the pauses between them are the caller's
+  }
+}
+
+/**
+ * `playMatchweek` with a pause after the week's set-up and after every fixture: a caller may break between steps
+ * (the store's `playWeekSoon` gives the page a task). Nothing runs between two steps but the caller's wait, so the
+ * draws and the game are exactly `playMatchweek`'s.
+ */
+export function* playMatchweekSteps(game: Game, u: LoadedUniverse, autoManage = false): Generator<void, void, undefined> {
   const season = game.season
   if (!season || season.matchweek >= season.matchweeks || season.sacked) return
   if (game.live) finishLiveMatch(game, u, undefined, true)
@@ -306,6 +322,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   const taken = squadHumans(game, u)
 
   for (const f of week) {
+    yield
     const userIsHome = f.homeTeamId === USER_TEAM
     const userIsAway = f.awayTeamId === USER_TEAM
     if (userIsHome || userIsAway) {
@@ -330,6 +347,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
       applyResultToAi(game, f.awayTeamId, res, false)
     }
   }
+  yield
   game.lastCupMatch = null
   game.lastCupContext = null
   game.rngState = rng.getState()

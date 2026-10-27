@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { freeze, produce } from 'immer'
+import { createDraft, finishDraft, freeze, produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DEFAULT_LEAGUE } from '@engine/universe'
@@ -65,7 +65,7 @@ import { withTipSeen, type TipId } from './logic/tips'
 import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { passQuickCup } from './logic/summaryCall'
 import { leaguesBeforeSkip } from './logic/cupSkip'
-import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
+import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, playMatchweekAsSteps, type MatchPlayMode } from './logic/assistant'
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
 async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUniverse> {
@@ -78,6 +78,8 @@ export const SAVE_KEY = 'touchline-save-v1'
 export const SAVE_VERSION = 1
 /** Delay from a change to the write: a burst of changes inside it is written once, with the latest state. */
 const SAVE_DELAY_MS = 250
+/** How long `playWeekSoon` plays the week before it gives the page a task (about a frame). */
+const WEEK_SLICE_MS = 16
 /** Shown when the browser refuses to store the save. */
 /** The banner that stays up while the browser refuses every save write. */
 export const SAVE_FAILING_LINE = 'Not saving: storage full'
@@ -234,9 +236,10 @@ interface Store {
    * state painted, the matchweek played, then the screen that shows it), so a slow phone stays responsive. The same
    * game as `playWeek` from the same state; a tap while one runs is ignored. `prepare` (the screen's, presentation
    * only) runs on the played game before it is shown, in tasks of its own, to build what the next screen's first
-   * render would (the match day's ball path); it must not change the game, and an error in it is ignored.
+   * render would (the match day's ball path); it must not change the game, and an error in it is ignored. The week
+   * itself runs in slices of about `WEEK_SLICE_MS` (`opts.sliceMs`, tests), a task for the page between them.
    */
-  playWeekSoon: (prepare?: (next: Game) => Promise<void>) => Promise<void>
+  playWeekSoon: (prepare?: (next: Game) => Promise<void>, opts?: { sliceMs?: number }) => Promise<void>
   /** Transient: a `playWeekSoon` is under way (the Dugout's button shows it). Never saved. */
   playingWeek: boolean
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
@@ -998,7 +1001,7 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
-        playWeekSoon: async (prepare) => {
+        playWeekSoon: async (prepare, opts) => {
           const { game: g0, universe: u0, playingWeek } = get()
           if (!g0 || !u0 || playingWeek) return
           const mode = matchPlayOf(g0)
@@ -1010,10 +1013,20 @@ export const useStore = create<Store>()(
             if (moved()) return get().playWeek()
             let next: Game
             try {
-              next = produce(g0, (g) => {
-                if (g.phase === 'preseason') startSeasonProper(g)
-                playMatchweekAs(g, u0, mode)
-              })
+              // The same recipe as playWeek's produce, on a draft held across tasks: a step at a time (the week's
+              // set-up, each fixture, each stop of a Sim result), the page given a task whenever a slice runs long
+              const draft = createDraft(g0)
+              if (draft.phase === 'preseason') startSeasonProper(draft)
+              const steps = playMatchweekAsSteps(draft, u0, mode)
+              let slice = performance.now()
+              while (!steps.next().done) {
+                if (performance.now() - slice < (opts?.sliceMs ?? WEEK_SLICE_MS)) continue
+                await nextTask()
+                // The draft is let go: playWeek plays the game as it is now
+                if (moved()) return get().playWeek()
+                slice = performance.now()
+              }
+              next = finishDraft(draft)
             } catch (e) {
               console.error(e)
               set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
