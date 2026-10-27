@@ -8,7 +8,7 @@
 import { expect } from 'vitest'
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
-import { canBench, canCloseBench, canSpin, eligibleSlots, isComplete, picksMade, positionFirst, spinClubSeason, spinnableSlots, targetSlot } from '@engine/draft'
+import { canBench, canCloseBench, canSpin, eligibleSlots, fillingXI, isComplete, picksMade, positionFirst, spinClubSeason, spinnableSlots, targetSlot } from '@engine/draft'
 import { encodeSave, parseSave } from '../saveStorage'
 import { compactGame } from '../logic/compact'
 import { persistedState, useStore } from '../store'
@@ -195,7 +195,7 @@ export function driveDraft(u: LoadedUniverse, ch: Chooser, opts: { autoAt?: numb
       return log
     }
     log.problems.push(...squadProblems(d.lineup, d.bench, (id) => (g.customPlayers[id] ?? u.index[id])?.playerId, `draft step ${step}`))
-    if (isComplete(d) || (canCloseBench(d) && ch.chance(0.25)) || (picksMade(d) >= 11 && !canSpin(u, d) && !d.current)) {
+    if (isComplete(d) || (canCloseBench(d) && ch.chance(0.25)) || (!fillingXI(d) && !canSpin(u, d) && !d.current)) {
       log.actions.push('finishDraft')
       st().finishDraft()
       if (st().game?.phase === 'draft') {

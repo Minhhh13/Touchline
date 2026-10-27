@@ -13,7 +13,7 @@ vi.hoisted(() => {
 })
 vi.setConfig({ testTimeout: 60_000 })
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
-import { QUICK_RULES, canSpin } from '@engine/draft'
+import { BUDGET_FLOOR, QUICK_RULES, canBench, canSpin, capRoom, capSpent, eligibleSlots, isComplete, openSlots, spinClubSeason } from '@engine/draft'
 import { wheelSeasons } from '@engine/era'
 import { useStore } from '../store'
 import { setupRules, shortNameFor } from '../logic/setup'
@@ -23,7 +23,8 @@ import { playbackResults, quickChangeProblem, quickSquadAt } from '../logic/quic
 import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonStale } from '../logic/quickSeam'
 import { wheelHasRoom } from '../logic/wheelCheck'
 import type { GameSettings } from '../types'
-import { loadStore } from './qaHarness'
+import { Chooser, loadStore } from './qaHarness'
+import { withCap } from '../logic/cap'
 
 const u = loadTestUniverse(['england'])
 const st = () => useStore.getState()
@@ -151,5 +152,65 @@ describe('R7-3: Setup never opens a draft on an empty wheel', () => {
     expect(wheelHasRoom(nl, rulesFor(['netherlands'], ['underdog'], 2020, 2020), '3-5-2')).toBe(true)
     // Legends in the Eredivisie holds sides only in 2010-11, 2018-19 and 2019-20 (2010, 2018 and 2019 in the packs)
     expect(wheelHasRoom(nl, rulesFor(['netherlands'], ['legends'], 2018, 2018), '4-3-3')).toBe(true)
+  })
+})
+
+describe('R7-4: a capped Quick Draft with a bench never strands its XI', () => {
+  /** A drafter who benches early: a random usable man into a random place, the bench taken whenever it is offered 40% of the time. */
+  function draftBenchingEarly(seed: string, preset: 'shoestring' | 'moneyball', bench: number): { stranded: boolean; owedOk: boolean } {
+    const ch = new Chooser(seed)
+    loadStore(u, ['england'])
+    const stops = wheelSeasons(u, ['england'], false)
+    const rules = withCap(setupRules(QUICK_RULES, { difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season', eraFrom: stops[0], eraTo: stops[stops.length - 1], first: stops[0], last: stops[stops.length - 1], twists: true, leagues: ['england'], benchPicks: bench, modes: [], powerUps: false, classic: false, managers: false }), { preset, custom: 180 })
+    const clubs = u.clubSeasons.filter((cs) => cs.leagueId === 'england' && cs.season === 2025).map((cs) => cs.clubId)
+    st().startGame({ mode: 'quick', seed, formationId: '4-3-3', teamName: 'R7 Cap', shortName: 'R7C', leagueId: 'england', wheelLeagues: ['england'], hostClubId: clubs[0], leagueSeason: 2025, rules, jobSecurity: false, difficulty: 'calibrated', continental: false, january: false })
+    let owedOk = true
+    for (let k = 0; k < 120; k++) {
+      const d = st().game!.draft!
+      // The money left always covers the floor for every open XI slot
+      if (d.rules.budget! - capSpent(d) < BUDGET_FLOOR * openSlots(d).length - 1e-9) owedOk = false
+      if (isComplete(d) || !openSlots(d).length) break
+      if (!d.current) {
+        if (!canSpin(u, d)) return { stranded: true, owedOk }
+        st().spin()
+        continue
+      }
+      const cs = spinClubSeason(u, d)!
+      const opts: Array<[string, string]> = []
+      for (const p of cs.squad) {
+        for (const sl of eligibleSlots(d, p)) opts.push([p.id, sl.id])
+        if (canBench(d, p)) opts.push([p.id, 'bench'])
+      }
+      if (!opts.length) {
+        st().respin()
+        if (st().game!.draft!.current === d.current) st().autoDraftRest()
+        continue
+      }
+      const benched = opts.filter((o) => o[1] === 'bench')
+      const o = benched.length && ch.chance(0.4) ? ch.pick(benched) : ch.pick(opts)
+      st().pickPlayer(o[0], o[1])
+      expect(st().toast ?? '').not.toMatch(/Something went wrong/)
+      useStore.setState({ toast: null })
+    }
+    return { stranded: false, owedOk }
+  }
+
+  it('the drafts that ran dry with XI slots open (a keeper unaffordable) now fill their XI', () => {
+    // Each of these ran dry on release-e6 with XI slots open and no money left for them (a keeper unaffordable)
+    for (const [seed, preset, bench] of [['r7-strand-6', 'shoestring', 3], ['r7-strand-9', 'shoestring', 5], ['r7-strand-18', 'moneyball', 5], ['r7-strand-20', 'shoestring', 3], ['r7-strand-21', 'shoestring', 5]] as const) {
+      const r = draftBenchingEarly(seed, preset, bench)
+      expect(r, seed).toEqual({ stranded: false, owedOk: true })
+    }
+  })
+
+  it('a bench pick while XI slots are open keeps the floor for every one of them; an XI pick for the others', () => {
+    for (let i = 0; i < 12; i++) {
+      const r = draftBenchingEarly(`r7-cap-floor-${i}`, i % 2 ? 'moneyball' : 'shoestring', i % 3 ? 5 : 3)
+      expect(r.stranded).toBe(false)
+      expect(r.owedOk).toBe(true)
+    }
+    const d = st().game!.draft!
+    // What the cap chip shows: the money left after the floor for the open XI slots after this one
+    if (openSlots(d).length) expect(capRoom(d)).toBeCloseTo(d.rules.budget! - capSpent(d) - BUDGET_FLOOR * (openSlots(d).length - 1), 5)
   })
 })

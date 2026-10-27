@@ -7,7 +7,7 @@ import { DEFAULT_LEAGUE } from '@engine/universe'
 import { loadLeague, loadPacks as loadRawPacks, warmClassicPacks } from './packs'
 import { tidyUniverseNames } from './logic/playerNames'
 import { Rng, arenaDailySeed, dailySeed, previousArenaDailySeed, previousDailySeed, previousWeeklySeed, weeklySeed, type RngState } from '@engine/rng'
-import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, isComplete, picksMade, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
+import { assistantTurn, canCloseBench, canSpin, chooseSlot as draftChooseSlot, closeBench, fillingXI, isComplete, pick as draftPick, positionFirst, respin as draftRespin, spin as draftSpin, autoDraft, targetSlot } from '@engine/draft'
 import type { Tactics } from '@engine/types'
 import type { InPlayChange, InPlayOutcome, LiveChanges, TeamTalk } from '@engine/match'
 import type { TrainingFocus } from '@engine/training'
@@ -796,8 +796,9 @@ export const useStore = create<Store>()(
             if (!g.draft) return
             // A Quick Draft with a bench may close once the XI is full, bench places to spare
             if (canCloseBench(g.draft)) closeBench(g.draft)
-            // A one-nation wheel that has run dry may close with a full XI short of the squad size
-            if (!isComplete(g.draft) && !(picksMade(g.draft) >= 11 && !canSpin(u, g.draft))) return
+            // A one-nation wheel that has run dry may close with a full XI short of the squad size (never with an XI
+            // slot open: bench picks once counted towards eleven, and a quick season kicked off with a striker in goal)
+            if (!isComplete(g.draft) && !(!fillingXI(g.draft) && !canSpin(u, g.draft))) return
             if (g.settings.mode === 'arena') beginArena(g, u)
             else if (g.settings.mode === 'runin') beginRunIn(g, u)
             // Quick Draft, the Daily and the Weekly stop at the tactics step before the season
