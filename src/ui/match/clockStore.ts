@@ -140,6 +140,17 @@ export function cuePending(cues: number[], cued: number, clock: number, start: n
   return false
 }
 
+/**
+ * The minute the panels, the scoreboard and the commentary show: the clock's, or the minute before while a goal
+ * or a cue of the minute shown is still to come (`cueWaiting`), so nothing is told before the pitch shows it. It
+ * may fall below the segment's first minute: a goal at 46' (or in the minute a change in play resumes from) is
+ * not on the board before it is struck.
+ */
+export function panelMinute(holds: readonly Pick<GoalHold, 't'>[], revealed: number, clock: number, start: number, cueWaiting: boolean): number {
+  const goalWaiting = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock && h.t >= start)
+  return goalWaiting || cueWaiting ? clock - 1 : clock
+}
+
 /** A new anchor at `now` just past the hold the clock is in (Skip replay): the match carries on from the kick-off. Null outside a hold. */
 export function skipHold(s: Anchor, now: number): Pick<LiveClockState, 'at' | 'since' | 'spent'> | null {
   const p = timeline(s, now)

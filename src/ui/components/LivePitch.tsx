@@ -31,15 +31,16 @@ import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
 import { GOAL_FLIGHT_MS, skipHold, timeline, useLiveClock, type GoalHold } from '../match/clockStore'
 import { initials, metres, onPitchAt, placeSide, separateSides, type PlacedPlayer, type Side } from '../match/pitchGeometry'
 import { dotPosition, swayPhase } from '../match/movement'
-import { ballAt, bentPoint, buildBallPath, type BallKeyframe, type BallState, type PlayTag } from '../match/possession'
+import { ballAt, buildBallPath, type BallKeyframe, type BallState, type PlayTag } from '../match/possession'
 import { styleOf } from '../match/playbook'
 import { phaseCaption, sceneAt } from '../match/shape'
 import { epochAt, type MatchPath } from '../match/epochs'
-import { celebrationEnvelope, confetti, flightProgress, netBulge, netPoint, scorerRun } from '../match/celebration'
+import { celebrationEnvelope, confetti, flightProgress, netBulge, scorerRun } from '../match/celebration'
+import { finishOf, goalFlightAt } from '../match/finish'
 import { ballSprite, ballView } from '../match/flight'
 import { capFrame, frameCap, wakeCap } from '../match/frameCap'
 import { cornerDelivery, dotName, passFlash, shotMarks, shotTrailAt, xgBand, type ShotMark } from '../match/overlays'
-import { CAMERA, REPLAY, cameraTransform, celebrationMs, focusAt, focusMoments, replayFrame, type FocusMoment, type ReplayFrame, type ViewBox } from '../match/keyMoments'
+import { BUILD_UP, CAMERA, REPLAY, buildUpAt, cameraTransform, celebrationMs, focusAt, focusMoments, replayFrame, shooterRing, type FocusMoment, type ReplayFrame, type ViewBox } from '../match/keyMoments'
 import { shotXg } from '@engine/matchStats'
 import { minuteLabel, textColourFor } from '../format'
 
@@ -176,6 +177,16 @@ const Net = memo(function Net({ right, innerRef }: { right: boolean; innerRef: (
   )
 })
 
+/** A dot's element id inside this pitch (`uid` keeps two pitches apart): the build-up draws the shooter's again on top. */
+function dotDomId(uid: string, key: string): string {
+  return `${uid}-dot-${key.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+}
+
+/** The goal mouth's glow at one end (landscape units), brightened by the loop as a big chance or a goal is built up there. */
+const MouthGlow = memo(function MouthGlow({ right, fill, innerRef }: { right: boolean; fill: string; innerRef: (el: SVGEllipseElement | null) => void }) {
+  return <ellipse ref={innerRef} className="mouth-glow" cx={right ? 105 : 0} cy="34" rx="17" ry="21" fill={fill} opacity="0" pointerEvents="none" />
+})
+
 /** A regular pentagon of radius r at (cx, cy), as SVG points. */
 function pentagon(cx: number, cy: number, r: number, turn = 0): string {
   return Array.from({ length: 5 }, (_, k) => {
@@ -285,8 +296,8 @@ function put(el: Element, name: string, value: string): void {
   if (el.getAttribute(name) !== value) el.setAttribute(name, value)
 }
 
-/** Where the ball flies on a goal: from the strike into the net, `fp` of the way (eased), with its height. */
-function goalFlight(path: BallKeyframe[], b: BallState, side: Side, ev: MatchEvent | undefined, fp: number): { at: P; h: number; shot: BallKeyframe } {
+/** Where the ball flies on a goal: from the strike into the net, `x` of the way through the flight's time, shaped by how the goal was scored (finish.ts), and `after` ms past the landing. */
+function goalFlight(path: BallKeyframe[], b: BallState, side: Side, ev: MatchEvent | undefined, x: number, after: number): { at: P; h: number; shot: BallKeyframe } {
   // The strike: the keyframe the ball reached at the hold's moment (or the last shot just before it)
   let si = b.index
   while (si > 0 && path[si].kind !== 'shot' && path[si].kind !== 'goal' && b.index - si < 3) si--
@@ -294,10 +305,7 @@ function goalFlight(path: BallKeyframe[], b: BallState, side: Side, ev: MatchEve
   const shot = path[si] ?? path[b.index]
   const goalKf = path[si + 1]
   const mouth = goalKf && goalKf.kind === 'goal' ? { x: goalKf.x, y: goalKf.y } : { x: side === 'home' ? 100 : 0, y: 50 }
-  const inNet = netPoint(mouth)
-  const bend = (shot.y > 50 ? -0.05 : 0.05) * (side === 'home' ? 1 : -1)
-  const loft = ev?.type === 'penalty' ? 0.12 : 0.28
-  return { at: bentPoint(shot, inNet, bend, fp), h: fp < 1 ? loft * 4 * fp * (1 - fp) : 0, shot }
+  return { ...goalFlightAt(shot, mouth, side, finishOf(ev), x, after), shot }
 }
 
 /** A name tag under a dot: a dark pill with the name in white, drawn at (0, 0) of its group. The loop writes the text and sizes the pill. */
@@ -366,6 +374,11 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const shadowRef = useRef<SVGGElement>(null)
   const ringRef = useRef<SVGCircleElement>(null)
   const celebRef = useRef<SVGCircleElement>(null)
+  const spotRef = useRef<SVGGElement>(null)
+  const liftRef = useRef<SVGUseElement>(null)
+  const glows = useRef<{ left: SVGEllipseElement | null; right: SVGEllipseElement | null }>({ left: null, right: null })
+  const setLeftGlow = useCallback((el: SVGEllipseElement | null) => void (glows.current.left = el), [])
+  const setRightGlow = useCallback((el: SVGEllipseElement | null) => void (glows.current.right = el), [])
   const shotRef = useRef<SVGLineElement>(null)
   const trailRef = useRef<SVGLineElement>(null)
   const passRef = useRef<SVGLineElement>(null)
@@ -409,7 +422,9 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const names = useMemo(() => new Map([...placed].map(([key, p]) => [key, dotName(getPlayer(p.psId)?.name)])), [placed, getPlayer])
   const ranges = useMemo(() => (track && track.epochs.length ? track.epochs.map((e) => ({ from: e.from, to: e.to })) : [{ from, to }]), [track, from, to])
   const marks = useMemo(() => shotMarks(path, events, ranges), [path, events, ranges])
-  const moments = useMemo(() => (keyMoments ? focusMoments(events, ranges) : []), [keyMoments, events, ranges])
+  // The big moments: the build-up marks them at every speed, the camera (Key moments) leans in on them
+  const chances = useMemo(() => focusMoments(events, ranges), [events, ranges])
+  const moments = useMemo(() => (keyMoments ? chances : []), [keyMoments, chances])
   const markKey = useMemo(() => (highlightId ? [...placed.keys()].find((k) => placed.get(k)!.psId === highlightId) : undefined), [highlightId, placed])
 
   // The animation: one frame reads the shared clock, works out where everything should be and
@@ -486,7 +501,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       if (hold && b) {
         const fp = flightProgress(elapsed, GOAL_FLIGHT_MS)
         const ev = events[+hold.key]
-        const g = goalFlight(path, b, hold.side, ev, fp)
+        const g = goalFlight(path, b, hold.side, ev, elapsed / GOAL_FLIGHT_MS, elapsed - GOAL_FLIGHT_MS)
         shotKf = g.shot
         target = g.at
         h = g.h
@@ -502,7 +517,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
         // The replay's strike: the same flight, slower
         const ev = events[+holdAny.key]
         const fp = flightProgress(rf.flight, 1)
-        const g = goalFlight(path, b, holdAny.side, ev, fp)
+        const g = goalFlight(path, b, holdAny.side, ev, rf.flight, rf.landed)
         target = g.at
         h = g.h
         if (ev) flying = { at: g.at, band: xgBand(shotXg(ev)), f: fp }
@@ -604,11 +619,36 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           put(celebRef.current, 'opacity', (env * (1 - beat) * (hold.tone === 'theirs' ? 0.55 : 0.95)).toFixed(2))
         } else put(celebRef.current, 'opacity', '0')
       }
+      // The build-up to a big chance or a goal: the goal mouth under attack brightens and a ring closes on the shooter (not in a goal's hold or its replay, nor on a slow device)
+      const pace = s.speed * (s.boost ?? 1)
+      const perMinute = s.period / Math.max(0.01, pace)
+      const bu = hold || rf || lite ? null : buildUpAt(chances, T, BUILD_UP.leadMs / perMinute, BUILD_UP.tailMs / perMinute)
+      const attackRight = bu?.moment.side === 'home'
+      if (glows.current.right) put(glows.current.right, 'opacity', bu && attackRight ? (BUILD_UP.glow * bu.w).toFixed(3) : '0')
+      if (glows.current.left) put(glows.current.left, 'opacity', bu && !attackRight ? (BUILD_UP.glow * bu.w).toFixed(3) : '0')
+      const shooterKey = bu?.moment.shooter ? dotKey(bu.moment.side, bu.moment.shooter) : undefined
+      const shooterAt = shooterKey ? shown.get(shooterKey) : undefined
+      if (spotRef.current) {
+        if (bu && shooterAt) {
+          const ring = shooterRing(bu.w)
+          const [sx, sy] = map(shooterAt.x, shooterAt.y)
+          put(spotRef.current, 'transform', `translate(${sx.toFixed(2)} ${sy.toFixed(2)}) scale(${ring.scale.toFixed(3)})`)
+          put(spotRef.current, 'opacity', ring.opacity.toFixed(2))
+        } else put(spotRef.current, 'opacity', '0')
+      }
+      // The shooter drawn again on top of everyone, so the men closing him down never hide him as he strikes it
+      if (liftRef.current) {
+        if (bu && shooterAt && shooterKey) {
+          put(liftRef.current, 'href', `#${dotDomId(uid, shooterKey)}`)
+          put(liftRef.current, 'opacity', '1')
+        } else put(liftRef.current, 'opacity', '0')
+      }
       // The shot's line, coloured by its expected goals: a chance or a save as it flies and a moment after, a goal while it goes in
       paintShot(shotRef.current, path, b, T, marks, flying, cur, map)
-      // The pass line: a short flash of where the ball is being played (up to 2x, where a pass lasts long enough to read; not on a slow device)
-      const pace = s.speed * (s.boost ?? 1)
-      paintPass(passRef.current, lite || !!hold || pace > 2 ? null : passFlash(path, b), map)
+      // The pass line: a short flash of where the ball is being played (up to 2x, where a pass lasts long enough to read; not on a slow device),
+      // and at any speed for the last ball to the man about to shoot
+      const finalBall = !!shooterKey && !!b?.next?.holder && b.next.holder === bu?.moment.shooter && b.next.side === bu?.moment.side
+      paintPass(passRef.current, lite || !!hold || (pace > 2 && !finalBall) ? null : passFlash(path, b), map)
       // A faint trail behind a long ball, a ball in behind or a cross while it flies
       if (trailRef.current) {
         const kf = b && !hold ? path[b.index] : undefined
@@ -679,7 +719,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
       unsubscribe()
       cancelAnimationFrame(id)
     }
-  }, [path, reduced, to, map, placed, phases, events, colourOf, codes, portrait, R, seed, initial, from, keyMoments, marks, moments, names, markKey])
+  }, [path, reduced, to, map, placed, phases, events, colourOf, codes, portrait, R, seed, initial, from, keyMoments, marks, moments, chances, names, markKey, uid])
 
   const homeOn = onPitchAt(homePlaced, minute)
   const awayOn = onPitchAt(awayPlaced, minute)
@@ -708,7 +748,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
     const startAt = reduced && stillScene ? dotPosition(p, path, stillBall, stillT, phases.get(key) ?? 0, stillScene) : initial.get(key) ?? (initial.size || p.onAt > Math.max(0, from) ? ENTRY_POINT : p)
     const [sx, sy] = map(startAt.x, startAt.y)
     return (
-      <g key={key} ref={dotRef(key)} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className={`live-dot ${key === markKey ? 'marked' : ''}`} data-testid="live-dot">
+      <g key={key} id={dotDomId(uid, key)} ref={dotRef(key)} transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)})`} className={`live-dot ${key === markKey ? 'marked' : ''}`} data-testid="live-dot">
         <title>{name ?? p.psId}</title>
         <g className="dot-body">
           <circle r="2.7" fill={colour} stroke="rgba(0,0,0,0.55)" strokeWidth="0.4" />
@@ -745,12 +785,23 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
             <stop offset="78%" stopColor="#000000" stopOpacity="0.05" />
             <stop offset="100%" stopColor="#000000" stopOpacity="0.38" />
           </radialGradient>
+          {/* The goal mouth's glow: brightest on the goal line, gone by the edge of the box */}
+          <radialGradient id={`${uid}-mouth-l`} cx="0%" cy="50%" r="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id={`${uid}-mouth-r`} cx="100%" cy="50%" r="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
           <clipPath id={`${uid}-clip`}>
             <circle r={R * 0.97} />
           </clipPath>
         </defs>
         <g ref={stageRef}>
           <g transform={portrait ? 'translate(0 105) rotate(-90)' : undefined}>
+            <MouthGlow right={false} fill={`url(#${uid}-mouth-l)`} innerRef={setLeftGlow} />
+            <MouthGlow right fill={`url(#${uid}-mouth-r)`} innerRef={setRightGlow} />
             <Net right={false} innerRef={setLeftNet} />
             <Net right innerRef={setRightNet} />
           </g>
@@ -759,9 +810,13 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           <line ref={trailRef} className="ball-trail" stroke="#fff" strokeWidth="0.35" strokeLinecap="round" strokeDasharray="0.6 0.9" opacity="0" />
           <circle ref={ringRef} r="3.7" fill="none" stroke="#fff" strokeWidth="0.45" opacity="0" />
           <circle ref={celebRef} r="3.5" fill="none" stroke="#fff" strokeWidth="0.7" opacity="0" />
+          <g ref={spotRef} className="shooter-ring" opacity="0" pointerEvents="none">
+            <circle r="4.2" fill="none" stroke="#fff" strokeWidth="0.45" strokeDasharray="1.6 1.1" />
+          </g>
           {markKey && (reduced ? stillMark && <circle className="pitch-mark" cx={stillMark[0]} cy={stillMark[1]} r="4.3" fill="none" strokeWidth="0.6" data-testid="pitch-mark" /> : <circle ref={markRef} className="pitch-mark" r="4.3" fill="none" strokeWidth="0.6" opacity="0" data-testid="pitch-mark" />)}
           <g>{homeOn.map((p) => dot(p, home.colour))}</g>
           <g>{awayOn.map((p) => dot(p, away.colour))}</g>
+          {!reduced && <use ref={liftRef} opacity="0" pointerEvents="none" aria-hidden="true" />}
           {!reduced && <NameTag groupRef={tagRef} textRef={tagTextRef} bgRef={tagBgRef} className="dot-tag" testId="dot-tag" />}
           {!reduced && markKey && <NameTag groupRef={markTagRef} textRef={markTextRef} bgRef={markBgRef} className="dot-tag marked" testId="mark-tag" />}
           {flashes.map((e, i) => {

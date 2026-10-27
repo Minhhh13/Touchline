@@ -225,8 +225,8 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
         <div className="col md-stop-subs">
           <div className="row between">
             <span style={{ fontWeight: 600 }}>
-              Substitutions ({subs.length}/{subCap}
-              {atBreak ? ' at the break' : ' left'})
+              {/* How many more this stop takes: "0/2 left" read as none left */}
+              Substitutions · {subCap - subs.length} left{atBreak ? ' at the break' : ''}
             </span>
           </div>
           <div className="plist">

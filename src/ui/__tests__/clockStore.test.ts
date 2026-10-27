@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GOAL_FLIGHT_MS, hiddenGoal, publishClock, readout, reanchor, timeline, useLiveClock, type GoalHold, type LiveClockState } from '../match/clockStore'
+import { GOAL_FLIGHT_MS, hiddenGoal, panelMinute, publishClock, readout, reanchor, timeline, useLiveClock, type GoalHold, type LiveClockState } from '../match/clockStore'
 
 const hold = (t: number, ms: number, key = String(t)): GoalHold => ({ t, ms, side: 'home', key, tone: 'ours' })
 
@@ -94,5 +94,19 @@ describe('live clock timeline', () => {
     expect(timeline(useLiveClock.getState(), 5000).t).toBeCloseTo(30.25)
     publishClock({ clock: 31, speed: 1, running: true, period: 400 }, 2000)
     expect(timeline(useLiveClock.getState(), 2000).t).toBe(31)
+  })
+})
+
+describe('the minute the panels show', () => {
+  it('holds back a goal still to be struck, even in the first minute of a segment', () => {
+    const holds = [hold(46.4, 2000), hold(60.5, 2000)]
+    // The second half's first minute: its goal is not on the board before the strike (it used to be, clamped to 46)
+    expect(panelMinute(holds, 0, 46, 46, false)).toBe(45)
+    expect(panelMinute(holds, 1, 46, 46, false)).toBe(46)
+    expect(panelMinute(holds, 1, 60, 46, false)).toBe(59)
+    expect(panelMinute(holds, 2, 60, 46, false)).toBe(60)
+    // A cue still to come holds the minute back too
+    expect(panelMinute(holds, 2, 61, 46, true)).toBe(60)
+    expect(panelMinute(holds, 2, 61, 46, false)).toBe(61)
   })
 })
