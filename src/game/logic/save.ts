@@ -1,4 +1,4 @@
-import type { Game, GameSettings, Profile, QuickBests, QuickJanuary } from '../types'
+import type { Game, GameSettings, Phase, Profile, QuickBests, QuickJanuary } from '../types'
 import type { PlayerSeason, SquadPlayer } from '@engine/types'
 import { DEFAULT_LEAGUE } from '@engine/universe'
 import { DEPTH_KEYS, withDepth } from '@engine/depth'
@@ -20,9 +20,19 @@ export function normaliseRules(r: DraftRules): DraftRules {
   return { ...r, difficulty, hardMode: !!r.hardMode || hard, showRatings: hard ? false : r.showRatings ?? true, draftMode: r.draftMode ?? 'squad', ratings: r.ratings ?? 'season' }
 }
 
+const PHASES: readonly Phase[] = ['draft', 'kickoff', 'january', 'preseason', 'week', 'match', 'summary']
+
+function isRngState(r: unknown): boolean {
+  if (!r || typeof r !== 'object') return false
+  const s = r as Record<string, unknown>
+  return ['a', 'b', 'c', 'd'].every((k) => Number.isInteger(s[k]))
+}
+
 /** Fill in fields added since the save was written; null for anything that is not a game. */
 export function normaliseGame(g: Game | null | undefined): Game | null {
   if (!g || typeof g !== 'object' || !g.settings || typeof g.settings !== 'object') return null
+  // What every build has written on every game: without it nothing can be shown or played (a damaged or foreign file)
+  if (typeof g.id !== 'string' || !PHASES.includes(g.phase) || typeof g.settings.mode !== 'string' || typeof g.settings.seed !== 'string' || !isRngState(g.rngState)) return null
   const settings: GameSettings = { ...g.settings }
   settings.leagueId ??= DEFAULT_LEAGUE
   settings.wheelLeagues ??= [settings.leagueId]

@@ -5,6 +5,7 @@ import { isArenaPayload } from '@engine/challenge'
 import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { SaveBanner } from './components/SaveBanner'
+import { SaveIssue } from './components/SaveIssue'
 import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
@@ -328,6 +329,7 @@ export function App() {
       </ScreenBoundary>
       <Toast />
       {barHidden && <SaveBanner floating />}
+      <SaveIssue />
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
         {offseason && (
           <div className="col">

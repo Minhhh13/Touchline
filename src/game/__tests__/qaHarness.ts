@@ -29,6 +29,12 @@ function act(key: string): ReturnType<typeof useStore.getState> {
   return useStore.getState()
 }
 
+/**
+ * Called at the top of every driver step (draft, quick season, managed season, arena): `reloadSweep.test.ts` reloads
+ * the save there. Unset, it costs nothing.
+ */
+export const stepHook: { run?: () => void } = {}
+
 /** The test's own choices: a stream of its own, never a game's. */
 export class Chooser {
   private rng: Rng
@@ -177,6 +183,7 @@ export function driveDraft(u: LoadedUniverse, ch: Chooser, opts: { autoAt?: numb
   const st = () => useStore.getState()
   let stuck = 0
   for (let step = 0; step < 400; step++) {
+    stepHook.run?.()
     const g = st().game
     if (!g || g.phase !== 'draft' || !g.draft) return log
     const d = g.draft
@@ -302,6 +309,7 @@ export function driveQuickSeason(u: LoadedUniverse, ch: Chooser): string[] {
   const problems: string[] = []
   const st = () => useStore.getState()
   for (let step = 0; step < 60; step++) {
+    stepHook.run?.()
     const g = st().game
     const crash = crashToast()
     if (crash) {
