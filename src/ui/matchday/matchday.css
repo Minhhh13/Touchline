@@ -622,6 +622,11 @@
   box-shadow: 0 0 0 1px var(--primary);
 }
 .matchday .md-card.out {
+  /* A man off (sent off, injured, substituted): a dashed edge and a faded shirt, never faded text (opacity 0.5 took
+     the name, position and rating to 2.5:1; DESIGN_SYSTEM section 15 rule 4) */
+  border-style: dashed;
+}
+.matchday .md-card.out .md-shirt {
   opacity: 0.5;
 }
 .matchday .md-card-top {

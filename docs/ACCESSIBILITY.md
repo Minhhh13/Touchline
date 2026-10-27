@@ -124,17 +124,40 @@ Other checks on the after build:
 - Phone targets at 390x844 (Home, Profile, How it works, Explore, Head-to-head, Privacy, the Run-in and arena setups, Setup, the Draft, the manager spin, Kick-off, the playback, the Summary): 258 of 540 controls under 44 px before, 6 of 552 after (the setup cards' three "i" by design, the two inline "change" links at 43 px, the Summary's Boxes at 42). In the Dugout what stays under 44 px is the squad's and planner's position and XI chips (33 px, rows of them, kept clear of each other) and, in the live match, the match day's own tool buttons, selects and tabs (31 to 32 px); nothing is under 24 px.
 - Text at 175 % and 200 % at 390x844, 200 % at 820x1180 and 115 % at 1280x720: section 5.
 
+## 3c. Results of the third pass
+
+axe-core 4.10.2, the same rules, on `release-e6` (before) and this branch (after). Every state was reached from the keyboard alone (section 2's harness): 51 states a run (the Quick Draft 14 with its cup night, a Season 7 with a live match and a substitution, the Cup and the Gauntlet 4 each, the head-to-head 4, the Run-in 4, Dynasty 2, Explore, Profile, How it works and the head-to-head setup 4), at 1280x720 in Floodlit and 390x844 in Daylight, plus the Season flow at 390x844 Floodlit and 1280x720 Daylight. Counts are failing nodes.
+
+| Rule | Before | After |
+|---|---|---|
+| `target-size`: the head-to-head draft's pitches (slot label boxes overlapping) | 7 to 10 | 0 |
+| `target-size`: the Dugout's keeper slot on a short pitch | 1 | 0 |
+| `target-size`: the match day's formation panel (section 4) | 1 to 2 | 1 to 2 |
+| `color-contrast`: the match day's red rating pill (both themes) | 4 | 0 |
+| `color-contrast`: a substituted man's card in the squad strip (faded to 50 %) | 3 | 0 |
+| `scrollable-region-focusable`: the manager guide, the case locker, the arena summary's bracket, the head-to-head log | 1 each | 0 |
+
+The Upgrader, left unaudited by round 2, was audited through the January Upgrader (choose, the dial turning, landed): 0 nodes in both themes and sizes; its words were added (section 1).
+
+Two `color-contrast` nodes on the newest game row of a playback are the row's drop-in animation caught mid-fade (the same row passes once it lands) and are not counted.
+
+Keyboard (before, on `release-e6`): every screen change left the focus on `<body>` (Home to the Draft, the Draft to the manager spin, the case, Kick-off, the playback, the Summary, the Dugout, the match, every arena step), as did a pick, Auto-complete, the January choices, the case's Open and Pick a manager; the head-to-head draft never moved the focus after a landing; the tab strips took one Tab stop per tab. After: the focus never fell to `<body>` in any flow except for the moment a reel spins (its Spin button is disabled; the landing then takes it); a screen change lands on the new page, and the steps in section 1 land where the next choice is. The substitution board was played from the keyboard alone: Enter on a bench card, an arrow onto a starter, Enter, Confirm, every step announced.
+
+Larger text at 200 % on a 390 px phone, the quick flow (Home, Setup, the Draft, the manager spin, the case, Kick-off, the playback, January and its market): before, Setup ran 17 px past the window (Moneyball), the draft's squad 5 to 86 px (a "fits LB/CB/RB/DM/CM" chip), Squad complete 63 px ("Pundits' prediction" and the chance rows); after, nothing. Reduced motion: no animation running on any of those screens. Touch targets: nothing under 24 px but the visually hidden radios inside their cards and the Classic toggle's 15 px box inside its label (the label is the target); the draft log's grade buttons were 22 px wide and are 24.
+
+Every flow ran with no page error and, at 1280x720, no page scroll. Vitest: 1,822 tests pass and 21 are skipped in 249 files (the new `a11yRound3.test.ts` has 9, `arenaText.test.ts` 2 more); typecheck, build, the first-download budget and `check:dist-keys` pass; `dist/edge` holds `verifier-37d256f009b3b3e9.js`, `verifier-603b905d0570f641.js` and `verifier-d0ebd30afcbcd00b.js`, unchanged.
+
 ## 4. What is left
 
-After the second pass (round 2):
+After the third pass (round 3):
 
-- **iOS text size needs the wrapper.** The page is ready (section 5): `@capacitor/text-zoom@8.0.1` and three calls in the wrapper's start-up, not yet made because the iOS PR is undecided.
-- **Most of the CSS is in px.** Only the type scale tokens are rem, so Dynamic Type grows body copy, small text, chips, headings and buttons, but not the 245-odd component font sizes still in px (the match day's panels, the reels, the pitch labels, the summary's big figures). Moving them to the tokens, screen by screen, is the follow-up. Browser zoom (Ctrl and +) works everywhere, which is what WCAG 1.4.4 asks.
-- **The match day's phone controls** (its tool buttons and selects, 32 px, and its phone tabs, 31 px) are under 44 px: the compact match layout is fitted to the window height, and growing them is left to the match-day owners. They pass WCAG 2.5.8 (24 px).
-- **The match day's formation panels**: two centre-backs' shirt buttons overlap on a small pitch (axe `target-size`, 2 nodes at 1280x720, in the live match and an arena final's replay). The squad strip under them does the same with full-size cards (WCAG 2.5.8's "equivalent" exception).
+- **The match day's formation panels.** On a small formation panel two men's shirt buttons can overlap (axe `target-size`, 1 or 2 nodes in a live match and its report at 1280x720, depending on the formations; centre-backs 28 px apart with a 30 px rating pill). For our side the squad strip does the same with full-size cards (WCAG 2.5.8's equivalent), but the opponent's men have no strip. Taking them out of the Tab order does not help (axe and 2.5.8 count any pointer target); the fix is a hit box the size of the shirt alone with the pill and name drawn outside it, a layout change for the match-day owners.
+- **The match day's phone controls** (its tool buttons and selects, 32 px, and its phone tabs, 31 px) stay under 44 px: the compact match layout is fitted to the window height. They pass WCAG 2.5.8 (24 px).
+- **iOS text size needs the wrapper.** The page is ready (section 5): `@capacitor/text-zoom@8.0.1` and three calls in the wrapper's start-up, waiting on the iOS PR.
 - **The setup cards' "i"** stays 32 px, clear of its card's own target; the shortlist star and the Explore rows on a tablet (721 to 1099 px) keep their desktop sizes.
-- **The live pitch is a picture.** The 2D pitch is `aria-hidden`; a screen reader follows the match through the commentary line, the score and the stops. There is no spoken play-by-play of every pass, by design.
-- **Not audited:** the Upgrader dial, the online screens signed in (only their signed-out and offline states could be reached without the live project), a head-to-head room in play (needs two signed-in devices), and VoiceOver on a real device. Run them before the App Store submission.
+- **The live pitch is a picture** (`aria-hidden`); a screen reader follows the match through the score, the key commentary lines and the stops. No spoken play-by-play of every pass, by design.
+- **Focus on a dialog's box.** `useDialog` focuses a dialog's own box when it opens, and the box draws the focus ring; a screen reader names the dialog, which is right, but a sighted keyboard user sees a ring round the whole sheet until the first Tab.
+- **Not audited:** the online screens signed in and a head-to-head room in play (they need the live project and two signed-in devices), an arena shoot-out reached live (a seeded draw at 90 could not be forced from the keyboard harness; its markup and words are tested), and VoiceOver on a real device. Run them before the App Store submission.
 
 ## 5. iOS Dynamic Type (the plan for the native wrapper)
 
