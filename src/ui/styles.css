@@ -7396,9 +7396,12 @@ dl.kv {
 .draft-log-tips {
   display: contents;
 }
-/* A grade is a button for its note (hover, focus or a tap): it keeps the chip's look */
+/* A grade is a button for its note (hover, focus or a tap): it keeps the chip's look, at least 24 px across (WCAG 2.5.8;
+   a one-letter chip was 22 px) */
 .draft-log .chip.pick-grade {
   cursor: help;
+  min-width: 24px;
+  justify-content: center;
 }
 .draft-log li {
   display: grid;
@@ -9490,10 +9493,15 @@ table.tbl.match-stats th {
 .sc-unit {
   display: grid;
   /* rem: 112 px and 52 px at the default size, and the figure's column grows with larger text instead of spilling */
-  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(3.25rem, auto);
+  grid-template-columns: minmax(0, 7rem) minmax(3rem, 1fr) minmax(3.25rem, auto);
   align-items: center;
   gap: 10px;
   font-size: var(--fs-sm);
+}
+.sc-chance > span,
+.sc-unit > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sc-chance b,
 .sc-unit b {
@@ -9567,7 +9575,8 @@ table.tbl.match-stats th {
   }
   .sc-chance,
   .sc-unit {
-    grid-template-columns: 100px minmax(0, 1fr) 48px;
+    /* 100 px and 48 px at the default size (6.25rem, 3rem); the figure's column grows with larger text */
+    grid-template-columns: minmax(0, 6.25rem) minmax(3rem, 1fr) minmax(3rem, auto);
   }
   .sc-big-num {
     font-size: calc(var(--fs-h1) + 2px);
@@ -12528,8 +12537,7 @@ table.tbl.contracts-overview .link-btn.name {
     flex-wrap: wrap;
   }
   .setup-modes-row .pu-setup .qmode.pu-card {
-    /* rem, so larger text puts fewer cards on a row: 140 px at the default size, one card a row at 200 % */
-    flex: 1 1 8.75rem;
+    flex: 1 1 140px;
     min-width: 0;
   }
   .setup-modes-row .pu-setup .qmode.pu-card .cline {
@@ -13542,6 +13550,13 @@ table.tbl.hub td.name {
   }
   .setup-modes-row .pu-setup .qmode.pu-card {
     flex: 1 1 0;
+  }
+  /* Two cards side by side keep their names inside at 200 % text: a long name breaks (hyphenated) rather than spill */
+  .setup-modes-row .pu-setup .qmode.pu-card > .ctitle {
+    min-width: 0;
+    max-width: 100%;
+    hyphens: auto;
+    overflow-wrap: anywhere;
   }
 }
 /* An arena shoot-out on the report: one slim box above the scoreboard, so the boxes below keep the height */
