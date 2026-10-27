@@ -97,3 +97,12 @@ export function runsSummary(runs: string | null, longestPerfectRun: number | und
 export function brokeMoment(gf: number, ga: number, opponent: string): string {
   return gf < ga ? `Lost ${gf}-${ga} to ${opponent}` : `Drew ${gf}-${ga} with ${opponent}`
 }
+
+/**
+ * The share card's gold line for cups won without the league (a title and a cup is the Double, which has its own
+ * line): "Cup winners", "Continental champions", or both. Null with no cup won.
+ */
+export function cupWinsLine(cups: ReadonlyArray<'cup' | 'continental'>): string | null {
+  const words = [cups.includes('cup') ? 'Cup winners' : null, cups.includes('continental') ? 'Continental champions' : null].filter((w): w is string => !!w)
+  return words.length ? words.join(' · ') : null
+}

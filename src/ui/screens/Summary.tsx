@@ -26,7 +26,7 @@ import { TableView } from '../components/TableView'
 import { ClubBadge, CountUp, Info, Rating, Stat, TeamBadge } from '../components/bits'
 import { AWARD_ICON } from '../components/icons'
 import { LeagueAwards } from '../components/LeagueAwards'
-import { runsSummary, versusReal } from '../screenText'
+import { cupWinsLine, runsSummary, versusReal } from '../screenText'
 import { Celebrate } from '../components/Celebrate'
 import { PlayerRow } from '../components/PlayerRow'
 import { clubName, money, nationName, ordinal, seasonLabel, tierName } from '../format'
@@ -271,6 +271,7 @@ export function Summary() {
   }
   const makeCard = async () => {
     const codes = chainCodes(u, game)
+    const cupWins = cupWinsLine(honourCups)
     try {
       const url = await renderShareCard({
         title: game.settings.teamName,
@@ -283,7 +284,7 @@ export function Summary() {
         getPlayer: get,
         footer: `${shareCardFooter(game)}${estimated ? ' · estimated ratings' : ''}`,
         // The Treble or a Double in gold under the record
-        ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : {}),
+        ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : cupWins ? { honour: cupWins } : {}),
         ...(gradeLine ? { grade: gradeLine } : {}),
         strip: story?.strip,
         moment: story?.moment,

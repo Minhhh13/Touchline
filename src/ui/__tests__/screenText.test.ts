@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { brokeMoment, countPhrase, developmentLists, distinctLabels, modeLabel, runsSummary, shownGames, versusReal } from '../screenText'
+import { brokeMoment, countPhrase, cupWinsLine, developmentLists, distinctLabels, modeLabel, runsSummary, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -84,5 +84,14 @@ describe('brokeMoment', () => {
   it('names the game that ended the perfect run, never the line the banner already shows', () => {
     expect(brokeMoment(0, 1, 'Brentford')).toBe('Lost 0-1 to Brentford')
     expect(brokeMoment(2, 2, 'Everton')).toBe('Drew 2-2 with Everton')
+  })
+})
+
+describe('cupWinsLine', () => {
+  it('names the cups won for the share card, nothing without one', () => {
+    expect(cupWinsLine([])).toBeNull()
+    expect(cupWinsLine(['cup'])).toBe('Cup winners')
+    expect(cupWinsLine(['continental'])).toBe('Continental champions')
+    expect(cupWinsLine(['cup', 'continental'])).toBe('Cup winners · Continental champions')
   })
 })
