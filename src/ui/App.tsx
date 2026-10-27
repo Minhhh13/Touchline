@@ -4,6 +4,8 @@ import { Home } from './screens/Home'
 import { isArenaPayload } from '@engine/challenge'
 import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
+import { SaveBanner } from './components/SaveBanner'
+import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
 import type { NewsItem } from '@engine/season'
@@ -57,6 +59,8 @@ export function App() {
   const { universe, loading, loadError, loadData, screen, go, game, h2h, profile, setTheme, offseason, dismissOffseason, digest, dismissDigest, abandonGame, openChallenge, playback, setupMode, pendingChallenge } = useStore()
   // An arena run's field strengths, worked out in idle moments while it drafts
   useArenaWarmup()
+  // After the first finished game, ask the browser to keep the save through storage pressure (persistStorage.ts)
+  usePersistAfterFirstResult(profile)
   const hashHandled = useRef(false)
   const theme = useResolvedTheme(profile.theme)
   // Top-bar navigation and the theme flip run as View Transitions where the browser has them (motion.ts)
@@ -254,6 +258,7 @@ export function App() {
         <div className="brand" onClick={() => nav('home')} role="link" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav('home')}>
           <Lockup height={40} animate="hover" />
         </div>
+        <SaveBanner />
         <nav>
           <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
             <House size={16} />
@@ -317,6 +322,7 @@ export function App() {
         {body}
       </ScreenBoundary>
       <Toast />
+      {barHidden && <SaveBanner floating />}
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
         {offseason && (
           <div className="col">

@@ -200,6 +200,10 @@
   font-size: 12px;
   font-weight: 600;
 }
+/* A 24 px target (WCAG 2.2 target size, O-12 in docs/QA.md) */
+.matchday .md-select {
+  min-height: 24px;
+}
 .matchday .md-slot-body {
   flex: 1 1 0;
   min-height: 0;

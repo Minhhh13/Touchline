@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Skull, Smile, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
+import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
+import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings, Mode } from '@game/types'
 import { defaultHostClub, describeRules, quickSetupLine, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
@@ -93,7 +95,7 @@ function writeAdvanced(open: boolean): void {
 }
 
 export function Setup() {
-  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, loadingLeagues, loadedLeagues, pendingChallenge, profile } = useStore()
+  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, classicFailed, loadingLeagues, loadedLeagues, failedLeagues, pendingChallenge, profile } = useStore()
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES
@@ -305,6 +307,9 @@ export function Setup() {
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
+  // Offline with a league that never loaded: the button says so and Retry sits above it (leagueLoad.ts)
+  const needs = fixed ? [fixed.leagueId, ...fixed.wheelLeagues] : [leagueId, ...wheelLeagues, ...(isManage && continental ? u.available.map((l) => l.id) : [])]
+  const gate = leagueGate(needs, { loadedLeagues, failedLeagues, loadingLeagues, classicLoaded, classicFailed }, !fixed && classic)
   const capOn = cap.preset !== 'off'
   const capCard = capBudget(cap, isManage ? squadSize : QUICK_RULES.squadSize)
   const setCapChoice = (c: CapChoice) => {
@@ -761,8 +766,9 @@ export function Setup() {
                   </>
                 )}
               </div>
+              <LeagueRetry needs={needs} classic={!fixed && classic} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
-                {!ready ? 'Loading league data…' : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
+                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
               </button>
             </section>
           </div>

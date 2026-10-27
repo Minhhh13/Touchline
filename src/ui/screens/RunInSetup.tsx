@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore, slotOf } from '@game/store'
+import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { RUN_IN_LEAGUES, runInCatalogue, suggestRunIns, type RunInJob, type RunInTemplate } from '@engine/scenario'
 import { FORMATIONS } from '@engine/formations'
 import { formationForStyle } from '@engine/tactics'
@@ -154,7 +155,7 @@ export function RunInSetup() {
               <div className="setup-rules runin-jobs">
                 <div className="setup-opt setup-wide-opt col" data-testid="runin-suggested">
                   <h3>Three jobs for this seed</h3>
-                  {!ready && <span className="muted small">Loading league data…</span>}
+                  {!ready && <span className="muted small"><LeagueWait needs={[leagueId]} /></span>}
                   {ready && suggested.length === 0 && <span className="muted small">No jobs of this kind in this league.</span>}
                   {suggested.map((j, i) => row(j, `runin-job-${i}`))}
                 </div>
@@ -176,10 +177,11 @@ export function RunInSetup() {
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
               <StepHead n={5} title="Take the job" />
               <div className="small muted" data-testid="runin-summary">
-                {settings ? summariseRunIn(u, settings) : ready ? 'Pick a job' : 'Loading league data…'}
+                {settings ? summariseRunIn(u, settings) : ready ? 'Pick a job' : <LeagueWait needs={[leagueId]} />}
               </div>
+              <LeagueRetry needs={[leagueId]} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || !job} data-testid="runin-start">
-                {!ready ? 'Loading league data…' : job ? `Take over ${clubName(u, job.clubId)}` : 'Pick a job'}
+                {!ready ? <LeagueWait needs={[leagueId]} /> : job ? `Take over ${clubName(u, job.clubId)}` : 'Pick a job'}
               </button>
             </section>
           </div>

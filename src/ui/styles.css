@@ -4185,6 +4185,51 @@ table.tbl.contracts .btn.sm {
 .toast.leaving {
   animation: toast-out var(--dur-2) var(--ease-in-out) forwards;
 }
+/* While no save write goes through (storage full, O-14 in docs/QA.md): a warning in the top bar beside the brand,
+   or floating top left while the bar is hidden; it opens Your record */
+.save-banner {
+  display: flex;
+  flex: none;
+}
+.save-banner.floating {
+  position: fixed;
+  top: 10px;
+  left: var(--gutter);
+  z-index: 40;
+}
+.save-banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--bad);
+  background: var(--bad-soft);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.save-banner-btn:disabled {
+  cursor: default;
+}
+.save-banner-btn svg {
+  color: var(--bad);
+}
+@media (max-width: 359px) {
+  .save-banner-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .save-banner-btn {
+    padding: 0 9px;
+  }
+}
 /* The toast keeps its centring translate in every frame */
 @keyframes toast-in {
   from {
@@ -5098,7 +5143,8 @@ dl.kv {
     align-items: center;
     gap: var(--space-2) var(--space-4);
   }
-  .setup-start > .btn {
+  .setup-start > .btn,
+  .setup-start > .league-retry {
     grid-column: 1 / -1;
   }
   .setup-page .setup-opt h3 {
@@ -5430,6 +5476,22 @@ dl.kv {
   text-decoration: underline;
   cursor: pointer;
   font-size: inherit;
+}
+/* Offline, beside a start button whose league never loaded: the line and Retry (LeagueRetry, O-10 in docs/QA.md) */
+.league-retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.league-retry > .small {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+/* In a start bar the button sits right under it */
+.league-retry:has(+ .btn) {
+  margin-bottom: 0;
 }
 .spin-btn {
   width: 100%;
@@ -13174,6 +13236,10 @@ table.tbl.hub td.name {
   font-size: 12px;
   line-height: 18px;
 }
+/* The crumb clips its line, so the control's own box is the target: 24 px tall (O-12 in docs/QA.md) */
+.matchday .md-crumb .boxes-btn {
+  min-height: 24px;
+}
 /* The draft's progress box makes room for the control: the count never wraps, the box widens past 240 px if it must */
 .draft-count {
   white-space: nowrap;
@@ -13206,6 +13272,38 @@ table.tbl.hub td.name {
 .privacy-grid > .panel {
   break-inside: avoid;
   margin: 0 0 var(--space-3);
+}
+/* Every width: the small inline controls keep their look but get a 24 px target (WCAG 2.2 target size, O-12 in
+   docs/QA.md): the setup cards' "i", the text links, Boxes, chip buttons, the folds and the panels' summaries. The
+   inset counts from inside the border: an 18 px "i" with a 1 px border needs 4 px, a 23 px chip 2 px */
+.qinfo-btn,
+.linklike,
+.boxes-btn,
+button.chip,
+.fold-head,
+details > summary.panel-head {
+  position: relative;
+}
+.qinfo-btn::after,
+.linklike::after,
+.boxes-btn::after,
+.fold-head::after,
+details > summary.panel-head::after {
+  content: '';
+  position: absolute;
+  inset: -4px -2px;
+}
+.qinfo-btn::after {
+  inset: -4px;
+}
+/* The "i" sits on the corner of a power-up or setup card: its target lies above the card's */
+.qinfo-btn {
+  z-index: 1;
+}
+button.chip::after {
+  content: '';
+  position: absolute;
+  inset: -2px 0;
 }
 /* Phones: the small inline controls keep their look but get a 32 px+ target */
 @media (max-width: 720px) {
