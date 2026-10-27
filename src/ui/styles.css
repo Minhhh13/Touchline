@@ -9645,6 +9645,18 @@ table.tbl.match-stats th {
 .quick-team-name {
   font-size: 17px;
 }
+/* The quick season stacked on a tablet: the XI's pitch and the draft's keep a phone's size instead of filling 800 px
+   of width, and the playback's position chart stays a strip rather than a square taller than the window */
+@media (max-width: 1099px) {
+  .page.fit .pitch-fit > .pitch-wrap,
+  .grid.draft > .draft-pitch .pitch-wrap {
+    max-width: 460px;
+    margin-inline: auto;
+  }
+  .pb-grid .pos-chart svg {
+    max-height: 320px;
+  }
+}
 @media (min-width: 1100px) and (min-height: 600px) {
   /* Inside the app shell: the page itself never scrolls, the box grid takes the rest of the height */
   .app.shell > .page.fit {
