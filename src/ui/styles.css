@@ -7569,6 +7569,15 @@ dl.kv {
   content: '·';
   margin-right: var(--space-2);
 }
+/* A long meta line (`long` in Summary.tsx) wrapped under the team with its dot first: the team and Boxes on one line, the rest under them, no dot */
+.banner-meta.long .bm-rest {
+  order: 3;
+  flex-basis: 100%;
+  text-align: center;
+}
+.banner-meta.long .bm-rest::before {
+  content: none;
+}
 .banner-stats {
   display: flex;
   flex-wrap: wrap;

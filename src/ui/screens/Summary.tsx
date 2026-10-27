@@ -79,6 +79,14 @@ export function Summary() {
   // A challenge link made before a cup was played would leave the cup out: make it again on the next click
   const cupClaim = `${game?.quickResult?.cup?.reached ?? ''}|${game?.quickResult?.continentalCup?.reached ?? ''}`
   useEffect(() => setLink(null), [cupClaim])
+  // When the clipboard refuses the link, the toast says it is below: bring its box into view, the link selected
+  const [linkShown, setLinkShown] = useState(0)
+  useEffect(() => {
+    if (!linkShown) return
+    const el = document.querySelector<HTMLInputElement>('[data-testid="challenge-link-url"]')
+    el?.scrollIntoView({ block: 'center' })
+    el?.focus({ preventScroll: true })
+  }, [linkShown])
   // Every hook runs before the early return below
   const q = game?.quickResult
   const season = game?.season
@@ -241,7 +249,8 @@ export function Summary() {
       await navigator.clipboard.writeText(url)
       showToast(share.code ? `Short link ${share.code} copied. Send it to a friend.` : `Challenge link copied (${url.length} characters). Send it to a friend.`)
     } catch {
-      showToast('Could not copy. The link is below.')
+      showToast('Could not copy. The link is below, selected.')
+      setLinkShown((n) => n + 1)
     }
   }
   const runItBack = () => {
@@ -289,6 +298,8 @@ export function Summary() {
   }
 
   const modeName = modeLabel(game, 'heading')
+  // A meta line too long for one row wraps with its dot first: such a line puts the season and mode on a row of their own
+  const metaChars = game.settings.teamName.length + (game.settings.mode === 'quick' ? (superOn ? leagueName.length + 1 : 0) : seasonLabel(game.settings.leagueSeason).length + modeName.length + 3) + (modeLine ? modeLine.length + 3 : 0)
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
@@ -335,7 +346,7 @@ export function Summary() {
     <div className="page summary" data-testid="summary">
       <div className="tier-banner result-banner">
         {!replay.playing && <ResultArt kind={resultArtKind(tier)} />}
-        <div className="banner-meta">
+        <div className={`banner-meta${metaChars > 42 ? ' long' : ''}`}>
           <span className="bm-team">
             <TeamBadge code={game.settings.shortName} size={22} />
             {game.settings.teamName}
@@ -361,9 +372,9 @@ export function Summary() {
               <span className="vp-sep" aria-hidden="true">·</span>
               <span className="vp-short">{versusPerfectLine(record.won, record.lost, games)}</span>
             </span>
-            {runsSummary(runs, bests.longestPerfectRun) ? (
+            {runsSummary(runs, bests.longestPerfectRun, chase.perfectRun) ? (
               <span className="vp-runs small muted" data-testid="versus-perfect-runs">
-                {runsSummary(runs, bests.longestPerfectRun)}
+                {runsSummary(runs, bests.longestPerfectRun, chase.perfectRun)}
               </span>
             ) : null}
           </div>

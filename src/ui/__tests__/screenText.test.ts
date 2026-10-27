@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countPhrase, developmentLists, distinctLabels, modeLabel, runsSummary, shownGames, versusReal } from '../screenText'
+import { brokeMoment, countPhrase, developmentLists, distinctLabels, modeLabel, runsSummary, shownGames, versusReal } from '../screenText'
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
@@ -73,5 +73,16 @@ describe('runsSummary', () => {
     expect(runsSummary(null, 6)).toBe('Best perfect start 6-0')
     expect(runsSummary(null, 1)).toBeNull()
     expect(runsSummary(null, undefined)).toBeNull()
+    // This season's run is the best: named once, not twice
+    expect(runsSummary('Perfect run 2-0 · unbeaten for the first 7', 2, 2)).toBe('Perfect run 2-0 · unbeaten for the first 7 · your best perfect start')
+    expect(runsSummary('Perfect run 2-0', 5, 2)).toBe('Perfect run 2-0 · best perfect start 5-0')
+    expect(runsSummary('Unbeaten for the first 4 games', 3, 1)).toBe('Unbeaten for the first 4 games · best perfect start 3-0')
+  })
+})
+
+describe('brokeMoment', () => {
+  it('names the game that ended the perfect run, never the line the banner already shows', () => {
+    expect(brokeMoment(0, 1, 'Brentford')).toBe('Lost 0-1 to Brentford')
+    expect(brokeMoment(2, 2, 'Everton')).toBe('Drew 2-2 with Everton')
   })
 })
