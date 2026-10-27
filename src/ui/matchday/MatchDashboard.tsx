@@ -9,7 +9,7 @@
  * derived from it once per decision, and the per-minute views once per tick.
  * Below 1200 px it hands the same pieces to the stacked layout.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { canChangeInPlay, managerWindowsUsed, MAX_SUBS, MAX_WINDOWS, subsMade, type FullMatchResult, type LiveChanges } from '@engine/match'
 import { feedFromLive, feedFromResult, scoreAt, type MatchFeed } from '@engine/matchFeed'
 import { statsSeries, xgStory } from '@engine/matchStats'
@@ -25,6 +25,7 @@ import type { LiveMatch, MatchContext } from '@game/types'
 import { LivePitch, useMediaQuery } from '../components/LivePitch'
 import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
+import { assistantSubsBetween, assistantSubToast } from '../match/assistantSubs'
 import { commentaryContextFor } from '../match/commentaryColour'
 import { matchPath } from '../match/epochs'
 import { cuePending, useLiveClock } from '../match/clockStore'
@@ -62,7 +63,7 @@ export type DashboardSource = { mode: 'live'; live: LiveMatch } | { mode: 'repla
  * `onSimToEnd` plays the match straight to the whistle with the assistant taking every later call
  * (Full sim with the stop's changes, or Sim result in play without any).
  */
-export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { source: DashboardSource; onWhistle: () => void; onAdvance?: (changes: LiveChanges) => void; onSimToEnd?: (changes?: LiveChanges) => void }) {
+export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumbEnd }: { source: DashboardSource; onWhistle: () => void; onAdvance?: (changes: LiveChanges) => void; onSimToEnd?: (changes?: LiveChanges) => void; /** The replay's Live and Report tabs and its buttons, at the end of the competition line. */ crumbEnd?: ReactNode }) {
   const store = useStore()
   const game = store.game!
   const u = store.universe!
@@ -95,7 +96,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const liveLeague = live?.kind === 'league'
   const season = game.season
   const squad = game.squad
-  const talk = useMemo(() => commentaryContextFor({ season, squad }, homeId, awayId, liveLeague), [season, squad, homeId, awayId, liveLeague])
+  const talk = useMemo(() => ({ ...commentaryContextFor({ season, squad }, homeId, awayId, liveLeague), ...(userSide ? { userSide } : {}) }), [season, squad, homeId, awayId, liveLeague, userSide])
   const commentary = useMemo(() => commentaryUpTo(feed, mpath, feed.lastMinute, codes, getName, elsewhere, talk), [feed, mpath, codes, getName, elsewhere, talk])
 
   // The clock: from the segment's start (or the last change in play) to the stop, or to the whistle
@@ -133,6 +134,16 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const pending = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock.clock && h.t >= start) || (!clock.finished && cuePending(cues, cued, clock.clock, start))
   const minute = pending ? Math.max(start, clock.clock - 1) : clock.clock
   const whistle = clock.finished && final
+  // The assistant's routine and injury changes for our side come up as a toast when the clock reaches them (display only)
+  const subsSeen = useRef(minute)
+  useEffect(() => {
+    if (!live || !userSide) return
+    const from = subsSeen.current
+    subsSeen.current = minute
+    if (minute <= from) return
+    const line = assistantSubToast(assistantSubsBetween(feed, userSide, from, minute))
+    if (line) showToast(line)
+  }, [minute, feed, live, userSide, showToast])
 
   // Highlights: the clock runs fast through the quiet minutes (a UI clock change only; the segment is already decided)
   const [level, setLevelState] = useState<HighlightLevel>(readLevel)
@@ -241,7 +252,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   }, [compact])
   const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : ctx.competition === 'league' ? `Matchweek ${ctx.matchweek}` : 'Continental Cup')}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
   const crumb = (
-    <div className="md-crumb">
+    <div className={`md-crumb ${crumbEnd ? 'has-end' : ''}`}>
       <b>
         {ctx.roundLabel !== 'Friendly' && game.season?.leagueId && (
           <>
@@ -254,6 +265,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
         {feed.home.name} v {feed.away.name} · {live ? 'live' : 'replay'}
       </span>
       <BoxesMenu groups={[compact ? compactBoxes : boxes]} className="md-boxes" />
+      {crumbEnd && <div className="md-crumb-end">{crumbEnd}</div>}
     </div>
   )
   // Auto-play: the assistant answers the stops for the rest of this match ("Auto from here", "Finish the match", or the saved mode)

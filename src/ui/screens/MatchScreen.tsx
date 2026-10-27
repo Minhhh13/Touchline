@@ -151,7 +151,7 @@ export function MatchScreen() {
               {homeName} {res.homeGoals}-{res.awayGoals} {awayName} · level at 90
             </div>
           </div>
-          <button className="btn primary" disabled data-testid="match-continue">
+          <button className="btn primary shootout-wait" disabled data-testid="match-continue">
             {continueLabel}
           </button>
         </div>
@@ -163,11 +163,29 @@ export function MatchScreen() {
       </div>
     )
   }
+  const buttons = (
+    <div className="row">
+      {game.lastCupMatch && !cupNext && (
+        <div className="segmented">
+          <button className={which === 'league' ? 'active' : ''} onClick={() => setWhich('league')}>
+            League
+          </button>
+          <button className={which === 'cup' ? 'active' : ''} onClick={() => setWhich('cup')}>
+            Cup
+          </button>
+        </div>
+      )}
+      {!replay && <BoxesMenu groups={[reportBoxes]} />}
+      <button className={`btn primary ${replay ? 'sm' : ''}`} onClick={onContinue} disabled={!!arena?.pending} data-testid="match-continue">
+        {continueLabel}
+      </button>
+    </div>
+  )
   return (
     <div className={`page ${replay ? 'matchday-page' : 'report-page'}`}>
-      {/* One slim row: the match's name (the replay's dashboard names it in its own line), the Live and Report tabs and the buttons */}
-      <div className={`row between wrap match-head ${replay ? 'replay-head' : ''}`}>
-        {!replay && (
+      {/* The report's slim row: the match's name, the Live and Report tabs and the buttons; the replay folds the tabs and the buttons into the dashboard's competition line */}
+      {!replay && (
+        <div className="row between wrap match-head">
           <div className="match-title">
             <h2>
               <CompetitionFlag ctx={ctx} leagueId={game.season?.leagueId} />
@@ -178,30 +196,18 @@ export function MatchScreen() {
               {homeName} v {awayName}
             </div>
           </div>
-        )}
-        {tabs}
-        <div className="row">
-          {game.lastCupMatch && !cupNext && (
-            <div className="segmented">
-              <button className={which === 'league' ? 'active' : ''} onClick={() => setWhich('league')}>
-                League
-              </button>
-              <button className={which === 'cup' ? 'active' : ''} onClick={() => setWhich('cup')}>
-                Cup
-              </button>
-            </div>
-          )}
-          {!replay && <BoxesMenu groups={[reportBoxes]} />}
-          <button className="btn primary" onClick={onContinue} disabled={!!arena?.pending} data-testid="match-continue">
-            {continueLabel}
-          </button>
+          {tabs}
+          {buttons}
         </div>
-      </div>
+      )}
 
       {/* The shoot-out's kicks reveal on the report; the replay dashboard keeps its one-screen fit */}
       {arena && !replay && <ShootoutPanel />}
 
-      {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} />}
+      {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} crumbEnd={<>
+            {tabs}
+            {buttons}
+          </>} />}
       {matchView === 'report' && <Report boxes={reportBoxes} res={res} ctx={ctx} names={names} outcome={outcome} verdict={verdict.outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
     </div>
   )

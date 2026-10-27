@@ -324,7 +324,7 @@ export function App() {
           <span>Show top bar</span>
         </button>
       )}
-      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')}>
+      <ScreenBoundary resetKey={`${screen}|${game?.phase ?? ''}|${h2hStage}`} onHome={() => go('home')} atHome={screen === 'home'}>
         {body}
       </ScreenBoundary>
       <Toast />

@@ -366,3 +366,12 @@ export function highlightedMan(selected: string | null, focused: string | null):
   return focused ?? selected
 }
 
+/**
+ * Whether the keyboard's preview has lost its card: the man focused on the strip is no longer on any card (a
+ * substitute took his slot, the strip re-rendered without him). A card that unmounts never blurs, so the strip clears
+ * the preview itself. Pure.
+ */
+export function staleFocus(focused: string | null, onCards: Array<string | null | undefined>): boolean {
+  return focused !== null && !onCards.includes(focused)
+}
+

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, Repeat, Swords, Trophy, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
+import { Check, CircleCheck, Copy, Dices, DoorOpen, Hourglass, Link2, Lock, Repeat, Swords, Trophy, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { ENGINE_VERSION } from '@engine/version'
 import { getFormation } from '@engine/formations'
@@ -330,7 +330,7 @@ function RoomWaiting({ view }: { view: RoomView }) {
           <div className="room-share">
             <input className="input mono" readOnly value={link} aria-label="Room link" data-testid="room-link" onFocus={(e) => e.currentTarget.select()} />
             <button className="btn primary" onClick={() => void copy()} data-testid="room-copy">
-              {copied ? <CircleCheck size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy link'}
+              {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy link'}
             </button>
           </div>
           <div className="notice icon-notice">

@@ -5352,6 +5352,27 @@ dl.kv {
     font-size: 9px; /* px: drawn to the pitch disc */
   }
 }
+/* A large window (2560 x 1440): the pitch was width-bound at 420 px tall in a third of the box. The tiles take less
+   of step 1's width and the pitch the rest, up to 640 px tall, so the step has no large empty area */
+@media (min-width: 2200px) and (min-height: 1200px) {
+  .setup-page .setup-formation-body > .formations {
+    flex: 1 1 40%;
+  }
+  .setup-page .setup-formation-body > .setup-preview {
+    flex: 1 1 60%;
+  }
+  .setup-formation .pitch-mini .pitch-wrap {
+    max-height: 640px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot {
+    width: 40px;
+  }
+  .setup-formation .pitch-mini .pitch-wrap .slot .disc {
+    width: 32px;
+    height: 32px;
+    font-size: 11px; /* px: drawn to the pitch disc */
+  }
+}
 .setup-sub {
   margin: 4px 0 0;
 }
@@ -5559,6 +5580,12 @@ dl.kv {
   }
   .choice-card .ctitle {
     font-size: calc(var(--fs-h3) - 2px);
+    overflow-wrap: break-word;
+  }
+  /* Columns sized in rem: at 175 % and 200 % text three cards become two to a row, so "Normal" stays in its card */
+  .choice-cards,
+  .choice-cards.n3 {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.5rem), 1fr));
   }
 }
 .linklike {
@@ -6115,6 +6142,50 @@ dl.kv {
   color: var(--text);
   font-size: calc(var(--fs-h2) - 2px);
 }
+/* The season playback's head: the manager, Boxes and the matchweek, then the playback controls, at the right */
+.pb-head-row {
+  gap: 8px;
+  justify-content: flex-end;
+}
+/* A phone: two tight rows the width of the page (the matchweek and Boxes, then Pause, the speeds and Skip on one line) */
+@media (max-width: 720px) {
+  .pb-page .fit-head {
+    gap: 8px;
+  }
+  .pb-page .fit-head-side {
+    width: 100%;
+    align-items: stretch;
+  }
+  .pb-page .pb-head-row {
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px 6px;
+  }
+  /* Boxes and the matchweek share a line; a phone narrower than 390 px moves Skip under the speeds */
+  .pb-page .quick-team .manager-chip {
+    align-self: center;
+  }
+  .pb-page .playback-mw {
+    flex: none;
+    font-size: var(--fs-meta);
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .pb-page .playback-mw b {
+    font-size: calc(var(--fs-base) + 2px);
+  }
+  .pb-page .pb-head-controls .segmented {
+    flex-wrap: nowrap;
+  }
+  .pb-page .pb-head-controls .segmented button {
+    min-width: 0;
+    padding-inline: 6px;
+  }
+  .pb-page .pb-head-controls > .btn {
+    flex: none;
+    padding-inline: 8px;
+  }
+}
 @keyframes gbg-in {
   from {
     opacity: 0;
@@ -6181,6 +6252,21 @@ dl.kv {
   .gbg-fix {
     white-space: normal;
     line-height: 1.2;
+  }
+}
+/* Larger text in a narrow list (a container query in rem, so it follows the root text size: from about 125 % on a
+   390 px phone): the matchweek drops under the score, so the opponent and his H, A or N chip keep their room */
+.gbg-list {
+  container: gbg / inline-size;
+}
+@container gbg (max-width: 17rem) {
+  .gbg-game .gbg-mw {
+    grid-row: 2;
+    grid-column: 3 / -1;
+    text-align: left;
+  }
+  .gbg-game .gbg-fix {
+    min-width: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -11432,6 +11518,15 @@ table.tbl tr.chase-perfect td:first-child {
   .qmode:not(.pu-card) .micon {
     font-size: calc(var(--fs-h2) - 2px);
   }
+  /* Four to a row at the normal text size; the column is sized in rem, so larger text (175 %, 200 %) takes fewer
+     columns and every name ("Speedrun", "Underdog") stays inside its card */
+  .qmode-row {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.6rem), 1fr));
+  }
+  .qmode:not(.pu-card) .ctitle {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
 }
 /* The setup's two boxes on a desktop, with quick-modes' Modes row, icon cards and name dice folded in: everything compact so
    the five steps fit one screen. The Modes row is one line of eight (seven modes and Power-ups), icon over name; the option
@@ -12127,16 +12222,6 @@ table.tbl.contracts-overview .link-btn.name {
   max-width: 100%;
 }
 
-/* The match replay: the tabs and the buttons share one slim row above the dashboard */
-.replay-head {
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-}
-.replay-head > .tabs {
-  margin: 0;
-  border-bottom: 0;
-}
-
 /* The shot map's key: drawn markers, at the legend's own size */
 .shot-key {
   display: inline-flex;
@@ -12359,6 +12444,18 @@ table.tbl.contracts-overview .link-btn.name {
   }
   .setup-modes-row .pu-setup .qmode.pu-card > * {
     min-width: 0;
+  }
+  /* The name keeps its width and the line takes what is left, or goes under it at larger text ("Moneyball" at 200 %) */
+  .setup-modes-row .pu-setup .qmode.pu-card {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card > .ctitle {
+    flex: 0 1 auto;
+    min-width: min-content;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card > .cline {
+    flex: 1 1 7rem;
   }
 }
 /* ------------------------------------------------------------------ recruitment: scouting, contract talks, the board, the data hub */
@@ -13374,6 +13471,23 @@ table.tbl.hub td.name {
   }
   .page.report-page > [data-testid='shootout-reveal'] .shootout-kicks > .chip {
     flex: none;
+  }
+}
+/* A phone shoot-out: the disabled "Penalties first" leaves the head, and Take the penalties rides at the foot of the
+   window while the eleven takers scroll under it (ShootoutPanel renders it there under 721 px) */
+.shootout-foot {
+  position: sticky;
+  bottom: max(var(--space-2), var(--safe-bottom));
+  z-index: 2;
+  margin-top: var(--space-3);
+}
+.shootout-foot > .btn {
+  width: 100%;
+  box-shadow: var(--shadow);
+}
+@media (max-width: 720px) {
+  .arena-shootout .fit-head > .shootout-wait {
+    display: none;
   }
 }
 /* A taker's shooting and composure follow his name, and go under it on a phone (a wrapped line led with its dot) */
