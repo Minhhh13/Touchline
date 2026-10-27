@@ -79,6 +79,17 @@ describe('QA-4: a screen that throws while rendering', () => {
     expect(markupProblems(html)).toEqual([])
   })
 
+  it('offers only Reload when Home itself threw (Back to home would land on the same error)', () => {
+    const b = new ScreenBoundary({ resetKey: 'home||setup', onHome: () => {}, atHome: true, children: null })
+    b.state = { error: new Error('boom'), key: 'home||setup' }
+    const html = renderToString(createElement(() => b.render()))
+    expect(html).toContain('data-testid="screen-error"')
+    expect(html).not.toContain('screen-error-home')
+    expect(html).toMatch(/class="btn primary"[^>]*data-testid="screen-error-reload"/)
+    expect(markupProblems(html)).toEqual([])
+    expect(readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')).toContain("atHome={screen === 'home'}")
+  })
+
   it('wraps the screens in App, so a render error never blanks the top bar', () => {
     const src = readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8')
     expect(src).toMatch(/<ScreenBoundary resetKey=[\s\S]{0,200}?\{body\}\s*<\/ScreenBoundary>/)
