@@ -128,6 +128,11 @@
   --pitch-bad: #f87171;
   /* The substitution board's fit glows on the grass: natural, can cover (out of position is --pitch-bad) */
   --pitch-fit: #34d399;
+  /* The match day's heat map on the grass: warm cells, and the hottest overlaid (gold stays for trophies and records) */
+  --heat-warm: #f5c542;
+  --heat-hot: #f87171;
+  /* The casing under a chart line whose kit is close to the panel's colour (Floodlit: a light edge round a dark kit) */
+  --line-casing: rgba(241, 244, 255, 0.6);
   --pitch-cover: #f5c542;
   /* Type */
   --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
@@ -255,6 +260,10 @@
   --medal-bronze: #a8692e;
   --medal-silver: #6f7c86;
   --medal-gold: var(--gold-text);
+  /* The heat map's hottest cells: the Daylight red, as before */
+  --heat-hot: #b91c1c;
+  /* Daylight: a navy edge round a white or yellow kit's line */
+  --line-casing: rgba(10, 27, 81, 0.6);
   /* The hairline under a Daylight secondary button */
   --btn-hairline: 0 1px 2px rgba(10, 27, 81, 0.07);
   --shadow: 0 12px 32px -6px rgba(10, 27, 81, 0.18);
@@ -6430,6 +6439,16 @@ dl.kv {
   width: 100%;
   height: auto;
   margin-top: 4px;
+}
+/* A kit line too close to the chart panel's colour (a white kit in Daylight, a navy one in Floodlit) carries a casing,
+   as the momentum bars carry an outline; lineTone() in match/charts.ts marks which theme needs it */
+.line-casing {
+  display: none;
+  stroke: var(--line-casing);
+}
+:root[data-theme='light'] .line-casing:is([data-tone='pale'], [data-tone='both']),
+:root:not([data-theme='light']) .line-casing:is([data-tone='deep'], [data-tone='both']) {
+  display: inline;
 }
 .scoreboard.flash {
   animation: boardflash calc(var(--dur-2) * 5) var(--ease-out);

@@ -60,8 +60,8 @@ export function HeatMap({ d }: PanelProps) {
                 const y = H - (along + 1) * h
                 return (
                   <g key={i}>
-                    <rect x={x} y={y} width={w + 0.05} height={h + 0.05} fill="var(--gold)" opacity={Math.min(0.85, v * 0.85)} />
-                    {v > 0.55 && <rect x={x} y={y} width={w + 0.05} height={h + 0.05} fill="var(--danger)" opacity={(v - 0.55) * 1.8} />}
+                    <rect x={x} y={y} width={w + 0.05} height={h + 0.05} fill="var(--heat-warm)" opacity={Math.min(0.85, v * 0.85)} />
+                    {v > 0.55 && <rect x={x} y={y} width={w + 0.05} height={h + 0.05} fill="var(--heat-hot)" opacity={(v - 0.55) * 1.8} />}
                   </g>
                 )
               })}
