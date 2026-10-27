@@ -8,8 +8,9 @@ import { dailySettings } from './daily'
 import { eraFirstSeason } from './era'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
-import { newSquadPlayer, buildAiClubs, buildContinentalClubs, humansOf, continentalRounds, drawFirstRound, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
+import { newSquadPlayer, buildAiClubs, buildContinentalClubs, humansOf, generateFixtures, drawFirstCupRound, USER_TEAM, boardTargetFor, aiTeamInput, aiRatingOffset, matchweeksFor, type ContinentalState } from '@engine/season'
 import { startingFinances } from '@engine/market'
+import { continentalPlan, drawGroups, potOrder } from '@engine/continental'
 import { computeTeamStrength } from '@engine/ratings'
 import { autoPick, squadWages, teamStrength } from './squad'
 import { buildYouthIntake } from './youth'
@@ -424,7 +425,8 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
   const wantsEurope = game.year === 1 ? !!s.continental : !!game.qualifiedContinental
   if (wantsEurope) {
     const clubs = buildContinentalClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, 15, taken)
-    if (Object.keys(clubs).length === 15) continental = { ties: drawFirstRound([USER_TEAM, ...Object.keys(clubs)], rng, continentalRounds(matchweeks)), clubs, eliminated: false, won: false }
+    // Engine 7: four groups of four, the user at the head of the second pot (`continental.ts`)
+    if (Object.keys(clubs).length === 15) continental = { ties: [], groups: drawGroups(potOrder(Object.keys(clubs), USER_TEAM), rng, continentalPlan(matchweeks)), clubs, eliminated: false, won: false }
   }
   game.season = {
     leagueId: s.leagueId,
@@ -449,10 +451,10 @@ export function beginSeason(game: Game, u: LoadedUniverse): void {
     sacked: false,
   }
   game.season.news.unshift({ matchweek: 0, kind: 'board', title: 'Board objectives', body: `Beyond the league position the board asks for two things: ${game.season.objectives!.map((o) => o.label.toLowerCase()).join(', and ')}. Each one met adds £${OBJECTIVE_REWARD.budget}M to next season's budget.` })
-  if (continental) {
-    const tie = continental.ties.find((t) => t.homeTeamId === USER_TEAM || t.awayTeamId === USER_TEAM)!
-    const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
-    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'Continental Cup draw', body: `${wantsEurope && game.year > 1 ? 'Qualified by right. ' : ''}Round of 16: ${tie.homeTeamId === USER_TEAM ? 'home to' : 'away at'} ${continental.clubs[opp]?.name ?? opp}, after matchweek ${continentalRounds(matchweeks)[0].afterMatchweek}.` })
+  if (continental?.groups) {
+    const group = continental.groups.find((g) => g.teams.includes(USER_TEAM))!
+    const rivals = group.teams.filter((id) => id !== USER_TEAM).map((id) => continental!.clubs[id]?.name ?? id)
+    game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'Continental Cup draw', body: `${wantsEurope && game.year > 1 ? 'Qualified by right. ' : ''}Group ${group.name}: ${rivals.join(', ')}. Six matchdays, home and away, from after matchweek ${continentalPlan(matchweeks).groupWeeks[0]}; the top two go through to the quarter-finals.` })
   } else if (wantsEurope) {
     game.season.news.unshift({ matchweek: 0, kind: 'cup', title: 'No Continental Cup', body: 'Not enough clubs from other leagues are loaded to form a field this season.' })
   }

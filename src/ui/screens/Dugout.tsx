@@ -30,7 +30,9 @@ import { PlayerRow } from '../components/PlayerRow'
 import { TableView } from '../components/TableView'
 import { Bar, ClubBadge, Info, Modal, Rating, Segmented, Stat, Tabs, Pos, TeamBadge, Tip, useViewerFlag } from '../components/bits'
 import { Bracket } from '../components/Bracket'
-import { seasonCupBracket } from '@game/logic/bracket'
+import { seasonCupBracket, seasonGroupViews } from '@game/logic/bracket'
+import { continentalPlan } from '@engine/continental'
+import { GroupTables } from '../components/GroupTables'
 import { BriefingIcon, NewsIcon } from '../components/icons'
 import { SQUAD_COLUMNS } from '../components/AttributePanel'
 import { PlayerCardModal } from '../components/PlayerCard'
@@ -267,7 +269,7 @@ export function Dugout() {
                         ⏸ {stopped.label}
                       </span>
                     )}
-                    {cupTie && <span>then {cupTie.label} {cupTie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} {clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId)} midweek</span>}
+                    {cupTie && <span>then {cupTie.label} {cupTie.homeTeamId === USER_TEAM ? 'v' : 'at'} {clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId)} midweek</span>}
                   </div>
                 </div>
               </div>
@@ -288,7 +290,7 @@ export function Dugout() {
                   {cupTie && (
                     <div className="club-sub">
                       <span>
-                        then {cupTie.label} {cupTie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} {clubShort(u, cupTie.tie.homeTeamId === USER_TEAM ? cupTie.tie.awayTeamId : cupTie.tie.homeTeamId)} midweek
+                        then {cupTie.label} {cupTie.homeTeamId === USER_TEAM ? 'v' : 'at'} {clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId)} midweek
                       </span>
                     </div>
                   )}
@@ -877,7 +879,7 @@ function SeasonStrip({ table }: { table: TableRow[] }) {
     <div className="season-strip" data-testid="season-strip">
       {cells.map((c) => {
         const opp = c.opp ? clubName(u, c.opp) : null
-        const tieLine = c.ties.map((t) => `${t.comp === 'cup' ? 'Cup' : 'Continental Cup'} ${t.round} ${t.home ? 'v' : 'at'} ${clubName(u, t.opp)}${t.score ? ` ${t.score}` : ''}`).join('; ')
+        const tieLine = c.ties.map((t) => `${t.label ?? `${t.comp === 'cup' ? 'Cup' : 'Continental Cup'} ${t.round}`} ${t.home ? 'v' : 'at'} ${clubName(u, t.opp)}${t.score ? ` ${t.score}` : ''}`).join('; ')
         const title = `MW ${c.matchweek}: ${opp ? `${c.home ? 'v' : 'at'} ${opp}${c.score ? ` ${c.score}` : ''}` : 'free weekend'}${tieLine ? `; then ${tieLine}` : ''}`
         return (
           <div key={c.matchweek} className={`ss-cell ${c.outcome ? 'played' : c.band ? `band-${c.band}` : 'free'} ${c.matchweek === nextMw ? 'next' : ''}`} title={title} data-testid="strip-cell">
@@ -1155,7 +1157,10 @@ function CupTab({ comp }: { comp: Competition }) {
   const { universe: u, game } = useStore()
   if (!u || !game?.season) return null
   const season = game.season
-  const rounds = roundsFor(comp, season.matchweeks)
+  // Engine 7's Continental Cup: groups, then two-legged knockouts from the quarter-finals; an engine 6 one plays on as drawn
+  const groups = comp === 'continental' ? season.continental?.groups : undefined
+  const plan = groups ? continentalPlan(season.matchweeks) : null
+  const rounds = plan ? plan.rounds : roundsFor(comp, season.matchweeks)
   const allTies = comp === 'cup' ? season.cup : season.continental?.ties ?? []
   const eliminated = comp === 'cup' ? season.cupEliminated : !!season.continental?.eliminated
   const won = comp === 'cup' ? season.cupWon : !!season.continental?.won
@@ -1166,11 +1171,13 @@ function CupTab({ comp }: { comp: Competition }) {
         <span className="head-title">
           <h3>{comp === 'cup' ? 'The Cup' : 'Continental Cup'}</h3>
           <Info label="About the competition">
-            {comp === 'cup' ? 'Sixteen clubs, four rounds' : 'You and the fifteen strongest clubs from the other leagues that season, four rounds'} played midweek after matchweeks {rounds.map((r) => r.afterMatchweek).join(', ')}. Drawn ties go to penalties; the final is at a neutral venue.
+            {plan
+              ? `You and the fifteen strongest clubs from the other leagues that season. Four groups of four, home and away, midweek after matchweeks ${plan.groupWeeks.join(', ')}; the top two of each group reach the quarter-finals. The quarter-finals (after matchweeks ${plan.rounds[0].firstLeg} and ${plan.rounds[0].afterMatchweek}) and semi-finals (${plan.rounds[1].firstLeg} and ${plan.rounds[1].afterMatchweek}) are two legs: the aggregate decides, with no away goals rule, then extra time and penalties after the second leg. The final, after matchweek ${plan.rounds[2].afterMatchweek}, is one match at a neutral venue.`
+              : `${comp === 'cup' ? 'Sixteen clubs, four rounds' : 'You and the fifteen strongest clubs from the other leagues that season, four rounds'} played midweek after matchweeks ${rounds.map((r) => r.afterMatchweek).join(', ')}. Drawn ties go to penalties; the final is at a neutral venue.`}
             {comp === 'continental' ? ' Finish in the top four to qualify again next season.' : ''}
           </Info>
         </span>
-        <span className="small muted">16 clubs · 4 rounds</span>
+        <span className="small muted">{plan ? '16 clubs · 4 groups · 3 knockout rounds' : '16 clubs · 4 rounds'}</span>
       </div>
       {field.length > 0 && (
         <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
@@ -1181,8 +1188,13 @@ function CupTab({ comp }: { comp: Competition }) {
           ))}
         </div>
       )}
+      {groups && (
+        <div style={{ marginBottom: 12 }}>
+          <GroupTables groups={seasonGroupViews(groups)} nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))} badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={16} /> : <ClubBadge clubId={id} size={16} />)} userId={USER_TEAM} testId="season-groups" />
+        </div>
+      )}
       <Bracket
-        view={seasonCupBracket(allTies, rounds)}
+        view={seasonCupBracket(allTies, rounds, plan?.groupWeeks.at(-1))}
         nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))}
         badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={18} /> : <ClubBadge clubId={id} size={18} />)}
         userId={USER_TEAM}

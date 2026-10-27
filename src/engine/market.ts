@@ -493,8 +493,8 @@ export function afterSeasonMoney(budget: number, net: number): number {
   return Math.round((budget < 0 ? after : Math.max(SUMMER_FLOOR, after)) * 10) / 10
 }
 
-/** The Continental Cup's money by the round reached (GBP millions); engine 6 (4, 8, 15, 25 and 45 before). */
-export const CONTINENTAL_PRIZE: Readonly<Record<string, number>> = { R16: 2, QF: 4, SF: 7, F: 11, W: 18 }
+/** The Continental Cup's money by the stage reached (GBP millions); engine 6 (4, 8, 15, 25 and 45 before), and engine 7's group stage (G) pays as the round of 16 did. */
+export const CONTINENTAL_PRIZE: Readonly<Record<string, number>> = { G: 2, R16: 2, QF: 4, SF: 7, F: 11, W: 18 }
 
 export const POSITION_NEEDS: Record<Position, string> = {
   GK: 'a goalkeeper',

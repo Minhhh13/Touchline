@@ -32,9 +32,9 @@ import { POWER_UPS, rerollSeason, swapSlots, unpackPowerUp, usePeek, type PowerU
 /** Longest name carried in a link; longer names are cut, control characters dropped. */
 export const CHALLENGE_NAME_MAX = 24
 
-/** How far a post-season cup run went: the round it ended in, W for winners. */
-export type CupReach = 'R16' | 'QF' | 'SF' | 'F' | 'W'
-export const CUP_REACHES: readonly CupReach[] = ['R16', 'QF', 'SF', 'F', 'W']
+/** How far a post-season cup run went: the round it ended in, G for out in the Continental Cup's groups (engine 7), W for winners. */
+export type CupReach = 'G' | 'R16' | 'QF' | 'SF' | 'F' | 'W'
+export const CUP_REACHES: readonly CupReach[] = ['G', 'R16', 'QF', 'SF', 'F', 'W']
 
 export interface ChallengeClaim {
   pts: number

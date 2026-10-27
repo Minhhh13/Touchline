@@ -82,7 +82,7 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
       return null
     }
     case 'continental-qf': {
-      if (season.continental?.eliminated && !reached(season.continental.ties, 'QF')) return 'Out of Europe in the round of 16: the quarter-final objective is gone'
+      if (season.continental?.eliminated && !reached(season.continental.ties, 'QF')) return `Out of Europe in the ${season.continental.groups ? 'group stage' : 'round of 16'}: the quarter-final objective is gone`
       return null
     }
     case 'home-form': {
@@ -218,9 +218,9 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
 
   const tie = upcomingCupTie(game)
   if (tie) {
-    const opp = tie.tie.homeTeamId === USER_TEAM ? tie.tie.awayTeamId : tie.tie.homeTeamId
+    const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
     const club = u.clubById[opp]
-    items.push({ id: 'cup', level: 'info', text: `${tie.label} ${tie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${club?.shortName ?? opp} midweek. Rotate, you play again Thursday`, action: { label: tie.comp === 'cup' ? 'Cup' : 'Europe', tab: tie.comp === 'cup' ? 'cup' : 'europe' } })
+    items.push({ id: 'cup', level: 'info', text: `${tie.label} ${tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${club?.shortName ?? opp} midweek. Rotate, you play again Thursday`, action: { label: tie.comp === 'cup' ? 'Cup' : 'Europe', tab: tie.comp === 'cup' ? 'cup' : 'europe' } })
   }
 
   for (const o of season.objectives ?? []) {

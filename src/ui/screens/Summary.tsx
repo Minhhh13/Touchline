@@ -468,7 +468,7 @@ export function Summary() {
               ★ Case Icon
             </span>
           )}
-          {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
+          {season?.continental && !season.continental.won && iconChip(Globe, `Continental Cup: ${{ G: 'group stage', R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'R16']}`)}
           {season?.sacked && <span className="chip bad">Sacked</span>}
           {casualChips(game).map((c) => (
             <span key={c.key} className="chip icon-chip" title={c.title} data-testid={`summary-${c.key}`}>

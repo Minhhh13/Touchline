@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { inTie, type BracketTie, type BracketView } from '@game/logic/bracket'
+import { bracketLegs, inTie, type BracketTie, type BracketView } from '@game/logic/bracket'
 import { TrophyArt, type TrophyKind } from './TrophyArt'
 
 /** What a reveal has shown so far: ties whose step is below `shown` are played; the tie at `shown` is the one in play. */
@@ -35,6 +35,8 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
     el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [reveal?.shown, reveal])
 
+  // A two-legged tie between its legs (a Season's bracket): the first leg's score shows, nobody through yet
+  const midway = (t: BracketTie) => !reveal && !!t.legs?.length && t.winner === undefined
   const side = (t: BracketTie, which: 'home' | 'away', show: boolean, done: boolean) => {
     const id = t[which]
     const goals = which === 'home' ? t.hg : t.ag
@@ -48,7 +50,7 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
           {show ? nameOf(id) : '?'}
           {show && seeded.has(id) && <span className="muted small" title="Seeded"> (s)</span>}
         </span>
-        <span className="br-goals">{done && goals !== undefined ? goals : ''}</span>
+        <span className="br-goals">{(done || midway(t)) && goals !== undefined ? goals : ''}</span>
         {done && pens !== undefined && <span className="br-pens" title="Penalties">{pens}</span>}
       </div>
     )
@@ -61,11 +63,18 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
     const me = show && inTie(t, userId)
     const done = played(r, i) && t.winner !== undefined
     const live = inPlay(r, i) && me && !!reveal?.live
-    const extra = done ? (t.pens ? 'pens' : t.et ? 'aet' : '') : ''
+    const extra = done ? (t.pens ? 'pens' : t.et ? 'aet' : t.legs ? 'agg' : '') : ''
+    // A two-legged tie's legs under its aggregate (engine 7's Continental Cup); a first leg alone as it stands
+    const legs = played(r, i) ? bracketLegs(t) : null
     return (
       <div className={`br-tie ${me ? 'me' : ''} ${done ? 'done' : 'open'} ${reveal && done ? 'landed' : ''} ${live ? 'live' : ''}`} data-testid={me ? meTestId : tieTestId} data-me={me ? 'true' : undefined} data-played={done ? 'true' : 'false'} data-in-play={inPlay(r, i) ? 'true' : undefined}>
         {side(t, 'home', show, done)}
         {side(t, 'away', show, done)}
+        {legs && (
+          <span className="br-legs" data-testid="bracket-legs" title="Each leg, home side of the tie first">
+            Legs {legs}
+          </span>
+        )}
         {extra && <span className="br-extra">{extra}</span>}
         {live && <span className="br-live small">In play</span>}
       </div>

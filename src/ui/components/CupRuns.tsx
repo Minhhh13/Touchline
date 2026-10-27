@@ -3,7 +3,7 @@ import { Globe, Medal, Network, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import type { Game, QuickCupRun } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { cupReachLabel, cupRoundLabel, cupScoreLabel, QUICK_CONTINENTAL_PLACES, QUICK_CUP_ENTRANTS, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
+import { cupReachLabel, cupRoundLabel, cupScoreLabel, quickGroupLine, QUICK_CONTINENTAL_PLACES, QUICK_CUP_ENTRANTS, quickCupStatus, type QuickCupComp } from '@game/logic/quickCups'
 import { ClubBadge } from './bits'
 import { CupNight } from './CupNight'
 import { ordinal } from '../format'
@@ -106,7 +106,7 @@ function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: 
       {status.state === 'open' && (
         <>
           <p className="small muted" style={{ margin: 0 }}>
-            {comp === 'cup' ? 'Sixteen of the league’s clubs, one-off ties, extra time and penalties if level, a final at a neutral ground.' : isSuperLeague(game.settings) ? `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place against the next ${QUICK_CUP_ENTRANTS - 1} greatest sides in the data: four knockout rounds to a final.` : `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place among the best sides of the other leagues that season: four knockout rounds to a final.`}
+            {comp === 'cup' ? 'Sixteen of the league’s clubs, one-off ties, extra time and penalties if level, a final at a neutral ground.' : isSuperLeague(game.settings) ? `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place against the next ${QUICK_CUP_ENTRANTS - 1} greatest sides in the data: four groups of four, then two-legged quarter- and semi-finals and a one-off final.` : `Your ${ordinal(game.quickResult?.position ?? 0)} place earns a place among the best sides of the other leagues that season: four groups of four, then two-legged quarter- and semi-finals and a one-off final.`}
           </p>
           <div className="cup-choice">
             <button className={`btn ${main ? 'primary' : ''}`} onClick={() => void play()} disabled={busy || loadingLeagues} data-testid={`cup-${comp}-play`}>
@@ -125,6 +125,11 @@ function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: 
         </p>
       )}
       {run && revealing && <p className="small muted" style={{ margin: 0 }}>The ties are being played…</p>}
+      {run && !revealing && run.groups && (
+        <p className="small muted" style={{ margin: 0 }} data-testid={`cup-${comp}-group`}>
+          {quickGroupLine(run)}
+        </p>
+      )}
       {run && !revealing && <TieList comp={comp} run={run} shown={run.ties.length} nameOf={sideNamer(game, u)} />}
       {run && !revealing && (
         <div className="cup-foot">
@@ -134,7 +139,7 @@ function CupCard({ comp, game, u, onReveal, main }: { comp: QuickCupComp; game: 
             </span>
           )}
           <button className="btn sm" onClick={() => setNight('view')} data-testid={`cup-${comp}-bracket-open`}>
-            <Network size={14} aria-hidden="true" /> See the bracket
+            <Network size={14} aria-hidden="true" /> {run.groups ? 'See the groups and bracket' : 'See the bracket'}
           </button>
         </div>
       )}
@@ -157,12 +162,13 @@ function TieList({ comp, run, shown, nameOf }: { comp: QuickCupComp; run: QuickC
             </span>
             <ClubBadge clubId={t.opponentId} size={22} />
             <span className="gbg-fix">
-              <span className="gbg-name">{nameOf(t.opponentId)}</span> <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>
+              <span className="gbg-name">{nameOf(t.opponentId)}</span> {!t.legs && <span className="gbg-ha">{t.neutral ? 'N' : t.home ? 'H' : 'A'}</span>}
             </span>
             <span className="gbg-score">
               {t.gf}-{t.ga}
             </span>
             <span className="gbg-mw">{cupRoundLabel(comp, t.round)}</span>
+            {t.legs && <span className="cup-extra small" data-testid="cup-tie-legs">{t.legs.map((l) => `${l.gf}-${l.ga} ${l.home ? 'H' : 'A'}`).join(', ')} (agg)</span>}
             {(t.et || t.pens) && <span className="cup-extra small">{cupScoreLabel(t).replace(/^\d+-\d+ /, '')}{t.et && !t.pens ? ` (${t.et.for}-${t.et.against} in extra time)` : ''}</span>}
             {scorers && <span className="gbg-scorers small">⚽ {scorers}</span>}
           </li>

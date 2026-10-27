@@ -64,7 +64,7 @@ export function evaluateObjective(o: Objective, ctx: ObjectiveContext): { met: b
     case 'continental-qf': {
       const ties = season.continental?.ties ?? []
       const met = reached(ties, 'QF')
-      return { met, progress: met ? 'Reached' : season.continental?.eliminated ? 'Knocked out in the round of 16' : 'Still in Europe' }
+      return { met, progress: met ? 'Reached' : season.continental?.eliminated ? (season.continental.groups ? 'Out in the group stage' : 'Knocked out in the round of 16') : 'Still in Europe' }
     }
     case 'goals': {
       const table = seasonTable(season)

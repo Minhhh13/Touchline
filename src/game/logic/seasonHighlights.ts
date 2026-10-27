@@ -57,11 +57,11 @@ export function nextStop(game: Game, u: LoadedUniverse): StopReason | null {
   const table = seasonTable(season)
 
   const tie = upcomingCupTie(game)
-  if (tie && (tie.tie.round === 'F' || tie.tie.round === 'SF')) {
-    const home = tie.tie.homeTeamId === USER_TEAM
-    const opponentClubId = home ? tie.tie.awayTeamId : tie.tie.homeTeamId
-    const label = describeImportance(u, season.hostClubId, opponentClubId, null, mw, tie.tie.round, tie.comp).label ?? tie.label
-    return { kind: tie.tie.round === 'F' ? 'final' : 'semi-final', matchweek: mw, label, opponentClubId, home, comp: tie.comp }
+  if (tie && (tie.round === 'F' || tie.round === 'SF')) {
+    const home = tie.homeTeamId === USER_TEAM
+    const opponentClubId = home ? tie.awayTeamId : tie.homeTeamId
+    const label = describeImportance(u, season.hostClubId, opponentClubId, null, mw, tie.round, tie.comp).label ?? tie.label
+    return { kind: tie.round === 'F' ? 'final' : 'semi-final', matchweek: mw, label, opponentClubId, home, comp: tie.comp }
   }
 
   const opp = nextOpponent(game)
