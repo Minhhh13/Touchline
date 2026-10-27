@@ -28,7 +28,7 @@
   background: var(--panel-2);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   line-height: 1.3;
   cursor: pointer;
@@ -59,7 +59,7 @@
   display: inline-flex;
 }
 .matchday .md-ment .md-select {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   padding: 4px 22px 4px 8px;
   min-height: 26px;
@@ -73,7 +73,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   line-height: 1.2;
   color: var(--text-2);
   white-space: nowrap;
@@ -133,7 +133,7 @@
   border-radius: var(--radius-s);
   box-shadow: var(--shadow);
   outline: none;
-  animation: md-drawer-in 0.16s ease-out;
+  animation: md-drawer-in var(--dur-1) var(--ease-out);
 }
 .matchday .md-drawer.wide {
   width: min(680px, 100%);
@@ -159,11 +159,11 @@
 .matchday .md-drawer-head h3 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: calc(var(--fs-h3) + 1px);
   letter-spacing: 0.02em;
 }
 .matchday .md-drawer-sub {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-2);
 }
 .matchday .md-x {
@@ -200,7 +200,7 @@
   margin-right: auto;
 }
 .matchday .md-group {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -219,12 +219,12 @@
 }
 .matchday .md-field .help,
 .matchday .md-option .help {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
 }
 .matchday .md-drawer .segmented button {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-select.wide {
   width: 100%;
@@ -267,7 +267,7 @@
   display: inline-block;
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   font-weight: 700;
   background: var(--bg-3);
   color: var(--text-2);
@@ -275,11 +275,11 @@
 .matchday .md-tactics-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-tactics-table th {
   text-align: left;
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -303,7 +303,7 @@
   gap: 4px;
   border: 1px dashed var(--line-2);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-queue li {
   display: flex;
@@ -373,7 +373,7 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  transition: background-color var(--dur-1) ease, border-color var(--dur-1) ease, box-shadow var(--dur-1) ease;
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
 .matchday .sub-slot:disabled {
   cursor: default;
@@ -398,7 +398,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 11px; /* px: on the substitution pitch */
   font-weight: 700;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
@@ -450,7 +450,7 @@
   padding: 0 3px;
   border-radius: 4px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 10px; /* px: on the substitution pitch */
   font-weight: 700;
   line-height: 14px;
   color: var(--rating-ink);
@@ -479,7 +479,7 @@
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .sub-preview-slot b {
   color: var(--accent);
@@ -515,7 +515,7 @@
   background: var(--panel-2);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   text-align: left;
   cursor: grab;
   touch-action: none;
@@ -537,7 +537,7 @@
   font-weight: 600;
 }
 .matchday .sub-bench-card .pos {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   color: var(--text-3);
   /* The name has first call on the card's width: a long list of positions gives way */
   max-width: 48px;
@@ -546,7 +546,7 @@
   white-space: nowrap;
 }
 .matchday .sub-bench-card .ovr {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
 }
 .matchday .sub-bench-card .sub-fit-num {
@@ -600,7 +600,7 @@
   border-radius: 999px;
   background: var(--float-bg);
   color: var(--float-text);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 700;
   box-shadow: var(--shadow);
   pointer-events: none;
@@ -610,7 +610,7 @@
 /* ------------------------------------------------------------------ squad strip */
 .matchday .md-strip-squad {
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text);
   text-align: left;
   background: transparent;
@@ -626,7 +626,7 @@
 }
 .matchday .md-strip-squad .mono b {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text);
 }
 .matchday .md-strip-title {

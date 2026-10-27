@@ -613,7 +613,9 @@ export function Dugout() {
                 <Info label="About the table">The other clubs field their real squads from that season, with their own injuries and form.</Info>
               </span>
             </div>
-            <TableView rows={table} teamName={game.settings.teamName} />
+            <div className="tbl-wrap">
+              <TableView rows={table} teamName={game.settings.teamName} />
+            </div>
           </div>
           )}
           {tabBoxes.on('season-so-far') && <SeasonSoFar table={table} />}

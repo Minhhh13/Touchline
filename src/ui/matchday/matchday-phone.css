@@ -72,7 +72,7 @@
   background: transparent;
   color: var(--text-2);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -231,7 +231,7 @@
   .matchday .md-ment .md-select,
   .matchday .md-heat-side .md-select,
   .matchday select.md-highlights {
-    font-size: 16px;
+    font-size: 16px; /* px: 16 px so iOS does not zoom */
   }
   .matchday .md-moments {
     min-width: 32px;
@@ -280,7 +280,7 @@
   }
   .matchday .md-drawer.board .md-drawer-foot .md-chip {
     flex: 1 1 auto;
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
   .matchday .sub-board {
     --sb-pitch-h: min(46dvh, calc((100vw - 20px) * 80.2 / 68));
@@ -317,7 +317,7 @@
     column-gap: 4px;
     row-gap: 0;
     padding: 3px 5px;
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
   .matchday .sub-bench-card > .md-shirt {
     grid-row: 1 / span 2;
@@ -340,7 +340,7 @@
     max-width: 70px;
   }
   .matchday .sub-slot-name {
-    font-size: 10px;
+    font-size: 10px; /* px: on the substitution pitch */
   }
 }
 @keyframes md-sheet-in {

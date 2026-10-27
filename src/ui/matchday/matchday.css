@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
   min-width: 0;
 }
@@ -26,14 +26,14 @@
   gap: 10px;
   align-items: baseline;
   min-height: 18px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .matchday .md-crumb b {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
   letter-spacing: 0.02em;
 }
 
@@ -74,14 +74,15 @@
 }
 .matchday .scoreboard .score {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: calc(var(--fs-h1) - 2px);
   line-height: 1;
+  white-space: nowrap;
   min-width: 64px;
   text-align: center;
 }
 .matchday .scoreboard .clock {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--text);
   min-width: 108px;
   padding-left: 10px;
@@ -96,12 +97,12 @@
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: 0.04em;
-  font-size: 16px;
+  font-size: calc(var(--fs-base) + 2px);
   line-height: 1.15;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 .matchday .md-code {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   padding: 1px 5px;
 }
 
@@ -160,7 +161,7 @@
 }
 .matchday .live-legend {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 /* ------------------------------------------------------------------ panels */
@@ -182,7 +183,7 @@
   padding: 3px 8px;
   border-bottom: 1px solid var(--line);
   background: var(--panel-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
 }
 .matchday .md-slot-pick {
@@ -197,7 +198,7 @@
   border: 1px solid var(--line-2);
   background: var(--panel);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
 }
 /* A 24 px target (WCAG 2.2 target size, O-12 in docs/QA.md) */
@@ -212,7 +213,7 @@
 }
 .matchday .md-empty {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   padding: 6px 2px;
 }
 .matchday .md-icon {
@@ -260,7 +261,7 @@
     position: static;
     min-width: 0;
     padding: 0 2px;
-    font-size: 10px;
+    font-size: 10px; /* px: on the formation pitch */
     line-height: 12px;
   }
 }
@@ -288,7 +289,7 @@
   color: #fff;
   cursor: pointer;
   max-width: 76px;
-  transition: left 0.6s ease, top 0.6s ease;
+  transition: left calc(var(--dur-1) * 4) var(--ease-out), top calc(var(--dur-1) * 4) var(--ease-out);
 }
 .matchday .md-man:focus-visible {
   outline: 2px solid var(--focus);
@@ -332,7 +333,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 11px; /* px: on the formation pitch */
   line-height: 1.2;
   letter-spacing: -0.02em;
   font-weight: 600;
@@ -341,7 +342,7 @@
 /* On the grass in both themes: a pale cyan that keeps 4.5:1 on the pitch green (the theme's accent fell to 1.3:1 in Daylight) */
 .matchday .md-role {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 11px; /* px: on the formation pitch */
   font-weight: 700;
   color: #dff7ff;
 }
@@ -354,7 +355,7 @@
   padding: 0 3px;
   border-radius: 4px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 10px; /* px: on the formation pitch */
   font-weight: 700;
   line-height: 14px;
   text-align: center;
@@ -390,7 +391,7 @@
 .matchday .md-flank-head {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
   letter-spacing: 0.04em;
   border-bottom: 3px solid;
   padding-bottom: 2px;
@@ -408,7 +409,7 @@
   justify-content: space-between;
 }
 .matchday .md-flank-row dt {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-3);
@@ -418,13 +419,13 @@
 }
 .matchday .md-flank-row dd {
   margin: 0;
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
   font-weight: 700;
   line-height: 1.15;
 }
 .matchday .md-since {
   flex: none;
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   line-height: 1.25;
   padding-top: 2px;
   border-top: 1px dashed var(--line);
@@ -435,7 +436,7 @@
 .matchday .md-view-stats {
   flex: none;
   width: 100%;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   padding: 3px 4px;
 }
 /* Possession reads next to the shots, not last under the cards */
@@ -503,7 +504,7 @@
   background: color-mix(in srgb, var(--accent) 6%, var(--panel));
 }
 .matchday .md-assistant-tag {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--accent);
@@ -520,7 +521,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--text);
 }
 /*
@@ -528,7 +529,7 @@
  * the way to full strength, so a line caught mid-slide (or a run of quick lines at 4x) never reads as pale grey.
  */
 .matchday .md-banner.key .txt {
-  animation: md-in 0.3s ease;
+  animation: md-in var(--dur-3) var(--ease-out);
   font-weight: 600;
 }
 @keyframes md-in {
@@ -563,11 +564,11 @@
   min-width: 96px;
   padding: 4px 10px;
   border-right: 1px solid var(--line);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-strip-squad b {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: calc(var(--fs-base) + 2px);
 }
 .matchday .md-card {
   flex: 1 0 86px;
@@ -603,7 +604,7 @@
 }
 .matchday .md-pos {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   font-weight: 700;
   color: var(--text-2);
   margin-right: auto;
@@ -611,7 +612,7 @@
 .matchday .md-card-sub {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   color: var(--accent);
 }
 .matchday .md-card-name {
@@ -619,7 +620,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
 }
 .matchday .md-card-foot {
@@ -666,8 +667,8 @@
   align-items: center;
   padding: 2px 4px;
   border-radius: 4px;
-  font-size: 12px;
-  animation: md-in 0.25s ease;
+  font-size: var(--fs-meta);
+  animation: md-in var(--dur-2) var(--ease-out);
 }
 .matchday .md-line {
   grid-template-columns: 38px minmax(0, 1fr);
@@ -684,7 +685,7 @@
 .matchday .md-ev .min,
 .matchday .md-line .min {
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 .matchday .md-ev.away {
   grid-template-columns: minmax(0, 1fr) 16px 38px;
@@ -737,7 +738,7 @@
   gap: 6px;
   align-items: center;
   padding: 1px 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-stat-row .a {
   text-align: right;
@@ -749,7 +750,7 @@
   gap: 1px;
 }
 .matchday .md-stat-row .lbl {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .matchday .md-share {
@@ -764,7 +765,7 @@
 .matchday .md-share > span {
   display: block;
   height: 100%;
-  transition: width 0.4s ease;
+  transition: width var(--dur-4) var(--ease-out);
 }
 .matchday .md-momentum svg {
   display: block;
@@ -785,7 +786,7 @@
   margin-bottom: 6px;
 }
 .matchday .md-counters b {
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
 }
 .matchday .md-bench {
   display: flex;
@@ -794,7 +795,7 @@
   margin-bottom: 6px;
 }
 .matchday .md-bench .lbl {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-3);
@@ -838,7 +839,7 @@
   height: calc(var(--md-widget-h) - 84px);
 }
 .matchday .md-map .live-legend {
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) - 1px);
 }
 .matchday .md-toggle {
   display: inline-flex;
@@ -854,7 +855,7 @@
   border: 0;
   border-radius: 4px;
   background: none;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
@@ -864,7 +865,7 @@
   color: var(--on-primary);
 }
 .matchday .md-links {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -875,7 +876,7 @@
   overflow: hidden;
   white-space: nowrap;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 .matchday .md-heat {
   display: grid;
@@ -892,7 +893,7 @@
   width: auto;
 }
 .matchday .md-heat-side .md-select {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   width: 100%;
 }
 .matchday .md-heat-side {
@@ -947,14 +948,14 @@
   text-align: center;
 }
 .matchday .md-score .st {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   text-align: right;
 }
 .matchday .md-score .scorer {
   grid-column: 1 / -1;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -962,7 +963,7 @@
 .matchday .md-score.fresh .res {
   background: var(--primary);
   color: var(--on-primary);
-  animation: md-pulse 1s ease;
+  animation: md-pulse calc(var(--dur-4) * 2.5) var(--ease-out);
 }
 @keyframes md-pulse {
   0% {
@@ -986,7 +987,7 @@
 .matchday .md-tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-tbl th {
   position: sticky;
@@ -994,7 +995,7 @@
   background: var(--panel-2);
   color: var(--text-3);
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-align: left;
   padding: 3px 4px;
 }
@@ -1025,7 +1026,7 @@
 .matchday .md-tbl .mv {
   width: 12px;
   padding: 0;
-  font-size: 9px;
+  font-size: 9px; /* px: the 12 px movement arrow */
   text-align: center;
 }
 .matchday .md-tbl .mv.up {
@@ -1061,7 +1062,7 @@
   background: none;
 }
 .matchday .md-xg-foot {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-align: center;
 }
 .matchday .md-goals {
@@ -1084,7 +1085,7 @@
   margin-bottom: 8px;
 }
 .matchday .md-stop .panel-head h2 {
-  font-size: 22px;
+  font-size: calc(var(--fs-h2) - 2px);
 }
 .matchday .md-stop-actions {
   display: flex;
@@ -1093,7 +1094,7 @@
 }
 .matchday .md-stop-actions .btn.big {
   padding: 8px 16px;
-  font-size: 15px;
+  font-size: calc(var(--fs-base) + 1px);
 }
 .matchday .md-stop-grid {
   display: grid;
@@ -1105,7 +1106,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
 }
 .matchday .md-stop .field .help {
@@ -1120,7 +1121,7 @@
 }
 .matchday .md-stop .segmented button {
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-stop .col {
   gap: 8px;
@@ -1132,7 +1133,7 @@
 }
 .matchday .md-stop .prow {
   padding: 3px 6px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .matchday .md-two {
   display: grid;
@@ -1196,7 +1197,7 @@
 }
 @media (max-width: 720px) {
   .matchday {
-    font-size: 12px;
+    font-size: var(--fs-meta);
   }
   .matchday .md-topbar {
     padding: 6px;
@@ -1206,12 +1207,12 @@
     padding: 4px 8px;
   }
   .matchday .scoreboard .score {
-    font-size: 26px;
+    font-size: calc(var(--fs-h2) + 2px);
     min-width: 48px;
   }
   .matchday .scoreboard .clock {
     min-width: 0;
-    font-size: 12px;
+    font-size: var(--fs-meta);
     padding-left: 6px;
   }
   .matchday.compact .md-pulse,

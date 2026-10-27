@@ -548,7 +548,8 @@ export function ProfileScreen() {
                 <span className="empty-icon" aria-hidden="true">
                   <Award size={26} />
                 </span>
-                <p className="muted small">No arena runs yet: try the Cup or the Gauntlet from Home.</p>
+                <h3>No runs yet</h3>
+                <p className="muted small">Try the Cup or the Gauntlet from Home.</p>
               </div>
             )}
             {!!profile.arenaRuns?.length && (
