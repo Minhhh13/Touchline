@@ -16,7 +16,7 @@ import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
 import { skipToMain, watchMainLandmark } from './landmarks'
-import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
+import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
 /** Per viewer: the top bar folded away for the full height (the toggle beside the theme switch, or the \ key). */
 export const TOPBAR_HIDDEN_KEY = 'touchline-topbar-hidden'
@@ -263,7 +263,7 @@ export function App() {
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
-              {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <Trophy size={16} /> : <ClipboardList size={16} />}
+              {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <ClipboardCheck size={16} /> : <ClipboardList size={16} />}
               <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
             </button>
           )}
