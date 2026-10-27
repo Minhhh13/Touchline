@@ -18,6 +18,7 @@ import { CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
 import { onlineErrorText } from '../../online/postText'
 import { askConfirm } from '../confirm'
+import { onTabListKey } from '../a11y'
 
 type Tab = 'daily' | 'weekly' | 'alltime' | 'chase'
 const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase']
@@ -603,9 +604,9 @@ export function WorldBoard() {
               </span>
             </div>
             <div className="fit-scroll col">
-              <div className="world-boards" role="tablist" aria-label="Boards">
+              <div className="world-boards" role="tablist" aria-label="Boards" onKeyDown={onTabListKey}>
                 {BOARDS.map((b) => (
-                  <button key={b.id} type="button" role="tab" aria-selected={tab === b.id} className={`world-board-pick${tab === b.id ? ' active' : ''}`} onClick={() => setTab(b.id)} data-testid={`world-tab-${b.id}`}>
+                  <button key={b.id} type="button" role="tab" aria-selected={tab === b.id} tabIndex={tab === b.id ? 0 : -1} className={`world-board-pick${tab === b.id ? ' active' : ''}`} onClick={() => setTab(b.id)} data-testid={`world-tab-${b.id}`}>
                     <b>{b.label}</b>
                     <span>{b.meta}</span>
                   </button>

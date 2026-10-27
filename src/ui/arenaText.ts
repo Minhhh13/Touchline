@@ -36,3 +36,18 @@ export function gauntletBandText(rung: number): string {
   const top = /^top (\d+)% of the wheel$/.exec(label)
   return top && rung >= 2 && rung <= GAUNTLET_BANDS ? `stronger than ${100 - Number(top[1])}% of the wheel` : label
 }
+
+/**
+ * The shoot-out's line for a screen reader as each kick shows (`ShootoutPanel`'s live region): whose kick, who took
+ * it, scored or missed, and the score so far; the verdict once the last kick is in. The chips beside it are a picture
+ * (ticks, crosses and a colour), so the words carry it.
+ */
+export function kickLine(k: { us: boolean; scored: boolean }, n: number, taker: string, us: number, them: number, verdict: string | null): string {
+  const line = `Kick ${n}, ${k.us ? 'ours' : 'theirs'}: ${taker} ${k.scored ? 'scores' : 'misses'}. ${us}-${them}.`
+  return verdict ? `${line} ${verdict}.` : line
+}
+
+/** A taker's place after a move in the penalty order, for the live region: "Kane takes kick 2". */
+export function takerMoved(name: string, at: number): string {
+  return `${name} takes kick ${at + 1}.`
+}

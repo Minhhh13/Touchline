@@ -8,7 +8,8 @@ import { PowerUpIcon } from './icons'
 import { PowerUpButton } from './PowerUpButton'
 import { armAudio, playDialTick, playUpgradeResult, unlockAudio } from '../sound/synth'
 import { quickSpinPref, usePref } from '../viewerPrefs'
-import { DIAL_FULL_MS, DIAL_HOLD_MS, DIAL_QUICK_MS, DIAL_REDUCED_MS, dialTravel, landingAngle, needleAngle, ticksPassed } from '../upgradeDial'
+import { DIAL_FULL_MS, DIAL_HOLD_MS, DIAL_QUICK_MS, DIAL_REDUCED_MS, dialTravel, landingAngle, needleAngle, ticksPassed, upgraderAnnouncement } from '../upgradeDial'
+import { useFocusOnLanding } from '../a11y'
 import { SoundToggle } from './CaseReel'
 
 /** The dial's win arc takes a rarity colour by how big the gamble is. */
@@ -207,6 +208,11 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
   const locked = !!pick && pick === lockedId
   const verdict = result ? (result.locked ? '±0' : result.delta > 0 ? `+${result.delta}` : String(result.delta)) : undefined
   const resultBase = result ? ratingOf(result.id) : 0
+  // The Upgrade button has gone once the gamble is made: the focus goes to Tap to skip, then to the button that closes
+  const skipBtn = useRef<HTMLButtonElement>(null)
+  const doneBtn = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(spinning, skipBtn)
+  useFocusOnLanding(!!result && landed, doneBtn)
 
   return (
     <div className="upg-stage col" data-testid="upgrader-stage" data-state={result ? (landed ? 'landed' : 'spinning') : 'choose'}>
@@ -254,7 +260,7 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
             </>
           )}
           {result && !landed && (
-            <div className="upg-rolling small" aria-live="polite">
+            <div className="upg-rolling small">
               <b>{resultPlayer?.name ?? 'Your player'}</b> at {result.chance}% for +{result.boost}…
             </div>
           )}
@@ -293,11 +299,11 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
             {back}
           </>
         ) : spinning ? (
-          <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="upgrader-skip">
+          <button ref={skipBtn} type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="upgrader-skip">
             Tap to skip
           </button>
         ) : (
-          <button type="button" className="btn primary" onClick={onDone} data-testid="upgrader-close">
+          <button ref={doneBtn} type="button" className="btn primary" onClick={onDone} data-testid="upgrader-close">
             {doneLabel}
           </button>
         )}
@@ -305,6 +311,10 @@ export function UpgraderStage({ players, ratingOf, hideRatings, result, onConfir
           <SoundToggle />
         </span>
       </div>
+      {/* The dial is a picture: the gamble and its verdict are said once each, from a region that stays mounted */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="upgrader-live">
+        {result && rolled ? upgraderAnnouncement({ name: resultPlayer?.name ?? 'Your player', chance: result.chance, boost: result.boost, landed, won: result.won, locked: !!result.locked, delta: result.delta, base: resultBase, hideRatings, roll: result.roll }) : ''}
+      </span>
       <div className="tiny-note small muted">In-game only: no money, nothing to buy. The chance shown is the exact chance.</div>
     </div>
   )

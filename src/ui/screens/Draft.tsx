@@ -142,6 +142,13 @@ export function Draft() {
   // The landing moves the focus to the club's name (the Spin button under it is disabled), so the squad is the next Tab
   const clubHeadRef = useRef<HTMLHeadingElement>(null)
   useFocusOnLanding(revealed, clubHeadRef)
+  // After a pick the row that was pressed has gone: the focus goes to the next thing to press, Spin, or the finish button
+  // once the squad is complete
+  const spinRef = useRef<HTMLButtonElement>(null)
+  const finishRef = useRef<HTMLButtonElement>(null)
+  const draftDone = !!d && isComplete(d)
+  useFocusOnLanding(!!d && !d.current && !spinning && pickNo > 0 && !draftDone, spinRef)
+  useFocusOnLanding(draftDone, finishRef)
 
   const allBoxes = useBoxes(DRAFT)
   if (!u || !game || !d) return null
@@ -388,7 +395,7 @@ export function Draft() {
                     {target ? `Filling ${target.position}: the wheel only stops on a club with someone who can play there.` : 'Position First: tap an open slot on the pitch, then spin for a club to fill it.'}
                   </div>
                 )}
-                <button className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
+                <button ref={spinRef} className="btn primary spin-btn display" disabled={!!d.current || spinning || (choosing && !target)} onClick={() => spin()}>
                   {d.current ? (spinning ? 'Spinning…' : 'Pick a player') : choosing ? (target ? `Spin for ${target.position}` : 'Choose a slot') : made === 0 || (isDynastySummer && !d.history.length) ? 'Spin the wheel' : places && !fillingStarters ? 'Spin for the bench' : 'Spin again'}
                 </button>
                 {firstDraft && made === 0 && !d.current && !spinning && !choosing && (
@@ -412,7 +419,7 @@ export function Draft() {
               </>
             )}
             {complete && (
-              <button className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined} data-testid="finish-draft-go">
+              <button ref={finishRef} className="btn primary spin-btn display" onClick={finishing.finish} disabled={finishing.busy} aria-busy={finishing.busy || undefined} data-testid="finish-draft-go">
                 {finishing.busy ? 'Getting the field ready…' : finishDraftLabel(game)}
               </button>
             )}

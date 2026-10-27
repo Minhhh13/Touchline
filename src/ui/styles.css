@@ -316,6 +316,13 @@ a {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* A box focused only so the next Tab starts inside it (the skip link and the focus rescue give the screen's page or a
+   panel tabindex -1) is not a control and draws no ring; every control keeps the one above */
+.app > .page[tabindex='-1']:focus-visible,
+.panel[tabindex='-1']:focus-visible,
+.fit-cell[tabindex='-1']:focus-visible {
+  outline: none;
+}
 ::selection {
   background: color-mix(in srgb, var(--primary) 30%, transparent);
 }
@@ -5932,6 +5939,11 @@ dl.kv {
 .prow .name {
   flex-wrap: wrap;
 }
+/* A slot list ("fits LB/CB/RB/DM/CM") is one word to the browser: at 200 % text on a phone it may break, not spill */
+.prow .meta > .chip {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 720px) {
   table.tbl {
     display: block;
@@ -7451,9 +7463,12 @@ dl.kv {
 .draft-log-tips {
   display: contents;
 }
-/* A grade is a button for its note (hover, focus or a tap): it keeps the chip's look */
+/* A grade is a button for its note (hover, focus or a tap): it keeps the chip's look, at least 24 px across (WCAG 2.5.8;
+   a one-letter chip was 22 px) */
 .draft-log .chip.pick-grade {
   cursor: help;
+  min-width: 24px;
+  justify-content: center;
 }
 .draft-log li {
   display: grid;
@@ -9454,7 +9469,8 @@ table.tbl.match-stats th {
 .sc-head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: calc(var(--fs-h1) - 2px);
+  /* Capped by the window's width, so "Pundits' prediction" stays whole on a phone at 200 % text (9vw is wider at 100 %) */
+  font-size: min(calc(var(--fs-h1) - 2px), 9vw);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   line-height: 1.05;
@@ -9543,10 +9559,16 @@ table.tbl.match-stats th {
 .sc-chance,
 .sc-unit {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) 52px;
+  /* rem: 112 px and 52 px at the default size, and the figure's column grows with larger text instead of spilling */
+  grid-template-columns: minmax(0, 7rem) minmax(3rem, 1fr) minmax(3.25rem, auto);
   align-items: center;
   gap: 10px;
   font-size: var(--fs-sm);
+}
+.sc-chance > span,
+.sc-unit > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sc-chance b,
 .sc-unit b {
@@ -9620,7 +9642,8 @@ table.tbl.match-stats th {
   }
   .sc-chance,
   .sc-unit {
-    grid-template-columns: 100px minmax(0, 1fr) 48px;
+    /* 100 px and 48 px at the default size (6.25rem, 3rem); the figure's column grows with larger text */
+    grid-template-columns: minmax(0, 6.25rem) minmax(3rem, 1fr) minmax(3rem, auto);
   }
   .sc-big-num {
     font-size: calc(var(--fs-h1) + 2px);
@@ -13595,6 +13618,13 @@ table.tbl.hub td.name {
   .setup-modes-row .pu-setup .qmode.pu-card {
     flex: 1 1 0;
   }
+  /* Two cards side by side keep their names inside at 200 % text: a long name breaks (hyphenated) rather than spill */
+  .setup-modes-row .pu-setup .qmode.pu-card > .ctitle {
+    min-width: 0;
+    max-width: 100%;
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
 }
 /* An arena shoot-out on the report: one slim box above the scoreboard, so the boxes below keep the height */
 @media (min-width: 1100px) {
@@ -15152,6 +15182,19 @@ table.tbl.tv-compact .tv-name {
   }
   .pitch-wrap .slot .disc .disc-cost {
     display: none;
+  }
+}
+/* Smaller still (the head-to-head's second pitch at 1280x720): 24 px discs, so a back four's discs keep clear of each
+   other and of the keeper's, each its own 24 px target (WCAG 2.5.8) */
+@container (max-width: 160px) {
+  .pitch-wrap .slot .disc {
+    width: 24px;
+    height: 24px;
+    font-size: 11px; /* px: drawn to the pitch disc */
+  }
+  /* The keeper 6 px nearer his line (his disc is smaller), clear of the centre-backs' discs on a short pitch */
+  .pitch-wrap .slot.foot {
+    --foot-room: 14px;
   }
 }
 

@@ -19,6 +19,7 @@ import { withViewTransition } from './motion'
 import { useArenaWarmup } from './useArenaWarmup'
 import './sound/boot'
 import { watchScrollFocus } from './scrollFocus'
+import { watchFocusRescue } from './focusRescue'
 import { skipToMain, watchMainLandmark } from './landmarks'
 import { Bandage, Banknote, BookOpen, ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, Dices, Globe, House, MessageSquare, Moon, RectangleVertical, Search, Sun, Swords, TrendingUp, Trophy } from 'lucide-react'
 
@@ -125,6 +126,8 @@ export function App() {
   }, [dataReady])
   // A box that scrolls with nothing focusable inside joins the Tab order while it scrolls (keyboard and Safari reach)
   useEffect(() => watchScrollFocus(), [])
+  // A focus whose control leaves the page goes back to the nearest box, or to the new screen's page
+  useEffect(() => watchFocusRescue(), [])
 
   // A challenge link (`#c=...` long, `#s=K7Q2MX9A` short) opens once the default league is in: the hash is cleared so
   // a reload does not reopen it. A short code is resolved online, then opened exactly like a long link.
@@ -269,41 +272,41 @@ export function App() {
         </div>
         <SaveBanner />
         <nav>
-          <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
+          <button className={screen === 'home' ? 'active' : ''} aria-current={screen === 'home' ? 'page' : undefined} onClick={() => nav('home')}>
             <House size={16} />
             <span className="nav-label">Home</span>
             <span className="nav-tiny" aria-hidden="true">Home</span>
           </button>
           {game && (
-            <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
+            <button className={screen === 'game' ? 'active' : ''} aria-current={screen === 'game' ? 'page' : undefined} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <ClipboardCheck size={16} /> : <ClipboardList size={16} />}
               <span className="nav-label">{gameNav}</span>
               <span className="nav-tiny" aria-hidden="true">{gameNav}</span>
             </button>
           )}
-          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
+          <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} aria-current={screen === 'h2h' || screen === 'room' ? 'page' : undefined} onClick={() => nav('h2h')}>
             <Swords size={16} />
             <span className="nav-label">Head-to-head</span>
             <span className="nav-tiny" aria-hidden="true">H2H</span>
           </button>
-          <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
+          <button className={screen === 'explore' ? 'active' : ''} aria-current={screen === 'explore' ? 'page' : undefined} onClick={() => nav('explore')}>
             <Search size={16} />
             <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
             <span className="nav-tiny" aria-hidden="true">Explore</span>
           </button>
           {onlineAvailable() && (
-            <button className={screen === 'world' ? 'active' : ''} onClick={() => nav('world')} data-testid="nav-world">
+            <button className={screen === 'world' ? 'active' : ''} aria-current={screen === 'world' ? 'page' : undefined} onClick={() => nav('world')} data-testid="nav-world">
               <Globe size={16} />
               <span className="nav-label">World</span>
               <span className="nav-tiny" aria-hidden="true">World</span>
             </button>
           )}
-          <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
+          <button className={screen === 'profile' ? 'active' : ''} aria-current={screen === 'profile' ? 'page' : undefined} onClick={() => nav('profile')}>
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
             <span className="nav-tiny" aria-hidden="true">Profile</span>
           </button>
-          <button className={screen === 'howto' ? 'active' : ''} onClick={() => nav('howto')}>
+          <button className={screen === 'howto' ? 'active' : ''} aria-current={screen === 'howto' ? 'page' : undefined} onClick={() => nav('howto')}>
             <BookOpen size={16} />
             <span className="nav-label">How it works</span>
             <span className="nav-tiny" aria-hidden="true">Guide</span>

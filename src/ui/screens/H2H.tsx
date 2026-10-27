@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
+import { useFocusOnLanding } from '../a11y'
 import { useStore, type H2HGame } from '@game/store'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { APP_NAME } from '../brand'
@@ -221,6 +222,15 @@ export function H2HScreen() {
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
   // The exact tier odds of the next spin, shown between spins
   const odds = useMemo(() => (u && h2h && !h2h.draft.current && !h2hComplete(h2h.draft) ? h2hTierOdds(u, h2h.draft, leagues) : []), [u, h2h, leagues])
+  // As in the Draft: the landing puts the focus on the club's name (the squad is the next Tab), and once both have
+  // picked it goes to Spin, or to Play the season when the squads are complete
+  const clubHeadRef = useRef<HTMLHeadingElement>(null)
+  const spinRef = useRef<HTMLButtonElement>(null)
+  const finishRef = useRef<HTMLButtonElement>(null)
+  const draftDone = !!d && h2hComplete(d)
+  useFocusOnLanding(revealed, clubHeadRef)
+  useFocusOnLanding(!!d && !d.current && d.log.length > 0 && !draftDone, spinRef)
+  useFocusOnLanding(draftDone, finishRef)
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null
@@ -285,12 +295,12 @@ export function H2HScreen() {
             <CaseReel u={u} leagues={leagues} pool={pool} target={d.current} spinKey={d.spins} onSettled={() => setSettled(d.current)} />
             {!d.current && !complete && <SpinOdds odds={odds} label="Next spin" />}
             {!complete && (
-              <button className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
+              <button ref={spinRef} className="btn primary spin-btn display" disabled={!!d.current || spinning} onClick={() => h2hSpin()}>
                 {d.current ? (spinning ? 'Spinning…' : `${manager?.name ?? ''} picks`) : `Spin (${h2h.managers[d.first].name} first)`}
               </button>
             )}
             {complete && (
-              <button className="btn primary spin-btn display" onClick={() => h2hFinish()}>
+              <button ref={finishRef} className="btn primary spin-btn display" onClick={() => h2hFinish()}>
                 Play the season
               </button>
             )}
@@ -335,7 +345,7 @@ export function H2HScreen() {
               <div className="club-head">
                 <ClubBadge clubId={current.clubId} size={44} />
                 <div>
-                  <h2>{clubName(u, current.clubId)}</h2>
+                  <h2 ref={clubHeadRef} tabIndex={-1}>{clubName(u, current.clubId)}</h2>
                   <div className="club-sub">
                     <span>{seasonLabel(current.season)}</span>
                     {!current.complete ? (
@@ -353,7 +363,7 @@ export function H2HScreen() {
                   </div>
                 </div>
               </div>
-              {revealed && manager && <div className="notice">{manager.name}, pick a player{selected ? ` and a slot for ${selected.name} on your pitch` : ''}.</div>}
+              {revealed && manager && <div className="notice" aria-live="polite" aria-atomic="true">{manager.name}, pick a player{selected ? ` and a slot for ${selected.name} on your pitch` : ''}.</div>}
               {revealed && (
                 <div className="plist lined draft-list">
                   {[...current.squad]
@@ -385,7 +395,7 @@ export function H2HScreen() {
                 </span>
               </div>
               <div className="h2h-pitch-box">
-                <Pitch formation={d.drafts[i].formation} lineup={d.drafts[i].lineup} getPlayer={(id) => u.index[id]} onSlotClick={(s) => onSlot(i, s)} eligibleSlots={picking === i ? eligible : []} hideRatings={ratingHidden(d.drafts[i].rules, 'squad')} />
+                <Pitch formation={d.drafts[i].formation} lineup={d.drafts[i].lineup} getPlayer={(id) => u.index[id]} onSlotClick={picking === i && selected ? (s) => onSlot(i, s) : undefined} eligibleSlots={picking === i ? eligible : []} hideRatings={ratingHidden(d.drafts[i].rules, 'squad')} />
               </div>
               {selected && picking === i && suggestSlot(d.drafts[i], selected) && suggestSlot(d.drafts[i], selected) !== 'bench' && (
                 <button className="btn block" style={{ marginTop: 8 }} onClick={() => onSlot(i, suggestSlot(d.drafts[i], selected) as string)}>

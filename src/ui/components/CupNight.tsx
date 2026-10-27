@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Crown, Globe, Medal, SkipForward } from 'lucide-react'
 import { USER_TEAM } from '@engine/season'
 import type { Game, QuickCupRound, QuickCupRun } from '@game/types'
@@ -13,6 +13,7 @@ import { TrebleArt, TrophyArt } from './TrophyArt'
 import { confettiPieces, prefersReducedMotion } from '../motion'
 import { revealDelay, userInPlay } from '../cupReveal'
 import { playSound } from '../sound/synth'
+import { useFocusOnLanding } from '../a11y'
 
 const TITLE: Record<QuickCupComp, string> = { cup: 'The Cup', continental: 'Continental Cup' }
 const ROUNDS: QuickCupRound[] = ['R16', 'QF', 'SF', 'F']
@@ -100,6 +101,9 @@ export function CupNight({ game, u, comp, run, reveal, onClose, onRevealEnd }: {
  */
 export function CupLift({ comp, treble, teamName, detail, played, onBack, onDone }: { comp: QuickCupComp; treble: boolean; teamName: string; detail: string | null; played: boolean; onBack: () => void; onDone: () => void }) {
   const pieces = treble ? TREBLE_PIECES : CUP_PIECES
+  // The reveal's Skip has gone when the trophy rises: the focus goes to Done
+  const doneRef = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(true, doneRef)
   // The fanfare as the trophy rises (the Treble's is bigger); no shimmer under reduced motion
   useEffect(() => {
     playSound({ id: 'fanfare', treble, reduced: !played })
@@ -127,7 +131,7 @@ export function CupLift({ comp, treble, teamName, detail, played, onBack, onDone
         <button className="btn ghost" onClick={onBack} data-testid="cup-celebration-bracket">
           See the bracket
         </button>
-        <button className="btn primary" onClick={onDone} data-testid="cup-celebration-done">
+        <button ref={doneRef} className="btn primary" onClick={onDone} data-testid="cup-celebration-done">
           Done
         </button>
       </div>

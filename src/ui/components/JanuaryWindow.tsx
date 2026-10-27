@@ -232,6 +232,12 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
   // Landed in this view: the focus goes to his first slot, or Keep my XI when he fits none (the Skip that held it is gone)
   const action = useRef<HTMLButtonElement>(null)
   useFocusOnLanding(opened && landed, action)
+  // Chosen from the halfway options (that button has gone): the focus starts on Open the January case
+  const openRef = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(!spin, openRef)
+  // Opened: Open the January case has gone, Tap to skip takes the focus
+  const skipRef = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(spinning, skipRef)
   const empty = odds.every((o) => o.p === 0)
   return (
     <div className="jw-spin col" data-testid="january-spin" data-landed={landed || undefined}>
@@ -271,6 +277,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
           </p>
           <div className="row wrap" style={{ gap: 10 }}>
             <button
+              ref={openRef}
               type="button"
               className="btn primary big display"
               disabled={empty}
@@ -295,7 +302,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
         {opened && landed && p ? `${p.name} landed. ${choices.length ? 'Choose his slot, or keep your XI' : 'He fits no slot of your XI'}` : ''}
       </span>
       {spinning && (
-        <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="january-spin-skip">
+        <button ref={skipRef} type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="january-spin-skip">
           Tap to skip
         </button>
       )}

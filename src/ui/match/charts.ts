@@ -54,11 +54,11 @@ export function momentumScale(momentum: number[], clock: number): number {
 const DAYLIGHT_CHART = '#f2f4fc'
 const FLOODLIT_CHART = '#112152'
 /**
- * Under this contrast with the chart panel a kit's line gets a casing: the kits that all but vanish (white, cream and
- * yellow in Daylight, navy, black and claret in Floodlit). A 2.2 px coloured line between 2:1 and 3:1 still reads
- * beside its swatch and score, so most kits keep the plain line.
+ * Under this contrast with the chart panel a kit's line gets a casing: WCAG 1.4.11's 3:1 for a graphic the chart needs
+ * (accessibility round 3; it was 2:1, which left a sky blue line in Daylight and a deep red one in Floodlit at about
+ * 2.3:1). The casing itself clears 3:1 on its panel in both themes.
  */
-export const LINE_CONTRAST = 2
+export const LINE_CONTRAST = 3
 
 /**
  * Whether a side's line needs a casing to read on the chart panel: `pale` (a white or yellow kit) on the Daylight

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gauntletBandText, knockoutOutcome, splitSeason } from '../arenaText'
+import { gauntletBandText, knockoutOutcome, splitSeason, kickLine, takerMoved } from '../arenaText'
 import { GAUNTLET_RUNGS, rungBandLabel } from '@engine/gauntlet'
 
 describe('arena display text', () => {
@@ -31,5 +31,16 @@ describe('arena display text', () => {
     for (let rung = 11; rung <= GAUNTLET_RUNGS; rung++) expect(gauntletBandText(rung)).toBe(rungBandLabel(rung))
     // The engine's words are untouched (the verifier bundles gauntlet.ts)
     expect(rungBandLabel(2)).toBe('top 90% of the wheel')
+  })
+})
+
+describe('the shoot-out in words (accessibility round 3)', () => {
+  it('says each kick with the score, and the verdict on the last', () => {
+    expect(kickLine({ us: true, scored: true }, 1, 'H. Kane', 1, 0, null)).toBe('Kick 1, ours: H. Kane scores. 1-0.')
+    expect(kickLine({ us: false, scored: false }, 2, 'Salah', 1, 0, null)).toBe('Kick 2, theirs: Salah misses. 1-0.')
+    expect(kickLine({ us: false, scored: true }, 10, 'Salah', 4, 5, 'Lost 4-5 on penalties')).toBe('Kick 10, theirs: Salah scores. 4-5. Lost 4-5 on penalties.')
+  })
+  it('says where a moved taker now kicks', () => {
+    expect(takerMoved('H. Kane', 0)).toBe('H. Kane takes kick 1.')
   })
 })

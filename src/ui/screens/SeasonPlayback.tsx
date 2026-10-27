@@ -32,6 +32,7 @@ import { PLAYBACK } from '../boxSets'
 import { clinchMatchweeks } from '@engine/story'
 import { roundsFixtures } from '@game/logic/story'
 import { usePlaybackSounds } from '../sound/usePlaybackSounds'
+import { onTabListKey } from '../a11y'
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -180,9 +181,9 @@ export function SeasonPlayback() {
           {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${countPhrase(game.quickResult?.points ?? 0, 'points')}.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText}` : ''}
         </span>
       </div>
-      <div className="pb-tabs segmented" role="tablist" aria-label="Season views">
+      <div className="pb-tabs segmented" role="tablist" aria-label="Season views" onKeyDown={onTabListKey}>
         {paneIds.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)} data-testid={`pb-tab-${t}`}>
+          <button key={t} type="button" role="tab" aria-selected={tab === t} tabIndex={tab === t ? 0 : -1} className={tab === t ? 'active' : ''} onClick={() => setTab(t)} data-testid={`pb-tab-${t}`}>
             {t === 'list' ? 'Games' : t === 'table' ? 'Table' : janOpen ? 'January' : 'Chart'}
           </button>
         ))}

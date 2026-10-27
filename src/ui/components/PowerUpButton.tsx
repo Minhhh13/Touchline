@@ -139,7 +139,8 @@ export function HoverTips({ children, testId = 'hover-tip', ...rest }: { childre
       setPlace(placeTip(r, n.offsetWidth, n.offsetHeight, vw, vh, 'center'))
     }
     measure()
-    el.setAttribute('aria-describedby', id)
+    // A control whose name already carries the tip (a pick grade's "Grade A: ...") is not described twice
+    if (!(el.getAttribute('aria-label') ?? '').includes(tip.text)) el.setAttribute('aria-describedby', id)
     window.addEventListener('scroll', measure, true)
     window.addEventListener('resize', measure)
     return () => {
