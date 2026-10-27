@@ -16,10 +16,11 @@ function log(game: Game, text: string): void {
   if (game.window) logLine(game.window, text)
 }
 
-/** Humans we hold: the squad, plus anyone picked in a draft still in progress (the summer wheel runs alongside the summer window). */
+/** Humans we hold: the squad, plus anyone picked in a draft still in progress (the summer wheel runs alongside the summer window), and the men who retired from it. */
 export function ownedHumans(game: Game, u: LoadedUniverse): Set<string> {
   const owned = new Set(squadPlayers(game, u).map((x) => x.p.playerId))
   for (const id of game.draft?.takenPlayers ?? []) owned.add(id)
+  for (const id of game.retiredPlayers ?? []) owned.add(id)
   return owned
 }
 

@@ -278,6 +278,7 @@ export function fileReports(game: Game, u: LoadedUniverse, label: string, n = RE
   const rng = Rng.fromState(game.rngState).fork(label)
   const owned = new Set(squadPlayers(game, u).map((x) => x.p.playerId))
   for (const id of game.draft?.takenPlayers ?? []) owned.add(id)
+  for (const id of game.retiredPlayers ?? []) owned.add(id)
   // Nobody already reported on, or already on the market, is reported again
   for (const r of game.scoutReports ?? []) owned.add(u.index[r.playerSeasonId]?.playerId ?? '')
   for (const l of game.window?.listings ?? []) owned.add(u.index[l.playerSeasonId]?.playerId ?? '')

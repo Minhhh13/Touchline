@@ -7,7 +7,7 @@ import { autoDraft, peekActive, QUICK_RULES, SEASON_RULES, spinOdds } from '@eng
 import { canUpgrade } from '@engine/upgrader'
 import { powerUpUsed, powerUpsOn } from '@engine/powerups'
 import { Rng } from '@engine/rng'
-import { acceptOffer, bidFor, enquireFor, releasePlayer } from '../logic/marketOps'
+import { acceptOffer, bidFor, enquireFor, ownedHumans, releasePlayer } from '../logic/marketOps'
 import { advanceToNextSeason } from '../logic/dynasty'
 import { normaliseGame, normaliseProfile } from '../logic/save'
 import { matchPlayOf } from '../logic/assistant'
@@ -197,6 +197,9 @@ describe('audit fixes: season and squad', () => {
     expect(n.quickJanuary?.spin).toBeUndefined()
     expect(n.quickJanuary?.upgrade).toBeUndefined()
     expect(n.quickResult?.januaryGamble).toBeUndefined()
+    // Nobody retired from a squad saved before the retirement list: no one is barred from the summer wheel or the market
+    expect(n.retiredPlayers).toBeUndefined()
+    expect(ownedHumans(n, u).size).toBe(Object.keys(n.squad).length)
     expect(normaliseGame(null)).toBeNull()
     expect(normaliseGame({} as Game)).toBeNull()
     // A quick result saved before the live table has no rounds; a January window before it, no first-half rounds

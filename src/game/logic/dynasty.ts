@@ -115,6 +115,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
     // Retirement
     if (aged.age >= 34 && rng.chance(aged.age >= 37 ? 0.9 : aged.age >= 36 ? 0.6 : 0.3)) {
       report.retired.push(p.name)
+      game.retiredPlayers = [...(game.retiredPlayers ?? []), p.playerId]
       continue
     }
     if (contract.renewed) {
@@ -176,10 +177,13 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   // Never past the squad cap the market and the youth intake keep (a full squad of 23 losing four took six spins to 25)
   game.bonusSpins = Math.min(game.bonusSpins, Math.max(0, SQUAD_CAP - Object.keys(game.squad).length))
   const formation = getFormation(game.tactics.formationId)
-  const d = newDraft(formation, { ...game.settings.rules, squadSize: Object.keys(game.squad).length + game.bonusSpins, respins: 1, budget: undefined, chain: undefined })
+  // The summer wheel fills the squad up to the cap at most: a 22-man squad with its two bonus spins would reach 24
+  const d = newDraft(formation, { ...game.settings.rules, squadSize: Math.min(SQUAD_CAP, Object.keys(game.squad).length + game.bonusSpins), respins: 1, budget: undefined, chain: undefined })
   // Seed the draft with the existing squad: best eleven on the pitch, the rest on the bench,
   // so the bonus spins add squad depth wherever the wheel lands.
   for (const x of squadPlayers(game, u)) d.takenPlayers.push(x.p.playerId)
+  // A man who retired never comes back as his younger self
+  for (const id of game.retiredPlayers ?? []) if (!d.takenPlayers.includes(id)) d.takenPlayers.push(id)
   const pool = squadPlayers(game, u).map((x) => x.p)
   const picked = autoPickLineup(formation, pool, game.tactics)
   d.lineup = picked.lineup
@@ -187,7 +191,7 @@ export function advanceToNextSeason(game: Game, u: LoadedUniverse): OffseasonRep
   d.bench = pool.filter((p) => !inXI.has(p.id)).map((p) => p.id)
   game.draft = d
   game.phase = 'draft'
-  game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }, 'summer', 40)
+  game.window = openWindow({ u, rng, ownedPlayerIds: new Set([...squadPlayers(game, u).map((x) => x.p.playerId), ...(game.retiredPlayers ?? [])]), leagueSeason: nextSeason, priceLevel: 1, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }, 'summer', 40)
   game.rngState = rng.getState()
   void releasePlayer
   return report
