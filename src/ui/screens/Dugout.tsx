@@ -1656,7 +1656,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
         <div className="panel-head">
           <span className="head-title">
             <h3>Finances</h3>
-            <Info label="About finances">Match-day and broadcast income covers the wage cap: spend under it and the surplus drips into the budget each week, go over and it drains. Prize money lands at the end of the season: about £100M for the title, scaling down the table, plus a cup bonus.</Info>
+            <Info label="About finances">Match-day and broadcast income covers the wage cap: spend under it and a tenth of the surplus drips into the budget each week, go over and the whole overspend drains it. The league money lands at the end of the season, after running costs: +£20M for the title down to −£20M for last place, plus £10M for the cup.</Info>
           </span>
         </div>
         <dl className="kv tight">

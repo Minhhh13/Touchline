@@ -1009,11 +1009,47 @@ export function neededPositions(d: DraftState): Position[] {
  *
  * ENGINE_VERSION 4 and before charged every cover a flat 0.92 and took the first slot of a tie in formation order.
  */
-export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason): { id: string; slot: string | 'bench' } | null {
+/**
+ * Keepers in an assistant-drafted squad (engine 6, item 3): at least `MIN_KEEPERS` in a squad of `FULL_SQUAD` places or
+ * more (one keeper in 18 put an outfielder in goal when he was hurt), and never more than `MAX_KEEPERS` (Dynasty summer
+ * drafts reached six or seven in 23). The XI's own keeper slot is filled as before; the rule only steers bench picks.
+ */
+export const MIN_KEEPERS = 2
+export const MAX_KEEPERS = 3
+export const FULL_SQUAD = 16
+
+function isKeeper(p: PlayerSeason | undefined): boolean {
+  return p?.positions[0] === 'GK'
+}
+
+/**
+ * What the bench needs from this pick: `'keeper'` (only a keeper will do while one is on offer), `'outfield'` (no more
+ * keepers), or null (anyone). `keeperShort` says the squad cannot afford to pass on the keeper it needs.
+ */
+function benchNeed(d: DraftState, get: (id: string) => PlayerSeason | undefined): { need: 'keeper' | 'outfield' | null; keeperShort: boolean } {
+  const held = [...Object.values(d.lineup), ...d.bench].filter((id) => isKeeper(get(id))).length
+  if (held >= MAX_KEEPERS) return { need: 'outfield', keeperShort: false }
+  const min = d.rules.squadSize >= FULL_SQUAD ? MIN_KEEPERS : 1
+  if (held >= min) return { need: null, keeperShort: false }
+  // Picks still to make after this one
+  const left = d.rules.squadSize - picksMade(d) - 1
+  return { need: 'keeper', keeperShort: left < min - held }
+}
+
+export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason, get: (id: string) => PlayerSeason | undefined = (id) => u.index[id]): { id: string; slot: string | 'bench' } | null {
   // Under a salary cap the assistant spreads the money (`capCandidates`); everyone is a candidate without one
-  const candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))
+  let candidates = capCandidates(d, cs.squad.filter((p) => canUse(d, p)))
   if (!candidates.length) return null
   const open = candidateSlots(d)
+  if (!open.length) {
+    const { need, keeperShort } = benchNeed(d, get)
+    const keepers = candidates.filter(isKeeper)
+    if (need === 'outfield') candidates = candidates.filter((p) => !isKeeper(p))
+    else if (need === 'keeper' && keepers.length) candidates = keepers
+    // Short of a keeper with no picks to spare: pass on this spin rather than fill the last place outfield
+    else if (need === 'keeper' && keeperShort) return null
+    if (!candidates.length) return null
+  }
   let best: { p: PlayerSeason; slot: string | 'bench'; score: number } | null = null
   for (const p of candidates) {
     if (open.length) {
@@ -1033,16 +1069,20 @@ export function assistantChoice(u: LoadedUniverse, d: DraftState, cs: ClubSeason
  * Auto-draft the rest (used by "sim the rest" and for AI opponents in head-to-head).
  * Stops short of the squad size when the wheel has run dry (a one-nation draft).
  */
-export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng): void {
+export function autoDraft(u: LoadedUniverse, d: DraftState, rng: Rng, get?: (id: string) => PlayerSeason | undefined): void {
   let guard = 0
   while (!isComplete(d) && guard++ < 200) {
     if (!canSpin(u, d)) break
     // Position First: keep a slot already chosen, otherwise take the first open slot (formation order) the wheel can fill. No RNG.
     if (positionFirst(d) && !targetSlot(d)) d.target = spinnableSlots(u, d)[0].id
     const cs = spin(u, d, rng)
-    const best = assistantChoice(u, d, cs)
+    const best = assistantChoice(u, d, cs, get)
     if (best) pick(u, d, best.id, best.slot)
     else {
+      // A spin the assistant passes on (nobody usable, or only a keeper the squad has no room for) is logged as a
+      // discarded spin, as the store logs the one showing when Auto-complete starts: it drew from the stream, so a
+      // challenge replay spins it too (engine 6; before, it left no row and the replay fell out of step)
+      if (d.current) d.history.push({ ...d.current, pickedId: null, slotId: null, skipped: true, ...(d.twist ? { twist: d.twist } : {}), ...(targetSlot(d) ? { target: targetSlot(d)!.id } : {}) })
       d.current = null
       d.twist = null
     }

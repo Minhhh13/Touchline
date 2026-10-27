@@ -11,7 +11,7 @@ import type { ClubSeason, SquadPlayer } from './types'
 import type { LoadedUniverse } from './universe'
 import type { Rng } from './rng'
 import { simulateMatch, type FullMatchResult } from './match'
-import { aiTeamInput, applyMatchToState, newSquadPlayer, recoverWeek, shootout, USER_TEAM, type AiClub } from './season'
+import { aiFixtureInputs, applyMatchToAiState, newSquadPlayer, recoverWeek, shootout, USER_TEAM, type AiClub } from './season'
 import { arenaClub, arenaPool, clubSeasonKey, giantsOf, KO_FIELD_TARGET, teamStrengthOf, wheelWeight, type ArenaField, type FieldScope } from './knockout'
 
 /** Clubs in a cup, the user included: 2 is the one-off final. */
@@ -268,7 +268,7 @@ export function applyArenaResult(club: AiClub, res: FullMatchResult, side: 'home
     if (!s) continue
     played.add(st.playerSeasonId)
     const before = s.suspension
-    applyMatchToState(s, st, true, res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, gf > ga ? 'W' : gf === ga ? 'D' : 'L')
+    applyMatchToAiState(s, st, res.conditionLoss[st.playerSeasonId] ?? 0, ga === 0, res.motmId === st.playerSeasonId, gf > ga ? 'W' : gf === ga ? 'D' : 'L')
     s.suspension = before
     if (st.yellow && s.yellowCards % 2 === 0) s.suspension = Math.max(s.suspension, 1)
     if (st.red) s.suspension = Math.max(s.suspension, 1)
@@ -284,7 +284,9 @@ export function applyArenaResult(club: AiClub, res: FullMatchResult, side: 'home
 export function playAiTie(u: LoadedUniverse, rng: Rng, tie: CupTie, b: CupBracket, importance: number, neutral: boolean): void {
   const home = cupClub(u, tie.home, b.states)
   const away = cupClub(u, tie.away, b.states)
-  const res = simulateMatch({ rng, home: aiTeamInput(u, home, b.offset), away: aiTeamInput(u, away, b.offset), importance, neutral, detail: 'summary' })
+  // Two seasons of one club (or one man's two clubs) never share him: he plays for the home side (E6-2)
+  const sides = aiFixtureInputs(u, home, away, b.offset)
+  const res = simulateMatch({ rng, home: sides.home, away: sides.away, importance, neutral, detail: 'summary' })
   tie.hg = res.homeGoals
   tie.ag = res.awayGoals
   let homeWins = res.homeGoals > res.awayGoals

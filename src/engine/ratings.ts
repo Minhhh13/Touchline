@@ -48,12 +48,16 @@ export function roleRating(player: PlayerSeason, role: Role, position: Position)
 export function liveModifiers(state: SquadPlayer | undefined): SlotEvaluation['modifiers'] {
   if (!state) return { condition: 1, morale: 1, sharpness: 1, familiarity: 1, form: 1 }
   const condition = state.condition >= 85 ? 1 : state.condition >= 70 ? 1 - (85 - state.condition) * 0.003 : 0.955 - (70 - state.condition) * 0.0045
-  const morale = 1 + ((state.morale - 65) / 35) * 0.04
+  // Engine 6 halved morale and form (±2% at full morale, ±1.5% of form; engine 5: 4% and 3%) and flattened familiarity
+  // above 70 (1.011 at 100; engine 5: 1.02), keeping a new squad's handicap below it (0.9745 at 35). The match engine
+  // turns rating points into goals exponentially and stretches them above 80, so a winning side's +9% made a drafted XI
+  // score 160 a season
+  const morale = 1 + ((state.morale - 65) / 35) * 0.02
   const sharpness = state.sharpness >= 75 ? 1 : 1 - (75 - state.sharpness) * 0.0012
-  const familiarity = 0.95 + (state.familiarity / 100) * 0.07
+  const familiarity = state.familiarity <= 70 ? 0.95 + (state.familiarity / 100) * 0.07 : 0.999 + (state.familiarity - 70) * 0.0004
   const recent = state.recentRatings.slice(-5)
   const avg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 7
-  const form = 1 + Math.max(-0.03, Math.min(0.03, (avg - 7) * 0.02))
+  const form = 1 + Math.max(-0.015, Math.min(0.015, (avg - 7) * 0.02))
   return { condition: round4(condition), morale: round4(morale), sharpness: round4(sharpness), familiarity: round4(familiarity), form: round4(form) }
 }
 

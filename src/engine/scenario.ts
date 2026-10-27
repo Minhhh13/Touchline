@@ -58,6 +58,40 @@ export function scaleRow(row: Pick<LeagueSeasonRow, 'won' | 'drawn' | 'lost' | '
   return { won: counts[0], drawn: counts[1], lost: counts[2], goalsFor: Math.round((row.goalsFor * n) / played), goalsAgainst: Math.round((row.goalsAgainst * n) / played) }
 }
 
+/**
+ * A whole real table scaled back to `n` of its `played` matches (engine 6, QA O-1): every row as `scaleRow` scales it,
+ * then reconciled league-wide so the carried table adds up, as one played from fixtures would: while the league has more
+ * wins than losses (or the other way), the row whose rounding gave it the most turns one of them into a draw; while its
+ * goals for and against differ, the row whose rounding gave it the most loses one (never below its wins, or its losses,
+ * so a win is still a scoring match). Each row stays within one result and one goal of its own `scaleRow`. Pure.
+ */
+export function scaleTable(rows: LeagueSeasonRow[], played: number, n: number): Record<string, CarryRow> {
+  const out = rows.map((r) => scaleRow(r, played, n))
+  const exact = (x: number) => (x * n) / played
+  const excess = (i: number, k: 'won' | 'lost' | 'goalsFor' | 'goalsAgainst') => out[i][k] - exact(rows[i][k])
+  const pick = (k: 'won' | 'lost' | 'goalsFor' | 'goalsAgainst', ok: (i: number) => boolean) => {
+    let best = -1
+    for (let i = 0; i < out.length; i++) if (ok(i) && (best < 0 || excess(i, k) > excess(best, k))) best = i
+    return best
+  }
+  const total = (k: keyof CarryRow) => out.reduce((a, r) => a + r[k], 0)
+  for (let gap = total('won') - total('lost'); gap !== 0; gap = total('won') - total('lost')) {
+    const k = gap > 0 ? 'won' : 'lost'
+    const i = pick(k, (j) => out[j][k] > 0)
+    if (i < 0) break
+    out[i][k]--
+    out[i].drawn++
+  }
+  for (let gap = total('goalsFor') - total('goalsAgainst'); gap !== 0; gap = total('goalsFor') - total('goalsAgainst')) {
+    const k = gap > 0 ? 'goalsFor' : 'goalsAgainst'
+    const floor = gap > 0 ? 'won' : 'lost'
+    const i = pick(k, (j) => out[j][k] > out[j][floor])
+    if (i < 0) break
+    out[i][k]--
+  }
+  return Object.fromEntries(rows.map((r, i) => [r.clubId, out[i]]))
+}
+
 /** The place a brief asks for: 1 for the title, 4 for Europe, the last safe place (`clubs − 3`) for survival. */
 export function briefTarget(template: RunInTemplate, clubs: number): number {
   return template === 'title' ? 1 : template === 'europe' ? 4 : clubs - 3
@@ -101,14 +135,16 @@ export function projectedCarryIn(u: LoadedUniverse, leagueId: string, season: nu
   if (!rows) return null
   const played = 2 * (rows.length - 1)
   const n = takeoverWeek(played)
-  return Object.fromEntries(rows.map((r) => [r.clubId === hostClubId ? USER_TEAM : r.clubId, scaleRow(r, played, n)]))
+  const scaled = scaleTable(rows, played, n)
+  return Object.fromEntries(rows.map((r) => [r.clubId === hostClubId ? USER_TEAM : r.clubId, scaled[r.clubId]]))
 }
 
 function jobOf(template: RunInTemplate, leagueId: string, season: number, rows: LeagueSeasonRow[], row: LeagueSeasonRow): RunInJob {
   const clubs = rows.length
   const matchweeks = 2 * (clubs - 1)
   const takeover = takeoverWeek(matchweeks)
-  const carry = Object.fromEntries(rows.map((r) => [r.clubId === row.clubId ? USER_TEAM : r.clubId, scaleRow(r, matchweeks, takeover)]))
+  const scaled = scaleTable(rows, matchweeks, takeover)
+  const carry = Object.fromEntries(rows.map((r) => [r.clubId === row.clubId ? USER_TEAM : r.clubId, scaled[r.clubId]]))
   const table = computeTable([], Object.keys(carry), carry)
   const position = positionOf(table, USER_TEAM)
   const points = table[position - 1].points

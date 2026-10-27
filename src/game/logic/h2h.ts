@@ -1,7 +1,7 @@
 import type { LoadedUniverse } from '@engine/universe'
 import { Rng } from '@engine/rng'
 import { simulateMatch, type MatchTeamInput } from '@engine/match'
-import { aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, aiTeamInput } from '@engine/season'
+import { aiFixtureInputs, humansOf, aiRatingOffset, buildAiClubs, computeTable, generateFixtures, matchweeksFor, positionOf, seasonTier, aiTeamInput } from '@engine/season'
 import { autoPickLineup, computeTeamStrength } from '@engine/ratings'
 import { getFormation } from '@engine/formations'
 import { defaultTactics } from '@engine/tactics'
@@ -40,9 +40,13 @@ export function h2hRules(wheelLeagues: string[], hardMode: boolean): DraftRules 
 
 /** Both drafted XIs enter the same league season, replacing two real clubs. */
 export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager, H2HManager], drafts: [DraftState, DraftState], leagueId: string, leagueSeason: number, difficulty: 'calibrated' | 'realistic'): H2HResult {
-  const aiAll = buildAiClubs(u, leagueId, leagueSeason, managers[0].hostClubId)
+  const full = buildAiClubs(u, leagueId, leagueSeason, managers[0].hostClubId)
+  delete full[managers[1].hostClubId]
+  const offset = aiRatingOffset(u, full, difficulty)
+  // Both managers' men leave their real clubs (engine 6, E6-2); the calibration stays the league's own
+  const taken = humansOf(drafts.flatMap((d) => [...Object.values(d.lineup), ...d.bench]), (id) => u.index[id])
+  const aiAll = buildAiClubs(u, leagueId, leagueSeason, managers[0].hostClubId, taken)
   delete aiAll[managers[1].hostClubId]
-  const offset = aiRatingOffset(u, aiAll, difficulty)
   const inputs = managers.map((m, i) => {
     const d = drafts[i]
     const formation = getFormation(m.formationId)
@@ -58,9 +62,12 @@ export function runH2HSeason(u: LoadedUniverse, rng: Rng, managers: [H2HManager,
   const fixtures: Fixture[] = generateFixtures(ids, rng)
   const goals: [Record<string, number>, Record<string, number>] = [{}, {}]
   const derbies: H2HResult['derbies'] = []
+  const human = (id: string) => id === H2H_IDS[0] || id === H2H_IDS[1]
   const teamFor = (id: string): MatchTeamInput => (id === H2H_IDS[0] ? inputs[0].input : id === H2H_IDS[1] ? inputs[1].input : aiTeamInput(u, aiAll[id], offset))
   for (const f of fixtures) {
-    const res = simulateMatch({ rng, home: teamFor(f.homeTeamId), away: teamFor(f.awayTeamId), detail: 'summary', importance: f.homeTeamId.startsWith('h2h') && f.awayTeamId.startsWith('h2h') ? 1.25 : 1 })
+    // Two AI sides never share a man (a January mover listed at both)
+    const both = human(f.homeTeamId) || human(f.awayTeamId) ? null : aiFixtureInputs(u, aiAll[f.homeTeamId], aiAll[f.awayTeamId], offset)
+    const res = simulateMatch({ rng, home: both?.home ?? teamFor(f.homeTeamId), away: both?.away ?? teamFor(f.awayTeamId), detail: 'summary', importance: f.homeTeamId.startsWith('h2h') && f.awayTeamId.startsWith('h2h') ? 1.25 : 1 })
     f.result = res
     for (const [idx, id] of [[0, H2H_IDS[0]], [1, H2H_IDS[1]]] as Array<[0 | 1, string]>) {
       const stats = f.homeTeamId === id ? res.homeStats : f.awayTeamId === id ? res.awayStats : null

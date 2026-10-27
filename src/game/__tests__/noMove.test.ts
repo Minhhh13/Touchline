@@ -69,9 +69,11 @@ function quickPin(s: GameSettings): string {
 }
 
 // Re-baselined on ENGINE_VERSION '5' (the playtest fixes: fixtures, the assistant's placement, keeper subs, development)
-const SEASON_BASELINE = '39e10ac6a28f8ee460db3299fccd48787cc347c757c75c13ac5d44bc371b15df'
-const QUICK_BASELINE = '42390930bdeb20f07777789eb896b62d978dd20f2c6924b62cf4415d627a657c'
-const DAILY_BASELINE = '29510b95f4857fced7b41611de33ee8a130c6ec2a8da5739bb6ff72bec29243b'
+// and on '6' (every match moved: the goal calibration, cards, the reserve keeper, the user's men out of their real clubs;
+// the Season's finances follow the new economy and its squads the keeper limits)
+const SEASON_BASELINE = 'f7f5dc09a54694399863dd78d682d2c2b556d90a1e803d6327152f46bdd01884'
+const QUICK_BASELINE = '4e07e3cec479ea921e46c0f8026e70fde73381812bf31118bb6bb6ed61dc5e6f'
+const DAILY_BASELINE = '7a1c2fc4be66cb66acb142dd66c60def02c9df91e6c0f0b77746e301694b4c53'
 
 describe('the See your squad batch moves no seeded outcome', () => {
   it('plays three seeded Seasons to the same table, stream, finances and squad states', () => {

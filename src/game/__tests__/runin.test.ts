@@ -119,7 +119,8 @@ describe('Run-in: the takeover', () => {
     expect(positionOf(table, USER_TEAM)).toBe(18)
     expect(table.find((r) => r.teamId === USER_TEAM)!.points).toBe(28)
     expect(takeoverTable(s)).toEqual(table)
-    expect(briefStanding(g)).toMatchObject({ template: 'survival', target: 17, position: 18, points: 28, gap: -1, toPlay: 10, settled: null })
+    // Two points from safety since engine 6's reconciled table (scaleTable, QA O-1) put Spurs on 30, not 29
+    expect(briefStanding(g)).toMatchObject({ template: 'survival', target: 17, position: 18, points: 28, gap: -2, toPlay: 10, settled: null })
     expect(gapLine('survival', 17, 18, -1)).toBe('1 point behind safety')
     expect(modeLabel(g, 'short')).toBe('Run-in')
     expect(MODE_TITLE.runin).toBe('Run-in')

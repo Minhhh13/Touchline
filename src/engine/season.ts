@@ -12,6 +12,7 @@ import { simulateMatch, type FullMatchResult, type MatchTeamInput, type TeamTalk
 import { tacticsForStyle, formationForStyle } from './tactics'
 import { autoPickLineup, computeTeamStrength } from './ratings'
 import { getFormation } from './formations'
+import { aiLookup, reserveKeeper } from './reserve'
 
 export const USER_TEAM = 'user'
 /** Matchweeks in a double round robin of `teams` clubs. */
@@ -158,21 +159,39 @@ export function generateFixtures(teamIds: string[], rng: Rng): Fixture[] {
   return [...first.flat(), ...back.flat()]
 }
 
-export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string): Record<string, AiClub> {
+/**
+ * The league's other clubs as AI sides. `taken` holds the real player ids (`PlayerSeason.playerId`) of the humans the
+ * user's side holds: none of them also plays for his real club, in any season (engine 6, E6-2).
+ */
+export function buildAiClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const ai: Record<string, AiClub> = {}
   const clubs = u.clubSeasons.filter((cs) => cs.leagueId === leagueId && cs.season === leagueSeason && cs.clubId !== hostClubId)
-  for (const cs of clubs) ai[cs.clubId] = aiClubOf(u, cs)
+  for (const cs of clubs) ai[cs.clubId] = aiClubOf(u, cs, taken)
   return ai
 }
 
-/** One real club-season as an AI side: its style's tactics and shape, its squad, every player fresh. Draws nothing. */
-export function aiClubOf(u: LoadedUniverse, cs: ClubSeason): AiClub {
+/**
+ * One real club-season as an AI side: its style's tactics and shape, its squad (less any human in `taken`, by real
+ * player id), every player fresh. Draws nothing.
+ */
+export function aiClubOf(u: LoadedUniverse, cs: ClubSeason, taken?: ReadonlySet<string>): AiClub {
   const club = u.clubById[cs.clubId]
   const style = club?.style ?? 'balanced'
   const tactics = tacticsForStyle(style, formationForStyle(style))
+  const squad = taken?.size ? cs.squad.filter((p) => !taken.has(p.playerId)) : cs.squad
   const state: Record<string, SquadPlayer> = {}
-  for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
-  return { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
+  for (const p of squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
+  return { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: squad.map((p) => p.id), state }
+}
+
+/** The real player ids of a set of player-season ids (resolved through `get`): what `taken` holds. */
+export function humansOf(ids: Iterable<string>, get: (id: string) => PlayerSeason | undefined): Set<string> {
+  const out = new Set<string>()
+  for (const id of ids) {
+    const p = get(id)
+    if (p) out.add(p.playerId)
+  }
+  return out
 }
 
 /** An AI side's overall team strength as the season fields it: its auto-picked best XI rated by `computeTeamStrength`. Pure. */
@@ -181,15 +200,49 @@ export function aiStrength(u: LoadedUniverse, club: AiClub): number {
   return computeTeamStrength(club.tactics, inp.lineup, inp.getPlayer, inp.getState).overall
 }
 
-export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0): MatchTeamInput {
-  const pool = club.squad.map((id) => u.index[id]).filter(Boolean)
+/**
+ * An AI side as the match engine fields it: the auto-picked best XI and bench of its fit, unsuspended men. `taken` (real
+ * player ids) leaves out humans who already play for the other side of this match (E6-2). A squad with no fit keeper
+ * left fields its reserve keeper (`src/engine/reserve.ts`, E6-5) rather than an outfielder in goal.
+ */
+export function aiTeamInput(u: LoadedUniverse, club: AiClub, ratingOffset = 0, taken?: ReadonlySet<string>): MatchTeamInput {
+  let pool = club.squad.map((id) => u.index[id]).filter(Boolean)
+  if (taken?.size) pool = pool.filter((p) => !taken.has(p.playerId))
   const formation = getFormation(club.tactics.formationId)
   const getState = (id: string) => club.state[id]
-  const { lineup, bench } = autoPickLineup(formation, pool, club.tactics, (p) => {
+  const fit = (p: PlayerSeason) => {
     const s = club.state[p.id]
     return !s || (!s.injury && s.suspension <= 0)
-  }, getState)
-  return { teamId: club.id, teamName: club.name, shortName: club.shortName, tactics: club.tactics, lineup, bench, getPlayer: (id) => u.index[id], getState, ratingOffset }
+  }
+  const reserve = pool.length && !pool.some((p) => p.positions.includes('GK') && fit(p)) ? reserveKeeper(u, pool[0].clubId, pool[0].season) : undefined
+  if (reserve) pool = [...pool, reserve]
+  const { lineup, bench } = autoPickLineup(formation, pool, club.tactics, fit, getState)
+  const getPlayer = aiLookup(u)
+  const goalFactor = leagueGoalFactor(u.clubById[club.clubId]?.leagueId)
+  return { teamId: club.id, teamName: club.name, shortName: club.shortName, tactics: club.tactics, lineup, bench, getPlayer, getState, ratingOffset, ...(goalFactor !== 1 ? { goalFactor } : {}) }
+}
+
+/**
+ * Each league's scoring level against the Premier League's (engine 6, E6-7), set so its all-AI seasons score what the
+ * real tables did from 2008-09 (England 2.78 a game, Spain 2.68, Italy 2.74, Germany 3.07): the packs rate La Liga's,
+ * Serie A's and the Bundesliga's sides closer together than their results were, so one base undershot them by 0.4 to
+ * 0.5 goals. France, the Netherlands and Portugal have no tables and keep England's.
+ */
+export const LEAGUE_GOAL_FACTOR: Readonly<Record<string, number>> = { spain: 1.21, italy: 1.22, germany: 1.22 }
+
+export function leagueGoalFactor(leagueId: string | undefined): number {
+  return (leagueId && LEAGUE_GOAL_FACTOR[leagueId]) || 1
+}
+
+/**
+ * Two AI sides for one match with no human on both (E6-2): a player listed for both clubs (a January move inside one
+ * league season, or two seasons of one club meeting in the arena) plays for the home side, which is fielded first.
+ */
+export function aiFixtureInputs(u: LoadedUniverse, home: AiClub, away: AiClub, offset = 0, taken?: ReadonlySet<string>): { home: MatchTeamInput; away: MatchTeamInput } {
+  const h = aiTeamInput(u, home, offset, taken)
+  const homeMen = humansOf([...Object.values(h.lineup), ...h.bench], h.getPlayer)
+  for (const id of taken ?? []) homeMen.add(id)
+  return { home: h, away: aiTeamInput(u, away, offset, homeMen) }
 }
 
 /**
@@ -330,7 +383,8 @@ export function drawNextCupRound(cup: CupTie[], round: CupTie['round'], rng: Rng
  * leagues in the same season, by league position then squad rating. Leagues
  * without that season contribute their nearest one.
  */
-export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15): Record<string, AiClub> {
+/** The Continental Cup's field: the strongest clubs of the other loaded leagues. `taken` as in `buildAiClubs`: the field is chosen on full squads, then the user's humans leave them. */
+export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagueSeason: number, hostClubId: string, n = 15, taken?: ReadonlySet<string>): Record<string, AiClub> {
   const others = u.leagues.filter((l) => l.id !== leagueId)
   const picked: ClubSeason[] = []
   // Classic club-seasons only enter the field of a classic league season
@@ -357,14 +411,7 @@ export function buildContinentalClubs(u: LoadedUniverse, leagueId: string, leagu
   }
   const strongest = picked.sort((a, b) => avgTop(b) - avgTop(a)).slice(0, n)
   const clubs: Record<string, AiClub> = {}
-  for (const cs of strongest) {
-    const club = u.clubById[cs.clubId]
-    const style = club?.style ?? 'balanced'
-    const tactics = tacticsForStyle(style, formationForStyle(style))
-    const state: Record<string, SquadPlayer> = {}
-    for (const p of cs.squad) state[p.id] = newSquadPlayer(p.id, { familiarity: 70, sharpness: 85 })
-    clubs[cs.clubId] = { id: cs.clubId, clubId: cs.clubId, name: club?.name ?? cs.clubId, shortName: club?.shortName ?? cs.clubId, tactics, squad: cs.squad.map((p) => p.id), state }
-  }
+  for (const cs of strongest) clubs[cs.clubId] = aiClubOf(u, cs, taken)
   return clubs
 }
 
@@ -416,6 +463,21 @@ export function applyMatchToState(state: SquadPlayer, stats: { minutes: number; 
   const resultDelta = teamResult === 'W' ? 5 : teamResult === 'D' ? 0 : -5
   const perfDelta = (stats.rating - 6.8) * 2
   state.morale = clamp(state.morale + resultDelta + perfDelta, 10, 100)
+}
+
+/**
+ * An AI side's man after a match (engine 6, E6-3): fitness, sharpness, cards, suspensions, injuries and his season's
+ * figures move as a user's do; morale, familiarity and form stay where they began. A real squad already knows its
+ * system, and the AI never rotates or talks, so nothing would pull a winning side's morale and form back: managed
+ * leagues drifted from 2.7 to 3.7 goals a game and 100-point champions. Draws nothing.
+ */
+export function applyMatchToAiState(state: SquadPlayer, stats: Parameters<typeof applyMatchToState>[1], conditionLoss: number, cleanSheet: boolean, motm: boolean, teamResult: 'W' | 'D' | 'L'): void {
+  const { morale, familiarity } = state
+  const recent = [...state.recentRatings]
+  applyMatchToState(state, stats, true, conditionLoss, cleanSheet, motm, teamResult)
+  state.morale = morale
+  state.familiarity = familiarity
+  state.recentRatings = recent
 }
 
 export function seasonTier(table: TableRow[], teamId: string, cupWon: boolean, matchweeks = 38): SeasonTier {

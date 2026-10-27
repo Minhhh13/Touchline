@@ -148,7 +148,8 @@ describe('the overlays', () => {
           expect(st.index).toBe(i)
           const later = shotTrailAt(path, ballAt(path, k.t + 0.4), k.t + 0.4)
           if (later) expect(later.alpha).toBeLessThan(st.alpha)
-          expect(shotTrailAt(path, ballAt(path, k.t + 0.8), k.t + 0.8)).toBeNull()
+          // This shot's line is gone (a second shot right after it may be showing its own)
+          expect(shotTrailAt(path, ballAt(path, k.t + 0.8), k.t + 0.8)?.index ?? -1).not.toBe(i)
         }
       })
     }
@@ -302,7 +303,8 @@ describe('runs off the ball', () => {
     let ahead = 0
     expect(runShare('through')).toBe(RUN.through)
     expect(runShare('through')).toBeGreaterThan(runShare('short'))
-    for (const mp of paths) {
+    // Eight matches: engine 6's six feeds held only nine balls in behind, one short of the bound
+    for (const mp of [...paths, ...[6, 7].map((i) => matchPath(resultFeed(i)))]) {
       const path = mp.path
       const { home, away } = mp.epochs[0]
       for (let k = 1; k + 1 < path.length && path[k].t < 44; k++) {

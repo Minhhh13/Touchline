@@ -50,8 +50,10 @@ function gameWindows(): string {
 
 const ENGINE_BASELINE = '738c872e6bcc42f88fd9024547dcd47d0d4a3f8427b1c57b2b032e4841f26750'
 // Re-baselined on ENGINE_VERSION '5': the 19 matchweeks before the window moved (fixtures, development, keeper subs), so its
-// clubs' squads and the stream differ; the 200 engine windows above, the market itself, did not move
-const GAME_BASELINE = '3c312603659929b28077447f9dfc71bec940dcc8ffcfc7e4ff29e23579d8a030'
+// clubs' squads and the stream differ; the 200 engine windows above, the market itself, did not move. Re-baselined on
+// '6' for the same reason: the 19 matchweeks play differently (the calibration, cards, the user's men out of their clubs);
+// the 200 engine windows still hold, unchanged
+const GAME_BASELINE = 'b86b42625d1828a0993f1afa5abc224c39cd5f15068ccaf8b9cd90ca6980fb2c'
 
 describe('a market with no recruitment focus is unchanged', () => {
   it('opens and ticks 200 seeded windows exactly as before', () => {

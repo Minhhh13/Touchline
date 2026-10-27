@@ -31,6 +31,7 @@ import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickCha
 import { isSuperLeague } from './logic/superLeague'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
+import { playerLookup } from './logic/players'
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
 import { acceptOffer, advanceDay, bidFor, enquireFor, loanFor, rejectOffer, releasePlayer, type BidOptions } from './logic/marketOps'
@@ -676,7 +677,8 @@ export const useStore = create<Store>()(
             if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: targetSlot(g.draft)!.id } : {}) })
             g.draft.current = null
             g.draft.twist = null
-            autoDraft(u, g.draft, rng)
+            // The lookup sees a Dynasty summer's own players (their keepers count towards the squad's limits)
+            autoDraft(u, g.draft, rng, playerLookup(g, u))
             g.rngState = rng.getState()
           }),
         upgradePlayer: (id, boost) =>
