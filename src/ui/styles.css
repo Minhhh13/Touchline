@@ -4936,17 +4936,20 @@ dl.kv {
     display: inline;
   }
 }
-/* Under 1280 px the buttons take a row of their own, under the title and the match-play chips */
+/* Under 1280 px the row still fits (round 6: it took a row of its own, 40 px the tab body lost at 1100 x 700): the
+   match-play chips lose their "Match:" word (the radio group keeps its label) and the big-match button its short label */
 @media (min-width: 1100px) and (max-width: 1279px) and (max-height: 940px) {
   .panel.cta:has(.briefing.checklist) {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: 'title play' 'btns btns' 'check check';
+    column-gap: var(--space-3);
   }
-  .panel.cta:has(.briefing.checklist) .match-play {
-    justify-self: end;
+  .panel.cta:has(.briefing.checklist) .match-play > .small.muted {
+    display: none;
   }
-  .panel.cta:has(.briefing.checklist) .cta-bar .btns {
-    justify-content: flex-start;
+  .panel.cta:has(.briefing.checklist) .btns [data-testid='sim-big'] .lbl-long {
+    display: none;
+  }
+  .panel.cta:has(.briefing.checklist) .btns [data-testid='sim-big'] .lbl-short {
+    display: inline;
   }
 }
 .cta-bar {
@@ -15195,6 +15198,31 @@ details.opposition {
   }
   .app.shell .tab-body:has(> .youth-intake) > .grid.dugout > .col > .panel:has(.pitch-wrap) > .panel-head {
     margin-bottom: var(--space-1);
+  }
+}
+/* Round 6: the coach mark takes the intake's height and scrolls inside itself (its text set the row's height, 152 px at
+   1100 x 700, and left the squad grid its 120 px floor below the window's foot). Under 760 px high the checklist's
+   youth line gives way to the intake panel it points to, the intake slims, and from 1100 to 1279 px the tab bar keeps
+   one row; at 1100 x 700 the grid goes from its floor (off the screen) to 174 px, at 1280 x 720 from 184 to 233 */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .app.shell .tab-body:has(> .tip):has(> .youth-intake):has(> .grid.dugout) > .tip {
+    contain: size;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    align-items: flex-start;
+  }
+}
+@media (min-width: 1100px) and (max-height: 760px) {
+  .app.shell .page:has(.tab-body > .youth-intake) .briefing.checklist > li[data-brief='youth'] {
+    display: none;
+  }
+  .app.shell .tab-body:has(> .tip):has(> .grid.dugout) > .youth-intake.panel {
+    padding-block: var(--space-1);
+  }
+}
+@media (min-width: 1100px) and (max-width: 1279px) and (max-height: 760px) {
+  .app.shell .tabs-row:has(+ .tab-body > .youth-intake) > .tabs button {
+    padding-inline: 7px;
   }
 }
 

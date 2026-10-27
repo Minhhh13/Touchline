@@ -931,7 +931,7 @@ function BriefingList({ items, onAction, checklist }: { items: BriefingItem[]; o
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
   const line = (item: BriefingItem, toggle?: ReactNode) => (
-    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`}>
+    <li key={item.id} className={`brief ${item.level} ${item.done ? 'done' : ''}`} data-brief={item.id}>
       <span className="icon" aria-hidden="true">
         <BriefingIcon item={item} size={15} />
       </span>
