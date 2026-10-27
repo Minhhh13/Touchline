@@ -17,6 +17,7 @@ import { SoundToggle, TierChip } from './CaseReel'
 import { SpinOdds } from './SpinOdds'
 import { ClubBadge } from './bits'
 import { useFocusOnLanding } from '../a11y'
+import { surname } from '@game/logic/slotSheet'
 
 /** How much later each reel to the right lands, ms (full timing; half with Quick spin), so the three stop one by one. */
 const STAGGER_MS = 450
@@ -130,7 +131,7 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
                       On your XI: <b>{edgeLine(edges[m.style])}</b>
                     </span>
                     <button ref={i === 0 ? firstPick : undefined} type="button" className="btn primary sm" disabled={!done} onClick={(e) => { e.stopPropagation(); pickManager(m.id) }} data-testid={`mspin-pick-${i}`}>
-                      Pick {m.name.split(/\s+/).slice(-1)[0]}
+                      Pick {surname(m.name)}
                     </button>
                   </>
                 )}

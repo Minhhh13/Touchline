@@ -799,3 +799,14 @@ What the game supports, the audit and what is left are in [ACCESSIBILITY.md](ACC
 5. **Silent without Web Audio.** No `AudioContext` (tests, headless runs without one, old browsers) makes every call a no-op that returns nothing.
 6. **Presentation only.** Nothing reads or writes the game's RNG or state; the match's sounds only read the clock and the events the dashboard already shows. `Math.random` only varies a reel tick's pitch and fills its noise.
 7. **Hear them.** The offline renders (one WAV per sound) come from a small harness that bundles `scores.ts` and `render.ts` and runs them in an `OfflineAudioContext` through the same master and safety net.
+
+## 16. Voice and wording
+
+- British English (colour, defence, favourite, -ise), sentence case for titles, buttons and tabs; the product is TouchLine (`APP_NAME`), the default team "Touchline XI".
+- Mode names are proper names and keep their capitals in every label: Quick Draft, Daily Challenge, Weekly Challenge, Daily Arena, Super League, Run-in, Head-to-head, Trophy Room, Continental Cup. Squad First and Position First too.
+- Numbers: figures for 10 and up, and for any count beside a unit ("Draft 18", "4 spins"); a count that can be one goes through `countPhrase` (`screenText.ts`) or a singular check: never "1 points".
+- Minutes on the clock go through `minuteLabel` (45', 90+2'); a minutes total is "270 min". Money through `money` (£500k, £12.3M, £0), wages through `wage` (£85k/wk), a signed figure through `signedValue` (+0.4, −0.31, a true minus), meters through `meterValue`, formations through `formationName`, ages as "31y".
+- A toast for a failure says what to do next ("Could not copy. Select the text manually.", "Could not make the share card. Try again."); a refusal says what would work ("Pick a highlighted slot.").
+- An empty state says what fills it ("Spin the wheel; your best seasons land here.").
+- Jargon (xG, Prime, chemistry, balance, the case tiers, Gamble) carries a tip or a title where it first appears on a screen; an `aria-label` contains the visible words (WCAG label in name).
+- Never print an id (`arsenal@2015`, `4-4-2-diamond`): resolve it through `clubName`, `seasonLabel`, `formationName`.

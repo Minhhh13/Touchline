@@ -7,7 +7,7 @@ import type { Mode } from '@game/types'
 
 /** A mode as it is shown in a table cell or a chip. */
 export function modeLabel(mode: Mode): string {
-  const label: Record<Mode, string> = { quick: 'Quick draft', daily: 'Daily', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly', runin: 'Run-in' }
+  const label: Record<Mode, string> = { quick: 'Quick Draft', daily: 'Daily', season: 'Season', dynasty: 'Dynasty', arena: 'Arena', weekly: 'Weekly', runin: 'Run-in' }
   return label[mode]
 }
 

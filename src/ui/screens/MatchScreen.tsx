@@ -10,7 +10,7 @@ import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../co
 import { RedCard, YellowCard } from '../components/icons'
 import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { clubName, clubShort, minuteLabel, outcomeClass, textColourFor, type Outcome } from '../format'
+import { clubName, clubShort, minuteLabel, outcomeClass, signedValue, textColourFor, type Outcome } from '../format'
 import { playerLookup } from '@game/logic/players'
 import type { Appearance, FullMatchResult } from '@engine/match'
 import { feedFromResult } from '@engine/matchFeed'
@@ -245,7 +245,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
       })
       downloadDataUrl(url, `touchline-${names.homeShort}-${names.awayShort}.png`.replace(/\s+/g, '-').toLowerCase())
     } catch {
-      showToast('Could not render the match card.')
+      showToast('Could not make the match card. Try again.')
     }
   }
   const ratingBar = (s: PlayerMatchStats) => <Bar value={s.rating - 4.5} max={5.5} colour={s.rating >= 7.5 ? 'var(--good)' : s.rating < 6 ? 'var(--danger)' : 'var(--text-3)'} />
@@ -368,7 +368,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
               <h3 className="rp-pane-title">Shot map</h3>
               <ShotMap events={res.events} home={sides.home} away={sides.away} />
               <div className="small muted rp-foot">
-                {sides.home.shortName} {fig.home.shots} shots ({fig.home.onTarget} on target, {fig.home.xg.toFixed(2)} xG) · {sides.away.shortName} {fig.away.shots} ({fig.away.onTarget}, {fig.away.xg.toFixed(2)} xG)
+                {sides.home.shortName} {fig.home.shots} {fig.home.shots === 1 ? 'shot' : 'shots'} ({fig.home.onTarget} on target, {fig.home.xg.toFixed(2)} xG) · {sides.away.shortName} {fig.away.shots} ({fig.away.onTarget}, {fig.away.xg.toFixed(2)} xG)
               </div>
             </div>
           )}
@@ -453,7 +453,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
             </div>
             {ours.substitutions.length > 0 && (
               <div className="small muted icon-title" style={{ marginTop: 8, alignItems: 'flex-start' }}>
-                <ArrowLeftRight size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> {ours.substitutions.map((s) => `${get(s.on)?.name} for ${get(s.off)?.name} (${s.minute}', ${s.reason})`).join('; ')}
+                <ArrowLeftRight size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> {ours.substitutions.map((s) => `${get(s.on)?.name} for ${get(s.off)?.name} (${minuteLabel(s.minute)}, ${s.reason})`).join('; ')}
               </div>
             )}
           </div>
@@ -489,8 +489,7 @@ function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { bo
               <span className="chip">Attack ×{ours.modifiers.attack.toFixed(2)}</span>
               <span className="chip">Their chances ×{ours.modifiers.defence.toFixed(2)}</span>
               <span className="chip">
-                Fatigue {ours.modifiers.fatigue > 0 ? '+' : ''}
-                {ours.modifiers.fatigue}
+                Fatigue {signedValue(ours.modifiers.fatigue)}
               </span>
             </div>
             {opponentBox && u && (

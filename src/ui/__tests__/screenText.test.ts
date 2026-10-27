@@ -3,7 +3,7 @@ import { brokeMoment, countPhrase, cupWinsLine, developmentLists, distinctLabels
 
 describe('screen labels', () => {
   it('names every mode in sentence case', () => {
-    expect(modeLabel('quick')).toBe('Quick draft')
+    expect(modeLabel('quick')).toBe('Quick Draft')
     expect(modeLabel('daily')).toBe('Daily')
     expect(modeLabel('season')).toBe('Season')
     expect(modeLabel('dynasty')).toBe('Dynasty')

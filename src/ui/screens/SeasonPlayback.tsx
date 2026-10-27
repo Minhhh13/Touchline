@@ -13,7 +13,7 @@ import { Pitch } from '../components/Pitch'
 import { playbackDelay, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { gapLine, momentAt, positionSeries, rivalsOf, tableAfterGame, weeklyTables } from '@game/logic/liveTable'
 import { chaseAt, chaseLine, perfectOverLabel } from '@game/logic/perfect'
-import { brokeMoment } from '../screenText'
+import { brokeMoment, countPhrase } from '../screenText'
 import { USER_TEAM } from '@engine/season'
 import { LiveTable, PositionChart } from '../components/LiveLeague'
 import { QuickTeamLine } from '../components/QuickTeamLine'
@@ -124,7 +124,7 @@ export function SeasonPlayback() {
           {!j && pb.done && (
             <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end', alignItems: 'center' }} data-testid="playback-end">
               <span className="small">
-                Full time: {ordinal(game.quickResult?.position ?? 0)}, {game.quickResult?.points ?? 0} points.
+                Full time: {ordinal(game.quickResult?.position ?? 0)}, {countPhrase(game.quickResult?.points ?? 0, 'points')}.
               </span>
               <button className="btn primary" onClick={endPlayback} data-testid="playback-summary">
                 See the summary
@@ -147,7 +147,7 @@ export function SeasonPlayback() {
         )}
         {/* One short line for a screen reader: the big moments and the end, never every game (the tally is not live) */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="playback-live">
-          {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${game.quickResult?.points ?? 0} points.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText}` : ''}
+          {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${countPhrase(game.quickResult?.points ?? 0, 'points')}.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText}` : ''}
         </span>
       </div>
       <div className="pb-tabs segmented" role="tablist" aria-label="Season views">

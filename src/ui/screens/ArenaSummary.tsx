@@ -112,7 +112,7 @@ export function ArenaSummary() {
       })
       downloadDataUrl(url, `touchline-${gauntlet ? 'gauntlet' : cup ? 'cup' : 'final'}-${game.settings.teamName.replace(/\s+/g, '-').toLowerCase()}.png`)
     } catch {
-      showToast('Could not render the share card.')
+      showToast('Could not make the share card. Try again.')
     }
   }
 

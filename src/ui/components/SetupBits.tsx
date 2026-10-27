@@ -70,7 +70,7 @@ export function TeamNameField({ label = 'Team name', value, onChange, fallback, 
           <X size="1em" aria-hidden="true" />
           <span className="name-btn-label">Clear</span>
         </button>
-        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={`Random ${label.toLowerCase()}`} title="Randomise" data-testid={`${testId}-random`}>
+        <button type="button" className="btn sm name-btn" onClick={() => onChange(randomTeamName(Math.random(), value, taken).slice(0, maxLength))} aria-label={`Randomise ${label.toLowerCase()}`} title="Randomise" data-testid={`${testId}-random`}>
           <Dice5 size="1em" aria-hidden="true" />
           <span className="name-btn-label">Randomise</span>
         </button>

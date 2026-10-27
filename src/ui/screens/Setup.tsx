@@ -769,7 +769,7 @@ export function Setup() {
               </div>
               <LeagueRetry needs={needs} classic={!fixed && classic} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
-                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start Draft'}
+                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start draft'}
               </button>
             </section>
           </div>
