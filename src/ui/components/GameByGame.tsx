@@ -138,6 +138,8 @@ export interface Opponent {
   /** The club whose badge and colours stand for the opponent. */
   clubId: string
   name: string
+  /** The club's short name ("Wolves"), shown in place of the full one where the list is narrow (`.gbg-list` container). */
+  short?: string
 }
 
 /** The running P W D L GF GA strip and the position after the last game counted. */
@@ -321,13 +323,22 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               </span>
               <ClubBadge clubId={opp.clubId} size={22} />
               <span className="gbg-fix">
-                <span className="gbg-name">{opp.name}</span> <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
+                {opp.short && opp.short !== opp.name ? (
+                  <span className="gbg-name has-short" title={opp.name}>
+                    <span className="gbg-full">{opp.name}</span>
+                    <span className="gbg-short">{opp.short}</span>
+                  </span>
+                ) : (
+                  <span className="gbg-name">{opp.name}</span>
+                )}{' '}
+                <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
               </span>
               <span className="gbg-score">
                 {r.gf}-{r.ga}
               </span>
               <span className="gbg-mw" title="Matchweek, and the league position after it">
-                MW {r.matchweek} · {ordinal(r.position)}
+                MW {r.matchweek}
+                <span className="gbg-pos"> · {ordinal(r.position)}</span>
               </span>
               {onHighlights && (
                 <button className="btn sm ghost gbg-hl" onClick={() => onHighlights(r)} title="Highlights" aria-label={`Highlights of matchweek ${r.matchweek}`} data-testid="gbg-highlights">

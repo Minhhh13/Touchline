@@ -6058,6 +6058,23 @@ dl.kv {
 .gbg-fix > .gbg-ha {
   flex: none;
 }
+/* A narrow list (the playback's column at 1280 px held about 100 px for the name: "Wolverhampton Wanderers" and even
+   "Sunderland" were cut, U19): the club's short name, the full one in the tooltip */
+.gbg-name.has-short .gbg-short {
+  display: none;
+}
+@container gbg (max-width: 26rem) {
+  .gbg-name.has-short .gbg-full {
+    display: none;
+  }
+  .gbg-name.has-short .gbg-short {
+    display: inline;
+  }
+  /* The playback's live table stands beside the list, so its rows leave the position after each game to it */
+  .pb-page .gbg-game .gbg-pos {
+    display: none;
+  }
+}
 .gbg-score {
   font-family: var(--font-display);
   font-size: calc(var(--fs-h3) - 1px);
@@ -10274,6 +10291,13 @@ table.tbl.match-stats th {
   background: var(--primary-soft);
   color: var(--accent);
   animation: moment-pop calc(var(--dur-4) * 6) var(--ease-out) forwards;
+}
+/* Into the top four: the --accent tint and edge, as strong as the green and red moments (it was a faint wash on a grey
+   edge, U19's neighbour on the playback); the text 6.5:1 in Floodlit, 5.6:1 in Daylight */
+.moment.top4 {
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel-2));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  color: var(--accent);
 }
 .moment.top,
 .moment.perfect {

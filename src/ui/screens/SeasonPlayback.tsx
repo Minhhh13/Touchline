@@ -24,7 +24,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ManagerChip } from '../components/ManagerPick'
 import { Segmented } from '../components/bits'
 import { JanuaryWindow } from '../components/JanuaryWindow'
-import { ordinal } from '../format'
+import { clubName, clubShort, ordinal } from '../format'
 import { sideNamer } from '@game/logic/superLeague'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { useMediaQuery } from '../components/LivePitch'
@@ -65,7 +65,11 @@ export function SeasonPlayback() {
   const s = game.settings
   // A Super League side carries its season: "Barcelona 2010-11"
   const sideName = sideNamer(game, u)
-  const opponent = (id: string) => ({ clubId: id, name: sideName(id) })
+  // The club's short name for the narrow game list, where the side is the plain club (not a Super League "Barcelona 2018-19")
+  const opponent = (id: string) => {
+    const name = sideName(id)
+    return { clubId: id, name, ...(name === clubName(u, id) ? { short: clubShort(u, id) } : {}) }
+  }
   const total = game.quickResult?.results?.length ?? quickSeasonGames(u, s)
   const chase = chaseAt(results, pb.revealed)
   const line = chaseLine(chase, total)
