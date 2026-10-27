@@ -13,7 +13,7 @@ vi.hoisted(() => {
 })
 vi.setConfig({ testTimeout: 60_000 })
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
-import { QUICK_RULES } from '@engine/draft'
+import { QUICK_RULES, canSpin } from '@engine/draft'
 import { wheelSeasons } from '@engine/era'
 import { useStore } from '../store'
 import { setupRules, shortNameFor } from '../logic/setup'
@@ -21,6 +21,7 @@ import { kickoffStep } from '../logic/endCase'
 import { quickManagerOptions } from '../logic/managers'
 import { playbackResults, quickChangeProblem, quickSquadAt } from '../logic/quick'
 import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonStale } from '../logic/quickSeam'
+import { wheelHasRoom } from '../logic/wheelCheck'
 import type { GameSettings } from '../types'
 import { loadStore } from './qaHarness'
 
@@ -125,5 +126,30 @@ describe('R7-1: a quick season kicked off on an earlier engine', () => {
     st().benchChange(revealed, slot, inId)
     expect(st().toast).toBeNull()
     expect(st().game!.quickChanges).toHaveLength(1)
+  })
+})
+
+describe('R7-3: Setup never opens a draft on an empty wheel', () => {
+  const nl = loadTestUniverse(['england', 'netherlands'])
+  const rulesFor = (leagues: string[], modes: Array<'legends' | 'underdog'>, from: number, to: number) => {
+    const stops = wheelSeasons(nl, leagues, false)
+    return setupRules(QUICK_RULES, { difficulty: 'normal', showRatings: true, draftMode: 'squad', ratings: 'season', eraFrom: from, eraTo: to, first: stops[0], last: stops[stops.length - 1], twists: true, leagues, benchPicks: 0, modes, powerUps: false, classic: false })
+  }
+
+  it('Legends with the Eredivisie alone from 2020-21 admits no side: the draft it started could not spin once', () => {
+    const rules = rulesFor(['netherlands'], ['legends'], 2020, 2026)
+    expect(wheelHasRoom(nl, rules, '4-3-3')).toBe(false)
+    useStore.setState({ universe: nl, loadedLeagues: ['england', 'netherlands'], game: null, toast: null })
+    st().startGame({ mode: 'quick', seed: 'r7-empty', formationId: '4-3-3', teamName: 'R7', shortName: 'R7', leagueId: 'netherlands', wheelLeagues: ['netherlands'], hostClubId: nl.clubSeasons.find((cs) => cs.leagueId === 'netherlands' && cs.season === 2025)!.clubId, leagueSeason: 2025, rules, jobSecurity: false, difficulty: 'calibrated', continental: false })
+    expect(canSpin(nl, st().game!.draft!)).toBe(false)
+  })
+
+  it('a wheel with sides on it is never refused: the default setup, Legends in England, Underdog in the Eredivisie', () => {
+    const stops = wheelSeasons(nl, ['england'], false)
+    expect(wheelHasRoom(nl, rulesFor(['england'], [], stops[0], stops[stops.length - 1]), '4-3-3')).toBe(true)
+    expect(wheelHasRoom(nl, rulesFor(['england'], ['legends'], 2008, 2009), '4-4-2')).toBe(true)
+    expect(wheelHasRoom(nl, rulesFor(['netherlands'], ['underdog'], 2020, 2020), '3-5-2')).toBe(true)
+    // Legends in the Eredivisie holds sides only in 2010-11, 2018-19 and 2019-20 (2010, 2018 and 2019 in the packs)
+    expect(wheelHasRoom(nl, rulesFor(['netherlands'], ['legends'], 2018, 2018), '4-3-3')).toBe(true)
   })
 })

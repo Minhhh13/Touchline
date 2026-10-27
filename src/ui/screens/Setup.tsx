@@ -7,6 +7,7 @@ import type { GameSettings, Mode } from '@game/types'
 import { defaultHostClub, describeRuleChips, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
+import { EMPTY_WHEEL_LABEL, wheelHasRoom } from '@game/logic/wheelCheck'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
@@ -308,6 +309,8 @@ export function Setup() {
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
+  // Some mixes of modes, era and leagues admit no side at all: say so here rather than open a draft on an empty wheel
+  const emptyWheel = ready && !fixed && !challenge && !wheelHasRoom(u, preview.rules, preview.formationId)
   // Offline with a league that never loaded: the button says so and Retry sits above it (leagueLoad.ts)
   const needs = fixed ? [fixed.leagueId, ...fixed.wheelLeagues] : [leagueId, ...wheelLeagues, ...(isManage && continental ? u.available.map((l) => l.id) : [])]
   const gate = leagueGate(needs, { loadedLeagues, failedLeagues, loadingLeagues, classicLoaded, classicFailed }, !fixed && classic)
@@ -772,8 +775,8 @@ export function Setup() {
                 )}
               </div>
               <LeagueRetry needs={needs} classic={!fixed && classic} />
-              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues}>
-                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start draft'}
+              <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || emptyWheel} data-testid="setup-start">
+                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : emptyWheel ? EMPTY_WHEEL_LABEL : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start draft'}
               </button>
             </section>
           </div>
