@@ -15328,3 +15328,37 @@ html {
     flex-wrap: wrap;
   }
 }
+
+/* Content depth: the Trophy Room's milestones (a thin bar to the next tier) and the summary's pundit verdict */
+.milestones-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 8px;
+}
+.milestones-head .small {
+  margin-left: auto;
+  font-weight: 400;
+}
+.milestone-text {
+  min-width: 0;
+  flex: 1;
+}
+.milestone-meter {
+  display: block;
+  height: 4px;
+  margin-top: 5px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.milestone-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--primary);
+}
+.tier-blurb.pundit-verdict svg {
+  vertical-align: -2px;
+  color: var(--accent);
+}

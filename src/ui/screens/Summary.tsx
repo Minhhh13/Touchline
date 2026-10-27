@@ -64,6 +64,8 @@ import { draftGradeLine } from '@game/logic/draftRecap'
 import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfectLine } from '@game/logic/perfect'
 import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
+import { Mic } from 'lucide-react'
+import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -303,6 +305,9 @@ export function Summary() {
   const modeName = modeLabel(game, 'heading')
   // A meta line too long for one row wraps with its dot first: such a line puts the season and mode on a row of their own
   const metaChars = game.settings.teamName.length + (game.settings.mode === 'quick' ? (superOn ? leagueName.length + 1 : 0) : seasonLabel(game.settings.leagueSeason).length + modeName.length + 3) + (modeLine ? modeLine.length + 3 : 0)
+  // The pundit's verdict on the result (display only, picked by a hash of the season's id); not for a run-in or the arena
+  const verdictInput = game.settings.mode === 'runin' || game.settings.mode === 'arena' ? null : verdictInputOf(game, table.length || 20)
+  const verdict = verdictInput ? punditVerdict(verdictInput) : null
   const vsReal = realRow ? versusReal(record.position, realRow.position) : null
   const objectivesMet = season?.objectives?.filter((o) => o.met).length ?? 0
   const continuing = game.settings.mode === 'dynasty' && !season?.sacked
@@ -402,6 +407,11 @@ export function Summary() {
         {!replay.playing && story && (
           <p className="tier-blurb" data-testid="moment">
             {story.moment}
+          </p>
+        )}
+        {!replay.playing && verdict && (
+          <p className="tier-blurb pundit-verdict" data-testid="pundit-verdict">
+            <Mic size={13} aria-hidden="true" /> <b>Pundit:</b> {verdict}
           </p>
         )}
         {replay.playing && <RunningStrip results={results} upTo={replay.revealed} />}

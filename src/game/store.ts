@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { produce } from 'immer'
+import { freeze, produce } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DEFAULT_LEAGUE } from '@engine/universe'
@@ -24,6 +24,9 @@ import { alreadyCredited, creditArena, creditGame, creditH2H, creditH2HOnline, c
 import { withQuickBests } from './logic/perfect'
 import { compactGame } from './logic/compact'
 import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveStorage'
+import { workerSaveEncoder } from './saveEncoder'
+import { afterNextPaint, nextTask } from './yieldToPage'
+import { runQuickInWorker, stopQuickWorker, warmQuickWorker } from './quickWorkerClient'
 import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
@@ -188,6 +191,16 @@ interface Store {
   finishCase: () => void
   /** Quick Draft and the Daily: leave the tactics step and play the season (to the January window when it is on); `skip` restores the default tactics first. */
   kickOff: (skip?: boolean) => void
+  /**
+   * The kick-off as the tactics step plays it: `kickOff` with the season played in a worker (`quickWorker.ts`), so a
+   * slow phone stays responsive; the page plays it itself where there is no worker or the worker cannot. The same
+   * game as `kickOff` from the same state.
+   */
+  kickOffSoon: (skip?: boolean) => Promise<void>
+  /** Transient: a `kickOffSoon` is under way. Never saved. */
+  kickingOff: boolean
+  /** Have the quick-season worker load the packs now (the tactics step is up); the function returned lets it go. */
+  warmKickOff: () => () => void
   /** Close the January window with listing `index`, or pass with null, and play the second half. No undo. */
   closeJanuary: (index: number | null) => void
   /** Quick Draft's January spin: open the case (the window's one deal from then on); the reel then lands on the player drawn. */
@@ -208,6 +221,14 @@ interface Store {
   playFriendly: () => void
   startSeason: () => void
   playWeek: () => void
+  /**
+   * Play matchweek as the Dugout plays it: `playWeek` in three parts with a break for the page between them (the busy
+   * state painted, the matchweek played, then the screen that shows it), so a slow phone stays responsive. The same
+   * game as `playWeek` from the same state; a tap while one runs is ignored.
+   */
+  playWeekSoon: () => Promise<void>
+  /** Transient: a `playWeekSoon` is under way (the Dugout's button shows it). Never saved. */
+  playingWeek: boolean
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
   advanceLive: (opts: LiveChanges, hold?: boolean) => void
   /** A change with the ball in play at a minute (instructions, set pieces, substitutions, a shout from 70); null without a live match. */
@@ -335,6 +356,8 @@ let failedWrites = 0
 export const saveStorage = createSaveStorage<Store>({
   storage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
   delayMs: SAVE_DELAY_MS,
+  // The coalesced writes compress in a worker, off the tap that changed the game (none in the tests: on the page)
+  encoder: workerSaveEncoder(),
   onWrite: () => {
     failedWrites = 0
     if (useStore.getState().saveFailing) useStore.setState({ saveFailing: false })
@@ -350,8 +373,23 @@ export const saveStorage = createSaveStorage<Store>({
   },
 })
 
-/** What is saved: the games (compacted), the head-to-head, the shortlist, the profile and the screen. */
-export function persistedState(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>) {
+type Persisted = ReturnType<typeof persistedOf>
+let lastPersisted: { from: unknown[]; out: Persisted } | null = null
+
+/**
+ * What is saved: the games (compacted), the head-to-head, the shortlist, the profile and the screen. The same object
+ * while none of those has changed, so an update to the transient state (a toast, the match view) is not written
+ * again (the storage skips a state it was just given).
+ */
+export function persistedState(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>): Persisted {
+  const from = [s.game, s.parked, s.shortlist, s.h2h, s.profile, s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home']
+  if (lastPersisted && lastPersisted.from.every((x, i) => x === from[i])) return lastPersisted.out
+  const out = persistedOf(s)
+  lastPersisted = { from, out }
+  return out
+}
+
+function persistedOf(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'profile' | 'screen'>) {
   const parked: Record<string, Game> = {}
   for (const [slot, g] of Object.entries(s.parked)) parked[slot] = compactGame(g)
   return { game: s.game ? compactGame(s.game) : null, parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }
@@ -421,6 +459,16 @@ export const useStore = create<Store>()(
         unlockFromGame()
         get().recordResult()
       }
+      /** After a kick-off: the playback from the first game, and a season with no bench recorded at once. */
+      const afterKickOff = () => {
+        const { game } = get()
+        if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
+        // A season with a bench stays open to changes until the playback closes, and is recorded then
+        if (game?.phase === 'summary' && !game.quickOpen) {
+          unlockFromGame()
+          get().recordResult()
+        }
+      }
       const unlockFromGame = () => {
         const { game, profile } = get()
         if (!game) return
@@ -460,6 +508,8 @@ export const useStore = create<Store>()(
         liveAuto: false,
         pendingChallenge: null,
         playback: null,
+        playingWeek: false,
+        kickingOff: false,
 
         loadData: async () => {
           if (get().universe || get().loading) return
@@ -755,12 +805,29 @@ export const useStore = create<Store>()(
           // The manager spin and the case come first: the season waits for both
           if (before?.phase !== 'kickoff' || kickoffStep(before) !== 'tactics') return
           mutate((g, u) => kickOff(g, u, skip))
-          const { game } = get()
-          if (game?.phase === 'january' || game?.phase === 'summary') set({ playback: { from: 0 } })
-          // A season with a bench stays open to changes until the playback closes, and is recorded then
-          if (game?.phase === 'summary' && !game.quickOpen) {
-            unlockFromGame()
-            get().recordResult()
+          afterKickOff()
+        },
+        kickOffSoon: async (skip) => {
+          const { game: before, universe: u0, kickingOff } = get()
+          if (before?.phase !== 'kickoff' || kickoffStep(before) !== 'tactics' || !u0 || kickingOff) return
+          set({ kickingOff: true })
+          try {
+            await afterNextPaint()
+            const same = () => get().game === before && get().universe === u0
+            const played = same() ? await runQuickInWorker({ op: 'kickOff', game: before, skip: !!skip }, get().loadedLeagues, get().classicLoaded, u0) : null
+            // No worker, or the game moved meanwhile: the page plays it, on the game as it is now
+            if (!played || !same()) return get().kickOff(skip)
+            set({ game: freeze(played, true) })
+            afterKickOff()
+          } finally {
+            set({ kickingOff: false })
+            stopQuickWorker()
+          }
+        },
+        warmKickOff: () => {
+          warmQuickWorker(get().loadedLeagues, get().classicLoaded)
+          return () => {
+            if (!get().kickingOff) stopQuickWorker()
           }
         },
         januarySpin: () =>
@@ -912,6 +979,39 @@ export const useStore = create<Store>()(
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
+          }
+        },
+        playWeekSoon: async () => {
+          const { game: g0, universe: u0, playingWeek } = get()
+          if (!g0 || !u0 || playingWeek) return
+          const mode = matchPlayOf(g0)
+          set({ playingWeek: true })
+          try {
+            await afterNextPaint()
+            // Anything that moved the game meanwhile makes this an ordinary tap on the game as it is now
+            const moved = () => get().game !== g0 || get().universe !== u0
+            if (moved()) return get().playWeek()
+            let next: Game
+            try {
+              next = produce(g0, (g) => {
+                if (g.phase === 'preseason') startSeasonProper(g)
+                playMatchweekAs(g, u0, mode)
+              })
+            } catch (e) {
+              console.error(e)
+              set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
+              return
+            }
+            await nextTask()
+            if (moved()) return get().playWeek()
+            // One update for the game and the view: the screen that shows the week renders once
+            set({ game: next, matchView: mode === 'sim' ? 'report' : 'ticker', liveAuto: mode === 'auto', playingWeek: false })
+            if (get().game?.phase === 'summary') {
+              unlockFromGame()
+              get().recordResult()
+            }
+          } finally {
+            if (get().playingWeek) set({ playingWeek: false })
           }
         },
         simWeeks: (n) => {
