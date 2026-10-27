@@ -1369,7 +1369,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
           </div>
         )}
         {msg && <div className="notice" style={{ marginBottom: 'var(--space-2)' }}>{msg}</div>}
-        <Tip id="market-first">Bids near the asking price are accepted, bids well under it annoy the club and raise the price; the asking price shows what it was on day one.</Tip>
+        <Tip id="market-first">A bid at the asking price is accepted, one a little under may be accepted after talks, and one well under annoys the club and raises the price; “was” shows where the price opened.</Tip>
         <div className="segmented scroll" style={{ marginBottom: 'var(--space-3)' }}>
           {(['all', 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'] as const).map((p) => (
             <button key={p} className={filter === p ? 'active' : ''} onClick={() => setFilter(p)}>
