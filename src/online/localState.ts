@@ -8,6 +8,7 @@ import type { BaseSlot } from './core/syncPlan'
 import type { ProfileDoc } from './core/merge'
 import type { SlotId } from './core/slots'
 import type { PostState } from './state'
+import type { ErrorState } from './core/errorReport'
 
 export const ONLINE_KEY = 'touchline-online-v1'
 /** Dismissed sign-in prompts ("Sign in to keep this season on every device"), per device. */
@@ -60,6 +61,9 @@ export interface OnlineRecord {
   /** Set by "Delete my cloud data": nothing uploads again until the player presses Sync now (otherwise this device's
    * next pass would put every game straight back). */
   paused?: boolean
+  /** Error reports waiting to go, with their own random id, dedupe and rate-limit marks (`src/online/errors.ts`).
+   * Absent until the first report; checked field by field by `parseErrorState` when read. */
+  errors?: ErrorState
 }
 
 const CAP_POSTS = 60
@@ -99,6 +103,7 @@ export function parseRecord(text: string | null): OnlineRecord {
       lastUploadAt: r.lastUploadAt && typeof r.lastUploadAt === 'object' ? r.lastUploadAt : {},
       claims: typeof r.claims === 'number' ? r.claims : 0,
       paused: r.paused === true,
+      ...(r.errors && typeof r.errors === 'object' ? { errors: r.errors } : {}),
     }
   } catch {
     return freshRecord()

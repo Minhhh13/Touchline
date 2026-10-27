@@ -27,6 +27,8 @@ import { clubName, ordinal, seasonLabel, tierName } from '../format'
 import { countPhrase } from '../screenText'
 import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
+import { errorReportsChanged, onlineAvailable } from '../../online/api'
+import { errorReportsOn, setErrorReportsOn } from '../../online/core/errorPref'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
 import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
 import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
@@ -104,6 +106,12 @@ export function ProfileScreen() {
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
+  const [reportsOn, setReportsOn] = useState(errorReportsOn)
+  const setReports = (on: boolean) => {
+    setErrorReportsOn(on)
+    setReportsOn(on)
+    void errorReportsChanged(on)
+  }
   // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
   const boxes = useBoxes(PROFILE)
   const on = boxes.on
@@ -547,6 +555,14 @@ export function ProfileScreen() {
               </span>
               <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: 'Full', testId: 'reel-full' }, { value: 'quick', label: 'Quick', testId: 'reel-quick' }]} />
             </div>
+            {onlineAvailable() && (
+              <div className="field">
+                <span>
+                  Error reports <Info label="About error reports">When something breaks, a short report goes to the game's own server so it can be fixed: the error and where in the code, the version, screen, window size and browser family. Never your games, name, account or email. Off deletes the reports still waiting on this device. Kept on this device only; the Privacy page has the details.</Info>
+                </span>
+                <Segmented value={reportsOn ? 'on' : 'off'} onChange={(v) => setReports(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'error-reports-on' }, { value: 'off', label: 'Off', testId: 'error-reports-off' }]} />
+              </div>
+            )}
             </div>
             <div className="toolbar">
               <button

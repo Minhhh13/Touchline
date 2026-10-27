@@ -31,7 +31,7 @@ export function Privacy() {
         <div className="panel">
           <h3>On this device</h3>
           <p>Your games, record, settings and shortlist are kept in this browser's local storage. They never leave the device unless you sign in and they sync, or you export them from the Profile page. Clearing the site's data, or Delete all data on the Profile page, removes them.</p>
-          <p className="muted small">An online build also keeps a few small entries here: your sign-in session, a random id for this device and which account its games last synced with, which sign-in prompts you dismissed, and your seat in any online head-to-head room you made or joined, for {RETENTION.seatKeepDays} days ({RETENTION.deviceKeys.join(', ')}).</p>
+          <p className="muted small">An online build also keeps a few small entries here: your sign-in session, a random id for this device and which account its games last synced with, which sign-in prompts you dismissed, your seat in any online head-to-head room you made or joined, for {RETENTION.seatKeepDays} days, error reports waiting to be sent with their own random id, and whether you switched error reports off ({RETENTION.deviceKeys.join(', ')}).</p>
         </div>
         <div className="panel">
           <h3>If you sign in</h3>
@@ -44,7 +44,7 @@ export function Privacy() {
             <li><b>Short challenge links.</b> The draft a link points to, kept for {RETENTION.challengeCodeDays} days.</li>
             <li><b>Housekeeping.</b> Counters that limit how often an account can post or save, deleted after {RETENTION.rateLimitDays} days. Server logs record the request, its outcome, how long it took and the first {RETENTION.logUserIdChars} characters of your account id, never what you sent.</li>
           </ul>
-          <p className="muted small">No IP address, browser details or location are written to {APP_NAME}'s tables, nothing is sold or shared, and no analytics or advertising scripts run.</p>
+          <p className="muted small">No IP address or location is written to {APP_NAME}'s tables, no browser details beyond an error report's browser family (below), nothing is sold or shared, and no analytics or advertising scripts run.</p>
         </div>
         <div className="panel" data-testid="privacy-rooms">
           <h3>Online head-to-head rooms</h3>
@@ -55,12 +55,29 @@ export function Privacy() {
             <li>Without an account, the counters that limit how many rooms and picks one player can make are kept under a one-way fingerprint of your network address, deleted after {RETENTION.rateLimitDays} days; the address itself is never stored or logged.</li>
           </ul>
         </div>
+        <div className="panel" data-testid="privacy-errors">
+          <h3>Error reports</h3>
+          {online ? (
+            <>
+              <p>When something breaks (a screen that fails, an error the game did not catch, a part of the game that would not load), this build sends a short report to {APP_NAME}'s own server, signed in or not, so it can be fixed. No other company receives it. You can switch it off on the Profile page (Settings, Error reports); reports still waiting on this device are then deleted.</p>
+              <ul>
+                <li><b>What a report holds.</b> The error's message and where in {APP_NAME}'s own code it happened, with any email address, key or link details taken out; which version of the game, which screen and stage you were on, the window size, and the browser and system family (such as Safari on iOS, never the full browser details).</li>
+                <li><b>What it never holds.</b> Your games or picks, your name, your account, your email, a sign-in key or your network address. It is sent without your sign-in, under a random id this device makes for error reports alone, so a report cannot be tied to you or your account.</li>
+                <li><b>How much.</b> The same error is sent at most once a day (repeats only add to its count), and a device sends at most {RETENTION.errorReportsPerHour} reports an hour and {RETENTION.errorReportsPerDay} a day. Offline, they wait on this device until the connection is back.</li>
+                <li><b>How long.</b> Each report is deleted {RETENTION.errorReportDays} days after it was last seen.</li>
+              </ul>
+            </>
+          ) : (
+            <p>This build sends no error reports: it has no online features.</p>
+          )}
+        </div>
         <div className="panel">
           <h3>Deleting your data</h3>
           <ul>
             <li><b>Delete my cloud data</b> (the Account screen, from the top bar) removes every cloud save and the synced record. Your games on this device stay.</li>
             <li><b>Delete account</b> removes your cloud saves, signs you out everywhere and deletes the account, with your profile, leaderboard entries, totals and challenge links.</li>
             <li><b>Signing out</b> keeps everything on this device; it only stops syncing.</li>
+            <li><b>Error reports</b> are tied to no account, so deleting one does not find them: each goes on its own {RETENTION.errorReportDays} days after it was last seen.</li>
           </ul>
           <p className="muted small">If you cannot sign in any more and want your data removed, open an issue on the project or contact the owner, naming the email you used.</p>
         </div>

@@ -10,10 +10,12 @@ import { challengeFromGame, replayChallenge } from '@game/logic/challenge'
 import { settingsHash } from '../server/dailyVerify'
 import { universeFromPacks } from '../server/packs'
 import { DELETE_CONFIRMATION } from '../server/validate'
-import { boardIsOpen, pinDateOf, type Reply } from '../server/service'
+import { boardIsOpen, pinDateOf, type Reply, type Requester } from '../server/service'
 import { weeklyGameSettings } from '../weekly'
 import { chaseGameSettings } from '../chase'
-import { ALICE, BOB, GUEST, autoPlayed, makeHarness, siteFile, submitBody } from './serverHarness'
+import { ALICE, BOB, GUEST, VISITOR, VISITOR2, autoPlayed, makeHarness, siteFile, submitBody } from './serverHarness'
+import { LIMITS } from '../server/service'
+import type { ErrorReport } from '../core/errorReport'
 
 const u = loadTestUniverse()
 const STAMP = u.generatedAt
@@ -23,7 +25,7 @@ const SEED = `daily-${DATE}`
 const WEEK = '2026-W43'
 const T = 180000
 
-const call = (h: ReturnType<typeof makeHarness>, body: unknown, caller = ALICE): Promise<Reply> => h.server.handle(caller, typeof body === 'string' ? body : JSON.stringify(body))
+const call = (h: ReturnType<typeof makeHarness>, body: unknown, caller: Requester = ALICE): Promise<Reply> => h.server.handle(caller, typeof body === 'string' ? body : JSON.stringify(body))
 const honestDaily = () => autoPlayed(u, dailyGameSettings(u, SEED, 'Verified FC'))
 const reencode = (encoded: string, f: (c: QuickChallengePayload) => void) => {
   const c = decodeChallenge(encoded)
@@ -375,5 +377,66 @@ describe('logs and keys', () => {
     expect(boardIsOpen('weekly', WEEK, new Date('2026-10-27T00:00:00Z'))).toBe(false)
     expect(boardIsOpen('daily', '2026-10-24', new Date('2026-10-25T23:59:00Z'))).toBe(true)
     expect(boardIsOpen('daily', '2026-10-23', new Date('2026-10-25T00:00:00Z'))).toBe(false)
+  })
+})
+
+describe('errors.report', () => {
+  const report = (extra: Partial<ErrorReport> = {}): ErrorReport => ({
+    kind: 'boundary', message: 'TypeError: x is undefined', stack: 'render /assets/Draft-abc.js:1:200', build: '2026-10-27T00:00:00.000Z', engine: ENGINE_VERSION,
+    screen: 'game', phase: 'draft', viewport: '1280x720', ua: 'chrome/windows', device: '0f8e2d1c-3b4a-4c5d-8e6f-7a8b9c0d1e2f', count: 1, at: '2026-10-27T10:00:00.000Z', ...extra,
+  })
+
+  it('files a guest\'s reports as sent, with no account and no address, and reaches nothing else', async () => {
+    const h = makeHarness(undefined, LIVE)
+    const r = await call(h, { op: 'errors.report', reports: [report(), report({ kind: 'chunk', message: 'Failed to fetch dynamically imported module' })] }, VISITOR)
+    expect(r.status).toBe(200)
+    expect(r.body).toEqual({ status: 'ok', taken: 2 })
+    expect(h.errorReports).toEqual([report(), report({ kind: 'chunk', message: 'Failed to fetch dynamically imported module' })])
+    expect(JSON.stringify(h.errorReports)).not.toContain(VISITOR.subject)
+    // A signed-in caller's reports carry no account id either; the work is metered per subject
+    await call(h, { op: 'errors.report', reports: [report()] }, ALICE)
+    expect(JSON.stringify(h.errorReports)).not.toContain(ALICE.userId)
+    expect(h.limits.get(`errors.report|${VISITOR.subject}`)).toBe(1)
+    expect(h.limits.get(`errors.report|${ALICE.userId}`)).toBe(1)
+    // Fetched nothing from the site, archived nothing
+    expect(h.site.served).toEqual([])
+    // The log line names the op and no subject
+    expect(h.logs[0]).toMatchObject({ op: 'errors.report', status: 200, user: 'guest' })
+  })
+
+  it('refuses a malformed, oversized or leaky batch before the database', async () => {
+    const h = makeHarness(undefined, LIVE)
+    for (const body of [
+      { op: 'errors.report' },
+      { op: 'errors.report', reports: [] },
+      { op: 'errors.report', reports: Array.from({ length: 6 }, () => report()) },
+      { op: 'errors.report', reports: [{ ...report(), userId: ALICE.userId }] },
+      { op: 'errors.report', reports: [report({ message: 'no save for ana@example.com' })] },
+      { op: 'errors.report', reports: [report({ stack: 'at https://touchline.quest/#c=AAAA' })] },
+      { op: 'errors.report', reports: [report({ message: 'x'.repeat(301) })] },
+      { op: 'errors.report', reports: [report({ device: 'my-phone' })] },
+      { op: 'errors.report', reports: [report()], extra: 1 },
+    ]) {
+      const r = await call(h, body, VISITOR)
+      expect(r.status, JSON.stringify(body).slice(0, 80)).toBe(400)
+    }
+    expect(h.errorReports).toEqual([])
+  })
+
+  it('meters each guest per hour', async () => {
+    const h = makeHarness(undefined, LIVE)
+    const limit = LIMITS['errors.report']
+    for (let i = 0; i < limit; i++) expect((await call(h, { op: 'errors.report', reports: [report()] }, VISITOR)).status).toBe(200)
+    const over = await call(h, { op: 'errors.report', reports: [report()] }, VISITOR)
+    expect(over.status).toBe(429)
+    expect(over.body.code).toBe('rate_limited')
+    expect((await call(h, { op: 'errors.report', reports: [report()] }, VISITOR2)).status).toBe(200)
+    expect(h.errorReports).toHaveLength(limit + 1)
+  })
+
+  it('still keeps a guest off everything but the rooms and the reports', async () => {
+    const h = makeHarness(undefined, LIVE)
+    for (const op of ['daily.pin', 'weekly.pin', 'chase.start', 'account.delete']) expect((await call(h, { op }, VISITOR)).status).toBeGreaterThanOrEqual(400)
+    expect((await call(h, { op: 'daily.pin' }, VISITOR)).status).toBe(401)
   })
 })

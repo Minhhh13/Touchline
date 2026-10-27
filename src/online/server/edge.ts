@@ -198,6 +198,8 @@ function makeDeps(admin: SupabaseClient, site: string): ServerDeps {
         roomWriteFrom(await rpc(admin, 'svc_h2h_room_move', { p_code: code, p_seat: seat, p_seat_hash: seatHash, p_expect_version: expectVersion, p_events: events as unknown as Json, p_turn: turn, p_result: result as unknown as Json })),
       roomLeave: async (code, seatHash) => roomWriteFrom(await rpc(admin, 'svc_h2h_room_leave', { p_code: code, p_seat_hash: seatHash })),
       roomReseat: async (code, userId, seatHash) => roomWriteFrom(await rpc(admin, 'svc_h2h_room_reseat', { p_code: code, p_user: userId, p_seat_hash: seatHash })),
+      // The rows carry no account id: the reports go as they were validated (the error_reports migration)
+      errorReport: async (reports) => Number(await rpc(admin, 'svc_error_report', { p_reports: reports as unknown as Json[] })) || 0,
     },
   }
 }

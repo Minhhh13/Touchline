@@ -1,5 +1,6 @@
 import { Component, createElement, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 import { House, RotateCcw, TriangleAlert } from 'lucide-react'
+import { signalError } from '../online/core/errorSignal'
 
 /**
  * Route-level code splitting: every screen but Home is its own chunk, so a phone downloads, parses and compiles only
@@ -106,7 +107,10 @@ export class ScreenBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error(isChunkLoadError(error) ? 'Screen chunk did not load' : 'Screen error', error, info.componentStack)
+    const chunk = isChunkLoadError(error)
+    console.error(chunk ? 'Screen chunk did not load' : 'Screen error', error, info.componentStack)
+    // To the error reporter of an online build, if the player has not switched it off (src/online/errors.ts)
+    signalError(chunk ? 'chunk' : 'boundary', error)
   }
 
   render(): ReactNode {

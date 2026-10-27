@@ -14,6 +14,10 @@
  * token the server issues once and stores only hashed; every pick is checked by replaying the room from its seed
  * (`roomPick` in src/game/logic/h2hRoom.ts), and the server files the spins, the picks and the season itself.
  *
+ * `errors.report` (docs/ONLINE.md section 5f) files the client's error reports, guests included: the validator checks
+ * every field and size (`reportProblem` in core/errorReport.ts), and the rows hold no account id, ever, even when a
+ * signed-in caller sends them (the client sends them as a guest anyway).
+ *
  * The user id comes only from the verified JWT (`Caller`), never from the body. Logs carry the op, the outcome, the
  * duration and an 8-character user-id prefix; never a body or a token.
  */
@@ -31,6 +35,7 @@ import { puzzleOf, settingsHash, verifyRanked, type PuzzlePin, type PuzzleSettin
 import { attemptOpen, verifyChase, type ChaseAttempt } from './chaseVerify'
 import { archivePath, classicFile, packFiles, puzzleLeagues, universeFromPacks, type LeaguePack } from './packs'
 import { logId, parseBuildInfo, parseLeaguesIndex, parseRequest, ROOM_OPS, type ServerRequest } from './validate'
+import type { ErrorReport } from '../core/errorReport'
 
 export type BoardKind = PuzzlePin['kind']
 
@@ -86,6 +91,9 @@ export interface ServerDb {
   roomMove(code: string, seat: 0 | 1, seatHash: string, expectVersion: number, events: RoomEvent[], turn: 0 | 1 | null, result: H2HResult | null): Promise<RoomWrite>
   roomLeave(code: string, seatHash: string): Promise<RoomWrite>
   roomReseat(code: string, userId: string, seatHash: string): Promise<RoomWrite>
+  /** `svc_error_report`: file some error reports (no account id); how many rows it took (it may take fewer when the
+   * table's hourly intake is full). */
+  errorReport(reports: ErrorReport[]): Promise<number>
 }
 
 export interface ServerStorage {
@@ -202,6 +210,7 @@ export const LIMITS = {
   'room.pick': 900,
   'room.leave': 60,
   'room.resume': 30,
+  'errors.report': 20,
 } as const
 
 /** How long the live site's `build.json` is trusted per isolate. */
@@ -624,6 +633,12 @@ export function createServer(deps: ServerDeps): Server {
         case 'room.resume':
           return roomResume(caller, req)
       }
+    }
+    if (req.op === 'errors.report') {
+      const limit = LIMITS[req.op]
+      if (!(await deps.db.rateLimit(req.op, subjectOf(caller), limit, 3600))) throw refuse(429, 'rate_limited', `At most ${limit} ${req.op} calls an hour`)
+      const taken = await deps.db.errorReport(req.reports)
+      return { status: 200, body: { status: 'ok', taken } }
     }
     if (isGuest(caller)) throw refuse(401, 'unauthorised', 'Sign in first')
     if (caller.isAnonymous && req.op !== 'account.delete') throw refuse(403, 'guest', 'Guest sessions cannot post to the boards; sign in with an account')
