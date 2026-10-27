@@ -5532,6 +5532,12 @@ dl.kv {
   }
   .choice-card .ctitle {
     font-size: calc(var(--fs-h3) - 2px);
+    overflow-wrap: break-word;
+  }
+  /* Columns sized in rem: at 175 % and 200 % text three cards become two to a row, so "Normal" stays in its card */
+  .choice-cards,
+  .choice-cards.n3 {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.5rem), 1fr));
   }
 }
 .linklike {
@@ -6198,6 +6204,21 @@ dl.kv {
   .gbg-fix {
     white-space: normal;
     line-height: 1.2;
+  }
+}
+/* Larger text in a narrow list (a container query in rem, so it follows the root text size: from about 125 % on a
+   390 px phone): the matchweek drops under the score, so the opponent and his H, A or N chip keep their room */
+.gbg-list {
+  container: gbg / inline-size;
+}
+@container gbg (max-width: 17rem) {
+  .gbg-game .gbg-mw {
+    grid-row: 2;
+    grid-column: 3 / -1;
+    text-align: left;
+  }
+  .gbg-game .gbg-fix {
+    min-width: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -11368,6 +11389,15 @@ table.tbl tr.chase-perfect td:first-child {
   .qmode:not(.pu-card) .micon {
     font-size: calc(var(--fs-h2) - 2px);
   }
+  /* Four to a row at the normal text size; the column is sized in rem, so larger text (175 %, 200 %) takes fewer
+     columns and every name ("Speedrun", "Underdog") stays inside its card */
+  .qmode-row {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.6rem), 1fr));
+  }
+  .qmode:not(.pu-card) .ctitle {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
 }
 /* The setup's two boxes on a desktop, with quick-modes' Modes row, icon cards and name dice folded in: everything compact so
    the five steps fit one screen. The Modes row is one line of eight (seven modes and Power-ups), icon over name; the option
@@ -12240,6 +12270,18 @@ table.tbl.contracts-overview .link-btn.name {
   }
   .setup-modes-row .pu-setup .qmode.pu-card > * {
     min-width: 0;
+  }
+  /* The name keeps its width and the line takes what is left, or goes under it at larger text ("Moneyball" at 200 %) */
+  .setup-modes-row .pu-setup .qmode.pu-card {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card > .ctitle {
+    flex: 0 1 auto;
+    min-width: min-content;
+  }
+  .setup-modes-row .pu-setup .qmode.pu-card > .cline {
+    flex: 1 1 7rem;
   }
 }
 /* ------------------------------------------------------------------ recruitment: scouting, contract talks, the board, the data hub */
