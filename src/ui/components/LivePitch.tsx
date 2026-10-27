@@ -636,10 +636,11 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
           put(spotRef.current, 'opacity', ring.opacity.toFixed(2))
         } else put(spotRef.current, 'opacity', '0')
       }
-      // The shooter drawn again on top of everyone, so the men closing him down never hide him as he strikes it
+      // The shooter drawn again on top of everyone, so the men closing him down never hide him as he strikes it (and the scorer through his goal's hold)
+      const liftKey = bu && shooterAt ? shooterKey : hold ? scorerId : undefined
       if (liftRef.current) {
-        if (bu && shooterAt && shooterKey) {
-          put(liftRef.current, 'href', `#${dotDomId(uid, shooterKey)}`)
+        if (liftKey && shown.has(liftKey)) {
+          put(liftRef.current, 'href', `#${dotDomId(uid, liftKey)}`)
           put(liftRef.current, 'opacity', '1')
         } else put(liftRef.current, 'opacity', '0')
       }
