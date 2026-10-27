@@ -29,6 +29,7 @@ import type { PowerUp } from '@engine/powerups'
 import { januaryGambleMade } from './logic/januaryGamble'
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
+import { availableStopChanges } from './logic/stopChanges'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import { assignmentNote } from './logic/slotSheet'
@@ -847,7 +848,11 @@ export const useStore = create<Store>()(
           set({ matchView: 'ticker', liveAuto: false })
         },
         advanceLive: (opts, hold = false) => {
-          mutate((g, u) => (g.arena ? advanceArenaMatch(g, u, opts, hold) : advanceLiveMatch(g, u, opts, false, hold)))
+          mutate((g, u) => {
+            const fit = availableStopChanges(g, opts)
+            if (g.arena) advanceArenaMatch(g, u, fit, hold)
+            else advanceLiveMatch(g, u, fit, false, hold)
+          })
           if (get().game?.phase === 'summary') {
             unlockFromGame()
             get().recordResult()
@@ -876,7 +881,7 @@ export const useStore = create<Store>()(
           }
         },
         finishLiveNow: (changes) => {
-          mutate((g, u) => finishWithAssistant(g, u, changes))
+          mutate((g, u) => finishWithAssistant(g, u, availableStopChanges(g, changes)))
           set({ matchView: 'report' })
           if (get().game?.phase === 'summary') {
             unlockFromGame()

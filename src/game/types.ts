@@ -370,6 +370,8 @@ export interface Game {
   jobOffers: JobOffer[]
   /** Accepted move for next season. */
   pendingMove: { leagueId: string; clubId: string } | null
+  /** Real player ids of the men who retired from the squad (Dynasty): never offered again, younger, by the summer wheel or the market. Absent until the first retirement. */
+  retiredPlayers?: string[]
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
   /** The arena run of a mode `arena` game; null (or absent, in an older save) otherwise. */
