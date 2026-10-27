@@ -81,8 +81,8 @@ function build(req: CueRequest): Score {
       return normalise('squad-complete', CUE_LEVEL.squadComplete, v)
     }
     case 'manager-landed':
-      // All three managers landed: three quick bell notes, C E G, the shortlist in
-      return normalise('manager-landed', CUE_LEVEL.managerLanded, [...chime(0, 523.25, { dur: 0.3 }), ...chime(0.08, 659.25, { dur: 0.3 }), ...chime(0.16, 783.99, { dur: 0.7 })])
+      // All three managers landed: three quick bell notes, A C sharp E (apart from the red landing's C E G), the shortlist in
+      return normalise('manager-landed', CUE_LEVEL.managerLanded, [...chime(0, 440, { dur: 0.3 }), ...chime(0.08, 554.37, { dur: 0.3 }), ...chime(0.16, 659.25, { dur: 0.7 })])
     case 'case-open':
       // The case's latch: a click, a short low knock and the lid's breath (noise swept up)
       return normalise('case-open', CUE_LEVEL.caseOpen, [
@@ -94,10 +94,10 @@ function build(req: CueRequest): Score {
       // A bonus spin earned: two bright bells a fourth apart, and a glint
       return normalise('bonus', CUE_LEVEL.bonus, [...chime(0, 1046.5, { wave: 'triangle', dur: 0.4 }), ...chime(0.11, 1396.91, { wave: 'triangle', dur: 0.8 }), ...(req.reduced ? [] : shimmer(0.2, [2794, 3520, 4186], 0.05, seeded('bonus'), 0.06))])
     case 'turn':
-      // A head-to-head turn passing: rising to the one whose pick it is on this screen, falling and quieter when it goes to the other
+      // A head-to-head turn passing (E flat and B flat, apart from every landing's notes): rising to the one whose pick it is on this screen, falling and quieter when it goes to the other
       return req.mine
-        ? normalise('turn', CUE_LEVEL.turn.mine, [...chime(0, 587.33, { dur: 0.3 }), ...chime(0.1, 880, { dur: 0.6 })])
-        : normalise('turn', CUE_LEVEL.turn.theirs, [...chime(0, 880, { dur: 0.3 }), ...chime(0.1, 587.33, { dur: 0.5 })])
+        ? normalise('turn', CUE_LEVEL.turn.mine, [...chime(0, 622.25, { dur: 0.3 }), ...chime(0.1, 932.33, { dur: 0.6 })])
+        : normalise('turn', CUE_LEVEL.turn.theirs, [...chime(0, 932.33, { dur: 0.3 }), ...chime(0.1, 622.25, { dur: 0.5 })])
     case 'tab':
       // Softer and lower than a primary button's click
       return normalise('tab', CUE_LEVEL.tab, [tone(0, 900, { attack: 0.002, dur: 0.035, peak: 0.6 }), noise(0, { filter: 'bandpass', freq: 2400, q: 2, attack: 0.001, dur: 0.015, peak: 0.6 })])
@@ -108,11 +108,11 @@ function build(req: CueRequest): Score {
       return normalise('error', CUE_LEVEL.error, [tone(0, 311.13, { wave: 'triangle', attack: 0.008, dur: 0.14, peak: 0.5 }), tone(0.12, 293.66, { wave: 'triangle', attack: 0.008, dur: 0.24, peak: 0.5 })])
     case 'confirm':
       // A dialog's action taken: a rising fifth, short
-      return normalise('confirm', CUE_LEVEL.confirm, [tone(0, 659.25, { attack: 0.004, dur: 0.1, peak: 0.5 }), tone(0.06, 987.77, { attack: 0.004, dur: 0.22, peak: 0.5 })])
+      return normalise('confirm', CUE_LEVEL.confirm, [tone(0, 698.46, { attack: 0.004, dur: 0.1, peak: 0.5 }), tone(0.06, 1046.5, { attack: 0.004, dur: 0.22, peak: 0.5 })])
     case 'kick': {
       // The boot (a low thud and a slap), then the net's swish and a lift for a goal, or the keeper's gloves and a groan for a miss
       const r = seeded(`kick:${req.scored ? 's' : 'm'}:${req.ours ? 'o' : 't'}`)
-      const v: Voice[] = [tone(0, 120, { glideTo: 60, glideTime: 0.08, attack: 0.002, dur: 0.14, peak: 0.6 }), noise(0, { filter: 'lowpass', freq: 1200, q: 0, dur: 0.05, peak: 0.8 })]
+      const v: Voice[] = [tone(0, 110, { glideTo: 55, glideTime: 0.08, attack: 0.002, dur: 0.14, peak: 0.6 }), noise(0, { filter: 'lowpass', freq: 1200, q: 0, dur: 0.05, peak: 0.8 })]
       if (req.scored) {
         v.push(noise(0.22, { filter: 'bandpass', freq: 2600, freqTo: 900, sweep: 0.3, q: 1.2, attack: 0.01, dur: 0.34, peak: 0.45 }))
         if (req.ours) v.push(...chime(0.26, 783.99, { wave: 'triangle', peak: 0.26, dur: 0.3 }), ...chime(0.34, 1046.5, { wave: 'triangle', peak: 0.26, dur: 0.6 }))

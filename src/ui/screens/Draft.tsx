@@ -128,12 +128,13 @@ export function Draft() {
   }, [pickNo])
   // A bonus spin to draft (the Gauntlet's, a Dynasty summer's): its bells once per spin owed, in this visit
   const bonus = game?.bonusSpins ?? 0
+  const owed = bonus > 0 && !!d && !isComplete(d)
   useEffect(() => {
     const key = `${game?.id}:${pickNo}`
-    if (bonus <= 0 || bonusHeard.has(key)) return
+    if (!owed || bonusHeard.has(key)) return
     bonusHeard.add(key)
     playSound({ id: 'bonus', reduced: prefersReducedMotion() })
-  }, [game?.id, bonus, pickNo])
+  }, [game?.id, owed, pickNo])
   const paused = spinning || dialRolling
   useEffect(() => {
     if (!speedrun || paused) return
