@@ -25,6 +25,7 @@ import type { LiveMatch, MatchContext } from '@game/types'
 import { LivePitch, useMediaQuery } from '../components/LivePitch'
 import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
+import { commentaryContextFor } from '../match/commentaryColour'
 import { matchPath } from '../match/epochs'
 import { cuePending, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
@@ -90,7 +91,12 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const story = useMemo(() => xgStory(feed), [feed])
   const ref = useMemo(() => roundRefOf(ctx, live?.cupTieIndex), [ctx, live?.cupTieIndex])
   const elsewhere = useMemo(() => elsewhereLines(latestScores(game, u, ref, feed.lastMinute, true)), [game, u, ref, feed.lastMinute])
-  const commentary = useMemo(() => commentaryUpTo(feed, mpath, feed.lastMinute, codes, getName, elsewhere), [feed, mpath, codes, getName, elsewhere])
+  // The table and our men's season before kick-off, for the commentary's colour (a live league match only; display only)
+  const liveLeague = live?.kind === 'league'
+  const season = game.season
+  const squad = game.squad
+  const talk = useMemo(() => commentaryContextFor({ season, squad }, homeId, awayId, liveLeague), [season, squad, homeId, awayId, liveLeague])
+  const commentary = useMemo(() => commentaryUpTo(feed, mpath, feed.lastMinute, codes, getName, elsewhere, talk), [feed, mpath, codes, getName, elsewhere, talk])
 
   // The clock: from the segment's start (or the last change in play) to the stop, or to the whistle
   const stopAt = stopTarget(feed)
@@ -105,7 +111,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd }: { s
   const cues = useMemo(() => mpath.epochs.flatMap((e) => cueTimes(feed.events, e.from, e.to)).sort((a, b) => a - b), [mpath, feed.events])
   // A reload picks the clock up where this tab left the segment (resume.ts), not from its first minute again
   const resumeKey = live ? segmentKey(game.id, feed.key, feed.decidedTo, start, feed.events.length) : null
-  const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(), resumeKey, start, stopAt) : start))
+  const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(resumeKey), resumeKey, start, stopAt) : start))
   const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
   useEffect(() => {
     if (!resumeKey) return

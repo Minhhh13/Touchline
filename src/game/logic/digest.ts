@@ -40,6 +40,8 @@ export interface DigestDecision {
   choice: string
   /** What came of it, from the event's own inbox item when it followed. */
   outcome?: string
+  /** The same call with the same answer and outcome more than once in the run (a weekly press question): one line, counted. */
+  count?: number
 }
 
 export interface SimDigest {
@@ -133,7 +135,9 @@ export function buildDigest(before: DigestSnapshot, game: Game): SimDigest | nul
         break
       }
     }
-    decisions.push({ title, choice: n.body, ...(outcome !== undefined ? { outcome } : {}) })
+    const same = decisions.find((d) => d.title === title && d.choice === n.body && d.outcome === outcome)
+    if (same) same.count = (same.count ?? 1) + 1
+    else decisions.push({ title, choice: n.body, ...(outcome !== undefined ? { outcome } : {}) })
   })
   const table = seasonTable(season)
   return {

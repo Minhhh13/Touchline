@@ -117,6 +117,8 @@ export class SyncEngine {
   private again = false
   /** When each slot last changed on this device (epoch ms), for progress ties. */
   private changedAt: Partial<Record<SlotId, number>> = {}
+  /** The last pass failed for want of a connection. */
+  private offline = false
 
   constructor(private readonly d: SyncDeps) {}
 
@@ -212,7 +214,10 @@ export class SyncEngine {
       }
       this.d.save({ ...held, paused: false })
     }
-    this.d.report({ syncStatus: 'syncing' })
+    // After a dropped connection, a background retry keeps saying offline: each pass can take seconds to fail (the
+    // Data API client retries its reads), and "Saving to your account" over and over would claim work that is not
+    // happening. The player's own Sync now still shows it working.
+    if (!this.offline || opts.resume) this.d.report({ syncStatus: 'syncing' })
     try {
       const rows = await this.d.transport.listSaves()
       const conflicts: SyncConflict[] = []
@@ -223,10 +228,12 @@ export class SyncEngine {
       await this.syncProfile(opts.replaceAll === true)
       const r = this.d.load()
       if (r.claims > 0 && r.claims % 10 === 0) await this.sweepOrphans()
+      this.offline = false
       this.d.report({ syncStatus: 'idle', lastSyncAt: new Date(this.d.now()).toISOString(), syncMessage: null, conflicts })
       return { ok: true, error: null }
     } catch (e) {
       const err = e instanceof OnlineError ? e : new OnlineError('network', e instanceof Error ? e.message : String(e))
+      this.offline = err.kind === 'network'
       const status = err.kind === 'network' ? 'offline' : err.kind === 'auth' ? 'paused' : 'error'
       const msg = err.kind === 'network' ? 'Offline: your games sync when the connection is back.' : err.kind === 'auth' ? 'Sign in again to keep syncing.' : err.kind === 'rate' ? 'Lots of saves this hour: the next sync waits a little.' : `Sync failed: ${err.message}`
       this.d.report({ syncStatus: status, syncMessage: msg })

@@ -62,11 +62,16 @@ export function redirectTo(loc: { origin: string; pathname: string } = location)
 
 export const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{2,}$/
 
-function friendly(e: AuthErrorLike): string {
+/** An auth failure in the player's words. Exported for the tests. */
+export function friendly(e: AuthErrorLike): string {
   const m = e.message || 'Something went wrong'
   if (e.status === 429 || /rate limit|too many|seconds/i.test(m)) return 'Too many requests: wait a minute, then try again.'
   if (/expired|invalid/i.test(m) && /otp|token|code/i.test(m)) return 'That code is wrong or has expired. Check the latest email, or send a new code.'
-  if (/fetch|network/i.test(m)) return 'No connection: try again when you are back online.'
+  // supabase-js reports a request that never got an answer with status 0; Safari words it "Load failed", Chrome
+  // "Failed to fetch", Firefox "NetworkError when attempting to fetch resource"
+  if (e.status === 0 || /fetch|network|load failed|offline|timed? ?out/i.test(m)) return 'No connection: try again when you are back online.'
+  if (/sending .*email|smtp/i.test(m)) return 'The email could not be sent just now: try again in a few minutes.'
+  if ((e.status ?? 0) >= 500) return 'The sign-in service did not answer: try again in a minute.'
   return m
 }
 

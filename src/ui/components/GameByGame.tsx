@@ -320,7 +320,7 @@ export function GameByGame({ results, opponent, replay, title = 'Season, game by
               </span>
               <ClubBadge clubId={opp.clubId} size={22} />
               <span className="gbg-fix">
-                {opp.name} <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
+                <span className="gbg-name">{opp.name}</span> <span className="gbg-ha">{r.home ? 'H' : 'A'}</span>
               </span>
               <span className="gbg-score">
                 {r.gf}-{r.ga}

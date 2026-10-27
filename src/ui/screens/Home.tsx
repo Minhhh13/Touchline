@@ -10,6 +10,7 @@ import { weeklyThemeName } from '@game/logic/weeklyThemes'
 import { arenaDailySeed, randomSeed, weeklySeed } from '@engine/rng'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
+import { PIN_NOTE, PIN_TAG, pinStanding, type PinStanding } from '../../online/engineRoute'
 import { useOnline } from '../../online/state'
 import { onlineAvailable } from '../../online/api'
 import { ConflictCards } from '../online/ConflictCard'
@@ -152,6 +153,8 @@ export function Home() {
     if (arenaUnderWay === 'parked') return resumeGame('arena')
     const open = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
     if (open && !confirm(`Start today's arena? Your current ${modeLabel(open, 'short')} run (${open.settings.teamName}) will be abandoned.`)) return
+    // Played already: a second go is practice, and says so before it replaces today's summary
+    if (!open && arenaDone && !confirm(`You have played today's Daily Arena (${arenaDone.label}). Play it again? Your result and streak stay as they are.`)) return
     startGame(dailyArenaGameSettings(u, arenaSeed))
   }
   // The Weekly Challenge: its setup names the team and loads the week's packs; this week's run under way continues
@@ -299,8 +302,8 @@ export function Home() {
                   </span>
                 )}
                 {pin && dailyStart && (
-                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? 'Every score on the world leaderboard is checked by replay' : undefined}>
-                    {dailyStart.ranked ? 'Ranked today' : dailyStart.source === 'missing_data' ? 'Reload for the ranked puzzle' : 'Unranked: reload to update'}
+                  <span className={`ranked-tag${dailyStart.ranked ? ' on' : ''}`} data-testid="daily-ranked" title={dailyStart.ranked ? 'Every score on the world leaderboard is checked by replay' : PIN_NOTE[pinStanding(pin, dailyStart.source) as Exclude<PinStanding, 'ranked'>]}>
+                    {PIN_TAG[dailyStart.ranked ? 'ranked' : pinStanding(pin, dailyStart.source)]}
                   </span>
                 )}
                 {profile.dailyStreak > 0 && (

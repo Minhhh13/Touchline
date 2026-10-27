@@ -37,11 +37,11 @@ export function SquadStrip({ feed, minute, side, view, ratings, squad, selected,
           <b>Squad</b>
         </span>
         <span className="mono">
-          <b>{subsLeft}</b>/{MAX_SUBS} subs
+          <b>{subsLeft}</b>/{MAX_SUBS} subs left
         </span>
         {live && (
           <span className="mono">
-            <b>{hand.windowsLeft}</b>/{MAX_WINDOWS} stoppages
+            <b>{hand.windowsLeft}</b>/{MAX_WINDOWS} stoppages left
           </span>
         )}
       </button>

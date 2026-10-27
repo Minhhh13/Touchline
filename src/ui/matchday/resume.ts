@@ -1,12 +1,13 @@
 /**
  * A reload in the middle of a live match picks the clock up where the viewer left it. The engine has already decided
  * the segment (1-45, 46-70 or 71-90) before the dashboard plays it, so a reload used to replay it from its first
- * minute, which read as a restart. The dashboard now remembers, per tab (`sessionStorage`), the minute its clock has
- * reached in this segment; mounting the same segment again starts there, or at the stop if it was reached. A per-viewer
+ * minute, which read as a restart. The dashboard now remembers, per viewer (`localStorage`, so it outlives the tab: iOS
+ * may kill a backgrounded web view, which loses `sessionStorage`; O-7 in docs/QA.md), the minute its clock has reached
+ * in this segment; mounting the same segment again starts there, or at the stop if it was reached. A per-viewer
  * convenience: the game and its save are untouched, and anything unreadable means a start from the segment's start.
  */
 
-/** sessionStorage key: one record, the segment on screen and the minute its clock reached. */
+/** Storage key: one record, the segment on screen and the minute its clock reached (localStorage; sessionStorage when that refuses it). */
 export const RESUME_KEY = 'touchline-match-resume'
 
 export interface ResumeMark {
@@ -44,18 +45,49 @@ export function parseMark(raw: string | null): ResumeMark | null {
   }
 }
 
-export function readMark(): ResumeMark | null {
-  try {
-    return parseMark(sessionStorage.getItem(RESUME_KEY))
-  } catch {
-    return null
+type MarkStore = Pick<Storage, 'getItem' | 'setItem'>
+
+/** The stores a mark lives in, in order: this viewer's localStorage, then the tab's sessionStorage (an earlier build's mark, or a full localStorage). */
+function markStores(): (() => MarkStore | undefined)[] {
+  return [() => (typeof localStorage === 'undefined' ? undefined : localStorage), () => (typeof sessionStorage === 'undefined' ? undefined : sessionStorage)]
+}
+
+/** The mark these stores hold for this segment, else the first well-formed one; a store that throws is skipped. */
+export function readMarkFrom(stores: (() => MarkStore | undefined)[], key?: string): ResumeMark | null {
+  let first: ResumeMark | null = null
+  for (const store of stores) {
+    try {
+      const mark = parseMark(store()?.getItem(RESUME_KEY) ?? null)
+      if (mark && (key === undefined || mark.key === key)) return mark
+      first ??= mark
+    } catch {
+      // Private window or blocked storage: try the next
+    }
   }
+  return first
+}
+
+/** Write the mark to the first store that takes it; true when one did. */
+export function writeMarkTo(stores: (() => MarkStore | undefined)[], mark: ResumeMark): boolean {
+  const raw = JSON.stringify(mark)
+  for (const store of stores) {
+    try {
+      const s = store()
+      if (!s) continue
+      s.setItem(RESUME_KEY, raw)
+      return true
+    } catch {
+      // Full or blocked: try the next
+    }
+  }
+  return false
+}
+
+export function readMark(key?: string): ResumeMark | null {
+  return readMarkFrom(markStores(), key)
 }
 
 export function writeMark(mark: ResumeMark): void {
-  try {
-    sessionStorage.setItem(RESUME_KEY, JSON.stringify(mark))
-  } catch {
-    // Private window or blocked storage: a reload replays the segment, as before
-  }
+  // Nowhere to write (a private window, blocked storage): a reload replays the segment, as before
+  writeMarkTo(markStores(), mark)
 }

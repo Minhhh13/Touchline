@@ -12,10 +12,10 @@ import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
 import { canCover, ratingAt } from '@engine/positions'
 import { teamStrength } from '@game/logic/squad'
-import { SELL_ON_OPTIONS, SQUAD_CAP, sellOnValue, suggestedStatus } from '@game/logic/marketOps'
+import { SELL_ON_OPTIONS, SQUAD_CAP, closedWindowLine, sellOnValue, suggestedStatus } from '@game/logic/marketOps'
 import { canFullScout, focusActive, maskedView } from '@game/logic/scouting'
 import { recentShare, statusOf } from '@game/logic/week'
-import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
+import { EXPECTED_SHARE, RECENT_WEEKS, STATUS_LABEL, STATUSES, WAGE_MULT, type SquadStatus } from '@engine/status'
 import { TALK_LABEL, type TalkKind } from '@game/logic/talks'
 import { STAFF, STAFF_ROLES, staffTier, staffWages, traitTags } from '@engine/staff'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
@@ -44,7 +44,6 @@ import { isClassic } from '@engine/universe'
 import { StatsTab } from './StatsTab'
 import { OppositionReport } from './OppositionReport'
 import { RunInBanner } from '../components/RunInBanner'
-import { usePaintFirst } from '../paintFirst'
 import { DressingRoomTab } from './DressingRoomTab'
 import { PlannerTab } from './PlannerTab'
 import { InboxActions } from '../components/InboxActions'
@@ -62,6 +61,7 @@ import type { BoxSet } from '../boxes'
 import type { Game } from '@game/types'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { countPhrase } from '../screenText'
+import { newsBody } from '@game/logic/newsFlavour'
 
 type Tab = DugoutTab
 
@@ -140,8 +140,6 @@ export function Dugout() {
   const headBoxes = useBoxes(DUGOUT_HEAD, seasonOver ? ['club-header'] : undefined)
   const tabKey = tab === 'market' && game?.window ? 'window' : tab
   const tabBoxes = useBoxes(DUGOUT_TABS[tabKey] ?? NO_BOXES, game ? tabPresent(tabKey, game) : undefined)
-  // Playing the week is a long task (the matchweek, the match day, the save): the button shows it is busy first
-  const [playing, paintFirst] = usePaintFirst()
   // Simulating weeks runs long on a phone: the button says so in the frame it is tapped, then the weeks play
   const [simming, afterPaint] = useAfterPaint()
   if (!u || !game || !game.season) return null
@@ -187,7 +185,7 @@ export function Dugout() {
     { id: 'inbox', label: 'Inbox', alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: 'Club' },
   ]
-  keys.current = { play: done || game.pendingEvent ? null : () => paintFirst(() => store.playWeek()), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent ? null : () => void store.playWeekSoon(), tabs: tabList.map((t) => t.id) }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)
@@ -326,9 +324,9 @@ export function Dugout() {
                   <span className="lbl-short">Friendly</span>
                 </button>
               )}
-              <button className="btn primary big" onClick={() => paintFirst(() => store.playWeek())} disabled={!!game.pendingEvent || playing} aria-busy={playing || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
-                <span className="lbl-long">{playing ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
-                <span className="lbl-short">{playing ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
+              <button className="btn primary big" onClick={() => void store.playWeekSoon()} disabled={!!game.pendingEvent || store.playingWeek} aria-busy={store.playingWeek || undefined} data-testid="play-week" title="Space plays the matchweek; 1 to 0 open the tabs">
+                <span className="lbl-long">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off the season' : next ? `Play matchweek ${season.matchweek + 1}` : `Sit out matchweek ${season.matchweek + 1}`}</span>
+                <span className="lbl-short">{store.playingWeek ? (preseason ? 'Kicking off…' : 'Playing…') : preseason ? 'Kick off' : next ? `Play MW ${season.matchweek + 1}` : `Sit out MW ${season.matchweek + 1}`}</span>
                 {next && playMode !== 'watch' && <span className="mode-tag">{playMode === 'auto' ? 'Auto-play' : 'Sim result'}</span>}
               </button>
               <button className="btn" data-testid="sim-big" onClick={() => afterPaint(() => store.simToNextBigMatch())} disabled={!!game.pendingEvent || !!bigNext || simming} aria-busy={simming || undefined} title={bigNext ? `The next match is one to manage: ${bigNext.label}` : 'The assistant plays the routine weeks and stops before the next derby, title decider, cup semi-final or final, open run-in or the January window'}>
@@ -613,7 +611,9 @@ export function Dugout() {
                 <Info label="About the table">The other clubs field their real squads from that season, with their own injuries and form.</Info>
               </span>
             </div>
-            <TableView rows={table} teamName={game.settings.teamName} />
+            <div className="tbl-wrap">
+              <TableView rows={table} teamName={game.settings.teamName} />
+            </div>
           </div>
           )}
           {tabBoxes.on('season-so-far') && <SeasonSoFar table={table} />}
@@ -667,7 +667,7 @@ export function Dugout() {
                   </span>
                   <span>
                     <div className="t">{n.title}</div>
-                    <div className="b">{n.body}</div>
+                    <div className="b">{newsBody(n)}</div>
                     <InboxActions item={n} game={game} onAction={act} />
                   </span>
                   <span className="news-mw">{n.matchweek ? `MW ${n.matchweek}` : 'Pre'}</span>
@@ -1285,20 +1285,20 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
         {boxes.on('scout-reports') && <ScoutReportsPanel onOpen={setScoutId} />}
         <div className="col">
           <div className="notice">
-            Window closed: January opens at the halfway point.{' '}
+            {closedWindowLine(game)}{' '}
             <Info label="About transfer windows">The January window runs for seven market days, three per matchweek. In Dynasty mode a longer summer window opens between seasons.</Info>
           </div>
           {shortlistPanel}
           {boxes.on('values') && (
           <div className="panel">
             <h3>Squad values</h3>
-            <div className="tbl-wrap"><table className="tbl">
+            <div className="tbl-wrap"><table className="tbl contracts">
               <thead>
                 <tr>
                   <th>Player</th>
                   <th className="num">Value</th>
                   <th className="num">Wage</th>
-                  <th className="num">Contract</th>
+                  <th className="num" title="Contract years left">Yrs</th>
                 </tr>
               </thead>
               <tbody>
@@ -2002,9 +2002,9 @@ function PlayerModal({ id, onClose }: { id: string | null; onClose: () => void }
             </span>
           )}
           {s && (
-            <span className="chip info" data-testid="player-status" title={share === null ? 'No minutes recorded yet' : `${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}>
+            <span className="chip info" data-testid="player-status" title={share === null ? 'No minutes recorded yet' : `${Math.round(share * 100)}% of the minutes over the last ${RECENT_WEEKS} matchweeks; his status expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}>
               {STATUS_LABEL[statusOf(game, p.id)]}
-              {share === null ? '' : ` · ${Math.round(share * 100)}% of minutes, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}
+              {share === null ? '' : ` · ${Math.round(share * 100)}% of minutes lately, expects ${Math.round(EXPECTED_SHARE[statusOf(game, p.id)] * 100)}%`}
             </span>
           )}
           {s?.injury && <span className="chip bad">{s.injury.description}, {s.injury.weeksOut} wk</span>}

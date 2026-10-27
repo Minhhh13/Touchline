@@ -10,7 +10,7 @@ import { MomentumBar, PossessionTerritory, ShotMap, TacticsOverlay } from '../co
 import { RedCard, YellowCard } from '../components/icons'
 import { kitColours, teamCode } from '../match/shirts'
 import { downloadDataUrl, renderMatchCard } from '../shareCard'
-import { clubName, clubShort, minuteLabel, outcomeClass, outcomeOf } from '../format'
+import { clubName, clubShort, minuteLabel, outcomeClass, textColourFor, type Outcome } from '../format'
 import { playerLookup } from '@game/logic/players'
 import type { Appearance, FullMatchResult } from '@engine/match'
 import { feedFromResult } from '@engine/matchFeed'
@@ -21,6 +21,7 @@ import { USER_TEAM } from '@engine/season'
 import type { PlayerMatchStats, Tactics } from '@engine/types'
 import { arenaContinueLabel } from '@game/logic/arena'
 import { ShootoutPanel } from '../components/ShootoutPanel'
+import { knockoutOutcome } from '../arenaText'
 import { MatchDashboard } from '../matchday/MatchDashboard'
 import { cardSeries, reportFigures } from '../matchday/model'
 import { XgStory } from '../matchday/panels/XgStory'
@@ -105,7 +106,10 @@ export function MatchScreen() {
   const names = { home: homeName, away: awayName, homeShort: shortNameOf(u, game.settings.shortName, res.homeTeamId), awayShort: shortNameOf(u, game.settings.shortName, res.awayTeamId) }
   const gf = userIsHome ? res.homeGoals : res.awayGoals
   const ga = userIsHome ? res.awayGoals : res.homeGoals
-  const outcome = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat'
+  // An arena tie settled on penalties reads by its shoot-out ("Won on pens"), not as a draw
+  const arenaPens = game.arena && !game.arena.pending && which === 'league' ? game.arena.log.at(-1)?.pens : undefined
+  const verdict = knockoutOutcome(gf, ga, arenaPens)
+  const outcome = verdict.word
   const seasonOver = game.phase === 'summary' || !!game.seasonEnding
   const cupNext = !!game.live && holdLive
   // The arena: penalties first, then the run's summary or its next match
@@ -198,7 +202,7 @@ export function MatchScreen() {
       {arena && !replay && <ShootoutPanel />}
 
       {matchView === 'ticker' && <MatchDashboard key={`${res.homeTeamId}-${res.awayTeamId}-${ctx.matchweek}-${which}`} source={{ mode: 'replay', res, ctx }} onWhistle={() => safely(() => setMatchView('report'))} />}
-      {matchView === 'report' && <Report boxes={reportBoxes} res={res} ctx={ctx} names={names} outcome={outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
+      {matchView === 'report' && <Report boxes={reportBoxes} res={res} ctx={ctx} names={names} outcome={outcome} verdict={verdict.outcome} get={get} colours={kitColours(u, game.settings.hostClubId, res.homeTeamId, res.awayTeamId)} />}
     </div>
   )
 }
@@ -206,7 +210,7 @@ export function MatchScreen() {
 type ChartTab = 'shots' | 'flow' | 'possession' | 'tactics'
 type PeopleTab = 'ours' | 'theirs' | 'notes'
 
-function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxes; res: FullMatchResult; ctx: MatchContext; names: { home: string; away: string; homeShort: string; awayShort: string }; outcome: string; get: (id: string) => ReturnType<ReturnType<typeof playerLookup>>; colours: { home: string; away: string } }) {
+function Report({ boxes, res, ctx, names, outcome, verdict, get, colours }: { boxes: Boxes; res: FullMatchResult; ctx: MatchContext; names: { home: string; away: string; homeShort: string; awayShort: string }; outcome: string; verdict: Outcome; get: (id: string) => ReturnType<ReturnType<typeof playerLookup>>; colours: { home: string; away: string } }) {
   const u = useStore((s) => s.universe)
   const game = useStore((s) => s.game)
   const { home: homeName, away: awayName } = names
@@ -270,7 +274,7 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
             {res.homeGoals} - {res.awayGoals}
           </div>
           <div className="clock">
-            <span className={`outcome-word ${outcomeClass(userIsHome ? outcomeOf(res.homeGoals, res.awayGoals) : outcomeOf(res.awayGoals, res.homeGoals))}`} data-testid="report-outcome">{outcome.toUpperCase()}</span> · HT {res.halfTimeScore.home}-{res.halfTimeScore.away}
+            <span className={`outcome-word ${outcomeClass(verdict)}`} data-testid="report-outcome">{outcome.toUpperCase()}</span> <span className="clock-ht">HT {res.halfTimeScore.home}-{res.halfTimeScore.away}</span>
           </div>
         </div>
         <div className="team away">
@@ -292,8 +296,9 @@ function Report({ boxes, res, ctx, names, outcome, get, colours }: { boxes: Boxe
                 {goals.map((g, i) => (
                   <li key={i} className={g.side}>
                     <span className="goal-who">
+                      <span className="goal-side mono" style={{ background: colours[g.side], color: textColourFor(colours[g.side]) }}>{g.side === 'home' ? codes.home : codes.away}</span>
                       <b>{g.playerName}</b>
-                      {g.type === 'penalty' ? ' (pen)' : g.type === 'own_goal' ? ' (og)' : ''}
+                      {g.type === 'penalty' ? <span className="goal-kind"> (pen)</span> : g.type === 'own_goal' ? <span className="goal-kind"> (og)</span> : ''}
                       {g.secondaryName ? (
                         <>
                           {' '}

@@ -66,7 +66,8 @@ export function runInGameSettings(u: LoadedUniverse, job: RunInJob, opts: { seed
     seed: opts.seed,
     formationId: opts.formationId ?? formationForStyle(club?.style ?? 'balanced'),
     teamName: name,
-    shortName: club?.shortName ?? name.slice(0, 3).toUpperCase(),
+    // The club's own three-letter code, as every other side shows: its short name ("Blackpool") read twice in the live table
+    shortName: club?.code ?? name.slice(0, 3).toUpperCase(),
     leagueId: job.leagueId,
     wheelLeagues: [job.leagueId],
     hostClubId: job.clubId,
