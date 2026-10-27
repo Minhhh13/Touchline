@@ -208,6 +208,11 @@ export interface Contract {
   renewed?: boolean
   /** The player will leave when the contract ends. */
   declined?: boolean
+  /**
+   * Dynasty summer: his contract ran out (`years` 0). Talks are open through pre-season; at the opener the
+   * assistant renews him if he is worth keeping and willing (`settleRenewals` in `dynasty.ts`), else he leaves on a free.
+   */
+  expired?: boolean
   /** Transfer-listed: offers come in more often. */
   listed?: boolean
   /** On loan for this season only: he goes back to his club in the summer. */
@@ -382,6 +387,13 @@ export interface Game {
   pendingMove: { leagueId: string; clubId: string } | null
   /** Real player ids of the men who retired from the squad (Dynasty): never offered again, younger, by the summer wheel, the market or the youth intake. Absent until the first retirement. */
   retiredPlayers?: string[]
+  /**
+   * Real player ids of the men who left the squad (Dynasty: sold, released, out of contract, a loan gone back) with his
+   * age and the game year he left in: a season of him is never offered again, by the summer wheel, the market, the
+   * academy or a scout, in which he is younger than he would be now (`ageFloors` in `departures.ts`). Absent until the
+   * first departure.
+   */
+  departedPlayers?: Record<string, { age: number; year: number }>
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
   /** The arena run of a mode `arena` game; null (or absent, in an older save) otherwise. */

@@ -117,6 +117,11 @@ export interface MarketContext {
    * Absent, the market lists and draws exactly as it always has.
    */
   focus?: (p: PlayerSeason) => boolean
+  /**
+   * Dynasty: real player id -> the youngest age a man who left may be listed at (never his younger self). Absent, or
+   * with nobody in it, the market lists exactly as before.
+   */
+  ageFloor?: Record<string, number>
 }
 
 function nationNameOf(u: LoadedUniverse, nation: string): string {
@@ -201,7 +206,7 @@ export function openWindow(ctx: MarketContext, kind: Window['kind'], count = 36)
       // Weighted towards the top of the squad but not exclusively.
       const idx = Math.min(sorted.length - 1, Math.floor(Math.pow(rng.next(), 1.8) * sorted.length))
       const p = sorted[idx]
-      if (!p || ctx.ownedPlayerIds.has(p.playerId) || seenHumans.has(p.playerId)) continue
+      if (!p || ctx.ownedPlayerIds.has(p.playerId) || seenHumans.has(p.playerId) || p.age < (ctx.ageFloor?.[p.playerId] ?? 0)) continue
       seenHumans.add(p.playerId)
       candidates.push(p)
     }

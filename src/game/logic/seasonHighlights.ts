@@ -128,7 +128,7 @@ export function simToNextStop(game: Game, u: LoadedUniverse): StopReason | null 
 
 /** `simToNextStop` in steps (each week's `playMatchweekSteps`, then `WEEK_END`), for a caller that gives the page a task between them. */
 export function* simToNextStopSteps(box: GameBox, u: LoadedUniverse): Generator<WeekStep, StopReason | null, undefined> {
-  if (box.g.phase === 'preseason') startSeasonProper(box.g)
+  if (box.g.phase === 'preseason') startSeasonProper(box.g, u)
   for (;;) {
     const game = box.g
     const season = game.season

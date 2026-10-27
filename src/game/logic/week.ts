@@ -12,7 +12,8 @@ import { afterSeasonMoney, CONTINENTAL_PRIZE, openWindow, prizeMoney, weeklyCash
 import { computeAwards } from '@engine/awards'
 import { playerLookup, squadPlayers } from './players'
 import { autoPick, lineupProblems, squadWages } from './squad'
-import { tickWindow } from './marketOps'
+import { tickWindow, withFloors } from './marketOps'
+import { dynastyOpener } from './dynasty'
 import { staffTier } from '@engine/staff'
 import { developSquad, DEVELOPMENT_INTERVAL } from './development'
 import { evaluateObjective, OBJECTIVE_REWARD } from '@engine/objectives'
@@ -350,7 +351,7 @@ export type WeekStep = void | typeof WEEK_END
 
 /** Sim `n` matchweeks with the assistant managing (Sim 5, Sim to end), in steps: each week's `playMatchweekSteps`. */
 export function* simWeeksSteps(box: GameBox, u: LoadedUniverse, n: number): Generator<WeekStep, void, undefined> {
-  if (box.g.phase === 'preseason') startSeasonProper(box.g)
+  if (box.g.phase === 'preseason') startSeasonProper(box.g, u)
   for (let i = 0; i < n; i++) {
     const game = box.g
     if (game.phase === 'summary' || !game.season || game.season.sacked) break
@@ -944,7 +945,7 @@ function afterMatchweek(game: Game, u: LoadedUniverse, playedLive = false): void
 
   // Transfer window: opens at the halfway point; three market days pass per matchweek, so it shuts three matchweeks later
   if (mw === Math.floor(season.matchweeks / 2) && !game.window) {
-    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game) }, 'january')
+    game.window = openWindow({ u, rng, ownedPlayerIds: new Set(squadPlayers(game, u).map((x) => x.p.playerId)), leagueSeason: season.leagueSeason, priceLevel: 1.05, fromSeason: game.settings.rules.fromSeason, toSeason: game.settings.rules.toSeason, leagues: game.settings.wheelLeagues, onlyNation: game.settings.rules.onlyNation, classic: game.settings.rules.classic, focus: focusFilter(game), ...withFloors(game) }, 'january')
     news(game, { kind: 'transfer', title: 'January window open', body: `${game.window.listings.length} players are available. Budget £${game.finances.budget}M.` })
   } else if (game.window && game.window.kind === 'january') {
     for (let i = 0; i < 3; i++) {
@@ -1121,8 +1122,11 @@ export function playFriendly(game: Game, u: LoadedUniverse): void {
   game.rngState = rng.getState()
 }
 
-export function startSeasonProper(game: Game): void {
+export function startSeasonProper(game: Game, u?: LoadedUniverse): void {
   if (game.phase === 'preseason') {
+    // A Dynasty's opener settles the contracts still out and signs the cover a thin squad needs, while the window is
+    // open (every store path passes the universe)
+    if (u) dynastyOpener(game, u)
     game.phase = 'week'
     if (game.window?.kind === 'summer') {
       postNews(game, { matchweek: 0, kind: 'transfer', title: 'Summer window closed', body: 'The season is under way. The next window opens in January.' })

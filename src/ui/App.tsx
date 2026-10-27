@@ -363,6 +363,9 @@ export function App() {
             {offseason.expired.length > 0 && (
               <p>{rich(t('summerExpired', { names: offseason.expired.join(', ') }), B)}</p>
             )}
+            {(offseason.renewals ?? []).length > 0 && (
+              <p data-testid="offseason-renewals">{rich(t('summerRenewals', { names: (offseason.renewals ?? []).join(', ') }), B)}</p>
+            )}
             {offseason.returned.length > 0 && (
               <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
             )}

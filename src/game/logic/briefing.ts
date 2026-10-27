@@ -166,6 +166,10 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
   const takers = !!(sp?.penalties || sp?.freeKicks || sp?.corners)
   check('set-pieces', takers, 'Set pieces', 'Penalties, free kicks and corners go to the men you choose.', takers ? undefined : { label: 'Tactics', tab: 'tactics' })
 
+  // Dynasty: the contracts that ran out this summer (`settleRenewals` decides what is left at the opener)
+  const out = Object.keys(game.squad).filter((id) => game.contracts[id]?.expired)
+  if (out.length) check('renewals', false, `Contracts: ${out.length} out`, 'Offer terms or let them go. At the opener the assistant keeps the willing ones worth keeping; the rest leave on a free.', { label: 'Contracts', tab: 'planner' })
+
   if (game.youthIntake) {
     const decided = game.youthIntake.chosen !== undefined
     check('youth', decided, decided ? (game.youthIntake.chosen ? `Youth: ${get(game.youthIntake.chosen)?.name ?? 'a prospect'} promoted` : 'Youth intake passed') : 'Youth intake', `${game.youthIntake.candidates.length} academy prospects: sign one for nothing or pass.`, decided ? undefined : { label: 'Squad', tab: 'squad' })

@@ -23,7 +23,7 @@ const BAND_CHIP = { low: '', medium: 'warn', high: 'bad' } as const
  */
 /** `boxes` is the Dugout's Boxes control for this tab: an unticked box is left out and the others widen. */
 export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game, letContractGo, showToast } = useStore()
   if (!u || !game) return null
   const rows = squadPlanner(game, u)
   const contracts = contractsOverview(game, u)
@@ -88,6 +88,31 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
             {t('expiringOff', { n: contracts.expiring, w: wage(contracts.wagesLeaving) })}
           </span>
         </div>
+        {contracts.rows.some((c) => c.outOfContract) && (
+          <div className="med-out" data-testid="renewal-list">
+            <div className="eyebrow">{t('renewalHead')}</div>
+            {contracts.rows
+              .filter((c) => c.outOfContract)
+              .map((c) => (
+                <div key={c.id} className="room-row" data-testid="renewal-row">
+                  <span className="who">
+                    <b>{c.name}</b>
+                    <span className="small muted">
+                      {c.age} · {c.position} · {wage(c.wage)}
+                    </span>
+                  </span>
+                  <span className="row" style={{ gap: 'var(--space-2)' }}>
+                    <button type="button" className="btn sm" data-testid="renewal-talk" onClick={() => onPlayer(c.id)}>
+                      {t('offerTerms')}
+                    </button>
+                    <button type="button" className="btn sm ghost" data-testid="renewal-release" onClick={() => showToast(letContractGo(c.id).message)}>
+                      {t('letGo')}
+                    </button>
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
         <div className="tbl-wrap">
           <table className="tbl contracts-overview">
             <thead>
@@ -108,7 +133,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                     </button>
                   </td>
                   <td className="num">{c.age}</td>
-                  <td className="num">{c.loan ? <span className="chip">{t('loan')}</span> : c.declined ? <span className="chip bad">{t('out')}</span> : c.renewed ? <span className="chip good">{t('newChip')}</span> : c.expiring ? <span className="chip warn" title={t('lastTip')}>{t('last')}</span> : c.years}</td>
+                  <td className="num">{c.outOfContract ? <span className="chip warn" title={t('talksTip')}>{t('talks')}</span> : c.loan ? <span className="chip">{t('loan')}</span> : c.declined ? <span className="chip bad">{t('out')}</span> : c.renewed ? <span className="chip good">{t('newChip')}</span> : c.expiring ? <span className="chip warn" title={t('lastTip')}>{t('last')}</span> : c.years}</td>
                   <td className="num">{wage(c.wage)}</td>
                   <td className="one-line">{c.statusLabel}</td>
                 </tr>

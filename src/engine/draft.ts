@@ -253,6 +253,11 @@ export interface DraftState {
   /** Quick bench: the manager closed the draft with bench places to spare (`closeBench`). Absent otherwise. */
   benchClosed?: boolean
   /**
+   * Dynasty summer wheel: real player id -> the youngest age he may come back at (a man who left the club is never
+   * drafted as his younger self). Absent everywhere else, and then nothing changes.
+   */
+  ageFloor?: Record<string, number>
+  /**
    * Quick bench: the stream the spins after the XI is full draw from, forked off a copy of the game's stream at the
    * first such spin, so the season (which starts from the game's stream) is the same however many bench spins follow.
    */
@@ -400,9 +405,16 @@ export function benchRoom(d: DraftState): boolean {
   return !fillingXI(d)
 }
 
+/** Drafted already, or (a Dynasty summer) a season of a man who left in which he is younger than he would be now. */
+function isTaken(d: DraftState, p: PlayerSeason): boolean {
+  if (d.takenPlayers.includes(p.playerId)) return true
+  const floor = d.ageFloor?.[p.playerId]
+  return floor !== undefined && p.age < floor
+}
+
 /** Whether this player could be sent to the bench from the current spin. */
 export function canBench(d: DraftState, p: PlayerSeason): boolean {
-  return benchRoom(d) && !d.takenPlayers.includes(p.playerId) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p) && benchAffordable(d, p)
+  return benchRoom(d) && !isTaken(d, p) && nationAllows(d, p) && chainAllows(d, p) && affordable(d, p) && benchAffordable(d, p)
 }
 
 /** Quick bench: the XI is full and bench places are left, so the manager may stop drafting. */
@@ -593,7 +605,7 @@ function candidateSlots(d: DraftState): Formation['slots'] {
  * Teammate Chain's set (null when the chain does not bind), passed in so a pass over the wheel builds it once.
  */
 function usableFor(d: DraftState, p: PlayerSeason, slots: Formation['slots'], mates: Set<string> | null = chainSet(d)): boolean {
-  if (d.takenPlayers.includes(p.playerId)) return false
+  if (isTaken(d, p)) return false
   if (!nationAllows(d, p)) return false
   if (mates && !mates.has(p.playerId)) return false
   if (!affordable(d, p)) return false
@@ -606,7 +618,7 @@ export function canUse(d: DraftState, p: PlayerSeason): boolean {
 }
 
 export function eligibleSlots(d: DraftState, p: PlayerSeason): Formation['slots'] {
-  if (d.takenPlayers.includes(p.playerId) || !nationAllows(d, p) || !chainAllows(d, p) || !affordable(d, p)) return []
+  if (isTaken(d, p) || !nationAllows(d, p) || !chainAllows(d, p) || !affordable(d, p)) return []
   return candidateSlots(d).filter((s) => canCover(p, s.position, d.rules.minFit))
 }
 
@@ -903,7 +915,7 @@ export function pick(u: LoadedUniverse, d: DraftState, playerSeasonId: string, s
   const p = u.index[playerSeasonId]
   if (!p) throw new Error('Unknown player')
   if (isIcons(d.current) ? !iconsCollection(u, d.rules.leagues).squad.some((x) => x.id === p.id) : p.clubId !== d.current.clubId || p.season !== d.current.season) throw new Error('Player is not in the current squad')
-  if (d.takenPlayers.includes(p.playerId)) throw new Error('Already drafted that player')
+  if (isTaken(d, p)) throw new Error('Already drafted that player')
   if (!nationAllows(d, p)) throw new Error(`${p.name} is not ${u.nations[d.rules.onlyNation ?? '']?.name ?? d.rules.onlyNation}`)
   if (!chainAllows(d, p)) throw new Error(`${p.name} is not a former teammate of ${u.index[d.chainFrom ?? '']?.name ?? 'your last pick'}`)
   const refusal = capRefusal(d, p)
