@@ -6,6 +6,7 @@ import { lazyScreen, prefetchScreens, ScreenBoundary } from './lazyScreens'
 import { Bar, ClubBadge, Modal, Toast, useViewerFlag } from './components/bits'
 import { SaveBanner } from './components/SaveBanner'
 import { SaveIssue } from './components/SaveIssue'
+import { ConfirmHost } from './components/ConfirmDialog'
 import { usePersistAfterFirstResult } from './persistStorage'
 import { DIGEST_GROUP_CAP, digestTitle, type SimDigest } from '@game/logic/digest'
 import { unseenNews } from '@game/logic/news'
@@ -229,6 +230,8 @@ export function App() {
   let body: React.ReactNode
   // The quick season's playback after kick-off runs in the summary phase: the nav still calls it the season until it closes
   const seasonPlaying = !!game && game.phase === 'summary' && !!(playback || game.quickOpen) && !!game.quickResult?.results?.length
+  // The game's own nav entry, named for where the game is
+  const gameNav = !game ? '' : game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'
   // One screen, one panel: on a desktop these screens fit the window and scroll inside their panels (the app shell);
   // The quick season's screens (Squad complete, the playback, January) are shell screens too, boxed side by side (`.page.fit`);
   // Setup and the match day keep their own layouts
@@ -269,34 +272,41 @@ export function App() {
           <button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')}>
             <House size={16} />
             <span className="nav-label">Home</span>
+            <span className="nav-tiny" aria-hidden="true">Home</span>
           </button>
           {game && (
             <button className={screen === 'game' ? 'active' : ''} onClick={() => nav('game')}>
               {game.phase === 'draft' ? <Dices size={16} /> : game.phase === 'summary' && !seasonPlaying ? <ClipboardCheck size={16} /> : <ClipboardList size={16} />}
-              <span className="nav-label">{game.phase === 'draft' ? 'Draft' : game.phase === 'kickoff' || game.phase === 'january' || seasonPlaying ? 'Season' : game.phase === 'summary' ? 'Summary' : game.arena ? 'Arena' : 'Dugout'}</span>
+              <span className="nav-label">{gameNav}</span>
+              <span className="nav-tiny" aria-hidden="true">{gameNav}</span>
             </button>
           )}
           <button className={screen === 'h2h' || screen === 'room' ? 'active' : ''} onClick={() => nav('h2h')}>
             <Swords size={16} />
             <span className="nav-label">Head-to-head</span>
+            <span className="nav-tiny" aria-hidden="true">H2H</span>
           </button>
           <button className={screen === 'explore' ? 'active' : ''} onClick={() => nav('explore')}>
             <Search size={16} />
             <span className="nav-label"><span className="nav-long">Explore database</span><span className="nav-short">Database</span></span>
+            <span className="nav-tiny" aria-hidden="true">Explore</span>
           </button>
           {onlineAvailable() && (
             <button className={screen === 'world' ? 'active' : ''} onClick={() => nav('world')} data-testid="nav-world">
               <Globe size={16} />
               <span className="nav-label">World</span>
+              <span className="nav-tiny" aria-hidden="true">World</span>
             </button>
           )}
           <button className={screen === 'profile' ? 'active' : ''} onClick={() => nav('profile')}>
             <Trophy size={16} />
             <span className="nav-label">Profile</span>
+            <span className="nav-tiny" aria-hidden="true">Profile</span>
           </button>
           <button className={screen === 'howto' ? 'active' : ''} onClick={() => nav('howto')}>
             <BookOpen size={16} />
             <span className="nav-label">How it works</span>
+            <span className="nav-tiny" aria-hidden="true">Guide</span>
           </button>
         </nav>
         {onlineAvailable() && (
@@ -330,6 +340,7 @@ export function App() {
       <Toast />
       {barHidden && <SaveBanner floating />}
       <SaveIssue />
+      <ConfirmHost />
       <Modal open={!!offseason} onClose={dismissOffseason} title="The summer">
         {offseason && (
           <div className="col">

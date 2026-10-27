@@ -18,6 +18,7 @@ import { TeamNameField } from '../components/SetupBits'
 import { seasonLabel } from '../format'
 import { CapControl } from '../components/CapControl'
 import { capXI, DEFAULT_CAP_CHOICE, type CapChoice } from '@game/logic/cap'
+import { askConfirm } from '../confirm'
 
 type Era = 'all' | 'early' | 'mid' | 'modern'
 
@@ -102,10 +103,10 @@ export function ArenaSetup() {
   const preview = buildSettings(true)
   // Starting over an unfinished run asks first, as the Daily does over a Quick Draft
   const unfinished = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
-  const start = () => {
+  const start = async () => {
     const s = buildSettings(false)
     if (!s) return
-    if (unfinished && !confirm(`Start a new arena run? Your unfinished ${arenaFormatLabel(unfinished.settings.arena)} (${unfinished.settings.teamName}) will be abandoned.`)) return
+    if (unfinished && !(await askConfirm(`Start a new arena run? Your unfinished ${arenaFormatLabel(unfinished.settings.arena)} (${unfinished.settings.teamName}) will be abandoned.`, { ok: 'Start', danger: true }))) return
     startGame(s)
   }
 

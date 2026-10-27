@@ -14,6 +14,7 @@ import { COUNTRY_OPTIONS, countryName } from './countries'
 import { ConflictCards } from './ConflictCard'
 import { OnlineRecord } from './OnlineRecord'
 import { onlineErrorText } from '../../online/postText'
+import { askConfirm } from '../confirm'
 
 const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft / Daily', season: 'Season', dynasty: 'Dynasty', h2h: 'Head-to-head' }
 
@@ -389,8 +390,8 @@ function CloudHistory() {
               {restorable(r) && (
                 <button
                   className="btn sm"
-                  onClick={() => {
-                    if (!confirm('Put the previous copy on this device? It replaces the game in this slot here.')) return
+                  onClick={async () => {
+                    if (!(await askConfirm('Put the previous copy on this device? It replaces the game in this slot here.', { ok: 'Restore' }))) return
                     void api.restorePrevious(r).then(
                       (ok) => useStore.getState().showToast(ok ? 'Restored the previous copy.' : 'Could not restore that copy.'),
                       (e: unknown) => useStore.getState().showToast(`Could not restore that copy. ${onlineErrorText(e)}`),
@@ -439,8 +440,8 @@ function CloudPanel({ setup }: { setup: boolean }) {
       <div className="fit-foot row wrap">
         <button
           className="btn sm ghost danger"
-          onClick={() => {
-            if (!confirm('Delete every cloud save and the synced record of this account? The games on this device stay here, and this device stops syncing until you press Sync now. Other signed-in devices upload their own copies again on their next sync.')) return
+          onClick={async () => {
+            if (!(await askConfirm('Delete every cloud save and the synced record of this account? The games on this device stay here, and this device stops syncing until you press Sync now. Other signed-in devices upload their own copies again on their next sync.', { ok: 'Delete', danger: true }))) return
             void api.deleteCloudData().then(
               (n) => useStore.getState().showToast(`Cloud data deleted (${n} file${n === 1 ? '' : 's'}).`),
               (e: unknown) => useStore.getState().showToast(`Nothing was deleted. ${onlineErrorText(e)}`),

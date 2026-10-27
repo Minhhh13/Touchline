@@ -83,9 +83,12 @@ export function chaseLine(c: ChaseState, games: number): ChaseLine {
   return { tone: 'over', headline: over, detail: c.unbeatenRun > c.perfectRun ? `Unbeaten run ended at ${c.unbeatenRun}` : null, justBroke }
 }
 
-/** The moment the perfect run ends: "Perfect run over at 12-0", or in game 1 when the first game is not won. */
+/**
+ * The moment the perfect run ends, by the game that ended it: "Perfect run over in game 13" after twelve wins. Never
+ * "at 12-0": beside a 0-1 defeat a new player read that as a score.
+ */
 export function perfectOverLabel(run: number): string {
-  return run ? `Perfect run over at ${run}-0` : 'Perfect run over in game 1'
+  return `Perfect run over in game ${run + 1}`
 }
 
 /** The line under the summary's lead ("31-4-3 against 38-0"): how far short of the perfect season it fell. */

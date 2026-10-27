@@ -27,8 +27,8 @@ describe('QA-13: the stylesheet', () => {
     // The Tactics tab's role selects shrink to their row
     expect(rule('.role-pick select.input')).toContain('min-width: 0')
     expect(rule('.role-pick select.input')).toContain('max-width: 100%')
-    // Seven nav icons fit a 320 px top bar
-    expect(css).toMatch(/@media \(max-width: 359px\) \{\n {2}\.topbar nav button \{\n {4}padding: 7px 9px;/)
+    // Seven nav icons, each over its one-word caption, fit a 320 px top bar
+    expect(css).toMatch(/@media \(max-width: 359px\) \{\n {2}\.topbar nav button \{\n {4}padding: 5px 2px 4px;/)
   })
 
   it('balances its braces', () => {

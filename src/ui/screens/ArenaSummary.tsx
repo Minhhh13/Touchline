@@ -164,7 +164,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={card} data-testid="arena-card">
             <ImageDown size={16} aria-hidden="true" /> Download share card
           </button>
-          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again">
+          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title="The same format on a new wheel">
             <Dices size={16} aria-hidden="true" /> Play again
           </button>
           <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={a.handManaged ? 'Managed by hand: your friend sees the draft and the ladder replay, and your scores as your word' : 'Played by the assistant: your friend’s build replays and verifies it'}>
@@ -173,7 +173,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title="The same seed again, against your own run">
             <RotateCcw size={16} aria-hidden="true" /> Run it back
           </button>
-          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')}>
+          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title="Set up a new arena run">
             <Plus size={16} aria-hidden="true" /> New game
           </button>
         </div>

@@ -114,8 +114,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                   <PowerUpIcon kind={c.drop.powerUp} size="1em" />
                 </span>
                 <b className="case-name">{POWER_UP_INFO[c.drop.powerUp].title}</b>
-                <TierChip tier={card.tier} />
-                <span className="chip">{CASE_RARITY_LABEL[c.drop.rarity]}</span>
+                {/* The case's own rarity only: the wheel's colour tier beside it ("Purple · Decent" on a Rare) read as a second scale */}
+                <span className="chip case-rarity" data-tier={card.tier}>{CASE_RARITY_LABEL[c.drop.rarity]}</span>
               </div>
               <span className="help">{POWER_UP_INFO[c.drop.powerUp].line}</span>
               <span className="small" data-testid="case-locker">

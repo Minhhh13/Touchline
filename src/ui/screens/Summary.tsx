@@ -66,6 +66,7 @@ import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
 import { Mic } from 'lucide-react'
 import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
+import { askConfirm } from '../confirm'
 
 export function Summary() {
   const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
@@ -488,7 +489,7 @@ export function Summary() {
           {season?.objectives?.length ? iconChip(objectivesMet === season.objectives.length ? Check : Landmark, `Objectives ${objectivesMet}/${season.objectives.length}`, objectivesMet === season.objectives.length ? 'good' : '') : null}
           {/* Against the real side whose place you took, without naming it: the replaced club stays off the result */}
           {!replay.playing && vsReal && (
-            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`} title={`Against the real side's ${ordinal(realRow?.position ?? 0)} that season`}>
+            <span className={`chip icon-chip ${vsReal.delta > 0 ? 'good' : vsReal.delta < 0 ? 'bad' : ''}`} title={`Your XI took a real club's place in this league; that club finished ${ordinal(realRow?.position ?? 0)} that season`}>
               {vsReal.delta > 0 ? <TrendingUp size={12} aria-hidden="true" /> : vsReal.delta < 0 ? <TrendingDown size={12} aria-hidden="true" /> : <Minus size={12} aria-hidden="true" />}
               {vsReal.delta === 0 ? 'Same place as the real side' : `${vsReal.label} than the real side`}
             </span>
@@ -502,12 +503,12 @@ export function Summary() {
             <ImageDown size={16} aria-hidden="true" /> Download share card
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))}>
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title="The same setup on a new wheel" data-testid="draft-again">
               <Dices size={16} aria-hidden="true" /> Draft again
             </button>
           )}
           {canChallenge && (
-            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend">
+            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend" title="A link to this wheel: your friend drafts the same spins and plays against your result">
               <Send size={16} aria-hidden="true" /> Challenge a friend
             </button>
           )}
@@ -527,7 +528,7 @@ export function Summary() {
               <Briefcase size={14} aria-hidden="true" /> {game.jobOffers.length} job offer{game.jobOffers.length === 1 ? '' : 's'} below
             </button>
           )}
-          <button className="btn ghost" onClick={() => { if (continuing && !confirm(`End this Dynasty after year ${game.year}? It cannot be picked up again.`)) return; abandonGame(); go('home') }}>
+          <button className="btn ghost" title="Back to Home to choose a mode" onClick={async () => { if (continuing && !(await askConfirm(`End this Dynasty after year ${game.year}? It cannot be picked up again.`, { ok: 'End the Dynasty', danger: true }))) return; abandonGame(); go('home') }}>
             <Plus size={16} aria-hidden="true" /> New game
           </button>
         </div>

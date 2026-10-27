@@ -10,6 +10,7 @@ import { formatCode } from '../../online/core/codes'
 import { shortLinkUrl } from '../../online/challengeLinks'
 import { ordinal } from '../format'
 import { devicePosts } from '../../online/postText'
+import { askConfirm } from '../confirm'
 
 /** "Your dailies", "Your weekly challenges" and "Your challenges": the Account screen's third panel (a placeholder signed out). */
 export function OnlineRecord() {
@@ -129,8 +130,8 @@ export function OnlineRecord() {
               </button>
               <button
                 className="btn sm ghost danger"
-                onClick={() => {
-                  if (!confirm(`Delete the short link ${formatCode(c.code)}? Anyone opening it will be told it has gone.`)) return
+                onClick={async () => {
+                  if (!(await askConfirm(`Delete the short link ${formatCode(c.code)}? Anyone opening it will be told it has gone.`, { ok: 'Delete', danger: true }))) return
                   void api.deleteChallenge(c.code).then(
                     () => setCodes((codes ?? []).filter((x) => x.code !== c.code)),
                     () => showToast('Could not delete that link.'),

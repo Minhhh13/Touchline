@@ -8,6 +8,7 @@ import { settingsFromChallenge, arenaVerifiedLine } from '@game/logic/challenge'
 import { claimLine, claimWon, stepText } from '@game/logic/arenaClaim'
 import { summariseArena } from '@game/logic/arena'
 import { arenaFormatLabel } from '@game/logic/modes'
+import { askConfirm } from '../confirm'
 
 /**
  * A challenge link for the arena, opened: everything is fixed by the link
@@ -27,8 +28,8 @@ export function ArenaChallengeSetup() {
   const settings = settingsFromChallenge(c, name, shortNameFor(name), ch)
   const ready = [settings.leagueId, ...settings.wheelLeagues].every((l) => u.leagues.some((x) => x.id === l))
   const unfinished = [game, parked.arena].find((g) => g && slotOf(g) === 'arena' && g.phase !== 'summary')
-  const start = () => {
-    if (unfinished && !confirm(`Take the challenge? Your unfinished ${arenaFormatLabel(unfinished.settings.arena)} (${unfinished.settings.teamName}) will be abandoned.`)) return
+  const start = async () => {
+    if (unfinished && !(await askConfirm(`Take the challenge? Your unfinished ${arenaFormatLabel(unfinished.settings.arena)} (${unfinished.settings.teamName}) will be abandoned.`, { ok: 'Take it on', danger: true }))) return
     startGame(settings)
   }
   const code = (i: number) => (format === 'gauntlet' ? `R${i + 1}` : cupRoundName(size, i).code)

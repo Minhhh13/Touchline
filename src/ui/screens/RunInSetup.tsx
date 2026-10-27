@@ -9,6 +9,7 @@ import { jobLine, RUN_IN_BRIEF_SHORT, RUN_IN_SPINS, RUN_IN_TEMPLATE_LABEL, runIn
 import { ClubBadge, Info, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { clubName, formationName, seasonLabel } from '../format'
+import { askConfirm } from '../confirm'
 
 const keyOf = (j: RunInJob) => `${j.clubId}@${j.season}`
 
@@ -53,9 +54,9 @@ export function RunInSetup() {
   const settings = job ? runInGameSettings(u, job, { seed: seedValue, formationId }) : null
   const leagues = u.available.filter((l) => (RUN_IN_LEAGUES as readonly string[]).includes(l.id))
   const unfinished = [game, parked.runin].find((g) => g && slotOf(g) === 'runin' && g.phase !== 'summary')
-  const start = () => {
+  const start = async () => {
     if (!job) return
-    if (unfinished && !confirm(`Take a new job? Your unfinished run-in (${unfinished.settings.teamName}) will be abandoned.`)) return
+    if (unfinished && !(await askConfirm(`Take a new job? Your unfinished run-in (${unfinished.settings.teamName}) will be abandoned.`, { ok: 'Take the job', danger: true }))) return
     startGame(runInGameSettings(u, job, { seed: seedValue, formationId }))
   }
   const row = (j: RunInJob, testid?: string) => (

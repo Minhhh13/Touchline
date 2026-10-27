@@ -26,6 +26,14 @@ describe('display copy', () => {
     expect(line).toBe("De Bruyne 12' · OG 40' · Mahrez 73', 90+2'")
   })
 
+  it('numbers an extra-time tie’s goals as the extra-time clock does, never as stoppage time', () => {
+    const line = scorersText([
+      { name: 'D. Silva', minute: 98, playerSeasonId: 's' },
+      { name: 'C. Tevez', minute: 60, playerSeasonId: 't' },
+    ], { extraTime: true })
+    expect(line).toBe("Tevez 60' · Silva 98'")
+  })
+
   it('signs a figure with a true minus', () => {
     expect([signedValue(0.4), signedValue(-0.31), signedValue(0)]).toEqual(['+0.4', '−0.31', '0'])
   })

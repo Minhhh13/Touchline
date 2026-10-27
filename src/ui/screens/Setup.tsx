@@ -12,6 +12,7 @@ import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
 import { HoverTips, InfoTip } from '../components/PowerUpButton'
+import { ruleChipNote } from '../ruleNotes'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
@@ -40,6 +41,7 @@ import { WeeklyRecordBox } from '../components/WeeklyRecordBox'
 import { CapControl } from '../components/CapControl'
 import { ChainToggle } from '../components/ChainControl'
 import { CAP_NARROW_NOTE, CAP_PRESETS, DEFAULT_CAP_CHOICE, capBudget, capTotal, withCap, type CapChoice } from '@game/logic/cap'
+import { askConfirm } from '../confirm'
 
 const MODE_LINE: Record<Mode, string> = {
   quick: 'Spin, draft an XI, watch its season.',
@@ -297,10 +299,10 @@ export function Setup() {
       ...(challenge ? { challenge } : {}),
     }
   }
-  const start = () => {
+  const start = async () => {
     // Today's puzzle shares the Quick Draft's save slot: ask before an unfinished quick draft or Daily is dropped (as Home's Daily button used to)
     const puzzle = fixed?.kind === 'daily' ? "today's puzzle" : fixed?.kind === 'weekly' ? "this week's challenge" : null
-    if (puzzle && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start ${puzzle}? Your current ${MODE_TITLE[game.settings.mode]} (${game.settings.teamName}) will be abandoned.`)) return
+    if (puzzle && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(`Start ${puzzle}? Your current ${MODE_TITLE[game.settings.mode]} (${game.settings.teamName}) will be abandoned.`, { ok: 'Start', danger: true }))) return
     startGame(buildSettings(false))
   }
   const preview = buildSettings(true)
@@ -461,17 +463,20 @@ export function Setup() {
                   </div>
                 )}
                 {fixed?.rules && (
-                  <div className="pill-list" data-testid="fixed-rules">
+                  <HoverTips className="pill-list" data-testid="fixed-rules" testId="rule-tip">
                     {describeRuleChips(u, fixed.rules).map((c) => {
                       const Icon = c.icon ? RULE_ICON[c.icon] : null
+                      // Each chip's plain-words note, on hover, a tap or the keyboard (ruleNotes.ts)
+                      const note = ruleChipNote(c)
                       return (
-                        <span key={c.text} className="chip">
+                        <span key={c.text} className={`chip${note ? ' has-tip' : ''}`} data-tip={note} tabIndex={note ? 0 : undefined}>
                           {Icon && <Icon size={12} aria-hidden="true" />}
                           {Icon ? ` ${c.text}` : c.text}
+                          {note && <span className="sr-only">: {note}</span>}
                         </span>
                       )
                     })}
-                  </div>
+                  </HoverTips>
                 )}
               </section>
             )}

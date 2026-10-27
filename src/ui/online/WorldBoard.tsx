@@ -17,6 +17,7 @@ import { ordinal, seasonLabel } from '../format'
 import { CountrySelect } from './AccountPanel'
 import { countryName } from './countries'
 import { onlineErrorText } from '../../online/postText'
+import { askConfirm } from '../confirm'
 
 type Tab = 'daily' | 'weekly' | 'alltime' | 'chase'
 const TABS: readonly Tab[] = ['daily', 'weekly', 'alltime', 'chase']
@@ -276,9 +277,9 @@ function WeeklyPlay({ weekKey }: { weekKey: string }) {
   const decision = weeklyStartSettings(u, weekKey, profile.managerName.trim() || 'Touchline XI', pin)
   const s = decision.settings
   const underWay = !!game && game.settings.seed === s.seed && game.settings.mode === 'quick' && game.phase !== 'summary'
-  const play = () => {
+  const play = async () => {
     if (underWay) return go('game')
-    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start this week's challenge? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(`Start this week's challenge? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`, { ok: 'Start', danger: true }))) return
     startGame(s)
   }
   return (
@@ -460,7 +461,7 @@ function ChasePlay() {
   const left = status ? status.left : null
   const start = async () => {
     if (underWay) return go('game')
-    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start a 38-0 chase run? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`)) return
+    if (game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(`Start a 38-0 chase run? Your current ${game.settings.mode === 'daily' ? 'Daily Challenge' : 'Quick Draft'} (${game.settings.teamName}) will be abandoned.`, { ok: 'Start', danger: true }))) return
     setBusy(true)
     setMessage(null)
     let r: Awaited<ReturnType<typeof api.startChaseRun>>

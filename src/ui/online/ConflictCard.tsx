@@ -1,6 +1,7 @@
 import { useOnline, type SyncConflict } from '../../online/state'
 import type { SaveMeta } from '../../online/core/slots'
 import * as api from '../../online/api'
+import { askConfirm } from '../confirm'
 
 const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft', season: 'Season', dynasty: 'Dynasty', h2h: 'head-to-head' }
 
@@ -71,7 +72,7 @@ export function ConflictCards() {
             <button className="btn sm" onClick={() => void api.chooseAccount('keep')}>
               Keep them on this device only
             </button>
-            <button className="btn sm ghost danger" onClick={() => confirm("Replace this device's games with this account's cloud saves?") && void api.chooseAccount('replace')}>
+            <button className="btn sm ghost danger" onClick={() => void askConfirm("Replace this device's games with this account's cloud saves?", { ok: 'Replace', danger: true }).then((ok) => { if (ok) void api.chooseAccount('replace') })}>
               Replace them with this account's
             </button>
           </div>

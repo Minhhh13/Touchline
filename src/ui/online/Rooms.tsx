@@ -23,6 +23,7 @@ import { TeamNameField } from '../components/SetupBits'
 import { clubName, formationName, ordinal, seasonLabel } from '../format'
 import { H2HResultView } from '../screens/H2H'
 import { roomVersionNote } from '../../online/engineRoute'
+import { askConfirm } from '../confirm'
 
 /** The four rules of an online room, as pictures with a line each (the hot-seat's, for two devices). */
 const ROOM_STEPS: Array<{ Icon: LucideIcon; title: string; line: string }> = [
@@ -336,7 +337,7 @@ function RoomWaiting({ view }: { view: RoomView }) {
           <div className="notice icon-notice">
             <Hourglass size={16} aria-hidden="true" /> Waiting for the other manager · closes in {minutesLeft(view.expiresAt, now, ROOM_WAIT_MINUTES)} min
           </div>
-          <button className="btn ghost danger" onClick={() => confirm('Close this room?') && void leaveRoom()} data-testid="room-leave">
+          <button className="btn ghost danger" onClick={() => void askConfirm('Close this room?', { ok: 'Close it', danger: true }).then((ok) => { if (ok) void leaveRoom() })} data-testid="room-leave">
             Close the room
           </button>
         </div>
@@ -510,7 +511,7 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
             </div>
           )}
           {seat !== null && (
-            <button className="btn ghost sm danger" onClick={() => confirm('Leave this room? The draft ends for both of you.') && void leaveRoom()} data-testid="room-leave">
+            <button className="btn ghost sm danger" onClick={() => void askConfirm('Leave this room? The draft ends for both of you.', { ok: 'Leave', danger: true }).then((ok) => { if (ok) void leaveRoom() })} data-testid="room-leave">
               Leave the room
             </button>
           )}
