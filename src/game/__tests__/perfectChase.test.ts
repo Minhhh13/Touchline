@@ -40,13 +40,16 @@ function eliteGame(seed: string, lineup: Record<string, string>): Game {
 }
 
 describe('the 38-0 chase is rare but reachable', { timeout: 1_800_000 }, () => {
-  it('an elite XI goes 38-0 in a few seasons in a hundred, and unbeaten far more often', () => {
+  it('an elite XI goes 38-0 in a few seasons in a hundred, and unbeaten far more often', async () => {
     const lineup = eliteLineup()
     let perfect = 0
     let unbeaten = 0
     let champions = 0
     let wins = 0
     for (let i = OFFSET; i < OFFSET + N; i++) {
+      // Yield to the event loop now and then: a minute of synchronous seasons starves the worker's RPC and Vitest
+      // reports "Timeout calling onTaskUpdate" (exit 1) although every assertion passes. Results are unchanged.
+      if ((i - OFFSET) % 20 === 0) await new Promise((r) => setTimeout(r, 0))
       const g = eliteGame(`elite-${i}`, lineup)
       runQuickSeason(g, u)
       const q = g.quickResult!
