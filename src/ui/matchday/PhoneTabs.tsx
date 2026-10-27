@@ -9,6 +9,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { readTab, tabAfter, tabKey, writeTab, type PhoneTab } from './controls'
 import type { MatchdayData } from './types'
 import { WIDGET_COMPONENT } from './widgets'
+import { runAfterPaint } from '../afterPaint'
 
 export function PhoneTabs({ d, tabs, twoUp }: { d: MatchdayData; tabs: PhoneTab[]; twoUp: boolean }) {
   const [active, setActive] = useState(() => readTab(tabs))
@@ -22,12 +23,20 @@ export function PhoneTabs({ d, tabs, twoUp }: { d: MatchdayData; tabs: PhoneTab[
     if (focus) strip.current?.querySelector<HTMLButtonElement>(`[data-tab="${tab}"]`)?.focus()
   }
   // Keep the chosen tab in view in the sideways strip
+  // The chosen tab scrolled into the strip's view, read after the next paint: on the board's first render a read here
+  // would force its whole first layout inside the mount (about 130 ms on a 4x-throttled phone)
   useEffect(() => {
-    const el = strip.current?.querySelector<HTMLElement>(`[data-tab="${current.id}"]`)
-    const box = strip.current
-    if (!el || !box) return
-    const left = el.offsetLeft - box.offsetLeft
-    if (left < box.scrollLeft || left + el.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollTo({ left: Math.max(0, left - 16), behavior: 'auto' })
+    let live = true
+    runAfterPaint(() => {
+      const el = strip.current?.querySelector<HTMLElement>(`[data-tab="${current.id}"]`)
+      const box = strip.current
+      if (!live || !el || !box) return
+      const left = el.offsetLeft - box.offsetLeft
+      if (left < box.scrollLeft || left + el.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollTo({ left: Math.max(0, left - 16), behavior: 'auto' })
+    })
+    return () => {
+      live = false
+    }
   }, [current.id])
   return (
     <section className="md-tabbed">
