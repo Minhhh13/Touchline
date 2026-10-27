@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useStore, type H2HGame } from '@game/store'
+import { useTurnSound } from '../sound/useTurnSound'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { APP_NAME } from '../brand'
 import { getFormation } from '@engine/formations'
@@ -220,6 +221,8 @@ export function H2HScreen() {
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
   // The exact tier odds of the next spin, shown between spins
   const odds = useMemo(() => (u && h2h && !h2h.draft.current && !h2hComplete(h2h.draft) ? h2hTierOdds(u, h2h.draft, leagues) : []), [u, h2h, leagues])
+  // The turn passing to the other manager, heard once the reel has landed (one screen for both: always the rising pair)
+  useTurnSound(d?.picking ?? null, !!d?.current && settled === d.current, true)
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null

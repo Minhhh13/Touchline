@@ -11,6 +11,7 @@ import { tierTable } from '@game/logic/rarity'
 import { h2hReelPool, reelLeagues } from '@game/logic/reel'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { useOnline } from '../../online/state'
+import { useTurnSound } from '../sound/useTurnSound'
 import { closeRoom, createRoom, joinRoom, leaveRoom, openRoom, pickInRoom, resumeRoom, roomSeats } from '../../online/api'
 import { formatCode, normaliseCode, roomLink } from '../../online/core/codes'
 import { CaseReel, TierChip } from '../components/CaseReel'
@@ -451,8 +452,11 @@ function RoomDraft({ view, seat }: { view: RoomView; seat: 0 | 1 | null }) {
   const pool = useMemo(() => (u && d ? h2hReelPool(u, d) : []), [u, d])
   const rules = d?.drafts[0].rules
   const leagues = useMemo(() => (u && rules ? reelLeagues(u, rules) : []), [u, rules])
+  // The turn passing, heard once the reel has landed: rising for this seat's pick, falling for the other's
+  const turnKey = d?.current ? `${d.spins}:${d.current.clubId}@${d.current.season}` : null
+  useTurnSound(d?.picking ?? null, !!turnKey && settled === turnKey, seat !== null && d?.picking === seat)
   if (!u || !d) return <RoomMessage icon={<Lock size={26} />} title="This room's draft cannot be shown" line="Reload the page; if it stays, the room's data differs from this device's." />
-  const currentKey = d.current ? `${d.spins}:${d.current.clubId}@${d.current.season}` : null
+  const currentKey = turnKey
   const revealed = !!currentKey && settled === currentKey
   const spinning = !!currentKey && !revealed
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null

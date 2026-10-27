@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { LoadedUniverse } from '@engine/universe'
 import { clubIdOfKey } from '@engine/knockout'
 import { GAUNTLET_RUNGS } from '@engine/gauntlet'
@@ -5,6 +6,10 @@ import type { ArenaState, ChallengeSettings } from '@game/types'
 import { ghostStepLine } from '@game/logic/arenaClaim'
 import { arenaClubName, stepWon } from '@game/logic/arena'
 import { ClubBadge } from './bits'
+import { playSound } from '../sound/synth'
+
+/** The rungs climbed already heard in this visit, by run (its ladder, built once), so a revisit rings nothing. */
+const climbHeard = new Map<string, number>()
 
 /**
  * The Gauntlet's fifteen rungs in a row: the rungs climbed as club codes in
@@ -13,6 +18,14 @@ import { ClubBadge } from './bits'
  * and names his score on every rung he played.
  */
 export function GauntletLadder({ u, a, ghost }: { u: LoadedUniverse; a: ArenaState; ghost?: Pick<ChallengeSettings, 'name' | 'arena'> }) {
+  // A rung climbed: one step higher on the scale for each, heard the first time the ladder shows it (a fresh visit only records)
+  const climbed = a.log.filter(stepWon).length
+  const run = a.ladder ? a.ladder.mains.join() : ''
+  useEffect(() => {
+    const before = climbHeard.get(run)
+    climbHeard.set(run, climbed)
+    if (before !== undefined && climbed > before) playSound({ id: 'rung', rung: climbed - 1 })
+  }, [run, climbed])
   const code = (key: string) => u.clubById[clubIdOfKey(key)]?.code ?? clubIdOfKey(key).slice(0, 3).toUpperCase()
   const fell = ghost?.arena && !ghost.arena.claim.w ? ghost.arena.claim.g.length - 1 : -1
   const mark = (i: number) => (i === fell ? ' 👻' : '')

@@ -8,7 +8,7 @@ import { edgeHint, edgeLine, managerEdge } from '@game/logic/managerEdge'
 import { playerLookup } from '@game/logic/players'
 import { dealItems, managerCard, type ItemDeal } from '@game/logic/itemReel'
 import { reelLeagues } from '@game/logic/reel'
-import { armAudio, unlockAudio } from '../sound/synth'
+import { armAudio, playSound, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { clubName, seasonLabel } from '../format'
@@ -62,6 +62,10 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
   }, [run])
   const spinning = run > 0 && landed < options.length
   const done = run > 0 && landed >= options.length
+  // All three in: the shortlist's three bells (the first reel already rang its landing)
+  useEffect(() => {
+    if (done) playSound({ id: 'manager-landed' })
+  }, [done])
   const timing = quick ? QUICK_TIMING : FULL_TIMING
   const stagger = quick ? STAGGER_MS / 2 : STAGGER_MS
   // Landed: the focus goes to the first Pick (the Skip that held it is gone)

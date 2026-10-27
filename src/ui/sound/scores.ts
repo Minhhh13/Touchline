@@ -17,6 +17,7 @@
 import type { DisplayTier, Tier } from '@game/logic/rarity'
 import type { PickGrade } from '@game/logic/pickGrades'
 import { seeded, type NoiseColour } from './noise'
+import { CUE_CATEGORY, isCue, type CueId } from './cues'
 
 export type Wave = 'sine' | 'triangle' | 'square' | 'sawtooth'
 
@@ -103,7 +104,7 @@ export type SoundRequest =
 export type SoundId = SoundRequest['id']
 
 export interface Score {
-  id: SoundId
+  id: SoundId | CueId
   category: SoundCategory
   /** The bound the voices were normalised to. */
   level: number
@@ -188,7 +189,7 @@ export function peakOf(voices: readonly Voice[]): number {
  * The voices scaled so their bound is `level` (never above `MAX_LEVEL`). An exponential fall always ends on the same
  * floor, so scaling a peak bends its tail a little: a few passes settle the bound to within a millionth.
  */
-export function normalise(id: SoundId, level: number, voices: Voice[]): Score {
+export function normalise(id: SoundId | CueId, level: number, voices: Voice[]): Score {
   const target = Math.min(MAX_LEVEL, level)
   let out = voices
   for (let pass = 0; pass < 6; pass++) {
@@ -198,24 +199,24 @@ export function normalise(id: SoundId, level: number, voices: Voice[]): Score {
     const k = target / p
     out = out.map((v) => ({ ...v, peak: v.peak * k }))
   }
-  return { id, category: CATEGORY[id], level: target, voices: out }
+  return { id, category: isCue(id) ? CUE_CATEGORY[id] : CATEGORY[id], level: target, voices: out }
 }
 
 // ---- Building blocks -------------------------------------------------------------------------------------
 
-function tone(at: number, freq: number, o: Partial<Omit<ToneVoice, 'kind' | 'at' | 'freq'>> = {}): ToneVoice {
+export function tone(at: number, freq: number, o: Partial<Omit<ToneVoice, 'kind' | 'at' | 'freq'>> = {}): ToneVoice {
   const dur = o.dur ?? 0.5
   return { kind: 'tone', at, freq, wave: o.wave ?? 'sine', attack: o.attack ?? 0.005, hold: o.hold ?? 0, dur, peak: o.peak ?? 0.3, ...(o.glideTo ? { glideTo: o.glideTo, glideTime: o.glideTime ?? dur * 0.7 } : {}), ...(o.lowpass ? { lowpass: o.lowpass } : {}) }
 }
 
 /** A bell-ish note: the fundamental and a quiet, slightly inharmonic overtone. */
-function chime(at: number, freq: number, o: { wave?: Wave; peak?: number; dur?: number } = {}): ToneVoice[] {
+export function chime(at: number, freq: number, o: { wave?: Wave; peak?: number; dur?: number } = {}): ToneVoice[] {
   const peak = o.peak ?? 0.3
   const dur = o.dur ?? 0.7
   return [tone(at, freq, { wave: o.wave ?? 'sine', peak, dur }), tone(at, freq * 2.76, { peak: peak * 0.12, dur: dur * 0.45 })]
 }
 
-function noise(at: number, o: Omit<NoiseVoice, 'kind' | 'at' | 'colour' | 'attack' | 'peak'> & { colour?: NoiseColour; attack?: number; peak?: number }): NoiseVoice {
+export function noise(at: number, o: Omit<NoiseVoice, 'kind' | 'at' | 'colour' | 'attack' | 'peak'> & { colour?: NoiseColour; attack?: number; peak?: number }): NoiseVoice {
   return { kind: 'noise', at, colour: o.colour ?? 'white', attack: o.attack ?? 0.002, peak: o.peak ?? 1, ...o } as NoiseVoice
 }
 
@@ -225,7 +226,7 @@ function brass(at: number, freq: number, dur: number, peak = 0.3, hold = 0): Ton
 }
 
 /** High pings over a reward, scattered by the seed; none with reduced motion. */
-function shimmer(at: number, freqs: number[], step: number, r: () => number, peak = 0.07): ToneVoice[] {
+export function shimmer(at: number, freqs: number[], step: number, r: () => number, peak = 0.07): ToneVoice[] {
   return freqs.map((f, i) => tone(at + i * step + r() * 0.03, f * (0.99 + r() * 0.02), { peak, dur: 0.25 }))
 }
 
@@ -419,7 +420,7 @@ function upgradeScore(won: boolean, reduced: boolean, seed = ''): Score {
 }
 
 /** A timpani stroke: a low sine dropping a little, and a thud of low noise. */
-function timpani(at: number, freq: number, peak = 0.6): Voice[] {
+export function timpani(at: number, freq: number, peak = 0.6): Voice[] {
   return [tone(at, freq, { glideTo: freq * 0.8, glideTime: 0.3, attack: 0.004, dur: 0.6, peak }), noise(at, { filter: 'lowpass', freq: 220, q: 0, dur: 0.22, peak: peak * 0.9 })]
 }
 

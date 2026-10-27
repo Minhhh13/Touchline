@@ -47,6 +47,8 @@ import { ManagerPick } from '../components/ManagerPick'
 import { DraftRecap } from '../components/DraftRecap'
 import { draftRecap } from '@game/logic/draftRecap'
 import { playSound } from '../sound/synth'
+import { pickBand } from '../sound/cues'
+import { prefersReducedMotion } from '../motion'
 
 const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Goalkeepers', positions: ['GK'] },
@@ -54,6 +56,9 @@ const GROUPS: Array<{ label: string; positions: Position[] }> = [
   { label: 'Midfielders', positions: ['DM', 'CM', 'AM'] },
   { label: 'Forwards', positions: ['LW', 'RW', 'ST'] },
 ]
+
+/** The bonus spins already heard in this visit (`game id:picks made`), so a revisit or a re-render rings nothing. */
+const bonusHeard = new Set<string>()
 
 export function Draft() {
   const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
@@ -112,12 +117,23 @@ export function Draft() {
     const before = picksSeen.current
     picksSeen.current = pickNo
     if (!d || pickNo <= before) return
-    playSound({ id: 'pick' })
     const last = [...d.history].reverse().find((h) => h.pickedId)
+    // The pick lands by his band (cues.ts `pickBand`), unless his rating is hidden in the squad: then the plain pick, which gives nothing away
+    const picked = last?.pickedId ? get(last.pickedId) : undefined
+    if (picked && !ratingHidden(d.rules, 'squad')) playSound({ id: 'pick-band', band: pickBand(picked.overall), reduced: prefersReducedMotion() })
+    else playSound({ id: 'pick' })
     setRevealId(last?.pickedId && revealsOnPick(d.rules, last.twist) ? last.pickedId : null)
     const t = window.setTimeout(() => setRevealId(null), 1200)
     return () => window.clearTimeout(t)
   }, [pickNo])
+  // A bonus spin to draft (the Gauntlet's, a Dynasty summer's): its bells once per spin owed, in this visit
+  const bonus = game?.bonusSpins ?? 0
+  useEffect(() => {
+    const key = `${game?.id}:${pickNo}`
+    if (bonus <= 0 || bonusHeard.has(key)) return
+    bonusHeard.add(key)
+    playSound({ id: 'bonus', reduced: prefersReducedMotion() })
+  }, [game?.id, bonus, pickNo])
   const paused = spinning || dialRolling
   useEffect(() => {
     if (!speedrun || paused) return
