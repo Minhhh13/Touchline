@@ -17,7 +17,7 @@ export const DUGOUT_HEAD = set('dugout', 'Dugout', [['club-header', 'Club header
  */
 export const DUGOUT_TABS: Record<string, BoxSet> = {
   squad: set('dugout-squad', 'Squad tab', [['squad-list', 'Squad list'], ['pitch', 'Pitch'], ['depth', 'Depth chart']]),
-  next: set('dugout-next', 'Next match tab', [['opposition', 'Opposition report'], ['match-up', 'Unit against unit'], ['team-talk', 'Team talk']]),
+  next: set('dugout-next', 'Next match tab', [['preview', 'Match preview'], ['opposition', 'Opposition report'], ['match-up', 'Unit against unit'], ['team-talk', 'Team talk']]),
   tactics: set('dugout-tactics', 'Tactics tab', [['formation', 'Formation'], ['instructions', 'Team instructions'], ['training', 'Training'], ['set-pieces', 'Set pieces'], ['roles', 'Roles']]),
   dressing: set('dugout-dressing', 'Dressing room tab', [['hierarchy', 'Hierarchy'], ['groups', 'Groups and atmosphere'], ['happiness', 'Happiness']]),
   planner: set('dugout-planner', 'Planner tab', [['squad-planner', 'Depth and needs'], ['contracts', 'Contracts'], ['medical', 'Medical']]),

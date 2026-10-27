@@ -65,6 +65,7 @@ import { countPhrase } from '../screenText'
 import { newsBody } from '@game/logic/newsFlavour'
 import { watchSeasonSounds } from '../sound/seasonWatch'
 import { askConfirm } from '../confirm'
+import { InboxStorylines, MatchPreviewPanel, StoryChip, SummerHeadline } from '../components/Storylines'
 
 type Tab = DugoutTab
 
@@ -84,7 +85,7 @@ const TABLE_COLS = [
 
 /** The tab's boxes that exist today (a box some weeks do not have is left out of the checklist). */
 function tabPresent(tab: string, game: Game): string[] | undefined {
-  if (tab === 'next') return nextOpponent(game) ? ['opposition', 'match-up', 'team-talk'] : ['team-talk']
+  if (tab === 'next') return nextOpponent(game) ? ['preview', 'opposition', 'match-up', 'team-talk'] : [...(upcomingCupTie(game) ? ['preview'] : []), 'team-talk']
   if (tab === 'window' && game.window) return ['recruitment', ...((game.scoutReports ?? []).length > 0 ? ['scout-reports'] : []), 'approach', 'shortlist', ...(doneDeals(game.window).length > 0 ? ['done-deals'] : []), 'log']
   if (tab === 'club') return ['board', 'requests', 'finances', 'staff', 'contracts', ...(game.careerStats && Object.keys(game.careerStats).length > 0 ? ['legends'] : []), 'achievements']
   return undefined
@@ -253,6 +254,7 @@ export function Dugout() {
                 <div className="cta-title">
                   Pre-season <Info label="About pre-season">Tick off the checklist, then kick off the league. Friendlies build sharpness and tactical familiarity, with a small injury risk.</Info>
                 </div>
+                <SummerHeadline game={game} u={u} />
               </div>
             ) : next ? (
               <div className="cta-fixture">
@@ -266,6 +268,7 @@ export function Dugout() {
                     <span>{STYLE_LABEL[u.clubById[next.clubId]?.style ?? 'balanced']} side</span>
                     <span>{ordinal(positionOf(table, next.clubId))}</span>
                     {u.clubById[season.hostClubId]?.rivals.includes(next.clubId) && <span className="chip warn">Derby</span>}
+                    <StoryChip game={game} u={u} />
                     {game.window && <WindowChip w={game.window} />}
                     {/* Season Highlights: why the last Sim to the next big match stopped here (a chip, so the box keeps its height) */}
                     {stopped && (
@@ -667,6 +670,7 @@ export function Dugout() {
               )}
             </div>
           )}
+          {inboxFilter === 'all' && <InboxStorylines game={game} u={u} />}
           <div className="news">
             {filterNews(season.news, inboxFilter).map(({ n, i }, k, shown) => (
               <Fragment key={i}>
@@ -795,6 +799,7 @@ function NextMatchTab({ boxes }: { boxes: Boxes }) {
   const upGrid = boxes.grid(rows && next ? [{ track: '1fr', ids: ['match-up'] }, { track: '1fr', ids: ['team-talk'] }] : [{ track: '1fr', ids: ['team-talk'] }])
   return (
     <div className="next-match" data-testid="next-match">
+      {boxes.on('preview') && <MatchPreviewPanel game={game} u={u} />}
       {next ? boxes.on('opposition') && <OppositionReport clubId={next.clubId} home={next.home} open /> : <div className="notice">A free weekend: no opponent this matchweek. The talk carries to the next match.</div>}
       <div className={`grid two ${upGrid.className}`} style={upGrid.style}>
         {rows && next && boxes.on('match-up') && (

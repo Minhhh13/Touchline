@@ -7696,6 +7696,113 @@ dl.kv {
   color: var(--text-3);
   white-space: nowrap;
 }
+/* Storylines (src/ui/components/Storylines.tsx): the Inbox's Storylines box, the Next match tab's preview, the Dugout's chip */
+.story-box {
+  margin-bottom: var(--space-3);
+}
+.story-box-head {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+.news .item.story {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.news-icon[class*='story-'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.news-icon.story-relegation,
+.news-icon.story-losing-run,
+.news-icon.story-winless-run,
+.news-icon.story-pressure {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.news-icon.story-title-race,
+.news-icon.story-golden-boot,
+.news-icon.story-milestone {
+  color: var(--gold-text);
+  background: var(--gold-soft);
+}
+.summer-head {
+  font-weight: 600;
+  color: var(--text);
+}
+.summer-lines {
+  margin: var(--space-1) 0 0;
+  padding-left: 1.1em;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.summer-headline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-2);
+}
+.story-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.story-preview + .story-preview {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border);
+}
+.story-preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.story-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.story-form {
+  display: inline-flex;
+  gap: 2px;
+}
+.story-form .chip {
+  min-width: 1.6em;
+  justify-content: center;
+  padding-inline: 4px;
+}
+.story-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.story-lines li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+.story-lines li svg {
+  margin-top: 2px;
+  color: var(--accent);
+}
+.story-label {
+  font-weight: 600;
+  color: var(--text);
+}
 /* Tactics: formations as pictures, instructions as label and control */
 .instructions {
   display: flex;
