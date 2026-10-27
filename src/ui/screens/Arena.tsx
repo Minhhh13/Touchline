@@ -11,7 +11,7 @@ import { USER_TEAM } from '@engine/season'
 import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
 import { Bracket } from '../components/Bracket'
 import { arenaBracketView } from '@game/logic/bracket'
-import { GAUNTLET_RUNGS, rungBandLabel, rungLabels } from '@engine/gauntlet'
+import { GAUNTLET_RUNGS, rungLabels } from '@engine/gauntlet'
 import { GauntletLadder } from '../components/GauntletLadder'
 import { arenaFormatLabel } from '@game/logic/modes'
 import { ghostStepLine } from '@game/logic/arenaClaim'
@@ -22,7 +22,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ClubBadge, Info, Segmented, Stat, Tabs, TeamBadge } from '../components/bits'
 import { OppositionReport } from './OppositionReport'
 import { distinctLabels } from '../screenText'
-import { splitSeason } from '../arenaText'
+import { gauntletBandText, splitSeason } from '../arenaText'
 import { TacticsTab } from './Dugout'
 
 type ArenaTab = 'team' | 'tactics' | 'draw'
@@ -124,7 +124,7 @@ export function Arena() {
           {opp && (
             <div className="panel col" style={{ gap: 6 }} data-testid="arena-opponent">
               <div className="eyebrow">
-                {gauntlet ? `Rung ${rung} · ${rungBandLabel(rung)}` : cup ? `${info.label} · round ${a.step + 1} of ${cupRoundCount(size)}${seeded ? ' · a seed' : ''}` : info.label}
+                {gauntlet ? `Rung ${rung} · ${gauntletBandText(rung)}` : cup ? `${info.label} · round ${a.step + 1} of ${cupRoundCount(size)}${seeded ? ' · a seed' : ''}` : info.label}
                 {info.neutral ? ' · neutral ground' : info.home ? ' · home' : ' · away'}
                 {billing ? ` · ${billing}` : ''}
               </div>

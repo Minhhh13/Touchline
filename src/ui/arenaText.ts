@@ -2,6 +2,7 @@
  * Display helpers for the casual modes' screens (the arena, its report and the head-to-head), pure and tested in
  * `src/ui/__tests__/arenaText.test.ts`. Presentation only: nothing here decides a result.
  */
+import { GAUNTLET_BANDS, rungBandLabel } from '@engine/gauntlet'
 import type { Outcome } from './format'
 
 /**
@@ -22,4 +23,16 @@ export function knockoutOutcome(gf: number, ga: number, pens?: { us: number; the
 export function splitSeason(name: string): { club: string; season: string | null } {
   const m = /^(.*\S)\s+(\d{4}-\d{2})$/.exec(name)
   return m ? { club: m[1], season: m[2] } : { club: name, season: null }
+}
+
+/**
+ * A Gauntlet rung's band for the arena hub's line "Rung N · ...": rungs 2 to 10 read "stronger than 10(N-1)% of the
+ * wheel" ("top 90% of the wheel" for the second-weakest tenth sounded like nearly everyone). The engine's
+ * `rungBandLabel` (`src/engine/gauntlet.ts`, bundled by the verifier) keeps its words; rung 1 and the top rungs read
+ * as it says.
+ */
+export function gauntletBandText(rung: number): string {
+  const label = rungBandLabel(rung)
+  const top = /^top (\d+)% of the wheel$/.exec(label)
+  return top && rung >= 2 && rung <= GAUNTLET_BANDS ? `stronger than ${100 - Number(top[1])}% of the wheel` : label
 }

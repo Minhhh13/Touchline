@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { knockoutOutcome, splitSeason } from '../arenaText'
+import { gauntletBandText, knockoutOutcome, splitSeason } from '../arenaText'
+import { GAUNTLET_RUNGS, rungBandLabel } from '@engine/gauntlet'
 
 describe('arena display text', () => {
   it('names a knockout settled on penalties by its shoot-out, everything else by the score', () => {
@@ -19,5 +20,16 @@ describe('arena display text', () => {
     expect(splitSeason('Touchline XI')).toEqual({ club: 'Touchline XI', season: null })
     expect(splitSeason('1. FC Köln 2008-09')).toEqual({ club: '1. FC Köln', season: '2008-09' })
     expect(splitSeason('2023-24')).toEqual({ club: '2023-24', season: null })
+  })
+
+  it('reads a Gauntlet rung from 2 to 10 as the share of the wheel it is stronger than, the rest as the engine says', () => {
+    expect(gauntletBandText(1)).toBe('the weakest 10% of the wheel')
+    expect(gauntletBandText(2)).toBe('stronger than 10% of the wheel')
+    expect(gauntletBandText(8)).toBe('stronger than 70% of the wheel')
+    expect(gauntletBandText(10)).toBe('stronger than 90% of the wheel')
+    for (let rung = 2; rung <= 10; rung++) expect(gauntletBandText(rung)).toBe(`stronger than ${10 * (rung - 1)}% of the wheel`)
+    for (let rung = 11; rung <= GAUNTLET_RUNGS; rung++) expect(gauntletBandText(rung)).toBe(rungBandLabel(rung))
+    // The engine's words are untouched (the verifier bundles gauntlet.ts)
+    expect(rungBandLabel(2)).toBe('top 90% of the wheel')
   })
 })
