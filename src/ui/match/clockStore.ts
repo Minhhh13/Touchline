@@ -15,6 +15,7 @@
  */
 import { create } from 'zustand'
 import type { Side } from './pitchGeometry'
+import { toMatch, toPicture, type PaceSpan } from './timing'
 
 /** One goal's hold: the strike moment in match time, how long the clock stands there, and whose goal it is. */
 export interface GoalHold {
@@ -63,6 +64,8 @@ export interface LiveClockState {
   cues?: number[]
   /** How many of them the picture has reached. */
   cued?: number
+  /** Minutes the picture plays slower or quicker than `period` (timing.ts `matchPace`: a crowded minute, and the quiet ones that pay it back); absent for none. */
+  pace?: PaceSpan[]
 }
 
 export const useLiveClock = create<LiveClockState>(() => ({ clock: 0, speed: 1, running: false, period: 330, at: 0, since: 0, spent: Infinity, stopAt: 95, end: 95, holds: [], revealed: 0, celebrating: -1, done: false }))
@@ -74,25 +77,29 @@ export interface TimelinePoint {
   hold: { index: number; elapsed: number } | null
 }
 
-type Anchor = Pick<LiveClockState, 'at' | 'since' | 'spent' | 'running' | 'speed' | 'boost' | 'period' | 'end' | 'holds'>
+type Anchor = Pick<LiveClockState, 'at' | 'since' | 'spent' | 'running' | 'speed' | 'boost' | 'period' | 'end' | 'holds' | 'pace'>
 
 /** Where the match stands at real time `now`: the minute, and the goal hold it is in, if any. Pure. */
 export function timeline(s: Anchor, now: number): TimelinePoint {
   const ms = s.period / Math.max(0.01, s.speed * (s.boost ?? 1))
+  const pace = s.pace ?? []
+  // Travel in picture time (a crowded minute takes longer), so the minute shown is the match time it maps back to
+  const on = (t: number, minutes: number) => (pace.length ? toMatch(pace, toPicture(pace, t) + minutes) : t + minutes)
+  const span = (a: number, b: number) => (pace.length ? toPicture(pace, b) - toPicture(pace, a) : b - a)
   let t = s.at
   let left = s.running ? Math.max(0, now - s.since) : 0
   for (let i = 0; i < s.holds.length; i++) {
     const h = s.holds[i]
     if (h.t < s.at || h.t > s.end || (h.t === s.at && s.spent >= h.ms)) continue
-    const travel = (h.t - t) * ms
-    if (left < travel) return { t: t + left / ms, hold: null }
+    const travel = span(t, h.t) * ms
+    if (left < travel) return { t: Math.min(h.t, on(t, left / ms)), hold: null }
     left -= travel
     t = h.t
     const start = h.t === s.at ? s.spent : 0
     if (left < h.ms - start) return { t, hold: { index: i, elapsed: start + left } }
     left -= h.ms - start
   }
-  return { t: Math.min(s.end, t + left / ms), hold: null }
+  return { t: Math.min(s.end, on(t, left / ms)), hold: null }
 }
 
 /** The clock as a fractional minute now, for the pitch (kept for the charts and older callers). */
@@ -152,9 +159,9 @@ export function hiddenGoal(s: Pick<LiveClockState, 'holds' | 'revealed'>, key: s
  * on continuously to its end and waits there for the next. Publishing the same minute again (a
  * pause or a resume) keeps the picture where it stands; no goal holds.
  */
-export function publishClock(state: Pick<LiveClockState, 'clock' | 'speed' | 'running' | 'period'>, now: number = typeof performance !== 'undefined' ? performance.now() : 0): void {
+export function publishClock(state: Pick<LiveClockState, 'clock' | 'speed' | 'running' | 'period' | 'pace'>, now: number = typeof performance !== 'undefined' ? performance.now() : 0): void {
   const prev = useLiveClock.getState()
-  const same = state.clock === prev.clock && prev.end === state.clock + 1 && prev.holds.length === 0
+  const same = state.clock === prev.clock && prev.end === state.clock + 1 && prev.holds.length === 0 && prev.pace === state.pace
   const base = same ? reanchor(prev, now) : { at: state.clock, since: now, spent: Infinity }
-  useLiveClock.setState({ ...base, speed: state.speed, boost: 1, period: state.period, running: state.running, clock: state.clock, stopAt: state.clock, end: state.clock + 1, holds: [], revealed: 0, celebrating: -1, done: false })
+  useLiveClock.setState({ ...base, speed: state.speed, boost: 1, period: state.period, running: state.running, clock: state.clock, stopAt: state.clock, end: state.clock + 1, holds: [], revealed: 0, celebrating: -1, done: false, pace: state.pace })
 }

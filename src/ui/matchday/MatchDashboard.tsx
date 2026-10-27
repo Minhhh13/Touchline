@@ -32,6 +32,7 @@ import { cuePending, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
 import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
 import { cueTimes, goalHolds } from '../match/possession'
+import { matchPace } from '../match/timing'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
 import { emptyDraft, highlightedMan, nextSelection, type StopDraft } from './controls'
@@ -113,7 +114,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   // A reload picks the clock up where this tab left the segment (resume.ts), not from its first minute again
   const resumeKey = live ? segmentKey(game.id, feed.key, feed.decidedTo, start, feed.events.length) : null
   const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(resumeKey), resumeKey, start, stopAt) : start))
-  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  // A crowded minute plays longer on screen (the same pace the ball path is laid out in)
+  const pace = useMemo(() => matchPace(feed.events), [feed.events])
+  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, pace, reduced, onFinish: final ? onWhistle : undefined })
   useEffect(() => {
     if (!resumeKey) return
     return useLiveClock.subscribe((s, prev) => {
