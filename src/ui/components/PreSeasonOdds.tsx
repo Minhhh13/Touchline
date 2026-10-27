@@ -5,6 +5,8 @@ import type { Rng } from '@engine/rng'
 import { barFill, chanceLabel, emptyTally, ODDS_SEASONS, ODDS_STEP, oddsFrom, oddsKey, oddsLeague, oddsRng, sampleSeasons, squadBreakdown, type OddsLeague, type OddsTally, type PreSeasonOdds } from '@game/logic/odds'
 import { ordinal, seasonLabel } from '../format'
 import { isSuperLeague, SUPER_LEAGUE_LINE } from '@game/logic/superLeague'
+import { playSound } from '../sound/synth'
+import { prefersReducedMotion } from '../motion'
 
 /** Odds already worked out this visit, by what they depend on: going back to a squad shows its odds at once. */
 const cache = new Map<string, PreSeasonOdds>()
@@ -79,6 +81,9 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
   return state.key === key ? { odds: state.odds, progress: state.progress } : { odds: cache.get(key) ?? null, progress: cache.has(key) ? 1 : 0 }
 }
 
+/** The games whose Squad complete has sounded in this visit. */
+const squadHeard = new Set<string>()
+
 /**
  * The "Squad complete" panel before a quick season: the pre-season odds (projected finish, expected points, the chance
  * of the title, a top-four, top-six and top-ten finish, and of going down) and the XI's unit ratings as bars. With the
@@ -86,6 +91,12 @@ export function usePreSeasonOdds(game: Game | null, u: LoadedUniverse | null): {
  */
 export function SquadComplete({ game, u, hideRatings, children }: { game: Game; u: LoadedUniverse; hideRatings: boolean; children?: ReactNode }) {
   const { odds, progress } = usePreSeasonOdds(game, u)
+  // The sheet signed: its drum and chord once per game in this visit, as the box first shows
+  useEffect(() => {
+    if (squadHeard.has(game.id)) return
+    squadHeard.add(game.id)
+    playSound({ id: 'squad-complete', reduced: prefersReducedMotion() })
+  }, [game.id])
   const b = squadBreakdown(game, u)
   const superLeague = isSuperLeague(game.settings)
   const units: Array<{ key: string; label: string; value: number }> = [

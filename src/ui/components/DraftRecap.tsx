@@ -14,6 +14,8 @@ const GRADE_CLASS: Record<PickGrade, string> = { A: 'good', B: 'info', C: 'warn'
 const GRADES: PickGrade[] = ['A', 'B', 'C', 'D']
 /** Seconds from the recap's mount to the grade's pop at its fullest (`recap-pop`: 60 ms stagger, then a 400 ms spring). */
 const GRADE_SOUND_DELAY = 0.24
+/** Seconds after the grade before the Hindsight XI's two notes: the grade's chord has rung (an A's arpeggio holds about 1.3 s). */
+const HINDSIGHT_AFTER = 1.3
 
 /**
  * The Draft's middle box once every pick is made: the draft's grade and verdict, the grade tally, the best pick, the one
@@ -31,6 +33,8 @@ export function DraftRecap({ recap, get, slotName }: { recap: Recap; get: (id: s
     if (!first || !r.grade) return
     const reduced = prefersReducedMotion()
     playSound({ id: 'grade', grade: r.grade, reduced }, reduced ? 0 : GRADE_SOUND_DELAY)
+    // Then the Hindsight XI's answer, once the grade's chord has rung
+    if (r.hindsight) playSound({ id: 'hindsight', perfect: r.hindsight.gap <= 0, reduced }, (reduced ? 0 : GRADE_SOUND_DELAY) + HINDSIGHT_AFTER)
   }, [])
   return (
     <div className="draft-recap" data-testid="draft-recap">

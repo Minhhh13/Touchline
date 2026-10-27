@@ -10,6 +10,8 @@ import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
 import { onTabListKey, resultsLabel } from '../a11y'
+import { playSound } from '../sound/synth'
+import { toastTone } from '../sound/cues'
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -135,6 +137,8 @@ export function Toast() {
   const [leaving, setLeaving] = useState<string | null>(null)
   useEffect(() => {
     if (!toast) return
+    // Heard as it shows: a soft blip, or two falling notes for something that failed (interface sounds, thinned on a burst)
+    playSound({ id: toastTone(toast) })
     // The same message shown again later starts afresh
     setLeaving(null)
     const out = setTimeout(() => setLeaving(toast), 2980)
@@ -284,7 +288,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, className = '', 
     <div className={`tabs ${ink.style ? 'has-ink' : ''} ${className}`} role="tablist" ref={ink.ref} onKeyDown={onTabListKey}>
       {ink.style && <span className={`tabs-ink ${ink.ready ? 'ready' : ''}`} style={ink.style} aria-hidden="true" />}
       {tabs.map((t) => (
-        <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)} data-testid={testId ? `${testId}-${t.id}` : undefined}>
+        <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} className={t.id === value ? 'active' : ''} onClick={() => { if (t.id !== value) playSound({ id: 'tab' }); onChange(t.id) }} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
             <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={`${t.badge} new`}>

@@ -30,7 +30,9 @@ import { TIP_IDS, tipsSeenCount } from '@game/logic/tips'
 import { AccountLink } from '../online/AccountPanel'
 import { emptyBests, recordLabel } from '@game/logic/perfect'
 import { careerOverview, orderAchievements, type AchievementView } from '@game/logic/careerOverview'
-import { useMatchSoundOn, useSoundOn } from '../sound/prefs'
+import { useDraftSoundOn, useMatchSoundOn, useSoundOn, useSoundVolume, useUiSoundOn } from '../sound/prefs'
+import { playSound } from '../sound/synth'
+import { useBadgeSound } from '../sound/useBadgeSound'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { PROFILE } from '../boxSets'
@@ -105,6 +107,9 @@ export function ProfileScreen() {
   const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
+  const [draftSound, setDraftSound] = useDraftSoundOn()
+  const [uiSound, setUiSound] = useUiSoundOn()
+  const [volume, setVolume] = useSoundVolume()
   const [quickSpin, setQuickSpin] = usePref(quickSpinPref)
   // The Boxes control: an unticked box is left out and the column under it closes up (the account link always stays)
   const boxes = useBoxes(PROFILE)
@@ -137,6 +142,8 @@ export function ProfileScreen() {
   }, [needsClubLeagues])
   const badges = badgeStates(cabinet, { leaguesWon: won.leagues.length })
   const milestones = milestoneStates({ cabinet, profile })
+  // A badge or tier earned since this viewer last looked: the medal's ring, once
+  useBadgeSound([...badges, ...milestones].flatMap((b) => (b.tier ? [`${b.badge.id}:${b.tier}`] : [])))
   const career = careerOverview(profile, cabinet)
   const [achView, setAchView] = useState<AchievementView>('all')
   const achievements = orderAchievements(ACHIEVEMENTS, profile.achievements, achView)
@@ -540,12 +547,32 @@ export function ProfileScreen() {
               <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'sound-on' }, { value: 'off', label: 'Off', testId: 'sound-off' }]} />
             </div>
             {soundOn && (
-              <div className="field">
-                <span>
-                  Match sounds <Info label="About the match sounds">The referee's whistle, the crowd, the net, cards and substitutions on match day. Off keeps the rest of the sound. Kept on this device only.</Info>
-                </span>
-                <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'match-sound-on' }, { value: 'off', label: 'Off', testId: 'match-sound-off' }]} />
-              </div>
+              <>
+                <label className="field">
+                  <span>
+                    Volume <span className="muted small" data-testid="sound-volume-value">{volume}%</span>
+                  </span>
+                  <input type="range" className="volume-range" min={0} max={100} step={5} value={volume} onChange={(e) => setVolume(Number(e.target.value))} onPointerUp={() => playSound({ id: 'pick' })} onKeyUp={() => playSound({ id: 'pick' })} aria-label="Volume" aria-valuetext={`${volume}%`} data-testid="sound-volume" />
+                </label>
+                <div className="field">
+                  <span>
+                    Match sounds <Info label="About the match sounds">The referee's whistle, the crowd, the net, cards and substitutions on match day, a penalty kick in the arena and a cup's ties filling in. Off keeps the rest of the sound. Kept on this device only.</Info>
+                  </span>
+                  <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'match-sound-on' }, { value: 'off', label: 'Off', testId: 'match-sound-off' }]} />
+                </div>
+                <div className="field">
+                  <span>
+                    Draft sounds <Info label="About the draft sounds">The reel, a pick by how good he is, the Upgrader, the grade and the Hindsight XI, Squad complete, the manager spin, the case, a bonus spin and a head-to-head turn. Kept on this device only.</Info>
+                  </span>
+                  <Segmented value={draftSound ? 'on' : 'off'} onChange={(v) => setDraftSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'draft-sound-on' }, { value: 'off', label: 'Off', testId: 'draft-sound-off' }]} />
+                </div>
+                <div className="field">
+                  <span>
+                    Interface sounds <Info label="About the interface sounds">Quiet feedback: a main button's click, a tab, a message, an error and a dialog's confirm. Trophies, a Gauntlet rung and a badge follow Sound alone. Kept on this device only.</Info>
+                  </span>
+                  <Segmented value={uiSound ? 'on' : 'off'} onChange={(v) => setUiSound(v === 'on')} options={[{ value: 'on', label: 'On', testId: 'ui-sound-on' }, { value: 'off', label: 'Off', testId: 'ui-sound-off' }]} />
+                </div>
+              </>
             )}
             <div className="field">
               <span>

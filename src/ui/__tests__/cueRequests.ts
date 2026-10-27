@@ -1,0 +1,31 @@
+import type { CueRequest } from '../sound/cues'
+
+/** One of every cue (cues.ts), with the variants that change its shape: shared by the palette's and the cues' tests. */
+export const CUE_REQUESTS: CueRequest[] = [
+  ...(['squad', 'solid', 'star', 'world'] as const).map((band): CueRequest => ({ id: 'pick-band', band })),
+  { id: 'pick-band', band: 'world', reduced: true },
+  { id: 'hindsight', perfect: true },
+  { id: 'hindsight', perfect: false },
+  { id: 'hindsight', perfect: true, reduced: true },
+  { id: 'squad-complete' },
+  { id: 'squad-complete', reduced: true },
+  { id: 'manager-landed' },
+  { id: 'case-open' },
+  { id: 'bonus' },
+  { id: 'bonus', reduced: true },
+  { id: 'turn', mine: true },
+  { id: 'turn', mine: false },
+  { id: 'tab' },
+  { id: 'toast' },
+  { id: 'error' },
+  { id: 'confirm' },
+  { id: 'kick', scored: true, ours: true },
+  { id: 'kick', scored: true, ours: false },
+  { id: 'kick', scored: false, ours: true },
+  { id: 'kick', scored: false, ours: false },
+  ...Array.from({ length: 15 }, (_, rung): CueRequest => ({ id: 'rung', rung })),
+  { id: 'bracket-tie', user: true },
+  { id: 'bracket-tie', user: false },
+  { id: 'badge' },
+  { id: 'badge', reduced: true },
+]

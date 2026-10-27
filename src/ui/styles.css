@@ -8376,6 +8376,18 @@ dl.kv {
 .settings-grid .field {
   margin: 0;
 }
+/* The sound's volume: a plain slider in the primary colour, 44 px tall on a phone for the thumb */
+.settings-grid .volume-range {
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+@media (max-width: 720px) {
+  .settings-grid .volume-range {
+    min-height: 44px;
+  }
+}
 @media (max-width: 720px) {
   .settings-grid {
     grid-template-columns: 1fr;

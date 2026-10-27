@@ -11,7 +11,7 @@ import { caseGuide } from '@game/logic/caseGuide'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
 import { slotRating, slotRatingLine } from '@game/logic/slotRating'
-import { armAudio, unlockAudio } from '../sound/synth'
+import { armAudio, playSound, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
 import { clubName, seasonLabel } from '../format'
@@ -94,7 +94,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
             </div>
           )}
           {!c.opened && (
-            <button type="button" className="btn primary big display" onClick={() => { unlockAudio(); openCase(); setRun(1) }} data-testid="case-open">
+            <button type="button" className="btn primary big display" onClick={() => { unlockAudio(); playSound({ id: 'case-open' }); openCase(); setRun(1) }} data-sound="off" data-testid="case-open">
               Open the case
             </button>
           )}

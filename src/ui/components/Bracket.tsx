@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { inTie, type BracketTie, type BracketView } from '@game/logic/bracket'
 import { TrophyArt, type TrophyKind } from './TrophyArt'
+import { playSound } from '../sound/synth'
 
 /** What a reveal has shown so far: ties whose step is below `shown` are played; the tie at `shown` is the one in play. */
 export interface BracketReveal {
@@ -34,6 +35,16 @@ export function Bracket({ view, nameOf, badge, userId, seeds = [], reveal, troph
     const el = box.current?.querySelector<HTMLElement>('[data-in-play="true"]')
     el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [reveal?.shown, reveal])
+  // Each tie heard as the reveal fills it in: a soft tick, a little chime for the user's own (match sounds, thinned on a quick run)
+  const heardAt = useRef(reveal?.shown ?? 0)
+  useEffect(() => {
+    if (!reveal) return
+    const before = heardAt.current
+    heardAt.current = reveal.shown
+    if (reveal.shown !== before + 1) return
+    const user = view.rounds.some((round, r) => round.ties.some((t, i) => !!t && reveal.steps[r]?.[i] === before && inTie(t, userId)))
+    playSound({ id: 'bracket-tie', user })
+  }, [reveal?.shown])
 
   const side = (t: BracketTie, which: 'home' | 'away', show: boolean, done: boolean) => {
     const id = t[which]

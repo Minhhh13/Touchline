@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { playSound } from '../sound/synth'
 import { useStore } from '@game/store'
 import { playerLookup } from '@game/logic/players'
 import { aiLookup } from '@engine/reserve'
@@ -54,6 +55,16 @@ export function ShootoutPanel() {
     return () => clearInterval(id)
     // The reveal restarts only for a new shoot-out
   }, [revealKey])
+  // Each kick heard as it shows: the boot, then the net or the gloves (match sounds); a jump (Show them all, reduced motion) sounds its last kick only
+  const heard = useRef({ key: '', shown: 0 })
+  useEffect(() => {
+    if (!pens) return
+    const before = heard.current.key === revealKey ? heard.current.shown : 0
+    heard.current = { key: revealKey, shown }
+    if (shown <= before) return
+    const k = pens.kicks[shown - 1]
+    if (k) playSound({ id: 'kick', scored: k.scored, ours: !!k.us })
+  }, [revealKey, shown])
   // On a phone the takers stack above the keeper: Take the penalties rides at the foot of the window instead
   const phone = useMediaQuery('(max-width: 720px)')
   if (!u || !game?.arena) return null

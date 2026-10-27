@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, CircleCheck, Copy, Dices, Footprints, ImageDown, Lock, Repeat, RotateCcw, Swords, Trophy, Users, Wifi, type LucideIcon } from 'lucide-react'
 import { useFocusOnLanding } from '../a11y'
 import { useStore, type H2HGame } from '@game/store'
+import { useTurnSound } from '../sound/useTurnSound'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { APP_NAME } from '../brand'
 import { getFormation } from '@engine/formations'
@@ -231,6 +232,8 @@ export function H2HScreen() {
   useFocusOnLanding(revealed, clubHeadRef)
   useFocusOnLanding(!!d && !d.current && d.log.length > 0 && !draftDone, spinRef)
   useFocusOnLanding(draftDone, finishRef)
+  // The turn passing to the other manager, heard once the reel has landed (one screen for both: always the rising pair)
+  useTurnSound(d?.picking ?? null, !!d?.current && settled === d.current, true)
   if (!u || !h2h || !d) return <H2HSetup />
   if (h2h.result) return <H2HSummary />
   const current = d.current ? u.clubSeasonByKey[`${d.current.clubId}@${d.current.season}`] : null

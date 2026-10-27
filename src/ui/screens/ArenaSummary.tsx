@@ -27,6 +27,11 @@ import { arenaVerdictOf, ghostStepLine } from '@game/logic/arenaClaim'
 import { cleanName } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
 import { ratingHidden } from '@game/logic/ratingVisibility'
+import { prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
+
+/** Seconds before an arena win's fanfare: after the last rung's bell or the final's whistle has had its moment. */
+const ARENA_FANFARE_DELAY = 0.6
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
@@ -39,6 +44,12 @@ export function ArenaSummary() {
     const id = setTimeout(() => setCopied(false), 1500)
     return () => clearTimeout(id)
   }, [copied])
+  // A run won: the Cup's fanfare, the first time its summary shows in this visit (the trophy's own sound, so the master alone governs it)
+  const runWon = !!game?.arena?.won
+  const first = useFirstReveal(`arena-won:${game?.id}`, false)
+  useEffect(() => {
+    if (runWon && first) playSound({ id: 'fanfare', treble: false, reduced: prefersReducedMotion() }, ARENA_FANFARE_DELAY)
+  }, [runWon, first])
   if (!u || !game?.arena) return null
   const a = game.arena
   const get = playerLookup(game, u)
