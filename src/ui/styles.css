@@ -11383,6 +11383,15 @@ table.tbl.match-stats th {
   .world-grid .world-help {
     display: none;
   }
+  /* ...and the boards are their names alone (each line is the button's tip), so the board's Play card shows below them */
+  .world-board-pick {
+    padding: var(--space-1) var(--space-3);
+    min-height: 36px;
+    justify-content: center;
+  }
+  .world-board-pick span {
+    display: none;
+  }
 }
 /* A phone: the four boards as a two-column grid of names (their lines and the long help go to the head's tip), so the
    board itself starts within the first screen */
@@ -11563,6 +11572,116 @@ table.tbl tr.chase-perfect td:first-child {
 .chase-pick > .field {
   flex: 1 1 110px;
   min-width: 0;
+}
+/*
+ * The World boards' rows (r8): the place as a pill, the podium's three in the medal colours, a "=" where only the time of
+ * posting split two rows, your own row lit with a primary bar on its edge, the score in bold; skeleton rows while a
+ * board loads, Try again on an error, a plain empty state.
+ */
+.board-table td.board-rank {
+  white-space: nowrap;
+  width: 1%;
+}
+.rank-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.rank-pill.p1,
+.rank-pill.p2,
+.rank-pill.p3 {
+  color: var(--on-status);
+}
+.rank-pill.p1 {
+  background: var(--medal-gold);
+}
+.rank-pill.p2 {
+  background: var(--medal-silver);
+}
+.rank-pill.p3 {
+  background: var(--medal-bronze);
+}
+.rank-level {
+  margin-left: 2px;
+  color: var(--text-3);
+  font-weight: 700;
+  cursor: help;
+}
+.board-table td.board-manager {
+  white-space: nowrap;
+}
+.board-flag {
+  display: inline-flex;
+  margin-right: var(--space-1);
+  vertical-align: middle;
+}
+.board-name {
+  font-weight: 600;
+}
+.board-you {
+  margin-left: var(--space-2);
+}
+.board-table td.board-score {
+  font-weight: 700;
+  color: var(--text);
+}
+table.tbl.board-table tr.me td {
+  background: var(--primary-soft);
+}
+table.tbl.board-table tr.me td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+table.tbl.board-table tr.chase-perfect td:first-child {
+  box-shadow: inset 3px 0 0 var(--good);
+}
+.board-trophy-chip {
+  margin-right: var(--space-1);
+}
+.board-error {
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.board-loading {
+  display: grid;
+  gap: var(--space-2);
+}
+.board-skeleton {
+  display: block;
+  height: 30px;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-3);
+  border-radius: var(--radius-s);
+}
+.board-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 7%, transparent), transparent);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+.board-empty {
+  padding: var(--space-5) var(--space-3);
+  text-align: center;
+}
+.board-more {
+  margin-top: var(--space-2);
+}
+.world-play-done {
+  margin-top: var(--space-1);
+  color: var(--good);
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-skeleton::after {
+    animation: none;
+  }
 }
 .plain-list {
   margin: 0;

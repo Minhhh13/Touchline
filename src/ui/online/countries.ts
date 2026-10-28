@@ -16,7 +16,7 @@ try {
 
 export function countryName(code: string): string {
   try {
-    return names?.of(code) ?? code
+    return names?.of(code.toUpperCase()) ?? code
   } catch {
     return code
   }
