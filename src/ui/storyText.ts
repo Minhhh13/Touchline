@@ -97,6 +97,10 @@ export function stakeLine(s: Stake, opp: string, key: string, u: LoadedUniverse,
       return say(['A semi-final: one win from the final.', 'Win this and you are in the final.'], key)
     case 'knockout':
       return `${ROUND_NAME[s.round] ?? 'A knockout tie'}: lose and you are out.`
+    case 'group':
+      return `Group ${s.group}: the top two go through to the quarter-finals.`
+    case 'first-leg':
+      return `${ROUND_NAME[s.round] ?? 'The tie'}, first leg: the second leg decides it.`
   }
 }
 
@@ -135,7 +139,8 @@ export function previewLines(p: MatchPreview, u: LoadedUniverse, teamName: strin
 
 /** The preview's headline: the competition, home or away, and the opponent. */
 export function previewTitle(p: MatchPreview, u: LoadedUniverse): string {
-  const comp = p.comp === 'league' ? `MW ${p.matchweek}` : `${p.comp === 'cup' ? 'Cup' : 'Continental Cup'} ${ROUND_NAME[p.round ?? 'R16']?.toLowerCase() ?? 'tie'}`
+  const stage = p.group ? `Group ${p.group}` : `${ROUND_NAME[p.round ?? 'R16']?.toLowerCase() ?? 'tie'}${p.leg ? `, ${p.leg === 1 ? 'first' : 'second'} leg` : ''}`
+  const comp = p.comp === 'league' ? `MW ${p.matchweek}` : `${p.comp === 'cup' ? 'Cup' : 'Continental Cup'} ${stage}`
   return `${comp}: ${p.home ? 'v' : 'at'} ${clubName(u, p.opponentId)}`
 }
 
@@ -254,6 +259,8 @@ export function summerText(r: SummerReview, u: LoadedUniverse, key: string): Sum
   const cups: string[] = []
   if (rec.cupWon) cups.push('won the Cup')
   if (rec.continentalWon) cups.push('won the Continental Cup')
+  // Engine 7's group stage: out in the groups is never "reached the knockouts"
+  else if (rec.continentalRun === 'G') cups.push('went out in the Continental Cup group stage')
   else if (rec.continentalRun && rec.continentalRun !== 'W') cups.push(`reached the Continental Cup ${ROUND_NAME[rec.continentalRun]?.toLowerCase() ?? 'knockouts'}`)
   if (cups.length) lines.push({ id: 'cups', text: `${list(cups).replace(/^./, (c) => c.toUpperCase())}.` })
   const awards: string[] = []

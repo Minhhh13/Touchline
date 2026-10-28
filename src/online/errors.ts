@@ -33,6 +33,24 @@ import {
   type ReportKind,
 } from './core/errorReport'
 
+/** The request limit the Edge Function holds every body to (`MAX_BODY_BYTES` in server/validate.ts; a test keeps them equal). */
+export const BODY_BUDGET = 16384
+
+/**
+ * The next batch to post: the queue's first reports, at most `REPORTS_PER_POST`, while the request stays within
+ * `BODY_BUDGET` bytes. Each report is within its caps, but the caps count characters and JSON escapes a control
+ * character to six bytes, so five of the largest could pass the limit, and the server refuses (and the device drops)
+ * the whole batch (docs/QA.md round 3, R8-5). One report always goes: alone it is well inside the limit.
+ */
+export function batchOf(queue: readonly ErrorReport[]): ErrorReport[] {
+  const out: ErrorReport[] = []
+  for (const r of queue.slice(0, REPORTS_PER_POST)) {
+    if (out.length && new TextEncoder().encode(JSON.stringify({ op: 'errors.report', reports: [...out, r] })).length > BODY_BUDGET) break
+    out.push(r)
+  }
+  return out
+}
+
 /** What the reporter needs from the page, injected so the tests drive it with no DOM. */
 export interface ReporterEnv {
   origin: string
@@ -101,7 +119,7 @@ export function createReporter(env: ReporterEnv): Reporter {
         if (s && s.queue.length && env.now() < s.nextAt) schedule(s.nextAt - env.now())
         return
       }
-      const batch = s.queue.slice(0, REPORTS_PER_POST)
+      const batch = batchOf(s.queue)
       let status = 0
       try {
         status = await env.post(batch)

@@ -248,4 +248,13 @@ export const summary = catalog('summary', {
   europeChip: 'Europe',
   shareCard: 'Share card',
   shareText: 'Share text',
+  groupName: 'Group {name}',
+  groupClub: 'Club',
+  groupPlayed: 'P',
+  groupGd: 'GD',
+  groupPts: 'Pts',
+  groupMd: 'MD {md}',
+  groupOpponent: '{venue, select, home {v} other {at}} {club}',
+  groupScore: '{res, select, w {W} d {D} other {L}} {gf}-{ga}',
+  groupAfterWeek: 'after MW {week}',
 })
