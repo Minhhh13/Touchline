@@ -11,6 +11,7 @@ import type { Cabinet } from '@game/types'
 import { BALL_EDGE, BRAND_COLOURS as C, LOCKUP, MARK, WORDMARK, ballPanels, clothStops, pennantPath } from './brand'
 import { tierName } from './format'
 import { saveDataUrl } from './saveFile'
+import type { CardVersus, Invite } from '@game/logic/shareInvite'
 
 export interface ShareCardInput {
   title: string
@@ -35,6 +36,12 @@ export interface ShareCardInput {
   honour?: string
   /** The draft's grade ("Draft grade B"), one accent line under the record. */
   grade?: string
+  /** The mode, in a pill at the head of the card ("Quick Draft", "Daily"). */
+  mode?: string
+  /** A challenge played: my points against the challenger's, under the record. */
+  versus?: CardVersus
+  /** The "beat me" box above the lockup: a call, a line and where to play (shareInvite.ts). */
+  beatMe?: Invite
 }
 
 const STRIP_COLOUR: Record<'W' | 'D' | 'L', string> = { W: C.good, D: C.draw, L: C.bad }
@@ -98,36 +105,41 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
   drawFrame(ctx, W, H)
 
   const tierColour = input.banner?.colour ?? TIER_COLOUR[input.tier] ?? C.text
+  // With the mode's pill on top, everything in the head sits this much lower and the result reads larger
+  const pill = input.mode ? 44 : 0
   // A title (gold) stands in a fan of soft beams, like the summary's celebration
-  if (tierColour === C.gold) drawRays(ctx, W / 2, 205, 300)
+  if (tierColour === C.gold) drawRays(ctx, W / 2, 205 + pill, 300)
 
   const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
+  if (input.mode) drawPill(ctx, W / 2, 66, input.mode.toUpperCase(), font(20, 700))
   ctx.textAlign = 'center'
   ctx.fillStyle = C.text
-  ctx.font = font(48)
-  ctx.fillText(fit(ctx, input.title, W - 120), W / 2, 92)
+  ctx.font = font(input.mode ? 52 : 48)
+  ctx.fillText(fit(ctx, input.title, W - 120), W / 2, 92 + pill + (input.mode ? 4 : 0))
   ctx.fillStyle = C.text2
   ctx.font = font(24, 400, BODY)
-  ctx.fillText(fit(ctx, input.subtitle, W - 120), W / 2, 134)
+  ctx.fillText(fit(ctx, input.subtitle, W - 120), W / 2, 134 + pill + (input.mode ? 4 : 0))
 
   ctx.fillStyle = tierColour
-  ctx.font = font(72)
+  ctx.font = font(input.mode ? 84 : 72)
   ctx.save()
   ctx.shadowColor = hexAlpha(tierColour, 0.55)
   ctx.shadowBlur = 30
-  ctx.fillText(fit(ctx, input.banner?.text ?? tierName(input.tier, input.position), W - 120), W / 2, 228)
+  ctx.fillText(fit(ctx, input.banner?.text ?? tierName(input.tier, input.position), W - 120), W / 2, 228 + pill + (input.mode ? 12 : 0))
   ctx.restore()
+  // Everything below the banner moves down with it
+  const down = input.mode ? pill + 22 : 0
 
   const ord = (n: number) => n + (['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 > 3 ? 0 : n % 10] ?? 'th')
   // The caller's own lines (knockout ties, a ladder) in place of the record; `y` is the baseline of the last thing drawn
-  let y = 392
+  let y = 392 + down
   const lines = (input.lines ?? []).slice(0, 6)
   if (lines.length) {
     ctx.textAlign = 'center'
     ctx.fillStyle = C.text
     ctx.font = font(30, 600, BODY)
-    lines.forEach((l, i) => ctx.fillText(fit(ctx, l, W - 160), W / 2, 290 + i * 42))
-    y = 290 + (lines.length - 1) * 42
+    lines.forEach((l, i) => ctx.fillText(fit(ctx, l, W - 160), W / 2, 290 + down + i * 42))
+    y = 290 + down + (lines.length - 1) * 42
   } else {
     // Record: wins, draws, defeats in the status colours
     const rec = [
@@ -135,14 +147,14 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
       { t: `${input.row.drawn}D`, c: C.draw },
       { t: `${input.row.lost}L`, c: C.bad },
     ]
-    ctx.font = font(52)
+    ctx.font = font(input.mode ? 60 : 52)
     const widths = rec.map((r) => ctx.measureText(r.t).width)
     const gap = 40
     let x = W / 2 - (widths.reduce((a, b) => a + b, 0) + gap * 2) / 2
     for (let i = 0; i < rec.length; i++) {
       ctx.fillStyle = rec[i].c
       ctx.textAlign = 'left'
-      ctx.fillText(rec[i].t, x, 306)
+      ctx.fillText(rec[i].t, x, 306 + down)
       x += widths[i] + gap
     }
     // The season as blocks, one per match: in the order played when the Season Story strip is given, as on the summary screen otherwise
@@ -152,13 +164,13 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     const blocksW = games.length * (block + 5) - 5
     games.forEach((c, i) => {
       ctx.fillStyle = c
-      roundRect(ctx, W / 2 - blocksW / 2 + i * (block + 5), 330, block, block, 3)
+      roundRect(ctx, W / 2 - blocksW / 2 + i * (block + 5), 330 + down, block, block, 3)
       ctx.fill()
     })
     ctx.textAlign = 'center'
     ctx.fillStyle = C.text
     ctx.font = font(28, 600, BODY)
-    ctx.fillText(`${input.row.points} ${input.row.points === 1 ? 'point' : 'points'} · finished ${ord(input.position)}`, W / 2, 392)
+    ctx.fillText(`${input.row.points} ${input.row.points === 1 ? 'point' : 'points'} · finished ${ord(input.position)}`, W / 2, 392 + down)
   }
   // The Treble or a Double, in gold
   if (input.honour) {
@@ -185,11 +197,35 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     y += 40
   }
 
-  // The pitch: grass stays green, the frame and lines are neutral; pushed down (and shortened) by whatever sits above it
+  // A challenge played: you against the challenger, the winner's side lit
+  if (input.versus) {
+    const v = input.versus
+    y += 46
+    ctx.font = font(30, 700)
+    const left = `You ${v.mine}`
+    const right = `${v.theirs} ${v.name}`
+    const mid = '  –  '
+    const wl = ctx.measureText(left).width
+    const wm = ctx.measureText(mid).width
+    const wr = ctx.measureText(fit(ctx, right, 360)).width
+    let x = W / 2 - (wl + wm + wr) / 2
+    ctx.textAlign = 'left'
+    ctx.fillStyle = v.won === true ? C.good : v.won === false ? C.text2 : C.draw
+    ctx.fillText(left, x, y)
+    x += wl
+    ctx.fillStyle = C.text3
+    ctx.fillText(mid, x, y)
+    x += wm
+    ctx.fillStyle = v.won === false ? C.bad : v.won === true ? C.text2 : C.draw
+    ctx.fillText(fit(ctx, right, 360), x, y)
+    ctx.textAlign = 'center'
+  }
+
+  // The pitch: grass stays green, the frame and lines are neutral; pushed down (and shortened) by whatever sits above it, and by the invitation under it
   const px = 90
-  const py = Math.max(420, y + 28)
+  const py = Math.max(420 + down, y + 28)
   const pw = W - 180
-  const ph = 1136 - py
+  const ph = (input.beatMe ? 1084 : 1136) - py
   ctx.fillStyle = C.pitch
   roundRect(ctx, px, py, pw, ph, 22)
   ctx.fill()
@@ -246,12 +282,80 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
     }
   }
 
-  ctx.fillStyle = C.text3
-  ctx.font = font(20, 400, BODY)
-  ctx.textAlign = 'center'
-  ctx.fillText(input.footer, W / 2, H - 132)
-  drawLockup(ctx, W / 2, H - 72, 76)
+  if (input.beatMe) {
+    drawInvite(ctx, px, 1104, pw, 112, input.beatMe, input.footer, font)
+    drawLockup(ctx, W / 2, H - 70, 66)
+  } else {
+    ctx.fillStyle = C.text3
+    ctx.font = font(20, 400, BODY)
+    ctx.textAlign = 'center'
+    ctx.fillText(input.footer, W / 2, H - 132)
+    drawLockup(ctx, W / 2, H - 72, 76)
+  }
   return canvas.toDataURL('image/png')
+}
+
+/** The mode's pill: capitals in the accent inside a lit outline, centred on (cx, cy). */
+function drawPill(ctx: CanvasRenderingContext2D, cx: number, cy: number, text: string, font: string) {
+  ctx.save()
+  ctx.font = font
+  ctx.letterSpacing = '3px'
+  const w = ctx.measureText(text).width + 48
+  const h = 40
+  roundRect(ctx, cx - w / 2, cy - h / 2, w, h, h / 2)
+  ctx.fillStyle = hexAlpha(C.accent, 0.12)
+  ctx.fill()
+  ctx.strokeStyle = hexAlpha(C.accent, 0.7)
+  ctx.lineWidth = 2
+  ctx.stroke()
+  ctx.fillStyle = C.accent
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, cx, cy + 1)
+  ctx.restore()
+}
+
+/**
+ * The "beat me" box under the pitch: the call in the accent and the line under it on the left, where to play and the
+ * card's footer (the seed, the day) on the right, inside the neon gradient's outline.
+ */
+function drawInvite(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, invite: Invite, footer: string, font: (size: number, weight?: number, family?: string) => string) {
+  ctx.save()
+  const edge = ctx.createLinearGradient(x, 0, x + w, 0)
+  edge.addColorStop(0, hexAlpha(C.primary, 0.9))
+  edge.addColorStop(1, hexAlpha(C.magenta, 0.9))
+  roundRect(ctx, x, y, w, h, 22)
+  ctx.fillStyle = hexAlpha(C.bg, 0.88)
+  ctx.fill()
+  ctx.fillStyle = hexAlpha(C.primary, 0.1)
+  ctx.fill()
+  ctx.save()
+  ctx.shadowColor = hexAlpha(C.primary, 0.6)
+  ctx.shadowBlur = 18
+  ctx.strokeStyle = edge
+  ctx.lineWidth = 3
+  ctx.stroke()
+  ctx.restore()
+  const pad = 32
+  const right = 330
+  ctx.textAlign = 'left'
+  ctx.fillStyle = C.accent
+  ctx.font = font(36, 700)
+  ctx.fillText(fit(ctx, invite.title, w - pad * 2 - right - 20), x + pad, y + 48)
+  ctx.fillStyle = C.text
+  ctx.font = font(24, 600, BODY)
+  // The footer (the seed, the day) takes what the line leaves, at least a third of the box
+  const line = fit(ctx, invite.line, (w - pad * 2) * 0.66)
+  const lineW = ctx.measureText(line).width
+  ctx.fillText(line, x + pad, y + 88)
+  ctx.textAlign = 'right'
+  ctx.fillStyle = C.text
+  ctx.font = font(24, 700)
+  ctx.fillText(fit(ctx, invite.where, right), x + w - pad, y + 48)
+  ctx.fillStyle = C.text3
+  ctx.font = font(18, 400, BODY)
+  ctx.fillText(fit(ctx, footer, w - pad * 2 - lineW - 24), x + w - pad, y + 88)
+  ctx.restore()
 }
 
 /**
