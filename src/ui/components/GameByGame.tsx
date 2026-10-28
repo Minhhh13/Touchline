@@ -8,6 +8,7 @@ import { scorersText } from '../scorers'
 import { shownGames } from '../screenText'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import '../motionSeason.css'
 
 const t = translator(season)
 
@@ -181,10 +182,10 @@ export function RunningStrip({ results, upTo }: { results: QuickGameResult[]; up
 }
 
 /** A number that counts up to `value` over about a third of a second whenever it changes; reduced motion shows it at once. */
-function CountUp({ value }: { value: number }) {
+function CountUp({ value, from: start0 }: { value: number; /** Count from here on the first draw (a score landing counts up from nil). */ from?: number }) {
   const reduced = useReducedMotion()
-  const [shown, setShown] = useState(value)
-  const from = useRef(value)
+  const [shown, setShown] = useState(reduced ? value : start0 ?? value)
+  const from = useRef(start0 ?? value)
   useEffect(() => {
     if (reduced || typeof requestAnimationFrame !== 'function') {
       from.current = value
@@ -333,8 +334,10 @@ export function GameByGame({ results, opponent, replay, title = t('seasonGbg'), 
           const o = outcomeOf(r)
           const scorers = scorersText(r.scorers)
           const isNewest = r.matchweek === newestWeek
+          // The result just revealed lands with weight: its colour sweeps across and the score counts up (motionSeason.css)
+          const landing = isNewest && playing
           return (
-            <li key={r.matchweek} className={`gbg-game ${o} ${isNewest && order === 'newest' ? 'newest' : ''}`} data-testid="gbg-game" data-outcome={o} data-matchweek={r.matchweek} ref={isNewest ? newestRef : undefined}>
+            <li key={r.matchweek} className={`gbg-game ${o} ${isNewest && order === 'newest' ? 'newest' : ''} ${landing ? 'landing' : ''}`} data-testid="gbg-game" data-outcome={o} data-matchweek={r.matchweek} ref={isNewest ? newestRef : undefined}>
               <span className={`gbg-badge ${o}`} role="img" aria-label={t(o === 'W' ? 'won' : o === 'D' ? 'drawn' : 'lost')}>
                 {o}
               </span>
@@ -351,7 +354,7 @@ export function GameByGame({ results, opponent, replay, title = t('seasonGbg'), 
                 <span className="gbg-ha">{t(r.home ? 'home' : 'away')}</span>
               </span>
               <span className="gbg-score">
-                {r.gf}-{r.ga}
+                {landing ? <CountUp value={r.gf} from={0} /> : r.gf}-{landing ? <CountUp value={r.ga} from={0} /> : r.ga}
               </span>
               <span className="gbg-mw" title={t('mwTip')}>
                 {t('mw', { n: r.matchweek })}

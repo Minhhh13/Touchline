@@ -246,7 +246,9 @@ export function whistleBlast(at: number, dur: number, pitch = 1): Voice[] {
   return [
     { kind: 'fm', ...fm, peak: 1, freq: f, modDepth: 150, jitterHz: 11, jitterDepth: 35, bendFrom: f * 0.92, dropTo: f * 0.95 },
     { kind: 'fm', ...fm, peak: 0.1, freq: f * 2, modDepth: 300, bendFrom: f * 1.84, dropTo: f * 1.9 },
-    noise(at, { filter: 'bandpass', freq: f, q: 5, attack: 0.008, hold, dur, peak: 0.5 }),
+    // The pea rattles the air through the ring too, and the breath hisses in as the blast starts
+    noise(at, { filter: 'bandpass', freq: f, q: 5, attack: 0.008, hold, dur, peak: 0.5, am: { hz: 46, depth: 0.35 } }),
+    noise(at, { filter: 'highpass', freq: 4500, q: 0, attack: 0.004, dur: Math.min(0.09, dur), peak: 0.35 }),
   ]
 }
 
@@ -265,7 +267,7 @@ export const WHISTLE_CALLS: Record<WhistleCall, ReadonlyArray<readonly [number, 
 }
 
 /** A crowd swell: four bands of pink noise (rumble, voices, the shouts on top) rising together, each breathing slowly. */
-function roar(at: number, size: number, r: () => number, o: { high?: boolean } = {}): NoiseVoice[] {
+function roar(at: number, size: number, r: () => number, o: { high?: boolean; tail?: boolean } = {}): NoiseVoice[] {
   const j = () => r() * 0.06
   const s = Math.max(0.3, size)
   const out: NoiseVoice[] = [
@@ -273,7 +275,13 @@ function roar(at: number, size: number, r: () => number, o: { high?: boolean } =
     noise(at + j(), { colour: 'pink', filter: 'bandpass', freq: 420, freqTo: 640, sweep: 0.6 * s, q: 0.9, attack: 0.35 * s, hold: 1 * s, dur: 3.2 * s, peak: 1, offset: r() * 2, am: { hz: 3.1 + r(), depth: 0.18 } }),
     noise(at + j(), { colour: 'pink', filter: 'bandpass', freq: 1050, freqTo: 1250, sweep: 0.5 * s, q: 1.1, attack: 0.4 * s, hold: 0.8 * s, dur: 2.8 * s, peak: 0.75, offset: r() * 2, am: { hz: 4.3 + r(), depth: 0.22 } }),
   ]
-  if (o.high !== false) out.push(noise(at + 0.05 + j(), { colour: 'pink', filter: 'highpass', freq: 2600, q: 0, attack: 0.3 * s, hold: 0.55 * s, dur: 2.1 * s, peak: 0.3, offset: r() * 2, am: { hz: 5.5 + r(), depth: 0.3 } }))
+  if (o.high !== false) {
+    out.push(noise(at + 0.05 + j(), { colour: 'pink', filter: 'highpass', freq: 2600, q: 0, attack: 0.3 * s, hold: 0.55 * s, dur: 2.1 * s, peak: 0.3, offset: r() * 2, am: { hz: 5.5 + r(), depth: 0.3 } }))
+    // Hands: a band of claps, the tremolo fast and deep, as the roar turns to applause
+    out.push(noise(at + 0.6 * s + j(), { filter: 'bandpass', freq: 2500, q: 0.7, attack: 0.5 * s, hold: 0.6 * s, dur: 2.4 * s, peak: 0.3, offset: r() * 2, am: { hz: 9.5 + r() * 2, depth: 0.55 } }))
+  }
+  // The stadium's tail: the low rumble that rolls on under the roar and dies away last
+  if (o.tail !== false) out.push(noise(at + 0.1 + j(), { colour: 'pink', filter: 'lowpass', freq: 170, q: 0, attack: 0.8 * s, hold: 1.1 * s, dur: 4.2 * s, peak: 0.45, offset: r() * 2, am: { hz: 0.9, depth: 0.1 } }))
   return out
 }
 
@@ -285,6 +293,8 @@ function oohVoices(at: number, strength: number, r: () => number): Voice[] {
     ...chorus,
     noise(at, { colour: 'pink', filter: 'bandpass', freq: 340, freqTo: 300, sweep: 1, q: 2.5, attack: 0.18, hold: 0.15, dur: 1.1, peak: 1, offset: r() * 2 }),
     noise(at + 0.02, { colour: 'pink', filter: 'bandpass', freq: 820, freqTo: 700, sweep: 1, q: 3, attack: 0.2, hold: 0.1, dur: 1, peak: 0.6, offset: r() * 2 }),
+    // The murmur after it, the crowd settling back
+    noise(at + 0.25, { colour: 'pink', filter: 'lowpass', freq: 260, q: 0, attack: 0.3, hold: 0.2, dur: 1.4, peak: 0.45, offset: r() * 2, am: { hz: 2.1, depth: 0.15 } }),
   ]
 }
 
@@ -467,7 +477,7 @@ function trebleScore(reduced: boolean, seed = ''): Score {
   const v: Voice[] = [...first.v, ...second.v]
   // The roll into the last chord, and the crowd under it
   for (let i = 0; i < 6; i++) v.push(...timpani(second.chord - 0.42 + i * 0.07, 146.83 / 2, 0.3 + i * 0.05))
-  v.push(...roar(second.chord - 0.1, 0.9, r).map((x) => ({ ...x, peak: x.peak * 0.45 })))
+  v.push(...roar(second.chord - 0.1, 0.9, r, { tail: false }).map((x) => ({ ...x, peak: x.peak * 0.45 })))
   if (!reduced) v.push(...shimmer(second.chord + 0.15, [2349, 2960, 3520, 2637, 3951, 3136, 4699, 3520], 0.08, r))
   return normalise('fanfare', 0.9, v)
 }

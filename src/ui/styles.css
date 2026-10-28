@@ -4263,6 +4263,44 @@ table.tbl.contracts .btn.sm {
     animation: none !important;
   }
 }
+/* The season hub's moments (round 8, docs/DESIGN_SYSTEM.md section 12): the Sim digest deals its results in one by
+   one and its groups follow, and the Dynasty summer's review comes up line by line */
+.digest-results .chip {
+  animation: digest-deal var(--dur-3) var(--ease-spring) calc(var(--dur-2) + var(--i, 0) * 40ms) backwards;
+}
+@keyframes digest-deal {
+  from {
+    transform: translateX(-10px) scale(0.85);
+    opacity: 0;
+  }
+}
+.digest > :not(.digest-results),
+.summer-review > * {
+  animation: rise var(--dur-3) var(--ease-out) backwards;
+}
+.digest > :nth-child(2),
+.summer-review > :nth-child(1) {
+  animation-delay: calc(var(--dur-3) * 1);
+}
+.digest > :nth-child(3),
+.summer-review > :nth-child(2) {
+  animation-delay: calc(var(--dur-3) * 1.4);
+}
+.digest > :nth-child(4),
+.summer-review > :nth-child(3) {
+  animation-delay: calc(var(--dur-3) * 1.8);
+}
+.digest > :nth-child(n + 5),
+.summer-review > :nth-child(n + 4) {
+  animation-delay: calc(var(--dur-3) * 2.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .digest-results .chip,
+  .digest > *,
+  .summer-review > * {
+    animation: none;
+  }
+}
 /* Reduced motion, continued: hover and press transitions and an entrance the block above did not reach (a more
    specific rule's own animation shorthand outranks it, as the other side's goal banner did) */
 @media (prefers-reduced-motion: reduce) {
@@ -6447,19 +6485,18 @@ dl.kv {
     transform: none;
   }
 }
+/* Transform and opacity only: the brightness flash it had kept every frame of the drop on the CPU (a 4x-throttled desktop
+   playback lost a third of its frames); the landing's colour sweep (motionSeason.css) gives the weight instead */
 @keyframes gbg-drop {
   0% {
     opacity: 0;
     transform: translateY(-14px) scale(0.97);
-    filter: brightness(1.6);
   }
   60% {
     opacity: 1;
-    filter: brightness(1.25);
   }
   100% {
     transform: none;
-    filter: none;
   }
 }
 /* The arena summary's personal best (r8): a chip under the banner, popped in once */
@@ -17996,7 +18033,8 @@ button.home-nudge.linklike:hover {
   .unlock-card.animate .unlock-item,
   .unlock-card.animate .unlock-medal,
   .badge-tile.fresh .unlock-medal,
-  .app:not(.bar-hidden):not(.dock-off) > .topbar {
+  .app:not(.bar-hidden):not(.dock-off) > .topbar,
+  .digest > :not(.digest-results) {
     animation: none;
   }
   .qmode,

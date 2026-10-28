@@ -32,6 +32,7 @@ import { PLAYBACK } from '../boxSets'
 import { clinchMatchweeks } from '@engine/story'
 import { roundsFixtures } from '@game/logic/story'
 import { usePlaybackSounds } from '../sound/usePlaybackSounds'
+import { SeasonBeatCard, usePlaybackBeat } from '../components/SeasonBeat'
 import { onTabListKey } from '../a11y'
 import { translator } from '../i18n'
 import { B, rich } from '../i18n/rich'
@@ -66,7 +67,9 @@ export function SeasonPlayback() {
   // The season's sounds as each result lands (seasonCues.ts): the clinch weeks come from the whole season's rounds, so none in the first half
   const q = game?.quickResult
   const seasonGames = q?.results?.length ?? (u && game ? quickSeasonGames(u, game.settings) : results.length)
-  usePlaybackSounds({
+  // The clinch weeks once, for the sounds and the beats alike (the beats land on the stingers they mirror)
+  const clinch = useMemo(() => (j || !q ? null : q.clinchedAt !== undefined ? { clinchedAt: q.clinchedAt ?? null, doomedAt: q.doomedAt ?? null } : q.rounds ? clinchMatchweeks(roundsFixtures(q.rounds), q.rounds.ids, USER_TEAM) : null), [j, q])
+  const cueInput = {
     results,
     tables,
     userId: USER_TEAM,
@@ -75,12 +78,10 @@ export function SeasonPlayback() {
     january: !!j,
     finalPosition: q?.position ?? results.at(-1)?.position ?? 0,
     teams: tables[0]?.length || seasonGames / 2 + 1,
-    revealed: pb.revealed,
-    playing: pb.playing,
-    done: pb.done,
-    speed: pb.speed,
-    clinch: () => (j || !q ? null : q.clinchedAt !== undefined ? { clinchedAt: q.clinchedAt ?? null, doomedAt: q.doomedAt ?? null } : q.rounds ? clinchMatchweeks(roundsFixtures(q.rounds), q.rounds.ids, USER_TEAM) : null),
-  })
+  }
+  usePlaybackSounds({ ...cueInput, revealed: pb.revealed, playing: pb.playing, done: pb.done, speed: pb.speed, clinch: () => clinch })
+  // The big moments, January and the season's end as a short card over the playback (seasonBeats.ts)
+  const { beat, length: beatLen } = usePlaybackBeat({ ...cueInput, clinch }, pb.revealed, pb.speed)
   if (!u || !game) return null
   // Watching a game's highlights pauses the playback on the game shown
   const watch = canShowHighlights(game)
@@ -158,7 +159,7 @@ export function SeasonPlayback() {
             </div>
           )}
           {!j && pb.done && (
-            <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end', alignItems: 'center' }} data-testid="playback-end">
+            <div className="row wrap pb-end" style={{ gap: 8, justifyContent: 'flex-end', alignItems: 'center' }} data-testid="playback-end">
               <span className="small">
                 {t('fullTime', { pos: game.quickResult?.position ?? 0, pts: game.quickResult?.points ?? 0 })}
               </span>
@@ -205,7 +206,7 @@ export function SeasonPlayback() {
             <h3>{t('liveTable')}</h3>
             <span className="small muted">{pb.revealed ? t('afterGame', { n: pb.revealed }) : t('beforeKickOff')}</span>
           </div>
-          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={sideName} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} /> : <p className="small muted">{t('noLiveTable')}</p>}
+          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={sideName} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} stamp={pb.revealed} /> : <p className="small muted">{t('noLiveTable')}</p>}
         </div>
         )}
         {panes.chart && (
@@ -216,6 +217,7 @@ export function SeasonPlayback() {
         </div>
         )}
       </div>
+      {beat && <SeasonBeatCard beat={beat} length={beatLen} detail={beat.kind === 'season-end' ? t('fullTime', { pos: game.quickResult?.position ?? 0, pts: game.quickResult?.points ?? 0 }) : undefined} />}
       {hlWeek !== null && <HighlightsModal game={game} u={u} matchweek={hlWeek} onClose={() => setHlWeek(null)} />}
     </div>
   )

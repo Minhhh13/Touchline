@@ -56,10 +56,16 @@ import { useMatchSounds } from '../sound/useMatchSounds'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
+import './matchday-motion.css'
+import { PeriodCard } from './PeriodCard'
 import { translator } from '../i18n'
 import { match } from '../i18n/en/match'
 
 const tx = translator(match)
+/** The ball's sounds and the crowd's full bed on the match day (its goals come from the holds, useMatchSounds) */
+const BALL_SOUNDS = { bed: 1 }
+/** How long the full-time card holds the board before the report, ms. */
+export const FULL_TIME_HOLD_MS = 1800
 
 export type DashboardSource = { mode: 'live'; live: LiveMatch } | { mode: 'replay'; res: FullMatchResult; ctx: MatchContext }
 
@@ -121,7 +127,18 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(resumeKey), resumeKey, start, stopAt) : start))
   // A crowded minute plays longer on screen (the same pace the ball path is laid out in)
   const pace = useMemo(() => matchPace(feed.events), [feed.events])
-  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, pace, reduced, onFinish: final ? onWhistle : undefined })
+  // The full-time whistle's card plays over the pitch before the report opens (PeriodCard; at once with reduced motion).
+  // The store's whistle is only held back, never skipped: once started it runs even if the board closes meanwhile
+  const whistleRef = useRef(onWhistle)
+  whistleRef.current = onWhistle
+  const blown = useRef(false)
+  const atWhistle = useCallback(() => {
+    if (blown.current) return
+    blown.current = true
+    if (reduced) whistleRef.current()
+    else setTimeout(() => whistleRef.current(), FULL_TIME_HOLD_MS)
+  }, [reduced])
+  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, pace, reduced, onFinish: final ? atWhistle : undefined })
   useEffect(() => {
     if (!resumeKey) return
     return useLiveClock.subscribe((s, prev) => {
@@ -141,6 +158,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   const cued = useLiveClock((s) => s.cued ?? 0)
   const minute = panelMinute(holds, revealed, clock.clock, start, !clock.finished && cuePending(cues, cued, clock.clock, start))
   const whistle = clock.finished && final
+  // The whistle's card over the pitch: half time when the clock stops at the break, full time at the end (PeriodCard)
+  const period: 'ht' | 'ft' | null = whistle ? 'ft' : clock.atStop && stopAt === 45 ? 'ht' : null
   // The assistant's routine and injury changes for our side come up as a toast when the clock reaches them (display only)
   const subsSeen = useRef(minute)
   useEffect(() => {
@@ -312,6 +331,8 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
       keepers={{ home: keeper, away: keeper }}
       keyMoments={keyMoments && !reduced}
       highlightId={highlight}
+      sounds={BALL_SOUNDS}
+      overlay={period && !reduced ? <PeriodCard key={period} kind={period} home={home} away={away} score={scoreAt(feed.events, minute)} /> : undefined}
     />
   )
   const momentum = <MomentumBar strip momentum={feed.momentum} clock={minute} events={feed.events} home={{ name: home.name, shortName: home.code, colour: home.colour }} away={{ name: away.name, shortName: away.code, colour: away.colour }} />

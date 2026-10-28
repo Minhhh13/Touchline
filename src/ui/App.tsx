@@ -357,7 +357,7 @@ export function App() {
       <ConfirmHost />
       <Modal open={!!offseason} onClose={dismissOffseason} title={t('summerTitle')}>
         {offseason && (
-          <div className="col">
+          <div className="col summer-review">
             {offseason.retired.length > 0 && (
               <p>{rich(t('summerRetired', { names: offseason.retired.join(', ') }), B)}</p>
             )}
@@ -429,6 +429,7 @@ function DigestBody({ digest: d, onClose }: { digest: SimDigest; onClose: () => 
           <span
             key={i}
             className={`chip ${outcomeClass(r.outcome)} ${r.comp !== 'league' ? 'cup' : ''}`}
+            style={{ ['--i' as string]: String(Math.min(i, 12)) }}
             title={t(r.comp === 'league' ? 'digestLeagueTip' : 'digestCupTip', { week: r.matchweek, round: r.roundLabel ?? t('digestCupTie'), venue: r.home ? 'home' : 'away', club: clubName(u, r.opponentId), score: `${r.gf}-${r.ga}`, agg: r.aggregate ? t('digestAggTip', { score: `${r.aggregate.gf}-${r.aggregate.ga}` }) : '', pens: r.penalties ? t('digestPensTip', { score: `${r.penalties.gf}-${r.penalties.ga}` }) : '' })}
           >
             <ClubBadge clubId={r.opponentId} size={18} />

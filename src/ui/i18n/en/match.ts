@@ -88,6 +88,8 @@ export const match = catalog('match', {
   stateBehind: 'behind {score}',
   stateLevel: 'level {score}',
   stopHalfTime: 'half time',
+  periodHalfTime: 'Half time',
+  periodFullTime: 'Full time',
   stop70: '70 minutes',
   decisionsPill: 'Decisions · {stop}',
   subsAt: 'Substitutions at {stop}',
