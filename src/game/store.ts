@@ -46,14 +46,7 @@ import { fullScout, setAssignment, setRecruitFocus } from './logic/scouting'
 import { proposeContract, setShopped, type ContractOffer } from './logic/contracts'
 import { makeRequest, shiftWages, type RequestKind } from './logic/board'
 import { talkTo, type TalkKind } from './logic/talks'
-import { officeTick, setListed } from './logic/office'
-import { withOffice } from './logic/officeSteps'
-import { makePromise, type MinutesLevel } from './logic/promises'
-import { answerRequest, type RequestAnswer } from './logic/transferRequests'
-import { converse, type ConversationResult, type ConversationTone, type ConversationTopic } from './logic/conversations'
-import { answerPress, type PressQuestion } from './logic/pressConference'
-import { counterBid, offerTerms, proposeFee, walkAway, type FeeAnswer, type FeeDeal, type TermsOffer } from './logic/transferTalks'
-import type { OfficePromise } from './types'
+import { withTick, type OfficeTick } from './logic/officeSteps'
 import { signYouth } from './logic/youth'
 import type { StaffRole } from '@engine/staff'
 import { advanceToNextSeason, letContractGo, postRenewals, type OffseasonReport } from './logic/dynasty'
@@ -357,16 +350,12 @@ interface Store {
   proposeContract: (playerSeasonId: string, offer: ContractOffer) => { accepted: boolean; message: string }
   /** Have his agent find a buyer, or stop. */
   setShopped: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
-  /** The office (Football Manager depth, round 8: `src/game/logic/office.ts` and its modules). */
-  makePromise: (playerSeasonId: string, kind: OfficePromise['kind'], level?: MinutesLevel) => { ok: boolean; message: string }
-  answerRequest: (playerSeasonId: string, answer: RequestAnswer) => { ok: boolean; message: string }
-  converse: (playerSeasonId: string, topic: ConversationTopic, tone: ConversationTone) => ConversationResult
-  answerPress: (question: PressQuestion, answer: string) => { ok: boolean; message: string }
-  proposeFee: (listingId: string, deal: FeeDeal) => FeeAnswer
-  walkAway: (listingId: string) => void
-  offerTerms: (listingId: string, offer: TermsOffer) => { ok: boolean; signed?: boolean; message: string }
-  counterBid: (offerIndex: number, amount: number) => { ok: boolean; sold?: boolean; message: string }
-  setListed: (playerSeasonId: string, on: boolean) => { ok: boolean; message: string }
+  /**
+   * One office action (Football Manager depth, round 8): `fn` is a function of `src/game/logic/office.ts` and its
+   * modules, run on the game like any action and its result returned. The office's code is not in the first download:
+   * the screens reach it through `src/game/officeActions.ts`, in the Dugout's chunk.
+   */
+  runOffice: <T>(fn: (game: Game, u: LoadedUniverse) => T, fallback: T, opts?: { unlock?: boolean }) => T
   setPlayerPower: (on: boolean) => void
   boardRequest: (kind: RequestKind) => { ok: boolean; accepted: boolean; message: string }
   /** The wage-to-transfer slider: +1 turns £10k a week of wages into £2M of budget, −1 the other way. */
@@ -467,10 +456,32 @@ function persistedOf(s: Pick<Store, 'game' | 'parked' | 'shortlist' | 'h2h' | 'p
   return { game: s.game ? compactGame(s.game) : null, parked, shortlist: s.shortlist, h2h: s.h2h, profile: s.profile, screen: s.screen === 'game' || s.screen === 'h2h' ? s.screen : 'home' }
 }
 
+/**
+ * The office's tick (`officeTick` in `src/game/logic/office.ts`), registered when its module loads (the Dugout's chunk,
+ * or on demand the first time a game with office state is changed), so the office stays out of the first download.
+ * Until then nothing ticks, and the first tick after it loads catches up: every part of it is idempotent.
+ */
+let officeHook: OfficeTick | null = null
+let officeLoading = false
+export function registerOfficeTick(fn: OfficeTick): void {
+  officeHook = fn
+}
+
 export const useStore = create<Store>()(
   persist(
     (set, get) => {
       /** Run a mutation on the current game with the loaded universe. */
+      /** The office's tick when it is loaded; a game that uses the office loads it and catches up once it has. */
+      const tickOffice: OfficeTick = (g, u, sim) => {
+        if (officeHook) return officeHook(g, u, sim)
+        if ((g.office || g.settings.playerPower) && !officeLoading) {
+          officeLoading = true
+          void import('./logic/office').then((m) => {
+            officeHook = m.officeTick
+            mutate(() => {})
+          })
+        }
+      }
       const mutate = (fn: (game: Game, u: LoadedUniverse) => void) => {
         const { game, universe } = get()
         if (!game || !universe) return
@@ -479,7 +490,7 @@ export const useStore = create<Store>()(
             game: produce(game, (g) => {
               fn(g, universe)
               // The office catches up after every action (a no-op for a game that never used it)
-              officeTick(g, universe)
+              tickOffice(g, universe)
             }),
           })
         } catch (e) {
@@ -500,12 +511,12 @@ export const useStore = create<Store>()(
           for (;;) {
             const r = steps.next()
             if (r.done) {
-              officeTick(box.g, u0)
+              tickOffice(box.g, u0)
               return { next: finishDraft(box.g), value: r.value }
             }
             // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
             if (r.value === WEEK_END) {
-              officeTick(box.g, u0, true)
+              tickOffice(box.g, u0, true)
               box.g = createDraft(finishDraft(box.g))
             }
             if (performance.now() - slice < sliceMs) continue
@@ -1238,7 +1249,7 @@ export const useStore = create<Store>()(
           const before = digestSnapshot(get().game)
           mutate((g, u) => {
             const box = { g }
-            runSteps(withOffice(box, u, simWeeksSteps(box, u, n)))
+            runSteps(withTick(box, u, simWeeksSteps(box, u, n), tickOffice))
           })
           afterSimWeeks(before)
         },
@@ -1255,7 +1266,7 @@ export const useStore = create<Store>()(
           const out: { stop: StopReason | null } = { stop: null }
           mutate((g, u) => {
             const box = { g }
-            out.stop = runSteps(withOffice(box, u, simToNextStopSteps(box, u)))
+            out.stop = runSteps(withTick(box, u, simToNextStopSteps(box, u), tickOffice))
           })
           afterSimToStop(out.stop)
         },
@@ -1499,62 +1510,12 @@ export const useStore = create<Store>()(
           })
           return out
         },
-        makePromise: (id, kind, level) => {
-          let out = { ok: false, message: 'No game' }
+        runOffice: (fn, fallback, opts) => {
+          let out = fallback
           mutate((g, u) => {
-            out = makePromise(g, u, id, kind, level)
+            out = fn(g, u)
           })
-          return out
-        },
-        answerRequest: (id, answer) => {
-          let out = { ok: false, message: 'No game' }
-          mutate((g, u) => {
-            out = answerRequest(g, u, id, answer)
-          })
-          return out
-        },
-        converse: (id, topic, tone) => {
-          let out: ConversationResult = { ok: false, message: 'No game' }
-          mutate((g, u) => {
-            out = converse(g, u, id, topic, tone)
-          })
-          return out
-        },
-        answerPress: (question, answer) => {
-          let out = { ok: false, message: 'No game' }
-          mutate((g, u) => {
-            out = answerPress(g, u, question, answer)
-          })
-          return out
-        },
-        proposeFee: (listingId, deal) => {
-          let out: FeeAnswer = { ok: false, message: 'No game' }
-          mutate((g, u) => {
-            out = proposeFee(g, u, listingId, deal)
-          })
-          return out
-        },
-        walkAway: (listingId) => mutate((g) => walkAway(g, listingId)),
-        offerTerms: (listingId, offer) => {
-          let out: { ok: boolean; signed?: boolean; message: string } = { ok: false, message: 'No game' }
-          mutate((g, u) => {
-            out = offerTerms(g, u, listingId, offer)
-          })
-          unlockFromGame()
-          return out
-        },
-        counterBid: (index, amount) => {
-          let out: { ok: boolean; sold?: boolean; message: string } = { ok: false, message: 'No game' }
-          mutate((g, u) => {
-            out = counterBid(g, u, index, amount)
-          })
-          return out
-        },
-        setListed: (id, on) => {
-          let out = { ok: false, message: 'No game' }
-          mutate((g, u) => {
-            out = setListed(g, u, id, on)
-          })
+          if (opts?.unlock) unlockFromGame()
           return out
         },
         setPlayerPower: (on) =>

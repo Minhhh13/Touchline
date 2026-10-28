@@ -8,7 +8,7 @@ import type { MoraleEntry } from '@engine/types'
 import { beginSeason, createGame } from '../logic/setup'
 import { playMatchweek, runSteps, simWeeksSteps, startSeasonProper } from '../logic/week'
 import { officeTick, officeItems, setListed } from '../logic/office'
-import { withOffice } from '../logic/officeSteps'
+import { withTick } from '../logic/officeSteps'
 import { lodgeRequest } from '../logic/officeCore'
 import { makePromise, openPromises, promiseProblem, settlePromises, BROKEN_COST, KEPT_LIFT } from '../logic/promises'
 import { answerRequest, openRequests, requestChance, requestPressure, talkOdds, REFUSED_COST } from '../logic/transferRequests'
@@ -66,7 +66,7 @@ describe('the office changes nothing until it is used', () => {
   it('Sim 5 through the office wrapper equals Sim 5 without it', () => {
     const a = seasonGame(u, 'office-sim5')
     const b = clone(a)
-    runSteps(withOffice({ g: a }, u, simWeeksSteps({ g: a }, u, 5)))
+    runSteps(withTick({ g: a }, u, simWeeksSteps({ g: a }, u, 5), officeTick))
     runSteps(simWeeksSteps({ g: b }, u, 5))
     expect(gameHash(a)).toBe(gameHash(b))
   }, 60_000)
@@ -189,7 +189,7 @@ describe('transfer requests', () => {
     const pid = playerLookup(g, u)(id)!.playerId
     lodgeRequest(g, u, id, 'minutes')
     const box = { g }
-    runSteps(withOffice(box, u, simWeeksSteps(box, u, 5)))
+    runSteps(withTick(box, u, simWeeksSteps(box, u, 5), officeTick))
     officeTick(g, u)
     expect(g.office!.requests![pid].stage).toBe('open')
     storeWeek(g)

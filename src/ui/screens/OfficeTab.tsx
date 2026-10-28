@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Briefcase, Handshake, MessageCircle, Mic, ScrollText, Users } from 'lucide-react'
 import { useStore } from '@game/store'
+import { officeActions as act } from '@game/officeActions'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { EXPECTED_SHARE, STATUS_LABEL, STATUSES, type SquadStatus } from '@engine/status'
@@ -135,7 +136,7 @@ function RequestsBox({ game, u, onPlayer, say }: BoxProps & { onPlayer: (id: str
                   const problem = answerProblem(game, u, id, a)
                   const odds = a === 'talk' || a === 'promise-minutes' || a === 'promise-contract' ? talkOdds(game, u, r, a) : null
                   return (
-                    <button key={a} type="button" className={`btn sm ${a === 'refuse' ? 'ghost' : ''}`} disabled={!!problem} title={problem ?? (odds !== null ? t('odds', { pct: Math.round(odds * 100) }) : undefined)} data-testid={`request-${a}`} onClick={() => say(store.answerRequest(id, a).message)}>
+                    <button key={a} type="button" className={`btn sm ${a === 'refuse' ? 'ghost' : ''}`} disabled={!!problem} title={problem ?? (odds !== null ? t('odds', { pct: Math.round(odds * 100) }) : undefined)} data-testid={`request-${a}`} onClick={() => say(act.answerRequest(id, a).message)}>
                       {label}
                     </button>
                   )
@@ -221,7 +222,6 @@ function PromisesBox({ game, u, onPlayer }: { game: Game; u: LoadedUniverse; onP
 }
 
 function TalkBox({ game, u, say }: BoxProps) {
-  const store = useStore()
   const get = playerLookup(game, u)
   const ids = Object.keys(game.squad).sort((a, b) => (get(a)?.name ?? a).localeCompare(get(b)?.name ?? b))
   const [who, setWho] = useState<string>('')
@@ -258,7 +258,7 @@ function TalkBox({ game, u, say }: BoxProps) {
       {problem && <div className="small muted">{t('spokenThisWeek')}</div>}
       <div className="row wrap" style={{ gap: 4 }}>
         {TOPIC_TONES[topic].map((tone) => (
-          <button key={tone} type="button" className="btn sm" disabled={!id || !!problem} data-testid={`talk-tone-${tone}`} onClick={() => id && say(store.converse(id, topic, tone).message)}>
+          <button key={tone} type="button" className="btn sm" disabled={!id || !!problem} data-testid={`talk-tone-${tone}`} onClick={() => id && say(act.converse(id, topic, tone).message)}>
             {t(`tone_${tone}`)}
           </button>
         ))}
@@ -268,7 +268,6 @@ function TalkBox({ game, u, say }: BoxProps) {
 }
 
 function PressBox({ game, u, say }: BoxProps) {
-  const store = useStore()
   const problem = pressProblem(game)
   const qs = problem ? [] : pressQuestions(game, u)
   const given = pressAnswers(game)
@@ -298,7 +297,7 @@ function PressBox({ game, u, say }: BoxProps) {
               </div>
               <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
                 {Object.keys(PRESS_ANSWERS[q]).map((a) => (
-                  <button key={a} type="button" className={`btn sm ${chosen === a ? 'primary' : ''}`} disabled={!!chosen} data-testid="press-answer" onClick={() => say(store.answerPress(q, a).message)}>
+                  <button key={a} type="button" className={`btn sm ${chosen === a ? 'primary' : ''}`} disabled={!!chosen} data-testid="press-answer" onClick={() => say(act.answerPress(q, a).message)}>
                     {t(`a_${a}` as 'a_respect')}
                   </button>
                 ))}
@@ -349,7 +348,6 @@ function TransfersBox({ game, say }: Omit<BoxProps, 'u'>) {
 }
 
 function StatusBox({ game, u, onPlayer, say }: BoxProps & { onPlayer: (id: string) => void }) {
-  const store = useStore()
   const get = playerLookup(game, u)
   const rows = Object.keys(game.squad)
     .map((id) => ({ id, p: get(id), status: (game.contracts[id]?.status ?? 'rotation') as SquadStatus }))
@@ -383,7 +381,7 @@ function StatusBox({ game, u, onPlayer, say }: BoxProps & { onPlayer: (id: strin
                 {c?.listed && <span className="chip warn">{t('listed')}</span>}
                 {short && <span className="chip bad">{t('played', { pct: Math.round((share ?? 0) * 100) })}</span>}
                 {!c?.loan && (
-                  <button type="button" className="chip-btn" onClick={() => say(store.setListed(id, !c?.listed).message)} data-testid="status-list">
+                  <button type="button" className="chip-btn" onClick={() => say(act.setListed(id, !c?.listed).message)} data-testid="status-list">
                     {c?.listed ? t('unlist') : t('list')}
                   </button>
                 )}
@@ -459,16 +457,16 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
             </div>
           )}
           <div className="row wrap" style={{ gap: 4 }}>
-            <button type="button" className="btn sm primary" data-testid="fee-offer" onClick={() => tell(store.proposeFee(listingId, { fee: feeNow, sellOn, instalments: inst }).message)}>
+            <button type="button" className="btn sm primary" data-testid="fee-offer" onClick={() => tell(act.proposeFee(listingId, { fee: feeNow, sellOn, instalments: inst }).message)}>
               {t('offerFee')}
             </button>
             {talk?.counter !== undefined && (
-              <button type="button" className="btn sm" data-testid="fee-accept-counter" onClick={() => tell(store.proposeFee(listingId, { fee: talk.counter!, sellOn, instalments: inst }).message)}>
+              <button type="button" className="btn sm" data-testid="fee-accept-counter" onClick={() => tell(act.proposeFee(listingId, { fee: talk.counter!, sellOn, instalments: inst }).message)}>
                 {t('acceptCounter', { m: money(talk.counter) })}
               </button>
             )}
             {talk && (
-              <button type="button" className="btn sm ghost" onClick={() => store.walkAway(listingId)}>
+              <button type="button" className="btn sm ghost" onClick={() => act.walkAway(listingId)}>
                 {t('walkAway')}
               </button>
             )}
@@ -504,7 +502,7 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
           </div>
           <div className="small muted">{wage(wageNow)}</div>
           <div className="row wrap" style={{ gap: 4 }}>
-            <button type="button" className="btn sm primary" data-testid="terms-offer" onClick={() => tell(store.offerTerms(listingId, { wage: wageNow, years: yearsNow, status: st, signingFee: signNow }).message)}>
+            <button type="button" className="btn sm primary" data-testid="terms-offer" onClick={() => tell(act.offerTerms(listingId, { wage: wageNow, years: yearsNow, status: st, signingFee: signNow }).message)}>
               {t('offerTerms')}
             </button>
             {demand && (
@@ -512,7 +510,7 @@ export function FeeTalkPanel({ listingId, say }: { listingId: string; say?: (m: 
                 {t('meetDemand')}
               </button>
             )}
-            <button type="button" className="btn sm ghost" onClick={() => store.walkAway(listingId)}>
+            <button type="button" className="btn sm ghost" onClick={() => act.walkAway(listingId)}>
               {t('walkAway')}
             </button>
           </div>
@@ -550,7 +548,7 @@ export function CounterBidControl({ index, name }: { index: number; name: string
   return (
     <span className="row" style={{ gap: 4 }}>
       <input className="input" type="number" min={0.1} step={0.5} value={value} onChange={(e) => setAsk(Number(e.target.value))} aria-label={t('counterLabel', { name })} style={{ width: 80 }} data-testid="counter-input" />
-      <button type="button" className="btn sm" data-testid="counter-bid" onClick={() => store.showToast(store.counterBid(index, value).message)}>
+      <button type="button" className="btn sm" data-testid="counter-bid" onClick={() => store.showToast(act.counterBid(index, value).message)}>
         {t('counter')}
       </button>
     </span>
