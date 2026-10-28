@@ -7,7 +7,8 @@
 import type { BaseSlot } from './core/syncPlan'
 import type { ProfileDoc } from './core/merge'
 import type { SlotId } from './core/slots'
-import type { PostState } from './state'
+import type { PostKind, PostState } from './state'
+import type { ErrorState } from './core/errorReport'
 
 export const ONLINE_KEY = 'touchline-online-v1'
 /** Dismissed sign-in prompts ("Sign in to keep this season on every device"), per device. */
@@ -17,8 +18,10 @@ export const AUTH_KEY = 'touchline-auth-v1'
 
 export interface OutboxEntry {
   id: string
-  kind: 'daily' | 'weekly' | 'chase'
-  /** `YYYY-MM-DD`, `YYYY-Www` or a 38-0 chase attempt's code. */
+  /** The board: the Daily, the online weekly challenge, a 38-0 chase attempt, or a casual mode's board (the Daily
+   * Arena, the Weekly Challenge of mode weekly, the Run-in of the week; all three post as `casual.submit`). */
+  kind: PostKind
+  /** `YYYY-MM-DD` (the Daily, the Daily Arena), `YYYY-Www` (the weeks) or a 38-0 chase attempt's code. */
   key: string
   encoded: string
   teamName: string
@@ -60,6 +63,9 @@ export interface OnlineRecord {
   /** Set by "Delete my cloud data": nothing uploads again until the player presses Sync now (otherwise this device's
    * next pass would put every game straight back). */
   paused?: boolean
+  /** Error reports waiting to go, with their own random id, dedupe and rate-limit marks (`src/online/errors.ts`).
+   * Absent until the first report; checked field by field by `parseErrorState` when read. */
+  errors?: ErrorState
 }
 
 const CAP_POSTS = 60
@@ -99,6 +105,7 @@ export function parseRecord(text: string | null): OnlineRecord {
       lastUploadAt: r.lastUploadAt && typeof r.lastUploadAt === 'object' ? r.lastUploadAt : {},
       claims: typeof r.claims === 'number' ? r.claims : 0,
       paused: r.paused === true,
+      ...(r.errors && typeof r.errors === 'object' ? { errors: r.errors } : {}),
     }
   } catch {
     return freshRecord()

@@ -94,14 +94,28 @@ function topSlice(u: LoadedUniverse, pool: ClubSeason[], ok: (cs: ClubSeason) =>
 }
 
 /**
+ * The club-seasons of the bands nearest band r (one band below and one above,
+ * then two, and so on) that pass `ok`, the first distance with any; empty when
+ * no band has one.
+ */
+function nearestFresh(bands: ClubSeason[][], rung: number, ok: (cs: ClubSeason) => boolean): ClubSeason[] {
+  for (let d = 1; d < bands.length; d++) {
+    const near = [bands[rung - 1 - d], bands[rung - 1 + d]].filter((x): x is ClubSeason[] => !!x).flat().filter(ok)
+    if (near.length) return near.sort((a, b) => (clubSeasonKey(a) < clubSeasonKey(b) ? -1 : 1))
+  }
+  return []
+}
+
+/**
  * Build the ladder from the field stream (the pool must be in key order, as
  * `arenaPool` returns it). Mains first, from the top down (rung 15 to 1), so
  * the strongest clubs are kept for the top of the ladder; one draw each:
  * - rungs 11 to 15: uniform over the strongest 5% of the pool less every club
  *   (by club id) already on the ladder, widened when none is left (`topSlice`);
  * - rungs 1 to 10: uniform over band r less every club already on the ladder;
- *   when a small pool leaves no new club in the band, any unused club-season
- *   of the band.
+ *   when a small pool (an era) leaves no new club in the band, over the
+ *   nearest bands' new clubs (`nearestFresh`, engine 7), and only when the
+ *   whole pool has none left, any unused club-season of the band.
  * Then the alternates, rung 1 to 15: uniform over the same band (the strongest
  * 5% for rungs 11 to 15) less every main and earlier alternate (the pool's
  * unused club-seasons when that is empty). The user's draft never enters it.
@@ -117,6 +131,8 @@ export function buildLadder(u: LoadedUniverse, rng: Rng, pool: ClubSeason[]): Ga
   for (let r = GAUNTLET_RUNGS; r >= 1; r--) {
     const band = rungBand(b, r)
     let from = r > GAUNTLET_BANDS ? topSlice(u, pool, fresh) : band.filter(fresh)
+    // An era's smaller pool can run out of new clubs in a band: the nearest bands with one come first (engine 7)
+    if (!from.length && r <= GAUNTLET_BANDS) from = nearestFresh(b.bands, r, fresh)
     if (!from.length) from = band.filter(unusedKey)
     if (!from.length) from = pool.filter(unusedKey)
     const cs = rng.pick(from.length ? from : band)

@@ -12,7 +12,7 @@ import { isQuickLike } from './modes'
  * Pure, no draws; the first draft is exactly what an untouched Quick Draft setup would start.
  */
 
-/** The team name every untouched setup starts with. */
+/** The game logic's fallback team name: the first draft's when no name is passed (Home passes an invented one, `src/ui/teamName.ts`). */
 export const FIRST_TEAM_NAME = 'Touchline XI'
 
 /** The game in three steps, for the first-run panel on Home: a short title and one plain line each. */

@@ -10,7 +10,7 @@ import type { TrainingFocus } from '@engine/training'
 import type { SeasonAwards } from '@engine/awards'
 import type { Lineup, PlayerSeason, Position, SeasonTier, SquadPlayer, Tactics } from '@engine/types'
 import type { DraftRules } from '@engine/draft'
-import type { ArenaClaim, ChallengeClaim } from '@engine/challenge'
+import type { ArenaClaim, ChallengeClaim, ChallengePick } from '@engine/challenge'
 import type { SquadStatus } from '@engine/status'
 import type { AiClub } from '@engine/season'
 import type { ArenaField, ArenaTier } from '@engine/knockout'
@@ -208,6 +208,11 @@ export interface Contract {
   renewed?: boolean
   /** The player will leave when the contract ends. */
   declined?: boolean
+  /**
+   * Dynasty summer: his contract ran out (`years` 0). Talks are open through pre-season; at the opener the
+   * assistant renews him if he is worth keeping and willing (`settleRenewals` in `dynasty.ts`), else he leaves on a free.
+   */
+  expired?: boolean
   /** Transfer-listed: offers come in more often. */
   listed?: boolean
   /** On loan for this season only: he goes back to his club in the summer. */
@@ -274,7 +279,7 @@ export interface SeasonRecord {
   tier: SeasonTier
   cupWon: boolean
   continentalWon?: boolean
-  /** Furthest Continental Cup round reached: R16, QF, SF, F or W (winners). */
+  /** Furthest Continental Cup stage reached: G (out in the groups, from engine 7), R16 (before it), QF, SF, F or W (winners). */
   continentalRun?: string
   potsName?: string
   bootName?: string
@@ -300,6 +305,10 @@ export interface LiveMatch {
   cupTieIndex?: number
   /** Which knockout the tie belongs to (domestic cup when missing). */
   comp?: Competition
+  /** Engine 7's Continental Cup group stage: the group's index in `continental.groups`; `cupTieIndex` is then the match's index in that group's matches. */
+  group?: number
+  /** A two-legged Continental Cup tie's leg (engine 7). */
+  leg?: 1 | 2
 }
 
 export interface Game {
@@ -368,6 +377,12 @@ export interface Game {
   history: SeasonRecord[]
   /** Bonus wheel spins available (agent meetings, summer window). */
   bonusSpins: number
+  /**
+   * A run-in's reinforcement draft as link rows (each spin's real player id and slot, or nulls) and its `historyKey`,
+   * kept at the takeover (the draft closes there) for the Run-in of the week's ranked replay. Absent before the
+   * takeover, in any other mode and in older saves.
+   */
+  runInDraft?: { p: ChallengePick[]; k: string }
   /** Friendlies played in preseason (max 3). */
   friendliesPlayed: number
   /** Achievement ids unlocked during this game. */
@@ -378,6 +393,13 @@ export interface Game {
   pendingMove: { leagueId: string; clubId: string } | null
   /** Real player ids of the men who retired from the squad (Dynasty): never offered again, younger, by the summer wheel, the market or the youth intake. Absent until the first retirement. */
   retiredPlayers?: string[]
+  /**
+   * Real player ids of the men who left the squad (Dynasty: sold, released, out of contract, a loan gone back) with his
+   * age and the game year he left in: a season of him is never offered again, by the summer wheel, the market, the
+   * academy or a scout, in which he is younger than he would be now (`ageFloors` in `departures.ts`). Absent until the
+   * first departure.
+   */
+  departedPlayers?: Record<string, { age: number; year: number }>
   /** Quick-mode final table snapshot for the summary. */
   quickResult: QuickResult | null
   /** The arena run of a mode `arena` game; null (or absent, in an older save) otherwise. */
@@ -635,8 +657,8 @@ export interface QuickEuropeTie {
 
 /** A knockout round of the post-season cups: round of 16, quarter-final, semi-final, final. */
 export type QuickCupRound = 'R16' | 'QF' | 'SF' | 'F'
-/** How far a cup run went: the round it ended in, W for winners. */
-export type QuickCupReach = QuickCupRound | 'W'
+/** How far a cup run went: the round it ended in, G for out in the Continental Cup's groups (engine 7), W for winners. */
+export type QuickCupReach = QuickCupRound | 'G' | 'W'
 
 /** One tie of a post-season cup run, from the user's side. */
 export interface QuickCupTie {
@@ -652,9 +674,11 @@ export interface QuickCupTie {
   et?: { for: number; against: number }
   /** Shoot-out score from the user's side, after a draw over 120 minutes. */
   pens?: { for: number; against: number }
-  /** The user's goalscorers, ordered by minute (91 to 120 in extra time). */
+  /** The user's goalscorers, ordered by minute (91 to 120 in extra time); both legs of a two-legged tie, first leg first. */
   scorers: QuickScorer[]
   won: boolean
+  /** A two-legged tie (the Continental Cup's quarter- and semi-finals from engine 7): each leg's venue and score from the user's side, extra time not included; `gf`/`ga` are then the aggregate. */
+  legs?: Array<{ home: boolean; gf: number; ga: number }>
 }
 
 /** A post-season cup run: the user's ties in order, and how far it went. */
@@ -664,9 +688,20 @@ export interface QuickCupRun {
   /**
    * Every tie of every round, first round to final, in the order drawn: the whole bracket for the summary. The rounds
    * after the user went out are played on from the same fork, after every draw the run itself took, so no result moves.
-   * Absent on runs played before the bracket (the summary then shows the user's path alone).
+   * Absent on runs played before the bracket (the summary then shows the user's path alone). From engine 7 the
+   * Continental Cup's bracket starts at the quarter-finals, after its groups.
    */
   bracket?: QuickBracketTie[][]
+  /** The Continental Cup's group stage (engine 7): four groups of four, home and away. Absent on the domestic cup and on older runs. */
+  groups?: QuickGroup[]
+}
+
+/** One group of a post-season Continental Cup: its four sides in draw order and every match by matchday. */
+export interface QuickGroup {
+  name: string
+  teams: string[]
+  /** `[matchday, home, away, homeGoals, awayGoals]`. */
+  matches: Array<[number, string, string, number, number]>
 }
 
 /** One tie of a post-season cup's bracket. Sides are club ids, or `USER_TEAM` for the user. */
@@ -682,6 +717,8 @@ export interface QuickBracketTie {
   pens?: { home: number; away: number }
   /** The side that went through. */
   winner: string
+  /** A two-legged tie's legs, each from the tie's sides (`home`'s goals first), extra time not included. */
+  legs?: Array<{ hg: number; ag: number }>
 }
 
 export interface QuickEuropeRun {

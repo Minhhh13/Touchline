@@ -162,8 +162,9 @@ describe('a Super League season', { timeout: 300_000 }, () => {
     g.quickResult!.position = 1
     playQuickCup(g, u, 'continental')
     const run = g.quickResult!.continentalCup!
-    expect(run.ties.length).toBeGreaterThan(0)
+    // Engine 7: the groups are the user and the fifteen, and every knockout opponent is one of them
     const rest = new Set(Object.keys(buildSuperRestClubs(u, false, 15)))
+    expect(new Set(run.groups!.flatMap((x) => x.teams))).toEqual(new Set([USER_TEAM, ...rest]))
     expect(run.ties.every((t) => rest.has(t.opponentId))).toBe(true)
   })
 
@@ -271,12 +272,13 @@ describe('Super League rules and screens', { timeout: 60_000 }, () => {
 /**
  * Adding the Super League changes no other game: these hashes were taken on the commit before it (57f3453) and must
  * not move. Re-baselined on ENGINE_VERSION '5' (the playtest fixes moved every quick season; two of the three odds
- * hashes held), and on '6' (every match moved: the calibration, the user's men out of their real clubs). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
+ * hashes held), and on '6' (every match moved: the calibration, the user's men out of their real clubs), and on '7' (the post-season
+ * Continental Cup's groups and two legs move the quick results that played it; the odds and the Daily held). Quick seasons in the Premier League (January deal taken, then the cups), a European Nights wheel with
  * classic seasons in La Liga 2015-16 (the Continental Cup included), the pundits' odds and today's Daily.
  */
 describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
   it('reproduces the pinned results of the commit before the Super League', () => {
-    expect(ENGINE_VERSION).toBe('6')
+    expect(ENGINE_VERSION).toBe('7')
     const play = (s: GameSettings): Game => {
       const g = drafted(s)
       kickOff(g, u)
@@ -293,9 +295,9 @@ describe('non-Super games are unchanged', { timeout: 600_000 }, () => {
       return g
     }
     const pins: Record<string, string> = {
-      'pin-1': '263157395973345 2118823020534152 1925156832764192',
-      'pin-2': '7561430288685487 6881622854730792 2829385333339880',
-      'pin-3': '2932701264777520 104418861209913 7200968562615668',
+      'pin-1': '4444055295652043 3990114105311898 1925156832764192',
+      'pin-2': '6943731497980684 7821072090189927 2829385333339880',
+      'pin-3': '6123748828687102 1977299536754919 7200968562615668',
     }
     for (const seed of Object.keys(pins)) {
       const s: GameSettings = { mode: 'quick', seed, formationId: '4-3-3', teamName: 'Pin XI', shortName: 'PIN', leagueId: 'england', wheelLeagues: ['england'], hostClubId: 'burnley', leagueSeason: 2025, rules: { ...QUICK_RULES, leagues: ['england'] }, jobSecurity: false, difficulty: 'calibrated', january: true }

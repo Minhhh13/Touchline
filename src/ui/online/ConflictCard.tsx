@@ -7,12 +7,19 @@ import { saving } from '../i18n/en/saving'
 
 const t = translator(saving)
 
-const SLOT_LABEL: Record<string, () => string> = { quick: () => t('slotQuick'), season: () => t('slotSeason'), dynasty: () => t('slotDynasty'), h2h: () => t('slotH2H') }
+const SLOT_LABEL: Record<string, () => string> = { quick: () => t('slotQuick'), season: () => t('slotSeason'), dynasty: () => t('slotDynasty'), h2h: () => t('slotH2H'), arena: () => t('slotArena'), runin: () => t('slotRunIn') }
+
+/** Where a slot's game stands, from its row's summary (`whereLabel` in core/slots.ts, in the viewer's language): "drafting", "matchweek 12", "2 matches played", "run over". */
+export function whereText(m: Pick<SaveMeta, 'phase' | 'matchweek'> & Partial<Pick<SaveMeta, 'mode' | 'arena'>>): string {
+  if (m.phase === 'draft') return t('drafting')
+  if (m.arena) return m.arena.over || m.phase === 'summary' ? t('runOver') : t('matchesPlayed', { n: m.arena.step })
+  if (m.phase === 'summary') return t(m.mode === 'runin' ? 'runInComplete' : 'seasonComplete')
+  return m.matchweek ? t('matchweekLower', { n: m.matchweek }) : m.phase
+}
 
 function describe(m: SaveMeta | null): string {
   if (!m) return t('aGame')
-  const where = m.phase === 'draft' ? t('drafting') : m.phase === 'summary' ? t('seasonComplete') : m.matchweek ? t('matchweekLower', { n: m.matchweek }) : m.phase
-  return t('describeSave', { team: m.teamName, where, year: m.mode === 'dynasty' ? t('yearSuffix', { year: m.year }) : '', device: m.deviceLabel ? t('onDevice', { device: m.deviceLabel }) : '' })
+  return t('describeSave', { team: m.teamName, where: whereText(m), year: m.mode === 'dynasty' ? t('yearSuffix', { year: m.year }) : '', device: m.deviceLabel ? t('onDevice', { device: m.deviceLabel }) : '' })
 }
 
 function Card({ c }: { c: SyncConflict }) {

@@ -33,6 +33,9 @@ export function postLabel(key: string): string | null {
   if (kind === 'daily') return `Daily ${id}`
   if (kind === 'weekly') return `Weekly ${id}`
   if (kind === 'chase') return `38-0 chase ${id}`
+  if (kind === 'arena') return `Daily Arena ${id}`
+  if (kind === 'themed') return `Weekly Challenge ${id}`
+  if (kind === 'runin') return `Run-in of the week ${id}`
   return null
 }
 
@@ -43,7 +46,7 @@ export function postLine(p: PostState, signedIn: boolean): Pick<DevicePost, 'lin
     if (p.reason === 'retry') return { line: `Waiting to post${pts}: the server did not answer, so this device tries again shortly.`, tone: 'wait' }
     return { line: 'Posting…', tone: 'wait' }
   }
-  if (p.state === 'posted') return { line: `Posted ${p.points} pts: ${ordinal(p.position)} of ${p.total.toLocaleString()}.`, tone: 'good' }
+  if (p.state === 'posted') return { line: `Posted ${p.detail && !/^[A-Z_ ]+$/.test(p.detail) ? p.detail : `${p.points} pts`}: ${ordinal(p.position)} of ${p.total.toLocaleString()}.`, tone: 'good' }
   if (p.state === 'unranked') return { line: `Unranked: ${sentence(p.reason)}`, tone: 'bad' }
   if (p.state === 'rejected') return { line: `Not ranked: ${sentence(p.reason)}`, tone: 'bad' }
   return { line: 'Not posted: the board closed before this device could post it.', tone: 'muted' }
@@ -60,8 +63,8 @@ export function devicePosts(posts: Record<string, PostState>, signedIn: boolean,
   // Dailies by their date and weeks by their Monday, newest first; chase codes (no date) after them
   const when = (k: string) => {
     const id = k.slice(k.indexOf(':') + 1)
-    if (k.startsWith('daily:')) return Date.parse(`${id}T00:00:00Z`) || 0
-    if (k.startsWith('weekly:')) return weekStartOf(id)?.getTime() ?? 0
+    if (k.startsWith('daily:') || k.startsWith('arena:')) return Date.parse(`${id}T00:00:00Z`) || 0
+    if (k.startsWith('weekly:') || k.startsWith('themed:') || k.startsWith('runin:')) return weekStartOf(id)?.getTime() ?? 0
     return -1
   }
   out.sort((a, b) => when(b.key) - when(a.key) || (a.key < b.key ? -1 : 1))

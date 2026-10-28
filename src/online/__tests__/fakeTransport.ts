@@ -25,6 +25,9 @@ export class FakeBackend {
   calls: string[] = []
   /** Scripted Edge Function: answers by op. */
   fn: (body: Record<string, unknown>, userId: string | null, opts: InvokeOptions) => FunctionReply | Promise<FunctionReply> = () => ({ status: 404, body: { code: 'not_found' } })
+  /** The slots the database takes (the `cloud_saves` check, the bucket's path policy, `save_claim`/`save_delete`'s
+   * slot check); a test drops arena and runin to stand in a project without `cloud_slots_arena_runin`. */
+  slots: string[] = ['quick', 'season', 'dynasty', 'h2h', 'arena', 'runin']
   /** Make the next calls fail (a network drop or a refusal). */
   failNext: OnlineError[] = []
   private clock = 0
@@ -55,6 +58,7 @@ export class FakeTransport implements OnlineTransport {
   async upload(path: string, bytes: Uint8Array): Promise<void> {
     const uid = this.gate('upload')
     if (!path.startsWith(`${uid}/`)) throw new OnlineError('bad', 'not your folder', '42501', 403)
+    if (!this.b.slots.includes(path.split('/')[1])) throw new OnlineError('bad', 'new row violates row-level security policy', '42501', 403)
     if (this.b.objects.has(path)) throw new OnlineError('bad', 'exists', '409', 409)
     if ([...this.b.objects.keys()].filter((k) => k.startsWith(`${uid}/`)).length >= 16) throw new OnlineError('bad', 'object cap', '42501', 403)
     this.b.objects.set(path, bytes)
@@ -79,6 +83,7 @@ export class FakeTransport implements OnlineTransport {
 
   async claim(a: ClaimArgs): Promise<ClaimResult> {
     const uid = this.gate('claim')
+    if (!this.b.slots.includes(a.slot)) throw new OnlineError('bad', 'unknown save slot', '22023', 400)
     if (!this.b.objects.has(a.objectPath)) throw new OnlineError('bad', 'upload the save before claiming it', '22023', 400)
     const k = key(uid, a.slot)
     const cur = this.b.rows.get(k)
@@ -106,6 +111,7 @@ export class FakeTransport implements OnlineTransport {
 
   async deleteSlot(slot: SlotId, baseRevision: number, deviceId: string): Promise<ClaimResult> {
     const uid = this.gate('deleteSlot')
+    if (!this.b.slots.includes(slot)) throw new OnlineError('bad', 'unknown save slot', '22023', 400)
     const cur = this.b.rows.get(key(uid, slot))
     if (!cur || cur.deletedAt) return { status: 'unchanged', revision: cur?.revision ?? 0, obsolete: [] }
     if (cur.revision !== baseRevision) return { status: 'conflict', revision: cur.revision, obsolete: [] }

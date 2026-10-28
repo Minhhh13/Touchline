@@ -55,7 +55,9 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }))
 describe('the verifier bundle', () => {
   it('carries this engine and no browser or Node global', () => {
     expect(bundle.ENGINE_VERSION).toBe(ENGINE_VERSION)
-    for (const g of ['window.', 'document.', 'localStorage', 'sessionStorage', 'process.', 'require(']) expect(code).not.toContain(g)
+    for (const g of ['localStorage', 'sessionStorage', 'require(']) expect(code).not.toContain(g)
+    // A dotted global only as another object's property (the Season loop's `game.window`, the transfer window)
+    expect(code).not.toMatch(/(?<![\w$.]|\?\.)(window|document|process|navigator)\./)
     // well under the Edge Functions bundle limit (20 MB)
     expect(code.length).toBeLessThan(2_000_000)
   })

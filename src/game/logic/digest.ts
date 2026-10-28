@@ -5,7 +5,8 @@
  */
 import type { Game } from '../types'
 import type { NewsItem, Competition } from '@engine/season'
-import { positionOf, roundsFor, seasonTable, USER_TEAM } from '@engine/season'
+import { positionOf, seasonTable, USER_TEAM } from '@engine/season'
+import { userCupMatches } from './cupMatches'
 import { newsTotal } from './news'
 
 /** Title prefix of the inbox item recording a decision the assistant took during a simulation. */
@@ -31,7 +32,9 @@ export interface DigestResult {
   ga: number
   /** A cup tie level after ninety is settled on penalties. */
   penalties?: { gf: number; ga: number }
-  /** W, D or L for the league; for a knockout tie, through (W) or out (L). */
+  /** A two-legged tie's second leg: goals over both legs (engine 7). */
+  aggregate?: { gf: number; ga: number }
+  /** W, D or L for the league and a Continental Cup group match or first leg; for a tie's deciding match, through (W) or out (L). */
   outcome: 'W' | 'D' | 'L'
 }
 
@@ -94,27 +97,9 @@ export function buildDigest(before: DigestSnapshot, game: Game): SimDigest | nul
     points += outcome === 'W' ? 3 : outcome === 'D' ? 1 : 0
     results.push({ matchweek: f.matchweek, comp: 'league', opponentId: home ? f.awayTeamId : f.homeTeamId, home, gf, ga, outcome })
   }
-  for (const comp of ['cup', 'continental'] as const) {
-    const ties = comp === 'cup' ? season.cup : season.continental?.ties ?? []
-    const rounds = roundsFor(comp, season.matchweeks)
-    for (const t of ties) {
-      if (!t.result || !inRange(t.afterMatchweek) || (t.homeTeamId !== USER_TEAM && t.awayTeamId !== USER_TEAM)) continue
-      const home = t.homeTeamId === USER_TEAM
-      const gf = home ? t.result.homeGoals : t.result.awayGoals
-      const ga = home ? t.result.awayGoals : t.result.homeGoals
-      const pens = t.result.penalties
-      results.push({
-        matchweek: t.afterMatchweek,
-        comp,
-        roundLabel: rounds.find((r) => r.round === t.round)?.label,
-        opponentId: home ? t.awayTeamId : t.homeTeamId,
-        home,
-        gf,
-        ga,
-        ...(pens ? { penalties: { gf: home ? pens.home : pens.away, ga: home ? pens.away : pens.home } } : {}),
-        outcome: t.winnerId === USER_TEAM ? 'W' : 'L',
-      })
-    }
+  for (const m of userCupMatches(season)) {
+    if (!m.played || !inRange(m.matchweek) || !m.outcome) continue
+    results.push({ matchweek: m.matchweek, comp: m.comp, roundLabel: m.label, opponentId: m.opponentId, home: m.home, gf: m.gf, ga: m.ga, ...(m.penalties ? { penalties: m.penalties } : {}), ...(m.aggregate && m.leg === 2 ? { aggregate: m.aggregate } : {}), outcome: m.outcome })
   }
   // The league match of a week comes before the midweek tie played after it
   const order = { league: 0, cup: 1, continental: 2 }

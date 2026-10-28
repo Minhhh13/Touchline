@@ -24,6 +24,11 @@ export const RETENTION = {
   roomKeepHours: 24,
   /** Days a device keeps its seat in a room (`SEAT_KEEP_MS` in src/online/rooms.ts). */
   seatKeepDays: 2,
+  /** Days an error report is kept after it was last seen (`private.error_reports_keep`, the `touchline-error-reports` job). */
+  errorReportDays: 30,
+  /** Error reports one device sends at most in an hour and a day (`DEVICE_LIMITS` in src/online/core/errorReport.ts). */
+  errorReportsPerHour: 10,
+  errorReportsPerDay: 30,
   /** The device-local keys the online layer writes (besides the game's own save). */
-  deviceKeys: ['touchline-auth-v1', 'touchline-online-v1', 'touchline-online-prompts-v1', 'touchline-rooms-v1'],
+  deviceKeys: ['touchline-auth-v1', 'touchline-online-v1', 'touchline-online-prompts-v1', 'touchline-rooms-v1', 'touchline-error-reports-v1'],
 } as const

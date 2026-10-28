@@ -60,12 +60,29 @@ export function Privacy() {
             <li>{t('roomsCounters', { rateLimitDays: RETENTION.rateLimitDays })}</li>
           </ul>
         </div>
+        <div className="panel" data-testid="privacy-errors">
+          <h3>{t('errorsTitle')}</h3>
+          {online ? (
+            <>
+              <p>{t('errors', { app: APP_NAME })}</p>
+              <ul>
+                <li>{rich(t('errorsHolds', { app: APP_NAME }), B)}</li>
+                <li>{rich(t('errorsNever'), B)}</li>
+                <li>{rich(t('errorsHowMuch', { errorReportsPerHour: RETENTION.errorReportsPerHour, errorReportsPerDay: RETENTION.errorReportsPerDay }), B)}</li>
+                <li>{rich(t('errorsHowLong', { errorReportDays: RETENTION.errorReportDays }), B)}</li>
+              </ul>
+            </>
+          ) : (
+            <p>{t('errorsOffline')}</p>
+          )}
+        </div>
         <div className="panel">
           <h3>{t('deleteTitle')}</h3>
           <ul>
             <li>{rich(t('deleteCloud'), B)}</li>
             <li>{rich(t('deleteAccount'), B)}</li>
             <li>{rich(t('deleteSignOut'), B)}</li>
+            <li>{rich(t('deleteErrors', { errorReportDays: RETENTION.errorReportDays }), B)}</li>
           </ul>
           <p className="muted small">{t('deleteContact')}</p>
         </div>

@@ -41,11 +41,13 @@ function atKickoff(seed: string, i: number): Game {
 }
 
 describe('the quick-season worker', () => {
-  it('kicks off 50 seeded seasons, and closes their January windows, byte for byte as the page does', () => {
+  it('kicks off 50 seeded seasons, and closes their January windows, byte for byte as the page does', async () => {
     expect(universeMark(worker)).toBe(universeMark(page))
     let january = 0
     let spins = 0
     for (let i = 0; i < 50; i++) {
+      // Yield now and then: a minute and a half of synchronous seasons starves the Vitest worker's RPC
+      if (i % 5 === 0) await new Promise((r) => setTimeout(r, 0))
       const game = atKickoff(`quick-worker-${i}`, i)
       expect(kickoffStep(game)).toBe('tactics')
       const skip = i % 7 === 3

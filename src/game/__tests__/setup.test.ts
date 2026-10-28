@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '../../engine/__tests__/helpers'
 import { QUICK_RULES, SEASON_RULES } from '@engine/draft'
 import { DAILY_FORMATIONS, DAILY_RULES, DEFAULT_HOST_POSITION, dailyGameSettings, dailySettings, defaultHostClub, quickSetupLine, setupChips, shortNameFor, summariseSetup } from '../logic/setup'
-import { FUN_TEAM_NAMES, randomTeamName } from '../logic/teamNames'
 import { POWER_UPS_ICON } from '@engine/powerups'
 import type { GameSettings } from '../types'
 
@@ -185,47 +184,6 @@ describe('the chip row above Start', () => {
     expect(quick.slice(4)).toEqual(['No twists', '⏱️ Speedrun', `${POWER_UPS_ICON} Power-ups`, 'No January', 'Bench 3', 'Continental run'])
     // Every chip stays short enough for a phone row
     for (const t of [...texts(managed), ...quick]) expect(t.length).toBeLessThanOrEqual(28)
-  })
-})
-
-describe('the Randomise button for the team name', () => {
-  it('only holds invented names: none is a club in any league pack, and each fits the field', () => {
-    const all = loadTestUniverse(u.available.map((l) => l.id))
-    const real = new Set(all.clubs.flatMap((c) => [c.name, c.shortName]).map((n) => n.toLowerCase()))
-    expect(all.clubs.length).toBeGreaterThan(200)
-    expect(new Set(FUN_TEAM_NAMES).size).toBe(FUN_TEAM_NAMES.length)
-    for (const name of FUN_TEAM_NAMES) {
-      expect(real.has(name.toLowerCase())).toBe(false)
-      expect(name.length).toBeLessThanOrEqual(24)
-      expect(name).not.toBe('Touchline XI')
-    }
-  })
-
-  it('reaches every name across rolls and never repeats the one in the field', () => {
-    const seen = new Set<string>()
-    for (let i = 0; i < 400; i++) {
-      const roll = i / 400
-      const current = FUN_TEAM_NAMES[i % FUN_TEAM_NAMES.length]
-      const next = randomTeamName(roll, current)
-      expect(next).not.toBe(current)
-      expect(FUN_TEAM_NAMES).toContain(next)
-      seen.add(randomTeamName(roll))
-    }
-    expect(seen.size).toBe(FUN_TEAM_NAMES.length)
-    // A roll at the edge of the range still lands on a name
-    expect(FUN_TEAM_NAMES).toContain(randomTeamName(0.9999999))
-    expect(FUN_TEAM_NAMES).toContain(randomTeamName(1))
-  })
-
-  it("never gives a head-to-head manager the other manager's name, whatever the case or spacing", () => {
-    for (let i = 0; i < 400; i++) {
-      const roll = i / 400
-      const other = FUN_TEAM_NAMES[Math.floor(roll * FUN_TEAM_NAMES.length)]
-      const mine = FUN_TEAM_NAMES[(i * 7) % FUN_TEAM_NAMES.length]
-      const next = randomTeamName(roll, mine, [`  ${other.toUpperCase()} `])
-      expect(next).not.toBe(other)
-      expect(next).not.toBe(mine)
-    }
   })
 })
 

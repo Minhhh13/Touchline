@@ -34,7 +34,8 @@ function drafted(s: GameSettings): Game {
   autoDraft(u, g.draft!, rng)
   g.rngState = rng.getState()
   beginSeason(g, u)
-  startSeasonProper(g)
+  // As every store path does: the universe lets a Dynasty's opener settle its renewals and cover a thin squad
+  startSeasonProper(g, u)
   return g
 }
 
@@ -77,7 +78,7 @@ describe("the assistant's keepers (item 3)", () => {
         expect(after, `${seed} summer ${y + 1}`).toBeGreaterThanOrEqual(Math.min(MIN_KEEPERS, held + g.bonusSpins))
         g.window = null
         beginSeason(g, u)
-        startSeasonProper(g)
+        startSeasonProper(g, u)
       }
     }
   })
@@ -167,7 +168,7 @@ describe('the Dynasty money (item 2)', () => {
         g.rngState = rng.getState()
         g.window = null
         beginSeason(g, u)
-        startSeasonProper(g)
+        startSeasonProper(g, u)
       }
       return { out, positions }
     }

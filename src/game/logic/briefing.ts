@@ -82,7 +82,7 @@ export function objectiveRisk(o: Objective, game: Game, u: LoadedUniverse): stri
       return null
     }
     case 'continental-qf': {
-      if (season.continental?.eliminated && !reached(season.continental.ties, 'QF')) return 'Out of Europe in the round of 16: the quarter-final objective is gone'
+      if (season.continental?.eliminated && !reached(season.continental.ties, 'QF')) return `Out of Europe in the ${season.continental.groups ? 'group stage' : 'round of 16'}: the quarter-final objective is gone`
       return null
     }
     case 'home-form': {
@@ -166,6 +166,10 @@ function preseasonChecklist(game: Game, u: LoadedUniverse): BriefingItem[] {
   const takers = !!(sp?.penalties || sp?.freeKicks || sp?.corners)
   check('set-pieces', takers, 'Set pieces', 'Penalties, free kicks and corners go to the men you choose.', takers ? undefined : { label: 'Tactics', tab: 'tactics' })
 
+  // Dynasty: the contracts that ran out this summer (`settleRenewals` decides what is left at the opener)
+  const out = Object.keys(game.squad).filter((id) => game.contracts[id]?.expired)
+  if (out.length) check('renewals', false, `Contracts: ${out.length} out`, 'Offer terms or let them go. At the opener the assistant keeps the willing ones worth keeping; the rest leave on a free.', { label: 'Contracts', tab: 'planner' })
+
   if (game.youthIntake) {
     const decided = game.youthIntake.chosen !== undefined
     check('youth', decided, decided ? (game.youthIntake.chosen ? `Youth: ${get(game.youthIntake.chosen)?.name ?? 'a prospect'} promoted` : 'Youth intake passed') : 'Youth intake', `${game.youthIntake.candidates.length} academy prospects: sign one for nothing or pass.`, decided ? undefined : { label: 'Squad', tab: 'squad' })
@@ -218,9 +222,9 @@ function seasonBriefing(game: Game, u: LoadedUniverse): BriefingItem[] {
 
   const tie = upcomingCupTie(game)
   if (tie) {
-    const opp = tie.tie.homeTeamId === USER_TEAM ? tie.tie.awayTeamId : tie.tie.homeTeamId
+    const opp = tie.homeTeamId === USER_TEAM ? tie.awayTeamId : tie.homeTeamId
     const club = u.clubById[opp]
-    items.push({ id: 'cup', level: 'info', text: `${tie.label} ${tie.tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${club?.shortName ?? opp} midweek. Rotate, you play again Thursday`, action: { label: tie.comp === 'cup' ? 'Cup' : 'Europe', tab: tie.comp === 'cup' ? 'cup' : 'europe' } })
+    items.push({ id: 'cup', level: 'info', text: `${tie.label} ${tie.homeTeamId === USER_TEAM ? 'v' : 'at'} ${club?.shortName ?? opp} midweek. Rotate, you play again Thursday`, action: { label: tie.comp === 'cup' ? 'Cup' : 'Europe', tab: tie.comp === 'cup' ? 'cup' : 'europe' } })
   }
 
   for (const o of season.objectives ?? []) {
