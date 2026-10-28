@@ -268,6 +268,13 @@
   .matchday .md-formation .md-man-name {
     display: none;
   }
+  .matchday .md-formation .md-man {
+    --md-man-dy: -77%;
+  }
+  .matchday .md-formation .md-man-shirt .md-shirt {
+    width: 20px;
+    height: 20px;
+  }
   .matchday .md-formation .md-man-shirt .md-rating {
     right: auto;
     left: 50%;
@@ -298,8 +305,9 @@
   position: absolute;
   left: 0;
   top: 0;
-  transform: translate(calc(var(--x, 0) * 1cqw - 50%), calc(var(--y, 0) * 1cqh - 75%));
-  display: block;
+  transform: translate(calc(var(--x, 0) * 1cqw - 50%), calc(var(--y, 0) * 1cqh + var(--md-man-dy, -65%)));
+  display: grid;
+  place-items: center;
   width: 24px;
   height: 24px;
   padding: 0;

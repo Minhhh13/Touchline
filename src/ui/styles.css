@@ -8600,6 +8600,11 @@ button.star {
   font: inherit;
   font-size: calc(var(--fs-h3) - 1px);
   border-radius: var(--radius-s);
+  /* WCAG 2.5.8 beside the compare button: a 24 px target round the 18 px star */
+  min-width: 24px;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
 }
 /* A row with its own buttons (Explore's compare and shortlist): they sit over the row's right end, beside its button
    rather than inside it (round 4: a button inside a button is not one control to a screen reader or axe) */
@@ -9185,6 +9190,8 @@ table.tbl.match-stats th {
 }
 .h2h-start .btn {
   width: min(420px, 100%);
+  /* At 200 % text on a phone the label wraps instead of running 23 px past the window (round 4) */
+  white-space: normal;
 }
 .howto-section.wide {
   grid-column: 1 / -1;
@@ -16497,6 +16504,10 @@ html {
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
+}
+/* WCAG 2.5.8: the ranked names are 24 px targets (19 px rows 4 px apart on a phone; round 4) */
+.rank-list .link-btn {
+  min-height: 24px;
 }
 .filter-grid {
   display: grid;

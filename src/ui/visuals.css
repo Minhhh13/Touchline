@@ -104,7 +104,8 @@
 }
 /* Under the shelf the other counts stay as plaques: one row of seven on a desktop, smaller than the drawn four */
 .cabinet.plaques {
-  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  /* 76 px at the default size; in rem so at 200 % text a plaque widens rather than run past a phone (round 4) */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.75rem), 1fr));
   margin-bottom: var(--space-1);
 }
 .cabinet.plaques .cabinet-slot {
