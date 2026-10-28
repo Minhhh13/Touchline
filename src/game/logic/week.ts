@@ -280,6 +280,49 @@ export function upcomingCupTie(game: Game): UpcomingTie | null {
  * decisions.
  */
 export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false): void {
+  runSteps(playMatchweekSteps(game, u, autoManage))
+}
+
+/** Run a stepped action to its end in one go: the same work, in the same order, as its steps one task each. */
+export function runSteps<T>(steps: Iterator<unknown, T>): T {
+  for (;;) {
+    // every step runs; the pauses between them are the caller's
+    const r = steps.next()
+    if (r.done) return r.value
+  }
+}
+
+/**
+ * A game changed in steps over several weeks. At each `WEEK_END` the steps hold the game only through the box, so a
+ * runner may put a fresh draft of it there (the store's sliced runner finishes each week's Immer draft in its own
+ * task rather than a whole season's at the end); a runner that does not leaves the same game in it.
+ */
+export interface GameBox {
+  g: Game
+}
+
+/** What a stepped run over several weeks yields at the end of each week (every other step yields nothing). */
+export const WEEK_END = 'week-end'
+export type WeekStep = void | typeof WEEK_END
+
+/** Sim `n` matchweeks with the assistant managing (Sim 5, Sim to end), in steps: each week's `playMatchweekSteps`. */
+export function* simWeeksSteps(box: GameBox, u: LoadedUniverse, n: number): Generator<WeekStep, void, undefined> {
+  if (box.g.phase === 'preseason') startSeasonProper(box.g)
+  for (let i = 0; i < n; i++) {
+    const game = box.g
+    if (game.phase === 'summary' || !game.season || game.season.sacked) break
+    yield* playMatchweekSteps(game, u, true)
+    if (game.phase === 'match') game.phase = 'week'
+    yield WEEK_END
+  }
+}
+
+/**
+ * `playMatchweek` with a pause after the week's set-up and after every fixture: a caller may break between steps
+ * (the store's `playWeekSoon` gives the page a task). Nothing runs between two steps but the caller's wait, so the
+ * draws and the game are exactly `playMatchweek`'s.
+ */
+export function* playMatchweekSteps(game: Game, u: LoadedUniverse, autoManage = false): Generator<void, void, undefined> {
   const season = game.season
   if (!season || season.matchweek >= season.matchweeks || season.sacked) return
   if (game.live) finishLiveMatch(game, u, undefined, true)
@@ -306,6 +349,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
   const taken = squadHumans(game, u)
 
   for (const f of week) {
+    yield
     const userIsHome = f.homeTeamId === USER_TEAM
     const userIsAway = f.awayTeamId === USER_TEAM
     if (userIsHome || userIsAway) {
@@ -330,6 +374,7 @@ export function playMatchweek(game: Game, u: LoadedUniverse, autoManage = false)
       applyResultToAi(game, f.awayTeamId, res, false)
     }
   }
+  yield
   game.lastCupMatch = null
   game.lastCupContext = null
   game.rngState = rng.getState()

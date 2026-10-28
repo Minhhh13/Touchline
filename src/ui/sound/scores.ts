@@ -17,6 +17,7 @@
 import type { DisplayTier, Tier } from '@game/logic/rarity'
 import type { PickGrade } from '@game/logic/pickGrades'
 import { seeded, type NoiseColour } from './noise'
+import { CUE_CATEGORY, isCue, type CueId } from './cues'
 
 export type Wave = 'sine' | 'triangle' | 'square' | 'sawtooth'
 
@@ -103,7 +104,7 @@ export type SoundRequest =
 export type SoundId = SoundRequest['id']
 
 export interface Score {
-  id: SoundId
+  id: SoundId | CueId
   category: SoundCategory
   /** The bound the voices were normalised to. */
   level: number
@@ -170,12 +171,15 @@ export function peakOf(voices: readonly Voice[]): number {
   const times: number[] = []
   for (let t = 0; t <= end; t += 0.002) times.push(t)
   for (const v of voices) times.push(v.at + v.attack, v.at + v.attack + (v.hold ?? 0))
+  // Each voice's bound once, not at every sample (the same numbers)
+  const bounds = voices.map(sourceBound)
   let peak = 0
   for (const t of times) {
     let tones = 0
     let noise2 = 0
-    for (const v of voices) {
-      const e = envAt(v, t) * sourceBound(v)
+    for (let i = 0; i < voices.length; i++) {
+      const v = voices[i]
+      const e = envAt(v, t) * bounds[i]
       if (v.kind === 'noise') noise2 += e * e
       else tones += e
     }
@@ -188,9 +192,9 @@ export function peakOf(voices: readonly Voice[]): number {
  * The voices scaled so their bound is `level` (never above `MAX_LEVEL`). An exponential fall always ends on the same
  * floor, so scaling a peak bends its tail a little: a few passes settle the bound to within a millionth.
  */
-export function normalise(id: SoundId, level: number, voices: Voice[]): Score {
+export function normalise(id: SoundId | CueId, level: number, voices: Voice[]): Score {
   const target = Math.min(MAX_LEVEL, level)
-  return { id, category: CATEGORY[id], level: target, voices: scaleTo(target, voices) }
+  return { id, category: isCue(id) ? CUE_CATEGORY[id] : CATEGORY[id], level: target, voices: scaleTo(target, voices) }
 }
 
 /** The voices scaled so their bound (`peakOf`) is `level`: what `normalise` does, for a score built elsewhere (seasonScores.ts). */

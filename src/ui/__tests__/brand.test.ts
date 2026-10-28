@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { Lockup } from '../components/Logo'
+import { Lockup, TOUCH_WAVE_LOOPS, touchWaveOn } from '../components/Logo'
 import { LOCKUP, MARK, ballPanels, clothStops, lockupBallSvg, lockupFlagSvg, markSvgInner, markTier, pennantPath, tinyPanels, type MarkTier } from '../brand'
 
 const TIERS: MarkTier[] = ['full', 'mid', 'tiny']
@@ -254,5 +254,15 @@ describe('the lockup', () => {
     // each half of the name keeps a solid colour under its gradient, and forced colours get plain text
     expect(block('.tl-touch')).toContain('color: var(--text)')
     expect(css).toContain('@media (forced-colors: active)')
+  })
+
+  it('counts the touch-screen flutter once per page: a lockup mounted after its loops rest', () => {
+    const loopsMs = Math.round(TOUCH_WAVE_LOOPS * LOCKUP.wave.dur * 1000)
+    expect(loopsMs).toBe(7800)
+    // The first lockup flutters; another mounted while it still does flutters too; one mounted later rests
+    expect(touchWaveOn(500, null)).toBe(true)
+    expect(touchWaveOn(500 + loopsMs - 1, 500)).toBe(true)
+    expect(touchWaveOn(500 + loopsMs, 500)).toBe(false)
+    expect(touchWaveOn(60_000, 500)).toBe(false)
   })
 })

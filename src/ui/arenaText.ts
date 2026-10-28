@@ -4,6 +4,10 @@
  */
 import { GAUNTLET_BANDS, rungBandLabel } from '@engine/gauntlet'
 import type { Outcome } from './format'
+import { translator } from './i18n'
+import { arena } from './i18n/en/arena'
+
+const t = translator(arena)
 
 /**
  * A knockout match's word on the report's scoreboard and its W/D/L colour: a tie settled on penalties reads "Won on
@@ -11,8 +15,8 @@ import type { Outcome } from './format'
  * penalties it is the plain Win, Draw or Defeat.
  */
 export function knockoutOutcome(gf: number, ga: number, pens?: { us: number; them: number } | null): { word: string; outcome: Outcome } {
-  if (gf === ga && pens && pens.us !== pens.them) return pens.us > pens.them ? { word: 'Won on pens', outcome: 'W' } : { word: 'Lost on pens', outcome: 'L' }
-  return gf > ga ? { word: 'Win', outcome: 'W' } : gf < ga ? { word: 'Defeat', outcome: 'L' } : { word: 'Draw', outcome: 'D' }
+  if (gf === ga && pens && pens.us !== pens.them) return pens.us > pens.them ? { word: t('wonOnPens'), outcome: 'W' } : { word: t('lostOnPens'), outcome: 'L' }
+  return gf > ga ? { word: t('win'), outcome: 'W' } : gf < ga ? { word: t('defeat'), outcome: 'L' } : { word: t('draw'), outcome: 'D' }
 }
 
 /**
@@ -34,5 +38,20 @@ export function splitSeason(name: string): { club: string; season: string | null
 export function gauntletBandText(rung: number): string {
   const label = rungBandLabel(rung)
   const top = /^top (\d+)% of the wheel$/.exec(label)
-  return top && rung >= 2 && rung <= GAUNTLET_BANDS ? `stronger than ${100 - Number(top[1])}% of the wheel` : label
+  return top && rung >= 2 && rung <= GAUNTLET_BANDS ? t('strongerThan', { n: 100 - Number(top[1]) }) : label
+}
+
+/**
+ * The shoot-out's line for a screen reader as each kick shows (`ShootoutPanel`'s live region): whose kick, who took
+ * it, scored or missed, and the score so far; the verdict once the last kick is in. The chips beside it are a picture
+ * (ticks, crosses and a colour), so the words carry it.
+ */
+export function kickLine(k: { us: boolean; scored: boolean }, n: number, taker: string, us: number, them: number, verdict: string | null): string {
+  const line = `Kick ${n}, ${k.us ? 'ours' : 'theirs'}: ${taker} ${k.scored ? 'scores' : 'misses'}. ${us}-${them}.`
+  return verdict ? `${line} ${verdict}.` : line
+}
+
+/** A taker's place after a move in the penalty order, for the live region: "Kane takes kick 2". */
+export function takerMoved(name: string, at: number): string {
+  return `${name} takes kick ${at + 1}.`
 }

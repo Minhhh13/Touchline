@@ -2,17 +2,21 @@
 import { Star } from 'lucide-react'
 import type { SquadPlayer } from '@engine/types'
 import { formTitle, formTrend, sparkPoints } from '@game/logic/squadDisplay'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 const ARROW = { up: '▲', flat: '▶', down: '▼' } as const
 
 /** ▲, ▶ or ▼: the last three ratings against the season average (nothing before his third rating). */
 export function FormArrow({ s }: { s: Pick<SquadPlayer, 'recentRatings' | 'seasonStats'> }) {
-  const t = formTrend(s)
-  if (!t) return null
-  const title = formTitle(t)
+  const trend = formTrend(s)
+  if (!trend) return null
+  const title = formTitle(trend)
   return (
-    <span className={`form-arrow ${t.dir}`} title={title} role="img" aria-label={title} data-testid="form-arrow" data-dir={t.dir}>
-      {ARROW[t.dir]}
+    <span className={`form-arrow ${trend.dir}`} title={title} role="img" aria-label={title} data-testid="form-arrow" data-dir={trend.dir}>
+      {ARROW[trend.dir]}
     </span>
   )
 }
@@ -21,7 +25,7 @@ export function FormArrow({ s }: { s: Pick<SquadPlayer, 'recentRatings' | 'seaso
 export function Sparkline({ ratings, w = 40, h = 14 }: { ratings: number[]; w?: number; h?: number }) {
   const pts = sparkPoints(ratings, w, h)
   if (pts.length < 2) return null
-  const label = `Last ${pts.length} ratings: ${pts.map((p) => p.r.toFixed(1)).join(', ')}`
+  const label = t('sparkLabel', { n: pts.length, list: pts.map((p) => p.r.toFixed(1)).join(', ') })
   return (
     <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label}>
       <title>{label}</title>
@@ -36,7 +40,7 @@ export function Sparkline({ ratings, w = 40, h = 14 }: { ratings: number[]; w?: 
 /** A small gold star with his player-of-the-match count this season. */
 export function MotmStar({ count }: { count: number }) {
   if (count <= 0) return null
-  const title = `Player of the match ${count} time${count === 1 ? '' : 's'} this season`
+  const title = t('motmTimes', { n: count })
   return (
     <span className="chip gold icon-chip motm-chip" title={title} role="img" aria-label={title} data-testid="motm-star">
       <Star size={11} aria-hidden="true" /> {count}

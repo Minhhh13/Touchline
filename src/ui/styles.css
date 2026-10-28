@@ -316,6 +316,13 @@ a {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* A box focused only so the next Tab starts inside it (the skip link and the focus rescue give the screen's page or a
+   panel tabindex -1) is not a control and draws no ring; every control keeps the one above */
+.app > .page[tabindex='-1']:focus-visible,
+.panel[tabindex='-1']:focus-visible,
+.fit-cell[tabindex='-1']:focus-visible {
+  outline: none;
+}
 ::selection {
   background: color-mix(in srgb, var(--primary) 30%, transparent);
 }
@@ -836,9 +843,26 @@ p {
   .topbar .tl-lockup {
     --h: 32px;
   }
-  /* On a phone the nav's row is icons only (the label stays for screen readers) */
+  /* On a phone the nav's row is icons over a one-word caption (`.nav-tiny`, hidden from screen readers, which hear
+     the full label): five bare icons left a new player guessing */
   .topbar nav button {
-    padding: 7px 14px;
+    padding: 5px 6px 4px;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+  .topbar nav {
+    width: 100%;
+  }
+  .topbar nav button .nav-tiny {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: min(var(--fs-xs), 11px); /* px: a caption in a fixed nav cell, capped so larger text never clips it (the full label is read aloud) */
+    font-weight: 600;
+    line-height: 1.1;
   }
   .topbar nav button svg {
     width: 18px;
@@ -881,7 +905,7 @@ p {
 /* The smallest phones (320 px, or a mini with Display Zoom): seven nav icons fit the row without widening the page */
 @media (max-width: 359px) {
   .topbar nav button {
-    padding: 7px 9px;
+    padding: 5px 2px 4px;
   }
 }
 /* A phone on its side (a short touch screen, 844x390): the bar is one row, the nav icons only (the label stays for
@@ -920,6 +944,23 @@ p {
     content: '';
     position: absolute;
     inset: -4px;
+  }
+}
+
+/* The phone nav's one-word captions (App.tsx): shown only in the phone block above */
+.topbar nav .nav-tiny {
+  display: none;
+}
+@media (max-height: 500px) and (max-width: 1100px) and (pointer: coarse) {
+  .topbar nav button .nav-tiny {
+    display: none;
+  }
+  .topbar nav button {
+    flex-direction: row;
+    flex: none;
+  }
+  .topbar nav {
+    width: auto;
   }
 }
 
@@ -2648,6 +2689,17 @@ kbd {
   background: var(--tier);
   color: var(--tier-ink);
 }
+/* A fixed rules chip with a note (Setup's Daily and Weekly rules, ruleNotes.ts): its tip on hover, tap or focus */
+.chip.has-tip {
+  cursor: help;
+}
+/* The end case's rarity, worn in the colour the case gives it (EndCase.tsx): the only scale on the card */
+.chip.case-rarity[data-tier] {
+  background: var(--tier);
+  color: var(--tier-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
 .tier-dot {
   display: inline-block;
   flex: none;
@@ -3099,6 +3151,7 @@ table.tbl {
   width: 100%;
   border-collapse: collapse;
   font-size: calc(var(--fs-sm) + 0.5px);
+  font-variant-numeric: tabular-nums;
 }
 table.tbl th,
 table.tbl td {
@@ -4140,7 +4193,9 @@ table.tbl.contracts .btn.sm {
   .pitch-wrap .slot .disc.reveal,
   .draft-recap > *,
   .recap-grade,
-  .recap-hindsight {
+  .recap-hindsight,
+  .shelf-item,
+  .arena-trophy > svg {
     animation: none;
   }
   .celebrate {
@@ -4390,6 +4445,27 @@ table.tbl.contracts .btn.sm {
   border-radius: var(--radius);
   padding: 20px;
   box-shadow: var(--shadow);
+}
+/* The game's yes-or-no question (components/ConfirmDialog.tsx): above any other dialog, short and centred */
+.modal-back.confirm-back {
+  z-index: 90;
+}
+.modal.confirm-dialog {
+  width: min(440px, 100%);
+}
+.confirm-text {
+  margin: 0 0 var(--space-4);
+  line-height: 1.5;
+}
+.confirm-actions {
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+@media (max-width: 720px) {
+  .confirm-actions > .btn {
+    flex: 1 1 0;
+  }
 }
 @media (max-width: 720px) {
   /* On a phone a modal is a bottom sheet: full width, anchored to the bottom, thumb-reachable */
@@ -5341,6 +5417,15 @@ dl.kv {
     flex: 1 1 auto;
     min-height: 0;
   }
+  /* The tiles never run under step 2: in a window too short for all eight they scroll inside step 1 (the padding keeps
+     the chosen tile's ring and the focus outline inside the scrolling box) */
+  .setup-page .setup-formation-body > .formations {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-1);
+    margin: calc(-1 * var(--space-1));
+  }
   .setup-page .setup-box > .setup-step:has(.setup-rules) {
     flex: 0 1 auto;
     min-height: 0;
@@ -5375,6 +5460,15 @@ dl.kv {
     width: 24px;
     height: 24px;
     font-size: 9px; /* px: drawn to the pitch disc */
+  }
+}
+/* A short desktop window (1100 x 700, 1280 x 720): slimmer tiles, so all eight fit beside the pitch with no scroll */
+@media (min-width: 1000px) and (min-height: 600px) and (max-height: 760px) {
+  .setup-page .setup-formation .formations button {
+    padding: 3px 6px;
+  }
+  .setup-page .setup-formation .fthumb {
+    width: 22px;
   }
 }
 /* A large window (2560 x 1440): the pitch was width-bound at 420 px tall in a third of the box. The tiles take less
@@ -5865,6 +5959,11 @@ dl.kv {
 .prow .meta,
 .prow .name {
   flex-wrap: wrap;
+}
+/* A slot list ("fits LB/CB/RB/DM/CM") is one word to the browser: at 200 % text on a phone it may break, not spill */
+.prow .meta > .chip {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 720px) {
   table.tbl {
@@ -7385,9 +7484,12 @@ dl.kv {
 .draft-log-tips {
   display: contents;
 }
-/* A grade is a button for its note (hover, focus or a tap): it keeps the chip's look */
+/* A grade is a button for its note (hover, focus or a tap): it keeps the chip's look, at least 24 px across (WCAG 2.5.8;
+   a one-letter chip was 22 px) */
 .draft-log .chip.pick-grade {
   cursor: help;
+  min-width: 24px;
+  justify-content: center;
 }
 .draft-log li {
   display: grid;
@@ -7443,14 +7545,41 @@ dl.kv {
 .empty-state h3 {
   margin: var(--space-2) 0 0;
 }
+/* An empty state's picture: the icon in a lit disc, a cyan-to-magenta neon ring round it and a pitch arc under it */
 .empty-icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
+  margin-bottom: var(--space-2);
   border-radius: 50%;
-  background: var(--primary-soft);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--cyan) 22%, var(--panel-2)), var(--panel-2) 72%);
   color: var(--accent);
+  box-shadow: 0 0 26px -6px color-mix(in srgb, var(--cyan) 55%, transparent);
+}
+.empty-icon::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  padding: 2px;
+  background: conic-gradient(from 210deg, var(--cyan), var(--magenta) 45%, transparent 70%, var(--cyan));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0.8;
+}
+.empty-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -16px;
+  width: 128px;
+  height: 26px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border-top: 2px solid color-mix(in srgb, var(--accent) 32%, transparent);
 }
 .draft-list {
   max-height: 560px;
@@ -7584,6 +7713,154 @@ dl.kv {
   font-size: var(--fs-meta);
   color: var(--text-3);
   white-space: nowrap;
+}
+/* Storylines (src/ui/components/Storylines.tsx): the Inbox's Storylines box, the Next match tab's preview, the Dugout's chip */
+.story-box {
+  margin-bottom: var(--space-3);
+}
+.story-box-head {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+.news .item.story {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.news-icon[class*='story-'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.news-icon.story-relegation,
+.news-icon.story-losing-run,
+.news-icon.story-winless-run,
+.news-icon.story-pressure {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.news-icon.story-title-race,
+.news-icon.story-golden-boot,
+.news-icon.story-milestone {
+  color: var(--gold-text);
+  background: var(--gold-soft);
+}
+.summer-head {
+  font-weight: 600;
+  color: var(--text);
+}
+.summer-lines {
+  margin: var(--space-1) 0 0;
+  padding-left: 1.1em;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.summer-headline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-2);
+}
+/* A Dynasty summer's pre-season (Dugout.tsx): the headline goes under the title, never beside it. Beside it, it ran
+   under the match-play chips on a short desktop window and squeezed "Pre-season" onto two lines on a phone. The
+   headline adds nothing to the title cell's own width (width 0, min-width 100%): it wraps in whatever the cell has */
+.cta-fixture:has(> .summer-headline) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.cta-fixture > .summer-headline {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  width: 0;
+  min-width: 100%;
+  margin-top: 0;
+}
+.cta-fixture > .summer-headline > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.cta-fixture > .summer-headline > span {
+  min-width: 0;
+}
+/* A short desktop window's pre-season row (title | chips | buttons, above): the title cell takes the free room and the
+   chips and the buttons keep their own width, so nothing in the title cell can run under them; the headline takes two
+   lines at most there, its whole text in the tooltip and the Inbox's story card */
+@media (min-width: 1100px) and (max-height: 940px) {
+  .panel.cta:has(.briefing.checklist) {
+    grid-template-columns: minmax(min-content, 1fr) auto auto;
+  }
+  .panel.cta:has(.briefing.checklist) .cta-title {
+    white-space: nowrap;
+  }
+  .panel.cta:has(.briefing.checklist) .summer-headline > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.3;
+  }
+}
+.story-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.story-preview + .story-preview {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border);
+}
+.story-preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.story-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.story-form {
+  display: inline-flex;
+  gap: 2px;
+}
+.story-form .chip {
+  min-width: 1.6em;
+  justify-content: center;
+  padding-inline: 4px;
+}
+.story-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.story-lines li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+.story-lines li svg {
+  margin-top: 2px;
+  color: var(--accent);
+}
+.story-label {
+  font-weight: 600;
+  color: var(--text);
 }
 /* Tactics: formations as pictures, instructions as label and control */
 .instructions {
@@ -8087,6 +8364,10 @@ dl.kv {
   color: var(--gold-text);
   flex: none;
 }
+.h2h-you {
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
 /* The winner's trophy sits in the card's corner, so both managers' names get the same room and the cards line up */
 .h2h-side {
   position: relative;
@@ -8152,9 +8433,86 @@ dl.kv {
 .room-notice {
   margin-bottom: var(--space-3);
 }
+.room-notice > .row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+/* The turn's and the waiting room's clocks: the figures in tabular digits, a thin bar of the idle limit used */
+.room-clock .mono {
+  font-variant-numeric: tabular-nums;
+}
+.room-clock > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-1);
+}
+.room-meter {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+/* The phone's turn pill (Rooms.tsx TurnPill): hidden on wider screens, where the turn stays in view */
+.room-turn-pill {
+  display: none;
+}
+.room-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+}
+.room-clock[data-quiet='yes'] .room-meter > span {
+  background: var(--meter-mid);
+}
 @media (max-width: 520px) {
   .room-share {
     flex-direction: column;
+  }
+  .room-notice.row {
+    gap: var(--space-2);
+  }
+  .room-notice .btn {
+    width: 100%;
+  }
+}
+@media (max-width: 720px) {
+  .page.has-turn-pill {
+    padding-bottom: calc(72px + var(--safe-bottom));
+  }
+  .room-turn-pill {
+    position: fixed;
+    left: calc(var(--gutter) + var(--safe-left));
+    right: calc(var(--gutter) + var(--safe-right));
+    bottom: calc(12px + var(--safe-bottom));
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    min-height: 44px;
+    border-radius: var(--radius-pill);
+    border: var(--border-strong);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    font-weight: 700;
+  }
+  .room-turn-pill.mine {
+    border-color: var(--primary);
+    /* Opaque: the squad list scrolls under it */
+    background: color-mix(in srgb, var(--primary) 14%, var(--panel));
+  }
+  .room-turn-pill .grow {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .room-turn-pill .mono {
+    font-variant-numeric: tabular-nums;
   }
 }
 /* Explore */
@@ -8264,6 +8622,18 @@ dl.kv {
 }
 .settings-grid .field {
   margin: 0;
+}
+/* The sound's volume: a plain slider in the primary colour, 44 px tall on a phone for the thumb */
+.settings-grid .volume-range {
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+@media (max-width: 720px) {
+  .settings-grid .volume-range {
+    min-height: 44px;
+  }
 }
 @media (max-width: 720px) {
   .settings-grid {
@@ -9388,7 +9758,8 @@ table.tbl.match-stats th {
 .sc-head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: calc(var(--fs-h1) - 2px);
+  /* Capped by the window's width, so "Pundits' prediction" stays whole on a phone at 200 % text (9vw is wider at 100 %) */
+  font-size: min(calc(var(--fs-h1) - 2px), 9vw);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   line-height: 1.05;
@@ -9477,10 +9848,16 @@ table.tbl.match-stats th {
 .sc-chance,
 .sc-unit {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) 52px;
+  /* rem: 112 px and 52 px at the default size, and the figure's column grows with larger text instead of spilling */
+  grid-template-columns: minmax(0, 7rem) minmax(3rem, 1fr) minmax(3.25rem, auto);
   align-items: center;
   gap: 10px;
   font-size: var(--fs-sm);
+}
+.sc-chance > span,
+.sc-unit > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sc-chance b,
 .sc-unit b {
@@ -9554,7 +9931,8 @@ table.tbl.match-stats th {
   }
   .sc-chance,
   .sc-unit {
-    grid-template-columns: 100px minmax(0, 1fr) 48px;
+    /* 100 px and 48 px at the default size (6.25rem, 3rem); the figure's column grows with larger text */
+    grid-template-columns: minmax(0, 6.25rem) minmax(3rem, 1fr) minmax(3rem, auto);
   }
   .sc-big-num {
     font-size: calc(var(--fs-h1) + 2px);
@@ -11006,6 +11384,27 @@ table.tbl.match-stats th {
     display: none;
   }
 }
+/* A phone: the four boards as a two-column grid of names (their lines and the long help go to the head's tip), so the
+   board itself starts within the first screen */
+@media (max-width: 720px) {
+  .world-boards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .world-board-pick {
+    min-height: 44px;
+    justify-content: center;
+  }
+  .world-board-pick span {
+    display: none;
+  }
+  .world-grid .world-help {
+    display: none;
+  }
+  .world-grid .world-help-tip {
+    display: inline-flex;
+  }
+}
 @media (max-width: 1099px) {
   .grid.world-grid,
   .grid.account-grid {
@@ -11023,6 +11422,93 @@ table.tbl.sticky-head thead th {
   background: var(--panel);
 }
 
+/* A country with no drawn flag (public/flags holds the packs' nations only): its code in a flag-sized box */
+.flag-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  background: var(--panel-2);
+  color: var(--text-2);
+  font-size: 8px; /* px: the letters fit the 4:3 box the flag would fill */
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+/* The profile's Save stays in view at the foot of its box while the flag list scrolls above it */
+.account-save-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: var(--space-2) 0;
+  background: var(--panel);
+}
+/* The soft sign-in line at the start of a Season or a Dynasty (SignInPrompt.tsx): icon, words, two buttons; on a phone
+   the buttons take a row of their own, each a full target */
+.signin-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.signin-prompt-icon {
+  flex: none;
+  color: var(--accent);
+}
+.signin-prompt-text {
+  flex: 1;
+  min-width: 0;
+}
+.signin-prompt-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+}
+/* On Setup the line sits in the head's row (Setup.tsx). Under 1000 px it takes a full line under the title and Back, as
+   before; on a desktop it fills the room between them, so it costs the two boxes below no height (1280 x 720: the
+   formation grid ran under step 2 when the line took a row of its own) */
+.setup-top > .signin-prompt {
+  order: 3;
+  flex: 1 1 100%;
+  margin-bottom: 0;
+}
+@media (min-width: 1000px) {
+  .setup-top {
+    flex-wrap: nowrap;
+  }
+  .setup-top > .setup-title {
+    flex: none;
+  }
+  .setup-top > .signin-prompt {
+    order: 0;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 900px;
+    margin-inline-start: auto;
+    align-self: center;
+    padding-block: var(--space-1);
+  }
+  .setup-top > .setup-back {
+    flex: none;
+  }
+}
+@media (max-width: 720px) {
+  .signin-prompt {
+    flex-wrap: wrap;
+  }
+  .signin-prompt-text {
+    flex-basis: calc(100% - 30px);
+  }
+  .signin-prompt-actions {
+    flex-basis: 100%;
+  }
+  .signin-prompt-actions .btn {
+    flex: 1;
+  }
+}
 /* World leaderboard: the board picker in the side panel */
 .world-boards {
   display: flex;
@@ -13529,6 +14015,13 @@ table.tbl.hub td.name {
   .setup-modes-row .pu-setup .qmode.pu-card {
     flex: 1 1 0;
   }
+  /* Two cards side by side keep their names inside at 200 % text: a long name breaks (hyphenated) rather than spill */
+  .setup-modes-row .pu-setup .qmode.pu-card > .ctitle {
+    min-width: 0;
+    max-width: 100%;
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
 }
 /* An arena shoot-out on the report: one slim box above the scoreboard, so the boxes below keep the height */
 @media (min-width: 1100px) {
@@ -15088,6 +15581,19 @@ table.tbl.tv-compact .tv-name {
     display: none;
   }
 }
+/* Smaller still (the head-to-head's second pitch at 1280x720): 24 px discs, so a back four's discs keep clear of each
+   other and of the keeper's, each its own 24 px target (WCAG 2.5.8) */
+@container (max-width: 160px) {
+  .pitch-wrap .slot .disc {
+    width: 24px;
+    height: 24px;
+    font-size: 11px; /* px: drawn to the pitch disc */
+  }
+  /* The keeper 6 px nearer his line (his disc is smaller), clear of the centre-backs' discs on a short pitch */
+  .pitch-wrap .slot.foot {
+    --foot-room: 14px;
+  }
+}
 
 /* The opposition report: its own width decides the columns, so a narrow box (the arena hub's) never overlaps them */
 details.opposition {
@@ -15839,4 +16345,301 @@ html {
 .tier-blurb.pundit-verdict svg {
   vertical-align: -2px;
   color: var(--accent);
+}
+/* Explore's deeper views (round 7): club pages, league pages, the filtered search, compare; and the Stats tab's tables */
+.view-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+.compare-btn {
+  color: var(--text-3);
+}
+.compare-btn.on {
+  color: var(--primary);
+}
+.prow.ever-row {
+  grid-template-columns: 34px 34px minmax(0, 1fr);
+}
+.prow.club-pick .name {
+  font-weight: 700;
+}
+.season-tops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.season-top {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.top-line {
+  display: grid;
+  grid-template-columns: 34px auto minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: calc(var(--fs-sm) + 0.5px);
+  text-align: left;
+  cursor: pointer;
+}
+.top-line:hover {
+  background: var(--raised);
+}
+.top-name {
+  font-weight: 600;
+}
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.records-kv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.records-kv .record-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.records-kv dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.records-kv .holders {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-weight: 400;
+}
+.link-btn.holder {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  font-size: var(--fs-sm);
+}
+.sub-head {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--fs-sm);
+}
+.rank-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: calc(var(--fs-sm) + 0.5px);
+}
+.rank-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.filter-field select.input {
+  min-width: 0;
+  width: 100%;
+}
+.filter-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: end;
+  font-size: var(--fs-sm);
+  min-height: 36px;
+}
+.range-pair {
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.range-pair .input {
+  min-width: 0;
+  width: 100%;
+}
+.nation-chips .chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.compare-add {
+  margin-bottom: var(--space-3);
+}
+.compare-hits {
+  margin-top: var(--space-2);
+}
+.compare-cols {
+  display: grid;
+  gap: var(--space-3);
+}
+.compare-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: var(--border);
+  border-radius: var(--radius-m);
+  background: var(--panel-2);
+}
+.compare-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+.compare-tbl .compare-label {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.compare-tbl .compare-group {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+.compare-tbl tr.group-start > * {
+  border-top: 2px solid var(--line-2);
+}
+.compare-tbl td.lead {
+  font-weight: 800;
+  color: var(--good);
+}
+.compare-th {
+  display: inline-block;
+  max-width: 100px;
+  vertical-align: bottom;
+}
+.stats-switch {
+  flex: none;
+  margin-bottom: var(--space-3);
+}
+.sort-head {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sort-head:hover,
+.sort-head.on {
+  color: var(--accent);
+}
+table.tbl td.strong {
+  font-weight: 700;
+}
+.stats-tbl td {
+  white-space: nowrap;
+}
+.team-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.team-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius-m);
+  background: var(--panel-2);
+}
+.team-card.top {
+  border-color: var(--good);
+}
+.team-card-val {
+  font-size: var(--fs-h2);
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 1100px) {
+  .grid.three.explore-club {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+  .grid.three.explore-league {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .grid.two.explore-search {
+    grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1.3fr);
+  }
+  .grid.two.explore-compare {
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
+  }
+  .grid.stats-one {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grid.two.stats-team {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+}
+@media (max-width: 720px) {
+  .filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .compare-cols {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .stats-tbl {
+    display: block;
+    overflow-x: auto;
+  }
+}
+.compare-head .link-btn {
+  display: block;
+  max-width: 100%;
+}
+/* The champions table: a long name gives way so the points stay in view */
+.explore-league td.club-cell {
+  max-width: 0;
+  width: 100%;
+}
+.explore-league td.club-cell .link-btn {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .compare-tbl .compare-group {
+    display: none;
+  }
+  .compare-th {
+    max-width: 72px;
+  }
 }

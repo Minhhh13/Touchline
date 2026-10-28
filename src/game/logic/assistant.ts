@@ -15,7 +15,7 @@ import { currentScore } from '@engine/match'
 import { staminaCostFactor } from '@engine/depth'
 import type { Position } from '@engine/types'
 import { isAvailable, playerLookup } from './players'
-import { advanceLiveMatch, closeLiveMatch, playMatchweek } from './week'
+import { advanceLiveMatch, closeLiveMatch, playMatchweek, playMatchweekSteps, runSteps } from './week'
 import { advanceArenaMatch } from './arena'
 
 /** How the main play button plays the next match. */
@@ -181,8 +181,25 @@ export function simLiveMatches(game: Game, u: LoadedUniverse): void {
  * the week to the whistle here, so the report is ready.
  */
 export function playMatchweekAs(game: Game, u: LoadedUniverse, mode: MatchPlayMode): void {
-  playMatchweek(game, u, false)
-  if (mode === 'sim') simLiveMatches(game, u)
+  runSteps(playMatchweekAsSteps(game, u, mode))
+}
+
+/**
+ * `playMatchweekAs` in steps (`playMatchweekSteps`, then every stop the assistant answers in a Sim result): the same
+ * calls in the same order as `playMatchweek` then `simLiveMatches`, with a pause between them for the caller.
+ */
+export function* playMatchweekAsSteps(game: Game, u: LoadedUniverse, mode: MatchPlayMode): Generator<void, void, undefined> {
+  yield* playMatchweekSteps(game, u, false)
+  if (mode !== 'sim') return
+  // simLiveMatches, with finishWithAssistant unrolled so each stop is a step
+  for (let i = 0; i < 4 && game.live; i++) {
+    const key = liveKey(game)
+    if (!key) break
+    for (let j = 0; j < 3 && game.live && liveKey(game) === key; j++) {
+      yield
+      advanceWithAssistant(game, u)
+    }
+  }
 }
 
 /** A whole matchweek with no stops, as Auto-play plays it on screen: kick-off, the assistant at both stops of every live match, then off the match screen. */

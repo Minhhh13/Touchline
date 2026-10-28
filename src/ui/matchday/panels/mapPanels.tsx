@@ -14,6 +14,10 @@ import { surname } from '../../match/shirts'
 import { VerticalPitch } from '../VerticalPitch'
 import type { MatchdayData, PanelProps } from '../types'
 import { Empty, SideToggle, Swatch } from './bits'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 type Side = 'home' | 'away'
 
@@ -43,7 +47,7 @@ export function HeatMap({ d }: PanelProps) {
   return (
     <div className="md-heat">
       <VerticalPitch
-        label={`Heat map for ${subject ? (d.getName(subject) ?? 'a player') : 'nobody yet'}`}
+        label={tx('heatMapFor', { name: subject ? (d.getName(subject) ?? tx('aPlayer')) : tx('nobodyYet') })}
         overlay={
           grid && grid.max > 0 ? (
             <g>
@@ -71,7 +75,7 @@ export function HeatMap({ d }: PanelProps) {
       />
       <div className="md-heat-side">
         <label className="small">
-          <span className="sr-only">Player</span>
+          <span className="sr-only">{tx('colPlayer')}</span>
           <select className="md-select" value={subject ?? ''} onChange={(e) => d.select(e.target.value)}>
             {/* Grouped by side, so the team code is the group's label and each option is just the number and the name */}
             {(['home', 'away'] as const).map((s) => (
@@ -88,19 +92,19 @@ export function HeatMap({ d }: PanelProps) {
           </select>
         </label>
         <div className="md-heat-legend small">
-          <span>Low</span>
+          <span>{tx('low')}</span>
           <span className="md-heat-scale" aria-hidden />
-          <span>High</span>
+          <span>{tx('high')}</span>
         </div>
         <div className="small muted">
-          <span aria-hidden>↑</span> attacking up
+          <span aria-hidden>↑</span> {tx('attackingUp')}
         </div>
         {subject && (
           <div className="small">
             <Swatch colour={view.colour} /> {d.getName(subject)}
           </div>
         )}
-        {(!grid || grid.max === 0) && <div className="small muted">No touches yet.</div>}
+        {(!grid || grid.max === 0) && <div className="small muted">{tx('noTouches')}</div>}
       </div>
     </div>
   )
@@ -120,8 +124,8 @@ export function AveragePositions({ d }: PanelProps) {
   const marks = sides.flatMap((s) => averagePositions(samples, s).map((p) => ({ ...p, side: s })))
   return (
     <div className="md-map">
-      <SideToggle value={which} options={BOTH.map((o) => ({ ...o, label: o.value === 'home' ? d.home.code : o.value === 'away' ? d.away.code : 'Both' }))} onChange={setWhich} label="Sides" />
-      <PitchSvg label="Average positions">
+      <SideToggle value={which} options={BOTH.map((o) => ({ ...o, label: o.value === 'home' ? d.home.code : o.value === 'away' ? d.away.code : tx('both') }))} onChange={setWhich} label={tx('sides')} />
+      <PitchSvg label={tx('averagePositions')}>
         {marks.map((p) => {
           const [cx, cy] = map(p.x, p.y)
           const view = p.side === 'home' ? d.home : d.away
@@ -129,7 +133,7 @@ export function AveragePositions({ d }: PanelProps) {
           const colour = keeper ? view.keeper : view.colour
           return (
             <g key={p.psId} transform={`translate(${cx.toFixed(2)} ${cy.toFixed(2)})`} className="md-avg">
-              <title>{`${d.getName(p.psId) ?? p.psId}: ${p.minutes} minutes`}</title>
+              <title>{tx('minutesOf', { name: d.getName(p.psId) ?? p.psId, n: p.minutes })}</title>
               <circle r="2.8" fill={colour} stroke="rgba(0,0,0,0.55)" strokeWidth="0.4" />
               <text y="0.9" textAnchor="middle" fontSize="2.6" fontWeight="700" fill={textColourFor(colour)}>
                 {view.numbers[p.psId] ?? ''}
@@ -138,7 +142,7 @@ export function AveragePositions({ d }: PanelProps) {
           )
         })}
       </PitchSvg>
-      {marks.length === 0 && <div className="small muted">Positions build up from kick-off.</div>}
+      {marks.length === 0 && <div className="small muted">{tx('positionsBuild')}</div>}
     </div>
   )
 }
@@ -153,8 +157,8 @@ export function PassMaps({ d }: PanelProps) {
   const top = net.passes[0]?.count ?? 1
   return (
     <div className="md-map">
-      <SideToggle value={side} options={[{ value: 'home', label: d.home.code }, { value: 'away', label: d.away.code }]} onChange={setSide} label="Side" />
-      <PitchSvg label={`${view.name} pass map`}>
+      <SideToggle value={side} options={[{ value: 'home', label: d.home.code }, { value: 'away', label: d.away.code }]} onChange={setSide} label={tx('side')} />
+      <PitchSvg label={tx('passMap', { name: view.name })}>
         {net.passes.map((p) => {
           const a = nodes.get(p.from)
           const b = nodes.get(p.to)
@@ -176,7 +180,7 @@ export function PassMaps({ d }: PanelProps) {
         })}
       </PitchSvg>
       <div className="small muted md-links">
-        {net.total === 0 ? 'No passing moves on the ball path yet.' : net.passes.slice(0, 3).map((p) => `${surname(d.getName(p.from))} → ${surname(d.getName(p.to))} ${p.count}`).join(' · ')}
+        {net.total === 0 ? tx('noPasses') : net.passes.slice(0, 3).map((p) => `${surname(d.getName(p.from))} → ${surname(d.getName(p.to))} ${p.count}`).join(' · ')}
       </div>
     </div>
   )
@@ -191,8 +195,8 @@ export function ActionZones({ d }: PanelProps) {
   // Drawn attacking right for either side
   return (
     <div className="md-map">
-      <SideToggle value={side} options={[{ value: 'home', label: d.home.code }, { value: 'away', label: d.away.code }]} onChange={setSide} label="Side" />
-      <PitchSvg label={`${view.name} action zones: own third ${Math.round(thirds[0])}%, middle ${Math.round(thirds[1])}%, final third ${Math.round(thirds[2])}%`}>
+      <SideToggle value={side} options={[{ value: 'home', label: d.home.code }, { value: 'away', label: d.away.code }]} onChange={setSide} label={tx('side')} />
+      <PitchSvg label={tx('actionZones', { name: view.name, a: Math.round(thirds[0]), b: Math.round(thirds[1]), c: Math.round(thirds[2]) })}>
         {thirds.map((v, i) => (
           <g key={i}>
             <rect x={i * 35} y={0} width={35} height={68} fill={view.colour} opacity={z.samples ? 0.12 + (v / 100) * 0.7 : 0.08} />
@@ -205,10 +209,10 @@ export function ActionZones({ d }: PanelProps) {
       <div className="md-channels small">
         {(['left', 'centre', 'right'] as const).map((k) => (
           <span key={k}>
-            {k === 'left' ? 'Left' : k === 'centre' ? 'Centre' : 'Right'} <b className="mono">{z.samples ? Math.round(z.channels[k]) : 0}%</b>
+            {tx(k === 'left' ? 'left' : k === 'centre' ? 'centre' : 'right')} <b className="mono">{z.samples ? Math.round(z.channels[k]) : 0}%</b>
           </span>
         ))}
-        <span className="muted">attacking →</span>
+        <span className="muted">{tx('attackingRight')}</span>
       </div>
     </div>
   )
@@ -220,7 +224,7 @@ export function ShotMapWidget({ d }: PanelProps) {
   return (
     <div className="md-map">
       <ShotMap events={d.feed.events} upTo={d.minute} sizeByXg home={{ name: d.home.name, shortName: d.home.code, colour: d.home.colour }} away={{ name: d.away.name, shortName: d.away.code, colour: d.away.colour }} />
-      {shots.length === 0 ? <Empty>No shots yet.</Empty> : <div className="small muted">{shots.length} attempts · best chance {best.toFixed(2)} xG · size by xG</div>}
+      {shots.length === 0 ? <Empty>{tx('noShots')}</Empty> : <div className="small muted">{tx('attempts', { n: shots.length, best: best.toFixed(2) })}</div>}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { freeze, produce } from 'immer'
+import { createDraft, current, finishDraft, freeze, isDraft, produce, type Draft } from 'immer'
 import type { ChallengeSettings, Game, GameSettings, LeaderboardEntry, Mode, Profile, RecruitFocus } from './types'
 import type { LoadedUniverse } from '@engine/universe'
 import { DEFAULT_LEAGUE } from '@engine/universe'
@@ -27,6 +27,7 @@ import { createSaveStorage, encodeSave, isQuotaError, parseSave } from './saveSt
 import { workerSaveEncoder } from './saveEncoder'
 import { afterNextPaint, nextTask } from './yieldToPage'
 import { runQuickInWorker, stopQuickWorker, warmQuickWorker } from './quickWorkerClient'
+import type { JanuaryJob } from './quickJob'
 import { pickManager } from './logic/managers'
 import { addToLocker, canUnpackFromLocker, caseIconIn, finishEndCase, kickoffStep, openEndCase, subCaseIcon, takeFromLocker, unpackFromLocker } from './logic/endCase'
 import type { PowerUp } from '@engine/powerups'
@@ -35,7 +36,7 @@ import { CHANGES_CLOSED_NOTE, JANUARY_REDRAWN_NOTE, januaryStale, quickSeasonSta
 import { closeJanuary, closeJanuarySpin, closeQuickSeason, kickOff, makeQuickChange, openSpinChoices, playbackResults, quickChangeProblem, reopenJanuary, rollJanuarySpin, rollJanuaryUpgrade, toKickoff } from './logic/quick'
 import { isSuperLeague } from './logic/superLeague'
 import { availableStopChanges } from './logic/stopChanges'
-import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, playMatchweek, startSeasonProper } from './logic/week'
+import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, runSteps, simWeeksSteps, startSeasonProper, WEEK_END, type GameBox, type WeekStep } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
 import { playerLookup } from './logic/players'
 import { assignmentNote } from './logic/slotSheet'
@@ -52,12 +53,13 @@ import { ACHIEVEMENTS } from '@engine/awards'
 import { upgradePlayer as draftUpgrade } from '@engine/upgrader'
 import { giveArmband as draftArmband, lockPlayer as draftLock, rerollSeason as draftReroll, swapSlots as draftSwap, usePeek as draftPeek } from '@engine/powerups'
 import { h2hAutoPick, h2hComplete, h2hPick, h2hSpin, newH2HDraft, type H2HDraft } from '@engine/h2h'
-import { h2hRules, runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
+import { runH2HSeason, type H2HManager, type H2HResult } from './logic/h2h'
+import { h2hNeedsClassic, h2hRulesFor } from './logic/h2hClassic'
 import { getFormation } from '@engine/formations'
 import { decodeChallenge, isArenaPayload, type ChallengePayload } from '@engine/challenge'
 import { challengeSettings, replayChallenge } from './logic/challenge'
 import { storyForGame } from './logic/story'
-import { simToNextStop, type StopReason } from './logic/seasonHighlights'
+import { simToNextStop, simToNextStopSteps, type StopReason } from './logic/seasonHighlights'
 import { beginRunIn, RUN_IN_LOG_CAP, runInEntry, seedRunInDraft } from './logic/runin'
 import { advanceArenaMatch, arenaNeedsAllLeagues, arenaRunEntry, beginArena, changeArenaMatch, changeTheDraw, closeArenaMatch, completeArenaMatch, playArenaStep, simArenaToEnd, sortArenaRuns, takePenalties } from './logic/arena'
 import { buildDigest, digestSnapshot, type SimDigest } from './logic/digest'
@@ -66,7 +68,7 @@ import { withTipSeen, type TipId } from './logic/tips'
 import { creditCupRun, playQuickCup, quickCupProblem, quickCupStatus, skipQuickCup, type QuickCupComp } from './logic/quickCups'
 import { passQuickCup } from './logic/summaryCall'
 import { leaguesBeforeSkip } from './logic/cupSkip'
-import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, type MatchPlayMode } from './logic/assistant'
+import { advanceWithAssistant, assistantTakesStops, finishWithAssistant, matchPlayOf, playMatchweekAs, playMatchweekAsSteps, type MatchPlayMode } from './logic/assistant'
 
 /** The loaded universe as the game shows it: the packs' stray ",NN" name suffixes cleaned at load (`playerNames.ts`, display text only). */
 async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUniverse> {
@@ -74,11 +76,24 @@ async function loadPacks(ids: string[], classic: boolean): Promise<LoadedUnivers
 }
 
 /** localStorage key the whole game is persisted under. */
+/** A plain, unfrozen copy of part of a game being produced (JSON data), for an engine loop that reads it many times. */
+function plainCopy<T extends object>(x: T): T {
+  return structuredClone(isDraft(x) ? (current(x as Draft<T>) as T) : x)
+}
+
+/** playWeek's recipe in steps: the season started if it is pre-season, then the matchweek as the Dugout plays it. */
+function* playWeekSteps(g: Game, u: LoadedUniverse, mode: MatchPlayMode): Generator<void, void, undefined> {
+  if (g.phase === 'preseason') startSeasonProper(g)
+  yield* playMatchweekAsSteps(g, u, mode)
+}
+
 export const SAVE_KEY = 'touchline-save-v1'
 /** Persist version of the saved state (a change needs a `migrate`). */
 export const SAVE_VERSION = 1
 /** Delay from a change to the write: a burst of changes inside it is written once, with the latest state. */
 const SAVE_DELAY_MS = 250
+/** How long `playWeekSoon` plays the week before it gives the page a task (about a frame). */
+const WEEK_SLICE_MS = 16
 /** Shown when the browser refuses to store the save. */
 /** The banner that stays up while the browser refuses every save write. */
 export const SAVE_FAILING_LINE = 'Not saving: storage full'
@@ -216,6 +231,15 @@ interface Store {
   januarySpin: () => void
   /** After the January spin: bring its player into `slotId`, or keep the XI with null, and play the second half. No undo. */
   closeJanuarySpin: (slotId: string | null) => void
+  /**
+   * `closeJanuary` and `closeJanuarySpin` as the January panel plays them: the busy state painted, then the second half
+   * played in the quick-season worker (the whole season replays, about the kick-off's work); the page plays it itself
+   * where the worker cannot, or the game moved meanwhile. The same game as the plain action.
+   */
+  closeJanuarySoon: (index: number | null) => Promise<void>
+  closeJanuarySpinSoon: (slotId: string | null) => Promise<void>
+  /** Transient: a January close is under way in the worker. Never saved. */
+  closingJanuary: boolean
   /** Quick Draft's January Upgrader: one roll on one of the XI for the second half; `closeJanuary(null)` then plays it. */
   januaryUpgrade: (playerSeasonId: string, boost: number) => void
   /** The game-by-game playback is over or skipped: show the summary (a season with a bench is recorded now). */
@@ -235,10 +259,11 @@ interface Store {
    * state painted, the matchweek played, then the screen that shows it), so a slow phone stays responsive. The same
    * game as `playWeek` from the same state; a tap while one runs is ignored. `prepare` (the screen's, presentation
    * only) runs on the played game before it is shown, in tasks of its own, to build what the next screen's first
-   * render would (the match day's ball path); it must not change the game, and an error in it is ignored.
+   * render would (the match day's ball path); it must not change the game, and an error in it is ignored. The week
+   * itself runs in slices of about `WEEK_SLICE_MS` (`opts.sliceMs`, tests), a task for the page between them.
    */
-  playWeekSoon: (prepare?: (next: Game) => Promise<void>) => Promise<void>
-  /** Transient: a `playWeekSoon` is under way (the Dugout's button shows it). Never saved. */
+  playWeekSoon: (prepare?: (next: Game) => Promise<void>, opts?: { sliceMs?: number }) => Promise<void>
+  /** Transient: a `playWeekSoon` (or the arena's `playArenaStepSoon`) is under way (the button shows it). Never saved. */
   playingWeek: boolean
   /** Play the paused match on from its stop (half time to the 70th minute, or 70 to the whistle) with the manager's changes at that stop; `hold` keeps the last twenty minutes live until `completeLive`. */
   advanceLive: (opts: LiveChanges, hold?: boolean) => void
@@ -260,9 +285,21 @@ interface Store {
   simWeeks: (n: number) => void
   /** Sim 5's weeks until the next derby, title decider, cup semi-final or final, open run-in, January window or board alarm; that week is not played. */
   simToNextBigMatch: () => void
+  /**
+   * `simWeeks` and `simToNextBigMatch` as the Dugout runs them: the same weeks on a draft held across tasks, the page
+   * given a task whenever a slice passes `WEEK_SLICE_MS` (`opts.sliceMs`, tests), then one update. A game that moves
+   * meanwhile is simmed as it is now by the plain action. The caller paints its busy state first.
+   */
+  simWeeksSoon: (n: number, opts?: { sliceMs?: number }) => Promise<void>
+  simToNextBigMatchSoon: (opts?: { sliceMs?: number }) => Promise<void>
   closeMatch: () => void
   /** Arena: kick off the next match, managed live (the two stops) or played by the assistant. */
   playArenaStep: (live: boolean) => void
+  /**
+   * `playArenaStep` as the arena's hub plays it: the busy state painted, the step played, `prepare` (the screen's, as
+   * for `playWeekSoon`) in tasks of its own, then the match screen (`playingWeek` while it runs). The same game.
+   */
+  playArenaStepSoon: (live: boolean, prepare?: (next: Game) => Promise<void>) => Promise<void>
   /** Arena: the shoot-out of a level live match, in the manager's order with his keeper. */
   takePenalties: (order: string[], keeperId: string) => { ok: boolean; message: string }
   /** The Gauntlet's lifeline: once a run, swap the next rung's club for its alternate. */
@@ -316,7 +353,7 @@ interface Store {
   acceptJob: (index: number | null) => void
   dismissOffseason: () => void
 
-  startH2H: (managers: [H2HManager, H2HManager], leagueId: string, wheelLeagues: string[], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string) => void
+  startH2H: (managers: [H2HManager, H2HManager], leagueId: string, wheelLeagues: string[], leagueSeason: number, difficulty: 'calibrated' | 'realistic', hardMode: boolean, seed: string, classic?: boolean) => void
   h2hSpin: () => void
   h2hPick: (playerSeasonId: string, slotId: string | 'bench') => void
   h2hAuto: () => void
@@ -425,6 +462,53 @@ export const useStore = create<Store>()(
           set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
         }
       }
+      /**
+       * A stepped game action (`fn`'s generator) run on a draft of `g0` held across tasks: the page gets a task whenever a
+       * slice passes `sliceMs`. The same steps in the same order as running them in one produce, so the same game.
+       * 'moved' when the game or the universe changed meanwhile (the draft is let go), 'failed' on an error (toasted).
+       */
+      const sliced = async <T,>(g0: Game, u0: LoadedUniverse, fn: (box: GameBox) => Generator<WeekStep, T, undefined>, sliceMs: number): Promise<{ next: Game; value: T } | 'moved' | 'failed'> => {
+        try {
+          const box: GameBox = { g: createDraft(g0) }
+          const steps = fn(box)
+          let slice = performance.now()
+          for (;;) {
+            const r = steps.next()
+            if (r.done) return { next: finishDraft(box.g), value: r.value }
+            // A week's end: its changes are finished (frozen) now, in this slice, not a whole season's at the end
+            if (r.value === WEEK_END) box.g = createDraft(finishDraft(box.g))
+            if (performance.now() - slice < sliceMs) continue
+            await nextTask()
+            if (get().game !== g0 || get().universe !== u0) return 'moved'
+            slice = performance.now()
+          }
+        } catch (e) {
+          console.error(e)
+          set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
+          return 'failed'
+        }
+      }
+      /** After Sim 5 or Sim to end: the "while you were away" digest (none when the run ended the season), the season closed if it did. */
+      const afterSimWeeks = (before: ReturnType<typeof digestSnapshot>, extra: Partial<Store> = {}) => {
+        // The game simmed in slices comes in `extra` and is set with the rest
+        const after = extra.game ?? get().game
+        // The season summary covers a run that ended the season, so no digest then
+        const digest = before && after && after.phase !== 'summary' ? buildDigest(before, after) : null
+        set({ matchView: 'report', digest, ...extra })
+        if (after?.phase === 'summary') {
+          unlockFromGame()
+          get().recordResult()
+        }
+      }
+      /** After Sim to the next big match: where it stopped, the season closed if it ended. */
+      const afterSimToStop = (stop: StopReason | null, extra: Partial<Store> = {}) => {
+        const after = extra.game ?? get().game
+        set({ matchView: 'report', simStop: stop && after?.season ? { stop, gameId: after.id, year: after.year, matchweek: after.season.matchweek } : null, ...extra })
+        if (after?.phase === 'summary') {
+          unlockFromGame()
+          get().recordResult()
+        }
+      }
       /** A power-up on the draft: only while drafting; a refusal (used, not possible now) is a toast and changes nothing. */
       const powerUp = (fn: (game: Game, u: LoadedUniverse) => void) =>
         mutate((g, u) => {
@@ -453,6 +537,28 @@ export const useStore = create<Store>()(
         if (redrawStaleJanuary()) return
         const from = before.quickJanuary.firstHalf.length
         mutate(fn)
+        afterWindow(from)
+      }
+      /** The same close with the season replayed in the quick-season worker; `plain` plays it on the page instead. */
+      const closeWindowSoon = async (job: (game: Game) => JanuaryJob, plain: () => void) => {
+        const { game: before, universe: u0 } = get()
+        if (before?.phase !== 'january' || !before.quickJanuary || !u0 || get().closingJanuary) return
+        const from = before.quickJanuary.firstHalf.length
+        set({ closingJanuary: true })
+        try {
+          await afterNextPaint()
+          const same = () => get().game === before && get().universe === u0
+          const played = same() ? await runQuickInWorker(job(before), get().loadedLeagues, get().classicLoaded, u0) : null
+          // No worker, an error (a refused deal), or the game moved meanwhile: the page closes it, on the game as it is now
+          if (!played || !same()) return plain()
+          set({ game: freeze(played, true) })
+          afterWindow(from)
+        } finally {
+          set({ closingJanuary: false })
+          stopQuickWorker()
+        }
+      }
+      const afterWindow = (from: number) => {
         if (get().game?.phase === 'january') {
           // The deal did not replay (the league data changed since the window opened): draw the window again rather than stay stuck
           mutate((g, u) => reopenJanuary(g, u))
@@ -535,6 +641,7 @@ export const useStore = create<Store>()(
         playback: null,
         playingWeek: false,
         kickingOff: false,
+        closingJanuary: false,
 
         loadData: async () => {
           if (get().universe || get().loading) return
@@ -550,7 +657,7 @@ export const useStore = create<Store>()(
             const results = await Promise.allSettled(extra.map((id) => loadLeague(id, false)))
             const failed = extra.filter((_, i) => results[i].status === 'rejected')
             const ids = [DEFAULT_LEAGUE, ...extra.filter((id) => !failed.includes(id))]
-            const wantClassic = !!game && needsClassic(game)
+            const wantClassic = (!!game && needsClassic(game)) || h2hNeedsClassic(h2h)
             let u = base
             let classic = false
             if (wantClassic) {
@@ -568,11 +675,12 @@ export const useStore = create<Store>()(
               const names = [...failed.map((id) => base.available.find((l) => l.id === id)?.name ?? id), ...(classicFailed ? ['the classic seasons'] : [])].join(', ')
               next.toast = `Could not load ${names}. Check your connection and reload to get it back.`
               // Never render a game against a half-loaded universe: park it until its leagues load
-              if (game && (classicFailed || gameNeeds.some((id) => failed.includes(id)))) {
+              if (game && ((classicFailed && needsClassic(game)) || gameNeeds.some((id) => failed.includes(id)))) {
                 next.game = null
                 next.parked = { ...get().parked, [slotOf(game)]: game }
                 if (get().screen === 'game') next.screen = 'home'
               }
+              // A classic head-to-head whose classic pack did not load is kept: its screen waits for the pack with a Retry
               if (h2h && h2hNeeds.some((id) => failed.includes(id))) {
                 next.h2h = null
                 if (get().screen === 'h2h') next.screen = 'home'
@@ -766,8 +874,13 @@ export const useStore = create<Store>()(
             if (g.draft.current) g.draft.history.push({ ...g.draft.current, pickedId: null, slotId: null, skipped: true, ...(g.draft.twist ? { twist: g.draft.twist } : {}), ...(targetSlot(g.draft) ? { target: targetSlot(g.draft)!.id } : {}) })
             g.draft.current = null
             g.draft.twist = null
-            // The lookup sees a Dynasty summer's own players (their keepers count towards the squad's limits)
-            autoDraft(u, g.draft, rng, playerLookup(g, u))
+            // The lookup sees a Dynasty summer's own players (their keepers count towards the squad's limits). The engine
+            // runs on a plain copy of the draft, put back after: its pool scans read the draft thousands of times, and
+            // through Immer's proxies Auto-complete took about 2 s on a 4x-throttled phone (the same functions on the same
+            // data, so the same draft)
+            const d = plainCopy(g.draft)
+            autoDraft(u, d, rng, playerLookup(g, u))
+            g.draft = d
             g.rngState = rng.getState()
           }),
         upgradePlayer: (id, boost) =>
@@ -854,7 +967,7 @@ export const useStore = create<Store>()(
         warmKickOff: () => {
           warmQuickWorker(get().loadedLeagues, get().classicLoaded)
           return () => {
-            if (!get().kickingOff) stopQuickWorker()
+            if (!get().kickingOff && !get().closingJanuary) stopQuickWorker()
           }
         },
         januarySpin: () => {
@@ -893,6 +1006,22 @@ export const useStore = create<Store>()(
             return
           }
           closeWindow((g, u) => closeJanuary(g, u, index))
+        },
+        closeJanuarySoon: async (index) => {
+          if (index !== null && januaryGambleMade(get().game?.quickJanuary)) {
+            set({ toast: "The window's deal is made" })
+            return
+          }
+          await closeWindowSoon((game) => ({ op: 'closeJanuary', game, index }), () => get().closeJanuary(index))
+        },
+        closeJanuarySpinSoon: async (slotId) => {
+          const { game, universe } = get()
+          if (!game || !universe) return
+          if (slotId !== null && !openSpinChoices(game, universe).some((c) => c.slotId === slotId)) {
+            set({ toast: 'He cannot play there' })
+            return
+          }
+          await closeWindowSoon((g) => ({ op: 'closeJanuarySpin', game: g, slotId }), () => get().closeJanuarySpin(slotId))
         },
         endPlayback: () => {
           settleQuickSeason()
@@ -1021,7 +1150,7 @@ export const useStore = create<Store>()(
             get().recordResult()
           }
         },
-        playWeekSoon: async (prepare) => {
+        playWeekSoon: async (prepare, opts) => {
           const { game: g0, universe: u0, playingWeek } = get()
           if (!g0 || !u0 || playingWeek) return
           const mode = matchPlayOf(g0)
@@ -1031,17 +1160,13 @@ export const useStore = create<Store>()(
             // Anything that moved the game meanwhile makes this an ordinary tap on the game as it is now
             const moved = () => get().game !== g0 || get().universe !== u0
             if (moved()) return get().playWeek()
-            let next: Game
-            try {
-              next = produce(g0, (g) => {
-                if (g.phase === 'preseason') startSeasonProper(g)
-                playMatchweekAs(g, u0, mode)
-              })
-            } catch (e) {
-              console.error(e)
-              set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
-              return
-            }
+            // The same recipe as playWeek's produce, on a draft held across tasks: a step at a time (the week's set-up,
+            // each fixture, each stop of a Sim result); the draft is let go for playWeek on the game as it is now
+            // if anything moved it meanwhile
+            const out = await sliced(g0, u0, (box) => playWeekSteps(box.g, u0, mode), opts?.sliceMs ?? WEEK_SLICE_MS)
+            if (out === 'moved') return get().playWeek()
+            if (out === 'failed') return
+            const next = out.next
             await nextTask()
             if (prepare) {
               try {
@@ -1065,22 +1190,16 @@ export const useStore = create<Store>()(
         simWeeks: (n) => {
           // Plain numbers from the saved game, read before the mutation so the digest compares before with after
           const before = digestSnapshot(get().game)
-          mutate((g, u) => {
-            if (g.phase === 'preseason') startSeasonProper(g)
-            for (let i = 0; i < n; i++) {
-              if (g.phase === 'summary' || !g.season || g.season.sacked) break
-              playMatchweek(g, u, true)
-              if (g.phase === 'match') g.phase = 'week'
-            }
-          })
-          const after = get().game
-          // The season summary covers a run that ended the season, so no digest then
-          const digest = before && after && after.phase !== 'summary' ? buildDigest(before, after) : null
-          set({ matchView: 'report', digest })
-          if (after?.phase === 'summary') {
-            unlockFromGame()
-            get().recordResult()
-          }
+          mutate((g, u) => runSteps(simWeeksSteps({ g }, u, n)))
+          afterSimWeeks(before)
+        },
+        simWeeksSoon: async (n, opts) => {
+          const { game: g0, universe: u0 } = get()
+          if (!g0 || !u0) return
+          const out = await sliced(g0, u0, (box) => simWeeksSteps(box, u0, n), opts?.sliceMs ?? WEEK_SLICE_MS)
+          if (out === 'moved') return get().simWeeks(n)
+          if (out === 'failed') return
+          afterSimWeeks(digestSnapshot(g0), { game: out.next })
         },
         simToEnd: () => get().simWeeks(40),
         simToNextBigMatch: () => {
@@ -1088,13 +1207,15 @@ export const useStore = create<Store>()(
           mutate((g, u) => {
             out.stop = simToNextStop(g, u)
           })
-          const after = get().game
-          const stop = out.stop
-          set({ matchView: 'report', simStop: stop && after?.season ? { stop, gameId: after.id, year: after.year, matchweek: after.season.matchweek } : null })
-          if (after?.phase === 'summary') {
-            unlockFromGame()
-            get().recordResult()
-          }
+          afterSimToStop(out.stop)
+        },
+        simToNextBigMatchSoon: async (opts) => {
+          const { game: g0, universe: u0 } = get()
+          if (!g0 || !u0) return
+          const out = await sliced(g0, u0, (box) => simToNextStopSteps(box, u0), opts?.sliceMs ?? WEEK_SLICE_MS)
+          if (out === 'moved') return get().simToNextBigMatch()
+          if (out === 'failed') return
+          afterSimToStop(out.value, { game: out.next })
         },
         closeMatch: () => {
           mutate((g, u) => (g.arena ? closeArenaMatch(g) : closeLiveMatch(g, u)))
@@ -1111,6 +1232,41 @@ export const useStore = create<Store>()(
           })
           // Either way the match opens on its replay dashboard (one screen); the report is a tab away
           set({ matchView: 'ticker' })
+        },
+        playArenaStepSoon: async (live, prepare) => {
+          const { game: g0, universe: u0, playingWeek } = get()
+          if (!g0 || !u0 || playingWeek) return
+          set({ playingWeek: true })
+          try {
+            await afterNextPaint()
+            const moved = () => get().game !== g0 || get().universe !== u0
+            if (moved()) return get().playArenaStep(live)
+            let next: Game
+            try {
+              next = produce(g0, (g) => {
+                playArenaStep(g, u0, live)
+                if (live && g.live) byHand(g)
+              })
+            } catch (e) {
+              console.error(e)
+              set({ toast: `Something went wrong: ${e instanceof Error ? e.message : String(e)}` })
+              return
+            }
+            // The match screen's first render in a task of its own, after what it would build first
+            await nextTask()
+            if (prepare) {
+              try {
+                await prepare(next)
+              } catch (e) {
+                console.error(e)
+              }
+              await nextTask()
+            }
+            if (moved()) return get().playArenaStep(live)
+            set({ game: next, matchView: 'ticker', playingWeek: false })
+          } finally {
+            if (get().playingWeek) set({ playingWeek: false })
+          }
         },
         takePenalties: (order, keeperId) => {
           let out = { ok: false, message: 'No game' }
@@ -1414,9 +1570,9 @@ export const useStore = create<Store>()(
           const quickBests = q ? withQuickBests(profile.quickBests, q, q.results?.length ?? Math.max(0, (q.table.length - 1) * 2)) : profile.quickBests
           set({ profile: { ...profile, leaderboard, dailyStreak, lastDailyDate, dailyResults, achievements, trophies: trophiesOf(cabinet), cabinet, seasonsSimulated: profile.seasonsSimulated + 1, ...(weekly ? { weekly } : {}), ...(quickBests ? { quickBests } : {}) } })
         },
-        startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed) => {
+        startH2H: (managers, leagueId, wheelLeagues, leagueSeason, difficulty, hardMode, seed, classic) => {
           const rng = new Rng(seed)
-          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], h2hRules(wheelLeagues, hardMode))
+          const draft = newH2HDraft([getFormation(managers[0].formationId), getFormation(managers[1].formationId)], h2hRulesFor(wheelLeagues, hardMode, !!classic))
           set({ h2h: { managers, leagueId, wheelLeagues, leagueSeason, difficulty, seed, rngState: rng.getState(), draft, result: null, hardMode }, screen: 'h2h' })
         },
         h2hSpin: () => {

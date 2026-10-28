@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { runAfterPaint } from '../afterPaint'
 import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
-import type { GameSettings, Mode } from '@game/types'
+import type { GameSettings } from '@game/types'
 import { defaultHostClub, describeRuleChips, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
@@ -12,13 +13,14 @@ import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
 import { HoverTips, InfoTip } from '../components/PowerUpButton'
+import { ruleChipNote } from '../ruleNotes'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
 import { rulesFromPayload } from '@engine/challenge'
 import { NATION_SLOT_COVER, NATION_SQUAD_MARGIN, nationCover, nationDepthFrom, nationDepthLabel } from '@engine/nations'
 import { randomSeed } from '@engine/rng'
 import { poolClubSeasons } from '@engine/universe'
 import { classicFromFor, classicFromIndex, eraFirstSeason, leagueSeasonChoices } from '@game/logic/era'
-import { formationName, ordinal, seasonLabel, tierName } from '../format'
+import { formationName, seasonLabel, tierName } from '../format'
 import { ClubBadge, EstimatedChip, Segmented } from '../components/bits'
 import { LeagueFlag, NationFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_ID, SUPER_LEAGUE_NAME } from '@engine/superLeague'
@@ -31,7 +33,7 @@ import { clubName } from '../format'
 import { dailyStartSettings } from '../../online/daily'
 import { useOnline } from '../../online/state'
 import { SignInPrompt } from '../online/SignInPrompt'
-import { MODE_TITLE } from '@game/logic/modes'
+import { modeTitle } from '../i18n/modeText'
 import { quickSetupLineFull } from '@game/logic/setupLine'
 import { weeklyGameSettings, weeklyPlan, weeklySettings, weeklyThemeLine } from '@game/logic/weekly'
 import { previousWeeklySeed, weeklySeed } from '@engine/rng'
@@ -40,43 +42,41 @@ import { WeeklyRecordBox } from '../components/WeeklyRecordBox'
 import { CapControl } from '../components/CapControl'
 import { ChainToggle } from '../components/ChainControl'
 import { CAP_NARROW_NOTE, CAP_PRESETS, DEFAULT_CAP_CHOICE, capBudget, capTotal, withCap, type CapChoice } from '@game/logic/cap'
+import { askConfirm } from '../confirm'
+import { translator } from '../i18n'
+import { setup } from '../i18n/en/setup'
+import { B, rich } from '../i18n/rich'
 
-const MODE_LINE: Record<Mode, string> = {
-  quick: 'Spin, draft an XI, watch its season.',
-  daily: 'One wheel for everyone today.',
-  season: 'Draft a squad, manage every matchweek.',
-  dynasty: 'Draft a squad, build a club for years.',
-  arena: 'Draft a squad, then one knockout sitting.',
-  weekly: 'One themed wheel for everyone this week.',
-  runin: 'Take over a real club for the last ten games.',
-}
+const t = translator(setup)
+
 const DEFAULT_TEAM = 'Touchline XI'
 
-const respinWord = (n: number) => (n === 0 ? 'No re-spins' : `${n} re-spin${n === 1 ? '' : 's'}`)
-const DIFFICULTY_OPTIONS: Array<ChoiceOption<DraftDifficulty>> = [
-  { value: 'easy', icon: Smile, title: 'Easy', line: respinWord(DIFFICULTY_RESPINS.easy) },
-  { value: 'normal', icon: Scale, title: 'Normal', line: respinWord(DIFFICULTY_RESPINS.normal) },
-  { value: 'hard', icon: Skull, title: 'Hard', line: `${respinWord(DIFFICULTY_RESPINS.hard)} · blind` },
+// The option cards are built at render time, so they read in the viewer's language
+const respinWord = (n: number) => t('respins', { n })
+const DIFFICULTY_OPTIONS = (): Array<ChoiceOption<DraftDifficulty>> => [
+  { value: 'easy', icon: Smile, title: t('easy'), line: respinWord(DIFFICULTY_RESPINS.easy) },
+  { value: 'normal', icon: Scale, title: t('normal'), line: respinWord(DIFFICULTY_RESPINS.normal) },
+  { value: 'hard', icon: Skull, title: t('hard'), line: t('respinsBlind', { respins: respinWord(DIFFICULTY_RESPINS.hard) }) },
 ]
-const RATINGS_SHOWN: Array<ChoiceOption<'on' | 'off'>> = [
-  { value: 'on', icon: Eye, title: 'On', line: 'See every rating' },
-  { value: 'off', icon: EyeOff, title: 'Off', line: 'Names only' },
+const RATINGS_SHOWN = (): Array<ChoiceOption<'on' | 'off'>> => [
+  { value: 'on', icon: Eye, title: t('on'), line: t('seeRatings') },
+  { value: 'off', icon: EyeOff, title: t('off'), line: t('namesOnly') },
 ]
-const DRAFT_MODE_OPTIONS: Array<ChoiceOption<DraftMode>> = [
-  { value: 'squad', icon: Users, title: 'Squad First', line: 'Spin, pick, place' },
-  { value: 'position', icon: Crosshair, title: 'Position First', line: 'Pick a slot, then spin' },
+const DRAFT_MODE_OPTIONS = (): Array<ChoiceOption<DraftMode>> => [
+  { value: 'squad', icon: Users, title: t('squadFirst'), line: t('squadFirstLine') },
+  { value: 'position', icon: Crosshair, title: t('positionFirst'), line: t('positionFirstLine') },
 ]
 /** Quick Draft bench places: off, or up to five extra picks the season can bring on (three changes, plus injury cover). */
-const BENCH_OPTIONS: Array<{ value: string; label: string }> = [{ value: '0', label: 'Off' }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))]
+const BENCH_OPTIONS = (): Array<{ value: string; label: string }> => [{ value: '0', label: t('off') }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))]
 /** Quick Draft managers: spin three and pick one, pick one of the real managers of the club-seasons drafted, or play without. */
-const MANAGER_OPTIONS: Array<ChoiceOption<'spin' | 'pick' | 'off'>> = [
-  { value: 'spin', icon: FerrisWheel, title: 'Spin', line: 'Three reels of real managers: pick one' },
-  { value: 'pick', icon: UserRound, title: 'Pick', line: 'Pick a real manager from the clubs you drafted' },
-  { value: 'off', icon: Ban, title: 'Off', line: 'No manager: the XI on its own' },
+const MANAGER_OPTIONS = (): Array<ChoiceOption<'spin' | 'pick' | 'off'>> => [
+  { value: 'spin', icon: FerrisWheel, title: t('mgrSpin'), line: t('mgrSpinLine') },
+  { value: 'pick', icon: UserRound, title: t('mgrPick'), line: t('mgrPickLine') },
+  { value: 'off', icon: Ban, title: t('off'), line: t('mgrOffLine') },
 ]
-const RATINGS_MODE_OPTIONS: Array<ChoiceOption<RatingsMode>> = [
-  { value: 'season', icon: Calendar, title: 'Season', line: 'As he was that season' },
-  { value: 'prime', icon: Mountain, title: 'Prime', line: 'At his career best' },
+const RATINGS_MODE_OPTIONS = (): Array<ChoiceOption<RatingsMode>> => [
+  { value: 'season', icon: Calendar, title: t('season'), line: t('seasonLine') },
+  { value: 'prime', icon: Mountain, title: t('prime'), line: t('primeLine') },
 ]
 
 /** Whether this viewer last left More options open; a private window or blocked storage reads as closed. */
@@ -201,8 +201,18 @@ export function Setup() {
     return [...u.clubs].filter((c) => wheelLeagues.includes(c.leagueId) && inEra.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
   }, [u, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, first, last])
   // Nations deep enough for a one-nation draft of this shape: twice the cover for every position, inside the wheel leagues and era.
-  // The scan over every player-season runs once per shape; the squad-size slider only re-filters it.
-  const nationScan = useMemo(() => (u && !isDaily ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, formationId])
+  // The scan over every player-season runs once per shape; the squad-size slider only re-filters it. The first scan
+  // waits for the screen's first paint (about 190 ms on a 4x-throttled phone): the one-nation list is the only thing
+  // that reads it, and a nation can be chosen only from that list
+  const [scanOn, setScanOn] = useState(false)
+  useEffect(() => {
+    let live = true
+    runAfterPaint(() => live && setScanOn(true))
+    return () => {
+      live = false
+    }
+  }, [])
+  const nationScan = useMemo(() => (u && !isDaily && scanOn ? nationCover(u, wheelLeagues, eraRange, getFormation(formationId)) : []), [u, isDaily, scanOn, wheelLeagues, eraRange.fromSeason, eraRange.toSeason, eraRange.classic, formationId])
   const nations = useMemo(() => nationDepthFrom(nationScan, isManage ? squadSize : 11), [nationScan, isManage, squadSize])
   const leagueReady = loadedLeagues.includes(leagueId) && wheelLeagues.every((l) => loadedLeagues.includes(l)) && (!(isManage && continental) || !u || u.available.every((l) => loadedLeagues.includes(l.id)))
   // The club handed over by default sits nearest tenth in that season's real table, so the board's ask is reachable
@@ -210,7 +220,7 @@ export function Setup() {
   const host = hostClubId && clubsInLeague.includes(hostClubId) ? hostClubId : defaultHost
   const hostRow = u?.tables[leagueId]?.[effectiveSeason]?.find((r) => r.clubId === host)
 
-  if (!u) return <div className="page">Loading…</div>
+  if (!u) return <div className="page">{t('loading')}</div>
   const pickLeague = (id: string) => {
     // The Super League keeps the league chosen before it as the save's league; its field needs every league loaded
     if (id === SUPER_LEAGUE_ID) {
@@ -273,7 +283,7 @@ export function Setup() {
     const club = onlyClub && allClubs.some((c) => c.id === onlyClub) ? onlyClub : undefined
     const nation = onlyNation && nations.some((n) => n.nation === onlyNation) ? onlyNation : undefined
     const rules: DraftRules = fixed?.rules ?? withCap({ ...chosen, onlyClub: club, onlyNation: nation, ...(chain ? { chain: true } : {}) }, cap)
-    const seedText = fixed ? fixed.seed : seed.trim() || (preview ? 'drawn when you start' : randomSeed())
+    const seedText = fixed ? fixed.seed : seed.trim() || (preview ? t('drawnAtStart') : randomSeed())
     // Crazy draws the formation from the seed (a blank seed draws it at Start); a challenge carries the one its challenger had
     const crazy = !fixed && modesOf(rules).includes('crazy')
     return {
@@ -297,15 +307,15 @@ export function Setup() {
       ...(challenge ? { challenge } : {}),
     }
   }
-  const start = () => {
+  const start = async () => {
     // Today's puzzle shares the Quick Draft's save slot: ask before an unfinished quick draft or Daily is dropped (as Home's Daily button used to)
-    const puzzle = fixed?.kind === 'daily' ? "today's puzzle" : fixed?.kind === 'weekly' ? "this week's challenge" : null
-    if (puzzle && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !confirm(`Start ${puzzle}? Your current ${MODE_TITLE[game.settings.mode]} (${game.settings.teamName}) will be abandoned.`)) return
+    const puzzle = fixed?.kind === 'daily' ? t('puzzleToday') : fixed?.kind === 'weekly' ? t('puzzleWeek') : null
+    if (puzzle && game && slotOf(game) === 'quick' && game.phase !== 'summary' && !(await askConfirm(t('confirmStart', { puzzle, mode: modeTitle(game.settings.mode), team: game.settings.teamName }), { ok: t('startOk'), danger: true }))) return
     startGame(buildSettings(false))
   }
   const preview = buildSettings(true)
   // Until the week's league is in, the week has no season or host to state
-  const summary = fixed?.kind === 'weekly' && !week ? `Loading ${leagueArticle(leagueNameOf(fixed.leagueId))}${leagueNameOf(fixed.leagueId)}…` : tidyLeagueArticles(summariseSetup(u, preview))
+  const summary = fixed?.kind === 'weekly' && !week ? t('loadingLeague', { article: leagueArticle(leagueNameOf(fixed.leagueId)), league: leagueNameOf(fixed.leagueId) }) : tidyLeagueArticles(summariseSetup(u, preview))
   // A Quick Draft's line names the team, the shape and the rules only: the season simulated is chosen in step 3
   const isQuickLine = !fixed && mode === 'quick'
   const ready = fixed ? fixedReady && (fixed.kind !== 'weekly' || !!week) : leagueReady && (!classic || classicLoaded)
@@ -340,33 +350,34 @@ export function Setup() {
   return (
     <div className="page setup-page has-bottom-bar" style={barHeight ? ({ '--bottom-bar-h': `${barHeight}px` } as CSSProperties) : undefined}>
       <div className="setup-flow setup-wide">
-        <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
-          <div>
-            <h1>{challenge ? 'Challenge' : MODE_TITLE[mode]}</h1>
+        <div className="row between wrap setup-top" style={{ alignItems: 'flex-start' }}>
+          <div className="setup-title">
+            <h1>{challenge ? t('challenge') : modeTitle(mode)}</h1>
             <p className="muted setup-sub">
-              {challenge ? `Same seed, same wheel: beat ${challenge.name}'s score.` : MODE_LINE[mode]}
+              {challenge ? t('beatScore', { name: challenge.name }) : t(`modeLine_${mode}`)}
               {!isManage && (
                 <span className="setup-goal" data-testid="setup-goal">
                   {' '}
-                  <b>Win every game:</b> the perfect season is 38-0.
+                  {rich(t('goal'), B)}
                 </span>
               )}
             </p>
           </div>
-          <button className="btn ghost" onClick={() => go('home')}>
-            ← Back
+          {/* The online build's sign-in line sits in the head's row on a desktop (between the title and Back), so the two boxes keep their height; under 1000 px it takes a line of its own */}
+          {isManage && !challenge && <SignInPrompt id={mode} text={t('backUp', { mode })} />}
+          <button className="btn ghost setup-back" onClick={() => go('home')}>
+            {t('back')}
           </button>
         </div>
-        {isManage && !challenge && <SignInPrompt id={mode} text={`Back up your saves: sign in to save this ${mode === 'dynasty' ? 'Dynasty' : 'Season'}, your records and Dailies to your account.`} />}
 
         {/* Numbered steps in two boxes, as 38-0 reads: formation, name and league on the left; the rules and Spin on the right */}
         <div className="setup-grid">
           <div className="panel setup-box">
             <section className="setup-step setup-formation">
-              <StepHead n={1} title={fixed || crazyOn ? 'Your formation' : 'Pick your formation'} />
+              <StepHead n={1} title={t(fixed || crazyOn ? 'yourFormation' : 'pickFormation')} />
               {crazyOn && (
                 <div className="notice small" data-testid="crazy-formation">
-                  {crazyKnown ? `Crazy: seed ${seed.trim()} draws a ${shownFormation.name}.` : 'Crazy: the formation is drawn when you start.'}
+                  {crazyKnown ? t('crazySeed', { seed: seed.trim(), formation: shownFormation.name }) : t('crazyDrawn')}
                 </div>
               )}
               <div className="setup-formation-body">
@@ -384,23 +395,23 @@ export function Setup() {
             </section>
 
             <section className="setup-step setup-team">
-              <StepHead n={2} title="Name your team" />
+              <StepHead n={2} title={t('nameTeam')} />
               <div className="setup-name">{teamField}</div>
             </section>
 
             {!fixed && (
               <section className="setup-step">
                 <div className="step-head-row">
-                  <StepHead n={3} title="League and season" />
+                  <StepHead n={3} title={t('leagueSeason')} />
                   {superLeague ? (
                     <span className="chip super season-pick" data-testid="super-season" title={SUPER_LEAGUE_LINE}>
-                      <SuperLeagueMark /> One season, full strength
+                      <SuperLeagueMark /> {t('superSeason')}
                     </span>
                   ) : (
-                  <select className="input season-pick" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))} aria-label="Season to play" title={`${Math.max(0, clubsInLeague.length - 1)} real rivals with their real squads`} data-testid="season-select">
+                  <select className="input season-pick" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))} aria-label={t('seasonToPlay')} title={t('rivals', { n: Math.max(0, clubsInLeague.length - 1) })} data-testid="season-select">
                     {[...seasonChoices].reverse().map(({ season: s, classic: est }) => (
                       <option key={s} value={s}>
-                        {seasonLabel(s)}{s === u.currentSeason ? ' (in progress)' : ''}{est ? ' (est.)' : ''}
+                        {seasonLabel(s)}{s === u.currentSeason ? t('inProgress') : ''}{est ? t('estSuffix') : ''}
                       </option>
                     ))}
                   </select>
@@ -408,17 +419,15 @@ export function Setup() {
                 </div>
                 <div className="field setup-league">
                   {/* The Super League is one more league card for a Quick Draft: the nineteen greatest club-seasons, its wheel every league */}
-                  <Segmented value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: `${l.playerSeasons.toLocaleString()} player-seasons` })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
-                  {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? 'Loading league data…' : superLeague ? `${SUPER_LEAGUE_LINE}; the wheel draws from every league.` : 'Where your side plays; the wheel draws from every league.'}</span>}
+                  <Segmented value={superLeague ? SUPER_LEAGUE_ID : leagueId} onChange={pickLeague} options={[...u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</>, hint: t('playerSeasons', { n: l.playerSeasons.toLocaleString() }) })), ...(mode === 'quick' && u.available.length >= 2 ? [{ value: SUPER_LEAGUE_ID, label: <span className="chip super"><SuperLeagueMark /> {SUPER_LEAGUE_NAME}</span>, hint: SUPER_LEAGUE_LINE, testId: 'league-super' }] : [])]} />
+                  {(loadingLeagues || europe || superLeague) && <span className="help" data-testid="league-help">{loadingLeagues ? t('loadingLeagues') : superLeague ? t('superWheel', { line: SUPER_LEAGUE_LINE }) : t('europeWheel')}</span>}
                 </div>
                 {isManage && (
                   <div className="setup-replace" data-testid="you-replace">
                     <ClubBadge clubId={host} size={22} />
-                    <span>
-                      You replace: <b>{clubName(u, host)}</b>
-                    </span>
+                    <span>{rich(t('youReplace', { club: clubName(u, host) }), B)}</span>
                     <button type="button" className="linklike" onClick={openHost} data-testid="you-replace-change">
-                      Change
+                      {t('change')}
                     </button>
                   </div>
                 )}
@@ -429,95 +438,105 @@ export function Setup() {
           <div className="panel setup-box">
             {fixed && (
               <section className="setup-step">
-                <StepHead n={3} title={fixed.kind === 'daily' ? "Today's rules" : fixed.kind === 'weekly' ? "This week's rules" : 'The rules'} />
+                <StepHead n={3} title={t(fixed.kind === 'daily' ? 'todaysRules' : fixed.kind === 'weekly' ? 'weeksRules' : 'theRules')} />
                 {fixed?.kind === 'weekly' && weekPlan && (
                   <div className="notice" data-testid="weekly-notice">
-                    {weekPlan.week}: <b>{week ? weeklyThemeLine(u, week) : weekPlan.theme}</b>. Everyone drafts a <b>{formationName(weekPlan.formationId)}</b> from the same wheel{week ? <>, in {leagueArticle(leagueNameOf(week.leagueId))}<b>{leagueNameOf(week.leagueId)} {seasonLabel(week.season)}</b>, {week.difficulty} difficulty</> : ' (loading the league…)'}. Ends Sunday (UTC).
+                    {week
+                      ? rich(t('weeklyNotice', { week: weekPlan.week, theme: weeklyThemeLine(u, week), formation: formationName(weekPlan.formationId), article: leagueArticle(leagueNameOf(week.leagueId)), league: leagueNameOf(week.leagueId), season: seasonLabel(week.season), difficulty: t(`diff_${week.difficulty}`) }), B)
+                      : rich(t('weeklyNoticeLoading', { week: weekPlan.week, theme: weekPlan.theme, formation: formationName(weekPlan.formationId) }), B)}
                   </div>
                 )}
                 {fixed?.kind === 'weekly' && weekPlan && <WeeklyRecordBox theme={weekPlan.theme} record={weeklyRecord(profile, weekPlan.seed, previousWeeklySeed)} />}
                 {fixed?.kind === 'daily' && (
                   <div className="notice" data-testid="daily-notice">
-                    Today's puzzle: everyone drafts a <b>{formationName(fixed.formationId)}</b> from the same wheel, in {leagueArticle(leagueNameOf(fixed.leagueId))}<b>{leagueNameOf(fixed.leagueId)} {seasonLabel(fixed.season)}</b>, calibrated difficulty. Seed {fixed.seed}.
+                    {rich(t('dailyNotice', { formation: formationName(fixed.formationId), article: leagueArticle(leagueNameOf(fixed.leagueId)), league: leagueNameOf(fixed.leagueId), season: seasonLabel(fixed.season), seed: fixed.seed }), B)}
                   </div>
                 )}
                 {fixed?.kind === 'challenge' && challenge && (
                   <div className={`notice ${challenge.verified === 'yes' ? '' : 'warn'}`} data-testid="challenge-banner">
-                    <b>Challenge from {challenge.name}</b>: {challenge.claim.pts} pts {inLeague(leagueNameOf(fixed.leagueId))} {seasonLabel(fixed.season)}, {formationName(fixed.formationId)} ({tierName(challenge.claim.t)}, {challenge.claim.w}-{challenge.claim.d}-{challenge.claim.l}).{' '}
-                    Same seed, same wheel, {fixed.difficulty} difficulty
-                    {fixed.rules ? rulesTags(fixed.rules).map((t) => `, ${t.toLowerCase()}`).join('') : ''}
-                    {fixed.rules?.twists ? ', twists on' : ', no twists'}
-                    {fixed.rules?.budget !== undefined ? `, ${capTotal(fixed.rules.budget)} cap` : ''}
-                    {fixed.rules?.chain ? ', teammate chain' : ''}
-                    {fixed.rules?.onlyClub ? `, ${clubName(u, fixed.rules.onlyClub)} only` : ''}
-                  {fixed.rules?.classic ? ', classic seasons (estimated ratings)' : ''}
-                    {fixed.rules?.onlyNation ? `, ${u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation} only` : ''}
-                    {fixed.rules?.fromSeason || fixed.rules?.toSeason ? `, ${seasonLabel(eraFirstSeason(u, fixed.rules))} to ${seasonLabel(fixed.rules.toSeason ?? u.lastSeason)}` : ''}. Seed {fixed.seed}.
+                    {rich(t('challengeHead', { name: challenge.name, pts: challenge.claim.pts, inLeague: inLeague(leagueNameOf(fixed.leagueId)), season: seasonLabel(fixed.season), formation: formationName(fixed.formationId), tier: tierName(challenge.claim.t), record: `${challenge.claim.w}-${challenge.claim.d}-${challenge.claim.l}` }), B)}{' '}
+                    {t('challengeRules', {
+                      difficulty: t(`diff_${fixed.difficulty}`),
+                      seed: fixed.seed,
+                      extras: [
+                        ...(fixed.rules ? rulesTags(fixed.rules).map((tag) => t('extraTag', { tag: tag.toLowerCase() })) : []),
+                        t(fixed.rules?.twists ? 'twistsOn' : 'noTwists'),
+                        fixed.rules?.budget !== undefined ? t('capExtra', { cap: capTotal(fixed.rules.budget) }) : '',
+                        fixed.rules?.chain ? t('chainExtra') : '',
+                        fixed.rules?.onlyClub ? t('onlyExtra', { name: clubName(u, fixed.rules.onlyClub) }) : '',
+                        fixed.rules?.classic ? t('classicExtra') : '',
+                        fixed.rules?.onlyNation ? t('onlyExtra', { name: u.nations[fixed.rules.onlyNation]?.name ?? fixed.rules.onlyNation }) : '',
+                        fixed.rules?.fromSeason || fixed.rules?.toSeason ? t('rangeExtra', { from: seasonLabel(eraFirstSeason(u, fixed.rules)), to: seasonLabel(fixed.rules.toSeason ?? u.lastSeason) }) : '',
+                      ].join(''),
+                    })}
                     <div className="small" style={{ marginTop: 6 }}>
-                      {challenge.verified === 'yes' && `Verified: ${challenge.name}'s picks replay to ${challenge.claim.pts} points on this data.`}
-                      {challenge.verified === 'unverified' && `Unverified: built on different data (${challenge.reason}). You can still play the same wheel.`}
-                      {challenge.verified === 'no' && `Could not verify the claim (${challenge.reason}). You can still play the same wheel.`}
+                      {challenge.verified === 'yes' && t('verified', { name: challenge.name, pts: challenge.claim.pts })}
+                      {challenge.verified === 'unverified' && t('unverified', { reason: challenge.reason })}
+                      {challenge.verified === 'no' && t('notVerified', { reason: challenge.reason })}
                     </div>
                   </div>
                 )}
                 {fixed?.rules && (
-                  <div className="pill-list" data-testid="fixed-rules">
+                  <HoverTips className="pill-list" data-testid="fixed-rules" testId="rule-tip">
                     {describeRuleChips(u, fixed.rules).map((c) => {
                       const Icon = c.icon ? RULE_ICON[c.icon] : null
+                      // Each chip's plain-words note, on hover, a tap or the keyboard (ruleNotes.ts)
+                      const note = ruleChipNote(c)
                       return (
-                        <span key={c.text} className="chip">
+                        <span key={c.text} className={`chip${note ? ' has-tip' : ''}`} data-tip={note} tabIndex={note ? 0 : undefined}>
                           {Icon && <Icon size={12} aria-hidden="true" />}
                           {Icon ? ` ${c.text}` : c.text}
+                          {note && <span className="sr-only">: {note}</span>}
                         </span>
                       )
                     })}
-                  </div>
+                  </HoverTips>
                 )}
               </section>
             )}
             {!fixed && (
               <section className="setup-step">
-                <StepHead n={4} title="Set the rules" />
+                <StepHead n={4} title={t('setRules')} />
                 {!isManage && (
                   <div className="setup-modes" data-testid="modes-panel">
-                    <SectionHead title="Modes" info={`Mix and match, or none. ${MODE_CARDS.map((c) => `${MODE_INFO[c].title}: ${MODE_INFO[c].line}.`).join(' ')}`} testId="modes" right={<span className="small muted">{cardsOn.length ? `${cardsOn.length} on` : 'None on'}</span>} />
+                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => `${MODE_INFO[c].title}: ${MODE_INFO[c].line}.`).join(' ') })} testId="modes" right={<span className="small muted">{t('modesOn', { n: cardsOn.length })}</span>} />
                     <HoverTips className="setup-modes-row" testId="mode-tip">
                       <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} icons={MODE_ICON} onToggle={toggleMode} />
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={`Six one-use boosts in a tray on the draft: ${POWER_UPS.map((k) => POWER_UP_INFO[k].title).join(', ')}`}>
+                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => POWER_UP_INFO[k].title).join(', ') })}>
                           <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
                             <Package size="1em" />
                           </span>
-                          <span className="ctitle">Power-ups</span>
-                          <span className="cline">{powerUps ? 'On: six one-use boosts' : 'Six one-use boosts'}</span>
+                          <span className="ctitle">{t('powerUps')}</span>
+                          <span className="cline">{t(powerUps ? 'powerUpsOn' : 'powerUpsLine')}</span>
                         </label>
-                        <InfoTip label="Power-ups" text="Six one-use power-ups in a tray on the draft: Upgrader, Re-roll season, Peek, Swap, Captain's armband and Lock. Odds are always shown first; in-game only." testId="power-ups-info" />
+                        <InfoTip label={t('powerUps')} text={t('powerUpsInfo')} testId="power-ups-info" />
                       </div>
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" data-tip="A power-up for your locker, or a rare Icon for this XI">
+                        <label className={`qmode pu-card${endCase ? ' active' : ''}`} data-testid="end-case-toggle" data-tip={t('endCaseTip')}>
                           <input type="checkbox" className="sr-only" checked={endCase} onChange={(e) => setEndCase(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
                             <Gift size="1em" />
                           </span>
-                          <span className="ctitle">End case</span>
-                          <span className="cline">{endCase ? 'On: one case after the draft' : 'One case after the draft'}</span>
+                          <span className="ctitle">{t('endCase')}</span>
+                          <span className="cline">{t(endCase ? 'endCaseOn' : 'endCaseLine')}</span>
                         </label>
-                        <InfoTip label="End case" text="One case when the draft is done: a power-up for your locker (unpack it in a later Quick Draft without the tray), or with a 5% chance an Icon, an all-time great who can take a drafted starter's place this season (a non-standard season). The odds are shown on the case." testId="end-case-info" />
+                        <InfoTip label={t('endCase')} text={t('endCaseInfo')} testId="end-case-info" />
                       </div>
                       {/* The casual rules as two more cards: Moneyball's salary cap (its presets under Advanced) and the Teammate Chain */}
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" data-tip="Moneyball: every player carries a price by rating and position, and the draft may not spend more than the cap">
+                        <label className={`qmode pu-card${capOn ? ' active' : ''}`} data-testid="moneyball-toggle" data-tip={t('moneyballTip')}>
                           <input type="checkbox" className="sr-only" checked={capOn} onChange={(e) => setCapChoice({ ...cap, preset: e.target.checked ? 'moneyball' : 'off' })} />
                           <span className="micon" aria-hidden="true"><PoundSterling size="1em" /></span>
-                          <span className="ctitle">Moneyball</span>
-                          <span className="cline">{capOn && capCard !== undefined ? `${capTotal(capCard)} cap · ${CAP_PRESETS.find((p) => p.value === cap.preset)?.label ?? ''}` : 'Draft under a salary cap'}</span>
+                          <span className="ctitle">{t('moneyball')}</span>
+                          <span className="cline">{capOn && capCard !== undefined ? t('moneyballCap', { cap: capTotal(capCard), preset: CAP_PRESETS.find((p) => p.value === cap.preset)?.label ?? '' }) : t('moneyballLine')}</span>
                         </label>
-                        <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" data-tip="Every club-season the wheel lands on holds a former teammate of your last pick, and you draft one of them. When none is left, the next spin is free and the chain starts again.">
+                        <label className={`qmode pu-card${chain ? ' active' : ''}`} data-testid="chain-toggle" data-tip={t('chainCardTip')}>
                           <input type="checkbox" className="sr-only" checked={chain} onChange={(e) => setChain(e.target.checked)} />
                           <span className="micon" aria-hidden="true"><Link size="1em" /></span>
-                          <span className="ctitle"><span className="lbl-long">Teammate chain</span><span className="lbl-short">Chain</span></span>
-                          <span className="cline">{chain ? 'On: each pick played beside the last' : 'Each pick played beside the last'}</span>
+                          <span className="ctitle"><span className="lbl-long">{t('chainLong')}</span><span className="lbl-short">{t('chainShort')}</span></span>
+                          <span className="cline">{t(chain ? 'chainOn' : 'chainLine')}</span>
                         </label>
                       </div>
                     </HoverTips>
@@ -525,49 +544,49 @@ export function Setup() {
                 )}
                 <div className="setup-rules">
                   <div className="setup-opt">
-                    <h3>Difficulty</h3>
-                    <ChoiceCards label="Difficulty" testId="difficulty" options={DIFFICULTY_OPTIONS} value={draftDifficulty} onChange={setDraftDifficulty} />
+                    <h3>{t('difficulty')}</h3>
+                    <ChoiceCards label={t('difficulty')} testId="difficulty" options={DIFFICULTY_OPTIONS()} value={draftDifficulty} onChange={setDraftDifficulty} />
                   </div>
                   <div className="setup-opt">
-                    <h3>Show ratings</h3>
-                    <ChoiceCards label="Show ratings" testId="show-ratings" options={RATINGS_SHOWN} value={hard || !showRatings ? 'off' : 'on'} onChange={(v) => setShowRatings(v === 'on')} disabled={hard} />
-                    {hard && <span className="help setup-line">Hard always hides ratings.</span>}
+                    <h3>{t('showRatings')}</h3>
+                    <ChoiceCards label={t('showRatings')} testId="show-ratings" options={RATINGS_SHOWN()} value={hard || !showRatings ? 'off' : 'on'} onChange={(v) => setShowRatings(v === 'on')} disabled={hard} />
+                    {hard && <span className="help setup-line">{t('hardHides')}</span>}
                   </div>
                   <div className="setup-opt">
-                    <h3>Draft mode</h3>
-                    <ChoiceCards label="Draft mode" testId="draft-mode" options={DRAFT_MODE_OPTIONS} value={draftMode} onChange={setDraftMode} />
+                    <h3>{t('draftMode')}</h3>
+                    <ChoiceCards label={t('draftMode')} testId="draft-mode" options={DRAFT_MODE_OPTIONS()} value={draftMode} onChange={setDraftMode} />
                   </div>
                   {!isManage && (
                     <div className="setup-opt">
-                      <h3>Player ratings</h3>
-                      <ChoiceCards label="Player ratings" testId="ratings-mode" options={RATINGS_MODE_OPTIONS} value={ratingsMode} onChange={setRatingsMode} />
+                      <h3>{t('playerRatings')}</h3>
+                      <ChoiceCards label={t('playerRatings')} testId="ratings-mode" options={RATINGS_MODE_OPTIONS()} value={ratingsMode} onChange={setRatingsMode} />
                     </div>
                   )}
                   {isManage && (
                     <div className="setup-opt setup-squad">
-                      <h3>Squad size: {squadSize}</h3>
-                      <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} aria-label="Squad size to draft" />
+                      <h3>{t('squadSize', { n: squadSize })}</h3>
+                      <input type="range" min={16} max={22} value={squadSize} onChange={(e) => setSquadSize(Number(e.target.value))} aria-label={t('squadSizeLabel')} />
                     </div>
                   )}
                   {!isManage && (
                     <div className="setup-opt" data-testid="manager-option">
-                      <h3>Manager</h3>
-                      <ChoiceCards label="Manager" testId="managers" options={MANAGER_OPTIONS} value={managerChoice} onChange={setManagerChoice} />
+                      <h3>{t('manager')}</h3>
+                      <ChoiceCards label={t('manager')} testId="managers" options={MANAGER_OPTIONS()} value={managerChoice} onChange={setManagerChoice} />
                     </div>
                   )}
                   {!isManage && (
-                    <div className="setup-opt setup-bench" data-testid="bench-option" title="Extra picks after the XI, optional: 3 changes between games and injury cover in the season">
-                      <h3>Bench</h3>
-                      <Segmented value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS} />
-                      <span className="help setup-line">{benchPicks ? `Optional: 3 changes and injury cover.` : 'The XI plays every game.'}</span>
+                    <div className="setup-opt setup-bench" data-testid="bench-option" title={t('benchTip')}>
+                      <h3>{t('bench')}</h3>
+                      <Segmented value={String(benchPicks)} onChange={(v) => setBenchPicks(Number(v))} options={BENCH_OPTIONS()} />
+                      <span className="help setup-line">{t(benchPicks ? 'benchOn' : 'benchOff')}</span>
                     </div>
                   )}
                   <div className="setup-opt setup-wide-opt" data-testid="era">
                     <div className="setup-era-head">
-                      <h3>Era</h3>
-                      <Segmented value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: 'Custom' }] : [])]} />
+                      <h3>{t('era')}</h3>
+                      <Segmented value={eraPreset} onChange={setEraPreset} options={[...ERA_PRESETS.map((p) => ({ value: p.id as EraPreset, label: p.label })), ...(eraPreset === 'custom' ? [{ value: 'custom' as EraPreset, label: t('custom') }] : [])]} />
                       {classicFrom !== undefined && (
-                        <label className="toggle era-classic" title="Real squads and tables; no official ratings exist, so these are TouchLine's estimates.">
+                        <label className="toggle era-classic" title={t('classicTip')}>
                           <input
                             type="checkbox"
                             checked={classic}
@@ -587,7 +606,7 @@ export function Setup() {
                                 })
                             }}
                           />
-                          Classic {seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)} <EstimatedChip compact />
+                          {t('classicRange', { from: seasonLabel(classicFrom), to: seasonLabel(u.firstSeason - 1) })} <EstimatedChip compact />
                         </label>
                       )}
                       <span className="chip" data-testid="era-count" title={eraLine && eraLine.n > 0 ? eraLine.caption : undefined}>
@@ -604,16 +623,16 @@ export function Setup() {
                       }}
                     />
                     <span className="help setup-line" data-testid="era-caption">
-                      {eraLine && eraLine.n > 0 ? `The wheel lands on ${eraLine.caption}.` : 'No seasons in this range.'}
+                      {eraLine && eraLine.n > 0 ? t('wheelLands', { caption: eraLine.caption }) : t('noSeasons')}
                     </span>
                   </div>
                   <div className="setup-opt setup-wide-opt setup-more" ref={moreRef} data-testid="more-options">
                     <button type="button" className="fold-head" onClick={() => toggleAdvanced(!advanced)} aria-expanded={advanced} data-testid="more-options-toggle">
-                      <h3>{isManage ? 'More options' : 'Advanced'}</h3>
-                      <span className="small muted">{advanced ? 'Hide ▴' : 'Show ▾'}</span>
+                      <h3>{t(isManage ? 'moreOptions' : 'advanced')}</h3>
+                      <span className="small muted">{t(advanced ? 'hide' : 'show')}</span>
                     </button>
                     {!advanced && (
-                      <span className="help setup-more-help">{isManage ? 'Job security, club, seed, opposition, twists and more.' : 'Seed, opposition, twists and more.'}</span>
+                      <span className="help setup-more-help">{t(isManage ? 'moreHelpManage' : 'moreHelp')}</span>
                     )}
                     {advanced && (
                       <>
@@ -622,34 +641,34 @@ export function Setup() {
                             <div className="toggle-row">
                               <label className="toggle">
                                 <input type="checkbox" checked={jobSecurity} onChange={(e) => setJobSecurity(e.target.checked)} />
-                                <Armchair size={14} aria-hidden="true" /> Job security
+                                <Armchair size={14} aria-hidden="true" /> {t('jobSecurity')}
                               </label>
-                              <InfoTip label="Job security" text="On: miss the board's target badly and you are sacked." />
+                              <InfoTip label={t('jobSecurity')} text={t('jobSecurityInfo')} />
                             </div>
                           )}
                           {u.available.length >= 2 && (
                             <div className="toggle-row">
                               <label className="toggle" data-testid="europe-toggle">
                                 <input type="checkbox" checked={europe} onChange={(e) => pickEurope(e.target.checked)} />
-                                <MapIcon size={14} aria-hidden="true" /> European Nights
+                                <MapIcon size={14} aria-hidden="true" /> {t('europeanNights')}
                               </label>
-                              <InfoTip label="European Nights" text={`The wheel draws from all ${u.available.length} leagues, not just yours.`} />
+                              <InfoTip label={t('europeanNights')} text={t('europeInfo', { n: u.available.length })} />
                             </div>
                           )}
                           <div className="toggle-row">
                             <label className="toggle">
                               <input type="checkbox" checked={twists || crazyOn} disabled={crazyOn} onChange={(e) => setTwistsChoice(e.target.checked)} data-testid="twists-toggle" />
-                              <Shuffle size={14} aria-hidden="true" /> Twists{crazyOn ? ': every spin' : ''}
+                              <Shuffle size={14} aria-hidden="true" /> {t(crazyOn ? 'twistsEvery' : 'twists')}
                             </label>
-                            <InfoTip label="Twists" text={`${crazyOn ? 'Crazy puts a twist on every spin.' : 'Every third spin is golden, basement, blind or decade.'} Golden: champions only. Basement: the bottom three. Blind: ratings hidden for that pick. Decade: the decade of your last pick.`} />
+                            <InfoTip label={t('twists')} text={t('twistsInfo', { crazy: crazyOn ? 'yes' : 'no' })} />
                           </div>
                           {!isManage && (
                             <div className="toggle-row">
                               <label className="toggle" data-testid="january-toggle">
                                 <input type="checkbox" checked={january} onChange={(e) => setJanuary(e.target.checked)} />
-                                <Snowflake size={14} aria-hidden="true" /> January window
+                                <Snowflake size={14} aria-hidden="true" /> {t('january')}
                               </label>
-                              <InfoTip label="January window" text="After the halfway matchweek the season pauses: one signing or swap from three to five offers, or pass, and the tactics can change." />
+                              <InfoTip label={t('january')} text={t('januaryInfo')} />
                             </div>
                           )}
                           {isManage && u.available.length >= 2 && (
@@ -663,25 +682,25 @@ export function Setup() {
                                     if (e.target.checked) void ensureLeagues(u.available.map((l) => l.id))
                                   }}
                                 />
-                                <Globe size={14} aria-hidden="true" /> Continental Cup
+                                <Globe size={14} aria-hidden="true" /> {t('continental')}
                               </label>
-                              <InfoTip label="Continental Cup" text={isManage ? 'A midweek knockout against the fifteen strongest clubs from the other leagues that season. In Dynasty mode a top-four finish qualifies you again.' : 'Finish in the top four and the season ends with up to four knockout ties against the fifteen strongest clubs from the other leagues.'} />
+                              <InfoTip label={t('continental')} text={t(isManage ? 'continentalManage' : 'continentalQuick')} />
                             </div>
                           )}
                         </div>
                         <label className="field">
-                          Seed
+                          {t('seed')}
                           <div className="row">
                             <input className="input mono" value={seed} onChange={(e) => setSeed(e.target.value)} />
                             <button className="btn sm" onClick={() => setSeed(randomSeed())}>
-                              New
+                              {t('newSeed')}
                             </button>
                           </div>
-                          <span className="help">Same seed, same wheel.</span>
+                          <span className="help">{t('sameSeed')}</span>
                         </label>
                         {isManage && (
                           <label className="field">
-                            You replace
+                            {t('replaceLabel')}
                             <select className="input" value={host} onChange={(e) => setHostClubId(e.target.value)} data-testid="host-select" ref={hostRef}>
                               {clubsInLeague.map((c) => (
                                 <option key={c} value={c}>
@@ -691,28 +710,28 @@ export function Setup() {
                             </select>
                             <span className="help row" style={{ gap: 8 }} data-testid="host-help">
                               <ClubBadge clubId={host} size={22} />
-                              {host === defaultHost && hostRow ? `Mid-table: ${ordinal(hostRow.position)} in ${seasonLabel(effectiveSeason)}.` : 'Their colours, rivals and fixtures.'}
+                              {host === defaultHost && hostRow ? t('midTable', { pos: hostRow.position, season: seasonLabel(effectiveSeason) }) : t('theirColours')}
                             </span>
                           </label>
                         )}
                         {!superLeague && (
                         <div className="field">
-                          Opposition
+                          {t('opposition')}
                           <Segmented
                             value={opposition}
                             onChange={setOpposition}
                             options={[
-                              { value: 'calibrated', label: 'Calibrated', hint: 'Real clubs are handicapped so a decent draft competes' },
-                              { value: 'realistic', label: 'Realistic', hint: 'The real squads at full strength. Brutal.' },
+                              { value: 'calibrated', label: t('calibrated'), hint: t('calibratedHint') },
+                              { value: 'realistic', label: t('realistic'), hint: t('realisticHint') },
                             ]}
                           />
-                          <span className="help">{opposition === 'calibrated' ? 'An average draft finishes mid-table.' : 'Full strength. Brutal.'}</span>
+                          <span className="help">{t(opposition === 'calibrated' ? 'calibratedHelp' : 'realisticHelp')}</span>
                         </div>
                         )}
                         <CapControl value={cap} onChange={setCapChoice} squadSize={isManage ? squadSize : QUICK_RULES.squadSize} note={CAP_NARROW_NOTE} />
                         {isManage && <ChainToggle value={chain} onChange={setChain} />}
                         <label className="field">
-                          One-club mode
+                          {t('oneClub')}
                           <select
                             className="input"
                             value={onlyClub}
@@ -722,16 +741,16 @@ export function Setup() {
                               if (e.target.value) setCap((c) => ({ ...c, preset: 'off' }))
                             }}
                           >
-                            <option value="">Off: every club</option>
+                            <option value="">{t('everyClub')}</option>
                             {allClubs.map((c) => (
                               <option key={c.id} value={c.id}>
-                                {c.name} only
+                                {t('clubOnly', { name: c.name })}
                               </option>
                             ))}
                           </select>
                         </label>
                         <label className="field">
-                          One-nation mode
+                          {t('oneNation')}
                           <select
                             className="input"
                             value={nations.some((n) => n.nation === onlyNation) ? onlyNation : ''}
@@ -741,7 +760,7 @@ export function Setup() {
                               if (e.target.value) setCap((c) => ({ ...c, preset: 'off' }))
                             }}
                           >
-                            <option value="">Off: every nationality</option>
+                            <option value="">{t('everyNation')}</option>
                             {nations.map((n) => (
                               <option key={n.nation} value={n.nation}>
                                 {nationDepthLabel(n)}
@@ -750,8 +769,8 @@ export function Setup() {
                           </select>
                           <span className="help">
                             {onlyNation && nations.some((n) => n.nation === onlyNation)
-                              ? <><NationFlag nation={onlyNation} named /> Every pick from {nations.find((n) => n.nation === onlyNation)?.name}. One club or one nation, not both.</>
-                              : `${nations.length} nations deep enough (${NATION_SLOT_COVER}× per position${isManage ? `, ${squadSize + NATION_SQUAD_MARGIN} in all` : ''}).`}
+                              ? <><NationFlag nation={onlyNation} named /> {t('everyPickFrom', { name: nations.find((n) => n.nation === onlyNation)?.name })}</>
+                              : t('nationsDeep', { n: nations.length, cover: NATION_SLOT_COVER, extra: isManage ? t('nationsInAll', { n: squadSize + NATION_SQUAD_MARGIN }) : '' })}
                           </span>
                         </label>
                       </>
@@ -762,21 +781,21 @@ export function Setup() {
             )}
 
             <section className="setup-step setup-start bottom-bar" ref={barRef}>
-              <StepHead n={fixed ? 4 : 5} title="Spin" />
+              <StepHead n={fixed ? 4 : 5} title={t('spin')} />
               <div className="small muted" data-testid="setup-summary" title={isQuickLine ? summary : undefined}>
                 {isQuickLine ? quickSetupLineFull(u, preview) : summary}
                 {!fixed && (
                   <>
                     {' · '}
                     <button type="button" className="linklike" onClick={openMore} data-testid="setup-change">
-                      change
+                      {t('changeLink')}
                     </button>
                   </>
                 )}
               </div>
               <LeagueRetry needs={needs} classic={!fixed && classic} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || emptyWheel} data-testid="setup-start">
-                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : emptyWheel ? EMPTY_WHEEL_LABEL : isManage ? 'Start drafting your squad' : challenge ? `Take on ${challenge.name}` : 'Start draft'}
+                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : emptyWheel ? EMPTY_WHEEL_LABEL : isManage ? t('startSquad') : challenge ? t('takeOn', { name: challenge.name }) : t('startDraft')}
               </button>
             </section>
           </div>
@@ -793,7 +812,7 @@ function StepHead({ n, title }: { n: number; title: string }) {
       <span className="step-num" aria-hidden="true">
         {n}
       </span>
-      <span className="sr-only">Step {n}: </span>
+      <span className="sr-only">{t('stepN', { n })}</span>
       {title}
     </h3>
   )

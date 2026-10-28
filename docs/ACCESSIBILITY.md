@@ -2,7 +2,7 @@
 
 What TouchLine supports for VoiceOver, keyboard-only play and larger text, how to check it, and what is left. The target is WCAG 2.2 AA where it is practical for a game, and no blocker for App Store review or for a player using assistive technology. The rules for new components are in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) section 15.
 
-First pass: 2026-10-26, branch `a11y-pass` from `main` at 301da2e. Second pass: 2026-10-26, branch `a11y-r2` from the `a11y-pass` tip (44908c5).
+First pass: 2026-10-26, branch `a11y-pass` from `main` at 301da2e. Second pass: 2026-10-26, branch `a11y-r2` from the `a11y-pass` tip (44908c5). Third pass: 2026-10-27, branch `claude/r7-a11y` from `release-e6` (4899025, engine 6 with every polish batch).
 
 ## 1. What is supported
 
@@ -17,23 +17,29 @@ First pass: 2026-10-26, branch `a11y-pass` from `main` at 301da2e. Second pass: 
   - the toast (`toast-live`);
   - the match: the score once each time it changes (`score-live`), the key commentary line (goals, cards, injuries, substitutions) and the assistant's word (`feedPanels.tsx`), the substitution board's staging (`sub-announce`);
   - the draft reel: the season, then the club and its tier (`reel-live`); the manager spin, the end-of-draft case and the January case: what landed (`mspin-live`, `case-live`, `january-spin-live`);
+  - the Upgrader (the draft's and January's): the gamble while the dial turns, then the verdict and the roll (`upgrader-live`; the dial is a picture);
+  - an arena shoot-out: each kick as it shows, with the score, then the verdict (`shootout-live`); a taker moved in the penalty order (`shootout-order-live`); the kick chips read "Ours: Kane scored" rather than a tick and a colour;
+  - the head-to-head draft: whose turn it is (the notice over the squad);
   - the season playback: one line for a big moment ("Matchweek 12: Top of the league!") and one at full time (`playback-live`). The tally and the running strip are deliberately not live: they changed at every game.
 - Landmarks: the top bar is the banner, and each screen's own `.page` is the main landmark (`role="main"`, `id="main"`, set by `watchMainLandmark` in `src/ui/landmarks.ts`, which follows the screens as they change). The shell's CSS selects `.app > .page` directly, so there is no `<main>` wrapper. The first Tab stop is a "Skip to content" link (`skip-link`), off the screen until it has the focus, which puts the focus on the screen's page (the next Tab is its first control) without touching the URL's hash.
 - The Gauntlet's ladder is a labelled list whose rungs read as words ("Rung 3, won 2-1 v Stoke City"); a played rung shows its W or L beside the colour.
-- After a reel lands the focus moves to where the choice is (`useFocusOnLanding`): the landed club's name in the draft (the squad is the next Tab stop), the first Pick on the manager spin, On to kick-off or the Icon's first slot on the case, his first slot or Keep my XI on the January case. It only moves when the focus had fallen to `<body>` or to a disabled control, never away from something the player chose.
+- After a reel lands the focus moves to where the choice is (`useFocusOnLanding`): the landed club's name in the draft and the head-to-head draft (the squad is the next Tab stop), the first Pick on the manager spin, On to kick-off or the Icon's first slot on the case, his first slot or Keep my XI on the January case. It only moves when the focus had fallen to `<body>` or to a disabled control, never away from something the player chose.
+- The focus is never dropped (round 3). When the control that had it leaves the page (a picked player's row, the Pick of a manager spin, a whole screen swapped for the next), the focus rescue (`src/ui/focusRescue.ts`) puts it on the first control of the nearest box still there, or on the new screen's page (its `role="main"`, so a screen reader starts reading the new screen and the next Tab is its first control). Where the next step is known it goes there: Spin after a pick and the finish button once the squad is complete (the Draft and the head-to-head), Open the January case and its Tap to skip, the Upgrader's skip and its close, Done when a cup's trophy rises, the first listing that "Show all" brings into view on a phone's market, the other arrow of a penalty taker moved to the top or the bottom.
+- Tab strips are one Tab stop: the arrows, Home and End move along the Dugout's tabs, the player card's, World's boards and the playback's (WAI-ARIA tabs, `onTabListKey`). The top bar marks the current screen with `aria-current="page"`.
 
 **Keyboard.**
 
 - Every control is a real `<button>`, link or form field, or answers Enter and Space as one (`pressable`, `isActivationKey`): Explore's club rows, the pitch's slots (a read-only pitch is a labelled image and takes no Tab stop).
 - The reels and dials skip with Space or Enter while they run, and each has a Skip button; the substitution board takes Tab, the arrow keys, Enter and Escape as well as a drag or a tap (`SubBoard.tsx`).
 - A box that scrolls with nothing focusable inside (a results table, the draft log, the privacy text, the end case's odds) joins the Tab order while it scrolls, so the arrow keys scroll it (`src/ui/scrollFocus.ts`; Safari does not make such boxes focusable on its own).
-- The focus ring is the global 2 px `--focus` outline on `:focus-visible` and is never removed from a control.
+- The focus ring is the global 2 px `--focus` outline on `:focus-visible` and is never removed from a control (a page or panel focused only so the next Tab starts inside it draws none).
 - Hover cards (the player peek) and Info tips close on Escape (WCAG 1.4.13).
 - `\` hides and shows the top bar (section 13 of the design system).
 
 **Colour and contrast.**
 
-- Every text pair in the token set passes 4.5:1 (DESIGN_SYSTEM.md section 3). Ink on a club's colour (badges, the match day's codes, shirts and discs, the reel's cards) is chosen by WCAG contrast (`inkOn`, `textColourFor`) and clears 4.5:1 on every colour: a mid red such as Arsenal's takes black, not white.
+- Every text pair in the token set passes 4.5:1 (DESIGN_SYSTEM.md section 3). The match day's red rating pill takes the status ink (it was 2.5:1 in both themes).
+- The xG story's lines clear 3:1 against the chart panel (WCAG 1.4.11): a kit under 3:1 (a sky blue in Daylight, a deep red in Floodlit, as well as white, yellow, navy and black) is drawn over a casing in the theme that needs it (`LINE_CONTRAST` in `src/ui/match/charts.ts`, 2:1 before round 3). Ink on a club's colour (badges, the match day's codes, shirts and discs, the reel's cards) is chosen by WCAG contrast (`inkOn`, `textColourFor`) and clears 4.5:1 on every colour: a mid red such as Arsenal's takes black, not white.
 - A result never rests on colour alone: a coloured score or tie chip carries its W, D or L (`.res-letter`), and the W/D/L badges and form guides show the letter.
 
 **Motion.** `prefers-reduced-motion: reduce` stops every entrance, transition, loop and the celebration (the motion section's blocks in `styles.css`); the reels land at once, the live pitch draws once a minute. A probe of `document.getAnimations()` on Home, Profile, How it works, Explore, Setup, the Draft and the manager spin found nothing running under reduced motion.
@@ -50,7 +56,7 @@ First pass: 2026-10-26, branch `a11y-pass` from `main` at 301da2e. Second pass: 
 
 **axe-core.** Not a dependency. Fetch it into an empty scratch folder (`npm pack axe-core@4.10.2`, then `tar -xzf`) and inject `package/axe.min.js` with Playwright's `page.addScriptTag`, then run `axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } })` on each screen, at 390x844 and 1280x720. The screens: Home, Setup, the Draft (idle, the reel running, choosing, squad ready), the manager spin, the end case, Kick-off, the season playback, January (before and after its case), the Summary, every Dugout tab, the live match (playing, the 45' and 70' stops, the report), the arena setup and hub, Profile, How it works, Explore, Privacy and the head-to-head setup. Since the second pass also, in both themes: a room link on an offline build, the head-to-head draft (idle and choosing) and result, the Run-in's setup, draft, hub and summary, the Gauntlet's setup and hub (before and after a rung), an arena final's replay and summary, Explore's player card, the Dugout's player card and its tabs, Dynasty's summary, summer, bonus draft, pre-season and summer market, Profile's Trophy Room after an arena run and after a Dynasty season, and, on a build with placeholder `VITE_SUPABASE_*` values and no network to them, Home, World, Account, the online room setup, Privacy and Profile.
 
-**Keyboard.** Tab through a whole quick season without the mouse: Home, Quick Draft, Start Draft, Space on Spin, Enter on Skip (the focus should land on the club's name), Tab into the squad, pick, Auto-complete, On to kick-off, Spin 3 managers, Skip, Pick (the focus should be on the first Pick), Open the case, Skip (On to kick-off should have the focus), Kick off, Skip to the end, See the summary. Every step should show a focus ring, and no Tab press should leave an open dialog.
+**Keyboard.** Since round 3 a Playwright harness drives every mode from the keyboard alone: it presses Tab until the control it wants has the focus (failing when it never comes), checks every stop on the way shows a ring, is visible and is not inert or hidden, then presses Enter, Space or the arrows, and logs where the focus lands after each step (`<body>` there is a bug). The flows: the Quick Draft to the Summary and its cup night (both January choices: the case and the Upgrader), a Season to a live match (the 45' stop, a substitution made on the board with Enter, the arrows and Enter, the 70' stop, Finish), Dynasty to the summer, the Cup and the Gauntlet to their summaries, the hot-seat head-to-head to its result, the Run-in to its verdict, Explore, Profile and How it works. By hand: Tab through a whole quick season without the mouse: Home, Quick Draft, Start Draft, Space on Spin, Enter on Skip (the focus should land on the club's name), Tab into the squad, pick, Auto-complete, On to kick-off, Spin 3 managers, Skip, Pick (the focus should be on the first Pick), Open the case, Skip (On to kick-off should have the focus), Kick off, Skip to the end, See the summary. Every step should show a focus ring, and no Tab press should leave an open dialog.
 
 **VoiceOver (iOS).** Settings, Accessibility, VoiceOver; or the Accessibility Shortcut (triple-click). Swipe through Home and a draft: every control should say what it is and what it does, the reel's landing should be read once, the score should be read once per goal in a live match, and a toast should be read. Rotor, Headings, to move between a screen's panels.
 
@@ -118,17 +124,40 @@ Other checks on the after build:
 - Phone targets at 390x844 (Home, Profile, How it works, Explore, Head-to-head, Privacy, the Run-in and arena setups, Setup, the Draft, the manager spin, Kick-off, the playback, the Summary): 258 of 540 controls under 44 px before, 6 of 552 after (the setup cards' three "i" by design, the two inline "change" links at 43 px, the Summary's Boxes at 42). In the Dugout what stays under 44 px is the squad's and planner's position and XI chips (33 px, rows of them, kept clear of each other) and, in the live match, the match day's own tool buttons, selects and tabs (31 to 32 px); nothing is under 24 px.
 - Text at 175 % and 200 % at 390x844, 200 % at 820x1180 and 115 % at 1280x720: section 5.
 
+## 3c. Results of the third pass
+
+axe-core 4.10.2, the same rules, on `release-e6` (before) and this branch (after). Every state was reached from the keyboard alone (section 2's harness): 51 states a run (the Quick Draft 14 with its cup night, a Season 7 with a live match and a substitution, the Cup and the Gauntlet 4 each, the head-to-head 4, the Run-in 4, Dynasty 2, Explore, Profile, How it works and the head-to-head setup 4), at 1280x720 in Floodlit and 390x844 in Daylight, plus the Season flow at 390x844 Floodlit and 1280x720 Daylight. Counts are failing nodes.
+
+| Rule | Before | After |
+|---|---|---|
+| `target-size`: the head-to-head draft's pitches (slot label boxes overlapping) | 7 to 10 | 0 |
+| `target-size`: the Dugout's keeper slot on a short pitch | 1 | 0 |
+| `target-size`: the match day's formation panel (section 4) | 1 to 2 | 1 to 2 |
+| `color-contrast`: the match day's red rating pill (both themes) | 4 | 0 |
+| `color-contrast`: a substituted man's card in the squad strip (faded to 50 %) | 3 | 0 |
+| `scrollable-region-focusable`: the manager guide, the case locker, the arena summary's bracket, the head-to-head log | 1 each | 0 |
+
+The Upgrader, left unaudited by round 2, was audited through the January Upgrader (choose, the dial turning, landed): 0 nodes in both themes and sizes; its words were added (section 1).
+
+Two `color-contrast` nodes on the newest game row of a playback are the row's drop-in animation caught mid-fade (the same row passes once it lands) and are not counted.
+
+Keyboard (before, on `release-e6`): every screen change left the focus on `<body>` (Home to the Draft, the Draft to the manager spin, the case, Kick-off, the playback, the Summary, the Dugout, the match, every arena step), as did a pick, Auto-complete, the January choices, the case's Open and Pick a manager; the head-to-head draft never moved the focus after a landing; the tab strips took one Tab stop per tab. After: the focus never fell to `<body>` in any flow except for the moment a reel spins (its Spin button is disabled; the landing then takes it); a screen change lands on the new page, and the steps in section 1 land where the next choice is. The substitution board was played from the keyboard alone: Enter on a bench card, an arrow onto a starter, Enter, Confirm, every step announced.
+
+Larger text at 200 % on a 390 px phone, the quick flow (Home, Setup, the Draft, the manager spin, the case, Kick-off, the playback, January and its market): before, Setup ran 17 px past the window (Moneyball), the draft's squad 5 to 86 px (a "fits LB/CB/RB/DM/CM" chip), Squad complete 63 px ("Pundits' prediction" and the chance rows); after, nothing. Reduced motion: no animation running on any of those screens. Touch targets: nothing under 24 px but the visually hidden radios inside their cards and the Classic toggle's 15 px box inside its label (the label is the target); the draft log's grade buttons were 22 px wide and are 24.
+
+Every flow ran with no page error and, at 1280x720, no page scroll. Vitest: 1,822 tests pass and 21 are skipped in 249 files (the new `a11yRound3.test.ts` has 9, `arenaText.test.ts` 2 more); typecheck, build, the first-download budget and `check:dist-keys` pass; `dist/edge` holds `verifier-37d256f009b3b3e9.js`, `verifier-603b905d0570f641.js` and `verifier-d0ebd30afcbcd00b.js`, unchanged.
+
 ## 4. What is left
 
-After the second pass (round 2):
+After the third pass (round 3):
 
-- **iOS text size needs the wrapper.** The page is ready (section 5): `@capacitor/text-zoom@8.0.1` and three calls in the wrapper's start-up, not yet made because the iOS PR is undecided.
-- **Most of the CSS is in px.** Only the type scale tokens are rem, so Dynamic Type grows body copy, small text, chips, headings and buttons, but not the 245-odd component font sizes still in px (the match day's panels, the reels, the pitch labels, the summary's big figures). Moving them to the tokens, screen by screen, is the follow-up. Browser zoom (Ctrl and +) works everywhere, which is what WCAG 1.4.4 asks.
-- **The match day's phone controls** (its tool buttons and selects, 32 px, and its phone tabs, 31 px) are under 44 px: the compact match layout is fitted to the window height, and growing them is left to the match-day owners. They pass WCAG 2.5.8 (24 px).
-- **The match day's formation panels**: two centre-backs' shirt buttons overlap on a small pitch (axe `target-size`, 2 nodes at 1280x720, in the live match and an arena final's replay). The squad strip under them does the same with full-size cards (WCAG 2.5.8's "equivalent" exception).
+- **The match day's formation panels.** On a small formation panel two men's shirt buttons can overlap (axe `target-size`, 1 or 2 nodes in a live match and its report at 1280x720, depending on the formations; centre-backs 28 px apart with a 30 px rating pill). For our side the squad strip does the same with full-size cards (WCAG 2.5.8's equivalent), but the opponent's men have no strip. Taking them out of the Tab order does not help (axe and 2.5.8 count any pointer target); the fix is a hit box the size of the shirt alone with the pill and name drawn outside it, a layout change for the match-day owners.
+- **The match day's phone controls** (its tool buttons and selects, 32 px, and its phone tabs, 31 px) stay under 44 px: the compact match layout is fitted to the window height. They pass WCAG 2.5.8 (24 px).
+- **iOS text size needs the wrapper.** The page is ready (section 5): `@capacitor/text-zoom@8.0.1` and three calls in the wrapper's start-up, waiting on the iOS PR.
 - **The setup cards' "i"** stays 32 px, clear of its card's own target; the shortlist star and the Explore rows on a tablet (721 to 1099 px) keep their desktop sizes.
-- **The live pitch is a picture.** The 2D pitch is `aria-hidden`; a screen reader follows the match through the commentary line, the score and the stops. There is no spoken play-by-play of every pass, by design.
-- **Not audited:** the Upgrader dial, the online screens signed in (only their signed-out and offline states could be reached without the live project), a head-to-head room in play (needs two signed-in devices), and VoiceOver on a real device. Run them before the App Store submission.
+- **The live pitch is a picture** (`aria-hidden`); a screen reader follows the match through the score, the key commentary lines and the stops. No spoken play-by-play of every pass, by design.
+- **Focus on a dialog's box.** `useDialog` focuses a dialog's own box when it opens, and the box draws the focus ring; a screen reader names the dialog, which is right, but a sighted keyboard user sees a ring round the whole sheet until the first Tab.
+- **Not audited:** the online screens signed in and a head-to-head room in play (they need the live project and two signed-in devices), an arena shoot-out reached live (a seeded draw at 90 could not be forced from the keyboard harness; its markup and words are tested), and VoiceOver on a real device. Run them before the App Store submission.
 
 ## 5. iOS Dynamic Type (the plan for the native wrapper)
 

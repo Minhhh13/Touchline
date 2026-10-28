@@ -1,10 +1,18 @@
 # TouchLine: data
 
-TouchLine ships with a static database of English top-flight player-seasons built from public datasets by `scripts/import/build.mjs`. The browser loads two JSON files from `public/data/england/` and never calls a server. This document describes what is in those files, where it came from, how it was derived and how to rebuild it.
+TouchLine ships with a static database of top-flight player-seasons from seven leagues, built from public datasets by `scripts/import/build.mjs`: the Premier League, La Liga, Serie A, the Bundesliga, Ligue 1, the Eredivisie and the Primeira Liga (that order, the `leagues.json` order, is seed meaning: new leagues go at the end). Every league covers the nineteen seasons 2008-09 to 2026-27; England also has the classic seasons 1992-93 to 2007-08, opt-in in the game, with ratings TouchLine estimates (section 8). The browser reads the index `public/data/leagues.json` and, per league, `public/data/<league>/meta.json` and `players.json` (plus England's `players-classic.json` only when a game asks for classic seasons), and never needs a server to play. This document describes what is in those files, where it came from, how it was derived and how to rebuild it.
 
 ## 1. Outputs
 
-### `public/data/<league>/players.json` (1.1 to 1.5 MB)
+### `public/data/leagues.json` (about 1 KB)
+
+```json
+{ "version": 2, "generatedAt": "2026-10-25", "leagues": [{ "id": "england", "name": "Premier League", "shortName": "England", "country": "England", "firstSeason": 2008, "lastSeason": 2026, "playerSeasons": 11166, "players": 3647, "clubs": 51, "classicFrom": 1992, "classicPlayerSeasons": 8903 }, ...] }
+```
+
+The index of the packs, in the order `mergeUniverses` (`src/engine/universe.ts`) concatenates them. `generatedAt` is the data stamp every pack of one build carries (today's date, plus `.<suffix>` with `DATA_STAMP_SUFFIX` for a second rebuild the same day); it is part of every universe's seed (`<league>-v<format>-<stamp>`), so a rebuild makes older challenge links read as unverified. `classicFrom` and `classicPlayerSeasons` appear only for a league with classic seasons (England). An entry's `clubs` counts every club in `meta.json`, classic ones included.
+
+### `public/data/<league>/players.json` (1.08 to 1.44 MB; 350 to 475 KB gzipped)
 
 ```json
 { "version": 3, "generatedAt": "2026-10-25", "columns": [...], "rows": [[...], ...] }
@@ -16,7 +24,7 @@ Compact array rows in the order given by `COLUMNS` in `build.mjs`:
 
 | Column | Meaning |
 | --- | --- |
-| `id` | Stable player id across seasons. `s<sofifa id>` when known, `e<European Soccer DB id>` for 2008-14 players without one, `w<Wikidata id>` for a classic-season player the EA data never met (section 8), `n<hash>` as a last resort. |
+| `id` | Stable player id across seasons. `s<sofifa id>` when known, `e<European Soccer DB id>` for 2008-14 players without one, `w<Wikidata id>` for a classic-season player the EA data never met (section 8), `n<hash>` as a last resort. At the current build every standard row has an `s` id; the classic file has `s` and `w` ids only. |
 | `season` | Season start year (2015 means 2015-16). |
 | `club` | Club id from the master list (`arsenal`, `leicester-city`, ...). |
 | `name` | Short display name, e.g. `J. Vardy`. |
@@ -34,21 +42,39 @@ Compact array rows in the order given by `COLUMNS` in `build.mjs`:
 
 The engine (`src/engine/universe.ts`) turns each row into a `PlayerSeason` with id `${id}@${season}@${club}`, so a player who moved mid-season appears once per club.
 
-### `public/data/england/players-classic.json` (1.16 MB)
+### `public/data/england/players-classic.json` (1.16 MB; 366 KB gzipped)
 
 The classic seasons, 1992-93 to 2007-08 (section 8): the same `{ version, generatedAt, columns, rows }` and the same 29 columns as `players.json`, kept in its own file so `players.json` keeps its rows and order. The browser loads it only for a league whose `leagues.json` entry has `classicFrom` (England, 1992), and only when something asks for classic seasons (`src/game/packs.ts`: a game with `rules.classic`, the Setup's Classic toggle, Explore); a plain start loads the standard seasons alone, and fetches this file without parsing it some seconds later so the service worker has it for an offline visit. A classic load whose fetch fails fails (the toggle switches back off with a toast; a saved classic game is parked). The engine's own loader (`fetchLeague`, used by the tests and the server) still loads it with every league that has one, and a failed fetch there loads the standard seasons alone.
 
-### `public/data/<league>/meta.json` (about 80 KB)
+### `public/data/<league>/meta.json` (18 KB for the Eredivisie to 109 KB for England)
 
-- `league`: `{ id: "england", name: "English Top Flight", shortName: "England" }`.
-- `clubs`: the 51 clubs that appear in any squad or table, with name, short name, three-letter code, city, nickname, founding year, approximate kit colours, an AI playing style and a rivals list (from `scripts/import/clubs-england.mjs`, which holds 58 clubs; only the used ones are emitted). Oldham Athletic, Swindon Town and Barnsley were appended for the 1992-98 tables (club ids are permanent, so new clubs go at the end).
-- `nations`: code to `{ name, flag }` for the 117 codes present.
+- `league`: `{ id, name, shortName, country }`, e.g. `{ id: "england", name: "Premier League", shortName: "England", country: "England" }`.
+- `clubs`: the clubs that appear in any squad or table, with name, short name, three-letter code, city, nickname, founding year, approximate kit colours, an AI playing style and a rivals list, from the league's master table (`scripts/import/clubs-england.mjs` for England, which holds 58 clubs; `scripts/import/clubs-europe.mjs` for the other six); only the used ones are emitted: 51 in England (43 in the standard seasons, 40 in the classic ones), 39 in Spain, 42 in Italy, 35 in Germany, 40 in France, 29 in the Netherlands, 39 in Portugal. Oldham Athletic, Swindon Town and Barnsley were appended for the 1992-98 tables (club ids are permanent, so new clubs go at the end).
+- `nations`: code to `{ name, flag }` for the codes present in that pack (102 to 125; 164 across the seven).
 - `seasons`: for each season with player data, the clubs in it, whether the real table is complete, and the table (position, played, won, drawn, lost, goals for and against, points). A row carries `deduction` when the league took points off the club (`pts` is already net of it); a season carries `titleVoid: true` when its title was stripped and not re-awarded (nobody is champion). Both are optional; `titleVoid` is absent from every season shipped today, and the deductions are the ones listed below.
 - Classic seasons (England 1992-93 to 2007-08) are `seasons` entries after every standard one, with `classic: true`, `ratingsSource: 'estimated'` and `appsSource` (the share of the season's club-seasons whose appearances come from a validated table, 0.36 to 1). `ratingsSource` is `'ea'` when missing.
-- `historicTables`: tables for seasons with no player data at all (none in England now; the field stays for the other leagues' later classic phases). `historicTitleVoid` (optional, absent today) lists those whose title was void.
+- `historicTables`: tables for seasons with no player data at all (empty in every pack today: England's older tables became classic seasons, and only seasons the player data covers are built; the field stays for the other leagues' later classic phases). `historicTitleVoid` (optional, absent today) lists those whose title was void.
 - `sources`: the credit and licence lines shown in the How it works screen.
 
 ## 2. Coverage
+
+Every league pack covers 2008-09 to 2026-27 (19 seasons). Counted from the committed packs (stamp `2026-10-25`, players format 3, 29 columns):
+
+| League (id) | Player-seasons | Players | Clubs | Club-seasons | Rows a season | Clubs a season | Real tables | `players.json` |
+| --- | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |
+| Premier League (england) | 11,166 | 3,647 | 43 | 380 | 476 to 660 | 20 | all 19 | 1,443,245 B |
+| La Liga (spain) | 10,632 | 3,503 | 39 | 380 | 464 to 645 | 20 | 2012-13 on | 1,348,331 B |
+| Serie A (italy) | 10,610 | 3,258 | 42 | 380 | 490 to 629 | 20 | 2013-14 on | 1,314,810 B |
+| Bundesliga (germany) | 9,497 | 3,006 | 35 | 342 | 402 to 563 | 18 | 2010-11 on | 1,234,664 B |
+| Ligue 1 (france) | 10,084 | 3,516 | 40 | 372 | 457 to 602 | 20, 18 from 2023-24 | none | 1,252,631 B |
+| Eredivisie (netherlands) | 8,571 | 3,101 | 29 | 342 | 328 to 510 | 18 | none | 1,081,052 B |
+| Primeira Liga (portugal) | 8,595 | 3,387 | 39 | 330 | 315 to 515 | 16 to 2013-14, 18 since | none | 1,085,579 B |
+| **Standard seasons** | **69,155** | **19,096** distinct ids | | **2,526** | | | | |
+| Premier League classic, 1992-93 to 2007-08 | 8,903 | 2,582 | 40 | 326 | 533 to 599 | 22 to 1994-95, 20 since | all 16 | 1,164,010 B |
+
+Players are distinct ids within a pack (a man who played in two leagues counts in both; 19,096 distinct across the standard packs, 21,075 with the classic seasons). The newest season, 2026-27, is in progress in every league (its table, where there is one, is partial and flagged `complete: false`). Ligue 1, the Eredivisie and the Primeira Liga ship no tables, so their club-seasons carry no final position (section "Leagues" below).
+
+The Premier League in detail:
 
 | Season | Player-seasons | Ratings from | Club membership from |
 | --- | --- | --- | --- |
@@ -58,7 +84,7 @@ The classic seasons, 1992-93 to 2007-08 (section 8): the same `{ version, genera
 | 2025-26 | 540 | FC 27 (borrowed) | FC 26 dataset |
 | 2026-27 | 612 | FC 27 (current edition, no later one yet) | FC 27 dataset, clubs filtered to the 2026-27 table |
 
-Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 51 clubs, 19 seasons (2008-09 to 2026-27)**, plus the classic seasons: **8,903 player-seasons, 2,582 players, 16 seasons (1992-93 to 2007-08)** with complete Premier League tables (22 clubs and 462 matches until 1994-95, 20 and 380 since; 40 distinct clubs) and estimated ratings (section 8). The 2026-27 table is partial (five matches played per club at build time) and is flagged `complete: false`; the engine treats that season as "in progress" and awards no Champion accolade for it. Overall ratings range from 46 to 91.
+Premier League totals at the current build: **11,166 player-seasons, 3,647 distinct players, 43 clubs, 380 club-seasons, 19 seasons (2008-09 to 2026-27)**, plus the classic seasons: **8,903 player-seasons, 2,582 players, 326 club-seasons, 16 seasons (1992-93 to 2007-08)** with complete Premier League tables (22 clubs and 462 matches until 1994-95, 20 and 380 since; 40 distinct clubs) and estimated ratings (section 8); 51 clubs in all. The 2026-27 table is partial (five matches played per club at build time) and is flagged `complete: false`; the engine treats that season as "in progress" and awards no Champion accolade for it. Overall ratings range from 46 to 91 in the standard seasons (43 to 94 across the seven leagues) and 57 to 92 in the classic ones.
 
 ## 3. Sources
 
@@ -68,8 +94,8 @@ Totals at the current build: **11,166 player-seasons, 3,647 distinct players, 51
 | EA SPORTS FC 25 database, ratings and stats (Kaggle) | nyagami | Apache 2.0 | The FC 25 edition (2024-25 season membership and attributes). |
 | EA Sports FC 26 Player Ratings (Kaggle) | justdhia | CC0 1.0 | The FC 26 edition (2025-26 membership; ratings for 2024-25). |
 | EA SPORTS FC 27 Player Ratings (Kaggle) | mikedpad | Unofficial non-commercial snapshot of EA's public ratings API (see the dataset README) | The FC 27 edition, men's football only (2026-27 membership and ratings; ratings for 2025-26). |
-| European Soccer Database (Kaggle) | Hugo Mathien | ODbL | 2008-09 to 2013-14: Premier League line-ups with pitch coordinates, player attributes over time, birthdays and heights. |
-| openfootball/england (GitHub) | openfootball | CC0 / public domain | Results text files, 1992-93 to 2026-27 (`archive/1990s/<season>/` before 2000-01), parsed into league tables. |
+| European Soccer Database (Kaggle) | Hugo Mathien | ODbL | 2008-09 to 2013-14 in all seven leagues: line-ups with pitch coordinates, player attributes over time, birthdays and heights. Also the classic seasons' ids, feet and later-rating anchor (section 8). |
+| openfootball/england, espana, italy, deutschland (GitHub) | openfootball | CC0 / public domain | Results text files (England 1992-93 to 2026-27, `archive/1990s/<season>/` before 2000-01; the others from 2000-01), parsed into league tables. |
 | English Wikipedia season articles | Wikipedia contributors | CC BY-SA 4.0 (facts only, no text reproduced) | Points deductions and stripped titles in `scripts/import/historic/overrides.mjs`, one cited article per entry. |
 | Wikidata | Wikimedia | CC0 | Nationalities for players the EA data never covered, via `scripts/import/enrich-nations.mjs` (see section 6). Classic seasons: the id of every player, birth date, height, positions, nationality, club and national-team spells with appearances, caps, sitelink count and FIFA id. The Quick Draft's managers: head coach statements (P286) with their start and end dates, via `scripts/import/managers.mjs` (see "Managers" below). |
 | English Wikipedia club-season and player articles | Wikipedia contributors | CC BY-SA 4.0 (facts only, no text reproduced) | Classic seasons: who was in each squad, league appearances (starts and substitute appearances), league goals and their dates, dated transfers, the infobox position and height. Only facts are kept, in `scripts/import/historic/facts-england.json`. |
@@ -151,11 +177,12 @@ Requirements: Node 22.13 or later (the build reads the European Soccer Database 
 
 ```bash
 node scripts/import/download.mjs    # optional: fetch and unpack everything into the cache
-node scripts/import/build.mjs       # downloads anything missing, then writes public/data/england/*.json
+node scripts/import/build.mjs       # downloads anything missing, then writes public/data/leagues.json and public/data/<league>/*.json
 node scripts/import/enrich-nations.mjs   # optional: query Wikidata and refresh nations-override.json, then rebuild
+UPDATE_PACK_HASHES=1 npx vitest run src/online/__tests__/stamps.test.ts   # record the new stamp in packHashes.json
 ```
 
-Downloads are cached in `.cache/datasets` under the repository root, or wherever the `DATA_CACHE` environment variable points. The cache is not committed; add `.cache` to `.gitignore` if you build locally (it is not listed there today). The build prints per-season counts, totals, file size, unknown nations and any unmatched club names.
+Downloads are cached in `.cache/datasets` under the repository root, or wherever the `DATA_CACHE` environment variable points; `.cache` is in `.gitignore`, so the cache is never committed. The build prints per-season counts, totals, file size, unknown nations and any unmatched club names. Every rebuild that changes a pack takes a new `generatedAt` (`DATA_STAMP_SUFFIX=<1-8 letters or digits>` for a second one the same day); commit `packHashes.json` with the packs, update the pinned stamp in `src/engine/__tests__/universe.test.ts`, and if the build runs out of memory raise the heap with `NODE_OPTIONS=--max-old-space-size=4096`.
 
 The Vitest suite (`npm test`) loads the generated files and checks: every season from 2008-09 has 20 clubs; every player-season has a valid overall, positions, age, value and club; J. Vardy 2015-16 is a Leicester City champion rated 80 or more (with stamina above 80 and work rate 80); the 2015-16 table is complete with Leicester first; every pack carries the five depth columns as integers in 1 to 99, keepers read far lower than outfielders on stamina and aggression, and a format 2 pack with the columns stripped still loads with the fallbacks (`src/engine/__tests__/fmdepth.test.ts`); every row of every pack has four finite traits from 0 to 100; left backs are mostly left-footed and right backs almost never, in the 2008-14 seasons as in the EA ones; the 16 Premier League tables of 1992-93 to 2007-08 are complete (match counts, 40 resolved clubs, the champions, Manchester United 1992-93 at 24-12-6 and 84 points, Arsenal 2003-04 at 26-12-0 and 90) and Middlesbrough 1996-97 is 19th on 39 after its deduction (`universe.test.ts`); a void title makes nobody champion (`titleVoid.test.ts`).
 
@@ -163,33 +190,26 @@ The Vitest suite (`npm test`) loads the generated files and checks: every season
 
 - Classic seasons (1992-93 to 2007-08) cover the Premier League only, and their ratings are estimates (section 8). Other leagues start in 2008-09.
 - 2008-14 positions are inferred from line-up coordinates and may list a player where he was fielded rather than where he was best.
-- Nationality is unknown for 228 players (505 rows), mostly 2008-14; the Wikidata enrichment has not yet been run into the committed override file.
+- Nationality is still unknown (`UNK`) for 1,889 rows (877 pack-and-player pairs) after the Wikidata override (1,097 players): 578 rows in Portugal, 393 in Spain, 285 in France, 178 in Germany, 176 in Italy, 145 in the Netherlands, 121 in the Premier League and 13 in the classic seasons, mostly 2008-14 players the EA data never rated.
 - The 2026-27 season uses the current edition's ratings (there is no later one), and its table is partial until the season ends.
 - The FC 27 dataset is an unofficial, non-commercial snapshot of a public API.
 - Values and wages are a model, not reported figures. Blending with normalised EA values applies only where the FC 24 dataset supplies one (2014-15 to 2023-24).
-- Clubs are limited to those that appear in a parsed table or a squad; the master list has 58 entries and 51 are emitted.
-- **Stray ",NN" in 54 names (53 distinct: J. Inamoto is in two packs), every pack, 16 in Portugal's**: "D. Cousin,20" (Hull 2008-10), "B. McCarthy,27", "P. Kenny,30", "P. da Silva Moutinho,28". Root cause: the European Soccer Database's `Player.player_name` itself carries the suffix for those players ("Bennedict McCarthy,27"), and `build.mjs`'s ESD loader passes it to `shortName` as it is; `enrich-nations.mjs` then searches Wikidata for "Bennedict McCarthy,27", finds nobody, and most of them stay nation `UNK`. Today the game cleans them when the store loads the universe (`tidyUniverseNames`, `src/game/logic/playerNames.ts`), display text only, packs, stamps and the edge verifier unchanged. **Fix at the next real rebuild**: strip `/\s*,\s*\d+\s*$/` from `player_name` where the ESD rows are read (`build.mjs`, the `select ... from Player` loop, before `shortName`, and the same in `enrich-nations.mjs` before the Wikidata search), rerun the enrichment so the nations re-match, rebuild (new `generatedAt`, `packHashes.json`, pins re-baselined, deploy after 00:00 UTC), then `tidyUniverseNames` can go (its test's count of 53 fails and says so).
+- Clubs are limited to those that appear in a parsed table or a squad; England's master list has 58 entries and 51 are emitted.
+
+### Known data faults
+
+- **Stray ",NN" in 54 names (53 distinct: J. Inamoto is in the German and the French pack), every pack, 16 in Portugal's, on 89 rows; 38 of the 54 are nation `UNK`**: "D. Cousin,20" (Hull 2008-10), "B. McCarthy,27", "P. Kenny,30", "P. da Silva Moutinho,28". Root cause: the European Soccer Database's `Player.player_name` itself carries the suffix for those players ("Bennedict McCarthy,27"), and `build.mjs`'s ESD loader passes it to `shortName` as it is; `enrich-nations.mjs` then searches Wikidata for "Bennedict McCarthy,27", finds nobody, and most of them stay nation `UNK`. Today the game cleans them when the store loads the universe (`tidyUniverseNames`, `src/game/logic/playerNames.ts`), display text only, packs, stamps and the edge verifier unchanged. **Fix at the next real rebuild**: strip `/\s*,\s*\d+\s*$/` from `player_name` where the ESD rows are read (`build.mjs`, the `select ... from Player` loop, before `shortName`, and the same in `enrich-nations.mjs` before the Wikidata search), rerun the enrichment so the nations re-match, rebuild (new `generatedAt`, `packHashes.json`, pins re-baselined, deploy after 00:00 UTC), then `tidyUniverseNames` can go (its test's count of 53 fails and says so).
 
 ## 7. Legal
 
 TouchLine is an independent fan project. It is not affiliated with, endorsed by or sponsored by any league, club, governing body, game publisher or ratings provider. Club and player names are used descriptively to identify real teams and seasons. No official crests, logos, kits or likenesses are used; badges are generated from approximate colours and letter codes. Player ratings are an independent interpretation derived from publicly available datasets and may differ from any official source. The datasets above are credited to their authors and used under the licences they were published with; the openfootball results are public domain; Wikidata content is CC0. Please respect the terms of each source if you redistribute the generated files.
 
 
-## Leagues (added later)
+## Leagues
 
-The builder now produces one data pack per league under `public/data/<league>/` and an index at `public/data/leagues.json`:
+The builder produces one data pack per league under `public/data/<league>/` and the index `public/data/leagues.json` (section 1); the counts per league are in section 2. The registry is `scripts/import/leagues.mjs` (England first, then the six of `scripts/import/clubs-europe.mjs` spread after it); a new league goes last so existing seeds do not shift.
 
-| League | Player-seasons | Players | Clubs | Seasons |
-| --- | ---: | ---: | ---: | --- |
-| Premier League (england) | 11,166 | 3,647 | 46 | 2008-09 to 2026-27 |
-| La Liga (spain) | 10,632 | 3,503 | 39 | 2008-09 to 2026-27 |
-| Serie A (italy) | 10,610 | 3,258 | 42 | 2008-09 to 2026-27 |
-| Bundesliga (germany) | 9,497 | 3,006 | 35 | 2008-09 to 2026-27 |
-| Ligue 1 (france) | 10,084 | 3,516 | 40 | 2008-09 to 2026-27 |
-| Eredivisie (netherlands) | 8,571 | 3,101 | 29 | 2008-09 to 2026-27 |
-| Primeira Liga (portugal) | 8,595 | 3,387 | 39 | 2008-09 to 2026-27 |
-
-69,155 player-seasons in all (the format 3 rebuild of 2026-10-25; Serie A and the Eredivisie gained a few rows from the cached dataset snapshots). The packs run from 1.09 MB (Eredivisie) to 1.46 MB (Premier League), about 13 per cent more than format 2 for the five integer columns. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (no results files exist for Ligue 1, the Eredivisie or the Primeira Liga, so those club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. A club with only 8 to 11 rows in an edition (Telstar in FC 26, for instance), or any club in that season's results table with fewer than 12 rows, is topped up with its own players from the adjacent season rather than dropped, so every shipped league season keeps its real entrants; the engine still handles odd counts with bye weeks. Only seasons the player data covers are built: a historic table on its own never becomes a playable season. Leagues without result tables mark their newest season as in progress and every earlier one as complete. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.
+69,155 standard player-seasons in all (the format 3 rebuild of 2026-10-25; Serie A and the Eredivisie gained a few rows from the cached dataset snapshots), plus England's 8,903 classic ones. The packs run from 1.08 MB (Eredivisie) to 1.44 MB (Premier League), about 13 per cent more than format 2 for the five integer columns. The same sources cover every league: EA FC league ids 13, 53, 31, 19, 16, 10 and 308 for 2014-15 onwards, the European Soccer Database leagues 1729, 21518, 10257, 7809, 4769, 13274 and 17642 for 2008-09 to 2013-14, and openfootball repositories `england`, `espana`, `italy` and `deutschland` for league tables (the registry names `openfootball/france` for Ligue 1 too, but the shipped packs carry no Ligue 1 table, and the Eredivisie and the Primeira Liga have no openfootball entry, so those three leagues' club-seasons carry no final position and the Continental Cup field is picked by squad strength there). The Primeira Liga had 16 clubs until 2013-14, so those seasons run to 30 matchweeks. A club with only 8 to 11 rows in an edition (Telstar in FC 26, for instance), or any club in that season's results table with fewer than 12 rows, is topped up with its own players from the adjacent season rather than dropped, so every shipped league season keeps its real entrants; the engine still handles odd counts with bye weeks. Only seasons the player data covers are built: a historic table on its own never becomes a playable season. Leagues without result tables mark their newest season as in progress and every earlier one as complete. Club master tables with dataset aliases live in `scripts/import/clubs-england.mjs` and `scripts/import/clubs-europe.mjs`; the registry is `scripts/import/leagues.mjs`.
 
 ## 8. Classic seasons (1992-93 to 2007-08): estimated ratings
 

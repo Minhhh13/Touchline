@@ -8,8 +8,13 @@ import type { MyEntry } from '../../online/boards'
 import type { ChallengeRow } from '../../online/transport'
 import { formatCode } from '../../online/core/codes'
 import { shortLinkUrl } from '../../online/challengeLinks'
-import { ordinal } from '../format'
 import { devicePosts } from '../../online/postText'
+import { askConfirm } from '../confirm'
+import { translator } from '../i18n'
+import { online } from '../i18n/en/online'
+import { B, rich } from '../i18n/rich'
+
+const t = translator(online)
 
 /** "Your dailies", "Your weekly challenges" and "Your challenges": the Account screen's third panel (a placeholder signed out). */
 export function OnlineRecord() {
@@ -45,7 +50,7 @@ export function OnlineRecord() {
   const fromDevice = devicePosts(posts, !!session)
   const deviceList = fromDevice.length > 0 && (
     <div className="col" data-testid="device-posts">
-      <b>From this device</b>
+      <b>{t('fromDevice')}</b>
       {fromDevice.map((p) => (
         <div key={p.key} className="row between wrap small" data-testid="device-post">
           <span>{p.label}</span>
@@ -58,36 +63,36 @@ export function OnlineRecord() {
     return (
       <section className="panel fit-panel" data-testid="online-record">
         <div className="panel-head">
-          <h3>Your online record</h3>
+          <h3>{t('onlineRecord')}</h3>
         </div>
         <div className="fit-scroll col">
-          <p className="help">Signed in, your posted Dailies and weekly challenges and the short links you made are listed here, on every device.</p>
+          <p className="help">{t('onlineRecordHelp')}</p>
           {deviceList}
         </div>
       </section>
     )
   const loading = failed ? (
     <span className="small muted">
-      Could not load this from the server.{' '}
+      {t('couldNotLoad')}{' '}
       <button className="btn sm ghost" onClick={() => setAttempt((n) => n + 1)} data-testid="online-record-retry">
-        Try again
+        {t('tryAgain')}
       </button>
     </span>
   ) : (
-    <span className="small muted">Loading…</span>
+    <span className="small muted">{t('loading')}</span>
   )
   const list = (title: string, rows: MyEntry[] | null, testId: string) => (
     <div className="col" data-testid={testId}>
       <b>{title}</b>
       {!rows && loading}
-      {rows && rows.length === 0 && <span className="small muted">Nothing posted yet.</span>}
+      {rows && rows.length === 0 && <span className="small muted">{t('nothingPosted')}</span>}
       {rows?.map((e) => (
         <div key={e.key} className="row between small">
           <span>
             {e.key} · {e.team}
           </span>
           <span>
-            <b>{e.points} pts</b> · {e.won}-{e.drawn}-{e.lost} · {TIER_LABEL[e.tier as SeasonTier] ?? e.tier} · {ordinal(e.position)} of {e.total}
+            {rich(t('entryLine', { n: e.points, record: `${e.won}-${e.drawn}-${e.lost}`, tier: TIER_LABEL[e.tier as SeasonTier] ?? e.tier, pos: e.position, total: e.total }), B)}
           </span>
         </div>
       ))}
@@ -96,23 +101,23 @@ export function OnlineRecord() {
   return (
     <section className="panel fit-panel" data-testid="online-record">
       <div className="panel-head">
-        <h3>Your online record</h3>
+        <h3>{t('onlineRecord')}</h3>
         <button className="btn sm" onClick={() => go('world')}>
-          World leaderboard
+          {t('worldLeaderboard')}
         </button>
       </div>
       <div className="fit-scroll col">
       {deviceList}
-      {list('Your dailies', dailies, 'my-dailies')}
-      {list('Your weekly challenges', weeklies, 'my-weeklies')}
+      {list(t('yourDailies'), dailies, 'my-dailies')}
+      {list(t('yourWeeklies'), weeklies, 'my-weeklies')}
       <div className="col" data-testid="my-challenges">
-        <b>Your challenges</b>
+        <b>{t('yourChallenges')}</b>
         {!codes && loading}
-        {codes && codes.length === 0 && <span className="small muted">No short links yet: make one from a Quick Draft's summary.</span>}
+        {codes && codes.length === 0 && <span className="small muted">{t('noLinks')}</span>}
         {codes?.map((c) => (
           <div key={c.code} className="row between wrap small">
             <span>
-              <b>{formatCode(c.code)}</b> · {c.payload?.name ?? ''} · {c.payload?.c?.pts ?? '?'} pts · until {c.expiresAt.slice(0, 10)}
+              {rich(t('linkLine', { code: formatCode(c.code), name: c.payload?.name ?? '', pts: c.payload?.c?.pts ?? '?', until: c.expiresAt.slice(0, 10) }), B)}
             </span>
             <span className="row">
               <button
@@ -120,24 +125,24 @@ export function OnlineRecord() {
                 onClick={() => {
                   const url = shortLinkUrl(c.code, location.origin, location.pathname)
                   void navigator.clipboard?.writeText(url).then(
-                    () => showToast('Link copied.'),
+                    () => showToast(t('linkCopied')),
                     () => showToast(url),
                   )
                 }}
               >
-                Copy link
+                {t('copyLink')}
               </button>
               <button
                 className="btn sm ghost danger"
-                onClick={() => {
-                  if (!confirm(`Delete the short link ${formatCode(c.code)}? Anyone opening it will be told it has gone.`)) return
+                onClick={async () => {
+                  if (!(await askConfirm(t('deleteLinkConfirm', { code: formatCode(c.code) }), { ok: t('deleteOk'), danger: true }))) return
                   void api.deleteChallenge(c.code).then(
                     () => setCodes((codes ?? []).filter((x) => x.code !== c.code)),
-                    () => showToast('Could not delete that link.'),
+                    () => showToast(t('deleteFailed')),
                   )
                 }}
               >
-                Delete
+                {t('delete')}
               </button>
             </span>
           </div>

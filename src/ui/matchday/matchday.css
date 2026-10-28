@@ -399,7 +399,8 @@
 .matchday .md-rating.bad {
   background: var(--danger);
   border-color: var(--danger);
-  color: var(--text);
+  /* The status ink, as on .good: --text on --danger was 2.5:1 in both themes */
+  color: var(--on-status);
 }
 .matchday .md-rating.none {
   color: var(--text-3);
@@ -571,6 +572,24 @@
   }
 }
 
+/* ------------------------------------------------------------------ paint isolation */
+/* The live pitch repaints every frame. A box beside it that is not a stacking context of its own is painted again with
+   it each frame (the squad strip alone was about 90 ms a second of Paint on a 4x-throttled phone); isolated, each box
+   keeps its cached paint until its own content changes. Nothing in these boxes overlaps a sibling (their pop-ups and
+   drawers are fixed or portalled at the board's root), so the picture is unchanged (docs/PERFORMANCE.md, round 3). */
+.matchday .md-strip-scroll,
+.matchday .md-strip,
+.matchday .md-pulse,
+.matchday .md-tabbed,
+.matchday .md-banner,
+.matchday .md-side,
+.matchday .md-widgets,
+.matchday .md-pitch-row > .mchart,
+.matchday .md-centre > .mchart,
+.matchday .md-flank {
+  isolation: isolate;
+}
+
 /* ------------------------------------------------------------------ squad strip */
 .matchday .md-strip {
   display: flex;
@@ -621,6 +640,11 @@
   box-shadow: 0 0 0 1px var(--primary);
 }
 .matchday .md-card.out {
+  /* A man off (sent off, injured, substituted): a dashed edge and a faded shirt, never faded text (opacity 0.5 took
+     the name, position and rating to 2.5:1; DESIGN_SYSTEM section 15 rule 4) */
+  border-style: dashed;
+}
+.matchday .md-card.out .md-shirt {
   opacity: 0.5;
 }
 .matchday .md-card-top {

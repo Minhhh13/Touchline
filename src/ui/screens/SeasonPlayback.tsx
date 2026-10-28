@@ -13,7 +13,7 @@ import { Pitch } from '../components/Pitch'
 import { playbackDelay, PLAYBACK_SPEEDS, shortName, type PlaybackSpeed } from '@game/logic/gameByGame'
 import { gapLine, momentAt, positionSeries, rivalsOf, tableAfterGame, weeklyTables } from '@game/logic/liveTable'
 import { chaseAt, chaseLine, perfectOverLabel } from '@game/logic/perfect'
-import { brokeMoment, countPhrase } from '../screenText'
+import { brokeMoment } from '../screenText'
 import { USER_TEAM } from '@engine/season'
 import { LiveTable, PositionChart } from '../components/LiveLeague'
 import { QuickTeamLine } from '../components/QuickTeamLine'
@@ -24,7 +24,7 @@ import { PlayerRow } from '../components/PlayerRow'
 import { ManagerChip } from '../components/ManagerPick'
 import { Segmented } from '../components/bits'
 import { JanuaryWindow } from '../components/JanuaryWindow'
-import { clubName, clubShort, ordinal } from '../format'
+import { clubName, clubShort } from '../format'
 import { sideNamer } from '@game/logic/superLeague'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { useMediaQuery } from '../components/LivePitch'
@@ -32,6 +32,12 @@ import { PLAYBACK } from '../boxSets'
 import { clinchMatchweeks } from '@engine/story'
 import { roundsFixtures } from '@game/logic/story'
 import { usePlaybackSounds } from '../sound/usePlaybackSounds'
+import { onTabListKey } from '../a11y'
+import { translator } from '../i18n'
+import { B, rich } from '../i18n/rich'
+import { season } from '../i18n/en/season'
+
+const t = translator(season)
 
 /**
  * The quick season, game by game, after kick-off. In phase `january` it plays the first half and stops on the January
@@ -98,7 +104,7 @@ export function SeasonPlayback() {
   const before = tableAfterGame(tables, results, pb.revealed - 1)
   const gap = gapLine(table, USER_TEAM)
   const moment = momentAt(tables, results, pb.revealed, USER_TEAM)
-  const momentText = moment === 'top' ? 'Top of the league!' : moment === 'top4' ? 'Into the top four' : moment === 'perfect' ? `${chase.won}-0 and counting` : moment === 'broke' && results[pb.revealed - 1] ? brokeMoment(results[pb.revealed - 1].gf, results[pb.revealed - 1].ga, sideName(results[pb.revealed - 1].opponentId)) : perfectOverLabel(chase.perfectRun)
+  const momentText = moment === 'top' ? t('momentTop') : moment === 'top4' ? t('momentTop4') : moment === 'perfect' ? t('momentPerfect', { n: chase.won }) : moment === 'broke' && results[pb.revealed - 1] ? brokeMoment(results[pb.revealed - 1].gf, results[pb.revealed - 1].ga, sideName(results[pb.revealed - 1].opponentId)) : perfectOverLabel(chase.perfectRun)
   const teams = table.length || total / 2 + 1
   const series = tables.length ? positionSeries(tables, results, USER_TEAM, pb.revealed) : results.slice(0, pb.revealed).map((r) => r.position)
   const rivals = tables.length && pb.revealed ? rivalsOf(table, USER_TEAM, 3).map((id) => ({ teamId: id, name: shortName(sideName(id)), series: positionSeries(tables, results, id, pb.revealed) })) : []
@@ -110,10 +116,10 @@ export function SeasonPlayback() {
   // The bench shares the third column with the chart: that column takes a little more width, so the pitch can sit beside the bench
   const benchShown = benchOn && boxes.on('bench')
   const panes = { list: boxes.on('games'), table: boxes.on('table'), chart: janOpen || boxes.on('chart') || (benchOn && boxes.on('bench')) }
-  const paneIds = (['list', 'table', 'chart'] as const).filter((t) => panes[t])
+  const paneIds = (['list', 'table', 'chart'] as const).filter((pane) => panes[pane])
   const wanted = tabState.at === at ? tabState.tab : janOpen ? 'chart' : tabState.tab
   const tab = panes[wanted] ? wanted : paneIds[0] ?? 'list'
-  const setTab = (t: 'list' | 'table' | 'chart') => setTabState({ at, tab: t })
+  const setTab = (pane: 'list' | 'table' | 'chart') => setTabState({ at, tab: pane })
   const pbGrid = boxes.grid([
     { track: 'minmax(0, 1fr)', ids: ['games'] },
     { track: 'minmax(0, 1fr)', ids: ['table'] },
@@ -123,7 +129,7 @@ export function SeasonPlayback() {
     <div className="page fit pb-page" data-testid="season-playback">
       <div className="fit-head screen-head">
         <div className="col" style={{ gap: 4 }}>
-          <h1>{j && pb.done ? 'January' : 'The season'}</h1>
+          <h1>{t(j && pb.done ? 'january' : 'theSeason')}</h1>
           <QuickTeamLine game={game} u={u}>
             {phone && game.manager && <ManagerChip manager={game.manager} />}
           </QuickTeamLine>
@@ -137,27 +143,27 @@ export function SeasonPlayback() {
             {!phone && game.manager && <ManagerChip manager={game.manager} />}
             <BoxesMenu groups={[boxes]} />
             <span className="playback-mw" data-testid="playback-matchweek">
-              Matchweek <b>{pb.revealed}</b> / {total}
+              {rich(t('matchweekOf', { n: pb.revealed, total }), B)}
             </span>
           </div>
           {!pb.done && (
             <div className="row wrap pb-head-row pb-head-controls">
               <button className="btn sm" onClick={pb.toggle} data-testid="playback-pause">
-                {pb.playing ? 'Pause' : 'Play'}
+                {t(pb.playing ? 'pause' : 'play')}
               </button>
-              <Segmented<string> value={String(pb.speed)} onChange={(v) => pb.setSpeed(Number(v) as PlaybackSpeed)} options={PLAYBACK_SPEEDS.map((x) => ({ value: String(x), label: `${x}x` }))} />
+              <Segmented<string> value={String(pb.speed)} onChange={(v) => pb.setSpeed(Number(v) as PlaybackSpeed)} options={PLAYBACK_SPEEDS.map((x) => ({ value: String(x), label: t('speed', { x }) }))} />
               <button className="btn sm ghost" onClick={pb.skip} data-testid="playback-skip">
-                {j ? 'Skip to January' : 'Skip to the end'}
+                {t(j ? 'skipJanuary' : 'skipEnd')}
               </button>
             </div>
           )}
           {!j && pb.done && (
             <div className="row wrap" style={{ gap: 8, justifyContent: 'flex-end', alignItems: 'center' }} data-testid="playback-end">
               <span className="small">
-                Full time: {ordinal(game.quickResult?.position ?? 0)}, {countPhrase(game.quickResult?.points ?? 0, 'points')}.
+                {t('fullTime', { pos: game.quickResult?.position ?? 0, pts: game.quickResult?.points ?? 0 })}
               </span>
               <button className="btn primary" onClick={endPlayback} data-testid="playback-summary">
-                See the summary
+                {t('seeSummary')}
               </button>
             </div>
           )}
@@ -177,29 +183,29 @@ export function SeasonPlayback() {
         )}
         {/* One short line for a screen reader: the big moments and the end, never every game (the tally is not live) */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="playback-live">
-          {pb.done ? (j ? 'Half the season played: the January window is open.' : `Full time: ${ordinal(game.quickResult?.position ?? 0)}, ${countPhrase(game.quickResult?.points ?? 0, 'points')}.`) : moment && pb.revealed > 0 ? `Matchweek ${pb.revealed}: ${moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText}` : ''}
+          {pb.done ? (j ? t('halfPlayed') : t('fullTime', { pos: game.quickResult?.position ?? 0, pts: game.quickResult?.points ?? 0 })) : moment && pb.revealed > 0 ? t('liveMoment', { n: pb.revealed, moment: moment === 'broke' ? `${perfectOverLabel(chase.perfectRun)}, ${momentText}` : momentText }) : ''}
         </span>
       </div>
-      <div className="pb-tabs segmented" role="tablist" aria-label="Season views">
-        {paneIds.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)} data-testid={`pb-tab-${t}`}>
-            {t === 'list' ? 'Games' : t === 'table' ? 'Table' : janOpen ? 'January' : 'Chart'}
+      <div className="pb-tabs segmented" role="tablist" aria-label={t('seasonViews')} onKeyDown={onTabListKey}>
+        {paneIds.map((pane) => (
+          <button key={pane} type="button" role="tab" aria-selected={tab === pane} tabIndex={tab === pane ? 0 : -1} className={tab === pane ? 'active' : ''} onClick={() => setTab(pane)} data-testid={`pb-tab-${pane}`}>
+            {t(pane === 'list' ? 'tabGames' : pane === 'table' ? 'tabTable' : janOpen ? 'january' : 'tabChart')}
           </button>
         ))}
       </div>
       <div className={`fit-grid c3 pb-grid ${benchShown ? 'pb-bench' : ''} ${pbGrid.className}`} style={pbGrid.style} data-tab={tab}>
         {panes.list && (
         <div className="fit-cell" data-pane="list">
-          <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title="Game by game" onHighlights={watch} />
+          <GameByGame results={results} opponent={opponent} replay={pb} compact strip={false} order="newest" total={total} title={t('gameByGame')} onHighlights={watch} />
         </div>
         )}
         {panes.table && (
         <div className="panel fit-cell" data-pane="table">
           <div className="panel-head">
-            <h3>Live table</h3>
-            <span className="small muted">{pb.revealed ? `After game ${pb.revealed}` : 'Before kick-off'}</span>
+            <h3>{t('liveTable')}</h3>
+            <span className="small muted">{pb.revealed ? t('afterGame', { n: pb.revealed }) : t('beforeKickOff')}</span>
           </div>
-          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={sideName} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} /> : <p className="small muted">This season was saved before the live table: the game list has every result.</p>}
+          {table.length ? <LiveTable table={table} before={before} userId={USER_TEAM} teamName={s.teamName} nameOf={sideName} slide={!pb.playing || playbackDelay(pb.speed) > SLIDE_MS} /> : <p className="small muted">{t('noLiveTable')}</p>}
         </div>
         )}
         {panes.chart && (
@@ -240,9 +246,9 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
   return (
     <div className="panel col bench-panel" data-testid="bench-panel">
       <div className="panel-head">
-        <h3>{view.next === null ? 'The XI and the bench' : `For matchweek ${view.next}`}</h3>
+        <h3>{view.next === null ? t('xiAndBench') : t('forMatchweek', { n: view.next })}</h3>
         <span className={`chip ${view.changesLeft ? '' : 'warn'}`} data-testid="changes-left">
-          {view.changesLeft} of {QUICK_CHANGES} changes left
+          {t('changesLeft', { n: view.changesLeft, total: QUICK_CHANGES })}
         </span>
       </div>
       <div className="grid two bench-grid">
@@ -250,7 +256,7 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
           <Pitch formation={formation} lineup={fielded} getPlayer={get} hideRatings={hide} eligibleSlots={targets} onSlotClick={choosing ? (slotId) => { benchChange(revealed, slotId, inId!); setInId(null) } : undefined} />
         </div>
         <div className="col" style={{ gap: 6 }}>
-          <b className="small">Bench</b>
+          <b className="small">{t('bench')}</b>
           <div className="plist">
             {view.bench.map((id) => {
               const p = get(id)
@@ -269,8 +275,8 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
                     onChoose()
                     setInId(inId === id ? null : id)
                   }}
-                  extra={out ? <span className="chip bad">injured</span> : covering ? <span className="chip warn">covers {nameOf(covering.outId)}</span> : null}
-                  right={!problem && !out ? <span className="btn sm" data-testid="bench-bring-on">{inId === id ? 'Choose' : 'Bring on'}</span> : null}
+                  extra={out ? <span className="chip bad">{t('injured')}</span> : covering ? <span className="chip warn">{t('covers', { name: nameOf(covering.outId) })}</span> : null}
+                  right={!problem && !out ? <span className="btn sm" data-testid="bench-bring-on">{t(inId === id ? 'choose' : 'bringOn')}</span> : null}
                 />
               )
             })}
@@ -279,16 +285,39 @@ function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: L
             const c = view.covers.find((x) => x.outId === id)
             return (
               <div key={id} className="small row" style={{ gap: 6 }} data-testid="bench-injury">
-                <Bandage size={14} aria-hidden="true" /> {nameOf(id)} is out{c ? `: ${nameOf(c.inId)} covers` : ', nobody on the bench to cover'}
+                <Bandage size={14} aria-hidden="true" /> {c ? t('outCovered', { name: nameOf(id), cover: nameOf(c.inId) }) : t('outUncovered', { name: nameOf(id) })}
               </div>
             )
           })}
           <span className="help" data-testid="bench-help">
-            {choosing ? (targets.length ? `Tap the starter ${nameOf(inId!)} replaces, from matchweek ${view.next} on.` : `${nameOf(inId!)} cannot play any slot in this shape.`) : problem ? (view.next === null ? `${used} change${used === 1 ? '' : 's'} made.` : problem + '.') : 'Bring a bench player on between games: the change sticks until you change it again. Injured starters are covered from the bench without using a change.'}
+            {choosing ? (targets.length ? t('tapStarter', { name: nameOf(inId!), n: view.next }) : t('cannotPlay', { name: nameOf(inId!) })) : problem ? (view.next === null ? t('changesMade', { n: used }) : problem + '.') : t('benchHowTo')}
           </span>
+          {/* The starters he may replace, by name: on a small pitch the discs show ratings only */}
+          {choosing && targets.length > 0 && (
+            <div className="pill-list" role="group" aria-label={`Starters ${nameOf(inId!)} can replace`} data-testid="bench-targets">
+              {targets.map((slotId) => {
+                const slot = formation.slots.find((s) => s.id === slotId)
+                const outId = view.lineup[slotId]
+                return (
+                  <button
+                    key={slotId}
+                    type="button"
+                    className="chip-btn"
+                    onClick={() => {
+                      benchChange(revealed, slotId, inId!)
+                      setInId(null)
+                    }}
+                    data-testid="bench-target"
+                  >
+                    {slot?.position ?? slotId} · {outId ? nameOf(outId) : 'empty'}
+                  </button>
+                )
+              })}
+            </div>
+          )}
           {(game.quickChanges ?? []).filter((c) => view.next === null || c.from <= view.next).map((c, i) => (
             <span key={i} className="small muted">
-              Change {i + 1}: {nameOf(c.inId)} on from matchweek {c.from}
+              {t('changeLine', { i: i + 1, name: nameOf(c.inId), n: c.from })}
             </span>
           ))}
         </div>

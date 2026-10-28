@@ -29,7 +29,7 @@ function preseason(seed: string, mode: GameSettings['mode']): Game {
 }
 
 /** A season through the store, Watch, Auto-play and Sim result in turn, every event answered: the game after each week. */
-async function playThrough(start: Game, split: boolean, weeks: number): Promise<string[]> {
+async function playThrough(start: Game, split: boolean, weeks: number, sliceMs?: number): Promise<string[]> {
   useStore.setState({ universe: u, loadedLeagues: ['england'], game: start, screen: 'game', playingWeek: false, liveAuto: false })
   const out: string[] = []
   for (let w = 0; w < weeks && useStore.getState().game!.phase !== 'summary'; w++) {
@@ -37,7 +37,7 @@ async function playThrough(start: Game, split: boolean, weeks: number): Promise<
     const ev = s.game!.pendingEvent
     if (ev) s.resolveEvent(ev.choices[w % ev.choices.length].id)
     useStore.getState().setMatchPlay(MODES[w % MODES.length])
-    if (split) await useStore.getState().playWeekSoon()
+    if (split) await useStore.getState().playWeekSoon(undefined, sliceMs === undefined ? undefined : { sliceMs })
     else useStore.getState().playWeek()
     if (useStore.getState().game!.live) useStore.getState().finishLiveNow()
     if (useStore.getState().game!.phase === 'match') useStore.getState().closeMatch()
@@ -85,5 +85,61 @@ describe('Play matchweek in parts (playWeekSoon)', () => {
     useStore.getState().setMatchPlay('sim')
     await b
     expect(JSON.stringify(useStore.getState().game)).toBe(once)
+  }, LONG)
+
+  it('plays the week a step a task (every fixture, every stop) and still gives playWeek\'s game, over many seeds', async () => {
+    let weeksSeen = 0
+    for (let i = 0; i < 12; i++) {
+      const start = preseason(`split-steps-${i}`, i % 3 === 2 ? 'dynasty' : 'season')
+      const whole = await playThrough(start, false, 10)
+      const steps = await playThrough(start, true, 10, 0)
+      expect(steps.length).toBe(whole.length)
+      for (let w = 0; w < whole.length; w++) expect(steps[w], `split-steps-${i} week ${w + 1}`).toBe(whole[w])
+      weeksSeen += whole.length
+    }
+    expect(weeksSeen).toBe(120)
+  }, LONG)
+
+  it('lets the draft go when the game moves between two steps, and plays the week on the game as it is now', async () => {
+    const start = preseason('split-moved', 'season')
+    useStore.setState({ universe: u, loadedLeagues: ['england'], game: start, screen: 'game', playingWeek: false })
+    useStore.getState().setMatchPlay('sim')
+    const before = useStore.getState().game
+    const a = useStore.getState().playWeekSoon(undefined, { sliceMs: 0 })
+    // Past the paint and a few steps of the week, then a change to the game
+    for (let i = 0; i < 4; i++) await new Promise((r) => setTimeout(r, 0))
+    expect(useStore.getState().game).toBe(before)
+    useStore.getState().setMatchPlay('watch')
+    await a
+    const got = JSON.stringify(useStore.getState().game)
+    // Reference: the same change, then playWeek
+    useStore.setState({ game: start, playingWeek: false })
+    useStore.getState().setMatchPlay('watch')
+    useStore.getState().playWeek()
+    expect(got).toBe(JSON.stringify(useStore.getState().game))
+    expect(useStore.getState().game!.season!.matchweek + (useStore.getState().game!.live ? 1 : 0)).toBe(1)
+  }, LONG)
+
+  it('sims weeks and sims to the next big match in slices, giving the plain actions\' game, digest and stop', async () => {
+    const run = async (start: Game, soon: boolean, what: 'five' | 'big' | 'end') => {
+      useStore.setState({ universe: u, loadedLeagues: ['england'], game: start, screen: 'game', playingWeek: false, digest: null, simStop: null })
+      const s = useStore.getState()
+      if (what === 'big') await (soon ? s.simToNextBigMatchSoon({ sliceMs: 0 }) : s.simToNextBigMatch())
+      else await (soon ? s.simWeeksSoon(what === 'five' ? 5 : 40, { sliceMs: 0 }) : s.simWeeks(what === 'five' ? 5 : 40))
+      const after = useStore.getState()
+      return JSON.stringify({ game: after.game, digest: after.digest, simStop: after.simStop, matchView: after.matchView })
+    }
+    let summaries = 0
+    for (let i = 0; i < 8; i++) {
+      const start = preseason(`sim-steps-${i}`, i % 2 ? 'dynasty' : 'season')
+      // From pre-season: five weeks, the run to the next big match, and the whole season
+      for (const what of ['five', 'big', 'end'] as const) {
+        const plain = await run(start, false, what)
+        const got = await run(start, true, what)
+        expect(got, `sim-steps-${i} ${what}`).toBe(plain)
+        if (what === 'end' && (JSON.parse(plain) as { game: Game }).game.phase === 'summary') summaries++
+      }
+    }
+    expect(summaries).toBeGreaterThan(4)
   }, LONG)
 })

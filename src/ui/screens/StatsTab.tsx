@@ -10,6 +10,13 @@ import { LeagueFlag } from '../components/Flag'
 import type { SquadPlayer } from '@engine/types'
 import { PlayerPeek } from '../components/PlayerPeek'
 import type { Boxes } from '../components/Boxes'
+import { Segmented } from '../components/bits'
+import { PlayerStatsTable, TeamStats } from './StatsTables'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+import { rich } from '../i18n/rich'
+
+const t = translator(dugout)
 
 /** A signed figure to one decimal: "+1.4", "−0.8", "0.0". */
 function signedOne(v: number): string {
@@ -25,6 +32,7 @@ type Stat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
 /** `boxes` is the Dugout's Boxes control for this tab. */
 export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const { universe: u, game } = useStore()
+  const [view, setView] = useState<'overview' | 'players' | 'team'>('overview')
   const [stat, setStat] = useState<Stat>('goals')
   const rows = useMemo(() => {
     if (!u || !game?.season) return []
@@ -58,59 +66,74 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
   const totals = dataHubTotals(hub)
   const picks = analystPicks(hub)
   const on = (id: string) => boxes?.on(id) ?? true
+  const switcher = (
+    <div className="stats-switch">
+      <Segmented value={view} onChange={setView} options={[{ value: 'overview', label: 'Overview', testId: 'stats-view-overview' }, { value: 'players', label: 'Players', testId: 'stats-view-players', hint: 'Every player in the league, sorted by any column' }, { value: 'team', label: 'Team', testId: 'stats-view-team', hint: 'Our numbers ranked against every side' }]} />
+    </div>
+  )
+  if (view === 'players')
+    return (
+      <>
+        {switcher}
+        <div className="grid fill stats-one" data-testid="stats-tab">
+          <PlayerStatsTable />
+        </div>
+      </>
+    )
+  if (view === 'team')
+    return (
+      <>
+        {switcher}
+        <TeamStats />
+      </>
+    )
   const grid = boxes?.grid([{ track: 'minmax(0, 0.8fr)', ids: ['records'] }, { track: 'minmax(0, 1.1fr)', ids: ['league-stats'] }, { track: 'minmax(0, 1.2fr)', ids: ['data-hub'] }]) ?? { className: '', style: undefined }
   return (
+    <>
+    {switcher}
     <div className={`grid three fill squad-views stats-grid ${grid.className}`} style={grid.style} data-testid="stats-tab">
       {!on('records') ? null : records ? (
         <div className="panel">
-          <h3>Season records</h3>
+          <h3>{t('seasonRecords')}</h3>
           <dl className="kv">
-            <dt>Biggest win</dt>
+            <dt>{t('biggestWin')}</dt>
             <dd>{records.bigWin}</dd>
-            <dt>Heaviest defeat</dt>
+            <dt>{t('heaviestDefeat')}</dt>
             <dd>{records.bigLoss}</dd>
-            <dt>Longest unbeaten run</dt>
+            <dt>{t('longestUnbeaten')}</dt>
             <dd>
-              {records.bestUnbeaten} match{records.bestUnbeaten === 1 ? '' : 'es'}
-              {records.unbeatenNow >= 3 && records.unbeatenNow === records.bestUnbeaten ? ' (and counting)' : ''}
+              {t('matchesN', { n: records.bestUnbeaten })}
+              {records.unbeatenNow >= 3 && records.unbeatenNow === records.bestUnbeaten ? t('andCounting') : ''}
             </dd>
-            <dt>Longest winning run</dt>
+            <dt>{t('longestWinning')}</dt>
             <dd>
-              {records.bestWinning} match{records.bestWinning === 1 ? '' : 'es'}
-              {records.winningNow >= 3 && records.winningNow === records.bestWinning ? ' (and counting)' : ''}
+              {t('matchesN', { n: records.bestWinning })}
+              {records.winningNow >= 3 && records.winningNow === records.bestWinning ? t('andCounting') : ''}
             </dd>
-            <dt>Clean sheets</dt>
+            <dt>{t('cleanSheets')}</dt>
             <dd>
-              {records.cleanSheets} of {records.played}
+              {t('nOfM', { n: records.cleanSheets, m: records.played })}
             </dd>
-            <dt>Scored in</dt>
+            <dt>{t('scoredIn')}</dt>
             <dd>
-              {records.scoredIn} of {records.played}
+              {t('nOfM', { n: records.scoredIn, m: records.played })}
             </dd>
           </dl>
         </div>
       ) : (
         <div className="panel">
-          <h3>Season records</h3>
-          <div className="small muted">No matches played yet.</div>
+          <h3>{t('seasonRecords')}</h3>
+          <div className="small muted">{t('noMatches')}</div>
         </div>
       )}
     {on('league-stats') && (
     <div className="panel">
       <div className="panel-head">
-        <h3><LeagueFlag leagueId={game.season.leagueId} label={u.leagues.find((l) => l.id === game.season?.leagueId)?.name} /> League statistics</h3>
+        <h3><LeagueFlag leagueId={game.season.leagueId} label={u.leagues.find((l) => l.id === game.season?.leagueId)?.name} /> {t('leagueStats')}</h3>
         <div className="segmented">
-          {(
-            [
-              ['goals', 'Golden Boot'],
-              ['assists', 'Playmaker'],
-              ['rating', 'Best rated'],
-              ['cleanSheets', 'Golden Glove'],
-              ['motm', 'Man of the match'],
-            ] as Array<[Stat, string]>
-          ).map(([k, label]) => (
+          {(['goals', 'assists', 'rating', 'cleanSheets', 'motm'] as Stat[]).map((k) => (
             <button key={k} className={stat === k ? 'active' : ''} onClick={() => setStat(k)}>
-              {label}
+              {t(`stat_${k}`)}
             </button>
           ))}
         </div>
@@ -119,10 +142,10 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
         <thead>
           <tr>
             <th>#</th>
-            <th>Player</th>
-            <th>Club</th>
-            <th className="num">Apps</th>
-            <th className="num">{stat === 'rating' ? 'Avg' : stat === 'cleanSheets' ? 'CS' : stat === 'motm' ? 'MOTM' : stat === 'assists' ? 'A' : 'G'}</th>
+            <th>{t('player')}</th>
+            <th>{t('club')}</th>
+            <th className="num">{t('appsCol')}</th>
+            <th className="num">{t(`col_${stat}`)}</th>
           </tr>
         </thead>
         <tbody>
@@ -151,7 +174,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
           {rows.length === 0 && (
             <tr>
               <td colSpan={5} className="muted">
-                No statistics yet.
+                {t('noStats')}
               </td>
             </tr>
           )}
@@ -164,24 +187,24 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
       <div className="panel-head">
         <span className="head-title">
           <h3 className="icon-title">
-            <ChartBar size={18} aria-hidden="true" /> Data hub
+            <ChartBar size={18} aria-hidden="true" /> {t('dataHub')}
           </h3>
-          <Info label="About the data hub">Expected goals (xG) is what every attempt was worth from where it was taken; xA credits the assister with the xG of the goal he set up. ± is goals minus xG: above zero he finishes better than his chances. Per 90 figures over the minutes played. The analyst writes in every {ANALYST_INTERVAL} matchweeks about anyone with {ANALYST_MIN_SHOTS} attempts or more.</Info>
+          <Info label={t('aboutHub')}>{t('hubInfo', { interval: ANALYST_INTERVAL, shots: ANALYST_MIN_SHOTS })}</Info>
         </span>
         <span className="small muted" data-testid="hub-totals">
-          {totals.goals} G · {totals.xg.toFixed(1)} xG ({signedOne(totals.goals - totals.xg)})
+          {t('hubTotals', { goals: totals.goals, xg: totals.xg.toFixed(1), diff: signedOne(totals.goals - totals.xg) })}
         </span>
       </div>
       {(picks.over || picks.under) && (
         <div className="small" style={{ marginBottom: 'var(--space-2)' }}>
           {picks.over && (
             <div>
-              <span className="good-text">Beating his numbers:</span> {picks.over.name} {signedOne(picks.over.finishing)}
+              {rich(t('beating', { name: picks.over.name, v: signedOne(picks.over.finishing) }), { good: (c) => <span className="good-text">{c}</span> })}
             </div>
           )}
           {picks.under && (
             <div>
-              <span className="bad-text">Behind his numbers:</span> {picks.under.name} {signedOne(picks.under.finishing)}
+              {rich(t('behindNumbers', { name: picks.under.name, v: signedOne(picks.under.finishing) }), { bad: (c) => <span className="bad-text">{c}</span> })}
             </div>
           )}
         </div>
@@ -190,13 +213,13 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
         <table className="tbl hub">
           <thead>
             <tr>
-              <th>Player</th>
-              <th className="num" title="Minutes">Min</th>
-              <th className="num" title="Goals">G</th>
-              <th className="num" title="Expected goals">xG</th>
-              <th className="num" title="Goals minus expected goals">±</th>
-              <th className="num" title="Expected assists">xA</th>
-              <th className="num" title="Goals and assists per 90 minutes">G+A/90</th>
+              <th>{t('player')}</th>
+              <th className="num" title={t('minutesTip')}>{t('min')}</th>
+              <th className="num" title={t('goalsTip')}>{t('g')}</th>
+              <th className="num" title={t('xgTip')}>{t('xg')}</th>
+              <th className="num" title={t('xgDiffTip')}>{t('pm')}</th>
+              <th className="num" title={t('xaTip')}>{t('xa')}</th>
+              <th className="num" title={t('ga90Tip')}>{t('ga90')}</th>
             </tr>
           </thead>
           <tbody>
@@ -214,7 +237,7 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
             {hub.length === 0 && (
               <tr>
                 <td colSpan={7} className="muted">
-                  No minutes played yet.
+                  {t('noMinutesPlayed')}
                 </td>
               </tr>
             )}
@@ -224,5 +247,6 @@ export function StatsTab({ boxes }: { boxes?: Boxes }) {
     </div>
     )}
     </div>
+    </>
   )
 }

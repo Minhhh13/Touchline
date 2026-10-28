@@ -1,23 +1,28 @@
 import { useOnline, type SyncConflict } from '../../online/state'
 import type { SaveMeta } from '../../online/core/slots'
 import * as api from '../../online/api'
+import { askConfirm } from '../confirm'
+import { translator } from '../i18n'
+import { saving } from '../i18n/en/saving'
 
-const SLOT_LABEL: Record<string, string> = { quick: 'Quick Draft', season: 'Season', dynasty: 'Dynasty', h2h: 'head-to-head' }
+const t = translator(saving)
+
+const SLOT_LABEL: Record<string, () => string> = { quick: () => t('slotQuick'), season: () => t('slotSeason'), dynasty: () => t('slotDynasty'), h2h: () => t('slotH2H') }
 
 function describe(m: SaveMeta | null): string {
-  if (!m) return 'a game'
-  const where = m.phase === 'draft' ? 'drafting' : m.phase === 'summary' ? 'season complete' : m.matchweek ? `matchweek ${m.matchweek}` : m.phase
-  return `${m.teamName} (${where}${m.mode === 'dynasty' ? `, year ${m.year}` : ''})${m.deviceLabel ? ` on ${m.deviceLabel}` : ''}`
+  if (!m) return t('aGame')
+  const where = m.phase === 'draft' ? t('drafting') : m.phase === 'summary' ? t('seasonComplete') : m.matchweek ? t('matchweekLower', { n: m.matchweek }) : m.phase
+  return t('describeSave', { team: m.teamName, where, year: m.mode === 'dynasty' ? t('yearSuffix', { year: m.year }) : '', device: m.deviceLabel ? t('onDevice', { device: m.deviceLabel }) : '' })
 }
 
 function Card({ c }: { c: SyncConflict }) {
-  const label = SLOT_LABEL[c.slot] ?? c.slot
+  const label = SLOT_LABEL[c.slot]?.() ?? c.slot
   if (c.kind === 'newer')
     return (
       <div className="notice row between wrap" data-testid="conflict-newer">
-        <span>Newer progress of this {label} from {describe(c.remote)}.</span>
+        <span>{t('newerProgress', { label, from: describe(c.remote) })}</span>
         <button className="btn sm primary" onClick={() => void api.resolveConflict({ slot: c.slot, choice: 'load' })}>
-          Load it
+          {t('loadIt')}
         </button>
       </div>
     )
@@ -25,14 +30,14 @@ function Card({ c }: { c: SyncConflict }) {
     return (
       <div className="notice warn col" data-testid="conflict-abandoned">
         <span>
-          This {label} was abandoned on another device{c.at ? ` on ${c.at.slice(0, 10)}` : ''}.
+          {t(c.at ? 'abandonedOn' : 'abandoned', { label, date: c.at?.slice(0, 10) })}
         </span>
         <div className="row wrap">
           <button className="btn sm" onClick={() => void api.resolveConflict({ slot: c.slot, choice: 'keep' })}>
-            Keep it here
+            {t('keepHere')}
           </button>
           <button className="btn sm ghost danger" onClick={() => void api.resolveConflict({ slot: c.slot, choice: 'remove' })}>
-            Remove it here
+            {t('removeHere')}
           </button>
         </div>
       </div>
@@ -40,14 +45,14 @@ function Card({ c }: { c: SyncConflict }) {
   return (
     <div className="notice warn col" data-testid="conflict-different">
       <span>
-        Two different {label} games: this device has {describe(c.local)}; the cloud has {describe(c.remote)}. The one you do not keep stays in Cloud history.
+        {t('twoGames', { label, local: describe(c.local), remote: describe(c.remote) })}
       </span>
       <div className="row wrap">
         <button className="btn sm" onClick={() => void api.resolveConflict({ slot: c.slot, choice: 'keep_local' })}>
-          Keep this device's
+          {t('keepDevice')}
         </button>
         <button className="btn sm" onClick={() => void api.resolveConflict({ slot: c.slot, choice: 'use_cloud' })}>
-          Use the cloud's
+          {t('useCloud')}
         </button>
       </div>
     </div>
@@ -63,16 +68,16 @@ export function ConflictCards() {
     <div className="col" style={{ marginBottom: 14 }}>
       {accountSwitch && (
         <div className="notice warn col" data-testid="account-switch">
-          <span>Another account synced the games on this device before. What should happen to them?</span>
+          <span>{t('accountSwitch')}</span>
           <div className="row wrap">
             <button className="btn sm" onClick={() => void api.chooseAccount('upload')}>
-              Upload them to this account
+              {t('uploadThem')}
             </button>
             <button className="btn sm" onClick={() => void api.chooseAccount('keep')}>
-              Keep them on this device only
+              {t('keepThem')}
             </button>
-            <button className="btn sm ghost danger" onClick={() => confirm("Replace this device's games with this account's cloud saves?") && void api.chooseAccount('replace')}>
-              Replace them with this account's
+            <button className="btn sm ghost danger" onClick={() => void askConfirm(t('replaceConfirm'), { ok: t('replaceOk'), danger: true }).then((ok) => { if (ok) void api.chooseAccount('replace') })}>
+              {t('replaceThem')}
             </button>
           </div>
         </div>

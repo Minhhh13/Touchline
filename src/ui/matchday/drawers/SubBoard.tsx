@@ -25,6 +25,10 @@ import { FIT_WORDS, fitGlow, lineupAfter, moveOnBoard, slotRole, slotRoleRating,
 import type { SideView } from '../types'
 import type { ManagerHand } from '../useManagerHand'
 import { VerticalPitch } from '../VerticalPitch'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+
+const tx = translator(match)
 
 type Kind = 'bench' | 'slot'
 interface Held {
@@ -34,12 +38,12 @@ interface Held {
   via: 'drag' | 'tap'
 }
 
-const REFUSED: Record<StageRefusal, string> = {
-  'no-room': 'No room for another change in this window.',
-  'not-on-pitch': 'That man cannot come off.',
-  'not-on-bench': 'That man cannot come on: nobody who has played comes back on.',
-  'already-on': 'He is already coming on.',
-  same: 'Pick a man from the other side.',
+const REFUSED: Record<StageRefusal, () => string> = {
+  'no-room': () => tx('refusedNoRoom'),
+  'not-on-pitch': () => tx('refusedNotOnPitch'),
+  'not-on-bench': () => tx('refusedNotOnBench'),
+  'already-on': () => tx('refusedAlreadyOn'),
+  same: () => tx('refusedSame'),
 }
 
 /** Pixels a pointer travels before a press becomes a drag (below it, it is a tap). */
@@ -125,25 +129,25 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     const shown = shownAt(slotId)!
     const r = stageSub(queue, { off: shown, on }, { onPitch: hand.onPitch, bench: hand.bench, cap: room })
     if (r.refused) {
-      setSay(REFUSED[r.refused])
+      setSay(REFUSED[r.refused]())
       return
     }
     setQueue(r.subs)
     const p = get(on)
     const left = room - r.subs.length
-    setSay(`${nameOf(on)} on for ${nameOf(off)} at ${slotName(slot)}${p ? `, ${FIT_WORDS[fitGlow(p, slot.position)]}` : ''}. ${left > 0 ? `${left} more ${left === 1 ? 'change' : 'changes'} possible.` : 'No more changes in this window.'}`)
+    setSay(tx('sayStaged', { on: nameOf(on), off: nameOf(off), slot: slotName(slot), fit: p ? `, ${FIT_WORDS[fitGlow(p, slot.position)]}` : '', left: Math.max(0, left) }))
   }
 
   const pickUp = (h: Held) => {
     setHeld(h)
     setHover(null)
     const who = h.kind === 'bench' ? nameOf(h.id) : nameOf(shownAt(h.id))
-    setSay(h.kind === 'bench' ? `Picked up ${who}. Arrow keys move between the starters, Enter brings him on, Escape lets go.` : `${who} picked to come off. Arrow keys move along the bench, Enter brings that man on, Escape lets go.`)
+    setSay(tx(h.kind === 'bench' ? 'sayPickedBench' : 'sayPickedSlot', { who }))
   }
   const letGo = (quiet = false) => {
     setHeld(null)
     setHover(null)
-    if (!quiet) setSay('Let go.')
+    if (!quiet) setSay(tx('sayLetGo'))
   }
 
   // ------------------------------------------------------------------ tap (and Enter or Space on a focused card)
@@ -184,7 +188,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
       if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < DRAG_START) return
       d.started = true
       setHeld({ kind: d.kind, id: d.id, via: 'drag' })
-      setSay(d.kind === 'bench' ? `Dragging ${nameOf(d.id)}.` : `Dragging ${nameOf(shownAt(d.id))}.`)
+      setSay(tx('sayDragging', { who: d.kind === 'bench' ? nameOf(d.id) : nameOf(shownAt(d.id)) }))
     }
     e.preventDefault()
     setGhost({ x: e.clientX, y: e.clientY })
@@ -202,7 +206,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     const t = targetAt(e.clientX, e.clientY, d.kind)
     setGhost(null)
     if (t) drop(d, { kind: d.kind === 'bench' ? 'slot' : 'bench', id: t })
-    else setSay('Dropped nowhere: nothing changed.')
+    else setSay(tx('sayDroppedNowhere'))
     setHeld(null)
     setHover(null)
   }
@@ -287,7 +291,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   return (
     <div className={`sub-board ${held ? 'holding' : ''}`} data-testid="sub-board" ref={root} onKeyDown={keys}>
       <div className="sub-pitch">
-        <VerticalPitch label={`${view.name} in a ${formation.name}: drop a substitute on a starter`} ratio={1.18}>
+        <VerticalPitch label={tx('pitchLabel', { name: view.name, formation: formation.name })} ratio={1.18}>
           {formation.slots.map((slot, i) => {
             const { left, top } = points[i]
             const id = shownAt(slot.id)
@@ -312,7 +316,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 data-fit={glow ?? undefined}
                 disabled={!takeable}
                 aria-pressed={isHeld}
-                aria-label={`${slotName(slot)}, ${slotRole(tactics, slot).name}: ${p?.name ?? 'empty'}${isStaged ? ', coming on' : ''}${pending ? ', coming on at the stop' : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : `, role rating ${rr}`}` : ''}`}
+                aria-label={`${slotName(slot)}, ${slotRole(tactics, slot).name}: ${p?.name ?? tx('empty')}${isStaged ? tx('comingOn') : ''}${pending ? tx('comingOnStop') : ''}${glow && heldMan ? `. ${heldMan.name}: ${FIT_WORDS[glow]}${hideRatings ? '' : tx('roleRating', { r: rr })}` : ''}`}
                 {...handlers('slot', slot.id)}
               >
                 <span className="sub-slot-shirt">
@@ -348,22 +352,22 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 <b>{surname(preview.on.name)}</b> <span className={`mono fit-text ${preview.fit}`}>{num(slotRoleRating(preview.on, tactics, preview.slot))}</span> <span className={`fit-text ${preview.fit}`}>{FIT_WORDS[preview.fit]}</span>
               </span>
               <span className="sub-team">
-                Team <span className="mono">{num(before, 1)}</span>
+                {tx('team')} <span className="mono">{num(before, 1)}</span>
                 {preview.team !== null ? (
                   <>
                     <span aria-hidden> → </span>
                     <b className={`mono ${hideRatings ? '' : delta(before, preview.team)}`}>{num(preview.team, 1)}</b>
                   </>
                 ) : (
-                  <span className="muted"> · {REFUSED[preview.refused!]}</span>
+                  <span className="muted"> · {REFUSED[preview.refused!]()}</span>
                 )}
               </span>
             </>
           ) : (
             <>
-              <span className="muted small">{held ? (held.kind === 'bench' ? 'Drop him on a starter: green is his position, amber he can cover, red is out of position.' : 'Now pick who comes on.') : disabled ? 'No changes right now.' : 'Drag a substitute onto a starter, or tap one and then the other.'}</span>
+              <span className="muted small">{tx(held ? (held.kind === 'bench' ? 'hintDrop' : 'hintPickOn') : disabled ? 'hintNoChanges' : 'hintDrag')}</span>
               <span className="sub-team">
-                Team rating <span className="mono">{num(before, 1)}</span>
+                {tx('teamRating')} <span className="mono">{num(before, 1)}</span>
                 {queue.length > 0 && (
                   <>
                     <span aria-hidden> → </span>
@@ -377,8 +381,8 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
           )}
         </div>
 
-        <div className="md-group">Bench</div>
-        <div className="sub-bench" role="group" aria-label="Bench">
+        <div className="md-group">{tx('bench')}</div>
+        <div className="sub-bench" role="group" aria-label={tx('bench')}>
           {bench.map((id) => {
             const p = get(id)
             const cond = squad[id]?.condition
@@ -396,7 +400,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                 data-fit={glow ?? undefined}
                 disabled={disabled}
                 aria-pressed={isHeld}
-                aria-label={`${p?.name ?? id}, ${p?.positions.join(' ') ?? ''}${cond !== undefined ? `, condition ${cond}` : ''}${glow && heldSlot ? `. At ${slotName(heldSlot)}: ${FIT_WORDS[glow]}` : ''}`}
+                aria-label={`${p?.name ?? id}, ${p?.positions.join(' ') ?? ''}${cond !== undefined ? tx('conditionOf', { c: cond }) : ''}${glow && heldSlot ? tx('atSlot', { slot: slotName(heldSlot), fit: FIT_WORDS[glow] }) : ''}`}
                 {...handlers('bench', id)}
               >
                 <Shirt colour={p?.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[id]} size={22} />
@@ -407,19 +411,19 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
               </button>
             )
           })}
-          {bench.length === 0 && <div className="small muted">{hand.bench.length ? 'Everyone on the bench is coming on.' : 'Nobody available on the bench.'}</div>}
+          {bench.length === 0 && <div className="small muted">{tx(hand.bench.length ? 'benchAllOn' : 'benchEmpty')}</div>}
         </div>
 
         {(hand.pendingSubs.length > 0 || queue.length > 0) && (
           <>
-            <div className="md-group">Changes</div>
-            <ul className="md-queue sub-queue" aria-label="Changes to make">
+            <div className="md-group">{tx('changes')}</div>
+            <ul className="md-queue sub-queue" aria-label={tx('changesToMake')}>
               {hand.pendingSubs.map((s) => (
                 <li key={`p-${s.on}`} className="muted">
                   <span>
                     {nameOf(s.on)} ↔ {nameOf(s.off)}
                   </span>
-                  <span className="md-tag">at the stop</span>
+                  <span className="md-tag">{tx('atTheStop')}</span>
                 </li>
               ))}
               {queue.map((s) => {
@@ -438,11 +442,11 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
                       data-testid="sub-undo"
                       onClick={() => {
                         setQueue(queue.filter((x) => x !== s))
-                        setSay(`Undone: ${nameOf(s.off)} stays on.`)
+                        setSay(tx('sayUndone', { who: nameOf(s.off) }))
                       }}
-                      aria-label={`Undo ${get(s.on)?.name} for ${get(s.off)?.name}`}
+                      aria-label={tx('undoSub', { on: get(s.on)?.name, off: get(s.off)?.name })}
                     >
-                      Undo
+                      {tx('undo')}
                     </button>
                   </li>
                 )

@@ -1,6 +1,10 @@
 import { DISPLAY_TIER_INFO } from '@game/logic/rarity'
 import type { TierOdds } from '@game/logic/tierOdds'
 import { shownOdds } from '@game/logic/oddsDisplay'
+import { translator } from '../i18n'
+import { draft } from '../i18n/en/draft'
+
+const t = translator(draft)
 
 /**
  * The odds panel by the reel: the chance of each rarity tier on the next spin, as a bar of tier-coloured segments
@@ -15,7 +19,7 @@ export function SpinOdds({ odds, label }: { odds: readonly TierOdds[]; label: st
     <div className="spin-odds" data-testid="spin-odds" data-exact={shown.exact ? 'yes' : 'no'} role="img" aria-label={`${label}, ${shown.note}: ${odds.map((o, i) => `${DISPLAY_TIER_INFO[o.tier].colour} ${shown.labels[i]}`).join(', ')}`}>
       <div className="spin-odds-head">
         <span className="lbl">{label}</span>
-        <span className="muted small" data-testid="spin-odds-note" title={shown.exact ? 'These are the exact chances' : 'Each chance rounded to a tenth of a per cent; together they make exactly 100%'}>
+        <span className="muted small" data-testid="spin-odds-note" title={t(shown.exact ? 'oddsExactTip' : 'oddsRoundedTip')}>
           {shown.note}
         </span>
       </div>

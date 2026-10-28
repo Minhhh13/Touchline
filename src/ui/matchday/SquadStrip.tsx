@@ -19,6 +19,11 @@ import { RatingPill } from './panels/bits'
 import { Shirt } from './Shirt'
 import type { SquadStripProps } from './types'
 import type { ManagerHand } from './useManagerHand'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+import { B, rich } from '../i18n/rich'
+
+const tx = translator(match)
 
 export function SquadStrip({ feed, minute, side, view, ratings, squad, selected, onSelect, onFocusMan, hand, name, condition }: SquadStripProps & { hand: ManagerHand; name: (id: string) => string | undefined; condition: (psId: string) => number | null }) {
   const at = Math.max(0, minute)
@@ -50,18 +55,18 @@ export function SquadStrip({ feed, minute, side, view, ratings, squad, selected,
     onFocusMan?.(psId)
   }
   return (
-    <div className="md-strip" role="group" aria-label={`${view.name} on the pitch`}>
-      <button type="button" className="md-strip-squad" onClick={() => hand.open('subs')} disabled={!hand.editable} aria-haspopup="dialog" title={hand.editable ? 'Make a substitution' : hand.landing.text}>
+    <div className="md-strip" role="group" aria-label={tx('onThePitch', { name: view.name })}>
+      <button type="button" className="md-strip-squad" onClick={() => hand.open('subs')} disabled={!hand.editable} aria-haspopup="dialog" title={hand.editable ? tx('makeSub') : hand.landing.text}>
         <span className="md-strip-title">
           <SubIcon />
-          <b>Squad</b>
+          <b>{tx('squad')}</b>
         </span>
         <span className="mono">
-          <b>{subsLeft}</b>/{MAX_SUBS} subs left
+          {rich(tx('subsLeft', { n: subsLeft, max: MAX_SUBS }), B)}
         </span>
         {live && (
           <span className="mono">
-            <b>{hand.windowsLeft}</b>/{MAX_WINDOWS} stoppages left
+            {rich(tx('stoppagesLeft', { n: hand.windowsLeft, max: MAX_WINDOWS }), B)}
           </span>
         )}
       </button>
@@ -78,7 +83,7 @@ export function SquadStrip({ feed, minute, side, view, ratings, squad, selected,
             onFocus={(e) => e.currentTarget.matches(':focus-visible') && focusMan(psId)}
             onBlur={() => focusMan(null)}
             data-testid="md-card"
-            aria-pressed={selected === psId} aria-label={`${c.pos} ${name(psId) ?? c.name}${c.rating !== undefined ? `, rating ${c.rating.toFixed(1)}` : ''}${c.subMinute !== null ? `, on ${c.subMinute}'` : ''}`}>
+            aria-pressed={selected === psId} aria-label={`${c.pos} ${name(psId) ?? c.name}${c.rating !== undefined ? tx('cardRating', { r: c.rating.toFixed(1) }) : ''}${c.subMinute !== null ? tx('cardOn', { m: c.subMinute }) : ''}`}>
             <span className="md-card-top">
               <span className="md-pos">{c.pos}</span>
               {(c.yellow || c.red) && <CardIcon red={c.red} />}

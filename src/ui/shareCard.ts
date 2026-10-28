@@ -93,6 +93,13 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
   glow.addColorStop(1, 'rgba(37, 99, 235, 0)')
   ctx.fillStyle = glow
   ctx.fillRect(0, 0, W, H)
+  // The brand's neon: two curves through the head and one under the pitch, then a lit frame round the card
+  drawNeonFlows(ctx, W, H)
+  drawFrame(ctx, W, H)
+
+  const tierColour = input.banner?.colour ?? TIER_COLOUR[input.tier] ?? C.text
+  // A title (gold) stands in a fan of soft beams, like the summary's celebration
+  if (tierColour === C.gold) drawRays(ctx, W / 2, 205, 300)
 
   const font = (size: number, weight = 700, family = DISPLAY) => `${weight} ${size}px ${family}`
   ctx.textAlign = 'center'
@@ -103,9 +110,13 @@ export async function renderShareCard(input: ShareCardInput): Promise<string> {
   ctx.font = font(24, 400, BODY)
   ctx.fillText(fit(ctx, input.subtitle, W - 120), W / 2, 134)
 
-  ctx.fillStyle = input.banner?.colour ?? TIER_COLOUR[input.tier] ?? C.text
+  ctx.fillStyle = tierColour
   ctx.font = font(72)
+  ctx.save()
+  ctx.shadowColor = hexAlpha(tierColour, 0.55)
+  ctx.shadowBlur = 30
   ctx.fillText(fit(ctx, input.banner?.text ?? tierName(input.tier, input.position), W - 120), W / 2, 228)
+  ctx.restore()
 
   const ord = (n: number) => n + (['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 > 3 ? 0 : n % 10] ?? 'th')
   // The caller's own lines (knockout ties, a ladder) in place of the record; `y` is the baseline of the last thing drawn
@@ -308,6 +319,89 @@ function drawLockup(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: nu
   ctx.fillText(touch, LOCKUP.name.left * u, baseline)
   ctx.fillStyle = C.accent
   ctx.fillText(line, LOCKUP.name.left * u + wTouch, baseline)
+  ctx.restore()
+}
+
+/** `#rrggbb` at an alpha, for glows and fades on the canvas. */
+function hexAlpha(hex: string, a: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return hex
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
+/** The cyan-to-magenta gradient of the art (Art.tsx's neon), across the card; faded in the middle so the text stays clear. */
+function neonGradient(ctx: CanvasRenderingContext2D, W: number, alpha: number): CanvasGradient {
+  const g = ctx.createLinearGradient(0, 0, W, 0)
+  g.addColorStop(0, hexAlpha(C.primary, alpha))
+  g.addColorStop(0.24, hexAlpha(C.primary, alpha * 0.12))
+  g.addColorStop(0.76, hexAlpha(C.magenta, alpha * 0.12))
+  g.addColorStop(1, hexAlpha(C.magenta, alpha))
+  return g
+}
+
+/** The neon flows behind the head and the foot: each a soft halo, the gradient line and a pale core. */
+function drawNeonFlows(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  // Start y, the two control points' y, end y, line width
+  const curves: Array<[number, number, number, number, number]> = [
+    [250, 120, 330, 150, 3],
+    [300, 190, 380, 210, 2],
+    [H - 170, H - 230, H - 120, H - 200, 2.4],
+  ]
+  ctx.save()
+  ctx.lineCap = 'round'
+  for (const [y0, c1, c2, y1, w] of curves) {
+    const path = () => {
+      ctx.beginPath()
+      ctx.moveTo(-20, y0)
+      ctx.bezierCurveTo(W * 0.35, c1, W * 0.65, c2, W + 20, y1)
+    }
+    path()
+    ctx.strokeStyle = neonGradient(ctx, W, 0.3)
+    ctx.lineWidth = w * 6
+    ctx.filter = 'blur(8px)'
+    ctx.stroke()
+    ctx.filter = 'none'
+    path()
+    ctx.strokeStyle = neonGradient(ctx, W, 0.9)
+    ctx.lineWidth = w
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+/** A thin lit frame inset from the edge, the neon gradient top to bottom. */
+function drawFrame(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  const g = ctx.createLinearGradient(0, 0, W, H)
+  g.addColorStop(0, hexAlpha(C.primary, 0.5))
+  g.addColorStop(0.5, hexAlpha(C.navy2, 0.6))
+  g.addColorStop(1, hexAlpha(C.magenta, 0.5))
+  ctx.save()
+  ctx.strokeStyle = g
+  ctx.lineWidth = 2
+  roundRect(ctx, 22, 22, W - 44, H - 44, 34)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** Soft gold beams fanning out round (cx, cy) for a title: wedges fading from the middle, never a star. */
+function drawRays(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  ctx.save()
+  const fade = ctx.createRadialGradient(cx, cy, r * 0.12, cx, cy, r)
+  fade.addColorStop(0, hexAlpha(C.gold, 0))
+  fade.addColorStop(0.3, hexAlpha(C.gold, 0.13))
+  fade.addColorStop(1, hexAlpha(C.gold, 0))
+  ctx.fillStyle = fade
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2
+    const half = i % 2 ? 0.035 : 0.06
+    ctx.beginPath()
+    ctx.moveTo(cx, cy)
+    ctx.lineTo(cx + Math.cos(a - half) * r, cy + Math.sin(a - half) * r * 0.42)
+    ctx.lineTo(cx + Math.cos(a + half) * r, cy + Math.sin(a + half) * r * 0.42)
+    ctx.closePath()
+    ctx.fill()
+  }
   ctx.restore()
 }
 

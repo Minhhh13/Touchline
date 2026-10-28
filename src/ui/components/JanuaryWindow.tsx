@@ -22,9 +22,12 @@ import { UpgraderStage } from './Upgrader'
 import { armAudio, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
-import { money, ordinal } from '../format'
 import { useFocusOnLanding } from '../a11y'
 import { surname } from '@game/logic/slotSheet'
+import { translator } from '../i18n'
+import { season } from '../i18n/en/season'
+
+const t = translator(season)
 
 type Stage = 'halfway' | 'market' | 'spin' | 'upgrade'
 
@@ -37,7 +40,9 @@ type Stage = 'halfway' | 'market' | 'spin' | 'upgrade'
  * fold sits under every step. Every draw and every check is the store's; this only shows them.
  */
 export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j: QuickJanuary }) {
-  const { closeJanuary, setTactics, setCaptain } = useStore()
+  const { closeJanuarySoon: closeJanuary, closingJanuary: busy, setTactics, setCaptain, warmKickOff } = useStore()
+  // The second half is played in the quick-season worker: it loads the packs while the window is up
+  useEffect(() => warmKickOff(), [warmKickOff])
   const gamble = januaryGambleOn(game)
   // A reload after the case was opened or the dial rolled comes back to that step
   const [stage, setStage] = useState<Stage>(j.spin ? 'spin' : j.upgrade ? 'upgrade' : 'halfway')
@@ -49,22 +54,22 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
     .map((id) => get(id))
     .filter((p): p is PlayerSeason => !!p)
   const totalGames = quickSeasonGames(u, game.settings)
-  const t = foldResults(j.firstHalf)
+  const f = foldResults(j.firstHalf)
   const teams = totalGames / 2 + 1
   const boxes: Array<{ key: string; label: string; value: string }> = [
-    { key: 'wdl', label: 'W-D-L', value: `${t.won}-${t.drawn}-${t.lost}` },
-    { key: 'pts', label: 'Points', value: String(t.points) },
-    { key: 'gd', label: 'GD', value: goalDifferenceLabel(t.goalsFor, t.goalsAgainst) },
+    { key: 'wdl', label: t('wdl'), value: `${f.won}-${f.drawn}-${f.lost}` },
+    { key: 'pts', label: t('points'), value: String(f.points) },
+    { key: 'gd', label: t('stripGD'), value: goalDifferenceLabel(f.goalsFor, f.goalsAgainst) },
   ]
-  const title = stage === 'market' ? 'The transfer market' : stage === 'spin' ? 'January spin' : stage === 'upgrade' ? 'January Upgrader' : 'Halfway there'
+  const title = t(stage === 'market' ? 'theMarket' : stage === 'spin' ? 'janSpin' : stage === 'upgrade' ? 'janUpgrader' : 'halfway')
   return (
     <div className="panel col january-panel" data-testid="january-window" data-stage={stage} data-gamble={gamble || undefined}>
       <div className="sc-head jw-head">
-        <span className="sc-kicker">January transfer window</span>
+        <span className="sc-kicker">{t('janWindow')}</span>
         <h2>{title}</h2>
         {stage !== 'halfway' && (
           <span className="small muted jw-mini" data-testid="january-mini">
-            {ordinal(j.position)} · {t.won}-{t.drawn}-{t.lost} · {t.points} pts
+            {t('janMini', { pos: j.position, w: f.won, d: f.drawn, l: f.lost, pts: f.points })}
           </span>
         )}
       </div>
@@ -79,40 +84,38 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
             ))}
           </div>
           <p className="jw-pace" data-testid="january-pace">
-            {paceLine(t, totalGames, teams)}
+            {paceLine(f, totalGames, teams)}
           </p>
           {gamble ? (
             <div className="jw-options" data-testid="january-options">
               <button type="button" className="jw-option spin" onClick={() => setStage('spin')} data-testid="january-option-spin">
                 <Dices size={22} aria-hidden="true" />
-                <b>January spin</b>
-                <span>Open a case: a player from this wheel to bring in, or not.</span>
+                <b>{t('janSpin')}</b>
+                <span>{t('janSpinHelp')}</span>
               </button>
               <button type="button" className="jw-option upgrade" onClick={() => setStage('upgrade')} data-testid="january-option-upgrade">
                 <ArrowUpCircle size={22} aria-hidden="true" />
-                <b>January Upgrader</b>
-                <span>One roll on one of your XI: +2, +5 or +10.</span>
+                <b>{t('janUpgrader')}</b>
+                <span>{t('janUpgraderHelp')}</span>
               </button>
               <button type="button" className="jw-option market" onClick={() => setStage('market')} data-testid="january-enter">
                 <ShoppingBag size={22} aria-hidden="true" />
-                <b>Transfer market</b>
-                <span>
-                  {money(j.budget)} budget, {j.listings.length} offer{j.listings.length === 1 ? '' : 's'}.
-                </span>
+                <b>{t('transferMarket')}</b>
+                <span>{t('marketHelp', { m: j.budget, n: j.listings.length })}</span>
               </button>
-              <button type="button" className="jw-option skip" onClick={() => closeJanuary(null)} data-testid="january-stick">
+              <button type="button" className="jw-option skip" onClick={() => void closeJanuary(null)} disabled={busy} aria-busy={busy || undefined} data-testid="january-stick">
                 <SkipForward size={22} aria-hidden="true" />
-                <b>Skip</b>
-                <span>Keep your XI and play on.</span>
+                <b>{t('skip')}</b>
+                <span>{t('skipHelp')}</span>
               </button>
             </div>
           ) : (
             <div className="jw-choice">
               <button className="btn primary big" onClick={() => setStage('market')} data-testid="january-enter">
-                Enter the transfer market
+                {t('enterMarket')}
               </button>
-              <button className="btn big" onClick={() => closeJanuary(null)} data-testid="january-stick">
-                Stick with your XI
+              <button className="btn big" onClick={() => void closeJanuary(null)} disabled={busy} aria-busy={busy || undefined} data-testid="january-stick">
+                {t('stickXi')}
               </button>
             </div>
           )}
@@ -122,8 +125,8 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
       {stage === 'spin' && <JanuarySpin game={game} u={u} j={j} onBack={() => setStage('halfway')} />}
       {stage === 'upgrade' && <JanuaryUpgrade j={j} xi={xi} hide={hide} onBack={() => setStage('halfway')} />}
       <button type="button" className="fold-head" onClick={() => setShowTactics(!tactics)} aria-expanded={tactics} data-testid="january-tactics-toggle">
-        <b>Second-half tactics</b>
-        <span className="small muted">{tactics ? 'Hide ▴' : 'Change ▾'}</span>
+        <b>{t('secondHalfTactics')}</b>
+        <span className="small muted">{t(tactics ? 'hideFold' : 'changeFold')}</span>
       </button>
       {tactics && (
         <div className="col">
@@ -137,7 +140,7 @@ export function JanuaryWindow({ game, u, j }: { game: Game; u: LoadedUniverse; j
 
 /** The market: the budget and three to five deals, one of which can be done, or the XI kept after all. */
 function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
-  const { closeJanuary } = useStore()
+  const { closeJanuarySoon: closeJanuary, closingJanuary: busy } = useStore()
   const [chosen, setChosen] = useState<number | null>(null)
   const get = playerLookup(game, u)
   // The deals are players from outside the squad: hidden in blind mode, as every offer is
@@ -149,11 +152,11 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
     <>
       <div className="row between wrap" style={{ gap: 8 }}>
         <p className="help" style={{ margin: 0 }}>
-          {ordinal(j.position)} after {j.firstHalf.length} games. The board backs one deal: sign a player with the budget or swap one of your XI for him. It can help or hurt, and there is no undo.
+          {t('marketIntro', { pos: j.position, n: j.firstHalf.length })}
         </p>
-        <span className="chip">Budget {money(j.budget)}</span>
+        <span className="chip">{t('budget', { m: j.budget })}</span>
       </div>
-      {j.listings.length === 0 && <div className="notice">Nobody fits this wheel's rules this January.</div>}
+      {j.listings.length === 0 && <div className="notice">{t('nobodyFits')}</div>}
       <div className="col" style={{ gap: 6 }}>
         {j.listings.map((l, i) => {
           const incoming = get(l.playerSeasonId)
@@ -163,24 +166,24 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
           const gain = Math.round(ratingAt(incoming, slot.position) - ratingAt(out, slot.position))
           return (
             <div key={`${l.playerSeasonId}-${l.slotId}`} className={`jw-deal ${chosen === i ? 'selected' : ''}`} data-testid="january-listing">
-              <PlayerRow p={incoming} showClub hideRatings={hide} selected={chosen === i} onClick={() => setChosen(chosen === i ? null : i)} right={<span className={`chip ${l.kind === 'sign' ? '' : 'gold'}`}>{l.kind === 'sign' ? money(l.fee) : 'Swap'}</span>} />
+              <PlayerRow p={incoming} showClub hideRatings={hide} selected={chosen === i} onClick={() => setChosen(chosen === i ? null : i)} right={<span className={`chip ${l.kind === 'sign' ? '' : 'gold'}`}>{l.kind === 'sign' ? t('fee', { m: l.fee }) : t('swap')}</span>} />
               <div className="small muted jw-out">
-                <Pos p={slot.position} /> {l.kind === 'sign' ? 'Replaces' : 'In exchange for'} {out.name}
-                {!hide && ` · ${gain >= 0 ? '+' : ''}${gain} in that slot`}
+                <Pos p={slot.position} /> {t(l.kind === 'sign' ? 'replaces' : 'inExchange', { name: out.name })}
+                {!hide && t('gainInSlot', { gain: `${gain >= 0 ? '+' : ''}${gain}` })}
               </div>
             </div>
           )
         })}
       </div>
       <div className="row wrap" style={{ gap: 10 }}>
-        <button className="btn primary" disabled={!pick} onClick={() => chosen !== null && closeJanuary(chosen)} data-testid="january-deal">
-          {pick ? (pick.kind === 'sign' ? `Sign ${get(pick.playerSeasonId)?.name ?? ''} and play on` : `Do the swap and play on`) : 'Choose a deal'}
+        <button className="btn primary" disabled={!pick || busy} aria-busy={busy || undefined} onClick={() => chosen !== null && void closeJanuary(chosen)} data-testid="january-deal">
+          {pick ? (pick.kind === 'sign' ? t('signPlayOn', { name: get(pick.playerSeasonId)?.name ?? '' }) : t('swapPlayOn')) : t('chooseDeal')}
         </button>
-        <button className="btn" onClick={() => closeJanuary(null)} data-testid="january-pass">
-          Stick with your XI
+        <button className="btn" onClick={() => void closeJanuary(null)} disabled={busy} data-testid="january-pass">
+          {t('stickXi')}
         </button>
         <button className="btn ghost" onClick={onBack} data-testid="january-back">
-          Back
+          {t('back')}
         </button>
       </div>
     </>
@@ -193,7 +196,7 @@ function Market({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: Quic
  * the slide; Quick spin (Profile) runs the short one; a reload after opening shows him landed.
  */
 function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j: QuickJanuary; onBack: () => void }) {
-  const { januarySpin, closeJanuarySpin } = useStore()
+  const { januarySpin, closeJanuarySpinSoon: closeJanuarySpin, closingJanuary: busy } = useStore()
   const [quick] = usePref(quickSpinPref)
   const get = playerLookup(game, u)
   // The player the case lands on is still being chosen until he is brought in: hidden in blind mode, as any offer;
@@ -232,12 +235,18 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
   // Landed in this view: the focus goes to his first slot, or Keep my XI when he fits none (the Skip that held it is gone)
   const action = useRef<HTMLButtonElement>(null)
   useFocusOnLanding(opened && landed, action)
+  // Chosen from the halfway options (that button has gone): the focus starts on Open the January case
+  const openRef = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(!spin, openRef)
+  // Opened: Open the January case has gone, Tap to skip takes the focus
+  const skipRef = useRef<HTMLButtonElement>(null)
+  useFocusOnLanding(spinning, skipRef)
   const empty = odds.every((o) => o.p === 0)
   return (
     <div className="jw-spin col" data-testid="january-spin" data-landed={landed || undefined}>
       {!(spin && landed) && (
         <div className="row between wrap jw-spin-head" style={{ gap: 8 }}>
-          <SpinOdds odds={odds} label="January case" />
+          <SpinOdds odds={odds} label={t('janCase')} />
           <span className="jw-sound">
             <SoundToggle />
           </span>
@@ -267,10 +276,11 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
       {!spin && (
         <>
           <p className="help" style={{ margin: 0 }}>
-            One case from this wheel's players, each at his best season and ranked into the reel's colours. Once it is open it is your January deal: bring him into a slot he can cover, or keep your XI.
+            {t('janSpinIntro')}
           </p>
           <div className="row wrap" style={{ gap: 10 }}>
             <button
+              ref={openRef}
               type="button"
               className="btn primary big display"
               disabled={empty}
@@ -282,56 +292,55 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
               }}
               data-testid="january-spin-open"
             >
-              Open the January case
+              {t('openJanCase')}
             </button>
             <button type="button" className="btn ghost" onClick={onBack} data-testid="january-back">
-              Back
+              {t('back')}
             </button>
           </div>
         </>
       )}
       {/* The reel is hidden from screen readers: the landing is said once, here */}
       <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="january-spin-live">
-        {opened && landed && p ? `${p.name} landed. ${choices.length ? 'Choose his slot, or keep your XI' : 'He fits no slot of your XI'}` : ''}
+        {opened && landed && p ? t('landedLive', { name: p.name, line: t(choices.length ? 'chooseSlotOrKeep' : 'fitsNoSlot') }) : ''}
       </span>
       {spinning && (
-        <button type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="january-spin-skip">
-          Tap to skip
+        <button ref={skipRef} type="button" className="reel-skip" onClick={() => setSkip((n) => n + 1)} data-testid="january-spin-skip">
+          {t('tapToSkip')}
         </button>
       )}
       {spin && p && landed && (
         <div className="jw-landed col" data-testid="january-spin-landed" data-tier={spin.tier}>
           <div className="row between wrap" style={{ gap: 8 }}>
             <TierChip tier={spin.tier} />
-            <span className="small muted">{choices.length ? 'Choose his slot, or keep your XI' : 'He fits no slot of your XI'}</span>
+            <span className="small muted">{t(choices.length ? 'chooseSlotOrKeep' : 'fitsNoSlot')}</span>
           </div>
           <PlayerRow p={p} showClub hideRatings={hide} />
-          <div className="jw-slots" role="listbox" aria-label="His slot">
+          <div className="jw-slots" role="listbox" aria-label={t('hisSlot')}>
             {choices.map((c, i) => {
               const gain = c.rating - c.outRating
               return (
                 <button ref={i === 0 ? action : undefined} key={c.slotId} type="button" role="option" aria-selected={slot === c.slotId} className={`jw-slot${slot === c.slotId ? ' on' : ''}`} onClick={() => setSlot(slot === c.slotId ? null : c.slotId)} data-testid="january-spin-choice">
                   <span className="jw-slot-pos">{c.label}</span>
-                  <span className="jw-slot-out">for {c.outName}</span>
+                  <span className="jw-slot-out">{t('forName', { name: c.outName })}</span>
                   {hide ? (
-                    <b>? v {c.outRating}</b>
+                    <b>{t('hiddenVs', { out: c.outRating })}</b>
                   ) : (
                     <b className={gain > 0 ? 'up' : gain < 0 ? 'down' : ''}>
-                      {c.rating} v {c.outRating} ({gain >= 0 ? '+' : ''}
-                      {gain})
+                      {t('ratingVs', { rating: c.rating, out: c.outRating, gain: `${gain >= 0 ? '+' : ''}${gain}` })}
                     </b>
                   )}
-                  {c.fit === 'can cover' && <span className="chip">covers</span>}
+                  {c.fit === 'can cover' && <span className="chip">{t('coversChip')}</span>}
                 </button>
               )
             })}
           </div>
           <div className="row wrap" style={{ gap: 10 }}>
-            <button type="button" className="btn primary" disabled={!chosen} onClick={() => chosen && closeJanuarySpin(chosen.slotId)} data-testid="january-spin-sign">
-              {chosen ? `Bring ${surname(p.name)} in for ${surname(chosen.outName)}` : 'Choose a slot'}
+            <button type="button" className="btn primary" disabled={!chosen || busy} aria-busy={busy || undefined} onClick={() => chosen && void closeJanuarySpin(chosen.slotId)} data-testid="january-spin-sign">
+              {chosen ? t('bringInFor', { name: surname(p.name), out: surname(chosen.outName) }) : t('chooseSlot')}
             </button>
-            <button ref={choices.length ? undefined : action} type="button" className="btn" onClick={() => closeJanuarySpin(null)} data-testid="january-spin-keep">
-              Keep my XI
+            <button ref={choices.length ? undefined : action} type="button" className="btn" onClick={() => void closeJanuarySpin(null)} disabled={busy} data-testid="january-spin-keep">
+              {t('keepXi')}
             </button>
           </div>
         </div>
@@ -342,7 +351,7 @@ function JanuarySpin({ game, u, j, onBack }: { game: Game; u: LoadedUniverse; j:
 
 /** The January Upgrader: the Upgrader's stage on the XI; once the dial lands, the second half is played with the result. */
 function JanuaryUpgrade({ j, xi, hide, onBack }: { j: QuickJanuary; xi: PlayerSeason[]; hide: boolean; onBack: () => void }) {
-  const { januaryUpgrade, closeJanuary } = useStore()
+  const { januaryUpgrade, closeJanuarySoon: closeJanuary } = useStore()
   const ratingOf = (id: string) => xi.find((p) => p.id === id)?.overall ?? 0
   return (
     <div className="jw-upgrade" data-testid="january-upgrade">
@@ -352,14 +361,14 @@ function JanuaryUpgrade({ j, xi, hide, onBack }: { j: QuickJanuary; xi: PlayerSe
         hideRatings={hide}
         result={j.upgrade}
         onConfirm={(id, boost) => januaryUpgrade(id, boost)}
-        doneLabel="Play the second half"
-        onDone={() => closeJanuary(null)}
+        doneLabel={t('playSecondHalf')}
+        onDone={() => void closeJanuary(null)}
         back={
           <button type="button" className="btn ghost" onClick={onBack} data-testid="january-back">
-            Back
+            {t('back')}
           </button>
         }
-        intro={<p className="help" style={{ margin: 0 }}>One of your XI, one boost, the second half. Lose and he drops by half the boost. No undo.</p>}
+        intro={<p className="help" style={{ margin: 0 }}>{t('upgradeIntro')}</p>}
       />
     </div>
   )

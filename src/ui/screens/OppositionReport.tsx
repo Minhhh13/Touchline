@@ -8,7 +8,10 @@ import { computeTeamStrength } from '@engine/ratings'
 import { STYLE_LABEL } from '@engine/tactics'
 import { FormDots, Rating, Pos } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
-import { ordinal } from '../format'
+import { translator } from '../i18n'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 /**
  * Scouting summary of the next opponent with a suggested approach. A league
@@ -36,15 +39,15 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
     const midPassing = xi.filter((p) => ['DM', 'CM', 'AM'].includes(p.positions[0])).reduce((s, p) => s + p.attributes.passing, 0) / Math.max(1, xi.filter((p) => ['DM', 'CM', 'AM'].includes(p.positions[0])).length)
     const composure = xi.reduce((s, p) => s + p.attributes.mentality, 0) / Math.max(1, xi.length)
     const tips: string[] = []
-    if (cbPace < 72) tips.push('Slow centre-backs: pace in behind and a high tempo should hurt them.')
-    if (composure < 72) tips.push('A nervy group: a high press forces mistakes.')
-    else if (composure > 80) tips.push('Composed under pressure: a high press is likely to be played through.')
-    if (midPassing > 80) tips.push('A technical midfield: deny them space with a mid block rather than chasing.')
-    if (club.tactics.passing === 'direct' && club.tactics.tempo === 'fast') tips.push('They counter fast and direct: a high line is a risk.')
-    if (club.tactics.mentality === 'defensive') tips.push('They will sit deep: width and patience beat a low block.')
-    if (strength.attack > strength.defence + 4) tips.push('Front-heavy: their defence is the weak unit.')
-    if (strength.defence > strength.attack + 4) tips.push('Well-drilled defence, blunt attack: you can afford to commit numbers.')
-    if (weak) tips.push(`Scouts' weak link: ${weak.name} (${weak.overall}) at ${weak.positions[0]}. Attack his side.`)
+    if (cbPace < 72) tips.push(t('tipSlowCbs'))
+    if (composure < 72) tips.push(t('tipNervy'))
+    else if (composure > 80) tips.push(t('tipComposed'))
+    if (midPassing > 80) tips.push(t('tipTechnical'))
+    if (club.tactics.passing === 'direct' && club.tactics.tempo === 'fast') tips.push(t('tipCounter'))
+    if (club.tactics.mentality === 'defensive') tips.push(t('tipDeep'))
+    if (strength.attack > strength.defence + 4) tips.push(t('tipFrontHeavy'))
+    if (strength.defence > strength.attack + 4) tips.push(t('tipDrilled'))
+    if (weak) tips.push(t('tipWeakLink', { name: weak.name, overall: weak.overall, pos: weak.positions[0] }))
     return { club, strength, stars, row, pos, injured, tips }
   }, [u, game, clubId, given, aiOffset])
   if (!u || !data) return null
@@ -53,10 +56,10 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
     <details className="panel opposition" open={startOpen} style={{ marginBottom: 'var(--space-4)' }}>
       <summary className="panel-head">
         <h3>
-          Opposition report<span className="opp-of">: {club.name}</span>
+          {t('oppReport')}<span className="opp-of">{t('oppOf', { club: club.name })}</span>
         </h3>
         <span className="small muted">
-          {neutral ? 'Neutral' : home ? 'Home' : 'Away'} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? `${ordinal(pos)}, ${row.points} pts` : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? 'Continental opponent'}</>}
+          {t(neutral ? 'venue_neutral' : home ? 'venue_home' : 'venue_away')} · {STYLE_LABEL[u.clubById[clubId]?.style ?? 'balanced']} · {pos > 0 ? t('posPts', { pos, points: row.points }) : <><LeagueFlag leagueId={u.clubById[clubId]?.leagueId ?? 'europe'} /> {u.leagues.find((l) => l.id === u.clubById[clubId]?.leagueId)?.name ?? t('contOpponent')}</>}
           <ChevronDown size={16} className="fold-chevron" aria-hidden="true" />
         </span>
       </summary>
@@ -64,27 +67,27 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
           units and the danger men, so no column runs into the next */}
       <div className="grid three opp-grid">
         <div className="col opp-units" style={{ gap: 6 }}>
-          <div className="eyebrow">Units</div>
+          <div className="eyebrow">{t('units')}</div>
           <dl className="kv">
-            <dt>Rating</dt>
+            <dt>{t('rating')}</dt>
             <dd>{strength.overall.toFixed(1)}</dd>
-            <dt>GK / DEF</dt>
+            <dt>{t('gkDef')}</dt>
             <dd>
               {strength.goalkeeping.toFixed(0)} / {strength.defence.toFixed(0)}
             </dd>
-            <dt>MID / ATT</dt>
+            <dt>{t('midAtt')}</dt>
             <dd>
               {strength.midfield.toFixed(0)} / {strength.attack.toFixed(0)}
             </dd>
             {!given && (
               <>
-                <dt>Form</dt>
+                <dt>{t('form')}</dt>
                 <dd>
                   <FormDots form={row.form} />
                 </dd>
               </>
             )}
-            <dt>Injured</dt>
+            <dt>{t('injured')}</dt>
             <dd className="icon-title" style={{ gap: 'var(--space-1)' }}>
               {injured > 0 && <Bandage size={13} className="ic-injury" aria-hidden="true" />}
               {injured}
@@ -92,24 +95,24 @@ export function OppositionReport({ clubId, home, club: given, aiOffset, neutral,
           </dl>
         </div>
         <div className="col opp-danger" style={{ gap: 6 }}>
-          <div className="eyebrow">Danger men</div>
+          <div className="eyebrow">{t('dangerMen')}</div>
           {stars.map((p) => (
             <div key={p.id} className="row danger-row" style={{ gap: 8 }} data-testid="danger-row">
               <Rating value={p.overall} />
               <span className="danger-name" title={p.name}>{p.name}</span>
               <Pos p={p.positions[0]} />
               {p.positions[0] !== 'GK' && (
-                <button type="button" className={`btn sm ${game?.markTarget === p.id ? 'primary' : 'ghost'}`} title="Man-mark him: his influence drops, your attack loses a little" onClick={() => setMarkTarget(game?.markTarget === p.id ? undefined : p.id)}>
-                  {game?.markTarget === p.id ? 'Marked' : 'Man-mark'}
+                <button type="button" className={`btn sm ${game?.markTarget === p.id ? 'primary' : 'ghost'}`} title={t('manMarkTip')} onClick={() => setMarkTarget(game?.markTarget === p.id ? undefined : p.id)}>
+                  {t(game?.markTarget === p.id ? 'marked' : 'manMark')}
                 </button>
               )}
             </div>
           ))}
         </div>
         <div className="col opp-notes" style={{ gap: 6 }}>
-          <div className="eyebrow">Assistant's notes</div>
+          <div className="eyebrow">{t('assistantNotes')}</div>
           <ul className="notes-list small">
-            {tips.length ? tips.map((t, i) => <li key={i}>{t}</li>) : <li>Nothing stands out. Play your game.</li>}
+            {tips.length ? tips.map((tip, i) => <li key={i}>{tip}</li>) : <li>{t('nothingStands')}</li>}
           </ul>
         </div>
       </div>

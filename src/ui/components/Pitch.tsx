@@ -8,6 +8,10 @@ import { MAT, labelFont, labelRooms } from '../match/pitchLabels'
 import { roleCodeByName, roleLine } from '../match/roleNames'
 import { forgetWidths, textWidth } from '../match/textWidth'
 import { isActivationKey } from '../a11y'
+import { translator } from '../i18n'
+import { draft } from '../i18n/en/draft'
+
+const t = translator(draft)
 
 /** The widest a slot's label may be, and what it falls back to before the pitch is measured. */
 const LABEL_MAX = 110
@@ -62,7 +66,7 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
   // The labels' type is 10px on a small pitch, 11px otherwise
   const font = labelFont(width - MAT * 2)
   return (
-    <div className={`pitch-wrap${roles ? ' has-roles' : ''}`} role="group" aria-label="Formation" ref={ref}>
+    <div className={`pitch-wrap${roles ? ' has-roles' : ''}`} role="group" aria-label={t('formation')} ref={ref}>
       <svg viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true">
         <g fill="none" style={{ stroke: 'var(--pitch-line)' }} strokeWidth="2">
           <rect x="8" y="8" width="284" height="384" />
@@ -95,14 +99,17 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
         const top = foot ? `min(${100 - slot.y}%, calc(100% - var(--foot-room, 20px)))` : `${100 - slot.y}%`
         // The label's form: the full name and role when they fit the slot's room, else the surname and the role code
         const room = rooms[slot.id]
-        const fitNote = fit !== 'natural' ? (fit === 'accomplished' ? ' · acc.' : ' · awk.') : ''
+        const fitNote = fit !== 'natural' ? t(fit === 'accomplished' ? 'fitAcc' : 'fitAwk') : ''
         const role = showRoles?.[slot.id] ?? slot.position
         const name = p ? (textWidth(p.name, font) <= room - 1 ? p.name : surname(p.name)) : ''
         // The role line: the full role when it fits, else its short name ("Inside" for "Inside Forward"), else the code
         const sub = roleLine(role, (text) => textWidth(text, font) <= room, fitNote, roleCodes?.[slot.id] ?? roleCodeByName(role))
+        const label = `${slot.position} ${p ? `${p.name}${rated && !hideRatings ? `, ${slotRatingLine(rated, slot.position)}` : ''}` : t('empty')}`
         return (
-          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingLine(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role={onSlotClick ? 'button' : 'img'} tabIndex={onSlotClick ? 0 : undefined} aria-label={`${slot.position} ${p ? `${p.name}${rated && !hideRatings ? `, ${slotRatingLine(rated, slot.position)}` : ''}` : 'empty'}`} onKeyDown={(e) => { if (onSlotClick && isActivationKey(e.key)) { e.preventDefault(); onSlotClick(slot.id) } }}>
-            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined}>
+          // A pressable pitch makes the disc the button (its target never overlaps a team-mate's label room, WCAG 2.5.8);
+          // a tap on the name still lands on the slot. A read-only pitch is one labelled picture per slot
+          <div key={slot.id} className={`slot${foot ? ' foot' : ''}`} style={{ left, top, '--room': `${Math.round(room)}px` } as CSSProperties} title={p ? `${p.name} · ${role}${fitNote}${rated && !hideRatings ? ` · ${slotRatingLine(rated, slot.position)}` : ''}` : undefined} onClick={() => onSlotClick?.(slot.id)} role={onSlotClick ? undefined : 'img'} aria-label={onSlotClick ? undefined : label}>
+            <div className={`disc ${p ? '' : 'empty'} ${eligible ? 'eligible' : ''} ${selectedSlot === slot.id ? 'selected' : ''} ${warn ? 'flag-warn' : ''}${p && !hideRatings && id === revealId ? ' reveal' : ''}`} style={ring ? { borderColor: ring } : undefined} role={onSlotClick ? 'button' : undefined} tabIndex={onSlotClick ? 0 : undefined} aria-label={onSlotClick ? label : undefined} onKeyDown={onSlotClick ? (e) => { if (isActivationKey(e.key)) { e.preventDefault(); onSlotClick(slot.id) } } : undefined}>
               {p ? (hideRatings ? '?' : eff) : slot.position}
               {/* Out of position: the cost against his overall, so 84 here and 89 on his card read as one number */}
               {rated && !hideRatings && rated.cost > 0 && (
@@ -129,18 +136,18 @@ export function Pitch({ formation, lineup, getPlayer, getState, onSlotClick, sel
 export function PitchLegend() {
   return (
     <div className="pitch-legend" data-testid="pitch-legend">
-      <span>Disc: rating in that slot · −N: out-of-position cost against his overall</span>
+      <span>{t('legendDisc')}</span>
       <span>
-        <i className="ring" /> natural
+        <i className="ring" /> {t('legendNatural')}
       </span>
       <span>
-        <i className="ring" style={{ borderColor: FIT_AMBER }} /> acc. small cost
+        <i className="ring" style={{ borderColor: FIT_AMBER }} /> {t('legendAcc')}
       </span>
       <span>
-        <i className="ring" style={{ borderColor: FIT_RED }} /> awk. big cost
+        <i className="ring" style={{ borderColor: FIT_RED }} /> {t('legendAwk')}
       </span>
       <span>
-        <i className="ring" style={{ borderColor: 'var(--danger)' }} /> injured or suspended
+        <i className="ring" style={{ borderColor: 'var(--danger)' }} /> {t('legendOut')}
       </span>
     </div>
   )

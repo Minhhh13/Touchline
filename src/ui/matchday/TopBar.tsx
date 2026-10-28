@@ -23,6 +23,10 @@ import type { TopBarProps } from './types'
 import type { ManagerHand } from './useManagerHand'
 import { SPEEDS } from './useMatchClock'
 import { useMediaQuery } from '../components/LivePitch'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 const GOALS = new Set(['goal', 'penalty', 'own_goal'])
 
@@ -60,24 +64,24 @@ function ClockFace({ minute, state }: { minute: number; state: { atStop: boolean
   return <span ref={ref} className="clock mono" />
 }
 
-const TOOLS: Array<{ id: DrawerId; label: string }> = [
-  { id: 'tactics', label: 'Tactics' },
-  { id: 'instructions', label: 'Instructions' },
+const TOOLS: Array<{ id: DrawerId; label: () => string }> = [
+  { id: 'tactics', label: () => tx('tactics') },
+  { id: 'instructions', label: () => tx('instructions') },
 ]
-const TOOLS_AFTER: Array<{ id: DrawerId; label: string }> = [
-  { id: 'shouts', label: 'Shouts' },
-  { id: 'tweaks', label: 'Tweaks' },
+const TOOLS_AFTER: Array<{ id: DrawerId; label: () => string }> = [
+  { id: 'shouts', label: () => tx('shouts') },
+  { id: 'tweaks', label: () => tx('tweaks') },
 ]
 
 function Tools({ hand }: { hand: ManagerHand }) {
   const can = hand.editable
-  const tool = (t: { id: DrawerId; label: string }) => {
+  const tool = (t: { id: DrawerId; label: () => string }) => {
     // Tactics is read-only and opens on a replay too; the rest need a match to change
     const disabled = t.id !== 'tactics' && !can
     const title = t.id === 'shouts' && !hand.shoutsOpen ? SHOUTS_CLOSED : undefined
     return (
       <button key={t.id} type="button" className={`md-tool ${hand.drawer === t.id ? 'active' : ''}`} onClick={() => hand.open(t.id)} disabled={disabled} aria-haspopup="dialog" aria-expanded={hand.drawer === t.id} title={title}>
-        {t.label}
+        {t.label()}
       </button>
     )
   }
@@ -89,11 +93,11 @@ function Tools({ hand }: { hand: ManagerHand }) {
       <div className="md-tool-row">
         {TOOLS.map(tool)}
         <label className="md-ment" title={MENTALITY_HELP[hand.tactics.mentality]}>
-          <span className="sr-only">Mentality</span>
+          <span className="sr-only">{tx('mentality')}</span>
           <select className="md-select" value={hand.tactics.mentality} onChange={(e) => setMentality(e.target.value as Mentality)} disabled={!can}>
-            <option value="defensive">Defensive</option>
-            <option value="balanced">Balanced</option>
-            <option value="attacking">Attacking</option>
+            <option value="defensive">{tx('defensive')}</option>
+            <option value="balanced">{tx('balanced')}</option>
+            <option value="attacking">{tx('attacking')}</option>
           </select>
         </label>
         {TOOLS_AFTER.map(tool)}
@@ -142,8 +146,8 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
     </button>
   )
   const sim = playback?.simResult && (
-    <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title="The assistant makes any remaining calls and the match goes straight to the whistle and the report">
-      Sim result
+    <button className="btn sm" onClick={playback.simResult} data-testid="sim-result" title={tx('simResultTip')}>
+      {tx('simResult')}
     </button>
   )
   return (
@@ -167,21 +171,21 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
       </div>
       <div className="md-playback">
         {!clock.finished && (
-          <button className="btn sm" onClick={clock.toggle} title="P pauses and resumes">
-            {clock.running ? 'Pause' : 'Resume'}
+          <button className="btn sm" onClick={clock.toggle} title={tx('pauseTip')}>
+            {tx(clock.running ? 'pause' : 'resume')}
           </button>
         )}
         {phone && skip}
         {phone && sim}
-        <div className="segmented" role="group" aria-label="Speed">
+        <div className="segmented" role="group" aria-label={tx('speed')}>
           {SPEEDS.map((s) => (
             <button key={s} className={clock.speed === s ? 'active' : ''} onClick={() => clock.setSpeed(s)} aria-pressed={clock.speed === s} data-testid={`speed-${s}`}>
-              {s}x
+              {tx('speedX', { s })}
             </button>
           ))}
         </div>
         {highlights && (
-          <select className="input sm md-highlights" value={highlights.level} onChange={(e) => highlights.setLevel(e.target.value as HighlightLevel)} aria-label="Highlights" title={HIGHLIGHT_LEVELS.find((l) => l.id === highlights.level)?.hint} data-testid="highlights">
+          <select className="input sm md-highlights" value={highlights.level} onChange={(e) => highlights.setLevel(e.target.value as HighlightLevel)} aria-label={tx('highlights')} title={HIGHLIGHT_LEVELS.find((l) => l.id === highlights.level)?.hint} data-testid="highlights">
             {HIGHLIGHT_LEVELS.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.label}
@@ -190,24 +194,24 @@ export function TopBar({ feed, clock, minute, home, away, label, hand, playback,
           </select>
         )}
         {highlights?.setKeyMoments && (
-          <button type="button" className={`btn sm md-moments ${highlights.keyMoments ? 'on' : ''}`} onClick={() => highlights.setKeyMoments?.(!highlights.keyMoments)} aria-pressed={!!highlights.keyMoments} aria-label="Key moments: the camera on big chances and goal replays" title={highlights.keyMoments ? 'Key moments on: the camera leans in on big chances and goals are replayed' : 'Key moments off: no camera moves or goal replays'} data-testid="key-moments">
+          <button type="button" className={`btn sm md-moments ${highlights.keyMoments ? 'on' : ''}`} onClick={() => highlights.setKeyMoments?.(!highlights.keyMoments)} aria-pressed={!!highlights.keyMoments} aria-label={tx('keyMoments')} title={tx(highlights.keyMoments ? 'keyMomentsOn' : 'keyMomentsOff')} data-testid="key-moments">
             <Clapperboard size={15} aria-hidden="true" />
           </button>
         )}
         {highlights?.fast && !clock.finished && (
-          <span className="chip info md-fast" data-testid="highlights-fast" title="A quiet spell: the clock runs fast to the next moment">
+          <span className="chip info md-fast" data-testid="highlights-fast" title={tx('fastTip')}>
             ⏩
           </span>
         )}
         {highlights?.wound && (
-          <span className="chip" data-testid="highlights-wound" title="Extended highlights wind down to Key while a side is three goals clear">
-            Highlights wound down: {highlights.wound}
+          <span className="chip" data-testid="highlights-wound" title={tx('woundTip')}>
+            {tx('wound', { score: highlights.wound })}
           </span>
         )}
         {!phone && skip}
         {playback && (
-          <label className={`chip-toggle ${playback.auto ? 'on' : ''}`} title="The assistant makes the calls at the stops still to come">
-            <input type="checkbox" checked={playback.auto} onChange={(e) => playback.setAuto(e.target.checked)} data-testid="auto-toggle" /> Auto from here
+          <label className={`chip-toggle ${playback.auto ? 'on' : ''}`} title={tx('autoTip')}>
+            <input type="checkbox" checked={playback.auto} onChange={(e) => playback.setAuto(e.target.checked)} data-testid="auto-toggle" /> {tx('autoFromHere')}
           </label>
         )}
         {!phone && sim}

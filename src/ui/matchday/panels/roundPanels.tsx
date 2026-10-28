@@ -2,18 +2,25 @@
  * The rest of the round and the occasion: latest scores elsewhere, the live
  * league table as it stands at the clock, and the matchday info card.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { USER_TEAM } from '@engine/season'
 import { roundTable } from '@game/logic/matchday'
-import { minuteLabel, ordinal } from '../../format'
+import { minuteLabel } from '../../format'
 import { freshGoal } from '../model'
 import type { PanelProps } from '../types'
 import { Empty } from './bits'
+import { translator } from '../../i18n'
+import { match } from '../../i18n/en/match'
+import { rich } from '../../i18n/rich'
+
+const tx = translator(match)
+
+const MONO = { b: (c: ReactNode) => <b className="mono">{c}</b> }
 
 export function LatestScores({ d }: PanelProps) {
-  if (!d.ref || d.ref.friendly) return <Empty>No other matches: this is a friendly.</Empty>
-  if (!d.scores.length) return <Empty>No other matches in this round.</Empty>
-  const status = (s: (typeof d.scores)[number]) => (s.status === 'FT' ? 'FT' : s.status === 'HT' ? 'HT' : s.status === 'pre' ? '–' : minuteLabel(Math.max(1, d.minute)))
+  if (!d.ref || d.ref.friendly) return <Empty>{tx('noOtherFriendly')}</Empty>
+  if (!d.scores.length) return <Empty>{tx('noOtherRound')}</Empty>
+  const status = (s: (typeof d.scores)[number]) => (s.status === 'FT' ? tx('ft') : s.status === 'HT' ? tx('ht') : s.status === 'pre' ? '–' : minuteLabel(Math.max(1, d.minute)))
   return (
     <ul className="md-scores">
       {d.scores.map((s) => {
@@ -28,7 +35,7 @@ export function LatestScores({ d }: PanelProps) {
               {s.penalties && (
                 <span className="muted small">
                   {' '}
-                  ({s.penalties.home}-{s.penalties.away} p)
+                  {tx('pensShort', { score: `${s.penalties.home}-${s.penalties.away}` })}
                 </span>
               )}
             </span>
@@ -60,31 +67,31 @@ export function LiveTable({ d }: PanelProps) {
     box.scrollTop = Math.max(0, top)
   }, [userPos])
   // An arena knockout has no league around it; only a friendly is a friendly
-  if (!d.table) return <Empty>{d.ref && !d.ref.friendly ? 'No league table in this competition.' : 'No table: this is a friendly.'}</Empty>
+  if (!d.table) return <Empty>{tx(d.ref && !d.ref.friendly ? 'noTableComp' : 'noTableFriendly')}</Empty>
   const league = d.ref?.competition === 'league'
   return (
     <div className="md-table" ref={ref}>
-      {!league && <div className="small muted md-note">League table as it stands: this is a knockout tie.</div>}
+      {!league && <div className="small muted md-note">{tx('tableKnockout')}</div>}
       <table className="md-tbl">
         <thead>
           <tr>
             <th className="num">#</th>
-            <th aria-label="Movement" />
-            <th>Team</th>
-            <th className="num">P</th>
-            <th className="num">GD</th>
-            <th className="num">Pts</th>
+            <th aria-label={tx('movement')} />
+            <th>{tx('colTeam')}</th>
+            <th className="num">{tx('colPlayed')}</th>
+            <th className="num">{tx('colGd')}</th>
+            <th className="num">{tx('colPts')}</th>
           </tr>
         </thead>
         <tbody>
           {d.table.map((r) => (
             <tr key={r.teamId} className={`${r.isUser ? 'user' : ''} ${r.playing ? 'playing' : ''}`}>
               <td className="num mono">{r.position}</td>
-              <td className={`mv ${r.movement > 0 ? 'up' : r.movement < 0 ? 'down' : ''}`} aria-label={r.movement > 0 ? 'up' : r.movement < 0 ? 'down' : 'no change'}>
+              <td className={`mv ${r.movement > 0 ? 'up' : r.movement < 0 ? 'down' : ''}`} aria-label={tx(r.movement > 0 ? 'moveUp' : r.movement < 0 ? 'moveDown' : 'moveNone')}>
                 {r.movement > 0 ? '▲' : r.movement < 0 ? '▼' : ''}
               </td>
               <td className="team">
-                {r.playing && <span className="md-playing" title="Playing now" />}
+                {r.playing && <span className="md-playing" title={tx('playingNow')} />}
                 <b>{r.code}</b> <span className="nm">{r.name}</span>
               </td>
               <td className="num mono">{r.played}</td>
@@ -100,9 +107,9 @@ export function LiveTable({ d }: PanelProps) {
 
 export function MatchdayInfo({ d }: PanelProps) {
   const { feed, ctx, game, u } = d
-  const competition = ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : ctx.competition === 'league' ? `Matchweek ${ctx.matchweek}` : 'Continental Cup')
+  const competition = ctx.roundLabel ?? (ctx.competition === 'cup' ? tx('cup') : ctx.competition === 'league' ? tx('matchweek', { n: ctx.matchweek }) : tx('continentalCup'))
   const clubOf = (teamId: string) => u.clubById[teamId === USER_TEAM ? game.settings.hostClubId : teamId.replace(/^friendly-/, '')]
-  const venue = feed.neutral ? 'Neutral venue' : (clubOf(feed.home.teamId)?.city ?? '–')
+  const venue = feed.neutral ? tx('neutralVenue') : (clubOf(feed.home.teamId)?.city ?? '–')
   const before = d.ref && !d.ref.friendly ? roundTable(game, d.ref) : []
   const posOf = (teamId: string) => {
     const i = before.findIndex((r) => r.teamId === teamId)
@@ -110,7 +117,7 @@ export function MatchdayInfo({ d }: PanelProps) {
   }
   const earlier = game.season?.fixtures.find((f) => f.result && f.matchweek < ctx.matchweek && ((f.homeTeamId === feed.home.teamId && f.awayTeamId === feed.away.teamId) || (f.homeTeamId === feed.away.teamId && f.awayTeamId === feed.home.teamId)))
   const captain = game.captainId ? d.getName(game.captainId) : undefined
-  const unit = (s: typeof feed.home.strength) => `GK ${s.goalkeeping.toFixed(0)} · DEF ${s.defence.toFixed(0)} · MID ${s.midfield.toFixed(0)} · ATT ${s.attack.toFixed(0)}`
+  const unit = (s: typeof feed.home.strength) => tx('unitLine', { gk: s.goalkeeping.toFixed(0), def: s.defence.toFixed(0), mid: s.midfield.toFixed(0), att: s.attack.toFixed(0) })
   const side = (which: 'home' | 'away') => {
     const fs = which === 'home' ? feed.home : feed.away
     const view = which === 'home' ? d.home : d.away
@@ -119,11 +126,11 @@ export function MatchdayInfo({ d }: PanelProps) {
       <div className="md-info-side">
         <b>{view.code}</b> <span className="muted">{view.name}</span>
         <div className="small">
-          Rating {fs.strength.overall.toFixed(1)} · {unit(fs.strength)}
+          {tx('ratingLine', { r: fs.strength.overall.toFixed(1), units: unit(fs.strength) })}
         </div>
         {p && (
           <div className="small muted">
-            {ordinal(p.pos)} before the round{p.form.length ? ` · form ${p.form.join('')}` : ''}
+            {tx('beforeRound', { pos: p.pos })}{p.form.length ? tx('formLine', { form: p.form.join('') }) : ''}
           </div>
         )}
       </div>
@@ -135,18 +142,18 @@ export function MatchdayInfo({ d }: PanelProps) {
         <b>{competition}</b>
         {feed.importanceLabel || ctx.importanceLabel ? <span className="muted"> · {feed.importanceLabel ?? ctx.importanceLabel}</span> : null}
       </div>
-      <div className="muted">Venue: {venue}</div>
+      <div className="muted">{tx('venue', { venue })}</div>
       <div>
-        Expected goals before kick-off <b className="mono">{feed.xgPreMatch.home.toFixed(2)}</b> - <b className="mono">{feed.xgPreMatch.away.toFixed(2)}</b>
+        {rich(tx('xgBefore', { home: feed.xgPreMatch.home.toFixed(2), away: feed.xgPreMatch.away.toFixed(2) }), MONO)}
       </div>
       {side('home')}
       {side('away')}
       {earlier?.result && (
         <div className="muted">
-          Earlier this season: {earlier.homeTeamId === feed.home.teamId ? d.home.code : d.away.code} {earlier.result.homeGoals}-{earlier.result.awayGoals} {earlier.homeTeamId === feed.home.teamId ? d.away.code : d.home.code} (matchweek {earlier.matchweek})
+          {tx('earlier', { home: earlier.homeTeamId === feed.home.teamId ? d.home.code : d.away.code, score: `${earlier.result.homeGoals}-${earlier.result.awayGoals}`, away: earlier.homeTeamId === feed.home.teamId ? d.away.code : d.home.code, week: earlier.matchweek })}
         </div>
       )}
-      {captain && <div>Captain: {captain}</div>}
+      {captain && <div>{tx('captain', { name: captain })}</div>}
     </div>
   )
 }

@@ -23,7 +23,17 @@ export function makeBank(c: BaseAudioContext): NoiseBank {
     buf.getChannelData(0).set(noiseSamples(n, colour))
     return buf
   }
-  return { white: fill('white'), pink: fill('pink') }
+  // Each buffer is filled the first time a sound reads it (the same samples), so unlocking the context on the first
+  // tap does not fill both (about 60 ms on a 4x-throttled phone, in that tap); synth.ts warms the rest after it
+  const made: { white?: AudioBuffer; pink?: AudioBuffer } = {}
+  return {
+    get white() {
+      return (made.white ??= fill('white'))
+    },
+    get pink() {
+      return (made.pink ??= fill('pink'))
+    },
+  }
 }
 
 /** Where the safety net starts to bend, and the most it lets through. */

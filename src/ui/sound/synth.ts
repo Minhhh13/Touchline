@@ -1,7 +1,8 @@
 import type { DisplayTier } from '@game/logic/rarity'
-import { matchSoundOn, soundOn, subscribeSound } from './prefs'
+import { categoryOn, draftSoundOn, soundOn, soundVolume, subscribeSound, subscribeVolume } from './prefs'
 import { makeBank, renderScore, safetyNet, type NoiseBank } from './render'
 import { scoreFor, type Score, type SoundRequest } from './scores'
+import { CUE_CATEGORY, isCue, makeThinner, type CueRequest } from './cues'
 
 /*
  * TouchLine's sounds, synthesised in the browser with the Web Audio API: no
@@ -12,7 +13,8 @@ import { scoreFor, type Score, type SoundRequest } from './scores'
  * Rules: nothing plays before a user gesture (the context is created or resumed
  * inside one, see `armAudio`), nothing plays while sound is off, and nothing
  * happens where there is no AudioContext (tests, headless runs, old browsers).
- * Match sounds also follow their own switch (`matchSoundOn`). Math.random here
+ * Match, draft and interface sounds also follow their own switches (`categoryOn`), and the
+ * master follows the viewer's volume (`gainNow`). Math.random here
  * only varies a tick's pitch and fills the tick's noise; the palette's variation
  * is seeded per sound. All of it is presentation and never touches the game.
  */
@@ -34,6 +36,27 @@ let tickNoise: AudioBuffer | null = null
 let whooshNoise: AudioBuffer | null = null
 let bank: NoiseBank | null = null
 let armed = false
+
+/** The master's gain now: `MASTER_GAIN` at the viewer's volume, 0 with sound off. */
+export function gainNow(): number {
+  return soundOn() ? (MASTER_GAIN * soundVolume()) / 100 : 0
+}
+
+type Voices = typeof import('./voices')
+let voices: Voices | null = null
+let voicesLoading: Promise<Voices | null> | null = null
+
+/** The second pass's voices (voices.ts), a chunk of their own: fetched once, on the first gesture, so the first download never carries them. */
+function loadVoices(): Promise<Voices | null> {
+  voicesLoading ??= import('./voices').then(
+    (m) => (voices = m),
+    () => {
+      voicesLoading = null
+      return null
+    },
+  )
+  return voicesLoading
+}
 
 function audioCtor(): Ctor | null {
   if (typeof window === 'undefined') return null
@@ -63,11 +86,15 @@ export function unlockAudio(): void {
       if (!C) return
       ctx = new C()
       master = ctx.createGain()
-      master.gain.value = MASTER_GAIN
+      master.gain.value = gainNow()
       master.connect(safetyNet(ctx))
       tickNoise = noise(ctx, TICK_NOISE_S)
       whooshNoise = noise(ctx, WHOOSH_NOISE_S)
-      bank = makeBank(ctx)
+      const made = (bank = makeBank(ctx))
+      // The buffers a sound has not asked for yet, each in a task of its own once the tap is over
+      setTimeout(() => void made.white, 400)
+      setTimeout(() => void made.pink, 800)
+      void loadVoices()
     }
     if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined)
   } catch {
@@ -89,21 +116,26 @@ export function armAudio(): void {
   }
   for (const type of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(type, onGesture, { capture: true, passive: true })
   window.addEventListener('click', clickSound, { capture: true, passive: true })
-  subscribeSound(() => {
+  const follow = () => {
     if (!ctx || !master) return
-    const on = soundOn()
     master.gain.cancelScheduledValues(ctx.currentTime)
-    master.gain.setValueAtTime(on ? MASTER_GAIN : 0, ctx.currentTime)
-  })
+    master.gain.setValueAtTime(gainNow(), ctx.currentTime)
+  }
+  subscribeSound(follow)
+  subscribeVolume(follow)
 }
 
-/** A primary button pressed: the palette's quiet click (none on a disabled button or inside `data-sound="off"`). */
+/**
+ * A primary button pressed: the palette's quiet click, or the confirm (a short rising fifth) when the button is a
+ * dialog's own action. None on a disabled button or inside `data-sound="off"`.
+ */
 function clickSound(e: Event): void {
   if (!e.isTrusted) return
   const t = e.target as Element | null
   const b = typeof t?.closest === 'function' ? t.closest('.btn.primary') : null
   if (!b || (b as HTMLButtonElement).disabled || b.closest('[data-sound="off"]')) return
-  playSound({ id: 'click' })
+  if (b.closest('[role="dialog"], [role="alertdialog"]')) playSound({ id: 'confirm' })
+  else playSound({ id: 'click' })
 }
 
 /** The context to play on now, or null: no gesture yet, sound off, or no Web Audio. */
@@ -135,9 +167,14 @@ function tone(c: AudioContext, out: AudioNode, at: number, freq: number, opts: {
   return osc
 }
 
+/** The context for the reel's own sounds: as `liveAudio`, and null while the draft's sounds are off. */
+function draftAudio(): { c: AudioContext; out: AudioNode } | null {
+  return draftSoundOn() ? liveAudio() : null
+}
+
 /** A card passing the marker: a 40 ms burst of band-passed noise. `rate` (about 0.9 to 1.1) shifts its pitch. */
 export function playTick(at: number, rate: number): AudioScheduledSourceNode | null {
-  const a = liveAudio()
+  const a = draftAudio()
   if (!a || !tickNoise) return null
   const { c, out } = a
   const src = c.createBufferSource()
@@ -156,7 +193,7 @@ export function playTick(at: number, rate: number): AudioScheduledSourceNode | n
 
 /** The season showing: a short rising whoosh of filtered noise. */
 export function playWhoosh(at: number): AudioScheduledSourceNode | null {
-  const a = liveAudio()
+  const a = draftAudio()
   if (!a || !whooshNoise) return null
   const { c, out } = a
   const src = c.createBufferSource()
@@ -175,7 +212,7 @@ export function playWhoosh(at: number): AudioScheduledSourceNode | null {
 
 /** The season landing on the drum: a soft pop, a sine dropping in pitch. */
 export function playPop(at: number): AudioScheduledSourceNode | null {
-  const a = liveAudio()
+  const a = draftAudio()
   if (!a) return null
   return tone(a.c, a.out, at, 540, { glideTo: 190, peak: 0.45, dur: 0.14 })
 }
@@ -207,15 +244,33 @@ export function playUpgradeResult(won: boolean, reduced = false): void {
   playSound({ id: 'upgrade', won, reduced })
 }
 
+const thin = makeThinner()
+const clock = () => (typeof performance !== 'undefined' ? performance.now() : 0)
+
 /**
- * Plays one sound of the palette (scores.ts) `delay` s from now: nothing without a gesture, with sound off, or for
- * a match sound with match sounds off. Returns the sources it scheduled (empty when it played nothing).
+ * Plays one sound of the palette (scores.ts) or one cue (cues.ts, voices.ts) `delay` s from now: nothing without a
+ * gesture, with sound off, with the sound's category switched off (`categoryOn`), or for a rapid repeat the thinning
+ * drops (`CUE_GAP_MS`). Returns the sources it scheduled (empty when it played nothing, or when a cue's voices are
+ * still loading: the cue then plays as they arrive, if it is still within half a second).
  */
-export function playSound(req: SoundRequest, delay = 0): AudioScheduledSourceNode[] {
+export function playSound(req: SoundRequest | CueRequest, delay = 0): AudioScheduledSourceNode[] {
   const a = liveAudio()
   if (!a || !bank) return []
-  const score = scoreFor(req)
-  if (score.category === 'match' && !matchSoundOn()) return []
+  if (!categoryOn(isCue(req.id) ? CUE_CATEGORY[req.id] : scoreFor(req as SoundRequest).category)) return []
+  if (!thin(req.id, clock())) return []
+  if (!isCue(req.id)) return render(a, scoreFor(req as SoundRequest), delay)
+  const cue = req as CueRequest
+  if (voices) return render(a, voices.cueScore(cue), delay)
+  const asked = clock()
+  void loadVoices().then((v) => {
+    const now = liveAudio()
+    if (v && now && clock() - asked < 500) render(now, v.cueScore(cue), delay)
+  })
+  return []
+}
+
+function render(a: { c: AudioContext; out: AudioNode }, score: Score, delay: number): AudioScheduledSourceNode[] {
+  if (!bank) return []
   try {
     return renderScore(a.c, a.out, a.c.currentTime + 0.01 + Math.max(0, delay), score, bank)
   } catch {

@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { canChangeInPlay, managerWindowsUsed, MAX_SUBS, MAX_WINDOWS, subsMade, type FullMatchResult, type LiveChanges } from '@engine/match'
-import { feedFromResult, scoreAt, type MatchFeed } from '@engine/matchFeed'
+import { scoreAt, type MatchFeed } from '@engine/matchFeed'
 import { statsSeries, xgStory } from '@engine/matchStats'
 import { liveCondition, ratingsAt } from '@engine/liveRatings'
 import { getFormation } from '@engine/formations'
@@ -27,11 +27,12 @@ import { MomentumBar } from '../components/MatchCharts'
 import { commentaryUpTo } from '../match/commentary'
 import { assistantSubsBetween, assistantSubToast } from '../match/assistantSubs'
 import { commentaryContextFor } from '../match/commentaryColour'
-import { liveFeed, liveFeedKey, pathOf, samplesOf } from '../match/prepare'
-import { cuePending, useLiveClock } from '../match/clockStore'
+import { liveFeed, liveFeedKey, pathOf, replayCodes, replayKey, resultFeed, samplesOf } from '../match/prepare'
+import { cuePending, panelMinute, useLiveClock } from '../match/clockStore'
 import { isControlTarget } from '../dugoutKeys'
 import { boostAt, HIGHLIGHTS_KEY, levelAt, marginAt, parseLevel, type HighlightLevel } from '../match/highlights'
 import { cueTimes, goalHolds } from '../match/possession'
+import { matchPace } from '../match/timing'
 import { keeperKit, kitColours, shirtNumbers, teamCode } from '../match/shirts'
 import { CompactLayout } from './CompactLayout'
 import { emptyDraft, highlightedMan, nextSelection, type StopDraft } from './controls'
@@ -54,6 +55,10 @@ import { useMatchSounds } from '../sound/useMatchSounds'
 import './matchday.css'
 import './matchday-controls.css'
 import './matchday-phone.css'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const tx = translator(match)
 
 export type DashboardSource = { mode: 'live'; live: LiveMatch } | { mode: 'replay'; res: FullMatchResult; ctx: MatchContext }
 
@@ -73,9 +78,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   const ctx = live ? live.ctx : (source as { ctx: MatchContext }).ctx
   const homeId = live ? live.mp.home.teamId : res!.homeTeamId
   const awayId = live ? live.mp.away.teamId : res!.awayTeamId
-  const codes = useMemo(() => ({ home: teamCode(u, homeId, live?.mp.home.shortName ?? res!.homeName, game.settings.shortName), away: teamCode(u, awayId, live?.mp.away.shortName ?? res!.awayName, game.settings.shortName) }), [u, homeId, awayId, live, res, game.settings.shortName])
-  // A live segment's feed, ball path and samples may already be built (prepare.ts, between playing the week and this render)
-  const feed: MatchFeed = useMemo(() => (live ? liveFeed(live.mp, liveFeedKey(live)) : feedFromResult(res!, `${res!.homeTeamId}-${res!.awayTeamId}-${ctx.matchweek}`, codes)), [live, res, ctx.matchweek, codes])
+  const codes = useMemo(() => (live ? { home: teamCode(u, homeId, live.mp.home.shortName, game.settings.shortName), away: teamCode(u, awayId, live.mp.away.shortName, game.settings.shortName) } : replayCodes(u, res!, game.settings.shortName)), [u, homeId, awayId, live, res, game.settings.shortName])
+  // A segment's or a replay's feed, ball path and samples may already be built (prepare.ts, between playing the step and this render)
+  const feed: MatchFeed = useMemo(() => (live ? liveFeed(live.mp, liveFeedKey(live)) : resultFeed(res!, replayKey(res!, ctx), codes)), [live, res, ctx, codes])
   const userSide: 'home' | 'away' | null = live ? (live.userIsHome ? 'home' : 'away') : homeId === USER_TEAM ? 'home' : awayId === USER_TEAM ? 'away' : null
 
   // Kits, keepers and numbers
@@ -113,7 +118,9 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   // A reload picks the clock up where this tab left the segment (resume.ts), not from its first minute again
   const resumeKey = live ? segmentKey(game.id, feed.key, feed.decidedTo, start, feed.events.length) : null
   const [resumeAt] = useState(() => (resumeKey ? resumeFrom(readMark(resumeKey), resumeKey, start, stopAt) : start))
-  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, reduced, onFinish: final ? onWhistle : undefined })
+  // A crowded minute plays longer on screen (the same pace the ball path is laid out in)
+  const pace = useMemo(() => matchPace(feed.events), [feed.events])
+  const clock = useMatchClock({ start: resumeAt, stopAt, final, period: PITCH_PERIOD, holds, cues, pace, reduced, onFinish: final ? onWhistle : undefined })
   useEffect(() => {
     if (!resumeKey) return
     return useLiveClock.subscribe((s, prev) => {
@@ -131,8 +138,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
   // The panels and the scoreboard see a goal once the ball is over the line, not at the start of its minute
   const revealed = useLiveClock((s) => s.revealed)
   const cued = useLiveClock((s) => s.cued ?? 0)
-  const pending = holds.some((h, i) => i >= revealed && Math.floor(h.t) <= clock.clock && h.t >= start) || (!clock.finished && cuePending(cues, cued, clock.clock, start))
-  const minute = pending ? Math.max(start, clock.clock - 1) : clock.clock
+  const minute = panelMinute(holds, revealed, clock.clock, start, !clock.finished && cuePending(cues, cued, clock.clock, start))
   const whistle = clock.finished && final
   // The assistant's routine and injury changes for our side come up as a toast when the clock reaches them (display only)
   const subsSeen = useRef(minute)
@@ -202,7 +208,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
     ? {
         minute: clock.clock,
         stop: clock.atStop ? (stopAt === 45 ? 45 : 70) : null,
-        can: canChangeInPlay(live.mp, minute, userSide ?? 'home'),
+        can: canChangeInPlay(live.mp, Math.max(start, minute), userSide ?? 'home'),
         userSide: userSide ?? 'home',
         tactics: (live.userIsHome ? live.mp.home : live.mp.away).tactics,
         shout: (live.userIsHome ? live.mp.home : live.mp.away).shout,
@@ -250,7 +256,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
       watch?.disconnect()
     }
   }, [compact])
-  const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? 'Cup' : ctx.competition === 'league' ? `Matchweek ${ctx.matchweek}` : 'Continental Cup')}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
+  const label = `${ctx.roundLabel ?? (ctx.competition === 'cup' ? tx('cup') : ctx.competition === 'league' ? tx('matchweek', { n: ctx.matchweek }) : tx('continentalCup'))}${ctx.importanceLabel ? ` · ${ctx.importanceLabel}` : ''}`
   const crumb = (
     <div className={`md-crumb ${crumbEnd ? 'has-end' : ''}`}>
       <b>
@@ -323,7 +329,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
     live && clock.atStop && stopActions ? (
       autoAtStop ? (
         <div className="panel assistant-note small" role="status" data-testid="assistant-note">
-          The assistant is making the {stopAt === 45 ? 'half-time' : '70th-minute'} calls…
+          {tx(stopAt === 45 ? 'assistantMakingHt' : 'assistantMaking70')}
         </div>
       ) : (
         <StopPanel live={live} actions={stopActions} draft={draft} setDraft={setDraft} board={{ hand, view: stripSide === 'home' ? home : away, get, squad: game.squad, condition, hideRatings: ratingHidden(game.settings.rules, 'squad') }} />

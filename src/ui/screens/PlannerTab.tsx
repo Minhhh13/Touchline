@@ -7,10 +7,14 @@ import { medicalReport } from '@game/logic/medical'
 import { STAFF } from '@engine/staff'
 import { Info, Pos } from '../components/bits'
 import { wage } from '../format'
+import { translator } from '../i18n'
+import { rich } from '../i18n/rich'
+import { dugout } from '../i18n/en/dugout'
+
+const t = translator(dugout)
 
 const surname = surnameOf
 const BAND_CHIP = { low: '', medium: 'warn', high: 'bad' } as const
-const BAND_LABEL = { low: 'Low', medium: 'Medium', high: 'High' } as const
 
 /**
  * The Planner tab: depth and needs by position with who is next in, a
@@ -36,11 +40,11 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
         <div className="panel-head">
           <span className="head-title">
             <h3 className="icon-title">
-              <ClipboardList size={18} aria-hidden="true" /> Squad planner
+              <ClipboardList size={18} aria-hidden="true" /> {t('squadPlanner')}
             </h3>
-            <Info label="About the squad planner">Everyone who can play each position, rated there, best first. Next in is the best fit player outside the XI. A position needs a signing with fewer natural players than places plus one (two at least), all of them 30 or older, or all out of contract.</Info>
+            <Info label={t('aboutPlanner')}>{t('plannerInfo')}</Info>
           </span>
-          <span className={`chip ${needs ? 'warn' : 'good'}`}>{needs ? `${needs} need${needs === 1 ? 's' : ''}` : 'Covered'}</span>
+          <span className={`chip ${needs ? 'warn' : 'good'}`}>{needs ? t('needs', { n: needs }) : t('covered')}</span>
         </div>
         <div className="plan-rows">
           {[...used, ...spare].map((r) => (
@@ -48,22 +52,22 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
               <div className="row between" style={{ gap: 'var(--space-2)' }}>
                 <span className="row" style={{ gap: 'var(--space-2)' }}>
                   <Pos p={r.position} />
-                  <span className="small muted">{r.naturals} natural · {r.depth.length} cover</span>
+                  <span className="small muted">{t('naturalCover', { naturals: r.naturals, cover: r.depth.length })}</span>
                 </span>
                 {r.need && <span className="chip warn">{r.need}</span>}
               </div>
               <div className="small plan-names">
-                {r.depth.length === 0 && <span className="muted">Nobody</span>}
+                {r.depth.length === 0 && <span className="muted">{t('nobody')}</span>}
                 {r.depth.slice(0, 5).map((d) => (
-                  <button key={d.id} type="button" className={`chip ${d.inXI ? 'info' : ''} ${d.available ? '' : 'dim'}`} title={`${d.name}, ${d.age}${d.natural ? '' : ', can cover'}${d.available ? '' : ', unavailable'}`} onClick={() => onPlayer(d.id)}>
+                  <button key={d.id} type="button" className={`chip ${d.inXI ? 'info' : ''} ${d.available ? '' : 'dim'}`} title={t('depthTip', { name: d.name, age: d.age, cover: d.natural ? '' : t('canCoverSuffix'), unavailable: d.available ? '' : t('unavailableSuffix') })} onClick={() => onPlayer(d.id)}>
                     {surname(d.name)} {d.rating}
-                    {d.age >= 30 ? <span className="muted"> · {d.age}y</span> : null}
+                    {d.age >= 30 ? <span className="muted">{t('ageY', { age: d.age })}</span> : null}
                   </button>
                 ))}
               </div>
               {r.used && (
                 <div className="small muted">
-                  Next in: {r.next ? <b className="next-in">{r.next.name} ({r.next.rating})</b> : 'nobody fit'}
+                  {r.next ? rich(t('nextIn', { who: t('nextInWho', { name: r.next.name, rating: r.next.rating }) }), { b: (c) => <b className="next-in">{c}</b> }) : t('nextInNobody')}
                 </div>
               )}
             </div>
@@ -76,23 +80,23 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
         <div className="panel-head">
           <span className="head-title">
             <h3 className="icon-title">
-              <FileSignature size={18} aria-hidden="true" /> Contracts
+              <FileSignature size={18} aria-hidden="true" /> {t('contracts')}
             </h3>
-            <Info label="About contracts">Years include this season. Expiring players leave in the summer unless they renew: open contract talks from a player's card any time, or answer the renewal decision in the Inbox; loans go back. Change a status on the Club tab.</Info>
+            <Info label={t('aboutContracts')}>{t('contractsInfo')}</Info>
           </span>
           <span className="small muted">
-            {contracts.expiring} expiring · {wage(contracts.wagesLeaving)} off
+            {t('expiringOff', { n: contracts.expiring, w: wage(contracts.wagesLeaving) })}
           </span>
         </div>
         <div className="tbl-wrap">
           <table className="tbl contracts-overview">
             <thead>
               <tr>
-                <th>Player</th>
-                <th className="num">Age</th>
-                <th className="num">Yrs</th>
-                <th className="num">Wage</th>
-                <th>Role</th>
+                <th>{t('player')}</th>
+                <th className="num">{t('age')}</th>
+                <th className="num">{t('yrs')}</th>
+                <th className="num">{t('wageCol')}</th>
+                <th>{t('role')}</th>
               </tr>
             </thead>
             <tbody>
@@ -104,7 +108,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                     </button>
                   </td>
                   <td className="num">{c.age}</td>
-                  <td className="num">{c.loan ? <span className="chip">Loan</span> : c.declined ? <span className="chip bad">Out</span> : c.renewed ? <span className="chip good">New</span> : c.expiring ? <span className="chip warn" title="Last season of his contract">Last</span> : c.years}</td>
+                  <td className="num">{c.loan ? <span className="chip">{t('loan')}</span> : c.declined ? <span className="chip bad">{t('out')}</span> : c.renewed ? <span className="chip good">{t('newChip')}</span> : c.expiring ? <span className="chip warn" title={t('lastTip')}>{t('last')}</span> : c.years}</td>
                   <td className="num">{wage(c.wage)}</td>
                   <td className="one-line">{c.statusLabel}</td>
                 </tr>
@@ -119,36 +123,36 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
         <div className="panel-head">
           <span className="head-title">
             <h3 className="icon-title">
-              <Stethoscope size={18} aria-hidden="true" /> Medical
+              <Stethoscope size={18} aria-hidden="true" /> {t('medical')}
             </h3>
-            <Info label="About injury risk">The chance of an injury in a full match, from his proneness, his condition and, for an outfielder, low stamina on tired legs. Heavy minutes cost condition. Resting a tired man brings it down.</Info>
+            <Info label={t('aboutInjury')}>{t('injuryInfo')}</Info>
           </span>
-          <span className="small muted">Physio: {STAFF.physio.tiers[med.physio].title}</span>
+          <span className="small muted">{t('physio', { title: STAFF.physio.tiers[med.physio].title })}</span>
         </div>
         {med.out.length > 0 && (
           <div className="med-out">
-            <div className="eyebrow">Injured</div>
+            <div className="eyebrow">{t('injured')}</div>
             {med.out.map((o) => (
               <button key={o.id} type="button" className="room-row" onClick={() => onPlayer(o.id)}>
                 <span className="who">
                   <b>{o.name}</b>
                   <span className="small muted">{o.description}</span>
                 </span>
-                <span className="chip bad">{o.weeksOut} wk</span>
+                <span className="chip bad">{t('wk', { n: o.weeksOut })}</span>
               </button>
             ))}
           </div>
         )}
-        <div className="eyebrow" style={{ marginTop: med.out.length ? 'var(--space-3)' : 0 }}>Risk next match</div>
+        <div className="eyebrow" style={{ marginTop: med.out.length ? 'var(--space-3)' : 0 }}>{t('riskNext')}</div>
         <div className="plist lined">
           {med.risks.map((r) => (
             <button key={r.id} type="button" className="room-row" onClick={() => onPlayer(r.id)} data-testid="risk-row">
               <span className="who">
                 <b>{r.name}</b>
-                <span className="small muted one-line">{r.reasons.length ? r.reasons.join(' · ') : 'Nothing to note'}</span>
+                <span className="small muted one-line">{r.reasons.length ? r.reasons.join(' · ') : t('nothingToNote')}</span>
               </span>
-              <span className={`chip ${BAND_CHIP[r.band]}`} title={`${r.matchPct}% a match, ${r.trainingPct}% in training this week`}>
-                {BAND_LABEL[r.band]} · {r.matchPct}%
+              <span className={`chip ${BAND_CHIP[r.band]}`} title={t('riskTip', { match: r.matchPct, training: r.trainingPct })}>
+                {t('bandPct', { band: t(`band_${r.band}`), pct: r.matchPct })}
               </span>
             </button>
           ))}

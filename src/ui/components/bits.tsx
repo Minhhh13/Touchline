@@ -9,7 +9,13 @@ import { tipSeen, type TipId } from '@game/logic/tips'
 import { NationFlag } from './Flag'
 import { useCountUp } from '../motion'
 import { useDialog } from '../useDialog'
-import { resultsLabel } from '../a11y'
+import { onTabListKey, resultsLabel } from '../a11y'
+import { playSound } from '../sound/synth'
+import { toastTone } from '../sound/cues'
+import { translator } from '../i18n'
+import { common } from '../i18n/en/common'
+
+const t = translator(common)
 
 export function ClubBadge({ clubId, size = 32 }: { clubId: string; size?: number }) {
   const u = useStore((s) => s.universe)
@@ -62,8 +68,8 @@ export function Rating({ value, size, hidden, range, reveal, label }: { value: n
 /** The marker of a classic season's numbers: TouchLine's estimate, not an EA rating. `compact` fits a player row. */
 export function EstimatedChip({ compact }: { compact?: boolean }) {
   return (
-    <span className="chip estimated" data-testid="estimated-chip" title="Estimated ratings: no official ratings exist for this season, so TouchLine estimates them from real appearances, goals and results. Squads and tables are real.">
-      {compact ? 'est.' : 'Estimated ratings'}
+    <span className="chip estimated" data-testid="estimated-chip" title={t('estimatedTip')}>
+      {t(compact ? 'estimatedShort' : 'estimated')}
     </span>
   )
 }
@@ -116,7 +122,7 @@ export function Modal({ open, onClose, title, children, wide, sheet, testId, cla
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
             {onClose && (
-              <button className="btn sm ghost" onClick={onClose} aria-label="Close">
+              <button className="btn sm ghost" onClick={onClose} aria-label={t('close')}>
                 ✕
               </button>
             )}
@@ -135,6 +141,8 @@ export function Toast() {
   const [leaving, setLeaving] = useState<string | null>(null)
   useEffect(() => {
     if (!toast) return
+    // Heard as it shows: a soft blip, or two falling notes for something that failed (interface sounds, thinned on a burst)
+    playSound({ id: toastTone(toast) })
     // The same message shown again later starts afresh
     setLeaving(null)
     const out = setTimeout(() => setLeaving(toast), 2980)
@@ -179,7 +187,7 @@ export function CountUp({ value }: { value: number }) {
  * clipped by a scrolling list and never widens the page. Keep the text short
  * and plain; no links or buttons inside.
  */
-export function Info({ children, label = 'More information' }: { children: ReactNode; label?: string }) {
+export function Info({ children, label = t('moreInfo') }: { children: ReactNode; label?: string }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ left: number; top: number; below: boolean } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -281,10 +289,10 @@ export function FormDots({ form }: { form: Array<'W' | 'D' | 'L'> }) {
 export function Tabs<T extends string>({ tabs, value, onChange, className = '', testId }: { tabs: Array<{ id: T; label: ReactNode; alert?: boolean; badge?: number }>; value: T; onChange: (t: T) => void; /** Extra classes on the strip. */ className?: string; /** Each tab gets `data-testid="<testId>-<id>"`. */ testId?: string }) {
   const ink = useTabInk(value, tabs.length)
   return (
-    <div className={`tabs ${ink.style ? 'has-ink' : ''} ${className}`} role="tablist" ref={ink.ref}>
+    <div className={`tabs ${ink.style ? 'has-ink' : ''} ${className}`} role="tablist" ref={ink.ref} onKeyDown={onTabListKey}>
       {ink.style && <span className={`tabs-ink ${ink.ready ? 'ready' : ''}`} style={ink.style} aria-hidden="true" />}
       {tabs.map((t) => (
-        <button key={t.id} role="tab" aria-selected={t.id === value} className={t.id === value ? 'active' : ''} onClick={() => onChange(t.id)} data-testid={testId ? `${testId}-${t.id}` : undefined}>
+        <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} className={t.id === value ? 'active' : ''} onClick={() => { if (t.id !== value) playSound({ id: 'tab' }); onChange(t.id) }} data-testid={testId ? `${testId}-${t.id}` : undefined}>
           {t.label}
           {t.badge ? (
             <span className="tab-badge" data-testid={`badge-${t.id}`} role="img" aria-label={`${t.badge} new`}>
@@ -346,7 +354,7 @@ export function Tip({ id, children }: { id: TipId; children: ReactNode }) {
     <div className="tip" role="note" data-testid={`tip-${id}`}>
       <span className="tip-text">{children}</span>
       <button type="button" className="btn sm" onClick={() => dismiss(id)}>
-        Got it
+        {t('gotIt')}
       </button>
     </div>
   )
