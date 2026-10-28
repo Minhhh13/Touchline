@@ -64,6 +64,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // Every test ends on a macrotask so the worker answers Vitest's RPC between tests (src/testSetup.ts)
+    setupFiles: ['src/testSetup.ts'],
     // One worker per core (Vitest leaves one free by default): the tests are CPU-bound and the main process mostly waits
     maxWorkers: Math.max(1, availableParallelism()),
     sequence: { sequencer: SlowFirst },
