@@ -259,7 +259,7 @@ export const summary = catalog('summary', {
   colResult: 'Result',
   colRealChampions: 'Real champions',
   cupChip: 'Cup',
-  europeChip: 'Europe',
+  europeChip: 'Continental',
   shareCard: 'Share card',
   shareText: 'Share text',
 })

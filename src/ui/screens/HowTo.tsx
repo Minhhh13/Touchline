@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Activity, ArrowLeftRight, Armchair, Award, Banknote, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Landmark, Layers, Lock, MessageSquare, Mountain, Package, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, Zap, type LucideIcon } from 'lucide-react'
+import { Activity, ArrowLeftRight, Armchair, Award, Banknote, Cloud, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Handshake, Landmark, Layers, Lock, MessageSquare, Mountain, Package, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, Zap, type LucideIcon } from 'lucide-react'
 import { useStore } from '@game/store'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
@@ -80,10 +80,12 @@ const modeFacts = (): Array<[LucideIcon, string, string]> => [
   [Flag, t('mRunInTitle'), t('mRunIn')],
   [Swords, t('mH2HTitle'), t('mH2H')],
   [Award, t('mTrophyRoomTitle'), t('mTrophyRoom')],
+  [Cloud, t('mOnlineTitle'), t('mOnline')],
 ]
 
 const dynastyFacts = (): Array<[LucideIcon, string, string]> => [
   [Sprout, t('dAgeingTitle'), t('dAgeing')],
+  [Handshake, t('dRenewalsTitle'), t('dRenewals')],
   [Dices, t('dSummerTitle'), t('dSummer')],
   [GraduationCap, t('dAcademyTitle'), t('dAcademy')],
   [Crown, t('dJobsTitle'), t('dJobs')],

@@ -10,7 +10,7 @@ export const dugout = catalog('dugout', {
   tabFixtures: 'Fixtures',
   tabTable: 'Table',
   tabCup: 'Cup',
-  tabEurope: 'Europe',
+  tabEurope: 'Continental',
   tabStats: 'Stats',
   tabMarket: 'Market',
   tabInbox: 'Inbox',
