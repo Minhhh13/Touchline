@@ -282,8 +282,9 @@ export function Dugout() {
                         ⏸ {stopped.label}
                       </span>
                     )}
-                    {cupTie && <span>{t('thenCup', { round: cupTie.label, home: cupTie.homeTeamId === USER_TEAM ? 'home' : 'away', club: clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId) })}</span>}
                   </div>
+                  {/* The midweek tie on its own line, so a wrapped row never starts with a separator dot */}
+                  {cupTie && <div className="cta-then">{t('thenCup', { round: cupTie.label, home: cupTie.homeTeamId === USER_TEAM ? 'home' : 'away', club: clubShort(u, cupTie.homeTeamId === USER_TEAM ? cupTie.awayTeamId : cupTie.homeTeamId) })}</div>}
                 </div>
               </div>
             ) : (
@@ -911,7 +912,12 @@ function SeasonStrip({ table }: { table: TableRow[] }) {
               {c.opp && <span className="ss-ha">{t(c.home ? 'home' : 'away')}</span>}
             </span>
             <span className="ss-chips">
-              {c.outcome && <span className={`chip ${outcomeClass(c.outcome)}`}>{c.outcome}</span>}
+              {c.outcome && (
+                <span className={`chip ss-score ${outcomeClass(c.outcome)}`}>
+                  {c.ours}
+                  <span className="res-letter">{c.outcome}</span>
+                </span>
+              )}
               {c.ties.map((x) => (
                 <span key={x.comp + x.round} className={`chip ss-tie ${x.outcome ? outcomeClass(x.outcome) : ''}`}>
                   {t(x.comp === 'cup' ? 'cupShort' : 'ccShort')}
@@ -1716,7 +1722,7 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
             <Info label={t('aboutFinances')}>{t('financesInfo')}</Info>
           </span>
         </div>
-        <dl className="kv tight">
+        <dl className="kv tight ledger">
           <dt>{t('transferBudget')}</dt>
           <dd>{money(game.finances.budget)}</dd>
           <dt>{t('wageBill')}</dt>

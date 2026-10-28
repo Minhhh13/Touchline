@@ -458,6 +458,7 @@ export const dugout = catalog('dugout', {
   aboutContracts: 'About contracts',
   contractsInfo: 'Years include this season. A contract that runs out in the summer puts him on the renewal list for pre-season: offer terms from his card, or let him go. At the opener the assistant renews the willing ones worth keeping (the best 18, anyone 23 or under, the two best keepers) and the rest leave on a free. Loans go back. Change a status on the Club tab.',
   renewalHead: 'Out of contract · decide before the opener',
+  renewalLine: '{age}y · {wage} · {role}',
   offerTerms: 'Offer terms',
   letGo: 'Let go',
   talks: 'Talks',

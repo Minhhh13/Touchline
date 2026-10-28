@@ -137,7 +137,10 @@
   /* Type */
   --font-display: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --font-body: 'Sora', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Figures (minutes, ratings, scores, stats): Sora, and every rule that names it sets tabular figures so columns line up */
+  --mono: var(--font-body);
+  /* Codes a reader types or copies (seeds, room codes, links, share text, keys): a true monospace */
+  --code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* In rem (the same 11 to 64 px at the browser's default 16 px), so the type scale follows a reader's larger default text */
   --fs-xs: 0.6875rem;
   --fs-meta: 0.75rem;
@@ -361,6 +364,15 @@ p {
 }
 .mono {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+/* A code a reader types or copies keeps a monospace face (0 and O, 1 and l apart) */
+.input.mono,
+pre.mono,
+.room-code.mono,
+.chip.mono,
+.btn.mono {
+  font-family: var(--code);
 }
 .display {
   font-family: var(--font-display);
@@ -1976,6 +1988,16 @@ label.field,
   padding: 0 5px;
   font-size: calc(var(--fs-xs) - 1px);
 }
+/* A played week's score, ours first, with its W/D/L letter: the key number of the cell */
+.ss-chips .chip.ss-score {
+  gap: 3px;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ss-chips .chip.ss-score .res-letter {
+  font-size: 0.85em;
+}
 @media (max-width: 720px) {
   .season-strip {
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2097,7 +2119,7 @@ label.field,
 }
 /* A key name in running text (How it works) */
 kbd {
-  font-family: var(--mono);
+  font-family: var(--code);
   font-size: 0.85em;
   padding: 0 5px;
   border: 1px solid var(--line-2);
@@ -4528,6 +4550,7 @@ table.tbl.contracts .btn.sm {
 }
 .tick .min {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   color: var(--text-3);
   font-size: var(--fs-meta);
 }
@@ -4574,6 +4597,7 @@ table.tbl.contracts .btn.sm {
 .scoreboard .clock {
   text-align: center;
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   color: var(--text-3);
   font-size: var(--fs-sm);
 }
@@ -4699,6 +4723,34 @@ table.tbl.contracts .btn.sm {
 /* A key-value list is a real <dl> (screen readers pair each term with its value); it keeps the old div's spacing */
 dl.kv {
   margin-block: 0;
+}
+/* A ledger (the Club tab's finances): one row a figure, hairlines between, the figures right-aligned in tabular digits */
+.kv.ledger {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--space-3);
+}
+.kv.ledger dt,
+.kv.ledger dd {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.kv.ledger dd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* The Dynasty summer's improved and declined men: a label, then one chip a man with his old and new overall */
+.summer-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+.summer-moves .chip {
+  font-variant-numeric: tabular-nums;
+}
+.kv.ledger dt:last-of-type,
+.kv.ledger dd:last-of-type {
+  border-bottom: 0;
 }
 .formations {
   display: grid;
@@ -6940,6 +6992,7 @@ dl.kv {
 }
 .goal-burst .who .min {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   opacity: 0.8;
   font-weight: 500;
 }
@@ -7363,6 +7416,16 @@ dl.kv {
   content: '·';
   margin-right: var(--space-2);
 }
+/* The Dugout's next fixture: the midweek tie after it, one quiet line under the fixture's facts */
+.cta-then {
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Lined player lists: rows divided by a hairline instead of each in its own box */
 .plist.lined {
   gap: 0;
@@ -7670,6 +7733,13 @@ dl.kv {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+/* On a wide screen the list keeps a readable measure: the score stays near the names either side of it */
+@media (min-width: 1100px) {
+  .tab-body .fixture-list {
+    max-width: 920px;
+    margin-inline: auto;
+  }
 }
 .cup-round {
   margin-bottom: var(--space-4);
@@ -9725,7 +9795,14 @@ table.tbl.match-stats th {
     font-size: calc(var(--fs-h2) - 2px);
   }
   .app.shell .panel.cta {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    gap: 10px;
+  }
+  .app.shell .cta-main {
+    gap: 4px;
+  }
+  .app.shell .club-header {
+    padding-block: var(--space-2);
   }
   .app.shell .screen-head h1 {
     font-size: calc(var(--fs-h1) - 2px);
@@ -12576,6 +12653,33 @@ html {
     min-height: 0;
   }
 }
+/* The Dynasty pre-season's renewal list: decisions, so a box of their own with the warn edge, above the contracts table */
+.renewal-list {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line));
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--warn) 6%, var(--panel-2));
+}
+.renewal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.renewal-row {
+  cursor: default;
+}
+.renewal-row:last-child {
+  border-bottom: 0;
+}
+.renewal-who {
+  gap: var(--space-2);
+  min-width: 0;
+  flex-wrap: nowrap;
+}
 .room-tier + .room-tier {
   margin-top: var(--space-3);
 }
@@ -13322,6 +13426,7 @@ table.tbl.hub td.name {
 .pc-axis {
   fill: var(--text-3);
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 8px; /* px: SVG chart text */
 }
 .pc-line {
@@ -13353,6 +13458,7 @@ table.tbl.hub td.name {
 .pc-chart-val {
   fill: var(--text-2);
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 8.5px; /* px: SVG chart text */
   font-weight: 600;
 }
@@ -13386,6 +13492,7 @@ table.tbl.hub td.name {
 .pc-form-last {
   fill: var(--meter-mid);
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: calc(var(--fs-xs) - 1px);
   font-weight: 700;
 }
@@ -13410,6 +13517,7 @@ table.tbl.hub td.name {
 }
 .pc-spot-val {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 3.6px; /* px: SVG chart text */
   font-weight: 700;
   fill: rgba(255, 255, 255, 0.6);
@@ -13455,6 +13563,7 @@ table.tbl.hub td.name {
   padding: 1px 6px;
   border-radius: var(--radius-pill);
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   font-weight: 700;
   line-height: 1.5;
@@ -16689,6 +16798,49 @@ table.tbl td.strong {
 }
 .group-card tr.through td:first-child {
   box-shadow: inset 3px 0 0 var(--good);
+}
+/* While the group is open the top two hold the qualifying places: the same edge, in the info colour */
+.group-card tr.zone td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+/* A side out once the group is complete steps back */
+.group-card tr.out td {
+  opacity: 0.6;
+}
+.group-card tr.me.out td {
+  opacity: 0.85;
+}
+.group-card {
+  container-type: inline-size;
+}
+.group-card table.tbl .gt-record {
+  width: 3.8em;
+  color: var(--text-3);
+}
+@container (max-width: 330px) {
+  .group-card table.tbl .gt-record {
+    display: none;
+  }
+}
+.group-fixtures .gt-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.group-fixtures .gt-score .res-letter {
+  margin: 0 0.3em 0 0;
+}
+.group-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+.group-key-mark {
+  width: 3px;
+  height: 1em;
+  border-radius: 2px;
+  background: var(--accent);
 }
 .group-card .gt-name {
   overflow: hidden;

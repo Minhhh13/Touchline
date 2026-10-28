@@ -370,10 +370,24 @@ export function App() {
               <p>{rich(t('summerReturned', { names: offseason.returned.join(', ') }), B)}</p>
             )}
             {offseason.improved.length > 0 && (
-              <p>{rich(t('summerImproved', { names: offseason.improved.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ') }), B)}</p>
+              <div className="summer-moves" data-testid="summer-improved">
+                <b>{t('summerImproved')}</b>
+                {offseason.improved.map((x) => (
+                  <span key={x.name} className="chip good">
+                    {t('summerMove', { name: x.name, from: x.from, to: x.to })}
+                  </span>
+                ))}
+              </div>
             )}
             {offseason.declined.length > 0 && (
-              <p>{rich(t('summerDeclined', { names: offseason.declined.map((x) => `${x.name} ${x.from}→${x.to}`).join(', ') }), B)}</p>
+              <div className="summer-moves" data-testid="summer-declined">
+                <b>{t('summerDeclined')}</b>
+                {offseason.declined.map((x) => (
+                  <span key={x.name} className="chip bad">
+                    {t('summerMove', { name: x.name, from: x.from, to: x.to })}
+                  </span>
+                ))}
+              </div>
             )}
             {game && (game.history.at(-1)?.leagueSeason ?? 0) > game.settings.leagueSeason && (
               <p className="small" data-testid="season-wrap">
