@@ -55,6 +55,15 @@ describe('the Dugout keyboard', () => {
     // Tabs still switch while a decision is pending
     expect(dugoutKey('2', ctx({ canPlay: false }))).toEqual({ kind: 'tab', index: 1 })
   })
+  it('A picks the best XI and R rests the tired, only while the team can be changed (r8)', () => {
+    expect(dugoutKey('a', ctx({ canManage: true }))).toEqual({ kind: 'autoPick' })
+    expect(dugoutKey('A', ctx({ canManage: true }))).toEqual({ kind: 'autoPick' })
+    expect(dugoutKey('r', ctx({ canManage: true }))).toEqual({ kind: 'rest' })
+    expect(dugoutKey('a', ctx())).toBeNull()
+    expect(dugoutKey('r', ctx({ canManage: true, onControl: true }))).toBeNull()
+    expect(dugoutKey('a', ctx({ canManage: true, modifier: true }))).toBeNull()
+    expect(dugoutKey('r', ctx({ canManage: true, modalOpen: true }))).toBeNull()
+  })
   it('treats fields, buttons and widget roles as controls', () => {
     const el = (tagName: string, role: string | null = null, isContentEditable = false) => ({ tagName, isContentEditable, getAttribute: (n: string) => (n === 'role' ? role : null) })
     expect(isControlTarget(null)).toBe(false)

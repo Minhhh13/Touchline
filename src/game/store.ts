@@ -38,6 +38,7 @@ import { isSuperLeague } from './logic/superLeague'
 import { availableStopChanges } from './logic/stopChanges'
 import { advanceLiveMatch, applyEventChoice, changeLiveMatch, closeLiveMatch, completeLiveMatch, playFriendly, runSteps, simWeeksSteps, startSeasonProper, WEEK_END, type GameBox, type WeekStep } from './logic/week'
 import { assignPlayer, autoPick, setFormation, setSquadStatus } from './logic/squad'
+import { restTired as restTiredStarters, startPromised as startPromisedMan } from './logic/seasonPlay'
 import { playerLookup } from './logic/players'
 import { assignmentNote } from './logic/slotSheet'
 import type { SquadStatus } from '@engine/status'
@@ -321,6 +322,10 @@ interface Store {
   /** The slot picker's tap: assign, then toast what moved ('Saka in at RW, Bowen to the bench'). */
   playInSlot: (playerSeasonId: string, slotId: string | 'bench') => void
   autoPick: () => void
+  /** Rest the tired starters a fresher man would beat in their slot (only `playerSeasonId` when given); returns the swaps made. */
+  restTired: (playerSeasonId?: string) => number
+  /** Put the man promised a start into the XI, in the slot where he costs it least. */
+  startPromised: () => void
   setTeamTalk: (t: TeamTalk) => void
   setTraining: (t: TrainingFocus) => void
   setCaptain: (id: string) => void
@@ -1428,6 +1433,18 @@ export const useStore = create<Store>()(
           if (note) set({ toast: note })
         },
         autoPick: () => mutate((g, u) => autoPick(g, u, false)),
+        restTired: (id) => {
+          const out = { n: 0 }
+          mutate((g, u) => {
+            out.n = restTiredStarters(g, u, id ? [id] : undefined).length
+            if (out.n) byHand(g)
+          })
+          return out.n
+        },
+        startPromised: () =>
+          mutate((g, u) => {
+            if (startPromisedMan(g, u)) byHand(g)
+          }),
         setTeamTalk: (t) =>
           mutate((g) => {
             g.teamTalk = t

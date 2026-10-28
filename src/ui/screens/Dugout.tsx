@@ -58,6 +58,7 @@ import { InboxActions } from '../components/InboxActions'
 import { HappinessCard } from '../components/Happiness'
 import { personalityOf } from '@game/logic/personality'
 import { RecruitmentPanel, ScoutModal, ScoutReportsPanel } from './Recruitment'
+import { listingFit, sortListings, type ListingSort } from '@game/logic/marketFit'
 import { nextRequestAt, REQUEST_CONFIDENCE, REQUEST_GAP, requestOptions, SHIFT_BUDGET, SHIFT_LIMIT, SHIFT_WAGE, wageRoom } from '@game/logic/board'
 import { ContractCard, ContractTalks } from '../components/ContractTalks'
 import { dugoutKey, isControlTarget } from '../dugoutKeys'
@@ -67,6 +68,8 @@ import { BoxesMenu, useBoxes, type Boxes } from '../components/Boxes'
 import { DUGOUT_ALL, DUGOUT_HEAD, DUGOUT_TABS } from '../boxSets'
 import type { BoxSet } from '../boxes'
 import type { Game } from '@game/types'
+import type { LoadedUniverse } from '@engine/universe'
+import type { Listing } from '@engine/market'
 import { doneDeals, EVEN_BAND, filterNews, seasonStrip, tickerLines, INBOX_FILTERS, matchUp, positionStory, windowCountdown, minutesLast3, ratingBand, type InboxFilter, ROLE_FIT_LABEL, roleFit, roleOptions, SQUAD_VIEWS, teamFamiliarity, type SquadView } from '@game/logic/squadDisplay'
 import { newsBody } from '@game/logic/newsFlavour'
 import { watchSeasonSounds } from '../sound/seasonWatch'
@@ -74,6 +77,7 @@ import { askConfirm } from '../confirm'
 import { InboxStorylines, MatchPreviewPanel, StoryChip, SummerHeadline } from '../components/Storylines'
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
+import { WeekStrip } from '../components/WeekStrip'
 import { rich } from '../i18n/rich'
 import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, trainingBlurb, trainingLabel } from '../i18n/engineText'
 import { briefingActionText, briefingHintText, briefingLineText } from '../briefingText'
@@ -109,7 +113,7 @@ function tabPresent(tab: string, game: Game): string[] | undefined {
 const KEY_FLAG = 'touchline-squad-key'
 
 export function Dugout() {
-  const store = useStorePick('universe', 'game', 'autoPick', 'markNewsSeen', 'playFriendly', 'playWeekSoon', 'playingWeek', 'setMatchPlay', 'showToast', 'signYouth', 'simStop', 'simToNextBigMatchSoon', 'simWeeksSoon')
+  const store = useStorePick('universe', 'game', 'autoPick', 'markNewsSeen', 'playFriendly', 'playWeekSoon', 'playingWeek', 'restTired', 'setMatchPlay', 'showToast', 'signYouth', 'simStop', 'simToNextBigMatchSoon', 'simWeeksSoon', 'startPromised')
   const { universe: u, game } = store
   const [tab, setTab] = useState<Tab>('squad')
   // The slot whose picker sheet is open: tapping a slot opens it, on every screen size
@@ -140,14 +144,16 @@ export function Dugout() {
     // `posted` is the trigger: a batch arriving while the tab is open moves the divider to the new batch
   }, [tab, posted])
   // The keyboard (Space plays the week, 1 to 0 open the tabs): one listener reading the latest render through a ref
-  const keys = useRef<{ play: (() => void) | null; tabs: Tab[] }>({ play: null, tabs: [] })
+  const keys = useRef<{ play: (() => void) | null; tabs: Tab[]; manage: { autoPick: () => void; rest: () => void } | null }>({ play: null, tabs: [], manage: null })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = keys.current
-      const out = dugoutKey(e.key, { onControl: isControlTarget(e.target as HTMLElement | null), modalOpen: !!document.querySelector('.modal-back, .md-drawer, [aria-modal="true"]'), modifier: e.ctrlKey || e.metaKey || e.altKey, canPlay: !!k.play, tabs: k.tabs.length })
+      const out = dugoutKey(e.key, { onControl: isControlTarget(e.target as HTMLElement | null), modalOpen: !!document.querySelector('.modal-back, .md-drawer, [aria-modal="true"]'), modifier: e.ctrlKey || e.metaKey || e.altKey, canPlay: !!k.play, tabs: k.tabs.length, canManage: !!k.manage })
       if (!out) return
       e.preventDefault()
       if (out.kind === 'play') k.play?.()
+      else if (out.kind === 'autoPick') k.manage?.autoPick()
+      else if (out.kind === 'rest') k.manage?.rest()
       else setTab(k.tabs[out.index])
     }
     window.addEventListener('keydown', onKey)
@@ -186,10 +192,17 @@ export function Dugout() {
   // Highlights: the stop the last run made (only while the game still stands where it stopped) and whether the next week is itself one
   const stopped = store.simStop && store.simStop.gameId === game.id && store.simStop.year === game.year && store.simStop.matchweek === season.matchweek ? store.simStop.stop : null
   const bigNext = done ? null : nextStop(game, u)
+  // Rest the tired starters (one, or all the plan finds a fresher man for), with a toast saying what changed
+  const rest = (id?: string) => {
+    const n = store.restTired(id)
+    store.showToast(n ? t('rested', { count: n }) : t('restNone'))
+  }
   const act = (a: BriefingAction) => {
     if (a.op === 'autoPick') store.autoPick()
     else if (a.op === 'friendly') store.playFriendly()
     else if (a.op === 'player' && a.playerId) setPlayerModal(a.playerId)
+    else if (a.op === 'rest') rest(a.playerId)
+    else if (a.op === 'startPromised') store.startPromised()
     else if (a.op === 'event') document.querySelector('[data-testid="event-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     if (a.tab) setTab(a.tab)
   }
@@ -210,7 +223,7 @@ export function Dugout() {
     { id: 'inbox', label: t('tabInbox'), alert: !!game.pendingEvent, badge: unseen },
     { id: 'club', label: t('tabClub') },
   ]
-  keys.current = { play: done || game.pendingEvent || simming ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id) }
+  keys.current = { play: done || game.pendingEvent || simming ? null : () => void store.playWeekSoon(prepareWeek), tabs: tabList.map((t) => t.id), manage: done ? null : { autoPick: () => { store.autoPick(); store.showToast(t('autoPicked')) }, rest: () => rest() } }
 
   const onSlotClick = (slotId: string) => setSheetSlot(slotId)
   const onPlayerClick = (id: string) => setPlayerModal(id)
@@ -319,6 +332,7 @@ export function Dugout() {
                 </div>
               </div>
             )}
+            {headBoxes.on('briefing') && <WeekStrip game={game} u={u} onInbox={() => setTab('inbox')} />}
             {headBoxes.on('briefing') && <BriefingList items={briefing} onAction={act} checklist={preseason} />}
           </div>
           <div className="cta-bar" ref={barRef} data-testid="cta-bar">
@@ -1254,6 +1268,28 @@ export function CupTab({ comp }: { comp: Competition }) {
 /** Listings a phone shows before "Show all" (styles.css hides the rest under 720 px; a desktop's box scrolls them all). */
 export const PHONE_LISTINGS = 8
 
+/** A listing against the club: the fee and wage it cannot pay, and what he would be at his position (r8). */
+function FitChips({ game, u, listing }: { game: Game; u: LoadedUniverse; listing: Listing }) {
+  const fit = listingFit(game, u, listing)
+  if (!fit) return null
+  return (
+    <>
+      {!fit.fee && <span className="chip warn" data-testid="fit-fee">{t('overBudget')}</span>}
+      {!fit.wages && <span className="chip warn" data-testid="fit-wage">{t('noWageRoom')}</span>}
+      {fit.upgrade !== null && fit.upgrade > 0 && (
+        <span className="chip good" data-testid="fit-upgrade" title={t(fit.estimate ? 'marketEstimateTip' : 'marketFitTip')}>
+          {t('fitUpgrade', { n: fit.upgrade, pos: fit.position, est: fit.estimate ? 'yes' : 'no' })}
+        </span>
+      )}
+      {fit.upgrade !== null && fit.upgrade <= 0 && fit.rank !== null && (
+        <span className="chip" data-testid="fit-rank" title={t(fit.estimate ? 'marketEstimateTip' : 'marketFitTip')}>
+          {t('fitRank', { rank: fit.rank, pos: fit.position })}
+        </span>
+      )}
+    </>
+  )
+}
+
 function MarketTab({ boxes }: { boxes: Boxes }) {
   const store = useStorePick('universe', 'game', 'acceptOffer', 'advanceDay', 'bid', 'enquire', 'loan', 'rejectOffer', 'scoutPlayer', 'shortlist')
   const { universe: u, game } = store
@@ -1263,6 +1299,9 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
   const [exchange, setExchange] = useState<Record<string, string>>({})
   const [sellOn, setSellOn] = useState<Record<string, number>>({})
   const [filter, setFilterState] = useState<'all' | Position>('all')
+  // r8: only the men the club can pay for, and the order (by overall, or by how much each improves his position)
+  const [affordOnly, setAffordOnly] = useState(false)
+  const [sortBy, setSortBy] = useState<ListingSort>('overall')
   // On a phone the window lists its first few men until "Show all" (40 stacked listings ran to 18,000 px in January)
   const [allListed, setAllListed] = useState(false)
   // "Show all" goes once pressed: the focus moves on to the first listing it brought into view
@@ -1393,7 +1432,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
       </div>
     )
   }
-  const listings = w.listings.filter((l) => l.status === 'available' || l.status === 'bidding').filter((l) => filter === 'all' || get(l.playerSeasonId)?.positions.includes(filter)).sort((a, b) => (get(b.playerSeasonId)?.overall ?? 0) - (get(a.playerSeasonId)?.overall ?? 0))
+  const listings = sortListings(game, u, w.listings.filter((l) => l.status === 'available' || l.status === 'bidding').filter((l) => filter === 'all' || get(l.playerSeasonId)?.positions.includes(filter)).sort((a, b) => (get(b.playerSeasonId)?.overall ?? 0) - (get(a.playerSeasonId)?.overall ?? 0)), { affordable: affordOnly, sort: sortBy })
   const offers = w.offers.map((o, i) => ({ o, i })).filter(({ o }) => o.status === 'open')
   return (
     <div className="grid dugout">
@@ -1429,6 +1468,15 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
             </button>
           ))}
         </div>
+        <div className="toolbar" style={{ marginBottom: 'var(--space-3)' }} data-testid="market-sort">
+          <button type="button" className={`chip-btn ${affordOnly ? 'active' : ''}`} aria-pressed={affordOnly} onClick={() => setAffordOnly((v) => !v)} data-testid="market-affordable">
+            {t('affordableOnly')}
+          </button>
+          <button type="button" className={`chip-btn ${sortBy === 'upgrade' ? 'active' : ''}`} aria-pressed={sortBy === 'upgrade'} onClick={() => setSortBy((v) => (v === 'upgrade' ? 'overall' : 'upgrade'))} title={t('byUpgradeTip')} data-testid="market-upgrade">
+            {t('byUpgrade')}
+          </button>
+          {affordOnly && !listings.length && <span className="small muted">{t('nothingAffordable')}</span>}
+        </div>
         <div ref={listingsRef} className={`col listings ${!allListed && listings.length > PHONE_LISTINGS ? 'capped' : ''}`} style={{ gap: 'var(--space-2)' }} data-testid="listings">
           {listings.map((l) => {
             const p = get(l.playerSeasonId)
@@ -1441,6 +1489,7 @@ function MarketTab({ boxes }: { boxes: Boxes }) {
                 <div>
                   <PlayerRow p={p} showClub range={rangeOf(p)} onClick={() => setScoutId(p.id)} right={<span className="small muted">{wage(p.wage)}</span>} />
                   <div className="tags">
+                    <FitChips game={game} u={u} listing={l} />
                     {l.tags.map((t) => (
                       <span key={t} className={`chip ${t === 'Bidding war' || t === 'Annoyed' || t === 'Unsolicited approach' ? 'warn' : t === 'Deadline discount' || t === 'Loan available' || t === 'Scouted' ? 'good' : ''}`}>
                         {t}
