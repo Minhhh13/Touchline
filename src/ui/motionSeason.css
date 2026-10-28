@@ -1,0 +1,380 @@
+/*
+ * Season motion (round 8): the quick-season playback, the Dugout's matchweek advance, the digest and the Dynasty
+ * summer. DESIGN_SYSTEM.md section 12: transform and opacity only, the --dur-* and --ease-* tokens, entrances with
+ * fill-mode backwards (or both where the element leaves again), and everything here is off under reduced motion (the
+ * block at the end). Loaded with the lazy screens that use it, so it never joins the first download.
+ */
+
+/* ---- A result lands: its colour sweeps across the row, the W/D/L badge pops, the score counts up (GameByGame) */
+.gbg-game.landing {
+  position: relative;
+  isolation: isolate;
+}
+.gbg-game.landing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  transform-origin: left center;
+  background: color-mix(in srgb, var(--sweep, var(--text-3)) 34%, transparent);
+  animation: gbg-sweep calc(var(--dur-4) * 2) var(--ease-out) both;
+}
+.gbg-game.landing.W {
+  --sweep: var(--good);
+}
+.gbg-game.landing.D {
+  --sweep: var(--draw);
+}
+.gbg-game.landing.L {
+  --sweep: var(--danger);
+}
+@keyframes gbg-sweep {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  45% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+.gbg-game.landing .gbg-badge {
+  animation: gbg-badge-pop var(--dur-4) var(--ease-spring) var(--dur-1) backwards;
+}
+@keyframes gbg-badge-pop {
+  from {
+    transform: scale(0.3) rotate(-12deg);
+    opacity: 0;
+  }
+}
+.gbg-game.landing .gbg-score {
+  animation: gbg-score-thump var(--dur-3) var(--ease-spring) var(--dur-3) backwards;
+}
+@keyframes gbg-score-thump {
+  from {
+    transform: scale(1.35);
+  }
+}
+
+/* ---- The live table: a row that moves floats over the rest while it glides and flashes once, green up, red down */
+.lt-row.rising,
+.lt-row.falling {
+  z-index: 1;
+}
+.lt-row.me {
+  z-index: 2;
+}
+.lt-flash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  animation: lt-flash calc(var(--dur-4) * 2.5) var(--ease-out);
+}
+.lt-flash.up {
+  background: color-mix(in srgb, var(--good) 26%, transparent);
+}
+.lt-flash.down {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+/* Your own row's move is louder: a stronger tint and an edge */
+.lt-row.me .lt-flash.up {
+  background: color-mix(in srgb, var(--good) 40%, transparent);
+  box-shadow: inset 0 0 0 1px var(--good);
+}
+.lt-row.me .lt-flash.down {
+  background: color-mix(in srgb, var(--danger) 34%, transparent);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+@keyframes lt-flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- The position chart draws itself in on its first picture, then rings its dot at each change of place */
+.pc-user.whole {
+  animation-duration: calc(var(--dur-4) * 3);
+}
+.pc-rival {
+  animation: pc-fade calc(var(--dur-4) * 2) var(--ease-out) backwards;
+}
+@keyframes pc-fade {
+  from {
+    opacity: 0;
+  }
+}
+.pc-dot,
+.pc-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.pc-dot.whole {
+  animation: pc-dot-in var(--dur-3) var(--ease-spring) calc(var(--dur-4) * 3) backwards;
+}
+.pc-dot {
+  animation: pc-dot-in var(--dur-2) var(--ease-spring) backwards;
+}
+@keyframes pc-dot-in {
+  from {
+    transform: scale(0);
+  }
+}
+.pc-ping {
+  fill: none;
+  stroke-width: 1.5;
+  stroke: var(--good);
+  opacity: 0;
+  pointer-events: none;
+  animation: pc-ping calc(var(--dur-4) * 2) var(--ease-out);
+}
+.pc-ping.down {
+  stroke: var(--danger);
+}
+@keyframes pc-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+/* ---- The beat: a broadcast card over the playback for a big moment, January and the season's end (SeasonBeat.tsx).
+   It waits for its sting (--beat-delay, the sound's offset), holds, and goes; --beat-k is its length in --dur-4s */
+.pb-beat {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  --beat-ink: var(--accent);
+  --beat-len: calc(var(--dur-4) * var(--beat-k, 4));
+}
+.pb-beat.good {
+  --beat-ink: var(--good);
+}
+.pb-beat.bad {
+  --beat-ink: var(--danger);
+}
+/* The band behind the card sweeps across the screen and away */
+.pb-beat::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 132px;
+  margin-top: -66px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--beat-ink) 22%, transparent) 30%, color-mix(in srgb, var(--beat-ink) 22%, transparent) 70%, transparent);
+  transform-origin: center;
+  animation: pb-beat-band var(--beat-len) var(--ease-out) var(--beat-delay, 0ms) both;
+}
+@keyframes pb-beat-band {
+  0% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  18% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  80% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1.05);
+    opacity: 0;
+  }
+}
+.pb-beat-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 12px 26px 14px;
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--beat-ink) 60%, var(--line));
+  background: color-mix(in srgb, var(--beat-ink) 14%, var(--panel));
+  box-shadow: var(--shadow);
+  animation: pb-beat-card var(--beat-len) var(--ease-out) var(--beat-delay, 0ms) both;
+}
+@keyframes pb-beat-card {
+  0% {
+    transform: translateY(14px) scale(0.86);
+    opacity: 0;
+  }
+  14% {
+    transform: translateY(0) scale(1.04);
+    opacity: 1;
+  }
+  22% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  82% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-10px) scale(0.98);
+    opacity: 0;
+  }
+}
+.pb-beat-kicker {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.pb-beat-head {
+  font-family: var(--font-display);
+  font-size: calc(var(--fs-h2) + 2px);
+  line-height: 1.1;
+  color: color-mix(in srgb, var(--beat-ink) 78%, var(--text));
+}
+.pb-beat.end .pb-beat-head {
+  font-size: calc(var(--fs-h1) * 1.25);
+}
+.pb-beat-detail {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.pb-beat-confetti {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+.pb-beat-confetti span {
+  position: absolute;
+  width: 7px;
+  height: 11px;
+  margin: -5px 0 0 -3px;
+  border-radius: 1px;
+  opacity: 0;
+  background: var(--good);
+  animation: pb-confetti calc(var(--dur-4) * 4) var(--ease-out) calc(var(--beat-delay, 0ms) + var(--d, 0ms)) both;
+}
+.pb-beat-confetti span.c1 {
+  background: var(--accent);
+}
+.pb-beat-confetti span.c2 {
+  background: var(--gold);
+}
+@keyframes pb-confetti {
+  0% {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), calc(var(--dy) + 90px)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+/* ---- The season's end: Full time and See the summary rise in after the beat, the button breathes twice */
+.pb-end {
+  animation: pb-end-in var(--dur-4) var(--ease-spring) calc(var(--dur-4) * 2) backwards;
+}
+@keyframes pb-end-in {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+.pb-end .btn.primary {
+  animation: pb-cta calc(var(--dur-4) * 2) var(--ease-in-out) calc(var(--dur-4) * 5) 2;
+}
+@keyframes pb-cta {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* ---- January: the window opens as an event, the kicker slides, the half's boxes come up one by one */
+.january-panel[data-stage='halfway'] {
+  animation: jw-open var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes jw-open {
+  from {
+    transform: translateY(16px) scale(0.96);
+    opacity: 0;
+  }
+}
+.january-panel .jw-head .sc-kicker {
+  animation: jw-kicker var(--dur-4) var(--ease-out) var(--dur-2) backwards;
+}
+@keyframes jw-kicker {
+  from {
+    transform: translateX(-14px);
+    opacity: 0;
+  }
+}
+.january-panel .jw-boxes .tally-box {
+  animation: jw-box var(--dur-3) var(--ease-spring) calc(var(--dur-3) + var(--i, 0) * var(--dur-1)) backwards;
+}
+.january-panel .jw-boxes .tally-box:nth-child(2) {
+  --i: 1;
+}
+.january-panel .jw-boxes .tally-box:nth-child(3) {
+  --i: 2;
+}
+@keyframes jw-box {
+  from {
+    transform: translateY(10px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gbg-game.landing::after,
+  .gbg-game.landing .gbg-badge,
+  .gbg-game.landing .gbg-score,
+  .lt-flash,
+  .pc-user.whole,
+  .pc-rival,
+  .pc-dot,
+  .pc-dot.whole,
+  .pc-ping,
+  .pb-beat::before,
+  .pb-beat-card,
+  .pb-beat-confetti span,
+  .pb-end,
+  .pb-end .btn.primary,
+  .january-panel[data-stage='halfway'],
+  .january-panel .jw-head .sc-kicker,
+  .january-panel .jw-boxes .tally-box {
+    animation: none;
+  }
+  .lt-flash,
+  .pc-ping,
+  .gbg-game.landing::after,
+  .pb-beat {
+    display: none;
+  }
+}
