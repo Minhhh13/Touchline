@@ -227,5 +227,5 @@ The QA hunt on `release-e7` (engine 7 with every polish batch, at 55831d7), on b
 
 ## R3-4. Coverage notes
 
-- Engine 7 held up in its rules: no broken group table, tie, aggregate, shoot-out or flag in the cup sweeps, no stuck flow, and every reload played on to the same game. The bugs were at the edges again: the cloud sync's order of a game's screens (R8-1), a pool that missed one exclusion (R8-2), a draw that runs out on a small wheel (R8-3) and words written before the group stage existed (R8-4, R8-6).
+- Engine 7 held up in its rules: no broken group table, tie, aggregate, shoot-out or flag in the cup sweeps, no stuck flow, and every reload played on to the same game. The bugs were at the edges again: the cloud sync's order of a game's screens (R8-1), a pool that missed one exclusion (R8-2), a draw that runs out on a small wheel (R8-3) and words and forecasts written before the group stage existed (R8-4, R8-6, R8-7).
 - Not covered: online play against the real project (the build has no `VITE_SUPABASE_*`; the online pieces ran against the fakes), real iOS, and the sound's output.
