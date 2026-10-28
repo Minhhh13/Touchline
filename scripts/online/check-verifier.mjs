@@ -2,7 +2,8 @@
 // Check the verifier bundle the Edge Function runs, on its own, in Node: build it (unless --no-build), load it,
 // and drive its createServer through a whole Phase 1 day with in-memory stand-ins for the database, Storage and the
 // live site (public/data from disk): pin today's Daily, post an honest Auto-complete run, a retry and a tampered
-// copy, then pin and post the weekly challenge, then issue a 38-0 chase attempt and post a run on it. The bundle must rank the honest runs with the figures the game
+// copy, then pin and post the weekly challenge, then the same for a rotated Daily (another league's day, pinned on
+// that league alone and played on a browser's England plus that league), then issue a 38-0 chase attempt and post a run on it. The bundle must rank the honest runs with the figures the game
 // itself produced (and that replayChallenge reproduces), refuse the tampered one with a spin number, and never
 // name a DOM or Node global. Then an online head-to-head room (Phase 2) between two guests: made, joined and drafted
 // pick by pick to the season, which must equal the same game played hot-seat on the seed the finished room reveals.
@@ -76,8 +77,10 @@ const attempts = new Map()
 const chaseEntries = new Map()
 const casualPins = new Map()
 const casualEntries = new Map()
+// The server's clock: NOW, moved to a rotated Daily's day for that check
+let clock = NOW
 const deps = {
-  now: () => NOW,
+  now: () => clock,
   log: () => {},
   randomToken: () => `check${String(++tokenN).padStart(38, '0')}`,
   sha256Hex: async (b) => createHash('sha256').update(b).digest('hex'),
@@ -158,9 +161,10 @@ const call = (body) => server.handle(caller, JSON.stringify(body))
 // As the browser loads England: with its classic pack when the index gives it one
 const england = { players: JSON.parse(readFileSync(path.join(DATA, 'england/players.json'), 'utf8')), meta: JSON.parse(readFileSync(path.join(DATA, 'england/meta.json'), 'utf8')), ...(V.hasClassic(index, 'england') ? { classic: JSON.parse(readFileSync(path.join(DATA, V.classicFile('england')), 'utf8')) } : {}) }
 const u = V.universeFromPacks(index, { england }, ['england'])
+const england0 = u
 expect(u.generatedAt === index.generatedAt, 'the bundle built a universe with another stamp')
 
-function autoPlayed(settings) {
+function autoPlayed(settings, u = england0) {
   const g = V.createGame(settings)
   const rng = V.Rng.fromState(g.rngState)
   V.autoDraft(u, g.draft, rng)
@@ -169,9 +173,9 @@ function autoPlayed(settings) {
   return g
 }
 
-async function rankedRun(kind, settings, key) {
+async function rankedRun(kind, settings, key, u = england0) {
   const op = `${kind}.submit`
-  const g = autoPlayed(settings)
+  const g = autoPlayed(settings, u)
   const payload = V.challengeFromGame(g, u, 'Check')
   const encoded = V.encodeChallenge(payload)
   const body = { op, encoded, teamName: g.settings.teamName, shortName: g.settings.shortName }
@@ -270,9 +274,22 @@ while (!V.h2hComplete(hot)) {
 const season = V.runH2HSeason(u, rng, room.managers, hot.drafts, room.settings.leagueId, room.settings.leagueSeason, room.settings.difficulty)
 expect(JSON.stringify(season) === JSON.stringify(room.result), 'the room\'s season differs from the same game played hot-seat')
 // A guest's error report goes in as sent; one holding an email is refused before the database
+// A rotated Daily (engine 7, DAILY_EPOCHS in src/game/logic/daily.ts): the pin is made on the day's league alone (the
+// server's pinLeagues), the browser plays it with England loaded as well, and the strict replay must still rank it
+const ROTATED = process.env.CHECK_ROTATED ?? '2026-10-31'
+const rotLeague = V.dailyPlan(`daily-${ROTATED}`).leagueId
+expect(rotLeague !== 'england', `the Daily of ${ROTATED} is not a rotated day`)
+const packOf = (id) => ({ players: JSON.parse(readFileSync(path.join(DATA, `${id}/players.json`), 'utf8')), meta: JSON.parse(readFileSync(path.join(DATA, `${id}/meta.json`), 'utf8')), ...(V.hasClassic(index, id) ? { classic: JSON.parse(readFileSync(path.join(DATA, V.classicFile(id)), 'utf8')) } : {}) })
+const uRot = V.universeFromPacks(index, { england, [rotLeague]: packOf(rotLeague) }, ['england', rotLeague])
+clock = new Date(`${ROTATED}T12:00:00Z`)
+const rotPin = await call({ op: 'daily.pin' })
+expect(rotPin.status === 200 && rotPin.body.pin.settings.leagueId === rotLeague && rotPin.body.pin.key === ROTATED, `daily.pin on ${ROTATED} answered ${rotPin.status} ${JSON.stringify(rotPin.body).slice(0, 300)}`)
+expect(rotPin.body.pin.settingsHash === V.settingsHash(V.dailyGameSettings(uRot, `daily-${ROTATED}`)), 'the pinned rotated Daily is not the Daily mapping of a browser holding England too')
+const rotPts = await rankedRun('daily', V.dailyGameSettings(uRot, `daily-${ROTATED}`, 'Check FC'), ROTATED, uRot)
+clock = NOW
 const report = { kind: 'error', message: 'TypeError: x is undefined', stack: 'render /assets/Draft-abc.js:1:200', build: '2026-10-27T00:00:00.000Z', engine: V.ENGINE_VERSION, screen: 'game', phase: 'draft', viewport: '390x844', ua: 'safari/ios', device: '0f8e2d1c-3b4a-4c5d-8e6f-7a8b9c0d1e2f', count: 1, at: '2026-10-27T10:00:00.000Z' }
 const filed = await asGuest(0, { op: 'errors.report', reports: [report] })
 expect(filed.status === 200 && filed.body.taken === 1 && errorRows.length === 1, `errors.report answered ${filed.status} ${JSON.stringify(filed.body)}`)
 const leaky = await asGuest(0, { op: 'errors.report', reports: [{ ...report, message: 'failed for someone@example.com' }] })
 expect(leaky.status === 400 && errorRows.length === 1, `an error report with an email was filed (${leaky.status})`)
-console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, weekly ${week} ranked ${weeklyPts} pts, 38-0 chase ranked ${cq.won}-${cq.drawn}-${cq.lost}, Daily Arena ranked ${arenaLink.ac.s} won, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game; a guest's error report filed`)
+console.log(`check:verifier OK: engine ${V.ENGINE_VERSION}, data ${index.generatedAt}, ${(Buffer.byteLength(code) / 1024).toFixed(0)} KB; Daily ${day} ranked ${dailyPts} pts, rotated Daily ${ROTATED} (${rotLeague}) ranked ${rotPts} pts, weekly ${week} ranked ${weeklyPts} pts, 38-0 chase ranked ${cq.won}-${cq.drawn}-${cq.lost}, Daily Arena ranked ${arenaLink.ac.s} won, tampered drafts refused; a guests' room drafted in ${picks} picks to ${room.result.positions.map((p) => `#${p}`).join(' v ')}, equal to the hot-seat game; a guest's error report filed`)

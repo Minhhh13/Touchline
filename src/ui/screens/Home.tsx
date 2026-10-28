@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
-import { dailySettings } from '@game/logic/setup'
+import { dailyLoaded, dailyPlan, dailySettings } from '@game/logic/setup'
 import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
 import { weeklyPlan } from '@game/logic/weekly'
@@ -128,9 +128,13 @@ export function Home() {
   const dailyDone = !!dailyResult
   // Today's puzzle is fixed for everyone, so the card can start it in one tap; the Setup screen only adds a team name
   const dailyReady = !!u && loadedLeagues.includes('england')
+  // The day's league rotates (engine 7, `dailyPlan`): its pack loads on the Daily's setup, so until then the card names the league and shape only
+  const dailyPlanToday = dailyPlan(todaysDailySeed())
+  const dailyHere = dailyReady && dailyLoaded(loadedLeagues, todaysDailySeed())
   // Online and pinned: the ranked puzzle (the same as this mapping unless the data or rules changed since the pin)
-  const dailyStart = dailyReady ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
-  const daily = dailyReady ? (dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, host: dailyStart.settings.hostClubId, season: dailyStart.settings.leagueSeason } : dailySettings(u, todaysDailySeed())) : null
+  const dailyStart = dailyHere ? dailyStartSettings(u, todaysDailySeed(), 'Touchline XI', pin) : null
+  const dailyLocal = dailyHere && dailyStart?.source !== 'pinned' ? dailySettings(u, todaysDailySeed()) : null
+  const daily: { formationId: string; leagueId: string; season: number | null } | null = !dailyReady ? null : dailyStart?.source === 'pinned' ? { formationId: dailyStart.settings.formationId, leagueId: dailyStart.settings.leagueId, season: dailyStart.settings.leagueSeason } : dailyLocal ? { formationId: dailyLocal.formationId, leagueId: dailyLocal.leagueId, season: dailyLocal.season } : { formationId: dailyPlanToday.formationId, leagueId: dailyPlanToday.leagueId, season: null }
   // Today's puzzle already under way continues rather than restarting; an unfinished quick draft in the same slot is only dropped on a yes
   const isTodaysDaily = (g: typeof game) => !!g && g.settings.mode === 'daily' && g.settings.seed === todaysDailySeed() && g.phase !== 'summary'
   const dailyUnderWay = isTodaysDaily(game) || isTodaysDaily(parked.quick)
@@ -313,9 +317,10 @@ export function Home() {
                 <TimeTag>{t('minutes', { n: 5 })}</TimeTag>
                 {/* Played today: the result takes the puzzle's place on the line */}
                 {daily && u && !dailyResult && (
-                  <span className="daily-today" title={t('dailyToday', { formation: formationName(daily.formationId), league: u.leagues.find((l) => l.id === u.clubById[daily.host]?.leagueId)?.name ?? '', season: seasonLabel(daily.season) })}>
-                    <LeagueFlag leagueId={u.clubById[daily.host]?.leagueId ?? 'england'} />
-                    {formationName(daily.formationId)} · {seasonLabel(daily.season)}
+                  <span className="daily-today" data-testid="daily-today" data-league={daily.leagueId} title={t(daily.season === null ? 'dailyTodayLeague' : 'dailyToday', { formation: formationName(daily.formationId), league: u.available.find((l) => l.id === daily.leagueId)?.name ?? u.leagues.find((l) => l.id === daily.leagueId)?.name ?? '', season: daily.season === null ? '' : seasonLabel(daily.season) })}>
+                    <LeagueFlag leagueId={daily.leagueId} />
+                    {formationName(daily.formationId)}
+                    {daily.season !== null && ` · ${seasonLabel(daily.season)}`}
                   </span>
                 )}
                 {pin && dailyStart && (

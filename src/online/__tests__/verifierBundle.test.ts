@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { loadTestUniverse } from '@engine/__tests__/helpers'
 import { encodeChallenge } from '@engine/challenge'
 import { ENGINE_VERSION } from '@engine/version'
-import { dailyGameSettings } from '@game/logic/setup'
+import { dailyGameSettings, dailyLeagueOf, dailyPlan } from '@game/logic/setup'
 import { challengeFromGame } from '@game/logic/challenge'
 import { puzzleOf, settingsHash, verifyDaily, type PuzzlePin, type Verdict } from '../server/dailyVerify'
 import { weeklyGameSettings } from '../weekly'
@@ -24,6 +24,7 @@ interface Bundle {
   settingsHash: typeof settingsHash
   verifyDaily: typeof verifyDaily
   dailyGameSettings: typeof dailyGameSettings
+  dailyPlan: typeof dailyPlan
   weeklyGameSettings: typeof weeklyGameSettings
   chaseGameSettings: typeof chaseGameSettings
   verifyChase: typeof verifyChase
@@ -64,7 +65,10 @@ describe('the verifier bundle', () => {
 
   it('hashes the same Daily and weekly puzzles as the source', () => {
     for (const date of ['2026-10-25', '2026-12-31', '2027-02-28', '2028-02-29']) {
-      expect(bundle.settingsHash(bundle.dailyGameSettings(u, `daily-${date}`))).toBe(settingsHash(dailyGameSettings(u, `daily-${date}`)))
+      // From 2026-10-30 the day's league rotates (DAILY_EPOCHS): each date on a universe holding it, as the server builds one
+      const day = loadTestUniverse([...new Set(['england', dailyLeagueOf(`daily-${date}`)])])
+      expect(bundle.dailyPlan(`daily-${date}`)).toEqual(dailyPlan(`daily-${date}`))
+      expect(bundle.settingsHash(bundle.dailyGameSettings(day, `daily-${date}`))).toBe(settingsHash(dailyGameSettings(day, `daily-${date}`)))
     }
     for (const week of ['2026-W43', '2026-W53', '2027-W01']) {
       expect(bundle.settingsHash(bundle.weeklyGameSettings(u, week))).toBe(settingsHash(weeklyGameSettings(u, week)))

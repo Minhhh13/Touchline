@@ -26,7 +26,7 @@ import { isSuperLeague } from './superLeague'
 export const DEFAULT_HOST_POSITION = 10
 
 // The Daily's fixed settings and rules live in ./daily; re-exported here beside the rest of the setup logic
-export { DAILY_FORMATIONS, DAILY_RULES, DAILY_SEASON, dailySettings, type DailySettings } from './daily'
+export { DAILY_EPOCHS, DAILY_FORMATIONS, DAILY_RULES, DAILY_SEASON, dailyLeagueOf, dailyLoaded, dailyPlan, dailySettings, type DailyPlan, type DailySettings } from './daily'
 
 /**
  * The club whose place a new side takes when the player has not chosen: the one whose real finish that season is
@@ -114,7 +114,8 @@ export function setupRules(base: DraftRules, c: SetupChoices): DraftRules {
     ...(c.managerSpin && (c.managers ?? base.managers) ? { managerSpin: true } : {}),
     ...(c.endCase ? { endCase: true } : {}),
     ...(c.classic ? { classic: true } : {}),
-    ...(c.superLeague ? { superLeague: true } : {}),
+    // The Super League's rivals a rating point off (`superEase`, `SUPER_LEAGUE_HANDICAP`); older games and links lack it
+    ...(c.superLeague ? { superLeague: true, superEase: true } : {}),
   }
   // The mode flags (and Crazy's twists); Hard is already the difficulty, so it rides along unchanged
   const moded = c.modes?.length ? withModes(rules, [...(hard ? (['hard'] as const) : []), ...c.modes]) : rules
@@ -180,8 +181,9 @@ export function shortNameFor(name: string): string {
 }
 
 /** The complete settings of today's Daily, ready for `startGame`; only the team name is the player's. */
-export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'Touchline XI'): GameSettings {
-  const d = dailySettings(u, seed)
+export function dailyGameSettings(u: LoadedUniverse, seed: string, teamName = 'Touchline XI', leagueId?: string): GameSettings {
+  // `leagueId` only for the tests that pin the original Premier League mapping on a rotated date (`dailySettings`)
+  const d = leagueId ? dailySettings(u, seed, leagueId) : dailySettings(u, seed)
   const name = teamName.trim() || 'Touchline XI'
   return {
     mode: 'daily',
@@ -218,7 +220,7 @@ export function summariseSetup(u: LoadedUniverse, s: GameSettings): string {
   // A quick draft's XI is the user's own team: only a managed season takes a club's place, so only it says "as"
   const host = s.mode === 'season' || s.mode === 'dynasty' ? `as ${u.clubById[s.hostClubId]?.name ?? s.hostClubId} ` : ''
   // The Super League is no real league season, and its nineteen play at full strength whatever the opposition setting
-  const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, full strength` : `in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
+  const where = isSuperLeague(s) ? `in the ${SUPER_LEAGUE_NAME}, ${s.rules.superEase ? 'a point below full strength' : 'full strength'}` : `in the ${league} ${seasonLabel(s.leagueSeason)}, ${s.difficulty ?? 'calibrated'}`
   const parts = [`${s.teamName}, ${getFormation(s.formationId).name}, ${host}${where}, seed ${s.seed}`]
   const r = s.rules
   // The Super League loads every league for its field; that is no European Nights wheel

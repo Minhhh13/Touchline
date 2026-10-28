@@ -27,9 +27,10 @@ describe('the Daily puzzle', () => {
     expect(other.formationId).toBe('3-5-2')
   })
 
+  // Before the rotation (2026-10-30, DAILY_EPOCHS) every day is English; dailyRotation.test.ts covers the days after
   it('only ever names a complete English season, one of its clubs and one of its five shapes', () => {
     for (let day = 1; day <= 28; day++) {
-      const d = dailySettings(u, `daily-2027-03-${String(day).padStart(2, '0')}`)
+      const d = dailySettings(u, `daily-2026-03-${String(day).padStart(2, '0')}`)
       const cs = u.clubSeasons.find((x) => x.clubId === d.host && x.season === d.season && x.leagueId === 'england')
       expect(cs?.complete).toBe(true)
       expect(DAILY_FORMATIONS).toContain(d.formationId)
@@ -63,7 +64,8 @@ describe('the Daily puzzle', () => {
 
   it('gives the Daily exactly the re-spins of DAILY_RULES, the value the ranked verifier replays (the owner\'s decision is two; dailyPin.test.ts pins the number)', () => {
     expect(dailyGameSettings(u, 'daily-2026-10-25').rules.respins).toBe(DAILY_RULES.respins)
-    expect(dailyGameSettings(u, 'daily-2027-03-14').rules.respins).toBe(DAILY_RULES.respins)
+    expect(dailyGameSettings(u, 'daily-2026-03-14').rules.respins).toBe(DAILY_RULES.respins)
+    expect(dailyGameSettings(loadTestUniverse(['spain']), 'daily-2026-10-31').rules.respins).toBe(DAILY_RULES.respins)
   })
 
   it('derives the scoreboard code from the initials, or the first letters of a one-word name', () => {

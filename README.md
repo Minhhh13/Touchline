@@ -39,7 +39,7 @@ Your drafted side takes one real club's place in a real league season and plays 
 **Modes**
 
 - **Quick Draft**: eleven spins, an XI and an optional bench. You get the pundits' prediction, then a manager from three spinning reels. Watch the season game by game beside a live table, with a January window and three bench changes. The Cup and the Continental Cup follow, and the league with both cups is the Treble. Setup adds Modes such as Crazy, Underdog, Legends, Speedrun, Gamble and the Upgrader, along with power-ups, the Moneyball salary cap, the Teammate Chain, the Super League and an end-of-draft case.
-- **Daily Challenge**: the same wheel for everyone each day (UTC), with streaks and a verified world board.
+- **Daily Challenge**: the same wheel for everyone each day (UTC), from one of the seven leagues in turn (from 2026-10-30), with streaks and a verified world board.
 - **Weekly Challenge**: a themed wheel each week, such as European Nights, Moneyball or Park the bus.
 - **Daily Arena**: one arena puzzle a day for everyone.
 - **Season**: draft 16 to 22 players, then manage every matchweek. You have live matches, roles and instructions, condition and morale, injuries and suspensions, a cup, a transfer market, scouting and contract talks, and a board that can sack you.

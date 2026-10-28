@@ -53,7 +53,7 @@ export function weeklyStartSettings(u: LoadedUniverse, key: string, teamName: st
  * have none of them, and the server refuses any rules that differ from the pin's anyway; this keeps the device from
  * filing such a run at all. A new optional rule that changes what a season can be belongs here.
  */
-export const NON_STANDARD_RULES = ['modes', 'upgrader', 'powerUps', 'superLeague', 'managers', 'managerSpin', 'endCase', 'classic', 'budget', 'chain'] as const
+export const NON_STANDARD_RULES = ['modes', 'upgrader', 'powerUps', 'superLeague', 'superEase', 'managers', 'managerSpin', 'endCase', 'classic', 'budget', 'chain'] as const
 
 /** The first non-standard rule a game's settings switch on, or null. */
 export function nonStandardRule(settings: Pick<GameSettings, 'rules'>): (typeof NON_STANDARD_RULES)[number] | null {

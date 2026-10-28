@@ -44,6 +44,7 @@ export const home = catalog('home', {
   dailyTitle: 'Daily Challenge',
   dailyLine: 'Same spins for everyone, every day.',
   dailyToday: 'Today: a {formation}, {league} {season}',
+  dailyTodayLeague: 'Today: a {formation} in the {league}',
   dailyRanked: 'Every score on the world leaderboard is checked by replay',
   streakTip: 'Daily streak: {n, plural, one {# day} other {# days}} in a row',
   streakLabel: 'Daily streak {n, plural, one {# day} other {# days}}',

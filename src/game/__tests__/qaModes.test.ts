@@ -13,7 +13,7 @@ import { runInCatalogue, suggestRunIns, type RunInTemplate } from '@engine/scena
 import { decodeChallenge, encodeChallenge } from '@engine/challenge'
 import { cupGameSettings, finalGameSettings, gauntletGameSettings, stepWon, type ArenaChoices } from '../logic/arena'
 import { runInGameSettings } from '../logic/runin'
-import { dailySettings } from '../logic/daily'
+import { dailyLeagueOf, dailySettings } from '../logic/daily'
 import { dailyGameSettings } from '../logic/setup'
 import { arenaChallengeFromGame, challengeFromGame, replayChallenge } from '../logic/challenge'
 import { useStore } from '../store'
@@ -111,6 +111,8 @@ describe('QA: the Run-in through the store', () => {
 })
 
 describe('QA: the Daily through the store', () => {
+  // Engine 7 rotates the Daily's league from 2026-10-30 (DAILY_EPOCHS): the store holds England and the day's league, as a browser does
+  const du = loadTestUniverse(['england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'portugal'])
   for (let batch = 0; batch < 3; batch++)
   it(`plays Dailies on their days: one result a day, the replay link (batch ${batch})`, async () => {
     const fails: string[] = []
@@ -119,23 +121,23 @@ describe('QA: the Daily through the store', () => {
       const day = `2026-${String(1 + (i % 12)).padStart(2, '0')}-${String(1 + i).padStart(2, '0')}`
       const seed = `daily-${day}`
       const ch = new Chooser(seed)
-      loadStore(u, ['england'])
+      loadStore(du, [...new Set(['england', dailyLeagueOf(seed)])])
       try {
-        const d = dailySettings(u, seed)
-        st().startGame(dailyGameSettings(u, seed, 'QA Daily'))
+        const d = dailySettings(du, seed)
+        st().startGame(dailyGameSettings(du, seed, 'QA Daily'))
         const g0 = st().game!
         if (g0.settings.formationId !== d.formationId) fails.push(`${seed}: formation ${g0.settings.formationId} vs ${d.formationId}`)
-        const problems = driveDraft(u, ch, { autoAt: ch.chance(0.3) ? 5 : undefined }).problems
-        if (!problems.length) problems.push(...driveQuickSeason(u, ch))
+        const problems = driveDraft(du, ch, { autoAt: ch.chance(0.3) ? 5 : undefined }).problems
+        if (!problems.length) problems.push(...driveQuickSeason(du, ch))
         const g = st().game!
         if (!problems.length) {
           const q = g.quickResult!
           problems.push(...tableProblems(q.table, (q.table.length - 1) * 2, 'daily table'))
-          problems.push(...squadProblems(g.lineup, g.bench, (id) => u.index[id]?.playerId))
+          problems.push(...squadProblems(g.lineup, g.bench, (id) => du.index[id]?.playerId))
           const results = Object.values(st().profile.dailyResults)
           if (results.length !== 1) problems.push(`${results.length} daily results`)
-          const payload = challengeFromGame(g, u, 'QA')
-          const out = payload ? replayChallenge(u, decodeChallenge(encodeChallenge(payload))) : null
+          const payload = challengeFromGame(g, du, 'QA')
+          const out = payload ? replayChallenge(du, decodeChallenge(encodeChallenge(payload))) : null
           if (out?.verified !== 'yes') problems.push(`daily link: ${out?.verified} ${out?.reason}`)
           expectReloadSame(`${seed}`)
         }
