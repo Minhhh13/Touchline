@@ -72,7 +72,18 @@ export function H2HSetup() {
   const [seed, setSeed] = useState(() => randomSeed())
   // Two devices instead of one: only in a build with the online layer (an offline build shows exactly the hot-seat setup).
   // Playing with a friend online is the default; a Rematch of a hot-seat game stays on this device
-  const [where, setWhere] = useState<'device' | 'online'>(() => (!last && onlineAvailable() ? 'online' : 'device'))
+  const [where, setWhereState] = useState<'device' | 'online'>(() => (!last && onlineAvailable() ? 'online' : 'device'))
+  // The switch swaps the whole page under it: the focus follows to the same switch on the new page (round 4)
+  const switched = useRef(false)
+  const setWhere = (v: 'device' | 'online') => {
+    switched.current = true
+    setWhereState(v)
+  }
+  useEffect(() => {
+    if (!switched.current) return
+    switched.current = false
+    document.querySelector<HTMLElement>(`[data-testid="h2h-where-${where}"]`)?.focus()
+  }, [where])
   if (!u) return null
   const online = onlineAvailable()
   const back = (
@@ -80,7 +91,7 @@ export function H2HSetup() {
       {t('back')}
     </button>
   )
-  const switcher = online ? <Segmented value={where} onChange={setWhere} options={[{ value: 'online', label: <><Wifi size={14} aria-hidden="true" /> {t('playOnline')}</>, testId: 'h2h-where-online' }, { value: 'device', label: <><Users size={14} aria-hidden="true" /> {t('thisDevice')}</>, testId: 'h2h-where-device' }]} /> : null
+  const switcher = online ? <Segmented label={t('whereToPlay')} value={where} onChange={setWhere} options={[{ value: 'online', label: <><Wifi size={14} aria-hidden="true" /> {t('playOnline')}</>, testId: 'h2h-where-online' }, { value: 'device', label: <><Users size={14} aria-hidden="true" /> {t('thisDevice')}</>, testId: 'h2h-where-device' }]} /> : null
   if (online && where === 'online')
     return (
       <div className="page">
@@ -180,11 +191,11 @@ export function H2HSetup() {
           <div className="col">
           <div className="field">
             {t('league')}
-            <Segmented value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
+            <Segmented label={t('league')} value={leagueId} onChange={(id) => { setLeagueId(id); setHosts(['', '']); void ensureLeagues(wheelScope === 'europe' ? u.available.map((l) => l.id) : [id]) }} options={u.available.map((l) => ({ value: l.id, label: <><LeagueFlag leagueId={l.id} /> {l.name}</> }))} />
           </div>
           <div className="field">
             {t('draftFrom')}
-            <Segmented value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {t('thisLeague')}</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> {t('allLeagues', { n: u.available.length })}</> }]} />
+            <Segmented label={t('draftFrom')} value={wheelScope} onChange={(sc) => { setWheelScope(sc); void ensureLeagues(sc === 'europe' ? u.available.map((l) => l.id) : [leagueId]) }} options={[{ value: 'league', label: <><LeagueFlag leagueId={leagueId} /> {t('thisLeague')}</> }, { value: 'europe', label: <><LeagueFlag leagueId="europe" /> {t('allLeagues', { n: u.available.length })}</> }]} />
           </div>
           </div>
           <div className="col">
@@ -223,7 +234,7 @@ export function H2HSetup() {
             <span>
               {t('difficulty')} <Info label={t('aboutDifficulty')}>{t('difficultyInfo')}</Info>
             </span>
-            <Segmented value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: t('calibrated') }, { value: 'realistic', label: t('realistic') }]} />
+            <Segmented label={t('difficulty')} value={difficulty} onChange={setDifficulty} options={[{ value: 'calibrated', label: t('calibrated') }, { value: 'realistic', label: t('realistic') }]} />
           </div>
           <label className="toggle">
             <input type="checkbox" checked={hardMode} onChange={(e) => setHardMode(e.target.checked)} />

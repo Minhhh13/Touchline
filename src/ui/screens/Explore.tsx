@@ -312,7 +312,7 @@ export function Explore() {
                 </div>
                 <div className="plist lined explore-list">
                   {selected.squad.map((p) => (
-                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} right={<span className="row" style={{ gap: 2 }}><CompareButton on={compare.includes(p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => flipCompare(p.playerId)} /><ShortlistStar on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} /></span>} />
+                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} actions={<><CompareButton on={compare.includes(p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => flipCompare(p.playerId)} /><ShortlistStar on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} /></>} />
                   ))}
                 </div>
               </>
@@ -329,7 +329,7 @@ export function Explore() {
             <PosFilter value={posFilter} onChange={setPosFilter} />
           </div>
           <div className="row wrap explore-filters" style={{ gap: 'var(--space-2)' }}>
-            <Segmented value={onePerPlayer ? 'player' : 'season'} onChange={(v) => setOnePerPlayer(v === 'player')} options={[{ value: 'season', label: t('everySeason'), testId: 'legends-every' }, { value: 'player', label: t('bestEach'), hint: t('bestEachHint'), testId: 'legends-one' }]} />
+            <Segmented label={t('rowsLabel')} value={onePerPlayer ? 'player' : 'season'} onChange={(v) => setOnePerPlayer(v === 'player')} options={[{ value: 'season', label: t('everySeason'), testId: 'legends-every' }, { value: 'player', label: t('bestEach'), hint: t('bestEachHint'), testId: 'legends-one' }]} />
             <select className="input" style={{ width: 'auto' }} aria-label={t('season')} data-testid="legends-season" value={legendSeason} onChange={(e) => setLegendSeason(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
               <option value="all">{t('allSeasons')}</option>
               {[...seasons].reverse().map((s) => (

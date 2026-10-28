@@ -232,7 +232,7 @@ export const story = catalog('story', {
   legend: 'All-time top scorer: {name}, {goals} in {games}.',
 
   noLeagueForm: 'no league form',
-  formAria: '{who, select, ours {Your form} other {Their form}}: {form}, oldest first',
+  formAria: '{who, select, ours {Your form} other {Their form}}, oldest first',
   tablePair: 'You {ours, ordinal}, {oursPts} pts · them {theirs, ordinal}, {theirsPts} pts',
   you: 'You',
   them: 'Them',
@@ -240,6 +240,7 @@ export const story = catalog('story', {
   aboutPreview: 'About the preview',
   previewInfo: 'Form is the last five league games, oldest first. The player to watch is their top scorer who is fit, or their best player; yours is the starter in the best recent form.',
   chipTip: '{title}: {text}',
+  chipSaid: ': {title}. {text}',
   storylines: 'Storylines',
   lastSeason: 'The story of last season',
   summer: 'Summer',

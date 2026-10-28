@@ -464,7 +464,7 @@ export function ProfileScreen() {
             </div>
             {unlocked > 0 && unlocked < ACHIEVEMENTS.length && (
               <div style={{ marginBottom: 'var(--space-3)' }} data-testid="achievement-view">
-                <Segmented value={achView} onChange={setAchView} options={[{ value: 'all', label: t('all') }, { value: 'unlocked', label: t('unlocked', { n: unlocked }) }, { value: 'locked', label: t('locked', { n: ACHIEVEMENTS.length - unlocked }) }]} />
+                <Segmented label={t('achievements')} value={achView} onChange={setAchView} options={[{ value: 'all', label: t('all') }, { value: 'unlocked', label: t('unlocked', { n: unlocked }) }, { value: 'locked', label: t('locked', { n: ACHIEVEMENTS.length - unlocked }) }]} />
               </div>
             )}
             <div className="achievements">
@@ -541,7 +541,7 @@ export function ProfileScreen() {
               <span>
                 {t('theme')} <Info label={t('themeAbout')}>{t('themeInfo')}</Info>
               </span>
-              <Segmented value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: t('auto'), hint: t('themeHint') }, { value: 'light', label: t('light') }, { value: 'dark', label: t('dark') }]} />
+              <Segmented label={t('theme')} value={profile.theme} onChange={setTheme} options={[{ value: 'auto', label: t('auto'), hint: t('themeHint') }, { value: 'light', label: t('light') }, { value: 'dark', label: t('dark') }]} />
             </div>
             <div className="field">
               <span>
@@ -560,7 +560,7 @@ export function ProfileScreen() {
               <span>
                 {t('sound')} <Info label={t('soundAbout')}>{t('soundInfo')}</Info>
               </span>
-              <Segmented value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'sound-on' }, { value: 'off', label: t('off'), testId: 'sound-off' }]} />
+              <Segmented label={t('sound')} value={soundOn ? 'on' : 'off'} onChange={(v) => setSoundOn(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'sound-on' }, { value: 'off', label: t('off'), testId: 'sound-off' }]} />
             </div>
             {soundOn && (
               <>
@@ -574,19 +574,19 @@ export function ProfileScreen() {
                   <span>
                     {t('matchSounds')} <Info label={t('matchAbout')}>{t('matchInfo')}</Info>
                   </span>
-                  <Segmented value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'match-sound-on' }, { value: 'off', label: t('off'), testId: 'match-sound-off' }]} />
+                  <Segmented label={t('matchSounds')} value={matchSound ? 'on' : 'off'} onChange={(v) => setMatchSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'match-sound-on' }, { value: 'off', label: t('off'), testId: 'match-sound-off' }]} />
                 </div>
                 <div className="field">
                   <span>
                     {t('draftSounds')} <Info label={t('draftAbout')}>{t('draftInfo')}</Info>
                   </span>
-                  <Segmented value={draftSound ? 'on' : 'off'} onChange={(v) => setDraftSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'draft-sound-on' }, { value: 'off', label: t('off'), testId: 'draft-sound-off' }]} />
+                  <Segmented label={t('draftSounds')} value={draftSound ? 'on' : 'off'} onChange={(v) => setDraftSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'draft-sound-on' }, { value: 'off', label: t('off'), testId: 'draft-sound-off' }]} />
                 </div>
                 <div className="field">
                   <span>
                     {t('uiSounds')} <Info label={t('uiAbout')}>{t('uiInfo')}</Info>
                   </span>
-                  <Segmented value={uiSound ? 'on' : 'off'} onChange={(v) => setUiSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'ui-sound-on' }, { value: 'off', label: t('off'), testId: 'ui-sound-off' }]} />
+                  <Segmented label={t('uiSounds')} value={uiSound ? 'on' : 'off'} onChange={(v) => setUiSound(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'ui-sound-on' }, { value: 'off', label: t('off'), testId: 'ui-sound-off' }]} />
                 </div>
               </>
             )}
@@ -594,14 +594,14 @@ export function ProfileScreen() {
               <span>
                 {t('reelSpeed')} <Info label={t('reelAbout')}>{t('reelInfo')}</Info>
               </span>
-              <Segmented value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: t('full'), testId: 'reel-full' }, { value: 'quick', label: t('quick'), testId: 'reel-quick' }]} />
+              <Segmented label={t('reelSpeed')} value={quickSpin ? 'quick' : 'full'} onChange={(v) => setQuickSpin(v === 'quick')} options={[{ value: 'full', label: t('full'), testId: 'reel-full' }, { value: 'quick', label: t('quick'), testId: 'reel-quick' }]} />
             </div>
             {onlineAvailable() && (
               <div className="field">
                 <span>
                   {t('errorReports')} <Info label={t('errorReportsAbout')}>{t('errorReportsInfo')}</Info>
                 </span>
-                <Segmented value={reportsOn ? 'on' : 'off'} onChange={(v) => setReports(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'error-reports-on' }, { value: 'off', label: t('off'), testId: 'error-reports-off' }]} />
+                <Segmented label={t('errorReports')} value={reportsOn ? 'on' : 'off'} onChange={(v) => setReports(v === 'on')} options={[{ value: 'on', label: t('on'), testId: 'error-reports-on' }, { value: 'off', label: t('off'), testId: 'error-reports-off' }]} />
               </div>
             )}
             </div>
@@ -629,7 +629,7 @@ export function ProfileScreen() {
               <h3>{t('bestSeasons')}</h3>
               {profile.leaderboard.length > 0 && (
                 <span data-testid="board-filter">
-                  <Segmented value={filter} onChange={setFilter} options={[...BOARD_FILTERS]} />
+                  <Segmented label={t('bestSeasons')} value={filter} onChange={setFilter} options={[...BOARD_FILTERS]} />
                 </span>
               )}
             </div>
@@ -706,6 +706,7 @@ export function ProfileScreen() {
               <h3>{t('bestRuns')}</h3>
               {!!profile.arenaRuns?.length && (
                 <Segmented
+                  label={t('bestRuns')}
                   value={runsView}
                   onChange={setRunsView}
                   options={[

@@ -54,7 +54,7 @@ export function FormationPanel({ d, side }: PanelProps & { side: 'home' | 'away'
               className={`md-man ${s.out ? 'out' : ''} ${selected ? 'selected' : ''} ${lit ? 'lit' : ''}`}
               data-lit={lit ? 'yes' : undefined}
               // His place as per cent of the layer, moved by transform (`--x`, `--y`, matchday.css), so a change of shape glides without a reflow
-              style={{ '--x': left.toFixed(2), '--y': top.toFixed(2), maxWidth: gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}% - 4px))` } as CSSProperties}
+              style={{ '--x': left.toFixed(2), '--y': top.toFixed(2), '--md-name-max': gap === null ? undefined : `min(76px, calc(${gap.toFixed(1)}cqw - 4px))` } as CSSProperties}
               onClick={() => s.psId && d.select(s.psId)}
               disabled={!s.psId}
               aria-pressed={selected}

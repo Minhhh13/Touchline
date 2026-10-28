@@ -106,10 +106,19 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                     </span>
                   </span>
                   <span className="row" style={{ gap: 'var(--space-2)' }}>
-                    <button type="button" className="btn sm" data-testid="renewal-talk" onClick={() => onPlayer(c.id)}>
+                    <button type="button" className="btn sm" data-testid="renewal-talk" onClick={() => onPlayer(c.id)} aria-label={t('offerTermsTo', { name: c.name })}>
                       {t('offerTerms')}
                     </button>
-                    <button type="button" className="btn sm ghost" data-testid="renewal-release" onClick={() => void askConfirm(t('letGoConfirm', { name: c.name }), { ok: t('letGo'), danger: true }).then((ok) => { if (ok) showToast(letContractGo(c.id).message) })}>
+                    <button
+                      type="button"
+                      className="btn sm ghost"
+                      data-testid="renewal-release"
+                      aria-label={t('letGoNamed', { name: c.name })}
+                      onClick={async () => {
+                        // He leaves for good: the game's own question first (round 4)
+                        if (await askConfirm(t('letGoConfirm', { name: c.name }), { ok: t('letGo'), danger: true })) showToast(letContractGo(c.id).message)
+                      }}
+                    >
                       {t('letGo')}
                     </button>
                   </span>

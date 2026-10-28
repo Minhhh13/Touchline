@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Shuffle, X, type LucideIcon } from 'lucide-react'
 import { seasonStop } from '@engine/era'
 import { generateTeamName } from '@game/logic/teamNames'
@@ -6,6 +6,7 @@ import { seasonLabel } from '../format'
 import { InfoTip } from './PowerUpButton'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
+import { onRadioGroupKey, radioTabIndex } from '../a11y'
 
 const t = translator(setup)
 
@@ -21,9 +22,9 @@ export interface ChoiceOption<T extends string> {
 /** A row of option cards, one of them chosen: the setup screen's Difficulty, Show ratings, Draft mode and Player ratings. */
 export function ChoiceCards<T extends string>({ label, options, value, onChange, disabled, testId }: { label: string; options: Array<ChoiceOption<T>>; value: T; onChange: (v: T) => void; disabled?: boolean; testId?: string }) {
   return (
-    <div className={`choice-cards n${options.length}`} role="radiogroup" aria-label={label} data-testid={testId}>
-      {options.map((o) => (
-        <button key={o.value} type="button" role="radio" aria-checked={o.value === value} className={`choice-card ${o.value === value ? 'active' : ''}`} disabled={disabled} onClick={() => onChange(o.value)} data-value={o.value} title={o.line}>
+    <div className={`choice-cards n${options.length}`} role="radiogroup" aria-label={label} data-testid={testId} onKeyDown={onRadioGroupKey}>
+      {options.map((o, i) => (
+        <button key={o.value} type="button" role="radio" aria-checked={o.value === value} tabIndex={radioTabIndex(i, options.findIndex((x) => x.value === value))} className={`choice-card ${o.value === value ? 'active' : ''}`} disabled={disabled} onClick={() => onChange(o.value)} data-value={o.value} title={o.line}>
           {o.icon && (
             <span className="cicon" aria-hidden="true">
               <o.icon size="1em" />
@@ -55,6 +56,8 @@ export function SectionHead({ title, info, right, testId }: { title: string; inf
  */
 export function TeamNameField({ label = t('teamName'), value, onChange, fallback, maxLength = 28, testId = 'team-name', taken }: { label?: string; value: string; onChange: (v: string) => void; fallback: string; maxLength?: number; testId?: string; taken?: readonly string[] }) {
   const ref = useRef<HTMLInputElement>(null)
+  // Shuffle leaves the focus on its button, so the new name is read out from a region that stays mounted (round 4)
+  const [said, setSaid] = useState('')
   return (
     <div className="field team-field">
       <label htmlFor={`${testId}-input`}>{label}</label>
@@ -74,11 +77,25 @@ export function TeamNameField({ label = t('teamName'), value, onChange, fallback
           <X size="1em" aria-hidden="true" />
           <span className="name-btn-label">{t('clear')}</span>
         </button>
-        <button type="button" className="btn sm name-btn" onClick={() => onChange(generateTeamName(Math.random, [value, ...(taken ?? [])]).name.slice(0, maxLength))} aria-label={t('randomiseField', { label: label.toLowerCase() })} title={t('randomise')} data-testid={`${testId}-shuffle`}>
+        <button
+          type="button"
+          className="btn sm name-btn"
+          onClick={() => {
+            const name = generateTeamName(Math.random, [value, ...(taken ?? [])]).name.slice(0, maxLength)
+            onChange(name)
+            setSaid(t('nameShuffled', { label, name }))
+          }}
+          aria-label={t('randomiseField', { label: label.toLowerCase() })}
+          title={t('randomise')}
+          data-testid={`${testId}-shuffle`}
+        >
           <Shuffle size="1em" aria-hidden="true" />
           <span className="name-btn-label">{t('randomise')}</span>
         </button>
       </div>
+      <span className="sr-only" aria-live="polite" data-testid={`${testId}-live`}>
+        {said}
+      </span>
     </div>
   )
 }

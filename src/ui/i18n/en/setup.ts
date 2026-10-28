@@ -7,6 +7,7 @@ export const setup = catalog('setup', {
   clear: 'Clear',
   randomiseField: 'Randomise {label}',
   randomise: 'Randomise',
+  nameShuffled: '{label}: {name}',
   firstSeason: 'First season',
   lastSeason: 'Last season',
   modes: 'Modes',
