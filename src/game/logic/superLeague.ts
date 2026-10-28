@@ -8,7 +8,7 @@ import type { LoadedUniverse } from '@engine/universe'
 import type { SeasonTier } from '@engine/types'
 import { aiRatingOffset, buildAiClubs, tierBlurb, tierLabel, type AiClub } from '@engine/season'
 import { ordinal } from '@engine/universe'
-import { buildSuperClubs, buildSuperRestClubs, SUPER_LEAGUE_NAME, SUPER_LEAGUE_RIVALS, superSeasons, superSideName } from '@engine/superLeague'
+import { buildSuperClubs, buildSuperRestClubs, SUPER_LEAGUE_HANDICAP, SUPER_LEAGUE_NAME, SUPER_LEAGUE_RIVALS, superSeasons, superSideName } from '@engine/superLeague'
 
 /** Whether a game's season is the Super League: a Quick Draft (or a challenge of one) whose rules ask for it. */
 export function isSuperLeague(s: Pick<GameSettings, 'mode' | 'rules'>): boolean {
@@ -17,10 +17,12 @@ export function isSuperLeague(s: Pick<GameSettings, 'mode' | 'rules'>): boolean 
 
 /**
  * The league a quick season is played in and the handicap its AI sides carry: the real league season with its
- * calibration, or the Super League's nineteen at full strength (no calibration: the greatest sides are the point).
+ * calibration, or the Super League's nineteen with no calibration (the greatest sides are the point), a rating point
+ * off (`SUPER_LEAGUE_HANDICAP`) when the rules carry `superEase`, as every Super League game started since 2026-10-28
+ * does; one without it (an older save or link) plays them at full strength, as it was played.
  */
 export function quickLeague(u: LoadedUniverse, s: Pick<GameSettings, 'mode' | 'rules' | 'leagueId' | 'leagueSeason' | 'hostClubId' | 'difficulty'>, taken?: ReadonlySet<string>): { ai: Record<string, AiClub>; offset: number } {
-  if (isSuperLeague(s)) return { ai: buildSuperClubs(u, s.rules.classic, taken), offset: 0 }
+  if (isSuperLeague(s)) return { ai: buildSuperClubs(u, s.rules.classic, taken), offset: s.rules.superEase ? SUPER_LEAGUE_HANDICAP : 0 }
   // The calibration is the league's own, from full squads; then the humans the user holds leave their real clubs (E6-2)
   const full = buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId)
   const ai = taken?.size ? buildAiClubs(u, s.leagueId, s.leagueSeason, s.hostClubId, taken) : full

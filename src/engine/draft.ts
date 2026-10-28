@@ -111,6 +111,12 @@ export interface DraftRules {
    * changed by it. Off when omitted, so older saves, links and every other mode are unchanged.
    */
   superLeague?: boolean
+  /**
+   * The Super League a little easier (2026-10-28, after engine 7 shipped): its rivals carry `SUPER_LEAGUE_HANDICAP`, a
+   * rating point off every line (`quickLeague`). Setup writes it beside `superLeague`; absent on every Super League game
+   * and link made before it, which therefore replay at full strength exactly as they were played.
+   */
+  superEase?: boolean
 }
 
 /** The mode flags a set of draft rules may carry (Hard is the difficulty). */

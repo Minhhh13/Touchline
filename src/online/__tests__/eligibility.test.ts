@@ -30,6 +30,7 @@ const ON: Record<(typeof NON_STANDARD_RULES)[number], Partial<DraftRules>> = {
   upgrader: { upgrader: true },
   powerUps: { powerUps: true },
   superLeague: { superLeague: true },
+  superEase: { superEase: true },
   managers: { managers: true },
   managerSpin: { managerSpin: true },
   endCase: { endCase: true },

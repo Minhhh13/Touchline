@@ -157,7 +157,7 @@ export function playQuickCup(game: Game, u: LoadedUniverse, comp: QuickCupComp):
   const nameOf = (id: string) => get(id)?.name
   const rng = Rng.fromState(game.rngState).fork(comp === 'cup' ? 'quick-cup' : 'quick-continental')
   const field = quickCupField(game, u, comp)
-  // The AI sides carry the league's handicap: none in the Super League, whose rivals play at full strength
+  // The AI sides carry the league's handicap: in the Super League only its eased point (`superEase`), no calibration
   const offset = comp === 'cup' ? aiRatingOffset(u, field, s.difficulty ?? 'calibrated') : quickLeague(u, s).offset
   const benchOn = quickBenchRule(game) && (game.draft?.bench.length ?? 0) > 0
   const formation = getFormation(game.tactics.formationId)

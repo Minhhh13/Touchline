@@ -19,6 +19,14 @@ export const SUPER_LEAGUE_NAME = 'Super League'
 /** The pseudo league id the screens use for the Super League's flag and name; never a real league's id. */
 export const SUPER_LEAGUE_ID = 'super'
 
+/**
+ * The rating points every Super League rival plays below its real strength when the game's rules carry `superEase`
+ * (subtracted from each line like the calibration's offset, `withOffset` in match.ts). Measured over 250 seeds on the
+ * data of 2026-10-25 (docs/GAME_DESIGN.md, the Super League's "How hard"): about six points more for the same strong XI,
+ * the elite XI's titles from 62% to 84%, still no 38-0.
+ */
+export const SUPER_LEAGUE_HANDICAP = 1
+
 /** A club-season ranked by the Super League's strength measure. */
 export interface RankedClubSeason {
   cs: ClubSeason
