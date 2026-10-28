@@ -8,9 +8,6 @@ import { dugout } from '../i18n/en/dugout'
 
 const t = translator(dugout)
 
-/** The words for a zone's edge, as the row's tooltip (the place number stays the reading; the edge is a guide). */
-const ZONE_TIP = { title: 'zoneTitle', top4: 'zoneTop4', top6: 'zoneTop6', releg: 'zoneReleg' } as const
-
 /** `zones` draws the league's zones on the rows' left edge, as the quick season's live table does (`zoneOf`). */
 export function TableView({ rows, teamName, teamCode, compact, highlightTop, nameOf, zones }: { rows: TableRow[]; teamName: string; teamCode?: string; compact?: boolean; highlightTop?: boolean; nameOf?: (clubId: string) => string; zones?: boolean }) {
   const u = useStore((s) => s.universe)
@@ -40,7 +37,7 @@ export function TableView({ rows, teamName, teamCode, compact, highlightTop, nam
           // A rule where one zone gives way to the next: under the top places, over the bottom three
           const edge = zone && zone !== 'releg' && zoneOf(i + 2, rows.length) !== zone ? 'zone-end' : zone === 'releg' && zoneOf(i, rows.length) !== 'releg' ? 'zone-start' : ''
           return (
-            <tr key={r.teamId} className={`${me ? 'me' : ''} ${zone ? `zone-${zone}` : ''} ${edge}`} title={zone ? t(ZONE_TIP[zone]) : undefined} style={highlightTop && i === 0 ? { fontWeight: 700 } : undefined}>
+            <tr key={r.teamId} className={`${me ? 'me' : ''} ${zone ? `zone-${zone}` : ''} ${edge}`} title={zone ? t(`zone_${zone}`) : undefined} style={highlightTop && i === 0 ? { fontWeight: 700 } : undefined}>
               <td>{i + 1}</td>
               <td className="tv-club" title={name}>
                 <span className="row" style={{ gap: 8 }}>

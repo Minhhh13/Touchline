@@ -742,8 +742,8 @@ export const dugout = catalog('dugout', {
   storyLastSeason: 'The story of last season',
   storySummer: 'Summer',
   storyNow: 'Now',
-  zoneTitle: 'First place: the title',
-  zoneTop4: 'The top four',
-  zoneTop6: 'The top six',
-  zoneReleg: 'The bottom three: relegation',
+  zone_title: 'First place: the title',
+  zone_top4: 'The top four',
+  zone_top6: 'The top six',
+  zone_releg: 'The bottom three: relegation',
 })
