@@ -19,13 +19,13 @@ import { quickManagerOptions } from '@game/logic/managers'
 import { edgeHint, edgeLine, managerEdge } from '@game/logic/managerEdge'
 import { squadReport, VETERAN_AGE, type ReportMan } from '@game/logic/squadReport'
 import { ManagerChip, ManagerPick } from '../components/ManagerPick'
-import { MANAGER_STYLE_HELP } from '@engine/managers'
 import { caseIconIn, kickoffStep } from '@game/logic/endCase'
 import { ManagerSpin } from '../components/ManagerSpin'
 import { EndCase } from '../components/EndCase'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { B, rich } from '../i18n/rich'
+import { styleHelp } from '../i18n/engineText'
 
 const t = translator(season)
 
@@ -116,7 +116,7 @@ export function KickOff() {
                 <div className="col" style={{ gap: 4 }}>
                   <span className="sc-kicker">{t('inTheDugout')}</span>
                   <ManagerChip manager={game.manager} />
-                  <span className="help">{MANAGER_STYLE_HELP[game.manager.style]}</span>
+                  <span className="help">{styleHelp(game.manager.style)}</span>
                   {edge && (
                     <span className="small" data-testid="kickoff-manager-edge">
                       {rich(t('onYourXi', { edge: edgeLine(edge) }), B)}

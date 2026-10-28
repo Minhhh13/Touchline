@@ -4,13 +4,13 @@ import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { CASE_ITEMS, CASE_RARITIES, caseRarityOdds } from '@engine/endCase'
-import { POWER_UP_INFO } from '@engine/powerups'
 import { ratingHidden } from '@game/logic/ratingVisibility'
 import { CASE_RARITY_LABEL, CASE_TIER, caseIconChoices, lockerCount } from '@game/logic/endCase'
 import { caseGuide } from '@game/logic/caseGuide'
 import { caseDropCard, caseFillers, caseItemCard, dealItems, type ItemDeal } from '@game/logic/itemReel'
 import { playerLookup } from '@game/logic/players'
-import { slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { slotRating } from '@game/logic/slotRating'
+import { fitText, slotRatingText } from '../slotRatingText'
 import { armAudio, playSound, unlockAudio } from '../sound/synth'
 import { FULL_TIMING, QUICK_TIMING } from '../reelCurve'
 import { quickSpinPref, usePref } from '../viewerPrefs'
@@ -23,6 +23,7 @@ import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
 import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import { powerUpLine, powerUpTitle } from '../i18n/engineText'
 
 const t = translator(season)
 
@@ -104,7 +105,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
           )}
           {/* The reel is hidden from screen readers: the landing is said once, here */}
           <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="case-live">
-            {landed ? (c.drop.kind === 'powerup' ? t('caseLivePowerUp', { title: POWER_UP_INFO[c.drop.powerUp].title, rarity: CASE_RARITY_LABEL[c.drop.rarity] }) : icon ? t('caseLiveIcon', { name: icon.name }) : '') : ''}
+            {landed ? (c.drop.kind === 'powerup' ? t('caseLivePowerUp', { title: powerUpTitle(c.drop.powerUp), rarity: CASE_RARITY_LABEL[c.drop.rarity] }) : icon ? t('caseLiveIcon', { name: icon.name }) : '') : ''}
           </span>
           {spinning && (
             <button type="button" className="reel-skip" onClick={(e) => { e.stopPropagation(); setSkip((n) => n + 1) }} data-testid="case-skip">
@@ -117,11 +118,11 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                 <span className="case-face" aria-hidden="true">
                   <PowerUpIcon kind={c.drop.powerUp} size="1em" />
                 </span>
-                <b className="case-name">{POWER_UP_INFO[c.drop.powerUp].title}</b>
+                <b className="case-name">{powerUpTitle(c.drop.powerUp)}</b>
                 {/* The case's own rarity only: the wheel's colour tier beside it ("Purple · Decent" on a Rare) read as a second scale */}
                 <span className="chip case-rarity" data-tier={card.tier}>{CASE_RARITY_LABEL[c.drop.rarity]}</span>
               </div>
-              <span className="help">{POWER_UP_INFO[c.drop.powerUp].line}</span>
+              <span className="help">{powerUpLine(c.drop.powerUp)}</span>
               <span className="small" data-testid="case-locker">
                 {t('intoLocker', { n: lockerCount(profile, c.drop.powerUp) })}
               </span>
@@ -148,8 +149,8 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
               </span>
               <div className="case-slots row wrap" style={{ gap: 6 }}>
                 {choices.map((x, i) => (
-                  <button ref={i === 0 ? action : undefined} key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingLine(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingLine(x.outSlot, x.label)}` : ''}`}>
-                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {x.fit} · {t('forName', { name: surname(x.outName) })}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
+                  <button ref={i === 0 ? action : undefined} key={x.slotId} type="button" className={`chip slot-chip ${x.fit === 'fits' ? 'good' : 'warn'}`} onClick={() => subCaseIcon(x.slotId)} data-testid="case-slot" title={hide || !x.slot ? undefined : `${slotRatingText(x.slot, x.label, { attributes: true })}${x.outSlot && !ratingHidden(game.settings.rules, 'squad') ? `; ${x.outName}: ${slotRatingText(x.outSlot, x.label)}` : ''}`}>
+                    <b>{x.label}</b> {hide ? '?' : x.slot?.inSlot ?? x.rating}{!hide && x.slot && x.slot.cost > 0 ? ` (−${x.slot.cost})` : ''} · {fitText(x.fit)} · {t('forName', { name: surname(x.outName) })}{ratingHidden(game.settings.rules, 'squad') ? '' : ` (${x.outSlot?.inSlot ?? x.outRating})`}
                   </button>
                 ))}
               </div>

@@ -7,7 +7,7 @@ import { computeTable, positionOf, roundsFor, USER_TEAM, type Competition } from
 import { getFormation } from '@engine/formations'
 import { getRole, DEFAULT_ROLE } from '@engine/roles'
 import { LINE_HELP, MENTALITY_HELP, PASSING_HELP, PRESSING_HELP, TEMPO_HELP, WIDTH_HELP, STYLE_LABEL } from '@engine/tactics'
-import { TRAINING, TRAINING_LABEL, type TrainingFocus } from '@engine/training'
+import { TRAINING, type TrainingFocus } from '@engine/training'
 import { nextOpponent, upcomingCupTie } from '@game/logic/week'
 import { MATCH_PLAY_MODES, matchPlayOf } from '@game/logic/assistant'
 import { isAvailable, playerLookup, squadPlayers } from '@game/logic/players'
@@ -24,7 +24,8 @@ import { briefingHeadline, weeklyBriefing, type BriefingAction, type BriefingIte
 import { nextStop, simToLabel, stopLine } from '@game/logic/seasonHighlights'
 import { newsTotal, unseenNews } from '@game/logic/news'
 import { slotSheet, surname, whereaboutsLabel, type SlotOption } from '@game/logic/slotSheet'
-import { slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { slotRating } from '@game/logic/slotRating'
+import { slotRatingText } from '../slotRatingText'
 import { Pitch, PitchLegend } from '../components/Pitch'
 import { FormationPicker } from '../components/FormationPicker'
 import { PlayerRow } from '../components/PlayerRow'
@@ -70,6 +71,7 @@ import { InboxStorylines, MatchPreviewPanel, StoryChip, SummerHeadline } from '.
 import { translator } from '../i18n'
 import { dugout } from '../i18n/en/dugout'
 import { rich } from '../i18n/rich'
+import { roleBlurb, roleName, staffLabel, staffTierBlurb, staffTierTitle, trainingBlurb, trainingLabel } from '../i18n/engineText'
 
 const t = translator(dugout)
 
@@ -735,7 +737,7 @@ function SlotOptionRow({ o, at, onPick }: { o: SlotOption; at: Position; onPick?
         </>
       }
       right={
-        <span className="slot-disc" title={slotRatingLine(rated, at, { attributes: true })} role="img" aria-label={slotRatingLine(rated, at)} data-testid="slot-disc">
+        <span className="slot-disc" title={slotRatingText(rated, at, { attributes: true })} role="img" aria-label={slotRatingText(rated, at)} data-testid="slot-disc">
           {o.disc}
           {rated.cost > 0 && <span className="slot-disc-cost">−{rated.cost}</span>}
         </span>
@@ -1049,8 +1051,8 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
           {on('training') && (
           <div className="panel">
             <h3>{t('trainingWeek')}</h3>
-            <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: TRAINING_LABEL[k] }))} />
-            <p className="help">{TRAINING[game.training].blurb}</p>
+            <Segmented<TrainingFocus> value={game.training} onChange={store.setTraining} options={(Object.keys(TRAINING) as TrainingFocus[]).map((k) => ({ value: k, label: trainingLabel(k) }))} />
+            <p className="help">{trainingBlurb(game.training)}</p>
           </div>
           )}
           {on('set-pieces') && (
@@ -1132,14 +1134,14 @@ export function TacticsTab({ boxes }: { boxes?: Boxes }) {
                         </span>
                       )}
                       <span className="role-pick">
-                        <select className="input" aria-label={t('roleFor', { pos: slot.position })} title={role.blurb} value={roleId} onChange={(e) => store.setRole(slot.id, e.target.value)}>
+                        <select className="input" aria-label={t('roleFor', { pos: slot.position })} title={roleBlurb(role)} value={roleId} onChange={(e) => store.setRole(slot.id, e.target.value)}>
                           {roleOptions(p, slot.position).map((r) => (
                             <option key={r.id} value={r.id}>
-                              {r.rating === null ? r.name : `${r.name} · ${r.rating}`}
+                              {r.rating === null ? roleName(r) : `${roleName(r)} · ${r.rating}`}
                             </option>
                           ))}
                         </select>
-                        <Info label={t('aboutName', { name: role.name })}>{role.blurb}</Info>
+                        <Info label={t('aboutName', { name: roleName(role) })}>{roleBlurb(role)}</Info>
                       </span>
                     </span>
                     {ev ? (
@@ -1749,17 +1751,17 @@ function ClubTab({ table, onPlayer, boxes }: { table: TableRow[]; onPlayer: (id:
             return (
               <div key={role} className="staff-row">
                 <div className="row between wrap" style={{ gap: 'var(--space-2)' }}>
-                  <b>{info.label}</b>
-                  <span className="small muted">{info.tiers[tier].title}</span>
+                  <b>{staffLabel(role)}</b>
+                  <span className="small muted">{staffTierTitle(role, tier)}</span>
                 </div>
                 <div className="segmented" style={{ marginTop: 'var(--space-2)' }}>
                   {info.tiers.map((x) => (
-                    <button key={x.tier} className={x.tier === tier ? 'active' : ''} onClick={() => store.hireStaff(role, x.tier)} title={x.blurb}>
+                    <button key={x.tier} className={x.tier === tier ? 'active' : ''} onClick={() => store.hireStaff(role, x.tier)} title={staffTierBlurb(role, x.tier)}>
                       {x.tier === 0 ? t('tierNone') : t(x.tier === 1 ? 'tierGood' : 'tierElite', { w: wage(x.wage) })}
                     </button>
                   ))}
                 </div>
-                <div className="small muted one-line" style={{ marginTop: 'var(--space-1)' }} title={info.tiers[tier].blurb}>{info.tiers[tier].blurb}</div>
+                <div className="small muted one-line" style={{ marginTop: 'var(--space-1)' }} title={staffTierBlurb(role, tier)}>{staffTierBlurb(role, tier)}</div>
               </div>
             )
           })}

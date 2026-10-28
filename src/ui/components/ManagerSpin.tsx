@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
-import { MANAGER_EDGE, MANAGER_STYLE_HELP, MANAGER_STYLE_LABEL, MANAGER_STYLES, type Manager } from '@engine/managers'
+import { MANAGER_EDGE, MANAGER_STYLES, type Manager } from '@engine/managers'
 import { gameManagerWheel, managerSpinOdds, managerTier } from '@game/logic/managers'
 import { edgeHint, edgeLine, managerEdge } from '@game/logic/managerEdge'
 import { playerLookup } from '@game/logic/players'
@@ -21,6 +21,7 @@ import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
 import { B, rich } from '../i18n/rich'
+import { styleHelp, styleLabel } from '../i18n/engineText'
 
 const t = translator(season)
 
@@ -133,9 +134,9 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
                     <span className="cline">{origin(u, m)}</span>
                     <span className="row wrap" style={{ gap: 6 }}>
                       <TierChip tier={tier} />
-                      <span className="chip manager-style">{MANAGER_STYLE_LABEL[m.style]}</span>
+                      <span className="chip manager-style">{styleLabel(m.style)}</span>
                     </span>
-                    <span className="cline manager-help">{MANAGER_STYLE_HELP[m.style]}</span>
+                    <span className="cline manager-help">{styleHelp(m.style)}</span>
                     <span className="cline manager-edge" data-testid={`mspin-edge-${i}`}>
                       {rich(t('onYourXi', { edge: edgeLine(edges[m.style]) }), B)}
                     </span>
@@ -163,7 +164,7 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
         )}
         {/* The reels are hidden from screen readers: the landing is said once, here */}
         <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="mspin-live">
-          {done ? t('landedLiveMgr', { list: options.map((m) => `${m.name}, ${MANAGER_STYLE_LABEL[m.style]}`).join('; ') }) : ''}
+          {done ? t('landedLiveMgr', { list: options.map((m) => `${m.name}, ${styleLabel(m.style)}`).join('; ') }) : ''}
         </span>
       </div>
       <div className="panel mspin-guide" data-testid="mspin-guide">
@@ -178,10 +179,10 @@ export function ManagerSpin({ u, game }: { u: LoadedUniverse; game: Game }) {
             return (
               <div key={st} className={`mspin-style${landedHere ? ' landed' : ''}`} data-testid={`mspin-style-${st}`}>
                 <span className="row between" style={{ gap: 8 }}>
-                  <b>{MANAGER_STYLE_LABEL[st]}</b>
+                  <b>{styleLabel(st)}</b>
                   <span className="mspin-style-edge">{edgeLine(e)}</span>
                 </span>
-                <span className="small muted">{MANAGER_STYLE_HELP[st]}</span>
+                <span className="small muted">{styleHelp(st)}</span>
                 {edgeHint(st, e) && <span className="small mspin-style-hint">{edgeHint(st, e)}</span>}
               </div>
             )

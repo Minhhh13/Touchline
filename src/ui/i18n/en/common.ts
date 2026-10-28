@@ -42,4 +42,13 @@ export const common = catalog('common', {
   moreInfo: 'More information',
   close: 'Close',
   gotIt: 'Got it',
+  ok: 'OK',
+  cancel: 'Cancel',
+  slotOutOfPosition: '−{cost} out of position',
+  slotNatural: 'natural position',
+  slotAtCost: '{n} at {at} ({overall} overall, {cost})',
+  slotAtNatural: '{n} at {at} (his overall, natural position)',
+  slotWithAttributes: '{head}. Attributes for {at}: {n}',
+  fitFits: 'fits',
+  fitCovers: 'can cover',
 })

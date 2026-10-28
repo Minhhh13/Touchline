@@ -11,7 +11,7 @@ import { getFormation } from '@engine/formations'
 import { EMPTY_WHEEL_LABEL, wheelHasRoom } from '@game/logic/wheelCheck'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
-import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
+import { POWER_UPS } from '@engine/powerups'
 import { HoverTips, InfoTip } from '../components/PowerUpButton'
 import { ruleChipNote } from '../ruleNotes'
 import { ERA_PRESETS, eraCount, eraHandles, wheelSeasons, type EraPreset } from '@engine/era'
@@ -46,6 +46,7 @@ import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
 import { B, rich } from '../i18n/rich'
+import { formationBlurb, powerUpTitle } from '../i18n/engineText'
 
 const t = translator(setup)
 
@@ -388,7 +389,7 @@ export function Setup() {
                     <Pitch formation={shownFormation} lineup={{}} getPlayer={() => undefined} />
                   </div>
                   <p className="help setup-line">
-                    <b>{shownFormation.name}</b>: {shownFormation.blurb}
+                    <b>{shownFormation.name}</b>: {formationBlurb(shownFormation)}
                   </p>
                 </div>
               </div>
@@ -503,7 +504,7 @@ export function Setup() {
                     <HoverTips className="setup-modes-row" testId="mode-tip">
                       <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} icons={MODE_ICON} onToggle={toggleMode} />
                       <div className="pu-setup">
-                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => POWER_UP_INFO[k].title).join(', ') })}>
+                        <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => powerUpTitle(k)).join(', ') })}>
                           <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />
                           <span className="micon" aria-hidden="true">
                             <Package size="1em" />

@@ -34,6 +34,7 @@ import { askConfirm } from '../confirm'
 import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
+import { formationBlurb } from '../i18n/engineText'
 
 const t = translator(h2hText)
 
@@ -142,7 +143,7 @@ export function H2HSetup() {
               <div className="field formation-field">
                 {t('formation')}
                 <FormationPicker value={formations[i]} onChange={(id) => setFormations(formations.map((f, j) => (j === i ? id : f)))} label={t('managerFormation', { n: i + 1 })} testId={`h2h-formation-${i}`} />
-                <span className="help">{getFormation(formations[i]).blurb}</span>
+                <span className="help">{formationBlurb(getFormation(formations[i]))}</span>
               </div>
               <label className="field">
                 {t('hostClub')}

@@ -21,7 +21,7 @@ import { ClubBadge, Flag, Info, Segmented, Stat, TeamBadge } from '../components
 import { shortNameFor } from '@game/logic/setup'
 import { LeagueFlag, SuperLeagueMark } from '../components/Flag'
 import { SUPER_LEAGUE_NAME } from '@engine/superLeague'
-import { POWER_UPS, POWER_UP_INFO } from '@engine/powerups'
+import { POWER_UPS } from '@engine/powerups'
 import { lockerCount } from '@game/logic/endCase'
 import { AchievementIcon, PowerUpIcon } from '../components/icons'
 import { clubName, fixed, ordinal, seasonLabel, tierName } from '../format'
@@ -43,6 +43,7 @@ import { translator } from '../i18n'
 import { profile as profileText } from '../i18n/en/profile'
 import { arenaFormatText, modeTitle } from '../i18n/modeText'
 import { languageOptions, LOCALE_NAMES, setLanguage, useLanguage } from '../i18n/language'
+import { powerUpTitle } from '../i18n/engineText'
 
 const t = translator(profileText)
 
@@ -339,7 +340,7 @@ export function ProfileScreen() {
                   ? POWER_UPS.filter((k) => lockerCount(profile, k) > 0).map((k, i) => (
                       <span key={k} className="case-odds-item">
                         {i > 0 && ' · '}
-                        <PowerUpIcon kind={k} size={13} /> {POWER_UP_INFO[k].title} ×{lockerCount(profile, k)}
+                        <PowerUpIcon kind={k} size={13} /> {powerUpTitle(k)} ×{lockerCount(profile, k)}
                       </span>
                     ))
                   : t('lockerEmpty')}

@@ -38,7 +38,8 @@ import { CapChip, CapChips } from '../components/CapControl'
 import { ChainChip, ChainLogNote, ChainStatus } from '../components/ChainControl'
 import { eraFirstSeason } from '@game/logic/era'
 import { draftSlotChoices } from '@game/logic/slotSheet'
-import { costLabel, slotRating, slotRatingLine } from '@game/logic/slotRating'
+import { slotRating } from '@game/logic/slotRating'
+import { costText, fitText, slotRatingText } from '../slotRatingText'
 import { draftTurnKey } from '@game/logic/draftTurn'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { DRAFT } from '../boxSets'
@@ -622,11 +623,11 @@ export function Draft() {
                       // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
                       const r = slotRating(selected, c.position)
                       return (
-                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingLine(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${c.fit}` : `${slotRatingLine(r, c.label)}, ${c.fit}`}>
-                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {c.fit}
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingText(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${fitText(c.fit)}` : `${slotRatingText(r, c.label)}, ${fitText(c.fit)}`}>
+                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {fitText(c.fit)}
                           {!hide && r.cost > 0 && (
                             <span className="slot-cost" data-testid="slot-cost">
-                              {' '}{t('slotCost', { n: r.overall, cost: costLabel(r) })}
+                              {' '}{t('slotCost', { n: r.overall, cost: costText(r) })}
                             </span>
                           )}
                         </button>
