@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gauntletBandText, knockoutOutcome, splitSeason, kickLine, takerMoved } from '../arenaText'
+import { gauntletBandText, knockoutOutcome, personalBest, splitSeason, kickLine, takerMoved } from '../arenaText'
 import { GAUNTLET_RUNGS, rungBandLabel } from '@engine/gauntlet'
 
 describe('arena display text', () => {
@@ -42,5 +42,25 @@ describe('the shoot-out in words (accessibility round 3)', () => {
   })
   it('says where a moved taker now kicks', () => {
     expect(takerMoved('H. Kane', 0)).toBe('H. Kane takes kick 1.')
+  })
+
+  it('marks a run that beats or ties the best of its own kind, never the first run or a scoreless one', () => {
+    const runs = [
+      { id: 'a', format: 'gauntlet' as const, score: 5 },
+      { id: 'b', format: 'gauntlet' as const, score: 3 },
+      { id: 'c', format: 'cup' as const, size: 8, score: 3 },
+      { id: 'd', format: 'cup' as const, size: 16, score: 1 },
+      { id: 'e', format: 'cup' as const, score: 1 },
+    ]
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 7 })).toEqual({ kind: 'best', was: 5 })
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 5 })).toEqual({ kind: 'equal', was: 5 })
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 4 })).toBeNull()
+    // A Cup is measured against Cups of its own size; a final (no size) against finals
+    expect(personalBest(runs, { id: 'x', format: 'cup', size: 16, score: 2 })).toEqual({ kind: 'best', was: 1 })
+    expect(personalBest(runs, { id: 'x', format: 'cup', size: 32, score: 2 })).toBeNull()
+    expect(personalBest(runs, { id: 'x', format: 'cup', score: 1 })).toEqual({ kind: 'equal', was: 1 })
+    // The run itself is not one of the earlier runs; nothing to beat, or nothing won, is no mark
+    expect(personalBest([{ id: 'x', format: 'gauntlet', score: 9 }], { id: 'x', format: 'gauntlet', score: 9 })).toBeNull()
+    expect(personalBest(runs, { id: 'x', format: 'gauntlet', score: 0 })).toBeNull()
   })
 })

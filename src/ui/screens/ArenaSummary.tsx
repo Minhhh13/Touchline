@@ -34,6 +34,8 @@ import { CasualStatus } from '../online/CasualStatus'
 import { prefersReducedMotion, useFirstReveal } from '../motion'
 import { playSound } from '../sound/synth'
 import { fixed } from '../format'
+import { personalBest } from '../arenaText'
+import { resultId } from '@game/logic/cabinet'
 
 const t = translator(arena)
 
@@ -139,6 +141,8 @@ export function ArenaSummary() {
   }
 
   const won = (s: (typeof a.log)[number]) => s.gf > s.ga || (!!s.pens && s.pens.us > s.pens.them)
+  // A run that beats (or ties) the manager's best of its kind says so under the banner; a trophy says it already
+  const best = a.won ? null : personalBest(profile.arenaRuns ?? [], { id: resultId(game), format: a.format, size: a.size, score: a.log.filter(won).length })
   return (
     // Main's summary layout: the result box on the left, everything else in a box beside it that scrolls inside itself
     <div className="page summary arena-summary" data-testid="summary">
@@ -162,6 +166,11 @@ export function ArenaSummary() {
             {banner}
           </div>
         </div>
+        {best && (
+          <span className={`chip ${best.kind === 'best' ? 'good' : 'info'} arena-best`} data-testid="arena-best">
+            {t(best.kind === 'best' ? 'newBest' : 'equalBest', { gauntlet: gauntlet ? 'yes' : 'no', n: a.log.filter(won).length, was: best.was })}
+          </span>
+        )}
         {winner && (
           <p className="tier-blurb" data-testid="cup-winner">
             {t('wonBy', { name: winner })}
@@ -192,7 +201,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={card} data-testid="arena-card">
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
-          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title="The same format on a new wheel">
+          <button className="btn" onClick={() => startGame(arenaAgainSettings(game.settings, randomSeed()))} data-testid="arena-again" title={t('playAgainTip')}>
             <Dices size={16} aria-hidden="true" /> {t('playAgain')}
           </button>
           <button className="btn" onClick={() => void makeChallenge()} data-testid="arena-challenge-friend" title={t(a.handManaged ? 'handTip' : 'assistantTip')}>
@@ -201,7 +210,7 @@ export function ArenaSummary() {
           <button className="btn" onClick={runItBack} data-testid="arena-run-it-back" title={t('runItBackTip')}>
             <RotateCcw size={16} aria-hidden="true" /> {t('runItBack')}
           </button>
-          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title="Set up a new arena run">
+          <button className="btn ghost" onClick={() => openArenaSetup(gauntlet ? 'gauntlet' : 'cup')} title={t('newRunTip')}>
             <Plus size={16} aria-hidden="true" /> {t('newGame')}
           </button>
         </div>

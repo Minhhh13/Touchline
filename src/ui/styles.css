@@ -5249,6 +5249,77 @@ dl.kv {
 .setup-rules .setup-opt + .setup-opt {
   margin-top: 0;
 }
+/* The arena setup's road ahead (r8): the Cup's rounds as a row of steps to the final, the Gauntlet's fifteen rungs */
+.road-ahead .help {
+  margin: var(--space-2) 0 0;
+}
+.road-rounds,
+.road-rungs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.road-round {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+.road-round > span {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border);
+  background: var(--panel-2);
+}
+.road-round.final > span {
+  border-color: var(--medal-gold);
+  color: var(--gold-text);
+  background: var(--gold-soft);
+}
+.road-round.final > svg {
+  color: var(--gold-text);
+}
+.road-arrow {
+  color: var(--text-3);
+}
+.road-rungs {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: var(--space-1);
+  align-items: end;
+}
+.road-rung {
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: 2px;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-s);
+  background: var(--panel-2);
+  border: var(--border);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  /* The rungs rise, each a little taller than the last, so the row reads as a climb (--rung from the markup) */
+  min-height: calc(28px + var(--rung, 0) * 2px);
+}
+.road-rung.top {
+  border-color: var(--medal-gold);
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+.road-rung.bonus svg {
+  color: var(--good);
+}
+@media (max-width: 520px) {
+  .road-rungs {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
 .setup-more {
   gap: var(--space-3);
 }
@@ -6350,6 +6421,18 @@ dl.kv {
   100% {
     transform: none;
     filter: none;
+  }
+}
+/* The arena summary's personal best (r8): a chip under the banner, popped in once */
+.arena-best {
+  align-self: center;
+  margin-top: var(--space-1);
+  animation: tier-pop var(--dur-4) var(--ease-spring) backwards;
+  animation-delay: var(--dur-3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-best {
+    animation: none;
   }
 }
 .tier-banner .tier.pop {
@@ -9148,6 +9231,16 @@ table.tbl.match-stats th {
 .h2h-start .btn {
   width: min(420px, 100%);
 }
+/* On a desktop the setup's body scrolls as a whole: Start stays in view at its foot (r8; it sat below the fold at 1280x720) */
+@media (min-width: 1100px) {
+  .app.shell .screen-body.scroll-whole > .grid > .h2h-start {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: var(--space-3) 0 var(--space-1);
+    background: linear-gradient(to bottom, transparent, var(--bg) 40%);
+  }
+}
 .howto-section.wide {
   grid-column: 1 / -1;
 }
@@ -11383,11 +11476,17 @@ table.tbl.match-stats th {
   .world-grid .world-help {
     display: none;
   }
-  /* ...and the boards are their names alone (each line is the button's tip), so the board's Play card shows below them */
+  /* ...and the boards are their names alone, two to a row (each line is the button's tip), so the board's Play card shows below them */
+  .world-grid .world-boards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
   .world-board-pick {
-    padding: var(--space-1) var(--space-3);
-    min-height: 36px;
+    padding: var(--space-1) var(--space-2);
+    min-height: 40px;
     justify-content: center;
+    font-size: var(--fs-sm);
   }
   .world-board-pick span {
     display: none;
@@ -13088,6 +13187,14 @@ table.tbl.contracts-overview .link-btn.name {
 /* The arena hub: the head, then the opponent, the team sheet and the pitch with the calls as three boxes (`.page.fit`) */
 .arena-stats {
   grid-template-columns: repeat(2, auto);
+}
+/* The hub's team name and the opponent's on the type scale (they were 26 px and 18 px inline) */
+.arena-hub .fit-head h1 {
+  font-size: calc(var(--fs-h2) + 2px);
+}
+.arena-opp-name {
+  font-weight: 700;
+  font-size: calc(var(--fs-h3) - 1px);
 }
 @media (min-width: 1100px) and (min-height: 600px) {
   .fit-grid.arena-grid {

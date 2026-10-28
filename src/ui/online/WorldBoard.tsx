@@ -837,6 +837,10 @@ export function WorldBoard() {
                   </button>
                 ))}
               </div>
+              {/* The board's Play card first, so what to do next sits under the boards (the weekly's and the run-in's stay with their week switch) */}
+              {tab === 'daily' && day === today && <DailyPlay />}
+              {tab === 'arena' && arenaDay === today && <ArenaDailyPlay />}
+              {tab === 'themed' && casualWeek === thisWeek && <ThemedWeekPlay />}
               <div className="field">
                 {tr('country')}
                 <CountrySelect value={country} onChange={setCountry} emptyLabel={tr('everywhere')} testId="board-country" />
@@ -846,7 +850,6 @@ export function WorldBoard() {
                   <CountryFlag code={account.country} size={16} /> {tr('myCountry')}
                 </button>
               )}
-              {tab === 'daily' && day === today && <DailyPlay />}
               {tab === 'daily' && (
                 <label className="field">
                   {tr('day')}
@@ -858,7 +861,6 @@ export function WorldBoard() {
               {tab === 'alltime' && <Segmented value={order} onChange={setOrder} options={[{ value: 'points', label: tr('totalPoints') }, { value: 'streak', label: tr('colBestStreak') }]} />}
               {tab === 'chase' && <Segmented value={chaseScope} onChange={setChaseScope} options={[{ value: 'week', label: tr('thisWeek'), testId: 'chase-scope-week' }, { value: 'alltime', label: tr('allTime'), testId: 'chase-scope-alltime' }]} />}
               {tab === 'chase' && <ChasePlay />}
-              {tab === 'arena' && arenaDay === today && <ArenaDailyPlay />}
               {tab === 'arena' && (
                 <label className="field">
                   {tr('day')}
@@ -866,7 +868,6 @@ export function WorldBoard() {
                 </label>
               )}
               {(tab === 'themed' || tab === 'runin') && <Segmented value={casualWeek} onChange={setCasualWeek} options={[{ value: thisWeek, label: tr('thisWeek') }, { value: lastWeek, label: tr('lastWeek') }]} />}
-              {tab === 'themed' && casualWeek === thisWeek && <ThemedWeekPlay />}
               {tab === 'runin' && casualWeek === thisWeek && <RunInWeekPlay />}
               <p className="help world-help">{help}</p>
             </div>

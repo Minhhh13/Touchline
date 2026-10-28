@@ -8,6 +8,9 @@ import { CasualStatus } from '../online/CasualStatus'
 import { ClubBadge, Info, Stat } from '../components/bits'
 import { Check, Copy, House, RotateCcw } from 'lucide-react'
 import { clubName, ordinal, outcomeClass, outcomeOf, seasonLabel } from '../format'
+import { Celebrate } from '../components/Celebrate'
+import { prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
 import { translator } from '../i18n'
 import { runin } from '../i18n/en/runin'
 
@@ -19,6 +22,12 @@ export function RunInSummary() {
   const [copied, setCopied] = useState(false)
   const table = useMemo(() => (game?.season ? seasonTable(game.season) : []), [game?.season])
   const story = useMemo(() => (game && u ? storyForGame(game, u) : null), [game, u])
+  // A brief met: the flourish behind the chip and the fanfare, the first time this summary shows in a visit (as the arena's)
+  const met = useMemo(() => (game && u && game.season ? !!runInVerdict(game, u)?.met : false), [game, u])
+  const first = useFirstReveal(`runin-met:${game?.id}`, false)
+  useEffect(() => {
+    if (met && first) playSound({ id: 'fanfare', treble: false, reduced: prefersReducedMotion() }, 0.6)
+  }, [met, first])
   // "Copied" reverts after a moment; the timer goes with the screen
   useEffect(() => {
     if (!copied) return
@@ -50,6 +59,7 @@ export function RunInSummary() {
           <span className="bm-rest">{t('modeLine', { template: RUN_IN_TEMPLATE_LABEL[v.template] })}</span>
         </div>
         <div className="tier-wrap">
+          {v.met && <Celebrate tier="CHAMPIONS" resultKey={`${game.id}:runin`} replayed={false} />}
           <div className={`tier ${v.met ? 'CHAMPIONS' : 'RELEGATED'}`} data-testid="runin-chip">
             {v.chip}
           </div>

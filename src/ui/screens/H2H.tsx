@@ -32,6 +32,9 @@ import { onlineAvailable } from '../../online/api'
 import { RoomSetup } from '../online/Rooms'
 import { askConfirm } from '../confirm'
 import { copyText, hasShareSheet, shareOrCopy } from '../shareSheet'
+import { Celebrate } from '../components/Celebrate'
+import { prefersReducedMotion, useFirstReveal } from '../motion'
+import { playSound } from '../sound/synth'
 import { translator } from '../i18n'
 import { h2h as h2hText } from '../i18n/en/h2h'
 
@@ -176,18 +179,18 @@ export function H2HSetup() {
             <select className="input" value={effectiveSeason} onChange={(e) => setLeagueSeason(Number(e.target.value))}>
               {[...seasonChoices].reverse().map(({ season: s, classic: est }) => (
                 <option key={s} value={s}>
-                  {seasonLabel(s)}{s === u.currentSeason ? ' (in progress)' : ''}{est ? ' (est.)' : ''}
+                  {t('seasonOption', { season: seasonLabel(s), live: s === u.currentSeason ? 'yes' : 'no', est: est ? 'yes' : 'no' })}
                 </option>
               ))}
             </select>
             {classicSeason && (
               <span className="help">
-                <EstimatedChip compact /> A classic season: every side's ratings are estimated.
+                <EstimatedChip compact /> {t('classicSeasonHelp')}
               </span>
             )}
           </label>
           {classicFrom !== undefined && (
-            <label className="toggle" title="Real squads and tables; no official ratings exist, so these are TouchLine's estimates.">
+            <label className="toggle" title={t('classicToggleTip')}>
               <input
                 type="checkbox"
                 checked={classic}
@@ -199,7 +202,7 @@ export function H2HSetup() {
                   if (on) void ensureClassic().then((ok) => void (ok || setClassicOn(false)))
                 }}
               />
-              Classic {seasonLabel(classicFrom)} to {seasonLabel(u.firstSeason - 1)} <EstimatedChip compact />
+              {t('classicToggle', { from: seasonLabel(classicFrom), to: seasonLabel(u.firstSeason - 1) })} <EstimatedChip compact />
             </label>
           )}
           <div className="field">
@@ -524,6 +527,13 @@ export interface H2HResultViewProps {
 export function H2HResultView({ managers: m, result: r, drafts, leagueId, leagueSeason, seed, onRematch, onHome, label: labelProp, rematchLabel = t('rematch'), shareLabel = 'Head-to-head', you, testId }: H2HResultViewProps) {
   const { universe: u, showToast } = useStore()
   const [copied, setCopied] = useState(false)
+  // A decided result is celebrated once per visit: always on the hot seat (somebody won), online only on the winner's device
+  const cheer = r.winner !== null && (you === undefined || you === r.winner)
+  const celebrateKey = `h2h:${seed}:${m[0].name}:${m[1].name}`
+  const first = useFirstReveal(celebrateKey, false)
+  useEffect(() => {
+    if (cheer && first) playSound({ id: 'fanfare', treble: false, reduced: prefersReducedMotion() }, 0.4)
+  }, [cheer, first])
   if (!u) return null
   const label = labelProp ?? t('title')
   // The share text stays English (it travels to whoever reads it)
@@ -542,7 +552,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
   const copy = async () => {
     // The share sheet on a phone (Messages, WhatsApp...), the clipboard elsewhere
     const out = sheet ? await shareOrCopy({ title: `${APP_NAME} ${label}`, text, url: location.origin + location.pathname }) : await copyText(text)
-    if (out === 'failed') showToast('Could not share or copy the result: try again, or take a screenshot.')
+    if (out === 'failed') showToast(t('shareFailed'))
     else if (out !== 'dismissed') {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
@@ -580,7 +590,10 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
             {estimated && <> <EstimatedChip compact /></>}
           </span>
         </div>
-        <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`} data-testid="h2h-verdict">{r.winner === null ? t('deadHeat') : you !== undefined && r.winner === you ? t('youWin') : t('wins', { name: m[r.winner].name })}</div>
+        <div className="tier-wrap">
+          {cheer && <Celebrate tier="CHAMPIONS" resultKey={celebrateKey} replayed={false} />}
+          <div className={`tier ${r.winner === null ? '' : 'CHAMPIONS'}`} data-testid="h2h-verdict">{r.winner === null ? t('deadHeat') : you !== undefined && r.winner === you ? t('youWin') : t('wins', { name: m[r.winner].name })}</div>
+        </div>
         <div className="h2h-sides">
           {([0, 1] as const).map((i) => (
             <div key={i} className={`h2h-side ${r.winner === i ? 'won' : ''}`}>
@@ -589,7 +602,7 @@ export function H2HResultView({ managers: m, result: r, drafts, leagueId, league
                 <div style={{ textAlign: 'left' }}>
                   <h3 style={{ margin: 0 }}>
                     {m[i].name}
-                    {you === i && <span className="chip info h2h-you">You</span>}
+                    {you === i && <span className="chip info h2h-you">{t('you')}</span>}
                   </h3>
                 </div>
                 {r.winner === i && <Trophy size={20} className="h2h-cup" role="img" aria-label={t('winner')} />}
