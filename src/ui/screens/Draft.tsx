@@ -18,7 +18,7 @@ import { powerUpLog } from '@game/logic/powerups'
 import { fitGroups } from '../draftFit'
 import type { PlayerSeason, Position } from '@engine/types'
 import { CaseReel, TierChip, TierDot } from '../components/CaseReel'
-import { MODE_INFO, SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
+import { SPEEDRUN_SECONDS, activeModeCards } from '@engine/modes'
 import { TWIST_INFO, TwistCard } from '../components/TwistCard'
 import { Pitch } from '../components/Pitch'
 import { PlayerRow } from '../components/PlayerRow'
@@ -55,6 +55,7 @@ import { playSound } from '../sound/synth'
 import { askConfirm } from '../confirm'
 import { pickBand } from '../sound/cues'
 import { prefersReducedMotion } from '../motion'
+import { modeCardLine, modeCardTitle } from '../i18n/engineText'
 
 const t = translator(draft)
 
@@ -311,8 +312,8 @@ export function Draft() {
               {modeCards.map((c) => {
                 const Icon = MODE_ICON[c]
                 return (
-                  <span key={c} className="chip" title={MODE_INFO[c].line}>
-                    <Icon size={12} aria-hidden="true" /> {MODE_INFO[c].title}
+                  <span key={c} className="chip" title={modeCardLine(c)}>
+                    <Icon size={12} aria-hidden="true" /> {modeCardTitle(c)}
                   </span>
                 )
               })}

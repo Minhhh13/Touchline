@@ -124,3 +124,23 @@ describe('the game logic’s display words mirrored on screen', () => {
       }
   })
 })
+
+describe('the mode cards and the fixed-rules chips', () => {
+  it('say what MODE_INFO and describeRuleChips say, but Hard reads "No re-spins" for 0', async () => {
+    const { MODE_CARDS, MODE_INFO } = await import('@engine/modes')
+    for (const c of MODE_CARDS) {
+      expect(et.modeCardTitle(c)).toBe(MODE_INFO[c].title)
+      expect(et.modeCardLine(c)).toBe(c === 'hard' ? MODE_INFO.hard.line.replace(/^0 re-spins/, 'No re-spins') : MODE_INFO[c].line)
+    }
+    const { loadTestUniverse } = await import('../../engine/__tests__/helpers')
+    const { describeRuleChips } = await import('@game/logic/setup')
+    const { DAILY_RULES } = await import('@game/logic/daily')
+    const { QUICK_RULES, SEASON_RULES } = await import('@engine/draft')
+    const u = loadTestUniverse(['england'])
+    const sets = [DAILY_RULES, QUICK_RULES, SEASON_RULES, { ...QUICK_RULES, respins: 0, modes: ['crazy', 'speedrun'] as const, upgrader: true, powerUps: true, managers: true, managerSpin: false, endCase: true, superLeague: true, fromSeason: 2010, toSeason: 2015, benchPicks: 3 }, { ...QUICK_RULES, respins: 3, twists: false, managers: true, managerSpin: true }]
+    for (const r of sets) {
+      const chips = describeRuleChips(u, r as never)
+      expect(et.ruleChipsText(u, r as never).map((x) => x.text)).toEqual(chips.map((c) => c.text))
+    }
+  })
+})

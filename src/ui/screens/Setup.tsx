@@ -5,12 +5,12 @@ import { useStore, todaysDailySeed, slotOf } from '@game/store'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
-import { defaultHostClub, describeRuleChips, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
+import { defaultHostClub, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
 import { EMPTY_WHEEL_LABEL, wheelHasRoom } from '@game/logic/wheelCheck'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
-import { MODE_CARDS, MODE_INFO, toggleModeCard, type ModeCard } from '@engine/modes'
+import { MODE_CARDS, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS } from '@engine/powerups'
 import { HoverTips, InfoTip } from '../components/PowerUpButton'
 import { ruleChipNote } from '../ruleNotes'
@@ -46,7 +46,7 @@ import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
 import { setup } from '../i18n/en/setup'
 import { B, rich } from '../i18n/rich'
-import { formationBlurb, powerUpTitle } from '../i18n/engineText'
+import { formationBlurb, modeCardInfo, modeCardLine, modeCardTitle, powerUpTitle, ruleChipsText } from '../i18n/engineText'
 
 const t = translator(setup)
 
@@ -479,14 +479,14 @@ export function Setup() {
                 )}
                 {fixed?.rules && (
                   <HoverTips className="pill-list" data-testid="fixed-rules" testId="rule-tip">
-                    {describeRuleChips(u, fixed.rules).map((c) => {
+                    {ruleChipsText(u, fixed.rules).map(({ chip: c, text }) => {
                       const Icon = c.icon ? RULE_ICON[c.icon] : null
                       // Each chip's plain-words note, on hover, a tap or the keyboard (ruleNotes.ts)
                       const note = ruleChipNote(c)
                       return (
                         <span key={c.text} className={`chip${note ? ' has-tip' : ''}`} data-tip={note} tabIndex={note ? 0 : undefined}>
                           {Icon && <Icon size={12} aria-hidden="true" />}
-                          {Icon ? ` ${c.text}` : c.text}
+                          {Icon ? ` ${text}` : text}
                           {note && <span className="sr-only">: {note}</span>}
                         </span>
                       )
@@ -500,9 +500,9 @@ export function Setup() {
                 <StepHead n={4} title={t('setRules')} />
                 {!isManage && (
                   <div className="setup-modes" data-testid="modes-panel">
-                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => `${MODE_INFO[c].title}: ${MODE_INFO[c].line}.`).join(' ') })} testId="modes" right={<span className="small muted">{t('modesOn', { n: cardsOn.length })}</span>} />
+                    <SectionHead title={t('modes')} info={t('modesInfo', { list: MODE_CARDS.map((c) => t('modeInfoItem', { title: modeCardTitle(c), line: modeCardLine(c) })).join(' ') })} testId="modes" right={<span className="small muted">{t('modesOn', { n: cardsOn.length })}</span>} />
                     <HoverTips className="setup-modes-row" testId="mode-tip">
-                      <ModeCards cards={MODE_CARDS} on={cardsOn} info={MODE_INFO} icons={MODE_ICON} onToggle={toggleMode} />
+                      <ModeCards cards={MODE_CARDS} on={cardsOn} info={modeCardInfo()} icons={MODE_ICON} onToggle={toggleMode} />
                       <div className="pu-setup">
                         <label className={`qmode pu-card${powerUps ? ' active' : ''}`} data-testid="power-ups-toggle" data-tip={t('powerUpsTip', { list: POWER_UPS.map((k) => powerUpTitle(k)).join(', ') })}>
                           <input type="checkbox" className="sr-only" checked={powerUps} onChange={(e) => setPowerUps(e.target.checked)} />

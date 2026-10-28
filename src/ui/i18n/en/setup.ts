@@ -248,4 +248,5 @@ export const setup = catalog('setup', {
   takeOn: 'Take on {name}',
   startDraft: 'Start draft',
   stepN: 'Step {n}: ',
+  modeInfoItem: '{title}: {line}.',
 })
