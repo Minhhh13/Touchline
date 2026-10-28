@@ -29,7 +29,7 @@ export const home = catalog('home', {
   nudgePlayed: "Today's Daily: {points} pts{n, plural, =0 {} other {, streak #}}. A new one at midnight UTC",
   nudgeAtRisk: 'Your {n}-day Daily streak ends at midnight UTC: play today',
   nudgeFresh: "Today's Daily is waiting: one wheel for everyone",
-  nudgeBadge: 'Next badge: {badge}, {count} to {tier, select, bronze {bronze} silver {silver} other {gold}}',
+  nudgeBadge: 'Next badge: {badge}, {progress}',
   streakFallback: 'Streak {n} · {fallback}',
   tagline: 'Spin the wheel. Draft the XI. Manage the season.',
   playerSeasons: 'Player-seasons',

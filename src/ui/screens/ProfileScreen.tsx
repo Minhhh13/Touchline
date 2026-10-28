@@ -421,7 +421,7 @@ export function ProfileScreen() {
                       <div className="small muted">{b.tier ? t('tierProgress', { tier: t(`tier_${b.tier}`), progress: progressText(b.badge.tiers, b.value) }) : progressText(b.badge.tiers, b.value)}</div>
                       {chase?.state.badge.id === b.badge.id && (
                         <span className="chip info badge-next" data-testid="badge-next">
-                          {t('nextBadge', { count: badgeCount(b.badge, chase.left) })}
+                          {t('nextBadge')}
                         </span>
                       )}
                     </span>

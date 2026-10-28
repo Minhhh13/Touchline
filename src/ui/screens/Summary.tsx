@@ -282,8 +282,8 @@ export function Summary() {
     if (outcome === 'copied') showToast(t('inviteCopied'))
     else if (outcome === 'failed') showToast(t('copyFailed'))
   }
-  // One more: this quick season against the best record (which already counts it)
-  const more = q && !replay.playing ? oneMore(profile.quickBests?.bestRecord, record) : null
+  // One more: this quick season against the best record (which already counts it); nothing to measure on a first season
+  const more = q && !replay.playing && profile.seasonsSimulated > 1 ? oneMore(profile.quickBests?.bestRecord, record) : null
   const runItBack = () => {
     const d = game.draft
     if (!d || !mine) return
@@ -321,7 +321,7 @@ export function Summary() {
         ...(honour ? { honour: `${honourLabel(honour, honourCups)} · ${honourDetail(honourCups)}` } : cupWins ? { honour: cupWins } : {}),
         ...(gradeLine ? { grade: gradeLine } : {}),
         strip: story?.strip,
-        moment: story?.moment,
+        moment: story?.moment ? tidyShareText(story.moment) : undefined,
         // A chained draft prints its chain of club codes under the record
         ...(codes ? { lines: [`${record.won}W ${record.drawn}D ${record.lost}L · ${countPhrase(record.points, 'points')} · finished ${ordinal(record.position)}`, ...codes] } : {}),
       })

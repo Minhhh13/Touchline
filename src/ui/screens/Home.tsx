@@ -11,7 +11,7 @@ import { badgeStates } from '@engine/badges'
 import { emptyCabinet, leaguesWon } from '@game/logic/cabinet'
 import { dailyNudge, nextBadge, personalBests, type Best } from '@game/logic/shareInvite'
 import { recordLabel } from '@game/logic/perfect'
-import { badgeCount, badgeTitle } from '../i18n/trophyText'
+import { badgeTitle, progressText } from '../i18n/trophyText'
 import { FIRST_RUN_STEPS, firstDraftSettings, isNewcomer } from '@game/logic/onboarding'
 import { dailyStartSettings } from '../../online/daily'
 import { startingTeamName, teamShortName } from '../teamName'
@@ -258,7 +258,7 @@ export function Home() {
             {chase && (
               <button type="button" className="home-nudge linklike" onClick={() => go('profile')} data-testid="badge-nudge">
                 <Award size={14} aria-hidden="true" />
-                {t('nudgeBadge', { badge: badgeTitle(chase.state.badge), count: badgeCount(chase.state.badge, chase.left), tier: chase.tier })}
+                {t('nudgeBadge', { badge: badgeTitle(chase.state.badge), progress: progressText(chase.state.badge.tiers, chase.state.value) })}
               </button>
             )}
           </div>
