@@ -107,7 +107,11 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   })
   const [hover, setHover] = useState<string | null>(null)
   const [say, setSay] = useState('')
+  // The dragged man's ghost: mounted once when a drag starts, then moved by writing its transform straight to the
+  // element (`ghostRef`), so a pointer move does not re-render the board and recompute its team ratings every frame
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null)
+  const ghostRef = useRef<HTMLDivElement>(null)
+  const ghostAt = useRef<{ x: number; y: number } | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const drag = useRef<{ kind: Kind; id: string; pointerId: number; x0: number; y0: number; started: boolean } | null>(null)
   const swallowClick = useRef(false)
@@ -191,7 +195,10 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
       setSay(tx('sayDragging', { who: d.kind === 'bench' ? nameOf(d.id) : nameOf(shownAt(d.id)) }))
     }
     e.preventDefault()
-    setGhost({ x: e.clientX, y: e.clientY })
+    const at = { x: e.clientX, y: e.clientY }
+    ghostAt.current = at
+    if (ghostRef.current) ghostRef.current.style.transform = `translate(${at.x}px, ${at.y}px)`
+    else if (!ghost) setGhost(at)
     const t = targetAt(e.clientX, e.clientY, d.kind)
     setHover((h) => (h === t ? h : t))
   }
@@ -204,6 +211,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
     swallowClick.current = true
     window.setTimeout(() => (swallowClick.current = false), 0)
     const t = targetAt(e.clientX, e.clientY, d.kind)
+    ghostAt.current = null
     setGhost(null)
     if (t) drop(d, { kind: d.kind === 'bench' ? 'slot' : 'bench', id: t })
     else setSay(tx('sayDroppedNowhere'))
@@ -213,6 +221,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
   const cancel = () => {
     if (!drag.current) return
     drag.current = null
+    ghostAt.current = null
     setGhost(null)
     letGo(true)
   }
@@ -460,7 +469,7 @@ export function SubBoard({ hand, view, get, squad, condition, selected, queue, s
         {say}
       </div>
       {ghost && held?.via === 'drag' && heldMan && (
-        <div className="sub-ghost" style={{ transform: `translate(${ghost.x}px, ${ghost.y}px)` }} aria-hidden>
+        <div className="sub-ghost" ref={ghostRef} style={{ transform: `translate(${(ghostAt.current ?? ghost).x}px, ${(ghostAt.current ?? ghost).y}px)` }} aria-hidden>
           <Shirt colour={heldMan.positions[0] === 'GK' ? view.keeper : view.colour} number={view.numbers[heldMan.id]} size={26} />
           <span>{surname(heldMan.name)}</span>
         </div>

@@ -41,7 +41,9 @@ export interface PlayerCardProps {
  * sheet whose boxes stack and scroll together.
  */
 export function PlayerCard({ p, seasons, state, attrCaption, headChips, headExtra, actions, panels }: PlayerCardProps) {
-  const { universe: u, shortlist, toggleShortlist } = useStore()
+  const u = useStore((s) => s.universe)
+  const shortlist = useStore((s) => s.shortlist)
+  const toggleShortlist = useStore((s) => s.toggleShortlist)
   const [tab, setTab] = useState('career')
   if (!u) return null
   const extra = panels?.find((x) => x.id === tab)

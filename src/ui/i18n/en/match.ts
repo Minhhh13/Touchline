@@ -293,8 +293,6 @@ export const match = catalog('match', {
   panelSlot: 'Panel {slot}',
   momentumAria: 'Momentum by five-minute spell: up is {home}, down is {away}, a full bar is {top}% of the play',
   noSpellDot: 'No spell of dominance.',
-  xgRace: 'xG race',
-  xgRaceAria: 'Expected goals race',
   keyGoal: 'goal',
   keySaved: 'saved',
   keyChance: 'chance',

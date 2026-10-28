@@ -2653,11 +2653,6 @@ kbd {
   line-height: 1;
   color: var(--text);
 }
-.reel-hub .year {
-  font-size: 28px; /* px: the reel geometry */
-  font-weight: 700;
-  color: var(--text);
-}
 .reel-club-season {
   font-size: 14px; /* px: the reel geometry */
   font-weight: 600;
@@ -3210,10 +3205,6 @@ table.tbl.contracts .name {
 table.tbl.contracts .btn.sm {
   padding: 4px 6px;
 }
-/* The Club tab: panels keep their own height instead of stretching to the tallest in the row */
-.grid.club-grid {
-  align-items: start;
-}
 .kv.tight {
   gap: 2px 14px;
   line-height: 1.35;
@@ -3608,9 +3599,6 @@ table.tbl.contracts .btn.sm {
   }
   .hero h1 {
     font-size: calc(var(--fs-h1) * 1.4375);
-  }
-  .hero h1 .tl-lockup {
-    --h: 60px;
   }
 }
 .mode-card {
@@ -5215,19 +5203,6 @@ dl.kv {
   align-items: center;
   gap: var(--space-2);
 }
-.setup-name .setup-name-field {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-/* Step 2's title names the field; the label stays for screen readers */
-.setup-name .field-name {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
 .setup-formation-body {
   display: flex;
   flex-direction: column;
@@ -5351,9 +5326,6 @@ dl.kv {
     align-items: center;
     padding: 6px 10px;
     text-align: center;
-  }
-  .setup-page .choice-card .ctitle {
-    font-size: calc(var(--fs-base) + 1px);
   }
   .setup-page .choice-card .cline {
     position: absolute;
@@ -5679,10 +5651,6 @@ dl.kv {
   border: 2px solid var(--panel);
   cursor: pointer;
 }
-.toggle.is-off {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 /* The Classic seasons toggle sits in the Era panel's head row, so it adds no height */
 .toggle.era-classic {
   min-height: 0;
@@ -5789,20 +5757,6 @@ dl.kv {
   max-width: 190px;
   min-height: var(--control-h-sm);
   padding: 4px 8px;
-}
-.hidden-ratings .rating {
-  background: var(--bg-3) !important;
-  color: var(--text-3) !important;
-}
-.hidden-ratings .rating::after {
-  content: '?';
-}
-/* A rating already rendered hidden shows its own "?"; do not stack a second one on it */
-.hidden-ratings .rating.hidden::after {
-  content: none;
-}
-.hidden-ratings .rating > span {
-  display: none;
 }
 .fixture {
   display: grid;
@@ -6495,20 +6449,6 @@ dl.kv {
 }
 
 /* ------------------------------------------------------------------ live pitch and charts */
-.match-visuals {
-  gap: 10px;
-}
-@media (min-width: 721px) {
-  /* The pitch lies down beside the two charts */
-  .match-visuals {
-    display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    align-items: start;
-  }
-  .match-visuals .grid.two.charts {
-    grid-template-columns: 1fr;
-  }
-}
 .live-pitch,
 .shot-map,
 .tactics-overlay {
@@ -7671,15 +7611,6 @@ dl.kv {
   flex-direction: column;
   gap: var(--space-1);
 }
-.cup-round {
-  margin-bottom: var(--space-4);
-}
-.cup-round h4 {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
 .news .item {
   grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
@@ -8304,19 +8235,6 @@ dl.kv {
   border-radius: 50%;
   background: var(--primary-soft);
   color: var(--accent);
-}
-.field-pic {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.field-pic .fdiagram {
-  flex: none;
-  width: 36px;
-  height: 48px;
-}
-.h2h-start {
-  justify-content: flex-end;
 }
 .h2h-log {
   list-style: none;
@@ -9334,12 +9252,6 @@ table.tbl.match-stats th {
     padding-bottom: calc(10px + var(--safe-bottom));
   }
 }
-/* A list that would push the page: it scrolls inside its panel instead */
-.scroll-y {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  min-height: 0;
-}
 @media (min-width: 1100px) {
   .app.shell {
     height: 100dvh;
@@ -9558,9 +9470,6 @@ table.tbl.match-stats th {
   }
   .app.shell.bar-hidden .grid.dugout .pitch-wrap {
     --shell-chrome: 410px;
-  }
-  .app.shell.bar-hidden .grid.draft .pitch-wrap {
-    --shell-chrome: 240px;
   }
   /*
    * Home fits one screen at every desktop size. The hero's text scales with the window height (never clipped, so the
@@ -10878,11 +10787,6 @@ table.tbl.match-stats th {
     stroke-dashoffset: 0;
   }
 }
-.pc-dot {
-  fill: var(--primary);
-  stroke: var(--panel);
-  stroke-width: 2;
-}
 .pc-rival-key {
   font-size: var(--fs-xs);
 }
@@ -11011,9 +10915,6 @@ table.tbl.match-stats th {
 }
 .setup-goal {
   margin-bottom: 4px;
-}
-.setup-goal b {
-  color: var(--good);
 }
 @media (prefers-reduced-motion: reduce) {
   .lt-row,
@@ -12019,11 +11920,6 @@ table.tbl tr.chase-perfect td:first-child {
   align-items: center;
   gap: 6px;
 }
-.setup-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-}
 /* The Power-ups switch as a card in the Modes style */
 .pu-setup {
   display: flex;
@@ -12042,24 +11938,6 @@ table.tbl tr.chase-perfect td:first-child {
 }
 .qmode.pu-card .cline {
   margin-left: auto;
-}
-/* The chips above Start: everything the game will start with */
-.setup-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-@media (max-width: 640px) {
-  .setup-chips {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .setup-chips::-webkit-scrollbar {
-    display: none;
-  }
 }
 /* Mode cards: one clamped line on a wide screen, the icon and name alone on a phone (the Info tip has the rest) */
 .qmode:not(.pu-card) .cline {
@@ -12138,10 +12016,6 @@ table.tbl tr.chase-perfect td:first-child {
     padding: 5px 4px;
     min-width: 0;
     transform: none;
-  }
-  .setup-page .qmode .micon,
-  .setup-page .qmode.pu-card .micon {
-    font-size: calc(var(--fs-base) + 2px);
   }
   .setup-page .qmode .ctitle {
     font-size: var(--fs-xs);
@@ -12241,10 +12115,6 @@ table.tbl tr.chase-perfect td:first-child {
     clip: rect(0 0 0 0);
     white-space: nowrap;
   }
-  .setup-modes-row {
-    grid-template-columns: repeat(9, minmax(0, auto));
-    justify-content: space-between;
-  }
 }
 @media (min-width: 1000px) and (max-width: 1199px) {
   .setup-modes-row {
@@ -12330,9 +12200,6 @@ table.tbl tr.chase-perfect td:first-child {
   .app.shell .grid.draft > .col:first-child > .panel:first-child {
     gap: var(--space-2);
     padding: var(--space-3);
-  }
-  .app.shell .grid.draft .reel-hub .year {
-    font-size: 26px; /* px: the reel geometry */
   }
   .app.shell .grid.draft .spin-btn {
     min-height: 46px;
@@ -12848,13 +12715,6 @@ table.tbl.contracts-overview .link-btn.name {
   white-space: nowrap;
 }
 
-/* A very wide window: the Dugout uses the room rather than sitting in a 1600px column */
-@media (min-width: 2200px) {
-  .app.shell > .page.dugout-page {
-    max-width: 2000px;
-  }
-}
-
 /* A phone: the fixture and cup rows give the club names the room (a narrower matchweek and score column) */
 @media (max-width: 520px) {
   .fixture-list .fixture {
@@ -12955,17 +12815,6 @@ table.tbl.contracts-overview .link-btn.name {
     white-space: normal;
   }
 }
-/* Setup's Modes row carries the two casual cards too (Moneyball, Teammate chain): eleven across, two rows of six below 1200px */
-@media (min-width: 1000px) {
-  .setup-modes-row {
-    grid-template-columns: repeat(11, minmax(0, auto));
-  }
-}
-@media (min-width: 1000px) and (max-width: 1199px) {
-  .setup-modes-row {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-}
 /* The arena hub: the head, then the opponent, the team sheet and the pitch with the calls as three boxes (`.page.fit`) */
 .arena-stats {
   grid-template-columns: repeat(2, auto);
@@ -12997,9 +12846,6 @@ table.tbl.contracts-overview .link-btn.name {
 }
 /* On a phone the Modes row's switch cards (Power-ups, Moneyball, Teammate chain) wrap instead of running off the side */
 @media (max-width: 999px) {
-  .setup-modes-row .pu-setup {
-    flex-wrap: wrap;
-  }
   .setup-modes-row .pu-setup .qmode.pu-card {
     flex: 1 1 140px;
     min-width: 0;
@@ -16713,4 +16559,31 @@ table.tbl td.strong {
   grid-template-columns: 3.5em minmax(0, 1fr) auto;
   gap: 6px;
   color: var(--text-2);
+}
+/* Reduced motion, last word: entrances, presses and transitions whose own rules come after the motion section's blocks
+   above and share their specificity, so those blocks never reached them (auditR8Css.test.ts keeps every animated rule
+   in this file covered) */
+@media (prefers-reduced-motion: reduce) {
+  .hero-photo,
+  .page.has-bottom-bar,
+  .toast,
+  .toast.leaving,
+  .modal-back::before,
+  .goal-burst.theirs .banner,
+  .draft-recap > *,
+  .recap-grade {
+    animation: none;
+  }
+  .qmode,
+  .jw-option,
+  .pu-btn,
+  .boxes-btn .boxes-chevron {
+    transition: none;
+  }
+  .qmode.active,
+  .jw-option:hover,
+  .jw-option:focus-visible,
+  .pu-btn:hover:not(:disabled) {
+    transform: none;
+  }
 }

@@ -14,7 +14,8 @@ const t = translator(draft)
  * tray's. Nothing shows when the locker is empty or closed (the Daily, a challenge link, a draft with the tray).
  */
 export function LockerBar({ game, busy }: { game: Game; busy: boolean }) {
-  const { profile, unpackPowerUp } = useStore()
+  const profile = useStore((s) => s.profile)
+  const unpackPowerUp = useStore((s) => s.unpackPowerUp)
   if (!lockerOn(game)) return null
   const held = POWER_UPS.filter((k) => lockerCount(profile, k) > 0)
   if (!held.length) return null

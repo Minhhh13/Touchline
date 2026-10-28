@@ -23,6 +23,7 @@ import { CaseItemIcon, isCaseItemKey, LOCKER_ICON, PowerUpIcon } from './icons'
 import { surname } from '@game/logic/slotSheet'
 import { translator } from '../i18n'
 import { season } from '../i18n/en/season'
+import { reelSkipKey } from '../reelKeys'
 
 const t = translator(season)
 
@@ -65,7 +66,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
   useEffect(() => {
     if (!spinning) return
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key !== ' ' && e.key !== 'Enter') || e.repeat) return
+      if (!reelSkipKey(e)) return
       e.preventDefault()
       setSkip((n) => n + 1)
     }
