@@ -26,6 +26,7 @@
  * rings one man and keeps his name on (the Squad strip's selection).
  */
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react'
+import { useBallSounds, type BallSoundOptions } from '../sound/useBallSounds'
 import type { Appearance } from '@engine/match'
 import type { MatchEvent, PlayerSeason, Tactics } from '@engine/types'
 import { GOAL_FLIGHT_MS, skipHold, timeline, useLiveClock, type GoalHold } from '../match/clockStore'
@@ -74,6 +75,8 @@ export interface LivePitchProps {
   highlightId?: string | null
   /** Drawn over the pitch beside the goal celebration (the match day's half-time and full-time card); presentation only. */
   overlay?: ReactNode
+  /** The ball's sounds (kicks, saves, the woodwork, the crowd's swells and bed: sound/ball.ts), on the shared live clock; absent for none. */
+  sounds?: Omit<BallSoundOptions, 'path' | 'enabled'>
 }
 
 export function useMediaQuery(query: string): boolean {
@@ -359,7 +362,7 @@ function aimCamera(cam: Camera, want: Camera, dt: number, snap: boolean): void {
   cam.s = approach(cam.s, want.s, dt, want.s > cam.s ? 320 : 420)
 }
 
-export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers, keyMoments = false, highlightId = null, overlay }: LivePitchProps) {
+export function LivePitch({ home, away, events, momentum, from, to, seed, getPlayer, labels, track, keepers, keyMoments = false, highlightId = null, overlay, sounds }: LivePitchProps) {
   const portrait = useMediaQuery('(max-width: 720px)')
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   const clock = useLiveClock((s) => s.clock)
@@ -433,6 +436,7 @@ export function LivePitch({ home, away, events, momentum, from, to, seed, getPla
   const codes = useMemo(() => ({ home: home.shortName, away: away.shortName }), [home.shortName, away.shortName])
   // The overlays' inputs: each man's name tag, every shot's xG band, the moments the camera leans in on
   const names = useMemo(() => new Map([...placed].map(([key, p]) => [key, dotName(getPlayer(p.psId)?.name)])), [placed, getPlayer])
+  useBallSounds({ path, enabled: !!sounds && !reduced, bed: sounds?.bed ?? 0, ...(sounds?.goals ? { goals: sounds.goals } : {}) })
   const ranges = useMemo(() => (track && track.epochs.length ? track.epochs.map((e) => ({ from: e.from, to: e.to })) : [{ from, to }]), [track, from, to])
   const marks = useMemo(() => shotMarks(path, events, ranges), [path, events, ranges])
   // The big moments: the build-up marks them at every speed, the camera (Key moments) leans in on them

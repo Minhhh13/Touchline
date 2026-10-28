@@ -810,6 +810,25 @@ The second pass's cues (`cues.ts`, `voices.ts`): every level is at most 0.5 (`CU
 | An arena win | Sound only | A run won, on its summary, once per visit (`ArenaSummary`) | The Cup's fanfare (the palette's), 0.6 s in |
 | A badge | Sound only | The Trophy Room showing a badge or tier earned since this viewer last heard one (`useBadgeSound`, key `touchline-badges-heard`), one ring however many | A low strike, a bright C6 held over its fifth, a glint. 0.5 |
 
+
+### The ball and the stadium (round 8)
+
+The ball's own sounds on the live pitch (`ball.ts`, pure; `useBallSounds.ts`, the hook inside `LivePitch`), read from the same keyframes the pitch draws and played as the shared live clock passes them, on the Match switch. The match day and a quick season's highlights reel both carry them (`LivePitch`'s `sounds` prop); the reel, which has no goal holds, also plays a goal's net and roar as the ball arrives, toned for the user's side.
+
+| Cue | When | How |
+|---|---|---|
+| A touch, a pass, a long ball | As the ball leaves a keyframe (a set piece when it is taken, at `setPiece.until`): a dribble or a carry is a touch, a long ball, switch, cross, clearance or distribution is a long ball | A boot's low thump (a sine falling an octave from 140, 120 or 95 Hz) under the slap of leather (a 20 to 35 ms band of noise); a long ball adds the ball's short whoosh. 0.07 / 0.1 / 0.14 |
+| A strike | As the ball leaves the shooter's keyframe on a hop that ends in the net, on the keeper or wide | A firmer thump from 85 Hz, a brighter slap, a crack of high noise and the whoosh. 0.24 |
+| A header, a throw, a goal kick | Each as it is taken | A header duller (no slap above 700 Hz), a throw only the hands' slap, a goal kick a long ball's. 0.12 / 0.06 / 0.15 |
+| The keeper's gloves | A save arriving in his hands | A padded clap: a thump from 150 Hz and a low-passed slap. 0.22 (beside the save's own "ooh" at the strike) |
+| The woodwork | A shot arriving on the post or the bar (the hop that comes back off it, play `rebound`) | The thud and four inharmonic partials of a steel tube (523, 1347, 2389, 3712 Hz) ringing out over a second. 0.34 |
+| A swell | An attack first getting into the last fifth of the pitch (`DANGER_FROM` 78) | The crowd rising over half a second and falling back unanswered, louder the deeper the ball. 0.12 to 0.3, at most one each 2.5 s |
+| The crowd's bed | While the clock runs | A low murmur and a band of distant voices breathing slowly, 4.6 s each, laid end over end every 3.6 s (`BED_EVERY_MS`); a pause, a closed board or sound off stops it at once. 0.12 (0.6 of that in the reel) |
+
+Thinning (`dueBallCues`): an ordinary touch only `BALL_GAP_MS` (350 ms of real time) after the last one that sounded, so a busy spell never machine-guns; strikes, saves and the woodwork always sound; from 3x only the long balls and those; every kick quieter at speed (`speedScale`: 0.75 at 2x, 0.55 from 3x); nothing through a goal's hold (the net and the roar have it), a skip (more than a minute in one step) or a step back. Tested in `src/ui/__tests__/ballSounds.test.ts` against real match paths.
+
+The round also enriched the palette's own voices, keeping every level and the whistle's carrier (smokes still tell it by 2950 × 0.92 Hz): the whistle's ring band now rattles with the pea (a 46 Hz tremolo) and each blast opens on a short hiss of breath; the goal's roar turns to applause (a band of claps with a fast, deep tremolo) over a low stadium tail that rolls on and dies away last (left out of the Treble's, which stays under 6 s); the "ooh" settles into a low murmur.
+
 The reel's own sounds: a tick each time a card crosses the marker (40 ms of white noise band-passed at about 3.2 kHz, pitch varied by about 8 %, timed from the strip's position function and the measured card boundaries, both ways, capped at one per 15 ms and stopped on a skip; on the Upgrader's dial, one per mark), a whoosh as the season drum rolls (noise swept 320 Hz to 2.4 kHz) and a pop as it stops (a sine 540 to 190 Hz).
 
 ### The season's cues

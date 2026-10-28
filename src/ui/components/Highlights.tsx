@@ -146,6 +146,7 @@ function HighlightsReel({ game, u, matchweek, onClose }: HighlightsProps) {
           seed={`hl-${matchweek}-${hl.homeTeamId}-${hl.awayTeamId}`}
           getPlayer={get}
           keyMoments={keyMoments}
+          sounds={{ bed: 0.6, goals: { userSide: ourSide } }}
         />
         {m ? (
           <div className="hl-line" data-testid="highlights-line" data-kind={happened ? m.kind : 'build-up'} aria-live="polite">

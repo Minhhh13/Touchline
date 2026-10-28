@@ -28,4 +28,12 @@ export const CUE_REQUESTS: CueRequest[] = [
   { id: 'bracket-tie', user: false },
   { id: 'badge' },
   { id: 'badge', reduced: true },
+  ...(['touch', 'pass', 'long', 'strike', 'header', 'throw', 'goalkick', 'keeper', 'woodwork'] as const).flatMap((touch): CueRequest[] => [
+    { id: 'ball', touch, power: 1 },
+    { id: 'ball', touch, power: 0.3 },
+  ]),
+  { id: 'crowd-swell', danger: 0 },
+  { id: 'crowd-swell', danger: 1 },
+  { id: 'crowd-bed', level: 1 },
+  { id: 'crowd-bed', level: 0.6 },
 ]
