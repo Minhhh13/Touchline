@@ -91,10 +91,8 @@ export function BadgeUnlocks() {
             <button
               type="button"
               className="btn sm"
-              onClick={() => {
-                markSeen()
-                go('profile')
-              }}
+              // The Trophy Room marks the new tiles New, then files them as seen itself
+              onClick={() => go('profile')}
               data-testid="badge-unlock-room"
             >
               <Trophy size={14} aria-hidden="true" /> {t('openTrophyRoom')}
