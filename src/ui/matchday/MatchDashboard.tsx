@@ -268,7 +268,7 @@ export function MatchDashboard({ source, onWhistle, onAdvance, onSimToEnd, crumb
         {label}
       </b>
       <span className="muted">
-        {feed.home.name} v {feed.away.name} · {live ? 'live' : 'replay'}
+        {tx('matchTag', { home: feed.home.name, away: feed.away.name, mode: live ? 'live' : 'replay' })}
       </span>
       <BoxesMenu groups={[compact ? compactBoxes : boxes]} className="md-boxes" />
       {crumbEnd && <div className="md-crumb-end">{crumbEnd}</div>}

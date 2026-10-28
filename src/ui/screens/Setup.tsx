@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { runAfterPaint } from '../afterPaint'
 import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
 import { useStore, todaysDailySeed, slotOf } from '@game/store'
-import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
-import { LeagueRetry } from '../components/LeagueRetry'
+import { leagueGate } from '@game/logic/leagueLoad'
+import { gateText, LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
 import { defaultHostClub, setupRules, shortNameFor, startFormation, summariseSetup } from '@game/logic/setup'
 import { inLeague, leagueArticle, tidyLeagueArticles } from '@game/logic/leagueNames'
 import { getFormation } from '@engine/formations'
-import { EMPTY_WHEEL_LABEL, wheelHasRoom } from '@game/logic/wheelCheck'
+import { wheelHasRoom } from '@game/logic/wheelCheck'
 import { DIFFICULTY_RESPINS, QUICK_RULES, SEASON_RULES, modesOf, rulesTags, type DraftDifficulty, type DraftMode, type DraftRules, type QuickMode, type RatingsMode } from '@engine/draft'
 import { MODE_CARDS, toggleModeCard, type ModeCard } from '@engine/modes'
 import { POWER_UPS } from '@engine/powerups'
@@ -797,7 +797,7 @@ export function Setup() {
               </div>
               <LeagueRetry needs={needs} classic={!fixed && classic} />
               <button className="btn primary big block" onClick={start} disabled={!ready || loadingLeagues || emptyWheel} data-testid="setup-start">
-                {!ready ? gateLabel(gate === 'ready' ? 'loading' : gate, '') : emptyWheel ? EMPTY_WHEEL_LABEL : isManage ? t('startSquad') : challenge ? t('takeOn', { name: challenge.name }) : t('startDraft')}
+                {!ready ? gateText(gate) : emptyWheel ? t('emptyWheel') : isManage ? t('startSquad') : challenge ? t('takeOn', { name: challenge.name }) : t('startDraft')}
               </button>
             </section>
           </div>

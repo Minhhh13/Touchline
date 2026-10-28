@@ -200,7 +200,7 @@ export function EndCase({ u, game }: { u: LoadedUniverse; game: Game }) {
                     {CASE_ITEMS.filter((x) => x.rarity === r).map((x, i) => (
                       <span key={x.item} className="case-odds-item">
                         {i > 0 && ' · '}
-                        <CaseItemIcon item={x.item} size={13} /> {caseItemCard(x.item).label} {x.weight}%
+                        <CaseItemIcon item={x.item} size={13} /> {caseRowTitle({ item: x.item, title: caseItemCard(x.item).label })} {x.weight}%
                       </span>
                     ))}
                   </td>

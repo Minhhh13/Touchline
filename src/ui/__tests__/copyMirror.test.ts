@@ -202,3 +202,23 @@ describe('the Dugout’s match-play chips and squad views', () => {
     }
   })
 })
+
+describe('Home’s Daily Arena line, the league gate and the empty wheel', () => {
+  it('say what arenaDaily.ts, leagueLoad.ts and wheelCheck.ts say', async () => {
+    const { dailyArenaLine } = await import('@game/logic/arenaDaily')
+    const { gateLabel, LEAGUE_MISSING_LINE } = await import('@game/logic/leagueLoad')
+    const { EMPTY_WHEEL_LABEL } = await import('@game/logic/wheelCheck')
+    const { translator } = await import('../i18n')
+    const { home } = await import('../i18n/en/home')
+    const { setup } = await import('../i18n/en/setup')
+    const th = translator(home)
+    const ts = translator(setup)
+    const u = { available: [{ id: 'england', name: 'Premier League' }] } as never
+    expect(th('arenaDayGauntlet', { wheel: 'Premier League' })).toBe(dailyArenaLine(u, { format: 'gauntlet', leagueId: 'england' } as never))
+    expect(th('arenaDayCup', { size: 16, wheel: 'Premier League' })).toBe(dailyArenaLine(u, { format: 'cup', size: 16, leagueId: 'england' } as never))
+    expect(ts('loadingLeagues')).toBe(gateLabel('loading', ''))
+    expect(ts('leagueMissing')).toBe(gateLabel('missing', ''))
+    expect(ts('leagueMissingLine')).toBe(LEAGUE_MISSING_LINE)
+    expect(ts('emptyWheel')).toBe(EMPTY_WHEEL_LABEL)
+  })
+})

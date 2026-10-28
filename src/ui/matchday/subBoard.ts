@@ -14,6 +14,10 @@ import { computeTeamStrength, roleRating, type PlayerLookup, type StateLookup } 
 import { DEFAULT_ROLE, getRole, type Role } from '@engine/roles'
 import type { FormationSlot, Lineup, PlayerSeason, Position, Tactics } from '@engine/types'
 import type { LandingKind, Sub } from './controls'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 // ------------------------------------------------------------------ fit
 
@@ -26,7 +30,17 @@ export function fitGlow(p: Pick<PlayerSeason, 'positions'>, position: Position):
   return canCover(p, position, 'accomplished') ? 'cover' : 'out'
 }
 
-export const FIT_WORDS: Record<FitGlow, string> = { natural: 'natural position', cover: 'can cover', out: 'out of position' }
+export const FIT_WORDS: Record<FitGlow, string> = {
+  get natural() {
+    return t('fit_natural')
+  },
+  get cover() {
+    return t('fit_cover')
+  },
+  get out() {
+    return t('fit_out')
+  },
+}
 
 /** The role a slot plays in these tactics (the slot's own pick, else the position's default). */
 export function slotRole(tactics: Pick<Tactics, 'roles'>, slot: Pick<FormationSlot, 'id' | 'position'>): Role {

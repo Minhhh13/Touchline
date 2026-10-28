@@ -83,7 +83,7 @@ export function SquadStrip({ feed, minute, side, view, ratings, squad, selected,
             onFocus={(e) => e.currentTarget.matches(':focus-visible') && focusMan(psId)}
             onBlur={() => focusMan(null)}
             data-testid="md-card"
-            aria-pressed={selected === psId} aria-label={`${c.pos} ${name(psId) ?? c.name}${c.rating !== undefined ? tx('cardRating', { r: c.rating.toFixed(1) }) : ''}${c.subMinute !== null ? tx('cardOn', { m: c.subMinute }) : ''}`}>
+            aria-pressed={selected === psId} aria-label={`${tx('stripCard', { pos: c.pos, name: name(psId) ?? c.name })}${c.rating !== undefined ? tx('cardRating', { r: c.rating.toFixed(1) }) : ''}${c.subMinute !== null ? tx('cardOn', { m: c.subMinute }) : ''}`}>
             <span className="md-card-top">
               <span className="md-pos">{c.pos}</span>
               {(c.yellow || c.red) && <CardIcon red={c.red} />}

@@ -899,6 +899,12 @@ translations. English stays the source; nothing on screen changes in English.
   engine builds (tier names, news, verdicts, rule chips). Those files are pure and some are bundled into the edge
   verifier (`src/engine/*`, the verifier's `src/game/logic` files), so their words stay put until a release moves them
   into the UI (as `src/ui/i18n/modeText.ts` mirrors `modes.ts`, held equal in English by `i18n.test.ts`).
+- **Mirrors.** When a screen shows words the engine or bundled logic keeps (a tier, a formation's blurb, a power-up, a
+  rules chip, a Run-in job), it calls a mirror in `src/ui` that reads the same words through `t()`, keyed by the
+  engine's id (`i18n/engineText.ts`, `i18n/tierText.ts`, `i18n/weeklyThemeText.ts`, `slotRatingText.ts`,
+  `runInText.ts`). `src/ui/__tests__/copyMirror.test.ts` holds each mirror equal to its source in English, so a change
+  on either side fails until both agree; the one deliberate difference is a mode card's Hard with no re-spins, which
+  reads "No re-spins" on screen. News bodies, verdicts, the commentary and the logic's toasts still come in English.
 - **Room to grow.** A translation runs about 30 % longer than English (German more). Buttons and chips wrap or
   ellipsise rather than overflow; never size a box to its English text. The development pseudo-locale shows it: in a
   dev build pick "Pseudo (en-XA)" under Profile, Settings, Language (or set `localStorage['touchline-language'] =

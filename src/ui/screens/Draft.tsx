@@ -438,7 +438,7 @@ export function Draft() {
                   <button className="btn sm" disabled={!d.current || spinning || d.respinsLeft <= 0} onClick={() => respin()}>
                     {t('respin', { n: d.respinsLeft })}
                   </button>
-                  <button className="btn sm ghost" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
+                  <button className="btn sm ghost" data-testid="auto-complete" disabled={spinning} onClick={() => void askConfirm(t('autoConfirm'), { ok: t('autoComplete') }).then((ok) => { if (ok) autoDraftRest() })}>
                     {t('autoComplete')}
                   </button>
                 </div>

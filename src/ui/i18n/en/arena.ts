@@ -236,4 +236,5 @@ export const arena = catalog('arena', {
   fieldHint_decade: 'Club-seasons of one decade with a real team strength of 78 or more',
   fieldHint_europe: 'The top four of every league in its latest complete season. Loads all seven leagues',
   newRunTip: 'Set up a new arena run',
+  againTip: 'The same format on a new wheel',
 })

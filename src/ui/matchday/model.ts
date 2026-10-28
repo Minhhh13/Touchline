@@ -13,6 +13,10 @@ import type { LatestScore } from '@game/logic/matchday'
 import { minuteLabel } from '../format'
 import { slotPoint } from '../match/pitchGeometry'
 import { upright } from './VerticalPitch'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 /** The first minute the clock shows for the segment a paused match has decided: 0, 46 or 71. */
 export function segmentStart(clock: MatchClock | undefined): number {
@@ -39,14 +43,14 @@ export function stopTarget(feed: Pick<MatchFeed, 'decidedTo' | 'lastMinute'>): n
 }
 
 export function skipLabel(stopAt: number): string {
-  return stopAt === 45 ? 'Skip to half time' : stopAt === 70 ? 'Skip to 70 minutes' : 'Skip to full time'
+  return stopAt === 45 ? t('skipHalfTime') : stopAt === 70 ? t('skip70') : t('skipFullTime')
 }
 
 /** The scoreboard's clock: KICK-OFF, the minute, HALF TIME or 70 MINUTES at a stop, FULL TIME at the whistle; "(+n)" once the board is up. */
 export function clockText(clock: number, s: { atStop: boolean; stopAt: number; finished: boolean; final: boolean; addedTime: number }): string {
-  if (s.atStop) return s.stopAt === 45 ? 'HALF TIME' : `${s.stopAt} MINUTES`
-  if (s.finished && s.final) return 'FULL TIME'
-  if (clock <= 0) return 'KICK-OFF'
+  if (s.atStop) return s.stopAt === 45 ? t('clockHalfTime') : t('clockStop', { n: s.stopAt })
+  if (s.finished && s.final) return t('clockFullTime')
+  if (clock <= 0) return t('clockKickOff')
   const added = clock >= 90 && s.addedTime > 0 ? ` (+${s.addedTime})` : ''
   return `${minuteLabel(clock)}${added}`
 }
@@ -57,22 +61,22 @@ export interface FlankRow {
   value: string
 }
 
-const FLANK: Array<{ key: keyof TeamStatLine; label: string; fmt: (v: number) => string }> = [
-  { key: 'shots', label: 'Shots', fmt: (v) => String(v) },
-  { key: 'onTarget', label: 'On target', fmt: (v) => String(v) },
-  { key: 'xg', label: 'xG', fmt: (v) => v.toFixed(2) },
-  { key: 'distanceKm', label: 'Distance', fmt: (v) => `${v.toFixed(1)} km` },
-  { key: 'passPct', label: 'Pass %', fmt: (v) => `${Math.round(v)}%` },
-  { key: 'corners', label: 'Corners', fmt: (v) => String(v) },
-  { key: 'tackles', label: 'Tackles', fmt: (v) => String(v) },
-  { key: 'fouls', label: 'Fouls', fmt: (v) => String(v) },
-  { key: 'yellows', label: 'Yellow cards', fmt: (v) => String(v) },
-  { key: 'possession', label: 'Possession', fmt: (v) => `${Math.round(v)}%` },
+const FLANK: Array<{ key: keyof TeamStatLine; label: () => string; fmt: (v: number) => string }> = [
+  { key: 'shots', label: () => t('statShots'), fmt: (v) => String(v) },
+  { key: 'onTarget', label: () => t('statOnTarget'), fmt: (v) => String(v) },
+  { key: 'xg', label: () => t('statXg'), fmt: (v) => v.toFixed(2) },
+  { key: 'distanceKm', label: () => t('statDistance'), fmt: (v) => `${v.toFixed(1)} km` },
+  { key: 'passPct', label: () => t('statPassPct'), fmt: (v) => `${Math.round(v)}%` },
+  { key: 'corners', label: () => t('corners'), fmt: (v) => String(v) },
+  { key: 'tackles', label: () => t('statTackles'), fmt: (v) => String(v) },
+  { key: 'fouls', label: () => t('statFouls'), fmt: (v) => String(v) },
+  { key: 'yellows', label: () => t('statYellows'), fmt: (v) => String(v) },
+  { key: 'possession', label: () => t('possession'), fmt: (v) => `${Math.round(v)}%` },
 ]
 
 /** The ten rows of a stats flank, formatted. */
 export function flankRows(line: TeamStatLine): FlankRow[] {
-  return FLANK.map((f) => ({ key: f.key, label: f.label, value: f.fmt(line[f.key]) }))
+  return FLANK.map((f) => ({ key: f.key, label: f.label(), value: f.fmt(line[f.key]) }))
 }
 
 export interface StatRow {
@@ -83,22 +87,22 @@ export interface StatRow {
   share: number
 }
 
-const FULL: Array<{ label: string; get: (l: TeamStatLine) => number; fmt: (v: number) => string }> = [
-  { label: 'Possession', get: (l) => l.possession, fmt: (v) => `${Math.round(v)}%` },
-  { label: 'Territory', get: (l) => l.territory, fmt: (v) => `${Math.round(v)}%` },
-  { label: 'Shots', get: (l) => l.shots, fmt: String },
-  { label: 'Shots on target', get: (l) => l.onTarget, fmt: String },
-  { label: 'Expected goals', get: (l) => l.xg, fmt: (v) => v.toFixed(2) },
-  { label: 'Passes attempted', get: (l) => l.passes, fmt: String },
-  { label: 'Passes completed', get: (l) => l.passesCompleted, fmt: String },
-  { label: 'Pass completion', get: (l) => l.passPct, fmt: (v) => `${Math.round(v)}%` },
-  { label: 'Distance covered', get: (l) => l.distanceKm, fmt: (v) => `${v.toFixed(1)} km` },
-  { label: 'Tackles', get: (l) => l.tackles, fmt: String },
-  { label: 'Fouls', get: (l) => l.fouls, fmt: String },
-  { label: 'Corners', get: (l) => l.corners, fmt: String },
-  { label: 'Offsides', get: (l) => l.offsides, fmt: String },
-  { label: 'Yellow cards', get: (l) => l.yellows, fmt: String },
-  { label: 'Red cards', get: (l) => l.reds, fmt: String },
+const FULL: Array<{ label: () => string; get: (l: TeamStatLine) => number; fmt: (v: number) => string }> = [
+  { label: () => t('possession'), get: (l) => l.possession, fmt: (v) => `${Math.round(v)}%` },
+  { label: () => t('territory'), get: (l) => l.territory, fmt: (v) => `${Math.round(v)}%` },
+  { label: () => t('statShots'), get: (l) => l.shots, fmt: String },
+  { label: () => t('statShotsOnTarget'), get: (l) => l.onTarget, fmt: String },
+  { label: () => t('expectedGoals'), get: (l) => l.xg, fmt: (v) => v.toFixed(2) },
+  { label: () => t('statPassesAttempted'), get: (l) => l.passes, fmt: String },
+  { label: () => t('statPassesCompleted'), get: (l) => l.passesCompleted, fmt: String },
+  { label: () => t('statPassCompletion'), get: (l) => l.passPct, fmt: (v) => `${Math.round(v)}%` },
+  { label: () => t('statDistanceCovered'), get: (l) => l.distanceKm, fmt: (v) => `${v.toFixed(1)} km` },
+  { label: () => t('statTackles'), get: (l) => l.tackles, fmt: String },
+  { label: () => t('statFouls'), get: (l) => l.fouls, fmt: String },
+  { label: () => t('corners'), get: (l) => l.corners, fmt: String },
+  { label: () => t('statOffsides'), get: (l) => l.offsides, fmt: String },
+  { label: () => t('statYellows'), get: (l) => l.yellows, fmt: String },
+  { label: () => t('statReds'), get: (l) => l.reds, fmt: String },
 ]
 
 /** The full two-column table of the Match stats widget. */
@@ -106,7 +110,7 @@ export function statRows(home: TeamStatLine, away: TeamStatLine): StatRow[] {
   return FULL.map((f) => {
     const h = f.get(home)
     const a = f.get(away)
-    return { label: f.label, home: f.fmt(h), away: f.fmt(a), share: h + a > 0 ? h / (h + a) : 0.5 }
+    return { label: f.label(), home: f.fmt(h), away: f.fmt(a), share: h + a > 0 ? h / (h + a) : 0.5 }
   })
 }
 

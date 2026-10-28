@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '@game/store'
 import { currentScore, SHOUTS, type LiveChanges, type Shout, type TeamTalk } from '@engine/match'
 import type { PlayerSeason, SquadPlayer, Tactics } from '@engine/types'
-import { LINE_HELP, MENTALITY_HELP, PRESSING_HELP, TEMPO_HELP } from '@engine/tactics'
+import { lineHelp, mentalityHelp, pressingHelp, shoutHint, shoutLabel, tempoHelp } from './tacticText'
 import type { LiveMatch } from '@game/types'
 import { Segmented, Tip } from '../components/bits'
 import { DecisionSheet } from '../components/DecisionSheet'
@@ -160,7 +160,7 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
       testId={atBreak ? 'half-time-panel' : 'late-panel'}
       actions={
         <>
-          <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus title="Play on with the talk and changes chosen above">
+          <button className="btn primary" onClick={play} data-testid="play-on" data-autofocus title={tx('playOnTip')}>
             {tx(atBreak ? 'playOn70' : 'playToWhistle')}
           </button>
           <button
@@ -170,7 +170,7 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
               onPlay(atBreak ? { talk: 'none' } : {})
             }}
             data-testid="no-changes"
-            title={atBreak ? 'Play on as you are: no team talk, no changes' : 'Play on as you are: no changes'}
+            title={tx(atBreak ? 'noChangesTipBreak' : 'noChangesTip')}
           >
             {tx('noChanges')}
           </button>
@@ -205,26 +205,26 @@ export function StopPanel({ live, actions, draft, setDraft, board }: { live: Liv
             </div>
           ) : (
             <div className="field" data-testid="shout">
-              {tx('touchlineShout')} <span className="help">{SHOUTS[shout].hint}</span>
-              <Segmented<Shout> value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: SHOUTS[k].label, hint: SHOUTS[k].hint }))} />
+              {tx('touchlineShout')} <span className="help">{shoutHint(shout)}</span>
+              <Segmented<Shout> value={shout} onChange={setShout} options={(Object.keys(SHOUTS) as Shout[]).map((k) => ({ value: k, label: shoutLabel(k), hint: shoutHint(k) }))} />
             </div>
           )}
           <div className="field">
-            {tx('mentality')} <span className="help">{MENTALITY_HELP[t.mentality]}</span>
+            {tx('mentality')} <span className="help">{mentalityHelp(t.mentality)}</span>
             <Segmented value={t.mentality} onChange={(v) => setTactics({ ...t, mentality: v })} options={[{ value: 'defensive', label: tx('defensive') }, { value: 'balanced', label: tx('balanced') }, { value: 'attacking', label: tx('attacking') }]} />
           </div>
         </div>
         <div className="col">
           <div className="field">
-            {tx('pressing')} <span className="help">{PRESSING_HELP[t.pressing]}</span>
+            {tx('pressing')} <span className="help">{pressingHelp(t.pressing)}</span>
             <Segmented value={t.pressing} onChange={(v) => setTactics({ ...t, pressing: v })} options={[{ value: 'low', label: tx('low') }, { value: 'mid', label: tx('mid') }, { value: 'high', label: tx('high') }]} />
           </div>
           <div className="field">
-            {tx('defensiveLine')} <span className="help">{LINE_HELP[t.defensiveLine]}</span>
+            {tx('defensiveLine')} <span className="help">{lineHelp(t.defensiveLine)}</span>
             <Segmented value={t.defensiveLine} onChange={(v) => setTactics({ ...t, defensiveLine: v })} options={[{ value: 'deep', label: tx('deep') }, { value: 'standard', label: tx('standard') }, { value: 'high', label: tx('high') }]} />
           </div>
           <div className="field">
-            {tx('tempo')} <span className="help">{TEMPO_HELP[t.tempo]}</span>
+            {tx('tempo')} <span className="help">{tempoHelp(t.tempo)}</span>
             <Segmented value={t.tempo} onChange={(v) => setTactics({ ...t, tempo: v })} options={[{ value: 'slow', label: tx('slow') }, { value: 'standard', label: tx('standard') }, { value: 'fast', label: tx('fast') }]} />
           </div>
         </div>

@@ -5,6 +5,10 @@
  * Choices never go into the save.
  */
 import type { BoxSet } from '../boxes'
+import { translator } from '../i18n'
+import { match } from '../i18n/en/match'
+
+const t = translator(match)
 
 export const WIDGET_IDS = [
   'match-events',
@@ -33,25 +37,36 @@ export interface WidgetMeta {
   phoneOnly?: boolean
 }
 
+/** A widget's label, read through `t()` each time it is shown (a language switch remounts the screen). */
+const widget = (id: WidgetId, phoneOnly?: boolean): WidgetMeta => ({
+  id,
+  get label() {
+    return t(`widget_${id}`)
+  },
+  ...(phoneOnly ? { phoneOnly } : {}),
+})
+
 export const WIDGETS: WidgetMeta[] = [
-  { id: 'match-events', label: 'Match events' },
-  { id: 'commentary', label: 'Commentary' },
-  { id: 'heat-map', label: 'Heat map' },
-  { id: 'average-positions', label: 'Average positions' },
-  { id: 'pass-maps', label: 'Pass maps' },
-  { id: 'action-zones', label: 'Action zones' },
-  { id: 'shot-map', label: 'Shot map' },
-  { id: 'xg-story', label: 'xG graph story' },
-  { id: 'match-momentum', label: 'Match momentum' },
-  { id: 'match-stats', label: 'Match stats' },
-  { id: 'latest-scores', label: 'Latest scores' },
-  { id: 'live-table', label: 'Live table' },
-  { id: 'dugout', label: 'Dugout' },
-  { id: 'matchday-info', label: 'Matchday info' },
-  { id: 'formations', label: 'Line-ups', phoneOnly: true },
+  widget('match-events'),
+  widget('commentary'),
+  widget('heat-map'),
+  widget('average-positions'),
+  widget('pass-maps'),
+  widget('action-zones'),
+  widget('shot-map'),
+  widget('xg-story'),
+  widget('match-momentum'),
+  widget('match-stats'),
+  widget('latest-scores'),
+  widget('live-table'),
+  widget('dugout'),
+  widget('matchday-info'),
+  widget('formations', true),
 ]
 
-export const WIDGET_LABEL: Record<WidgetId, string> = Object.fromEntries(WIDGETS.map((w) => [w.id, w.label])) as Record<WidgetId, string>
+/** Each widget's label, read at the moment it is shown. */
+export const WIDGET_LABEL = {} as Record<WidgetId, string>
+for (const w of WIDGETS) Object.defineProperty(WIDGET_LABEL, w.id, { get: () => w.label, enumerable: true })
 
 /** The widgets a desktop slot can hold. */
 export const SLOT_WIDGETS: WidgetMeta[] = WIDGETS.filter((w) => !w.phoneOnly)

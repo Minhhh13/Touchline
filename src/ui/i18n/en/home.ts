@@ -84,4 +84,6 @@ export const home = catalog('home', {
   howToMeta: 'The wheel, matches, the board',
   footer: 'Free, no ads, no account needed.',
   privacy: 'Privacy and fair play',
+  arenaDayGauntlet: 'The Gauntlet on the {wheel} wheel',
+  arenaDayCup: 'The Cup of {size} on the {wheel} wheel',
 })

@@ -13,10 +13,10 @@ import { useEffect, useRef } from 'react'
 import { Clapperboard } from 'lucide-react'
 import type { Mentality } from '@engine/types'
 import { scoreAt } from '@engine/matchFeed'
-import { MENTALITY_HELP } from '@engine/tactics'
 import { textColourFor } from '../format'
 import { fractionalClock, useLiveClock } from '../match/clockStore'
-import { barClock, SHOUTS_CLOSED, type DrawerId } from './controls'
+import { barClock, shoutsClosed, type DrawerId } from './controls'
+import { mentalityHelp } from './tacticText'
 import { HIGHLIGHT_LEVELS, type HighlightLevel } from '../match/highlights'
 import { clockText, skipLabel } from './model'
 import type { TopBarProps } from './types'
@@ -78,7 +78,7 @@ function Tools({ hand }: { hand: ManagerHand }) {
   const tool = (t: { id: DrawerId; label: () => string }) => {
     // Tactics is read-only and opens on a replay too; the rest need a match to change
     const disabled = t.id !== 'tactics' && !can
-    const title = t.id === 'shouts' && !hand.shoutsOpen ? SHOUTS_CLOSED : undefined
+    const title = t.id === 'shouts' && !hand.shoutsOpen ? shoutsClosed() : undefined
     return (
       <button key={t.id} type="button" className={`md-tool ${hand.drawer === t.id ? 'active' : ''}`} onClick={() => hand.open(t.id)} disabled={disabled} aria-haspopup="dialog" aria-expanded={hand.drawer === t.id} title={title}>
         {t.label()}
@@ -92,7 +92,7 @@ function Tools({ hand }: { hand: ManagerHand }) {
     <div className="md-tools">
       <div className="md-tool-row">
         {TOOLS.map(tool)}
-        <label className="md-ment" title={MENTALITY_HELP[hand.tactics.mentality]}>
+        <label className="md-ment" title={mentalityHelp(hand.tactics.mentality)}>
           <span className="sr-only">{tx('mentality')}</span>
           <select className="md-select" value={hand.tactics.mentality} onChange={(e) => setMentality(e.target.value as Mentality)} disabled={!can}>
             <option value="defensive">{tx('defensive')}</option>
