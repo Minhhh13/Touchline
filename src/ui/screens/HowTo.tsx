@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Activity, ArrowLeftRight, Armchair, Award, Banknote, BookOpen, CalendarCheck, CalendarDays, ChartColumn, Crown, Dices, Dumbbell, Flag, Gauge, Globe, GraduationCap, Landmark, Layers, Lock, MessageSquare, Mountain, Package, RectangleVertical, Repeat, Shuffle, Sprout, Swords, Target, Trophy, TrendingUp, Users, Zap, type LucideIcon } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { TWIST_INFO } from '../components/TwistCard'
 import { TWIST_ICON } from '../components/icons'
 import { EstimatedChip, Rating } from '../components/bits'
@@ -90,7 +90,7 @@ const dynastyFacts = (): Array<[LucideIcon, string, string]> => [
 ]
 
 export function HowTo() {
-  const { go, universe: u } = useStore()
+  const { go, universe: u } = useStorePick('go', 'universe')
   // From the data index: the classic pack itself loads only when a game asks for it
   const classicFrom = u ? classicFromIndex(u.available, u.available.map((l) => l.id)) : undefined
   const leagues = u?.available.length ?? 7

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { runAfterPaint } from '../afterPaint'
 import { Armchair, Ban, Calendar, Crosshair, Eye, EyeOff, FerrisWheel, Gift, Globe, Link, Map as MapIcon, Mountain, Package, PoundSterling, Scale, Shuffle, Skull, Smile, Snowflake, UserRound, Users } from 'lucide-react'
-import { useStore, todaysDailySeed, slotOf } from '@game/store'
+import { todaysDailySeed, slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { gateLabel, leagueGate } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import type { GameSettings } from '@game/types'
@@ -97,7 +98,7 @@ function writeAdvanced(open: boolean): void {
 }
 
 export function Setup() {
-  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, classicFailed, loadingLeagues, loadedLeagues, failedLeagues, pendingChallenge, profile } = useStore()
+  const { universe: u, game, setupMode: mode, startGame, go, ensureLeagues, ensureClassic, classicLoaded, classicFailed, loadingLeagues, loadedLeagues, failedLeagues, pendingChallenge, profile } = useStorePick('universe', 'game', 'setupMode', 'startGame', 'go', 'ensureLeagues', 'ensureClassic', 'classicLoaded', 'classicFailed', 'loadingLeagues', 'loadedLeagues', 'failedLeagues', 'pendingChallenge', 'profile')
   const isDaily = mode === 'daily'
   const isManage = mode === 'season' || mode === 'dynasty'
   const modeBase: DraftRules = isManage ? SEASON_RULES : QUICK_RULES

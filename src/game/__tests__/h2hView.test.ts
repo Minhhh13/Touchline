@@ -5,7 +5,7 @@ import { getFormation } from '@engine/formations'
 import { autoDraft, isComplete } from '@engine/draft'
 import { h2hAutoPick, h2hComplete, h2hSpin, newH2HDraft } from '@engine/h2h'
 import { h2hRules } from '../logic/h2h'
-import { nextFirstPicker } from '../logic/h2hView'
+import { h2hTurnKey, nextFirstPicker } from '../logic/h2hView'
 
 const u = loadTestUniverse()
 
@@ -35,4 +35,31 @@ describe('head-to-head screen helpers', () => {
     h2hSpin(u, h, new Rng('h2h-view-spin'))
     expect(h.log.at(-1)).toContain('Manager 2 picks first')
   })
+
+  it('h2hTurnKey moves when the other manager picks on the same spin, so a selection never carries over (r8 audit)', () => {
+    let changedWithinSpin = 0
+    for (let i = 0; i < 10; i++) {
+      const rng = new Rng(`h2h-turn-${i}`)
+      const h = newH2HDraft([getFormation('4-3-3'), getFormation('4-4-2')], h2hRules(['england'], false))
+      expect(h2hTurnKey(h)).toBe(null)
+      const seen = new Set<string>()
+      while (!h2hComplete(h)) {
+        if (h.picking === null) {
+          h2hSpin(u, h, rng)
+          continue
+        }
+        const key = h2hTurnKey(h)!
+        // Every turn has its own key: never one already used by the other manager or an earlier spin
+        expect(seen.has(key)).toBe(false)
+        seen.add(key)
+        const spin = h.spins
+        h2hAutoPick(u, h)
+        if (h.spins === spin && h.picking !== null) {
+          changedWithinSpin++
+          expect(h2hTurnKey(h)).not.toBe(key)
+        }
+      }
+    }
+    expect(changedWithinSpin).toBeGreaterThan(0)
+  }, 60_000)
 })

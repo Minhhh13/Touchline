@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ChartBar } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { USER_TEAM } from '@engine/season'
 import { playerLookup } from '@game/logic/players'
 import { seasonRecords } from '@game/logic/seasonRecords'
@@ -31,7 +31,7 @@ type Stat = 'goals' | 'assists' | 'rating' | 'cleanSheets' | 'motm'
  */
 /** `boxes` is the Dugout's Boxes control for this tab. */
 export function StatsTab({ boxes }: { boxes?: Boxes }) {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   const [view, setView] = useState<'overview' | 'players' | 'team'>('overview')
   const [stat, setStat] = useState<Stat>('goals')
   const rows = useMemo(() => {

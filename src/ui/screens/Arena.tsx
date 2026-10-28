@@ -26,13 +26,16 @@ import { distinctLabels } from '../screenText'
 import { gauntletBandText, splitSeason } from '../arenaText'
 import { TacticsTab } from './Dugout'
 import { askConfirm } from '../confirm'
+import { useAfterPaint } from '../afterPaint'
+import { useStorePick } from '../useStorePick'
+import { slotTapMove } from '../slotTap'
 import { fixed } from '../format'
 import { translator } from '../i18n'
 import { arena } from '../i18n/en/arena'
 
 const t = translator(arena)
 
-type ArenaTab = 'team' | 'tactics' | 'draw'
+type ArenaTab = 'team' | 'tactics'
 
 const ORDER: Position[] = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']
 /** The match screen's ball path and samples built between playing a step and showing it (presentation only). */
@@ -48,10 +51,12 @@ const prepareStep = (next: Game): Promise<void> => {
  * tie" in the Cup, "Sim this rung" on the Gauntlet, "Sim the final".
  */
 export function Arena() {
-  const store = useStore()
+  const store = useStorePick('universe', 'game', 'assign', 'autoPick', 'changeTheDraw', 'playArenaStepSoon', 'playingWeek', 'setCaptain', 'setTeamTalk', 'setTraining', 'simArenaToEnd')
   const { universe: u, game } = store
   const [tab, setTab] = useState<ArenaTab>('team')
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  // Sim to the end plays every step left in one pass: the button says so in the frame it is tapped, then the steps play
+  const [simming, afterPaint] = useAfterPaint()
   // On a phone the action bar is fixed over the page, so the page's bottom padding follows the bar's measured height
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
@@ -91,10 +96,9 @@ export function Arena() {
   const onSlotClick = (slotId: string) => {
     if (selectedSlot === slotId) return setSelectedSlot(null)
     if (selectedSlot) {
-      const x = game.lineup[selectedSlot]
-      const y = game.lineup[slotId]
-      if (x) store.assign(x, slotId)
-      if (y && x) store.assign(y, selectedSlot)
+      // One assign: it swaps the displaced man into the first slot (an empty first slot takes the man tapped second)
+      const move = slotTapMove(game.lineup, selectedSlot, slotId)
+      if (move) store.assign(move.id, move.slot)
       return setSelectedSlot(null)
     }
     setSelectedSlot(slotId)
@@ -127,7 +131,7 @@ export function Arena() {
         </div>
         <div className="stat-strip arena-stats">
           <Stat label={t('teamRating')} value={fixed(strength.overall, 1)} sub={t('balance', { n: Math.round(strength.balance * 100) })} />
-          <Stat label={t('squad')} value={squad.length} sub={game.settings.difficulty} />
+          <Stat label={t('squad')} value={squad.length} sub={t(game.settings.difficulty === 'realistic' ? 'realistic' : 'calibrated')} />
         </div>
       </div>
 
@@ -311,8 +315,8 @@ export function Arena() {
                 {t(cup ? 'simTie' : gauntlet ? 'simRung' : 'simFinal')}
               </button>
               {(gauntlet || cup) && (
-                <button className="btn ghost" onClick={() => store.simArenaToEnd()} disabled={!opp || store.playingWeek} data-testid="arena-sim-end" title={t(cup ? 'simEndCupTip' : 'simEndTip')}>
-                  {t('simEnd')}
+                <button className="btn ghost" onClick={() => void askConfirm(t(cup ? 'simEndCupConfirm' : 'simEndConfirm'), { ok: t('simEnd') }).then((ok) => { if (ok) afterPaint(() => store.simArenaToEnd()) })} disabled={!opp || store.playingWeek || simming} aria-busy={simming || undefined} data-testid="arena-sim-end" title={t(cup ? 'simEndCupTip' : 'simEndTip')}>
+                  {t(simming ? 'simming' : 'simEnd')}
                 </button>
               )}
             </div>

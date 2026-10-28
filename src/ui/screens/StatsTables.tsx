@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { USER_TEAM } from '@engine/season'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { playerLookup } from '@game/logic/players'
 import { playerStatRows, sortPlayerStats, sortTeamStats, teamRank, teamStatRows, type PlayerStatKey, type TeamStatKey } from '@game/logic/statsTables'
 import { ClubBadge, Pos, Rating, Segmented } from '../components/bits'
@@ -30,7 +30,7 @@ function SortHead<K extends string>({ k, label, title, sort, reverse, onSort, nu
 }
 
 export function PlayerStatsTable() {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   const [sort, setSort] = useState<PlayerStatKey>('goals')
   const [reverse, setReverse] = useState(false)
   const [who, setWho] = useState<'all' | 'mine'>('all')
@@ -136,7 +136,7 @@ const RANKED: Array<{ key: TeamStatKey; label: string }> = [
 ]
 
 export function TeamStats() {
-  const { universe: u, game } = useStore()
+  const { universe: u, game } = useStorePick('universe', 'game')
   const [sort, setSort] = useState<TeamStatKey>('points')
   const [reverse, setReverse] = useState(false)
   const rows = useMemo(() => (game?.season ? teamStatRows(game.season) : []), [game])

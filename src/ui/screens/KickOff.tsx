@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Crown, Hourglass, Link2, Shuffle, TrendingDown } from 'lucide-react'
 import { QUICK_CONTINENTAL_PLACES } from '@game/logic/quickCups'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { playerLookup } from '@game/logic/players'
 import { getFormation } from '@engine/formations'
 import { ratingHidden } from '@game/logic/ratingVisibility'
@@ -36,7 +36,7 @@ const t = translator(season)
  * defaults" plays it with the default tactics instead.
  */
 export function KickOff() {
-  const { universe: u, game, setTactics, setCaptain, kickOffSoon, kickingOff: kicking, warmKickOff, pickManager } = useStore()
+  const { universe: u, game, setTactics, setCaptain, kickOffSoon, kickingOff: kicking, warmKickOff, pickManager } = useStorePick('universe', 'game', 'setTactics', 'setCaptain', 'kickOffSoon', 'kickingOff', 'warmKickOff', 'pickManager')
   const [showTactics, setShowTactics] = useState(false)
   const [showManagers, setShowManagers] = useState(false)
   // The season plays in a worker (the store's kickOffSoon), "Simulating" on the button meanwhile; its packs load now,

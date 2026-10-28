@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Award, Axe, CalendarDays, CalendarRange, ChevronsUp, Compass, Crown, Download, Flag as FlagIcon, Flame, Gem, Globe, Landmark, LifeBuoy, Lock, Medal, Shield, ShieldCheck, Target, Timer, Trophy, Trash2, Upload, type LucideIcon } from 'lucide-react'
-import { useStore, exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { exportSaveJson, readSaveFile, storeImportedSave, wipeSave } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { persistLine, usePersistState } from '../persistStorage'
 import { saveBlob } from '../saveFile'
 import { ACHIEVEMENTS } from '@engine/awards'
@@ -112,7 +113,7 @@ function exportSave(): void {
 }
 
 export function ProfileScreen() {
-  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStore()
+  const { profile, universe: u, go, setManagerName, setTheme, showToast, resetTips } = useStorePick('profile', 'universe', 'go', 'setManagerName', 'setTheme', 'showToast', 'resetTips')
   const [soundOn, setSoundOn] = useSoundOn()
   const [matchSound, setMatchSound] = useMatchSoundOn()
   const [draftSound, setDraftSound] = useDraftSoundOn()

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useStore, slotOf } from '@game/store'
+import { slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { RUN_IN_LEAGUES, runInCatalogue, suggestRunIns, type RunInJob, type RunInTemplate } from '@engine/scenario'
 import { FORMATIONS } from '@engine/formations'
@@ -20,7 +21,7 @@ const keyOf = (j: RunInJob) => `${j.clubId}@${j.season}`
 
 /** Setup for a run-in: the brief, the league, three jobs drawn by the seed and the whole catalogue. Its own screen, so Setup.tsx stays untouched. */
 export function RunInSetup() {
-  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, startRunInWeek, showToast } = useStore()
+  const { universe: u, startGame, go, ensureLeagues, loadingLeagues, loadedLeagues, game, parked, startRunInWeek, showToast } = useStorePick('universe', 'startGame', 'go', 'ensureLeagues', 'loadingLeagues', 'loadedLeagues', 'game', 'parked', 'startRunInWeek', 'showToast')
   const [template, setTemplate] = useState<RunInTemplate>('survival')
   const [leagueId, setLeagueId] = useState<string>('england')
   const [seed, setSeed] = useState(() => randomSeed())

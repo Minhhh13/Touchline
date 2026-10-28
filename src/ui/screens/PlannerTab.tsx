@@ -1,5 +1,6 @@
 import { ClipboardList, FileSignature, Stethoscope } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
+import { askConfirm } from '../confirm'
 import type { Boxes } from '../components/Boxes'
 import { surnameOf } from '@game/logic/talks'
 import { contractsOverview, squadPlanner } from '@game/logic/planner'
@@ -23,7 +24,7 @@ const BAND_CHIP = { low: '', medium: 'warn', high: 'bad' } as const
  */
 /** `boxes` is the Dugout's Boxes control for this tab: an unticked box is left out and the others widen. */
 export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void; boxes?: Boxes }) {
-  const { universe: u, game, letContractGo, showToast } = useStore()
+  const { universe: u, game, letContractGo, showToast } = useStorePick('universe', 'game', 'letContractGo', 'showToast')
   if (!u || !game) return null
   const rows = squadPlanner(game, u)
   const contracts = contractsOverview(game, u)
@@ -105,7 +106,7 @@ export function PlannerTab({ onPlayer, boxes }: { onPlayer: (id: string) => void
                     <button type="button" className="btn sm" data-testid="renewal-talk" onClick={() => onPlayer(c.id)}>
                       {t('offerTerms')}
                     </button>
-                    <button type="button" className="btn sm ghost" data-testid="renewal-release" onClick={() => showToast(letContractGo(c.id).message)}>
+                    <button type="button" className="btn sm ghost" data-testid="renewal-release" onClick={() => void askConfirm(t('letGoConfirm', { name: c.name }), { ok: t('letGo'), danger: true }).then((ok) => { if (ok) showToast(letContractGo(c.id).message) })}>
                       {t('letGo')}
                     </button>
                   </span>

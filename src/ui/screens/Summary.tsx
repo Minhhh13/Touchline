@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Briefcase, Check, ChevronDown, Copy, Crown, Dices, Globe, ImageDown, Landmark, Link, Medal, Minus, Plus, PoundSterling, RotateCcw, ScrollText, Send, ShieldCheck, ShieldQuestion, TrendingDown, TrendingUp, Trophy, type LucideIcon } from 'lucide-react'
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { SUMMARY } from '../boxSets'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { nextSeasonLeagues } from '@game/logic/leagueLoad'
 import { LeagueRetry } from '../components/LeagueRetry'
 import { firstResultNext, resultsFinished } from '@game/logic/onboarding'
@@ -72,6 +72,8 @@ import { chaseAt, emptyBests, perfectTarget, recordLabel, runsLine, versusPerfec
 import { estimatedNote } from '@game/logic/era'
 import { ResultArt, resultArtKind } from '../components/Art'
 import { Mic } from 'lucide-react'
+import { useFlash } from '../useFlash'
+import { copyText } from '../shareSheet'
 import { punditVerdict, verdictInputOf } from '@game/logic/pundit'
 import { askConfirm } from '../confirm'
 import { translator } from '../i18n'
@@ -80,8 +82,8 @@ import { summary } from '../i18n/en/summary'
 const t = translator(summary)
 
 export function Summary() {
-  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStore()
-  const [copied, setCopied] = useState(false)
+  const { universe: u, game, go, startGame, nextSeason, abandonGame, showToast, acceptJob, loadingLeagues, profile } = useStorePick('universe', 'game', 'go', 'startGame', 'nextSeason', 'abandonGame', 'showToast', 'acceptJob', 'loadingLeagues', 'profile')
+  const [copied, flashCopied] = useFlash()
   const [link, setLink] = useState<string | null>(null)
   const [cardUrl, setCardUrl] = useState<string | null>(null)
   // The game whose highlights are open, by matchweek
@@ -238,8 +240,7 @@ export function Summary() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      flashCopied()
     } catch {
       showToast(t('copyFailed'))
     }
@@ -473,7 +474,7 @@ export function Summary() {
           )}
           {!replay.playing && honour === 'double' && (
             <span className="chip gold icon-chip honour-chip" data-testid="banner-double" title={honourDetail(honourCups)}>
-              <Trophy size={12} aria-hidden="true" /> {t(honourLabel(honour, honourCups) === 'The Double' ? 'double' : 'leagueContinentalDouble')}
+              <Trophy size={12} aria-hidden="true" /> {honourCups.includes('cup') ? t('double') : t('leagueContinentalDouble')}
             </span>
           )}
           {!replay.playing && (season?.cupWon || quickCupWon) && <span data-testid="banner-cup">{iconChip(Trophy, t('cupWinners'), 'gold')}</span>}
@@ -518,12 +519,12 @@ export function Summary() {
             <ImageDown size={16} aria-hidden="true" /> {t('downloadCard')}
           </button>
           {!isManage && !isSharedPuzzle(game.settings.mode) && (
-            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title="The same setup on a new wheel" data-testid="draft-again">
+            <button className="btn" onClick={() => startGame(draftAgainSettings(game.settings, randomSeed()))} title={t('draftAgainTip')} data-testid="draft-again">
               <Dices size={16} aria-hidden="true" /> {t('draftAgain')}
             </button>
           )}
           {canChallenge && (
-            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend" title="A link to this wheel: your friend drafts the same spins and plays against your result">
+            <button className="btn" onClick={() => void makeChallenge()} data-testid="challenge-friend" title={t('challengeTip')}>
               <Send size={16} aria-hidden="true" /> {t('challengeFriend')}
             </button>
           )}
@@ -583,7 +584,7 @@ export function Summary() {
         <div className="panel" data-testid="january-summary">
           <div className="panel-head">
             <h3>{t('januaryBusiness')}</h3>
-            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+            <span className="small muted">{t('afterMatchweek', { week: game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2) })}</span>
           </div>
           <div className="small">
             {q.january.kind === 'sign' ? t('januarySigned', { inName: q.january.inName, fee: q.january.fee, outName: q.january.outName }) : t('januarySwapped', { inName: q.january.inName, outName: q.january.outName })}
@@ -595,7 +596,7 @@ export function Summary() {
         <div className="panel" data-testid="january-gamble-summary">
           <div className="panel-head">
             <h3>{t(q.januaryGamble.kind === 'spin' ? 'januarySpin' : 'januaryUpgrader')}</h3>
-            <span className="small muted">After matchweek {game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2)}</span>
+            <span className="small muted">{t('afterMatchweek', { week: game.quickJanuary?.afterMatchweek ?? Math.floor(results.length / 2) })}</span>
           </div>
           <div className="small">
             {q.januaryGamble.kind === 'spin'
@@ -629,8 +630,8 @@ export function Summary() {
       {season?.continental?.groups && !replay.playing && on('europe') && (
         <div className="panel" data-testid="season-europe">
           <div className="panel-head">
-            <h3>Continental Cup</h3>
-            <span className={`chip ${season.continental.won ? 'gold' : ''}`}>{season.continental.won ? 'Winners' : `Out in the ${{ G: 'group stage', R16: 'round of 16', QF: 'quarter-finals', SF: 'semi-finals', F: 'final', W: 'winners' }[continentalRun(season) ?? 'G']}`}</span>
+            <h3>{t('cupTitle_continental')}</h3>
+            <span className={`chip ${season.continental.won ? 'gold' : ''}`}>{season.continental.won ? t('winners') : t('outInThe', { round: euroRound(continentalRun(season) ?? 'G') })}</span>
           </div>
           <GroupTables groups={seasonGroupViews(season.continental.groups)} nameOf={(id) => (id === USER_TEAM ? game.settings.teamName : clubName(u, id))} badge={(id) => (id === USER_TEAM ? <TeamBadge code={game.settings.shortName} size={16} /> : <ClubBadge clubId={id} size={16} />)} userId={USER_TEAM} testId="season-europe-groups" />
           <div style={{ marginTop: 10 }}>
@@ -675,7 +676,7 @@ export function Summary() {
           <input className="input mono small" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: '100%' }} data-testid="challenge-link-url" />
           {shortCode && <div className="small muted" style={{ marginTop: 6 }}>{t('shortCodeLine', { code: shortCode })}</div>}
           {longLink && (
-            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void navigator.clipboard?.writeText(longLink).then(() => showToast(t('longLinkCopied')), () => setLink(longLink))}>
+            <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => void copyText(longLink).then((out) => (out === 'copied' ? showToast(t('longLinkCopied')) : setLink(longLink)))}>
               {t('copyLongLink')}
             </button>
           )}

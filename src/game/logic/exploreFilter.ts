@@ -1,6 +1,7 @@
 import type { PlayerSeason, Position } from '@engine/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { foldName } from './exploreSearch'
+import { classicFromFor } from './era'
 
 /**
  * Explore's filtered search (display only, pure, no RNG): any mix of a name, a nation, a league, a position, an age
@@ -203,4 +204,13 @@ export function formFilter(f: SearchForm): PlayerFilter {
   if (minRating !== undefined) out.minRating = minRating
   if (maxRating !== undefined) out.maxRating = maxRating
   return out
+}
+
+/**
+ * The Top view's season filter after a move to another league: kept when that league shows it, otherwise every season
+ * (a classic season picked in England is not on Spain's list, and the view would say "No players match").
+ */
+export function seasonFilterIn(u: LoadedUniverse, leagueId: string, season: 'all' | number): 'all' | number {
+  if (season === 'all') return 'all'
+  return season < (classicFromFor(u, [leagueId]) ?? u.firstSeason) || season > u.lastSeason ? 'all' : season
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { arenaShareText, arenaStepMark } from '@engine/awards'
 import { getFormation } from '@engine/formations'
 import { clubIdOfKey } from '@engine/knockout'
@@ -42,7 +42,7 @@ const ARENA_FANFARE_DELAY = 0.6
 
 /** The end of an arena run: the banner, every match, the man of the match and scorers, the XI, the share text and card. */
 export function ArenaSummary() {
-  const { universe: u, game, startGame, openArenaSetup, showToast, profile } = useStore()
+  const { universe: u, game, startGame, openArenaSetup, showToast, profile } = useStorePick('universe', 'game', 'startGame', 'openArenaSetup', 'showToast', 'profile')
   const [copied, setCopied] = useState(false)
   const [link, setLink] = useState<string | null>(null)
   // The "Copied!" label goes back after a moment; the timer is cleared if the summary closes first

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowRight, Award, BookOpen, CalendarDays, CalendarRange, ChevronsUp, ClipboardList, Clock, Crown, Dices, Flame, Globe, Search, Swords, Timer, Trophy, UserPlus, Zap, type LucideIcon } from 'lucide-react'
-import { useStore, todaysDailySeed, slotOf } from '@game/store'
+import { todaysDailySeed, slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { dailySettings } from '@game/logic/setup'
 import { resumeStatus } from '@game/logic/resume'
 import { dailyArenaGameSettings, dailyArenaLine, dailyArenaSettings } from '@game/logic/arenaDaily'
@@ -116,7 +117,7 @@ function FirstRun({ ready, onPlay, onHowTo }: { ready: boolean; onPlay: () => vo
 }
 
 export function Home() {
-  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStore()
+  const { universe: u, game, go: goNow, abandonGame, profile, parked, resumeGame, discardParked, loadedLeagues, startGame, openArenaSetup: openArenaNow } = useStorePick('universe', 'game', 'go', 'abandonGame', 'profile', 'parked', 'resumeGame', 'discardParked', 'loadedLeagues', 'startGame', 'openArenaSetup')
   // Leaving Home for another screen runs as a View Transition where the browser has one (motion.ts)
   const go = (...args: Parameters<typeof goNow>) => withViewTransition(() => goNow(...args))
   const pin = useOnline((s) => (s.pins.day === new Date().toISOString().slice(0, 10) ? s.pins.daily : null))

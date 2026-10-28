@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Dices, Ghost, Package, Trophy } from 'lucide-react'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { QUICK_RULES, SEASON_RULES, benchPlaces, forcedSlotOf, hasMode, benchRoom, canBench, canCloseBench, canSpin, canUse, chainAllows, chainBreakDue, eligibleSlots, fillingXI, isComplete, nationAllows, neededPositions, nextSpinTwisted, openSlots, picksMade, positionFirst, rulesTags, spinClubSeason, spinnableSlots, suggestSlot, targetSlot, twistDecade, upgraderOn, type DraftState } from '@engine/draft'
 import { isIcons } from '@engine/icons'
 import { canUpgrade, upgradeBaseRating, upgradeCandidates } from '@engine/upgrader'
@@ -57,18 +58,13 @@ import { prefersReducedMotion } from '../motion'
 
 const t = translator(draft)
 
-const GROUPS: Array<{ label: string; positions: Position[] }> = [
-  { label: 'Goalkeepers', positions: ['GK'] },
-  { label: 'Defenders', positions: ['CB', 'LB', 'RB'] },
-  { label: 'Midfielders', positions: ['DM', 'CM', 'AM'] },
-  { label: 'Forwards', positions: ['LW', 'RW', 'ST'] },
-]
+const GROUPS: Array<{ positions: Position[] }> = [{ positions: ['GK'] }, { positions: ['CB', 'LB', 'RB'] }, { positions: ['DM', 'CM', 'AM'] }, { positions: ['LW', 'RW', 'ST'] }]
 
 /** The bonus spins already heard in this visit (`game id:picks made`), so a revisit or a re-render rings nothing. */
 const bonusHeard = new Set<string>()
 
 export function Draft() {
-  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStore()
+  const { universe: u, game, spin, respin, chooseSlot, pickPlayer, autoDraftRest, speedrunPick, finishDraft, pickManager, go, showToast, upgradePlayer } = useStorePick('universe', 'game', 'spin', 'respin', 'chooseSlot', 'pickPlayer', 'autoDraftRest', 'speedrunPick', 'finishDraft', 'pickManager', 'go', 'showToast', 'upgradePlayer')
   // A manager's first draft ever (nothing finished yet): one plain line under the first spin
   const firstDraft = useStore((s) => resultsFinished(s.profile) === 0)
   // An arena run's first field pass is finished in slices with the busy state painted (useArenaWarmup.ts)
@@ -469,8 +465,8 @@ export function Draft() {
               </div>
               {puLog.length > 0 && (
                 <div className="col pu-log" data-testid="power-up-log" style={{ gap: 2 }}>
-                  {puLog.map((l, i) => (
-                    <div key={i} className="row small" style={{ gap: 8 }}>
+                  {puLog.map((l) => (
+                    <div key={`${l.at}:${l.kind}:${l.text}`} className="row small" style={{ gap: 8 }}>
                       <PowerUpIcon kind={l.kind} size={14} />
                       <span>{l.text}</span>
                     </div>
@@ -493,7 +489,7 @@ export function Draft() {
                   const at = d.history.length - 1 - i
                   const prevId = d.rules.chain ? d.history.slice(0, at).reverse().find((x) => x.pickedId)?.pickedId : undefined
                   return (
-                    <li key={i}>
+                    <li key={at}>
                       {isIcons(h) ? <span className="icons-badge" style={{ width: 22, height: 22 }} role="img" aria-label={t('iconsCollection')}>★</span> : <ClubBadge clubId={h.clubId} size={22} />}
                       <span className="who">
                         <span className={p ? 'name' : 'muted'}>{p ? p.name : t(h.skipped ? 'skipped' : 'respun')}</span>
@@ -622,8 +618,8 @@ export function Draft() {
                       // Led by the number his pitch disc will show there, with his overall and the cost (DESIGN_SYSTEM.md, ratings)
                       const r = slotRating(selected, c.position)
                       return (
-                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingLine(r, c.label, { attributes: true })} aria-label={hide ? `${c.label}, ${c.fit}` : `${slotRatingLine(r, c.label)}, ${c.fit}`}>
-                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {c.fit}
+                        <button key={c.slotId} type="button" className={`chip slot-chip ${c.fit === 'fits' ? 'good' : 'warn'}`} data-testid="slot-chip" onClick={() => onSlot(c.slotId)} title={hide ? undefined : slotRatingLine(r, c.label, { attributes: true })} aria-label={`${hide ? c.label : slotRatingLine(r, c.label)}, ${t('slotFit', { fit: c.fit === 'fits' ? 'fits' : 'cover' })}`}>
+                          <b>{c.label}</b> {hide ? '?' : r.inSlot} · {t('slotFit', { fit: c.fit === 'fits' ? 'fits' : 'cover' })}
                           {!hide && r.cost > 0 && (
                             <span className="slot-cost" data-testid="slot-cost">
                               {' '}{t('slotCost', { n: r.overall, cost: costLabel(r) })}

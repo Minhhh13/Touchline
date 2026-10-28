@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Bandage } from 'lucide-react'
-import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import type { Game } from '@game/types'
 import type { LoadedUniverse } from '@engine/universe'
 import { getFormation } from '@engine/formations'
@@ -49,7 +49,7 @@ const t = translator(season)
 const SLIDE_MS = 400
 
 export function SeasonPlayback() {
-  const { universe: u, game, playback, endPlayback } = useStore()
+  const { universe: u, game, playback, endPlayback } = useStorePick('universe', 'game', 'playback', 'endPlayback')
   const j = game?.phase === 'january' ? game.quickJanuary ?? null : null
   const results = game ? playbackResults(game) : []
   // A reload during the first half lands on the window; after the season the playback carries on where the window left it
@@ -227,7 +227,7 @@ export function SeasonPlayback() {
  * replaces makes the change from the next game on. The store decides whether a change is allowed.
  */
 function BenchPanel({ game, u, results, revealed, onChoose }: { game: Game; u: LoadedUniverse; results: QuickGameResult[]; revealed: number; onChoose: () => void }) {
-  const { benchChange } = useStore()
+  const { benchChange } = useStorePick('benchChange')
   const [inId, setInId] = useState<string | null>(null)
   const get = playerLookup(game, u)
   const hide = ratingHidden(game.settings.rules, 'squad')

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { slotOf, useStore } from '@game/store'
+import { slotOf } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { LeagueRetry, LeagueWait } from '../components/LeagueRetry'
 import { isArenaPayload } from '@engine/challenge'
 import { cupRoundName } from '@engine/cup'
@@ -21,7 +22,7 @@ import { askConfirm } from '../confirm'
  * banner states the challenger's run and how far it verified.
  */
 export function ArenaChallengeSetup() {
-  const { universe: u, pendingChallenge, startGame, go, game, parked, loadingLeagues } = useStore()
+  const { universe: u, pendingChallenge, startGame, go, game, parked, loadingLeagues } = useStorePick('universe', 'pendingChallenge', 'startGame', 'go', 'game', 'parked', 'loadingLeagues')
   const [teamName, setTeamName] = useState('Touchline XI')
   if (!u || !pendingChallenge || !isArenaPayload(pendingChallenge.payload)) return null
   const c = pendingChallenge.payload

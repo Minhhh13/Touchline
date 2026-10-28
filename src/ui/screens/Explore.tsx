@@ -3,6 +3,7 @@ import { Columns3, Landmark, ListOrdered, Search, Shield, Star as StarIcon, Trop
 import { BoxesMenu, useBoxes } from '../components/Boxes'
 import { EXPLORE } from '../boxSets'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { ClubBadge, EstimatedChip, Info, Rating, Pos, Segmented } from '../components/bits'
 import { LeagueFlag } from '../components/Flag'
 import { PlayerCardModal } from '../components/PlayerCard'
@@ -14,10 +15,10 @@ import type { Position } from '@engine/types'
 import { classicFromFor, isEstimated } from '@game/logic/era'
 import { careerSeasons } from '@game/logic/playerCard'
 import { topPlayerSeasons } from '@game/logic/exploreSearch'
-import { BLANK_SEARCH, type SearchForm } from '@game/logic/exploreFilter'
+import { BLANK_SEARCH, seasonFilterIn, type SearchForm } from '@game/logic/exploreFilter'
 import { COMPARE_MAX, toggleCompare, wheelChanceOf } from '@game/logic/exploreDb'
 import { pressable } from '../a11y'
-import { ClubView, CompareButton, CompareView, LeagueView, SearchView, WheelLine } from './ExploreViews'
+import { ClubView, CompareButton, CompareView, LeagueView, SearchView, ShortlistStar, WheelLine } from './ExploreViews'
 
 type ExploreView = 'browse' | 'clubs' | 'league' | 'legends' | 'search' | 'compare'
 
@@ -58,25 +59,6 @@ function PosFilter({ value, onChange }: { value: 'all' | Position; onChange: (p:
   )
 }
 
-function Star({ on, onClick }: { on: boolean; onClick?: () => void }) {
-  return (
-    <span
-      className={on ? 'star on' : 'star'}
-      title={t(on ? 'onShortlist' : 'addShortlist')}
-      role={onClick ? 'button' : undefined}
-      aria-label={onClick ? t(on ? 'removeShortlist' : 'addShortlist') : undefined}
-      aria-pressed={onClick ? on : undefined}
-      onClick={(e) => {
-        if (!onClick) return
-        e.stopPropagation()
-        onClick()
-      }}
-    >
-      <StarIcon size={18} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
-    </span>
-  )
-}
-
 /** Every season of one real player across all loaded leagues, on the shared player card at his peak season. */
 function CareerModal({ playerId, onClose, compare, onCompare }: { playerId: string | null; onClose: () => void; compare: string[]; onCompare: (playerId: string) => void }) {
   const u = useStore((s) => s.universe)
@@ -99,7 +81,7 @@ function CareerModal({ playerId, onClose, compare, onCompare }: { playerId: stri
 }
 
 export function Explore() {
-  const { universe: u, go, ensureLeagues, ensureClassic, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStore()
+  const { universe: u, go, ensureLeagues, ensureClassic, loadingLeagues, loadedLeagues, shortlist, toggleShortlist } = useStorePick('universe', 'go', 'ensureLeagues', 'ensureClassic', 'loadingLeagues', 'loadedLeagues', 'shortlist', 'toggleShortlist')
   // The database shows the classic seasons too: their pack loads on the first visit here, not at the game's start
   useEffect(() => {
     void ensureClassic(true)
@@ -127,7 +109,8 @@ export function Explore() {
     squadRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [clubId])
   // Every hook runs before the early return below
-  const legends = useMemo(() => (u ? topPlayerSeasons(u, { leagueId, position: posFilter === 'all' ? undefined : posFilter, onePerPlayer, season: legendSeason === 'all' ? undefined : legendSeason }) : []), [u, posFilter, leagueId, onePerPlayer, legendSeason])
+  // Worked out only on the Top view: it sorts every player-season loaded, and the universe changes as packs load
+  const legends = useMemo(() => (u && view === 'legends' ? topPlayerSeasons(u, { leagueId, position: posFilter === 'all' ? undefined : posFilter, onePerPlayer, season: legendSeason === 'all' ? undefined : legendSeason }) : []), [u, view, posFilter, leagueId, onePerPlayer, legendSeason])
   const boxes = useBoxes(EXPLORE)
   if (!u) return null
   // Classic seasons (estimated ratings) come first for a league that has them
@@ -143,12 +126,15 @@ export function Explore() {
   const seasonEstimated = clubsInSeason.some((cs) => cs.estimated)
   const browseGrid = boxes.grid([{ track: '1fr', ids: ['table'] }, { track: '1fr', ids: ['squad'] }])
   const leagueName = u.available.find((l) => l.id === leagueId)?.name ?? leagueId
+  // Another league: a Top-view season it does not have (a classic one) falls back to every season, as the browse table does
+  const switchLeague = (id: string) => {
+    setLeagueId(id)
+    setLegendSeason(seasonFilterIn(u, id, legendSeason))
+    void ensureLeagues([id])
+  }
   const openClub = (id: string) => {
     const club = u.clubById[id]
-    if (club && club.leagueId !== leagueId) {
-      setLeagueId(club.leagueId)
-      void ensureLeagues([club.leagueId])
-    }
+    if (club && club.leagueId !== leagueId) switchLeague(club.leagueId)
     setClubPage(id)
     setView('clubs')
   }
@@ -182,7 +168,7 @@ export function Explore() {
       <div className={`explore-bar ${view === 'search' || view === 'compare' ? 'all-leagues' : ''}`}>
         <div className="segmented" role="group" aria-label={t('league')}>
           {u.available.map((l) => (
-            <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { setLeagueId(l.id); setClubId(''); setClubPage(''); void ensureLeagues([l.id]) }} disabled={loadingLeagues}>
+            <button key={l.id} className={leagueId === l.id ? 'active' : ''} onClick={() => { switchLeague(l.id); setClubId(''); setClubPage('') }} disabled={loadingLeagues}>
               <LeagueFlag leagueId={l.id} /> {l.name}
             </button>
           ))}
@@ -313,7 +299,7 @@ export function Explore() {
                 </div>
                 <div className="plist lined explore-list">
                   {selected.squad.map((p) => (
-                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} right={<span className="row" style={{ gap: 2 }}><CompareButton on={compare.includes(p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => flipCompare(p.playerId)} /><Star on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} /></span>} />
+                    <PlayerRow key={p.id} p={p} hideChampion={selected.champions} onClick={() => setCareerId(p.playerId)} right={<span className="row" style={{ gap: 2 }}><CompareButton on={compare.includes(p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => flipCompare(p.playerId)} /><ShortlistStar on={shortlist.includes(p.id)} onClick={() => toggleShortlist(p.id)} /></span>} />
                   ))}
                 </div>
               </>
@@ -378,7 +364,7 @@ export function Explore() {
                 {isEstimated(u, p.id) && <> <EstimatedChip compact /></>}
               </span>
               <button type="button" className="lg-star btn sm ghost" onClick={() => toggleShortlist(p.id)} title={t(shortlist.includes(p.id) ? 'onShortlist' : 'shortlist')} aria-label={t(shortlist.includes(p.id) ? 'removeShortlist' : 'shortlist')} aria-pressed={shortlist.includes(p.id)}>
-                <Star on={shortlist.includes(p.id)} />
+                <ShortlistStar on={shortlist.includes(p.id)} />
               </button>
             </div>
           ))}

@@ -460,6 +460,7 @@ export const dugout = catalog('dugout', {
   renewalHead: 'Out of contract · decide before the opener',
   offerTerms: 'Offer terms',
   letGo: 'Let go',
+  letGoConfirm: 'Let {name} go on a free? He leaves the club now.',
   talks: 'Talks',
   talksTip: 'Out of contract: in talks until the opener',
   outOfContract: 'Out of contract',

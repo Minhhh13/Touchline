@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BookOpen, Columns3, Crown, Medal, Plus, Search, Shield, Star as StarIcon, Trophy, X } from 'lucide-react'
 import type { Position } from '@engine/types'
 import { useStore } from '@game/store'
+import { useStorePick } from '../useStorePick'
 import { isEstimated } from '@game/logic/era'
 import { careerSeasons, positionMap, seasonSeries } from '@game/logic/playerCard'
 import { searchPlayers, topPlayerSeasons } from '@game/logic/exploreSearch'
@@ -38,22 +39,53 @@ export function WheelLine({ chance, leagueName }: { chance: WheelChance | null; 
 }
 
 /** A compare toggle for a player row or the card. */
-export function CompareButton({ on, onClick, full }: { on: boolean; onClick: () => void; full?: boolean }) {
+/**
+ * A toggle inside a player row. The row is itself a button, and a button may not hold another, so this is a focusable
+ * `role="button"` that takes Enter and Space and keeps its press from reaching the row.
+ */
+function RowToggle({ on, onClick, className, title, label, testId, children }: { on: boolean; onClick: () => void; className: string; title: string; label: string; testId?: string; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      className={`btn sm ghost compare-btn ${on ? 'on' : ''}`}
+    <span
+      className={className}
+      title={title}
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      aria-pressed={on}
+      data-testid={testId}
       onClick={(e) => {
         e.stopPropagation()
         onClick()
       }}
-      aria-pressed={on}
-      title={on ? tx('removeCompare') : full ? tx('compareFull', { n: COMPARE_MAX }) : tx('addCompare')}
-      aria-label={tx(on ? 'removeCompare' : 'addCompare')}
-      data-testid="compare-toggle"
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
     >
+      {children}
+    </span>
+  )
+}
+
+/** Add a player to Compare or take him off, from inside a player row. */
+export function CompareButton({ on, onClick, full }: { on: boolean; onClick: () => void; full?: boolean }) {
+  return (
+    <RowToggle on={on} onClick={onClick} className={`btn sm ghost compare-btn ${on ? 'on' : ''}`} title={on ? tx('removeCompare') : full ? tx('compareFull', { n: COMPARE_MAX }) : tx('addCompare')} label={tx(on ? 'removeCompare' : 'addCompare')} testId="compare-toggle">
       <Columns3 size={15} aria-hidden="true" />
-    </button>
+    </RowToggle>
+  )
+}
+
+/** The shortlist star: a toggle inside a player row, or with no `onClick` only the mark (inside a button of its own). */
+export function ShortlistStar({ on, onClick }: { on: boolean; onClick?: () => void }) {
+  const icon = <StarIcon size={18} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
+  if (!onClick) return <span className={on ? 'star on' : 'star'}>{icon}</span>
+  return (
+    <RowToggle on={on} onClick={onClick} className={on ? 'star on' : 'star'} title={tx(on ? 'onShortlist' : 'addShortlist')} label={tx(on ? 'removeShortlist' : 'addShortlist')}>
+      {icon}
+    </RowToggle>
   )
 }
 
@@ -365,7 +397,7 @@ const SORTS: Array<{ value: FilterSort; label: string }> = [
 ]
 
 export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: { form: SearchForm; setForm: (f: SearchForm) => void; onPlayer: (playerId: string) => void; compare: string[]; toggleCompare: (playerId: string) => void }) {
-  const { universe: u, loadingLeagues, shortlist, toggleShortlist, ensureLeagues } = useStore()
+  const { universe: u, loadingLeagues, shortlist, toggleShortlist, ensureLeagues } = useStorePick('universe', 'loadingLeagues', 'shortlist', 'toggleShortlist', 'ensureLeagues')
   const filter = useMemo(() => formFilter(form), [form])
   const active = filterActive(filter)
   // The search covers every league: the ones not loaded yet load on the first search
@@ -495,7 +527,7 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
               right={
                 <span className="row" style={{ gap: 2 }}>
                   <CompareButton on={compare.includes(h.p.playerId)} full={compare.length >= COMPARE_MAX} onClick={() => toggleCompare(h.p.playerId)} />
-                  <SearchStar on={shortlist.includes(h.p.id)} onClick={() => toggleShortlist(h.p.id)} />
+                  <ShortlistStar on={shortlist.includes(h.p.id)} onClick={() => toggleShortlist(h.p.id)} />
                 </span>
               }
             />
@@ -508,35 +540,10 @@ export function SearchView({ form, setForm, onPlayer, compare, toggleCompare }: 
   )
 }
 
-function SearchStar({ on, onClick }: { on: boolean; onClick: () => void }) {
-  return (
-    <span
-      className={on ? 'star on' : 'star'}
-      title={on ? 'On your shortlist' : 'Add to shortlist'}
-      role="button"
-      tabIndex={0}
-      aria-label={on ? 'Remove from shortlist' : 'Add to shortlist'}
-      aria-pressed={on}
-      onClick={(e) => {
-        e.stopPropagation()
-        onClick()
-      }}
-      onKeyDown={(e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return
-        e.preventDefault()
-        e.stopPropagation()
-        onClick()
-      }}
-    >
-      <StarIcon size={18} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
-    </span>
-  )
-}
-
 // ---------------------------------------------------------------- Compare
 
 export function CompareView({ ids, setIds, onPlayer }: { ids: string[]; setIds: (ids: string[]) => void; onPlayer: (playerId: string) => void }) {
-  const { universe: u, ensureLeagues } = useStore()
+  const { universe: u, ensureLeagues } = useStorePick('universe', 'ensureLeagues')
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<Record<string, string>>({})
   // A compared player's whole career: the leagues not loaded yet load behind the view
